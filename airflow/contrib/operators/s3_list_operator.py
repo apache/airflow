@@ -87,8 +87,9 @@ class S3ListOperator(BaseOperator):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
-            'Getting the list of files from bucket: {0} in prefix: {1} (Delimiter {2})'.
-            format(self.bucket, self.prefix, self.delimiter))
+            'Getting the list of files from bucket: %s in prefix: %s (Delimiter {%s)',
+            self.bucket, self.prefix, self.delimiter
+        )
 
         return hook.list_keys(
             bucket_name=self.bucket,

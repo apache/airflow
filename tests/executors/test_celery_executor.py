@@ -155,12 +155,11 @@ class CeleryExecutorTest(unittest.TestCase):
 
         mock_log.error.assert_called_once()
         args, kwargs = mock_log.error.call_args_list[0]
-        log = args[0]
         # Result of queuing is not a celery task but a dict,
         # and it should raise AttributeError and then get propagated
         # to the error log.
-        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, log)
-        self.assertIn('AttributeError', log)
+        self.assertIn(celery_executor.CELERY_FETCH_ERR_MSG_HEADER, args[0])
+        self.assertIn('AttributeError', args[1])
 
 
 if __name__ == '__main__':

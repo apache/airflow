@@ -86,7 +86,7 @@ def trigger_dag(dag_id):
         return response
 
     if getattr(g, 'user', None):
-        _log.info("User {} created {}".format(g.user, dr))
+        _log.info("User %s created %s", g.user, dr)
 
     response = jsonify(message="Created {}".format(dr))
     return response

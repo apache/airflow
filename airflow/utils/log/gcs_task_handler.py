@@ -49,8 +49,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
-                '"{}". {}\n\nPlease make sure that airflow[gcp] is installed '
-                'and the GCS connection exists.'.format(remote_conn_id, str(e))
+                '"%s". %s\n\nPlease make sure that airflow[gcp] is installed '
+                'and the GCS connection exists.', remote_conn_id, str(e)
             )
 
     @property

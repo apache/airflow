@@ -103,7 +103,7 @@ class HdfsSensor(BaseSensorOperator):
 
     def poke(self, context):
         sb = self.hook(self.hdfs_conn_id).get_conn()
-        self.log.info('Poking for file {self.filepath}'.format(**locals()))
+        self.log.info('Poking for file %s', self.filepath)
         try:
             # IMOO it's not right here, as there no raise of any kind.
             # if the filepath is let's say '/data/mydirectory',

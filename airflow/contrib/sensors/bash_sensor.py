@@ -70,10 +70,7 @@ class BashSensor(BaseSensorOperator):
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
-                self.log.info(
-                    "Temporary script location: %s",
-                    script_location
-                )
+                self.log.info("Temporary script location: %s", script_location)
                 self.log.info("Running command: %s", bash_command)
                 sp = Popen(
                     ['bash', fname],
@@ -89,7 +86,6 @@ class BashSensor(BaseSensorOperator):
                     line = line.decode(self.output_encoding).strip()
                     self.log.info(line)
                 sp.wait()
-                self.log.info("Command exited with "
-                              "return code {0}".format(sp.returncode))
+                self.log.info("Command exited with return code %s", sp.returncode)
 
                 return not sp.returncode

@@ -69,7 +69,7 @@ class GKEClusterHookDeleteTest(unittest.TestCase):
         self.gke_hook.delete_cluster('not-existing')
         wait_mock.assert_not_called()
         convert_mock.assert_not_called()
-        log_mock.info.assert_any_call("Assuming Success: " + message)
+        log_mock.info.assert_any_call("Assuming Success: %s", message)
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
     @mock.patch(
@@ -162,7 +162,7 @@ class GKEClusterHookCreateTest(unittest.TestCase):
         self.gke_hook.create_cluster({})
         wait_mock.assert_not_called()
         self.assertEqual(convert_mock.call_count, 1)
-        log_mock.info.assert_any_call("Assuming Success: " + message)
+        log_mock.info.assert_any_call("Assuming Success: %s", message)
 
 
 class GKEClusterHookGetTest(unittest.TestCase):

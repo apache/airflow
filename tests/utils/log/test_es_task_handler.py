@@ -195,10 +195,9 @@ class TestElasticsearchTaskHandler(unittest.TestCase):
             with mock.patch("elasticsearch_dsl.Search.execute") as mock_execute:
                 mock_execute.side_effect = Exception('Failed to read')
                 logs, metadatas = self.es_task_handler.read(self.ti, 1)
-            msg = "Could not read log with log_id: {}".format(self.LOG_ID)
             mock_exception.assert_called_once()
             args, kwargs = mock_exception.call_args
-            self.assertIn(msg, args[0])
+            self.assertIn("Could not read log with log_id:", args[0])
 
         self.assertEqual(1, len(logs))
         self.assertEqual(len(logs), len(metadatas))

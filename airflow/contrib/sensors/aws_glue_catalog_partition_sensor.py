@@ -74,8 +74,8 @@ class AwsGlueCatalogPartitionSensor(BaseSensorOperator):
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')
         self.log.info(
-            'Poking for table {self.database_name}.{self.table_name}, '
-            'expression {self.expression}'.format(**locals()))
+            'Poking for table %s. %s, expression %s', self.database_name, self.table_name, self.expression
+        )
 
         return self.get_hook().check_for_partition(
             self.database_name, self.table_name, self.expression)

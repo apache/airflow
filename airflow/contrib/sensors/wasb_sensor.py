@@ -90,10 +90,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context):
-        self.log.info(
-            'Poking for prefix: {self.prefix}\n'
-            'in wasb://{self.container_name}'.format(**locals())
-        )
+        self.log.info('Poking for prefix: %s in wasb://%s', self.prefix, self.container_name)
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         return hook.check_for_prefix(self.container_name, self.prefix,
                                      **self.check_options)

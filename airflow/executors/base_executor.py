@@ -58,7 +58,7 @@ class BaseExecutor(LoggingMixin):
             self.log.info("Adding to queue: %s", command)
             self.queued_tasks[key] = (command, priority, queue, simple_task_instance)
         else:
-            self.log.info("could not queue task {}".format(key))
+            self.log.info("could not queue task %s", key)
 
     def queue_task_instance(
             self,
@@ -139,7 +139,7 @@ class BaseExecutor(LoggingMixin):
         self.sync()
 
     def change_state(self, key, state):
-        self.log.debug("Changing state: {}".format(key))
+        self.log.debug("Changing state: %s", key)
         self.running.pop(key, None)
         self.event_buffer[key] = state
 

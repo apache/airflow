@@ -263,14 +263,14 @@ class GcpBodyFieldValidator(LoggingMixin):
         for field_name in value.keys():
             if field_name not in all_dict_keys:
                 self.log.warning(
-                    "The field '{}' is in the body, but is not specified in the "
-                    "validation specification '{}'. "
+                    "The field '%s' is in the body, but is not specified in the "
+                    "validation specification '%s'. "
                     "This might be because you are using newer API version and "
                     "new field names defined for that version. Then the warning "
                     "can be safely ignored, or you might want to upgrade the operator"
-                    "to the version that supports the new API version.".format(
-                        self._get_field_name_with_parent(field_name, full_field_path),
-                        children_validation_specs))
+                    "to the version that supports the new API version.",
+                    self._get_field_name_with_parent(field_name, full_field_path),
+                    children_validation_specs)
 
     def _validate_union(self, children_validation_specs, full_field_path,
                         dictionary_to_validate):
@@ -296,15 +296,14 @@ class GcpBodyFieldValidator(LoggingMixin):
                 found_field_name = field_name
         if not field_found:
             self.log.warning(
-                "There is no '{}' union defined in the body {}. "
-                "Validation expected one of '{}' but could not find any. It's possible "
+                "There is no '%s' union defined in the body %s. "
+                "Validation expected one of '%s' but could not find any. It's possible "
                 "that you are using newer API version and there is another union variant "
                 "defined for that version. Then the warning can be safely ignored, "
                 "or you might want to upgrade the operator to the version that "
-                "supports the new API version.".format(
-                    full_field_path,
-                    dictionary_to_validate,
-                    [field['name'] for field in children_validation_specs]))
+                "supports the new API version.",
+                full_field_path, dictionary_to_validate,
+                [field['name'] for field in children_validation_specs])
 
     def _validate_field(self, validation_spec, dictionary_to_validate, parent=None,
                         force_optional=False):
@@ -335,15 +334,14 @@ class GcpBodyFieldValidator(LoggingMixin):
                                                            parent=parent)
         if required_api_version and required_api_version != self._api_version:
             self.log.debug(
-                "Skipping validation of the field '{}' for API version '{}' "
-                "as it is only valid for API version '{}'".
-                format(field_name, self._api_version, required_api_version))
+                "Skipping validation of the field '%s' for API version '%s' "
+                "as it is only valid for API version '%s'",
+                field_name, self._api_version, required_api_version)
             return False
         value = dictionary_to_validate.get(field_name)
 
         if (optional or force_optional) and value is None:
-            self.log.debug("The optional field '{}' is missing. That's perfectly OK.".
-                           format(full_field_path))
+            self.log.debug("The optional field '%s' is missing. That's perfectly OK.", full_field_path)
             return False
 
         # Certainly down from here the field is present (value is not None)
@@ -369,18 +367,17 @@ class GcpBodyFieldValidator(LoggingMixin):
                     format(full_field_path, validation_spec, value))
             if children_validation_specs is None:
                 self.log.debug(
-                    "The dict field '{}' has no nested fields defined in the "
-                    "specification '{}'. That's perfectly ok - it's content will "
-                    "not be validated."
-                        .format(full_field_path, validation_spec))
+                    "The dict field '%s' has no nested fields defined in the "
+                    "specification '%s'. That's perfectly ok - it's content will "
+                    "not be validated.", full_field_path, validation_spec)
             else:
                 self._validate_dict(children_validation_specs, full_field_path, value)
         elif field_type == 'union':
             if not children_validation_specs:
                 raise GcpValidationSpecificationException(
-                    "The union field '{}' has no nested fields "
-                    "defined in specification '{}'. Unions should have at least one "
-                    "nested field defined.".format(full_field_path, validation_spec))
+                    "The union field '%s' has no nested fields "
+                    "defined in specification '%s'. Unions should have at least one "
+                    "nested field defined.", full_field_path, validation_spec)
             self._validate_union(children_validation_specs, full_field_path,
                                  dictionary_to_validate)
         elif field_type == 'list':
@@ -397,9 +394,8 @@ class GcpBodyFieldValidator(LoggingMixin):
                     "Error while validating custom field '{}' specified by '{}': '{}'".
                     format(full_field_path, validation_spec, e))
         elif field_type is None:
-            self.log.debug("The type of field '{}' is not specified in '{}'. "
-                           "Not validating its content.".
-                           format(full_field_path, validation_spec))
+            self.log.debug("The type of field '%s' is not specified in '%s'. "
+                           "Not validating its content.", full_field_path, validation_spec)
         else:
             raise GcpValidationSpecificationException(
                 "The field '{}' is of type '{}' in specification '{}'."
@@ -439,10 +435,10 @@ class GcpBodyFieldValidator(LoggingMixin):
         for field_name in body_to_validate.keys():
             if field_name not in all_field_names:
                 self.log.warning(
-                    "The field '{}' is in the body, but is not specified in the "
-                    "validation specification '{}'. "
+                    "The field '%s' is in the body, but is not specified in the "
+                    "validation specification '%s'. "
                     "This might be because you are using newer API version and "
                     "new field names defined for that version. Then the warning "
                     "can be safely ignored, or you might want to upgrade the operator"
-                    "to the version that supports the new API version.".format(
-                        field_name, self._validation_specs))
+                    "to the version that supports the new API version.",
+                    field_name, self._validation_specs)

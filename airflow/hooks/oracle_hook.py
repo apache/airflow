@@ -175,11 +175,11 @@ class OracleHook(DbApiHook):
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()
-                self.log.info('Loaded {i} into {table} rows so far'.format(**locals()))
+                self.log.info('Loaded %s into %s rows so far', i, table)
         conn.commit()
         cur.close()
         conn.close()
-        self.log.info('Done loading. Loaded a total of {i} rows'.format(**locals()))
+        self.log.info('Done loading. Loaded a total of %s rows', i)
 
     def bulk_insert_rows(self, table, rows, target_fields=None, commit_every=5000):
         """
