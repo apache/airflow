@@ -21,9 +21,7 @@ Using Operators
 An operator represents a single, ideally idempotent, task. Operators
 determine what actually executes when your DAG runs.
 
-See the :ref:`Operators Concepts <concepts-operators>` documentation and the
-:ref:`Operators API Reference <api-reference-operators>` for more
-information.
+See the :ref:`Operators Concepts <concepts-operators>` documentation.
 
 .. contents:: :local:
 
@@ -101,8 +99,8 @@ Templating
 ^^^^^^^^^^
 
 When you set the ``provide_context`` argument to ``True``, Airflow passes in
-an additional set of keyword arguments: one for each of the :ref:`Jinja
-template variables <macros>` and a ``templates_dict`` argument.
+an additional set of keyword arguments: one for each of the :doc:`Jinja
+template variables <../macros>` and a ``templates_dict`` argument.
 
 The ``templates_dict`` argument is templated, so each value in the dictionary
 is evaluated as a :ref:`Jinja template <jinja-templating>`.

@@ -113,6 +113,7 @@ extensions = [
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
+    'autoapi.extension',
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']
@@ -158,7 +159,38 @@ release = airflow.__version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = [
+    '_build',
+    '_autoapi_templates',
+    'autoapi/airflow/api',
+    'autoapi/airflow/bin',
+    'autoapi/airflow/config_templates',
+    'autoapi/airflow/configuration',
+    'autoapi/airflow/contrib/auth',
+    'autoapi/airflow/contrib/example_dags',
+    'autoapi/airflow/contrib/utils',
+    'autoapi/airflow/contrib/kubernetes',
+    'autoapi/airflow/contrib/task_runner',
+    'autoapi/airflow/contrib/index.rst',
+    'autoapi/airflow/dag',
+    'autoapi/airflow/default_login',
+    'autoapi/airflow/example_dags',
+    'autoapi/airflow/exceptions',
+    'autoapi/airflow/lineage',
+    'autoapi/airflow/logging_config',
+    'autoapi/airflow/macros',
+    'autoapi/airflow/jobs',
+    'autoapi/airflow/plugins_manager',
+    'autoapi/airflow/security',
+    'autoapi/airflow/settings',
+    'autoapi/airflow/task',
+    'autoapi/airflow/ti_deps',
+    'autoapi/airflow/utils',
+    'autoapi/airflow/version',
+    'autoapi/airflow/www',
+    'autoapi/airflow/index.rst',
+    'autoapi/main',
+]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -182,7 +214,7 @@ pygments_style = 'sphinx'
 # modindex_common_prefix = []
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
-# keep_warnings = False
+keep_warnings = True
 
 
 intersphinx_mapping = {
@@ -361,3 +393,20 @@ texinfo_documents = [(
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+# sphinx-autoapi configuration
+# See:
+# https://sphinx-autoapi.readthedocs.io/en/latest/config.html
+
+# Paths (relative or absolute) to the source code that you wish to generate
+# your API documentation from.
+autoapi_dirs = [
+    os.path.abspath('../airflow'),
+]
+
+# A directory that has user-defined templates to override our default templates.
+autoapi_template_dir = '_autoapi_templates'
+
+# Keep the AutoAPI generated files on the filesystem after the run.
+# Useful for debugging.
+autoapi_keep_files = True
