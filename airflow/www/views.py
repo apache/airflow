@@ -238,7 +238,12 @@ class Airflow(AirflowBaseView):
                 dags_query = dags_query.filter(~DagModel.is_paused)
 
             if arg_search_query:
-                dags_query = dags_query.filter(sqla.func.lower(DagModel.dag_id) == arg_search_query.lower())
+                dags_query = dags_query.filter(
+                    sqla.or_(
+                        sqla.func.lower(DagModel.dag_id) == arg_search_query.lower(),
+                        sqla.func.lower(DagModel.owners) == arg_search_query.lower()
+                    )
+                )
 
             if 'all_dags' not in filter_dag_ids:
                 dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
@@ -263,11 +268,6 @@ class Airflow(AirflowBaseView):
         num_of_all_dags = dags_query.count()
         num_of_pages = int(math.ceil(num_of_all_dags / float(dags_per_page)))
 
-        auto_complete_data = set()
-        for row in dags_query.with_entities(DagModel.dag_id, DagModel.owners):
-            auto_complete_data.add(row.dag_id)
-            auto_complete_data.add(row.owners)
-
         return self.render(
             'airflow/dags.html',
             dags=dags,
@@ -282,8 +282,45 @@ class Airflow(AirflowBaseView):
             paging=wwwutils.generate_pages(current_page, num_of_pages,
                                            search=arg_search_query,
                                            showPaused=not hide_paused),
-            auto_complete_data=auto_complete_data,
             num_runs=num_runs)
+
+    @expose('/dags_autocomplete')
+    @has_access
+    @provide_session
+    def dags_autocomplete(self, session):
+        arg_search_query = request.args.get('search', None)
+
+        if not arg_search_query:
+            return wwwutils.json_response({
+                'items': []
+            })
+
+        max_items_count = int(request.args.get('limit', 8))
+        filter_dag_ids = appbuilder.sm.get_accessible_dag_ids()
+
+        dags_query = session.query(DagModel.owners).filter(
+            ~DagModel.is_subdag, DagModel.is_active
+        )
+
+        if 'all_dags' not in filter_dag_ids:
+            dags_query = dags_query.filter(DagModel.dag_id.in_(filter_dag_ids))
+
+        dag_ids = dags_query.filter(DagModel.dag_id.ilike("%{}%".format(arg_search_query)))\
+            .with_entities(DagModel.dag_id) \
+            .order_by(DagModel.dag_id)\
+            .limit(max_items_count)
+
+        dag_owners = dags_query.filter(DagModel.owners.ilike("%{}%".format(arg_search_query)))\
+            .with_entities(DagModel.owners) \
+            .order_by(DagModel.owners) \
+            .limit(max_items_count)
+
+        dag_ids_set = set(dag_id for dag_id, in dag_ids)
+        dag_owners_set = set(dag_owner for dag_owner, in dag_owners)
+
+        return wwwutils.json_response({
+            'items': sorted(dag_ids_set | dag_owners_set),
+        })
 
     @expose('/dag_stats')
     @has_access

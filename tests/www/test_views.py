@@ -407,6 +407,29 @@ class TestAirflowBaseViews(TestBase):
         resp = self.client.get('home', follow_redirects=True)
         self.check_content_in_response('DAGs', resp)
 
+    def test_autocomplete(self):
+        search = 'example_branch_dop_operator_v3'
+        url = 'dags_autocomplete?search={}'.format(search)
+        resp_json = json.loads(self.client.get(url, follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual(resp_json['items'], ['example_branch_dop_operator_v3'])
+
+    def test_autocomplete_like(self):
+        search = 'branch'
+        url = 'dags_autocomplete?search={}'.format(search)
+        resp_json = json.loads(self.client.get(url, follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual(
+            resp_json['items'], ['example_branch_dop_operator_v3', 'example_branch_operator']
+        )
+
+    def test_autocomplete_limit(self):
+        search = 'branch'
+        url = 'dags_autocomplete?search={}&limit=1'.format(search)
+        resp_json = json.loads(self.client.get(url, follow_redirects=True).data.decode('utf-8'))
+
+        self.assertEqual(resp_json['items'], ['example_branch_dop_operator_v3'])
+
     def test_task(self):
         url = ('task?task_id=runme_0&dag_id=example_bash_operator&execution_date={}'
                .format(self.percent_encode(self.EXAMPLE_DAG_DEFAULT_DATE)))
