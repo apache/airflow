@@ -19,28 +19,25 @@
 import errno
 import json
 import os
+import os.path
+import platform
 import random
 import re
 import shutil
-import string
-
 import socket
-import platform
+import string
 import subprocess
+from subprocess import PIPE, Popen
 import time
 import uuid
-import os.path
 
-from googleapiclient.errors import HttpError
-from subprocess import Popen, PIPE
-from six.moves.urllib.parse import quote_plus
-
-import requests
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+import requests
+from six.moves.urllib.parse import quote_plus
 
 from airflow import AirflowException, LoggingMixin
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
 from airflow.hooks.base_hook import BaseHook

@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+
 import six
 
 from airflow.configuration import conf

@@ -16,13 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-from airflow.contrib.operators.oracle_to_azure_data_lake_transfer \
-    import OracleToAzureDataLakeTransfer
-from airflow.utils.file import TemporaryDirectory
-import unicodecsv as csv
 import os
+import unittest
+
+import unicodecsv as csv
+
+from airflow.contrib.operators.oracle_to_azure_data_lake_transfer import OracleToAzureDataLakeTransfer
+from airflow.utils.file import TemporaryDirectory
+
 
 try:
     from unittest import mock

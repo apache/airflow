@@ -18,9 +18,10 @@
 # under the License.
 #
 
+import unittest
+
 import mock
 import six
-import unittest
 
 from airflow.contrib.hooks import ftp_hook as fh
 

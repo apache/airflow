@@ -22,13 +22,14 @@ from __future__ import print_function, unicode_literals
 import datetime
 import unittest
 
+from freezegun import freeze_time
+
 from airflow import configuration, DAG, settings
 from airflow.models import TaskInstance
-from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
-from freezegun import freeze_time
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)

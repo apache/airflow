@@ -18,21 +18,22 @@
 # under the License.
 #
 
+from datetime import timedelta
 import ntpath
 import os
 import re
 import time
 import uuid
-from datetime import timedelta
+
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
-from googleapiclient.errors import HttpError
-from airflow.utils import timezone
 
 
 class DataprocClusterCreateOperator(BaseOperator):

@@ -22,6 +22,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from collections import defaultdict, OrderedDict
 import getpass
 import logging
 import multiprocessing
@@ -30,17 +31,15 @@ import signal
 import sys
 import threading
 import time
-from collections import defaultdict, OrderedDict
 from time import sleep
 
-import six
 from past.builtins import basestring
-from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
+import six
+from sqlalchemy import and_, Column, func, Index, Integer, not_, or_, String
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
-from airflow import configuration as conf
-from airflow import executors, models, settings
+from airflow import configuration as conf, executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, errors
 from airflow.models.dagpickle import DagPickle
@@ -50,15 +49,17 @@ from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.configuration import tmp_configuration_copy
-from airflow.utils.dag_processing import (AbstractDagFileProcessor,
-                                          DagFileProcessorAgent,
-                                          SimpleDag,
-                                          SimpleDagBag,
-                                          SimpleTaskInstance,
-                                          list_py_file_paths)
+from airflow.utils.dag_processing import (
+    AbstractDagFileProcessor,
+    DagFileProcessorAgent,
+    list_py_file_paths,
+    SimpleDag,
+    SimpleDagBag,
+    SimpleTaskInstance,
+)
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State

@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import unittest
 from datetime import datetime
+import unittest
+
 
 from airflow.contrib.hooks.databricks_hook import RunState
 import airflow.contrib.operators.databricks_operator as databricks_operator
-from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 from airflow.contrib.operators.databricks_operator import DatabricksRunNowOperator
+from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 

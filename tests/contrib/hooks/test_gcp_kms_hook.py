@@ -20,8 +20,8 @@
 
 from __future__ import unicode_literals
 
-import unittest
 from base64 import b64encode
+import unittest
 
 from airflow.contrib.hooks.gcp_kms_hook import GoogleCloudKMSHook
 

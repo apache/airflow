@@ -17,12 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import datetime
 import unittest
 
-import datetime
-
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.sensors.bash_sensor import BashSensor
 from airflow.exceptions import AirflowSensorTimeout
 

@@ -19,24 +19,26 @@ import base64
 import json
 import multiprocessing
 from queue import Queue
-from dateutil import parser
 from uuid import uuid4
+
+from dateutil import parser
 import kubernetes
-from kubernetes import watch, client
+from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
+
+from airflow import configuration
 from airflow.configuration import conf
-from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
+from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
-from airflow.executors.base_executor import BaseExecutor
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors import Executors
+from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier
-from airflow.utils.state import State
-from airflow.utils.db import provide_session, create_session
-from airflow import configuration
-from airflow.exceptions import AirflowConfigException, AirflowException
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 
 class KubernetesExecutorConfig:

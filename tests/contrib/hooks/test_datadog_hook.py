@@ -18,13 +18,13 @@
 # under the License.
 #
 import json
-import mock
 import unittest
 
-from airflow.exceptions import AirflowException
-from airflow.models.connection import Connection
+import mock
 
 from airflow.contrib.hooks.datadog_hook import DatadogHook
+from airflow.exceptions import AirflowException
+from airflow.models.connection import Connection
 
 
 APP_KEY = 'app_key'

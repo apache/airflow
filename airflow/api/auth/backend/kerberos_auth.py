@@ -24,24 +24,21 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-from future.standard_library import install_aliases
-
-from airflow.utils.log.logging_mixin import LoggingMixin
-
-import kerberos
+from functools import wraps
 import os
+from socket import getfqdn
 
-from airflow import configuration as conf
-
-from flask import Response
 from flask import _request_ctx_stack as stack
+from flask import g
 from flask import make_response
 from flask import request
-from flask import g
-from functools import wraps
-
+from flask import Response
+from future.standard_library import install_aliases
+import kerberos
 from requests_kerberos import HTTPKerberosAuth
-from socket import getfqdn
+
+from airflow import configuration as conf
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 

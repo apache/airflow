@@ -17,8 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import (DagNotFound, TaskNotFound,
-                                DagRunNotFound, TaskInstanceNotFound)
+from airflow.exceptions import (
+    DagNotFound,
+    DagRunNotFound,
+    TaskInstanceNotFound,
+    TaskNotFound
+)
 from airflow.models import DagBag
 
 

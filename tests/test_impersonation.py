@@ -18,10 +18,10 @@
 # under the License.
 # from __future__ import print_function
 import errno
+import logging
 import os
 import subprocess
 import unittest
-import logging
 
 from airflow import jobs, models
 from airflow.utils.state import State

@@ -28,41 +28,45 @@ import logging
 import multiprocessing
 import os
 import shutil
+from tempfile import mkdtemp
 import threading
 import time
 import unittest
-from tempfile import mkdtemp
 
+from mock import MagicMock, Mock, patch, PropertyMock
+from parameterized import parameterized
 import psutil
 import six
 import sqlalchemy
-from mock import Mock, patch, MagicMock, PropertyMock
-from parameterized import parameterized
 
-from airflow.utils.db import create_session
-from airflow import AirflowException, settings, models
+from airflow import AirflowException, models, settings
 from airflow import configuration
 from airflow.bin import cli
 import airflow.example_dags
 from airflow.executors import BaseExecutor, SequentialExecutor
-from airflow.jobs import BaseJob, BackfillJob, SchedulerJob, LocalTaskJob
-from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI, \
-    errors
+from airflow.jobs import BackfillJob, BaseJob, LocalTaskJob, SchedulerJob
+from airflow.models import DAG, DagBag, DagModel, DagRun, errors, Pool, TaskInstance as TI
 from airflow.models.slamiss import SlaMiss
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
-from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_paths
+from airflow.utils.dag_processing import list_py_file_paths, SimpleDag, SimpleDagBag
 from airflow.utils.dates import days_ago
+from airflow.utils.db import create_session
 from airflow.utils.db import provide_session
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from tests.test_utils.db import clear_db_runs, clear_db_pools, clear_db_dags, \
-    clear_db_sla_miss, clear_db_errors
 from tests.core import TEST_DAG_FOLDER
 from tests.executors.test_executor import TestExecutor
+from tests.test_utils.db import (
+    clear_db_dags,
+    clear_db_errors,
+    clear_db_pools,
+    clear_db_runs,
+    clear_db_sla_miss,
+)
 
 configuration.load_test_config()
 

@@ -17,19 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
+import unittest
 
 import six
 
 from airflow import configuration, models
-from airflow.models import TaskInstance, DAG
+from airflow.contrib.operators.bigquery_operator import (
+    BigQueryCreateEmptyDatasetOperator,
+    BigQueryCreateEmptyTableOperator,
+    BigQueryCreateExternalTableOperator,
+    BigQueryDeleteDatasetOperator,
+    BigQueryOperator,
+)
+from airflow.models import DAG, TaskInstance
 from airflow.models.taskfail import TaskFail
-
-from airflow.contrib.operators.bigquery_operator import \
-    BigQueryCreateExternalTableOperator, BigQueryCreateEmptyTableOperator, \
-    BigQueryDeleteDatasetOperator, BigQueryCreateEmptyDatasetOperator, \
-    BigQueryOperator
 from airflow.settings import Session
 
 try:

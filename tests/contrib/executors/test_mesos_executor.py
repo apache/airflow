@@ -16,8 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from queue import Queue
 import unittest
+
 try:
     from unittest import mock
 except ImportError:
@@ -34,7 +35,6 @@ except ImportError:
     mock_mesos = None
 
 from airflow import configuration
-from queue import Queue
 
 
 class MesosExecutorTest(unittest.TestCase):

@@ -21,14 +21,16 @@ import copy
 import datetime
 import unittest
 
-import httplib2
 from googleapiclient.errors import HttpError
+import httplib2
 from mock import ANY, patch
 
-from airflow import DAG, configuration
-from airflow.contrib.operators.mlengine_operator import (MLEngineBatchPredictionOperator,
-                                                         MLEngineTrainingOperator,
-                                                         MLEngineVersionOperator)
+from airflow import configuration, DAG
+from airflow.contrib.operators.mlengine_operator import (
+    MLEngineBatchPredictionOperator,
+    MLEngineTrainingOperator,
+    MLEngineVersionOperator
+)
 from airflow.exceptions import AirflowException
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)

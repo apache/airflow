@@ -14,16 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 import os
-import unittest
-from subprocess import check_call, check_output
-import requests.exceptions
-import requests
-import time
-import six
 import re
+from subprocess import check_call, check_output
+import time
+import unittest
+
+import requests
+import requests.exceptions
+import six
 
 try:
     check_call(["/usr/local/bin/kubectl", "get", "pods"])

@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.models import BaseOperator
 from airflow.contrib.hooks.gcp_transfer_hook import GCPTransferServiceHook
+from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
 

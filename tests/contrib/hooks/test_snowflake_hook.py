@@ -18,9 +18,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import unittest
 
 import mock
-import unittest
 
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
 

@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from google.api_core.exceptions import GoogleAPICallError, AlreadyExists
+from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
 from google.cloud.spanner_v1.client import Client
 from google.longrunning.operations_grpc_pb2 import Operation  # noqa: F401
 

@@ -19,6 +19,9 @@
 
 import unittest
 
+import boto3
+from moto import mock_s3
+
 from airflow import configuration
 from airflow import models
 from airflow.contrib.operators.s3_to_sftp_operator import S3ToSFTPOperator
@@ -27,8 +30,6 @@ from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
-import boto3
-from moto import mock_s3
 
 
 TASK_ID = 'test_s3_to_sftp'

@@ -22,10 +22,9 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from functools import wraps
-
-import os
 import contextlib
+from functools import wraps
+import os
 
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin

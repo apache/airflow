@@ -44,11 +44,10 @@ This option could lead to the unification of the executor implementations, runni
 locally, into just one `LocalExecutor` with multiple modes.
 """
 
+from builtins import range
 import multiprocessing
 import subprocess
 import time
-
-from builtins import range
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.log.logging_mixin import LoggingMixin

@@ -19,54 +19,51 @@
 # under the License.
 
 from __future__ import print_function
-import logging
 
-import os
-import subprocess
-import textwrap
-import random
-import string
-from importlib import import_module
-
-import getpass
-import reprlib
 import argparse
 from argparse import RawTextHelpFormatter
 from builtins import input
 from collections import namedtuple
-
-from airflow.utils.timezone import parse as parsedate
+import getpass
+from importlib import import_module
 import json
-from tabulate import tabulate
+import logging
+import os
+import random
+import re
+import reprlib
+import signal
+import string
+import subprocess
+import sys
+import textwrap
+import threading
+import time
+import traceback
+from urllib.parse import urlunparse
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
-import signal
-import sys
-import threading
-import traceback
-import time
 import psutil
-import re
-from urllib.parse import urlunparse
+from sqlalchemy.orm import exc
+from tabulate import tabulate
 
 import airflow
 from airflow import api
-from airflow import jobs, settings
 from airflow import configuration as conf
+from airflow import jobs, settings
 from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import get_default_executor
-from airflow.models import DagModel, DagBag, TaskInstance, DagRun, Variable, DAG
+from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance, Variable
 from airflow.models.connection import Connection
 from airflow.models.dagpickle import DagPickle
-from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
+from airflow.ti_deps.dep_context import DepContext, SCHEDULER_DEPS
 from airflow.utils import cli as cli_utils, db
+from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
 from airflow.utils.net import get_hostname
-from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
-                                             redirect_stdout)
-from airflow.www.app import cached_app, create_app, cached_appbuilder
+from airflow.utils.timezone import parse as parsedate
+from airflow.www.app import cached_app, cached_appbuilder, create_app
 
-from sqlalchemy.orm import exc
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))

@@ -27,30 +27,30 @@ import inspect
 import logging
 import os
 import re
+import shutil
+from tempfile import mkdtemp, NamedTemporaryFile
 import textwrap
 import time
 import unittest
 import urllib
 import uuid
-import shutil
-from tempfile import NamedTemporaryFile, mkdtemp
 
-import pendulum
-import six
 from cryptography.fernet import Fernet
 from freezegun import freeze_time
 from mock import ANY, mock_open, patch
 from parameterized import parameterized
+import pendulum
+import six
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
+from airflow.models import clear_task_instances
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
-from airflow.models import clear_task_instances
 from airflow.models.connection import Connection
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule

@@ -17,18 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import datetime
 import json
 import unittest
-import datetime
 
 import mock
 import pandas as pd
 
 from airflow import configuration, DAG
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
-
-import airflow.contrib.operators.hive_to_dynamodb
+from airflow.contrib.operators.hive_to_dynamodb import HiveToDynamoDBTransferOperator
 
 configuration.load_test_config()
 
@@ -89,7 +87,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name="test_airflow",
             task_id='hive_to_dynamodb_check',
@@ -129,7 +127,7 @@ class HiveToDynamoDBTransferOperatorTest(unittest.TestCase):
             }
         )
 
-        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransferOperator(
+        operator = HiveToDynamoDBTransferOperator(
             sql=self.sql,
             table_name='test_airflow',
             task_id='hive_to_dynamodb_check',

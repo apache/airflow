@@ -20,10 +20,9 @@
 
 import unittest
 
-from mock import Mock
-from mock import patch
+from mock import Mock, patch
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow.models.connection import Connection
 from airflow.utils import db, timezone

@@ -18,8 +18,9 @@
 # under the License.
 #
 
-from airflow.hooks.base_hook import BaseHook
 from azure.datalake.store import core, lib, multithread
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class AzureDataLakeHook(BaseHook):

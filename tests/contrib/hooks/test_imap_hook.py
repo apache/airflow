@@ -20,9 +20,9 @@
 import imaplib
 import unittest
 
-from mock import Mock, patch, mock_open
+from mock import Mock, mock_open, patch
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException, configuration
 from airflow.contrib.hooks.imap_hook import ImapHook
 from airflow.models.connection import Connection
 from airflow.utils import db

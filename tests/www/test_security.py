@@ -19,17 +19,16 @@
 
 from __future__ import print_function
 
-import unittest
 import logging
-import mock
+import unittest
 
 from flask import Flask
-from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
+from flask_appbuilder import AppBuilder, expose, has_access, Model, SQLA
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder.security.sqla import models as sqla_models
-from flask_appbuilder.views import ModelView, BaseView
-
-from sqlalchemy import Column, Integer, String, Date, Float
+from flask_appbuilder.views import BaseView, ModelView
+import mock
+from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
 from airflow.www.security import AirflowSecurityManager, DAG_PERMS

@@ -24,9 +24,10 @@ from __future__ import unicode_literals
 
 import unittest
 
-from airflow.hooks.postgres_hook import PostgresHook
-from airflow.contrib.operators.postgres_to_gcs_operator import \
+from airflow.contrib.operators.postgres_to_gcs_operator import (
     PostgresToGoogleCloudStorageOperator
+)
+from airflow.hooks.postgres_hook import PostgresHook
 
 try:
     from unittest.mock import patch

@@ -21,10 +21,9 @@ from __future__ import print_function
 
 import unittest
 
-from airflow import DAG, configuration
-from airflow.utils import timezone
-
+from airflow import configuration, DAG
 from airflow.contrib.operators.snowflake_operator import SnowflakeOperator
+from airflow.utils import timezone
 
 try:
     from unittest import mock

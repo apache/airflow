@@ -21,13 +21,14 @@ import unittest
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, \
-    CloudSpannerInstanceDeleteOperator, \
-    CloudSpannerInstanceDatabaseQueryOperator, \
-    CloudSpannerInstanceDatabaseDeployOperator, \
-    CloudSpannerInstanceDatabaseDeleteOperator, \
-    CloudSpannerInstanceDatabaseUpdateOperator
+from airflow.contrib.operators.gcp_spanner_operator import (
+    CloudSpannerInstanceDatabaseDeleteOperator,
+    CloudSpannerInstanceDatabaseDeployOperator,
+    CloudSpannerInstanceDatabaseQueryOperator,
+    CloudSpannerInstanceDatabaseUpdateOperator,
+    CloudSpannerInstanceDeleteOperator,
+    CloudSpannerInstanceDeployOperator,
+)
 
 try:
     # noinspection PyProtectedMember

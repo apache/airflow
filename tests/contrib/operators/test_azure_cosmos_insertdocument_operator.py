@@ -17,15 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
 import json
 import unittest
 import uuid
 
-from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
-
 from airflow import configuration
+from airflow.contrib.operators.azure_cosmos_operator import AzureCosmosInsertDocumentOperator
 from airflow.models.connection import Connection
 from airflow.utils import db
 

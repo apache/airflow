@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
-from airflow.models import DAG
+import unittest
+
 from airflow.exceptions import AirflowException
+from airflow.models import DAG
 from airflow.operators.check_operator import ValueCheckOperator
 
 try:

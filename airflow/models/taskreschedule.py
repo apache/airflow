@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String, asc
+from sqlalchemy import asc, Column, ForeignKeyConstraint, Index, Integer, String
 
 from airflow.models.base import Base, ID_LEN
 from airflow.utils.db import provide_session

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.contrib.operators.oracle_to_oracle_transfer \
     import OracleToOracleTransfer
 

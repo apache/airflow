@@ -18,7 +18,6 @@
 # under the License.
 
 import airflow
-
 from airflow import DAG
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 

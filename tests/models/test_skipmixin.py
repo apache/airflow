@@ -20,10 +20,10 @@
 import datetime
 import unittest
 
+from mock import Mock, patch
 import pendulum
-from mock import patch, Mock
 
-from airflow.models import settings, DAG, TaskInstance as TI
+from airflow.models import DAG, settings, TaskInstance as TI
 from airflow.models.skipmixin import SkipMixin
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone

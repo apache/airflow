@@ -17,14 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import unittest
 from datetime import datetime
-from airflow.models import DAG
-from airflow.exceptions import AirflowException
-from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
+import unittest
+
+from qds_sdk.commands import HiveCommand
+
 from airflow.contrib.hooks.qubole_check_hook import QuboleCheckHook
 from airflow.contrib.hooks.qubole_hook import QuboleHook
-from qds_sdk.commands import HiveCommand
+from airflow.contrib.operators.qubole_check_operator import QuboleValueCheckOperator
+from airflow.exceptions import AirflowException
+from airflow.models import DAG
 
 try:
     from unittest import mock

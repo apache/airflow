@@ -39,8 +39,8 @@ This DAG relies on the following OS environment variables
 """
 
 import os
-import subprocess
 from os.path import expanduser
+import subprocess
 
 from six.moves.urllib.parse import quote_plus
 

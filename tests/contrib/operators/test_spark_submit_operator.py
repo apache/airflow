@@ -17,16 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+from datetime import timedelta
 import unittest
 
-from airflow import DAG, configuration
-from airflow.models import TaskInstance
-
+from airflow import configuration, DAG
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
+from airflow.models import TaskInstance
 from airflow.utils import timezone
-
-from datetime import timedelta
 
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)

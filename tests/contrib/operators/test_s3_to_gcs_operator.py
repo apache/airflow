@@ -16,12 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 
 from airflow.contrib.hooks.gcs_hook import _parse_gcs_url
-from airflow.contrib.operators.s3_to_gcs_operator import \
-    S3ToGoogleCloudStorageOperator
+from airflow.contrib.operators.s3_to_gcs_operator import S3ToGoogleCloudStorageOperator
 
 try:
     from unittest import mock

@@ -43,7 +43,7 @@ jobs:
   include:
     - name: Flake8
       stage: pre-test
-      install: pip install flake8
+      install: pip install flake8 flake8-import-order>=0.18
       script: flake8
     - name: Check license header
       stage: pre-test

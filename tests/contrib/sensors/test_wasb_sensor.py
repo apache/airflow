@@ -18,11 +18,10 @@
 # under the License.
 #
 
+import datetime
 import unittest
 
-import datetime
-
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.sensors.wasb_sensor import WasbBlobSensor
 from airflow.contrib.sensors.wasb_sensor import WasbPrefixSensor
 

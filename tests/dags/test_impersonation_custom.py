@@ -16,11 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime
-
 # AIRFLOW-1893 - Originally, impersonation tests were incomplete missing the use case when
 # DAGs access custom packages usually made available through the PYTHONPATH environment
 # variable. This file includes a DAG that imports a custom package made available and if

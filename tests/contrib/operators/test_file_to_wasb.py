@@ -21,7 +21,7 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.operators.file_to_wasb import FileToWasbOperator
 
 try:

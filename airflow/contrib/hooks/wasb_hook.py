@@ -18,10 +18,10 @@
 # under the License.
 #
 
+from azure.storage.blob import BlockBlobService
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-
-from azure.storage.blob import BlockBlobService
 
 
 class WasbHook(BaseHook):

@@ -16,16 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import google
-
 import unittest
 
+import google
 from google.cloud.bigtable import Client
 from google.cloud.bigtable.instance import Instance
 
-from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_no_default_project_id, \
-    mock_base_gcp_hook_default_project_id, GCP_PROJECT_ID_HOOK_UNIT_TEST
+from airflow import AirflowException
+from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
+from tests.contrib.utils.base_gcp_mock import (
+    GCP_PROJECT_ID_HOOK_UNIT_TEST,
+    mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id
+)
 
 try:
     from unittest import mock
@@ -35,8 +38,6 @@ except ImportError:
     except ImportError:
         mock = None
 
-from airflow import AirflowException
-from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
 
 CBT_INSTANCE = 'instance'
 CBT_CLUSTER = 'cluster'

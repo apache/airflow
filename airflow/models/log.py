@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Integer, String, Text, Index
+from sqlalchemy import Column, Index, Integer, String, Text
 
 from airflow.models.base import Base, ID_LEN
 from airflow.utils import timezone

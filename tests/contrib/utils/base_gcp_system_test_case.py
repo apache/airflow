@@ -16,15 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-import subprocess
-import unittest
 from glob import glob
+import os
 from shutil import move
+import subprocess
 from tempfile import mkdtemp
+import unittest
 
+from airflow import AirflowException, LoggingMixin, models
 from airflow.utils import db as db_utils
-from airflow import models, AirflowException, LoggingMixin
 from airflow.utils.timezone import datetime
 from tests.contrib.utils.gcp_authenticator import GcpAuthenticator
 from tests.contrib.utils.run_once_decorator import run_once

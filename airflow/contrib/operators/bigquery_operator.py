@@ -20,7 +20,7 @@
 import json
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
+from airflow.contrib.hooks.gcs_hook import _parse_gcs_url, GoogleCloudStorageHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

@@ -24,7 +24,6 @@ from __future__ import unicode_literals
 
 import unittest
 
-
 from airflow.configuration import conf
 from airflow.www import app as application
 

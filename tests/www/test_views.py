@@ -18,6 +18,7 @@
 # under the License.
 
 import copy
+from datetime import timedelta
 import io
 import json
 import logging.config
@@ -27,13 +28,12 @@ import sys
 import tempfile
 import unittest
 import urllib
-from datetime import timedelta
 from urllib.parse import quote_plus
 
-import mock
-import jinja2
 from flask import url_for
 from flask._compat import PY2
+import jinja2
+import mock
 from parameterized import parameterized
 from werkzeug.test import Client
 

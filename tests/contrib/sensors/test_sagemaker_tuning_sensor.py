@@ -28,9 +28,8 @@ except ImportError:
         mock = None
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_tuning_sensor \
-    import SageMakerTuningSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_tuning_sensor import SageMakerTuningSensor
 from airflow.exceptions import AirflowException
 
 DESCRIBE_TUNING_INPROGRESS_RESPONSE = {

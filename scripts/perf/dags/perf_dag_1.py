@@ -16,10 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import airflow
-from airflow.operators.bash_operator import BashOperator
-from airflow.models import DAG
 from datetime import timedelta
+
+import airflow
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
 
 args = {
     'owner': 'airflow',

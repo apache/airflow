@@ -17,10 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from airflow.utils.log.logging_mixin import LoggingMixin
+from qds_sdk.commands import Command
+
 from airflow.contrib.hooks.qubole_hook import QuboleHook
 from airflow.exceptions import AirflowException
-from qds_sdk.commands import Command
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
     from cStringIO import StringIO

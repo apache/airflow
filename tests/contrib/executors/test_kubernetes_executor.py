@@ -17,23 +17,24 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import unittest
-import uuid
-import mock
+from datetime import datetime
+import random
 import re
 import string
-import random
+import unittest
+import uuid
+
+import mock
 from urllib3 import HTTPResponse
-from datetime import datetime
 
 try:
     from kubernetes.client.rest import ApiException
+
     from airflow import configuration
     from airflow.configuration import conf
     from airflow.contrib.executors.kubernetes_executor import AirflowKubernetesScheduler
-    from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
     from airflow.contrib.executors.kubernetes_executor import KubeConfig
+    from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
     from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
     from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
     from airflow.exceptions import AirflowConfigException

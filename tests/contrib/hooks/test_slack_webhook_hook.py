@@ -21,10 +21,9 @@ import json
 import unittest
 
 from airflow import configuration
+from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 from airflow.models.connection import Connection
 from airflow.utils import db
-
-from airflow.contrib.hooks.slack_webhook_hook import SlackWebhookHook
 
 
 class TestSlackWebhookHook(unittest.TestCase):

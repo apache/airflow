@@ -16,20 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
-import time
 from datetime import datetime
+import time
+import unittest
 
 from airflow import configuration, models
 from airflow.api.common.experimental.mark_tasks import (
-    set_state, _create_dagruns, set_dag_run_state_to_success, set_dag_run_state_to_failed,
-    set_dag_run_state_to_running)
-from airflow.utils import timezone
-from airflow.utils.db import create_session, provide_session
-from airflow.utils.dates import days_ago
-from airflow.utils.state import State
+    _create_dagruns,
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_running,
+    set_dag_run_state_to_success,
+    set_state,
+)
 from airflow.models import DagRun
+from airflow.utils import timezone
+from airflow.utils.dates import days_ago
+from airflow.utils.db import create_session, provide_session
+from airflow.utils.state import State
 from tests.test_utils.db import clear_db_runs
 
 DEV_NULL = "/dev/null"

@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import unittest
 
 import requests
 import requests_mock
-import unittest
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.operators.hive_to_druid import HiveToDruidTransfer
 
 

@@ -18,15 +18,15 @@
 # under the License.
 
 from builtins import str
-from past.builtins import basestring
-from datetime import datetime
 from contextlib import closing
+from datetime import datetime
 import sys
 
+from past.builtins import basestring
 from sqlalchemy import create_engine
 
-from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class DbApiHook(BaseHook):

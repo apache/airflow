@@ -19,9 +19,9 @@
 
 from __future__ import print_function
 
-import time
 from builtins import range
 from pprint import pprint
+import time
 
 import airflow
 from airflow.models import DAG

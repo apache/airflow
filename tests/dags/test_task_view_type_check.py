@@ -21,10 +21,9 @@
 """
 DAG designed to test a PythonOperator that calls a functool.partial
 """
+from datetime import datetime
 import functools
 import logging
-
-from datetime import datetime
 
 from airflow.models import DAG
 from airflow.operators.python_operator import PythonOperator

@@ -20,13 +20,13 @@
 import datetime
 import unittest
 
+from sqlalchemy.exc import StatementError
+
 from airflow import settings
 from airflow.models import DAG
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
-
-from sqlalchemy.exc import StatementError
 
 
 class TestSqlAlchemyUtils(unittest.TestCase):

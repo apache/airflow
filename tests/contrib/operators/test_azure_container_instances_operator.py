@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from airflow.exceptions import AirflowException
-from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
-
 import unittest
+
+from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock

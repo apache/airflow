@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import timedelta
 import os
 import sys
 import tempfile
 import unittest
-from datetime import timedelta
 
 from mock import MagicMock
 

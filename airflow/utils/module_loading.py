@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from importlib import import_module
 import os
 import sys
 
 from airflow import configuration as conf
-from importlib import import_module
 
 
 def prepare_classpath():

@@ -26,13 +26,13 @@
 # --------------------------------------------------------------------------------
 # Load The Dependencies
 # --------------------------------------------------------------------------------
-import airflow
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.models import DAG
 from datetime import timedelta
 
+import airflow
 from airflow.contrib.hooks import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
+from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
 
 args = {

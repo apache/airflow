@@ -17,20 +17,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import argparse
 import errno
 import json
 import os
 from os.path import expanduser
-
-import argparse
 from threading import Thread
-
 import time
 
 from six.moves.urllib.parse import urlsplit
 
 from tests.contrib.utils.base_gcp_system_test_case import RetrieveVariables
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_CLOUDSQL_KEY
+from tests.contrib.utils.gcp_authenticator import GCP_CLOUDSQL_KEY, GcpAuthenticator
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 try:

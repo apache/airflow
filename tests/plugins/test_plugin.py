@@ -17,17 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This is the class you derive to create a plugin
-from airflow.plugins_manager import AirflowPlugin
 
 from flask import Blueprint
-from flask_appbuilder import expose, BaseView as AppBuilderBaseView
+from flask_appbuilder import BaseView as AppBuilderBaseView, expose
 
-# Importing base classes that we need to derive
+from airflow.executors.base_executor import BaseExecutor
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
+from airflow.plugins_manager import AirflowPlugin # noqa
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.executors.base_executor import BaseExecutor
 
 
 # Will show up under airflow.hooks.test_plugin.PluginHook

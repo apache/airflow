@@ -33,7 +33,6 @@ to execute a BigQuery load job.
 
 .. literalinclude:: ../../../../airflow/contrib/example_dags/example_gcs_to_bq_operator.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_operator_gcs_to_bq]
     :end-before: [END howto_operator_gcs_to_bq]
 

@@ -19,55 +19,52 @@
 
 from __future__ import print_function
 
-import json
-import unittest
-
+from datetime import timedelta
 import doctest
-import mock
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import json
 import multiprocessing
 import os
 import re
 import signal
-import sqlalchemy
 import subprocess
 import tempfile
-import warnings
-from datetime import timedelta
-from dateutil.relativedelta import relativedelta
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from numpy.testing import assert_array_almost_equal
 from tempfile import NamedTemporaryFile
 from time import sleep
+import unittest
+import warnings
+
+from dateutil.relativedelta import relativedelta
+import mock
+from numpy.testing import assert_array_almost_equal
+from pendulum import utcnow
+import six
+import sqlalchemy
 
 from airflow import configuration
+from airflow import DAG, exceptions, jobs, macros, models, settings, utils
+from airflow.bin import cli
+from airflow.configuration import AirflowConfigException, run_command
+from airflow.exceptions import AirflowException
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable, TaskInstance
-
-from airflow import jobs, models, DAG, utils, macros, settings, exceptions
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import BaseOperator
+from airflow.models import TaskInstance, Variable
 from airflow.models.connection import Connection
 from airflow.models.taskfail import TaskFail
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
-from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
-
-from airflow.hooks.base_hook import BaseHook
-from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.bin import cli
+from airflow.operators.python_operator import PythonOperator
 from airflow.settings import Session
 from airflow.utils import timezone
-from airflow.utils.timezone import datetime
-from airflow.utils.state import State
 from airflow.utils.dates import days_ago, infer_time_unit, round_time, scale_time_units
-from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException, run_command
-from pendulum import utcnow
-
-import six
+from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 
 NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'

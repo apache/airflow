@@ -18,10 +18,10 @@
 # under the License.
 import unittest
 
-import requests
 from mock import patch
+import requests
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor

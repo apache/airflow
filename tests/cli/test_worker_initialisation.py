@@ -17,10 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-import sqlalchemy
-import airflow
 from argparse import Namespace
+import unittest
+
+from mock import patch
+import sqlalchemy
+
+import airflow
 
 try:
     from unittest import mock
@@ -29,7 +32,7 @@ except ImportError:
         import mock
     except ImportError:
         mock = None
-from mock import patch
+
 
 patch('airflow.utils.cli.action_logging', lambda x: x).start()
 from airflow.bin import cli # noqa

@@ -16,14 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import re
+import sys
 
+from airflow.contrib.hooks.aws_hook import AwsHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-
-from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 class ECSOperator(BaseOperator):

@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
 
-from airflow import configuration, AirflowException
+import mock
 
+from airflow import AirflowException, configuration
 from airflow.contrib.hooks.segment_hook import SegmentHook
 
 TEST_CONN_ID = 'test_segment'

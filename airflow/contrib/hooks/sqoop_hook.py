@@ -21,11 +21,11 @@
 """
 This module contains a sqoop 1.x hook
 """
+from copy import deepcopy
 import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from copy import deepcopy
 
 
 class SqoopHook(BaseHook):

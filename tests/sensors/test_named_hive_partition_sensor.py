@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
 import random
 import unittest
-from datetime import timedelta
 
 from airflow import configuration, DAG, operators
+from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.sensors.named_hive_partition_sensor import NamedHivePartitionSensor
 from airflow.utils.timezone import datetime
-from airflow.hooks.hive_hooks import HiveMetastoreHook
 
 configuration.load_test_config()
 

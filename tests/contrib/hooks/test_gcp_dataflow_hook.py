@@ -19,10 +19,10 @@
 #
 
 import unittest
+
 from mock import MagicMock
 
-from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
-    _Dataflow, _DataflowJob
+from airflow.contrib.hooks.gcp_dataflow_hook import _Dataflow, _DataflowJob, DataFlowHook
 
 try:
     from unittest import mock

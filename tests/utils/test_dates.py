@@ -18,8 +18,9 @@
 # under the License.
 
 from datetime import datetime, timedelta
-import pendulum
 import unittest
+
+import pendulum
 
 from airflow.utils import dates
 from airflow.utils import timezone

@@ -17,28 +17,28 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from six import StringIO
+from argparse import Namespace
+from datetime import datetime, time, timedelta
+import os
+import subprocess
 import sys
+from time import sleep
 import unittest
 
-from datetime import datetime, timedelta, time
-from mock import patch, Mock, MagicMock
-from time import sleep
+
+from mock import MagicMock, Mock, patch
 import psutil
 import pytz
-import subprocess
-from argparse import Namespace
+from six import StringIO
+
+from airflow import models
 from airflow import settings
 import airflow.bin.cli as cli
-from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow.bin.cli import get_dag, get_num_ready_workers_running, run
 from airflow.models import TaskInstance
+from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
-from airflow.settings import Session
-from airflow import models
-
-import os
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
 

@@ -16,17 +16,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from base64 import b64encode
 import os
 import unittest
-from base64 import b64encode
+
 import six
 
-from airflow import configuration
+from airflow import configuration, DAG
 from airflow import models
-from airflow.contrib.operators.sftp_operator import SFTPOperator, SFTPOperation
+from airflow.contrib.operators.sftp_operator import SFTPOperation, SFTPOperator
 from airflow.contrib.operators.ssh_operator import SSHOperator
-from airflow.models import DAG, TaskInstance
+from airflow.models import TaskInstance
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime

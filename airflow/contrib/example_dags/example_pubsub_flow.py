@@ -25,18 +25,20 @@ NOTE: project_id must be updated to a GCP project ID accessible with the
       Google Default Credentials on the machine running the workflow
 """
 from __future__ import unicode_literals
-from base64 import b64encode
 
+from base64 import b64encode
 import datetime
 
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
 from airflow.contrib.operators.pubsub_operator import (
-    PubSubTopicCreateOperator, PubSubSubscriptionCreateOperator,
-    PubSubPublishOperator, PubSubTopicDeleteOperator,
-    PubSubSubscriptionDeleteOperator
+    PubSubPublishOperator,
+    PubSubSubscriptionCreateOperator,
+    PubSubSubscriptionDeleteOperator,
+    PubSubTopicCreateOperator,
+    PubSubTopicDeleteOperator,
 )
 from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
+from airflow.operators.bash_operator import BashOperator
 from airflow.utils import dates
 
 project = 'your-project-id'  # Change this to your own GCP project_id

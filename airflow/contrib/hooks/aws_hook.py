@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import boto3
 import configparser
 import logging
+
+import boto3
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

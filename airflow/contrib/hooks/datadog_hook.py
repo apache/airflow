@@ -18,10 +18,11 @@
 # under the License.
 
 import time
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException
-from datadog import initialize, api
 
+from datadog import api, initialize
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import copy
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
 
 from airflow.contrib.utils.sendgrid import send_email
 

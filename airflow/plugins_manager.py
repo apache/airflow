@@ -28,6 +28,7 @@ import inspect
 import os
 import re
 import sys
+
 import pkg_resources
 
 from airflow import configuration

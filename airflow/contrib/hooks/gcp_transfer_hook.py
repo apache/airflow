@@ -17,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import json
 import time
-import datetime
+
 from googleapiclient.discovery import build
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.exceptions import AirflowException
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10

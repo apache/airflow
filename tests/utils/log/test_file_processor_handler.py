@@ -16,15 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import shutil
+from datetime import timedelta
 import os
+import shutil
 import unittest
 
-from airflow.utils.log.file_processor_handler import FileProcessorHandler
-from airflow.utils import timezone
-from datetime import timedelta
 from freezegun import freeze_time
+
+from airflow.utils import timezone
+from airflow.utils.log.file_processor_handler import FileProcessorHandler
 
 
 class TestFileProcessorHandler(unittest.TestCase):

@@ -18,8 +18,8 @@
 # under the License.
 #
 import logging
-import warnings
 from logging.config import dictConfig
+import warnings
 
 from airflow import configuration as conf
 from airflow.exceptions import AirflowConfigException

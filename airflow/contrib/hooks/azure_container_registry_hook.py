@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.base_hook import BaseHook
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class AzureContainerRegistryHook(BaseHook):

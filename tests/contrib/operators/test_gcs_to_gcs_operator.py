@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
+import unittest
 
-from airflow.contrib.operators.gcs_to_gcs import \
-    GoogleCloudStorageToGoogleCloudStorageOperator
+from airflow.contrib.operators.gcs_to_gcs import GoogleCloudStorageToGoogleCloudStorageOperator
 
 try:
     from unittest import mock

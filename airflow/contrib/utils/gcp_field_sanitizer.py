@@ -98,7 +98,7 @@ arrays - the sanitizer iterates through all dictionaries in the array and search
 components in all elements of the array.
 """
 
-from airflow import LoggingMixin, AirflowException
+from airflow import AirflowException, LoggingMixin
 
 
 class GcpFieldSanitizerException(AirflowException):

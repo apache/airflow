@@ -22,8 +22,8 @@ import sys
 import unittest
 
 from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
+from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock

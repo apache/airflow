@@ -22,7 +22,7 @@ import imaplib
 import os.path
 import re
 
-from airflow import LoggingMixin, AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.hooks.base_hook import BaseHook
 
 

@@ -15,15 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.contrib.kubernetes.pod import Resources
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
-from airflow.contrib.kubernetes.pod import Resources
 from airflow.utils.state import State
-from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
-from airflow.contrib.kubernetes.volume import Volume  # noqa
-from airflow.contrib.kubernetes.secret import Secret  # noqa
 
 template_fields = ('templates_dict',)
 template_ext = tuple()

@@ -20,9 +20,9 @@
 
 import unittest
 
-from airflow.contrib.operators.aws_athena_operator import AWSAthenaOperator
-from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 from airflow import configuration
+from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
+from airflow.contrib.operators.aws_athena_operator import AWSAthenaOperator
 
 try:
     from unittest import mock

@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import unittest
 
 import mock
-import unittest
 
 from airflow.contrib.hooks.pinot_hook import PinotDbApiHook
 

@@ -27,21 +27,26 @@ https://airflow.apache.org/concepts.html#variables
 * INSTANCE_NAME - Name of the Cloud SQL instance.
 * DB_NAME - Name of the database inside a Cloud SQL instance.
 """
-
 import os
+
+from six.moves.urllib.parse import urlsplit
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_sql_operator import CloudSqlInstanceCreateOperator, \
-    CloudSqlInstancePatchOperator, CloudSqlInstanceDeleteOperator, \
-    CloudSqlInstanceDatabaseCreateOperator, CloudSqlInstanceDatabasePatchOperator, \
-    CloudSqlInstanceDatabaseDeleteOperator, CloudSqlInstanceExportOperator, \
-    CloudSqlInstanceImportOperator
-from airflow.contrib.operators.gcs_acl_operator import \
-    GoogleCloudStorageBucketCreateAclEntryOperator, \
+from airflow.contrib.operators.gcp_sql_operator import (
+    CloudSqlInstanceCreateOperator,
+    CloudSqlInstanceDatabaseCreateOperator,
+    CloudSqlInstanceDatabaseDeleteOperator,
+    CloudSqlInstanceDatabasePatchOperator,
+    CloudSqlInstanceDeleteOperator,
+    CloudSqlInstanceExportOperator,
+    CloudSqlInstanceImportOperator,
+    CloudSqlInstancePatchOperator,
+)
+from airflow.contrib.operators.gcs_acl_operator import (
+    GoogleCloudStorageBucketCreateAclEntryOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator
-
-from six.moves.urllib.parse import urlsplit
+)
 
 # [START howto_operator_cloudsql_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

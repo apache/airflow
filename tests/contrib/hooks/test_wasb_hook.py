@@ -17,13 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
+from collections import namedtuple
 import json
 import unittest
-from collections import namedtuple
 
-from airflow import configuration, AirflowException
+from airflow import AirflowException, configuration
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.models.connection import Connection
 from airflow.utils import db

@@ -19,8 +19,8 @@
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.hooks.S3_hook import S3Hook
+from airflow.utils.decorators import apply_defaults
 
 
 class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):

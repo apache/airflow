@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import pprint
 from datetime import datetime
+import pprint
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator

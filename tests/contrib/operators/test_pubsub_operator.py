@@ -23,9 +23,12 @@ from base64 import b64encode as b64e
 import unittest
 
 from airflow.contrib.operators.pubsub_operator import (
-    PubSubTopicCreateOperator, PubSubTopicDeleteOperator,
-    PubSubSubscriptionCreateOperator, PubSubSubscriptionDeleteOperator,
-    PubSubPublishOperator)
+    PubSubPublishOperator,
+    PubSubSubscriptionCreateOperator,
+    PubSubSubscriptionDeleteOperator,
+    PubSubTopicCreateOperator,
+    PubSubTopicDeleteOperator,
+)
 
 
 try:

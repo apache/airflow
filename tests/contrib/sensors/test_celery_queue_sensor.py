@@ -19,6 +19,7 @@
 from __future__ import absolute_import
 
 import unittest
+
 from mock import patch
 
 from airflow.contrib.sensors.celery_queue_sensor import CeleryQueueSensor

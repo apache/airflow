@@ -16,16 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
-
 import imp
 import io
 import logging
 import os
-import sys
 import subprocess
+import sys
+
+from setuptools import Command, find_packages, setup
+from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +233,8 @@ all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + 
 
 devel = [
     'click==6.7',
+    'flake8-import-order>=0.18',
+    'flake8>=3.6.0',
     'freezegun',
     'jira',
     'lxml>=4.0.0',
@@ -250,7 +251,6 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'requests_mock',
-    'flake8>=3.6.0',
     'typing',
 ]
 

@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import distributed
 import subprocess
 import warnings
+
+import distributed
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor

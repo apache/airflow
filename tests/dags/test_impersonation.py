@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import datetime
+from textwrap import dedent
 
 from airflow.models import DAG
 from airflow.operators.bash_operator import BashOperator
-from datetime import datetime
-from textwrap import dedent
 
 
 DEFAULT_DATE = datetime(2016, 1, 1)

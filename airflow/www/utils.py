@@ -16,30 +16,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from builtins import str
+import inspect
+import io
+import json
+import os
+import re
+import time
+import zipfile
 
+import bleach
+from flask import Markup, request, Response, url_for
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+from flask_appbuilder.models.sqla.interface import SQLAInterface
 from future import standard_library  # noqa
 standard_library.install_aliases()  # noqa
-
-import inspect
-import json
-import time
-import wtforms
-import bleach
 import markdown
-import re
-import zipfile
-import os
-import io
-
-from builtins import str
 from past.builtins import basestring
-
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.models.sqla.interface import SQLAInterface
-import flask_appbuilder.models.sqla.filters as fab_sqlafilters
 import sqlalchemy as sqla
+import wtforms
+
 from airflow import configuration
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator

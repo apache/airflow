@@ -16,12 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
 import collections
+import unittest
 
-from airflow.contrib.operators.s3_to_gcs_transfer_operator import \
-    S3ToGoogleCloudStorageTransferOperator
+from airflow.contrib.operators.s3_to_gcs_transfer_operator import S3ToGoogleCloudStorageTransferOperator
 
 try:
     from unittest import mock

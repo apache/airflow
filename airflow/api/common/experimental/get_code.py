@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException, DagNotFound
 from airflow import models, settings
+from airflow.exceptions import AirflowException, DagNotFound
 from airflow.www import utils as wwwutils
 
 

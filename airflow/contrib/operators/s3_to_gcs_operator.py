@@ -19,8 +19,7 @@
 
 from tempfile import NamedTemporaryFile
 
-from airflow.contrib.hooks.gcs_hook import (GoogleCloudStorageHook,
-                                            _parse_gcs_url)
+from airflow.contrib.hooks.gcs_hook import _parse_gcs_url, GoogleCloudStorageHook
 from airflow.contrib.operators.s3_list_operator import S3ListOperator
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook

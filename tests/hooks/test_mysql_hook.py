@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import json
-import mock
 import unittest
 
+import mock
 import MySQLdb.cursors
 
 from airflow.hooks.mysql_hook import MySqlHook

@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from tempfile import NamedTemporaryFile
 import subprocess
 import sys
+from tempfile import NamedTemporaryFile
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.S3_hook import S3Hook

@@ -22,92 +22,100 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
-from builtins import ImportError as BuiltinImportError, bytes, object, str
+from builtins import bytes, ImportError as BuiltinImportError, object, str
 from collections import defaultdict, namedtuple, OrderedDict
-
-from future.standard_library import install_aliases
-
-from airflow.models.base import Base, ID_LEN
-
+import copy
 try:
     # Fix Python > 3.7 deprecation
     from collections.abc import Hashable
 except ImportError:
     # Preserve Python < 3.3 compatibility
     from collections import Hashable
-from datetime import timedelta
-
-import dill
+from datetime import datetime, timedelta
 import functools
 import getpass
+import hashlib
 import imp
 import importlib
-import zipfile
-import jinja2
 import json
 import logging
 import os
-import pendulum
 import pickle
 import re
 import signal
 import sys
 import textwrap
 import traceback
-import warnings
-import hashlib
-
-from datetime import datetime
 from urllib.parse import quote
+import warnings
+import zipfile
 
+from croniter import (
+    croniter,
+    CroniterBadCronError,
+    CroniterBadDateError,
+    CroniterNotAlphaError
+)
+import dill
+from future.standard_library import install_aliases
+import jinja2
+import pendulum
+import six
 from sqlalchemy import (
-    Boolean, Column, DateTime, Float, Index, Integer, PickleType, String,
-    Text, UniqueConstraint, and_, func, or_
+    and_,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    func,
+    Index,
+    Integer,
+    or_,
+    PickleType,
+    String,
+    Text,
+    UniqueConstraint,
 )
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import reconstructor, synonym
 
-from croniter import (
-    croniter, CroniterBadCronError, CroniterBadDateError, CroniterNotAlphaError
-)
-import six
-
-from airflow import settings, utils
-from airflow.executors import get_default_executor, LocalExecutor
-from airflow import configuration
-from airflow.exceptions import (
-    AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout,
-    AirflowRescheduleException
-)
+from airflow import configuration, settings, utils
 from airflow.dag.base_dag import BaseDag, BaseDagBag
+from airflow.exceptions import (
+    AirflowDagCycleException,
+    AirflowException,
+    AirflowRescheduleException,
+    AirflowSkipException,
+    AirflowTaskTimeout,
+)
+from airflow.executors import get_default_executor, LocalExecutor
 from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.models.base import Base, ID_LEN
 from airflow.models.dagpickle import DagPickle
-from airflow.models.kubernetes import KubeWorkerIdentifier, KubeResourceVersion  # noqa: F401
+from airflow.models.kubernetes import KubeResourceVersion, KubeWorkerIdentifier  # noqa: F401
 from airflow.models.log import Log
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-
-from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
-from airflow.utils.helpers import is_container, validate_key, pprinttable
+from airflow.utils.helpers import is_container, pprinttable, validate_key
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.net import get_hostname
 from airflow.utils.operator_resources import Resources
+from airflow.utils.sqlalchemy import Interval, UtcDateTime
 from airflow.utils.state import State
-from airflow.utils.sqlalchemy import UtcDateTime, Interval
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
-from airflow.utils.net import get_hostname
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 

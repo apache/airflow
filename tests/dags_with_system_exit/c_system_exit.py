@@ -19,10 +19,9 @@
 
 # Tests to make sure that a system exit won't cause the scheduler to fail.
 # Start with 'z' to get listed last.
-
+from datetime import datetime
 import sys
 
-from datetime import datetime
 from airflow.models import DAG
 
 DEFAULT_DATE = datetime(2100, 1, 1)

@@ -20,17 +20,17 @@
 import unittest
 
 from google.api_core.exceptions import AlreadyExists
-from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet, Product
+from google.cloud.vision_v1.proto.product_search_service_pb2 import Product, ProductSet
 
 from airflow.contrib.operators.gcp_vision_operator import (
+    CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator,
+    CloudVisionProductGetOperator,
     CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator,
     CloudVisionProductSetGetOperator,
     CloudVisionProductSetUpdateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductGetOperator,
     CloudVisionProductUpdateOperator,
-    CloudVisionProductDeleteOperator,
 )
 
 try:

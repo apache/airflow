@@ -47,18 +47,18 @@ This DAG relies on the following environment variables:
 
 """
 import json
-
 from os import getenv
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_bigtable_operator import \
-    BigtableInstanceCreateOperator, \
-    BigtableInstanceDeleteOperator, \
-    BigtableClusterUpdateOperator, \
-    BigtableTableCreateOperator, \
-    BigtableTableWaitForReplicationSensor, \
-    BigtableTableDeleteOperator
+from airflow.contrib.operators.gcp_bigtable_operator import (
+    BigtableClusterUpdateOperator,
+    BigtableInstanceCreateOperator,
+    BigtableInstanceDeleteOperator,
+    BigtableTableCreateOperator,
+    BigtableTableDeleteOperator,
+    BigtableTableWaitForReplicationSensor,
+)
 
 # [START howto_operator_gcp_bigtable_args]
 GCP_PROJECT_ID = getenv('GCP_PROJECT_ID', 'example-project')

@@ -18,11 +18,12 @@
 # under the License.
 
 import math
+from multiprocessing import cpu_count, Pool
 import os
 import subprocess
 import time
 import traceback
-from multiprocessing import Pool, cpu_count
+
 
 from celery import Celery
 from celery import states as celery_states

@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import json
 import datetime
+import json
 import unittest
 
-from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.gcp_transfer_hook import GCPTransferServiceHook
 from airflow.contrib.hooks.gcp_transfer_hook import TIME_TO_SLEEP_IN_SECONDS
+from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock

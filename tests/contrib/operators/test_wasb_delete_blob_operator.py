@@ -21,7 +21,7 @@
 import datetime
 import unittest
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.operators.wasb_delete_blob_operator import WasbDeleteBlobOperator
 
 try:

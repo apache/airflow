@@ -17,11 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-
+from builtins import bytes
 import os
 import signal
-from builtins import bytes
-from subprocess import Popen, STDOUT, PIPE
+from subprocess import PIPE, Popen, STDOUT
 from tempfile import gettempdir, NamedTemporaryFile
 
 from airflow.exceptions import AirflowException

@@ -20,18 +20,16 @@
 from __future__ import print_function, unicode_literals
 
 import datetime
-
-import funcsigs
+from subprocess import CalledProcessError
 import sys
 import unittest
 
-from subprocess import CalledProcessError
+import funcsigs
 
 from airflow import configuration, DAG
+from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonVirtualenvOperator
 from airflow.utils import timezone
-
-from airflow.exceptions import AirflowException
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)

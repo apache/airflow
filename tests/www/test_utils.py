@@ -18,8 +18,9 @@
 # under the License.
 
 import unittest
-import mock
 from xml.dom import minidom
+
+import mock
 
 from airflow.www import utils
 

@@ -16,13 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime
 import unittest
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
-
-from datetime import datetime
 
 
 class BaseExecutorTest(unittest.TestCase):

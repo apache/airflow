@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 from builtins import zip
 from collections import OrderedDict
+import json
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveMetastoreHook

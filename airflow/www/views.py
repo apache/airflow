@@ -18,7 +18,9 @@
 # under the License.
 #
 
+from collections import defaultdict
 import copy
+from datetime import timedelta
 import itertools
 import json
 import logging
@@ -26,34 +28,44 @@ import math
 import os
 import socket
 import traceback
-from collections import defaultdict
-from datetime import timedelta
 
-
-import markdown
-import pendulum
-import sqlalchemy as sqla
 from flask import (
-    redirect, request, Markup, Response, render_template,
-    make_response, flash, jsonify, send_file, escape, url_for)
+    escape,
+    flash,
+    jsonify,
+    make_response,
+    Markup,
+    redirect,
+    render_template,
+    request,
+    Response,
+    send_file,
+    url_for
+)
 from flask._compat import PY2
-from flask_appbuilder import BaseView, ModelView, expose, has_access
+from flask_appbuilder import BaseView, expose, has_access, ModelView
 from flask_appbuilder.actions import action
 from flask_appbuilder.models.sqla.filters import BaseFilter
 from flask_babel import lazy_gettext
+import markdown
 from past.builtins import unicode
+import pendulum
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from sqlalchemy import func, or_, desc, and_, union_all
+import sqlalchemy as sqla
+from sqlalchemy import and_, desc, func, or_, union_all
 from wtforms import SelectField, validators
 
 import airflow
 from airflow import configuration as conf
-from airflow import models, jobs
+from airflow import jobs, models
 from airflow import settings
-from airflow.api.common.experimental.mark_tasks import (set_dag_run_state_to_success,
-                                                        set_dag_run_state_to_failed)
-from airflow.models import DagRun, errors, DagModel
+from airflow._vendor import nvd3
+from airflow.api.common.experimental.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_success,
+)
+from airflow.models import DagModel, DagRun, errors
 from airflow.models.connection import Connection
 from airflow.models.log import Log
 from airflow.models.slamiss import SlaMiss
@@ -62,17 +74,20 @@ from airflow.models.xcom import XCom
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.utils import timezone
 from airflow.utils.dates import infer_time_unit, scale_time_units
-from airflow.utils.db import provide_session, create_session
+from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict, render_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
-from airflow._vendor import nvd3
 from airflow.www import utils as wwwutils
 from airflow.www.app import app, appbuilder
 from airflow.www.decorators import action_logging, gzipped, has_dag_access
-from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
-                               DateTimeWithNumRunsWithDagRunsForm,
-                               DagRunForm, ConnectionForm)
+from airflow.www.forms import (
+    ConnectionForm,
+    DagRunForm,
+    DateTimeForm,
+    DateTimeWithNumRunsForm,
+    DateTimeWithNumRunsWithDagRunsForm,
+)
 from airflow.www.widgets import AirflowModelListWidget
 if PY2:
     from cStringIO import StringIO

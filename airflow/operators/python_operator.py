@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from builtins import str
 import inspect
 import os
 import pickle
 import subprocess
 import sys
-import types
-from builtins import str
 from textwrap import dedent
+import types
 
 import dill
 import six

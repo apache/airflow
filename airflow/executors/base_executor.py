@@ -21,8 +21,8 @@ from builtins import range
 from collections import OrderedDict
 
 # To avoid circular imports
-import airflow.utils.dag_processing
 from airflow import configuration
+import airflow.utils.dag_processing # noqa
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 

@@ -16,18 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from copy import deepcopy
 import unittest
 
 from googleapiclient.errors import HttpError
 from parameterized import parameterized
 
-from airflow.contrib.operators.gcp_function_operator import \
-    GcfFunctionDeployOperator, GcfFunctionDeleteOperator, FUNCTION_NAME_PATTERN
 from airflow import AirflowException
+from airflow.contrib.operators.gcp_function_operator import (
+    FUNCTION_NAME_PATTERN,
+    GcfFunctionDeleteOperator,
+    GcfFunctionDeployOperator,
+)
 from airflow.version import version
-
-from copy import deepcopy
 
 try:
     # noinspection PyProtectedMember

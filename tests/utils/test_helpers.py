@@ -17,21 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
 import logging
 import multiprocessing
 import os
 import signal
 import time
 import unittest
-from datetime import datetime
 
 import psutil
 import six
 
 from airflow import DAG
-from airflow.utils import helpers
 from airflow.models import TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils import helpers
 
 
 class TestHelpers(unittest.TestCase):

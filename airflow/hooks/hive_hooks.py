@@ -19,19 +19,19 @@
 
 from __future__ import print_function, unicode_literals
 
+from collections import OrderedDict
 import contextlib
 import os
 import re
 import subprocess
-import time
-from collections import OrderedDict
 from tempfile import NamedTemporaryFile
+import time
 
-import six
-import unicodecsv as csv
 from past.builtins import basestring
 from past.builtins import unicode
+import six
 from six.moves import zip
+import unicodecsv as csv
 
 from airflow import configuration
 from airflow.exceptions import AirflowException

@@ -19,14 +19,14 @@
 
 from __future__ import print_function
 
-from airflow import DAG, configuration, operators
-from airflow.utils import timezone
-
 from collections import OrderedDict
-
 import os
-import mock
 import unittest
+
+import mock
+
+from airflow import configuration, DAG, operators
+from airflow.utils import timezone
 
 configuration.load_test_config()
 

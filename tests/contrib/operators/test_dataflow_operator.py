@@ -20,10 +20,12 @@
 
 import unittest
 
-from airflow.contrib.operators.dataflow_operator import \
-    DataFlowPythonOperator, DataFlowJavaOperator, \
-    DataflowTemplateOperator, GoogleCloudBucketHelper
-
+from airflow.contrib.operators.dataflow_operator import (
+    DataFlowJavaOperator,
+    DataFlowPythonOperator,
+    DataflowTemplateOperator,
+    GoogleCloudBucketHelper,
+)
 from airflow.version import version
 
 try:

@@ -17,17 +17,21 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-import unittest
 from copy import deepcopy
+import unittest
 
-import httplib2
 from googleapiclient.errors import HttpError
+import httplib2
 
 from airflow import AirflowException, configuration
-from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOperator, \
-    GceInstanceStopOperator, GceSetMachineTypeOperator, GceInstanceTemplateCopyOperator, \
-    GceInstanceGroupManagerUpdateTemplateOperator
-from airflow.models import TaskInstance, DAG
+from airflow.contrib.operators.gcp_compute_operator import (
+    GceInstanceGroupManagerUpdateTemplateOperator,
+    GceInstanceStartOperator,
+    GceInstanceStopOperator,
+    GceInstanceTemplateCopyOperator,
+    GceSetMachineTypeOperator,
+)
+from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
 
 try:

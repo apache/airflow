@@ -16,12 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
 from datetime import timedelta
+import unittest
+
 from mock import Mock, patch
 
-from airflow.models import TaskInstance, DAG
+from airflow.models import DAG, TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep

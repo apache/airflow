@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import mock
 import unittest
+
+import mock
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook

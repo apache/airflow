@@ -16,10 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from builtins import str
 import re
 import sys
-from builtins import str
 
 from airflow import settings
 from airflow.hooks.hdfs_hook import HDFSHook

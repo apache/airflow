@@ -30,25 +30,24 @@ import os
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry
 # [END howto_operator_vision_retry_import]
-# [START howto_operator_vision_productset_import]
-from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet
-# [END howto_operator_vision_productset_import]
 # [START howto_operator_vision_product_import]
 from google.cloud.vision_v1.proto.product_search_service_pb2 import Product
 # [END howto_operator_vision_product_import]
+# [START howto_operator_vision_productset_import]
+from google.cloud.vision_v1.proto.product_search_service_pb2 import ProductSet
+# [END howto_operator_vision_productset_import]
 
 import airflow
 from airflow import models
-
 from airflow.contrib.operators.gcp_vision_operator import (
+    CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator,
+    CloudVisionProductGetOperator,
     CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator,
     CloudVisionProductSetGetOperator,
     CloudVisionProductSetUpdateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductGetOperator,
     CloudVisionProductUpdateOperator,
-    CloudVisionProductDeleteOperator,
 )
 
 default_args = {'start_date': airflow.utils.dates.days_ago(1)}

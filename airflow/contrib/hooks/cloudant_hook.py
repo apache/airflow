@@ -17,9 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from past.builtins import unicode
-
 import cloudant
+from past.builtins import unicode
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

@@ -19,10 +19,10 @@
 
 from __future__ import print_function
 
-import requests
 import time
 
 from pydruid.db import connect
+import requests
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

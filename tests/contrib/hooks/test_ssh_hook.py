@@ -18,7 +18,9 @@
 # under the License.
 
 import unittest
+
 from airflow import configuration
+from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.models.connection import Connection
 from airflow.utils import db
 
@@ -29,8 +31,6 @@ except ImportError:
         import mock
     except ImportError:
         mock = None
-
-from airflow.contrib.hooks.ssh_hook import SSHHook
 
 
 HELLO_SERVER_CMD = """

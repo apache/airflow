@@ -22,6 +22,7 @@ from google.cloud.bigtable.cluster import Cluster
 from google.cloud.bigtable.instance import Instance
 from google.cloud.bigtable.table import Table
 from google.cloud.bigtable_admin_v2 import enums
+
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 

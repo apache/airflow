@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from functools import wraps
+from itertools import chain
 
 from airflow import configuration as conf
 from airflow.lineage.datasets import DataSet
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string, prepare_classpath
 
-from itertools import chain
 
 PIPELINE_OUTLETS = "pipeline_outlets"
 PIPELINE_INLETS = "pipeline_inlets"

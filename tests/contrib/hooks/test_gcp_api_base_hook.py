@@ -21,8 +21,6 @@
 import os
 import unittest
 
-from airflow.contrib.hooks import gcp_api_base_hook as hook
-
 import google.auth
 from google.auth.exceptions import GoogleAuthError
 try:
@@ -37,6 +35,7 @@ except ImportError:
     except ImportError:
         mock = None
 
+from airflow.contrib.hooks import gcp_api_base_hook as hook
 
 default_creds_available = True
 default_project = None

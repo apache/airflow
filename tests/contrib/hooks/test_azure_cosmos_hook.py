@@ -17,20 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-
 import json
+import logging
 import unittest
 import uuid
 
-from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
-
 from airflow import configuration
+from airflow.contrib.hooks.azure_cosmos_hook import AzureCosmosDBHook
+from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.utils import db
 
-import logging
 
 try:
     from unittest import mock

@@ -17,9 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import six
-
 from pinotdb import connect
+import six
 
 from airflow.hooks.dbapi_hook import DbApiHook
 

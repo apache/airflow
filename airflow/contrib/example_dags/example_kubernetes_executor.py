@@ -17,10 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 from __future__ import print_function
-import airflow
-from airflow.operators.python_operator import PythonOperator
-from airflow.models import DAG
+
 import os
+
+import airflow
+from airflow.models import DAG
+from airflow.operators.python_operator import PythonOperator
+
 
 args = {
     'owner': 'airflow',

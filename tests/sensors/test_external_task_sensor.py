@@ -16,13 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import time, timedelta
 import unittest
-from datetime import timedelta, time
 
-from airflow import DAG, configuration, settings
+from airflow import configuration, DAG, settings
 from airflow import exceptions
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
-from airflow.models import TaskInstance, DagBag
+from airflow.models import DagBag, TaskInstance
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.sensors.external_task_sensor import ExternalTaskSensor

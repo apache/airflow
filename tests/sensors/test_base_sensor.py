@@ -16,13 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import timedelta
+from time import sleep
 import unittest
+
+from freezegun import freeze_time
 from mock import Mock
 
-from airflow import DAG, configuration, settings
-from airflow.exceptions import (AirflowSensorTimeout, AirflowException,
-                                AirflowRescheduleException)
+from airflow import configuration, DAG, settings
+from airflow.exceptions import AirflowException, AirflowRescheduleException, AirflowSensorTimeout
 from airflow.models import DagRun, TaskInstance
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.operators.dummy_operator import DummyOperator
@@ -31,9 +33,6 @@ from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from datetime import timedelta
-from time import sleep
-from freezegun import freeze_time
 
 configuration.load_test_config()
 

@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 from enum import Enum
+import unittest
 
 from airflow.contrib.utils.weekday import WeekDay
 

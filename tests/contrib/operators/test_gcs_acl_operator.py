@@ -19,9 +19,10 @@
 
 import unittest
 
-from airflow.contrib.operators.gcs_acl_operator import \
-    GoogleCloudStorageBucketCreateAclEntryOperator, \
+from airflow.contrib.operators.gcs_acl_operator import (
+    GoogleCloudStorageBucketCreateAclEntryOperator,
     GoogleCloudStorageObjectCreateAclEntryOperator
+)
 
 try:
     from unittest import mock

@@ -20,9 +20,9 @@
 
 from uuid import uuid4
 
+from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.aws_athena_hook import AWSAthenaHook
 
 
 class AWSAthenaOperator(BaseOperator):

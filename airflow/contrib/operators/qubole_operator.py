@@ -17,10 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.contrib.hooks.qubole_hook import (
+    COMMAND_ARGS,
+    flatten_list,
+    HYPHEN_ARGS,
+    POSITIONAL_ARGS,
+    QuboleHook,
+)
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks.qubole_hook import QuboleHook, COMMAND_ARGS, HYPHEN_ARGS, \
-    flatten_list, POSITIONAL_ARGS
 
 
 class QuboleOperator(BaseOperator):

@@ -17,21 +17,22 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
-import json
-import time
 import base64
+from datetime import date, datetime
+from decimal import Decimal
+import json
+import sys
+from tempfile import NamedTemporaryFile
+import time
+
+from MySQLdb.constants import FIELD_TYPE
+from six import string_types
+import unicodecsv as csv
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from datetime import date, datetime
-from decimal import Decimal
-from MySQLdb.constants import FIELD_TYPE
-from tempfile import NamedTemporaryFile
-from six import string_types
-import unicodecsv as csv
 
 PY3 = sys.version_info[0] == 3
 

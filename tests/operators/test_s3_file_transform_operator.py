@@ -23,8 +23,8 @@ import io
 import os
 import shutil
 import sys
-import unittest
 from tempfile import mkdtemp
+import unittest
 
 import boto3
 import mock

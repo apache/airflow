@@ -17,25 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+from copy import deepcopy
 import datetime
 import re
 import unittest
 
-from airflow import DAG, AirflowException
-from airflow.contrib.operators.dataproc_operator import \
-    DataprocClusterCreateOperator, \
-    DataprocClusterDeleteOperator, \
-    DataProcHadoopOperator, \
-    DataProcHiveOperator, \
-    DataProcPySparkOperator, \
-    DataProcSparkOperator, \
-    DataprocWorkflowTemplateInstantiateInlineOperator, \
-    DataprocWorkflowTemplateInstantiateOperator, \
-    DataprocClusterScaleOperator
-from airflow.version import version
+from mock import MagicMock, Mock, patch
 
-from copy import deepcopy
+from airflow import AirflowException, DAG
+from airflow.contrib.operators.dataproc_operator import (
+    DataprocClusterCreateOperator,
+    DataprocClusterDeleteOperator,
+    DataprocClusterScaleOperator,
+    DataProcHadoopOperator,
+    DataProcHiveOperator,
+    DataProcPySparkOperator,
+    DataProcSparkOperator,
+    DataprocWorkflowTemplateInstantiateInlineOperator,
+    DataprocWorkflowTemplateInstantiateOperator,
+)
+from airflow.version import version
 
 try:
     from unittest import mock
@@ -44,9 +45,6 @@ except ImportError:
         import mock
     except ImportError:
         mock = None
-
-from mock import MagicMock, Mock
-from mock import patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'

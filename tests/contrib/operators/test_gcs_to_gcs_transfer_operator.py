@@ -19,8 +19,9 @@
 
 import unittest
 
-from airflow.contrib.operators.gcs_to_gcs_transfer_operator import \
+from airflow.contrib.operators.gcs_to_gcs_transfer_operator import (
     GoogleCloudStorageToGoogleCloudStorageTransferOperator
+)
 
 try:
     from unittest import mock

@@ -22,13 +22,13 @@ Utilities module for cli
 """
 from __future__ import absolute_import
 
+from argparse import Namespace
+from datetime import datetime
 import functools
 import getpass
 import json
 import socket
 import sys
-from argparse import Namespace
-from datetime import datetime
 
 from airflow.models.log import Log
 from airflow.utils import cli_action_loggers

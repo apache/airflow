@@ -17,14 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from time import sleep
+
 import requests
+from requests import exceptions as requests_exceptions
+from requests.auth import AuthBase
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from requests import exceptions as requests_exceptions
-from requests.auth import AuthBase
-from time import sleep
 
 try:
     from urllib import parse as urlparse

@@ -19,7 +19,7 @@
 
 import unittest
 
-from mock import patch, Mock
+from mock import Mock, patch
 
 from airflow import configuration
 from airflow.contrib.sensors.imap_attachment_sensor import ImapAttachmentSensor

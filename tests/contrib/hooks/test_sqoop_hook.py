@@ -19,18 +19,17 @@
 #
 
 import collections
+from io import StringIO
 import json
 import unittest
+
+from mock import call, patch
 
 from airflow import configuration
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
 from airflow.models.connection import Connection
 from airflow.utils import db
-
-from mock import patch, call
-
-from io import StringIO
 
 
 class TestSqoopHook(unittest.TestCase):

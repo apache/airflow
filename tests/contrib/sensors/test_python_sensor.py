@@ -20,7 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowSensorTimeout
 from airflow.models import DagBag

@@ -23,9 +23,8 @@ Revises: 947454bf1dff
 Create Date: 2017-08-18 17:07:16.686130
 
 """
-from alembic import op
+from alembic import context, op
 from sqlalchemy.dialects import mysql
-from alembic import context
 
 # revision identifiers, used by Alembic.
 revision = 'd2ae31099d61'

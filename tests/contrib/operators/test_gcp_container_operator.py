@@ -21,8 +21,11 @@ import os
 import unittest
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_container_operator import GKEClusterCreateOperator, \
-    GKEClusterDeleteOperator, GKEPodOperator
+from airflow.contrib.operators.gcp_container_operator import (
+    GKEClusterCreateOperator,
+    GKEClusterDeleteOperator,
+    GKEPodOperator
+)
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 
 try:

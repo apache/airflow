@@ -16,9 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import uuid
+
 import azure.cosmos.cosmos_client as cosmos_client
 from azure.cosmos.errors import HTTPFailure
-import uuid
 
 from airflow.exceptions import AirflowBadRequest
 from airflow.hooks.base_hook import BaseHook

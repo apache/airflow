@@ -16,12 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import sys
 import unittest
 
-from airflow.contrib.operators.mysql_to_gcs import \
-    MySqlToGoogleCloudStorageOperator
+from airflow.contrib.operators.mysql_to_gcs import MySqlToGoogleCloudStorageOperator
 
 try:
     from unittest import mock

@@ -16,14 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
 from datetime import datetime
+import unittest
 
 from airflow.models import BaseOperator, TaskInstance
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 
 
 class TriggerRuleDepTest(unittest.TestCase):

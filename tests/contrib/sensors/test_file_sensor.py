@@ -18,14 +18,13 @@
 # under the License.
 #
 
-import unittest
 import shutil
 import tempfile
+import unittest
 
-from airflow import configuration
-from airflow import models, DAG
-from airflow.exceptions import AirflowSensorTimeout
+from airflow import configuration, DAG, models
 from airflow.contrib.sensors.file_sensor import FileSensor
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
 

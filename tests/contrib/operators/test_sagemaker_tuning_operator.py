@@ -28,8 +28,7 @@ except ImportError:
 
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_tuning_operator \
-    import SageMakerTuningOperator
+from airflow.contrib.operators.sagemaker_tuning_operator import SageMakerTuningOperator
 from airflow.exceptions import AirflowException
 
 role = 'arn:aws:iam:role/test-role'

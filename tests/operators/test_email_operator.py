@@ -20,8 +20,9 @@
 from __future__ import print_function, unicode_literals
 
 import datetime
-import mock
 import unittest
+
+import mock
 
 from airflow import configuration, DAG
 from airflow.operators.email_operator import EmailOperator

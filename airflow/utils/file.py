@@ -20,12 +20,11 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
 
+from contextlib import contextmanager
 import errno
 import os
 import shutil
 from tempfile import mkdtemp
-
-from contextlib import contextmanager
 
 
 @contextmanager

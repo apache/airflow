@@ -28,8 +28,7 @@ except ImportError:
 
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_endpoint_config_operator \
-    import SageMakerEndpointConfigOperator
+from airflow.contrib.operators.sagemaker_endpoint_config_operator import SageMakerEndpointConfigOperator
 from airflow.exceptions import AirflowException
 
 model_name = 'test-model-name'

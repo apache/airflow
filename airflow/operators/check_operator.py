@@ -17,8 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import zip
-from builtins import str
+from builtins import str, zip
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

@@ -20,7 +20,7 @@
 import argparse
 import os
 
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_COMPUTE_KEY
+from tests.contrib.utils.gcp_authenticator import GCP_COMPUTE_KEY, GcpAuthenticator
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')

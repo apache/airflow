@@ -18,15 +18,19 @@
 # under the License.
 
 import unittest
+
+from cassandra.cluster import Cluster
+from cassandra.policies import (
+    DCAwareRoundRobinPolicy,
+    RoundRobinPolicy,
+    TokenAwarePolicy,
+    WhiteListRoundRobinPolicy
+)
 import mock
 from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
-from cassandra.cluster import Cluster
-from cassandra.policies import (
-    TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
-)
 from airflow.models.connection import Connection
 from airflow.utils import db
 
