@@ -115,6 +115,7 @@ extensions = [
     'sphinxarg.ext',
     'sphinxcontrib.httpdomain',
     'sphinx.ext.intersphinx',
+    'autoapi.extension',
 ]
 
 autodoc_default_flags = ['show-inheritance', 'members']
@@ -122,7 +123,7 @@ autodoc_default_flags = ['show-inheritance', 'members']
 viewcode_import = True
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ['templates']
 
 # The suffix of source filenames.
 source_suffix = '.rst'
@@ -160,7 +161,41 @@ release = airflow.__version__
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns = ['_build']
+exclude_patterns = [
+    '_api/airflow/_vendor',
+    '_api/airflow/api',
+    '_api/airflow/bin',
+    '_api/airflow/config_templates',
+    '_api/airflow/configuration',
+    '_api/airflow/contrib/auth',
+    '_api/airflow/contrib/example_dags',
+    '_api/airflow/contrib/index.rst',
+    '_api/airflow/contrib/kubernetes',
+    '_api/airflow/contrib/task_runner',
+    '_api/airflow/contrib/utils',
+    '_api/airflow/dag',
+    '_api/airflow/default_login',
+    '_api/airflow/example_dags',
+    '_api/airflow/exceptions',
+    '_api/airflow/index.rst',
+    '_api/airflow/jobs',
+    '_api/airflow/lineage',
+    '_api/airflow/logging_config',
+    '_api/airflow/macros',
+    '_api/airflow/migrations',
+    '_api/airflow/plugins_manager',
+    '_api/airflow/security',
+    '_api/airflow/settings',
+    '_api/airflow/stats',
+    '_api/airflow/task',
+    '_api/airflow/ti_deps',
+    '_api/airflow/utils',
+    '_api/airflow/version',
+    '_api/airflow/www',
+    '_api/main',
+    '_build',
+    'autoapi_templates',
+]
 
 # The reST default role (used for this markup: `text`) to use for all
 # documents.
@@ -184,7 +219,7 @@ pygments_style = 'sphinx'
 # modindex_common_prefix = []
 
 # If true, keep warnings as "system message" paragraphs in the built documents.
-# keep_warnings = False
+keep_warnings = True
 
 
 intersphinx_mapping = {
@@ -363,3 +398,30 @@ texinfo_documents = [(
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 # texinfo_no_detailmenu = False
+
+# sphinx-autoapi configuration
+# See:
+# https://sphinx-autoapi.readthedocs.io/en/latest/config.html
+
+# Paths (relative or absolute) to the source code that you wish to generate
+# your API documentation from.
+autoapi_dirs = [
+    os.path.abspath('../airflow'),
+]
+
+# A directory that has user-defined templates to override our default templates.
+autoapi_template_dir = 'autoapi_templates'
+
+# A list of patterns to ignore when finding files
+autoapi_ignore = [
+    os.path.abspath('../airflow/contrib/operators/s3_to_gcs_transfer_operator.py'),
+    os.path.abspath('../airflow/contrib/operators/gcs_to_gcs_transfer_operator.py'),
+    os.path.abspath('../airflow/contrib/operators/gcs_to_gcs_transfer_operator.py'),
+]
+# Keep the AutoAPI generated files on the filesystem after the run.
+# Useful for debugging.
+autoapi_keep_files = False
+
+# Relative path to output the AutoAPI files into. This can also be used to place the generated documentation
+# anywhere in your documentation hierarchy.
+autoapi_root = '_api'

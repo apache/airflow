@@ -43,7 +43,7 @@ class PythonOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :doc:`howto/operator/python`
+        :ref:`howto/operator:PythonOperator`
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable

@@ -23,7 +23,8 @@ set -e
 FWDIR="$(cd "`dirname "$0"`"; pwd)"
 cd "$FWDIR"
 
-[ -d _build ] && rm -r _build
+[[ -d "_build" ]] && rm -r _build
+[[ -d "_api" ]] && rm -r _api
 
 SUCCEED_LINE=$(make html |\
     tee /dev/tty |\

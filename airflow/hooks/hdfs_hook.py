@@ -16,18 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from six import PY2
-
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
-
-snakebite_imported = False
-if PY2:
+try:
     from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
-    snakebite_imported = True
+    snakebite_loaded = True
+except ImportError:
+    snakebite_loaded = False
 
 
 class HDFSHookException(AirflowException):
@@ -47,7 +44,7 @@ class HDFSHook(BaseHook):
     """
     def __init__(self, hdfs_conn_id='hdfs_default', proxy_user=None,
                  autoconfig=False):
-        if not snakebite_imported:
+        if not snakebite_loaded:
             raise ImportError(
                 'This HDFSHook implementation requires snakebite, but '
                 'snakebite is not compatible with Python 3 '
