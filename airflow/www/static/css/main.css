@@ -273,3 +273,10 @@ div.square {
 .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
 .s2 { color: #BA2121 } /* Literal.String.Double */
 .s1 { color: #BA2121 } /* Literal.String.Single */
+
+.highlight--demo-mode .s,
+.highlight--demo-mode .s1,
+.highlight--demo-mode .s2 {
+  text-shadow: 0px 0px 10px red;
+  color: transparent;
+}

@@ -34,6 +34,7 @@ const BUILD_DIR = path.resolve(__dirname, './static/dist');
 
 const config = {
   entry: {
+    utils: `${STATIC_DIR}/js/utils.js`,
     connectionForm: `${STATIC_DIR}/js/connection_form.js`,
     base: `${STATIC_DIR}/js/base.js`,
     graph: `${STATIC_DIR}/js/graph.js`,

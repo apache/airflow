@@ -18,6 +18,16 @@ limitations under the License.
 {% extends "airflow/task_instance.html" %}
 {% block title %}Airflow - DAGs{% endblock %}
 
+{% block head_css %}
+  {{ super() }}
+  <meta name="total-attempts" content="{{ logs|length }}">
+  <meta name="dag-id" content="{{ dag_id }}">
+  <meta name="task-id" content="{{ task_id }}">
+  <meta name="execution-date" content="{{ execution_date }}">
+  <meta name="task-id" content="{{ task_id }}">
+  <meta name="base-url-get-logs-with-metadata" content="{{ url_for("Airflow.get_logs_with_metadata") }}">
+{% endblock %}
+
 {% block content %}
 {{ super() }}
 <h4>{{ title }}</h4>
@@ -42,7 +52,9 @@ limitations under the License.
 {% endblock %}
 {% block tail %}
 {{ super() }}
+<script src="{{ url_for_asset('utils.js') }}"></script>
 <script>
+(function() {
     // TODO: make those constants configurable.
     // Time interval to wait before next log fetching. Default 2s.
     const DELAY = 2e3;
@@ -51,7 +63,11 @@ limitations under the License.
     // Animation speed for auto tailing log display.
     const ANIMATION_SPEED = 1000;
     // Total number of tabs to show.
-    const TOTAL_ATTEMPTS = "{{ logs|length }}";
+    const TOTAL_ATTEMPTS = getMetaValue('total-attempts');
+    const EXECUTION_DATE = getMetaValue('execution-date');
+    const DAG_ID = getMetaValue('dag-id');
+    const TASK_ID = getMetaValue('task-id');
+    const BASE_URL_GET_LOGS = getMetaValue('base-url-get-logs-with-metadata');
 
     // Recursively fetch logs from flask endpoint.
     function recurse(delay=DELAY) {
@@ -72,16 +88,15 @@ limitations under the License.
 
     // Streaming log with auto-tailing.
     function autoTailingLog(try_number, metadata=null, auto_tailing=false) {
-      console.debug("Auto-tailing log for dag_id: {{ dag_id }}, task_id: {{ task_id }}, \
-       execution_date: {{ execution_date }}, try_number: " + try_number + ", metadata: " + JSON.stringify(metadata));
+      console.debug(`Auto-tailing log for dag_id: ${DAG_ID}, task_id: ${TASK_ID}, execution_date: ${EXECUTION_DATE},  try_number,  ${try_number}, metadata: ${JSON.stringify(metadata)}`);
 
       return Promise.resolve(
         $.ajax({
-          url: "{{ url_for("Airflow.get_logs_with_metadata") }}",
+          url: BASE_URL_GET_LOGS,
           data: {
-            dag_id: "{{ dag_id }}",
-            task_id: "{{ task_id }}",
-            execution_date: "{{ execution_date }}",
+            dag_id: DAG_ID,
+            task_id: TASK_ID,
+            execution_date: EXECUTION_DATE,
             try_number: try_number,
             metadata: JSON.stringify(metadata),
           },
@@ -135,6 +150,6 @@ limitations under the License.
         autoTailingLog(i, null, auto_tailing=(i == TOTAL_ATTEMPTS));
       }
     });
-
+})()
 </script>
 {% endblock %}

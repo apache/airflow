@@ -22,6 +22,16 @@
 {% block head_css %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/graph.css') }}">
+<meta name="nodes" content="{{ nodes | tojson | forceescape }}">
+<meta name="edges" content="{{ edges | tojson | forceescape }}">
+<meta name="execution-date" content="{{ execution_date }}">
+<meta name="arrange" content="{{ arrange }}">
+<meta name="tasks" content="{{ tasks | tojson | forceescape}}">
+<meta name="task-instances" content="{{ task_instances | tojson | forceescape }}">
+<meta name="base-task-instance-url" content="{{ url_for('Airflow.task_instances') }}">
+{% if blur %}
+  <meta name="blur" content="true"/>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -92,7 +102,7 @@
 
 {% block tail %}
 {{ super() }}
-
+<script src="{{ url_for_asset('utils.js') }}"></script>
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script src="{{ url_for_asset('dagre-d3.min.js') }}"></script>
 <script>
@@ -103,15 +113,16 @@
     var initialStrokeWidth = '3px';
     var highlightStrokeWidth = '5px';
 
-    var nodes = {{ nodes|tojson|safe }};
-    var edges = {{ edges|tojson|safe }};
-    var execution_date = "{{ execution_date }}";
-    var arrange = "{{ arrange }}";
+    var nodes = JSON.parse(getMetaValue('nodes'));
+    var edges = JSON.parse(getMetaValue('edges'));
+    var execution_date = getMetaValue('execution-date');
+    var arrange = getMetaValue('arrange');
+    var tasks = JSON.parse(getMetaValue('tasks'));
+    var task_instances =  JSON.parse(getMetaValue('task-instances'));
+    var base_task_instance_url = getMetaValue('base-task-instance-url');
 
     // Below variables are being used in dag.js
-    var tasks = {{ tasks|tojson|safe }};
-    var task_instances = {{ task_instances|tojson|safe }};
-    var getTaskInstanceURL = "{{ url_for('Airflow.task_instances') }}" +
+    var getTaskInstanceURL = base_task_instance_url +
       "?dag_id=" + encodeURIComponent(dag_id) + "&execution_date=" +
       encodeURIComponent(execution_date);
 
@@ -195,10 +206,9 @@
         highlight_nodes(g.successors(d), null)
     });
 
-
-    {% if blur %}
-    d3.selectAll("text").attr("class", "blur");
-    {% endif %}
+    if(getMetaValue('blur')) {
+      d3.selectAll("text").attr("class", "blur");
+    }
 
     $("g.node").tooltip({
       html: true,

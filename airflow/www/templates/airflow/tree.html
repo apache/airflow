@@ -23,6 +23,10 @@
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/tree.css') }}">
 <link rel="stylesheet" type="text/css"
       href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css') }}">
+<meta name="data" content="{{ data | tojson | forceescape }}"/>
+{% if blur %}
+  <meta name="blur" content="true"/>
+{% endif %}
 {% endblock %}
 
 {% block content %}
@@ -76,11 +80,12 @@
 
 {% block tail %}
 {{ super() }}
+<script src="{{ url_for_asset('utils.js') }}"></script>
 <script src="{{ url_for_asset('d3.min.js') }}"></script>
 <script>
 $('span.status_square').tooltip({html: true});
 
-var data = {{ data|tojson|safe }};
+var data = JSON.parse(getMetaValue('data'));
 var barHeight = 20;
 var axisHeight = 40;
 var square_x = 500;
@@ -114,10 +119,11 @@ var svg = d3.select("svg")
     data.x0 = 0;
     data.y0 = 0;
 
+  var base_mode;
   if (nodes.length == 1)
-    var base_node = nodes[0];
+    base_node = nodes[0];
   else
-    var base_node = nodes[1];
+    base_node = nodes[1];
 
   var num_square = base_node.instances.length;
   var extent = d3.extent(base_node.instances, function(d,i) {
@@ -220,9 +226,11 @@ function update(source) {
       .attr("dy", 3.5)
       .attr("dx", barHeight/2)
       .text(function(d) { return d.name; });
-  {% if blur %}
-  text.attr("class", "blur");
-  {% endif %}
+
+  if(getMetaValue('blur')) {
+    text.attr("class", "blur");
+  }
+
 
   nodeEnter.append('g')
       .attr("class", "stateboxes")

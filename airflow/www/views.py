@@ -393,18 +393,22 @@ class Airflow(AirflowBaseView):
         dm = models.DagModel
         dag_id = request.args.get('dag_id')
         dag = session.query(dm).filter(dm.dag_id == dag_id).first()
+        demo_mode = conf.getboolean('webserver', 'demo_mode')
         try:
             with wwwutils.open_maybe_zipped(dag.fileloc, 'r') as f:
                 code = f.read()
-            html_code = highlight(
-                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+            cssclass = ""
+            if demo_mode:
+                cssclass = "highlight--demo-mode"
+            formatter = HtmlFormatter(linenos=True, cssclass=cssclass)
+            html_code = highlight(code, lexers.PythonLexer(), formatter)
         except IOError as e:
             html_code = str(e)
 
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=dag_id,
-            root=request.args.get('root'),
-            demo_mode=conf.getboolean('webserver', 'demo_mode'))
+            root=request.args.get('root')
+        )
 
     @expose('/dag_details')
     @has_dag_access(can_dag_read=True)

@@ -21,11 +21,8 @@ import {defaultFormatWithTZ, moment} from './datetime-utils';
 
 function displayTime() {
   let utcTime = moment().utc().format(defaultFormatWithTZ);
-  $('#clock')
-    .attr("data-original-title", function() {
-      return hostName
-    })
-    .html(utcTime);
+
+  $('#clock').html(utcTime);
 
   setTimeout(displayTime, 1000);
 }
@@ -73,11 +70,13 @@ window.postAsForm = postAsForm;
 
 $(document).ready(function () {
   displayTime();
+  const CSRF_TOKEN = getMetaValue('csrf-token');
+
   $('span').tooltip();
   $.ajaxSetup({
     beforeSend: function(xhr, settings) {
       if (!/^(GET|HEAD|OPTIONS|TRACE)$/i.test(settings.type) && !this.crossDomain) {
-        xhr.setRequestHeader("X-CSRFToken", csrfToken);
+        xhr.setRequestHeader("X-CSRFToken", CSRF_TOKEN);
       }
     }
   });

@@ -22,6 +22,7 @@
 
 {% block head_css %}
 {{ super() }}
+<meta name="execution-date" content="{{ execution_date }}">
 <link rel="stylesheet" type="text/css"
     href="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.css')}}" >
 {% endblock %}
@@ -60,13 +61,15 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
+  <script src="{{ url_for_asset('utils.js') }}"></script>
   <script src="{{ url_for('appbuilder.static',filename='datepicker/bootstrap-datepicker.js')}}"></script>
   <script>
+    const EXECUTION_DATE = getMetaValue('execution-date');
     $( document ).ready(function() {
       function date_change(){
           execution_date = $("input#execution_date").val().replace(' ', 'T');
           loc = decodeURIComponent(window.location.href);
-          loc = loc.replace('{{ execution_date }}', execution_date);
+          loc = loc.replace(EXECUTION_DATE, execution_date);
           window.location = loc;
       }
       $("input#execution_date").on("change.daterangepicker", function(){

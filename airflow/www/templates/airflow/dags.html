@@ -23,6 +23,13 @@
 {{ super() }}
 <link href="{{ url_for_asset('dataTables.bootstrap.min.css') }}" rel="stylesheet" type="text/css" >
 <link href="{{ url_for_asset('bootstrap-toggle.min.css') }}" rel="stylesheet" type="text/css">
+<meta name="base-url-index" content="{{ url_for('Airflow.index') }}"/>
+<meta name="base-url-blocked" content="{{ url_for('Airflow.blocked') }}"/>
+<meta name="base-url-dag-stats" content="{{ url_for('Airflow.dag_stats') }}"/>
+<meta name="base-url-dag-run-list" content="{{ url_for('DagRunModelView.list') }}" />
+<meta name="base-url-task-stats" content="{{ url_for('Airflow.task_stats') }}" />
+<meta name="base-url-task-instance-list" content="{{ url_for('TaskInstanceModelView.list') }}" />
+<meta name="tokens" content="{{ auto_complete_data | join(',') }}"/>
 {% endblock %}
 
 {% block content %}
@@ -207,6 +214,7 @@
 
 {% block tail %}
   {{ super() }}
+  <script src="{{ url_for_asset('utils.js') }}"></script>
   <script src="{{ url_for_asset('d3.min.js') }}"></script>
   <script src="{{ url_for_asset('jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for_asset('dataTables.bootstrap.min.js') }}"></script>
@@ -214,7 +222,13 @@
   <script src="{{ url_for_asset('bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = "{{ url_for('Airflow.index') }}";
+      const DAGS_INDEX = getMetaValue('base-url-index');
+      const BASE_URL_BLOCKED = getMetaValue('base-url-blocked');
+      const BASE_URL_DAG_STATS = getMetaValue("base-url-dag-stats");
+      const BASE_URL_DAG_RUN_LIST = getMetaValue('base-url-dag-run-list');
+      const BASE_URL_TASK_STATS = getMetaValue('base-url-task-stats');
+      const BASE_URL_TASK_INSTANCES_LIST = getMetaValue('base-url-task-instance-list');
+
       const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
@@ -263,11 +277,7 @@
       });
 
       var $input = $(".typeahead");
-      unique_options_search = new Set([
-          {% for token in auto_complete_data %}
-            "{{token}}",
-          {% endfor %}
-        ]);
+      unique_options_search = new Set(getMetaValue('tokens').split(','));
 
       $input.typeahead({
         source: [...unique_options_search],
@@ -298,7 +308,7 @@
       circle_margin = 4;
       stroke_width = 2;
       stroke_width_hover = 6;
-      d3.json("{{ url_for('Airflow.blocked') }}", function(error, json) {
+      d3.json(BASE_URL_BLOCKED, function(error, json) {
         $.each(json, function() {
           $('.label.schedule.' + this.dag_id)
           .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
@@ -309,7 +319,7 @@
           }
         });
       });
-      d3.json("{{ url_for('Airflow.dag_stats') }}", function(error, json) {
+      d3.json(BASE_URL_DAG_STATS, function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
             g = d3.select('svg#dag-run-' + dag_id)
@@ -357,7 +367,9 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+                    window.location = BASE_URL_DAG_RUN_LIST +
+                      "?_flt_3_dag_id=" + encodeUriComponent(d.dag_id) +
+                      "&_flt_3_state=" + encodeUriComponent(d.state);
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {
@@ -388,7 +400,7 @@
           container: "body",
         });
       });
-      d3.json("{{ url_for('Airflow.task_stats') }}", function(error, json) {
+      d3.json(BASE_URL_TASK_STATS, function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
             g = d3.select('svg#task-run-' + dag_id)
@@ -436,7 +448,9 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "{{ url_for('TaskInstanceModelView.list') }}?_flt_3_dag_id=" + d.dag_id + "&_flt_3_state=" + d.state;
+                    window.location = BASE_URL_TASK_INSTANCES_LIST +
+                      "?_flt_3_dag_id=" + encodeUriComponent(d.dag_id) +
+                      "&_flt_3_state=" + encodeUriComponent(d.state);
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {

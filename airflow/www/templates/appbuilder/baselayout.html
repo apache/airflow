@@ -27,8 +27,9 @@
     <link href="{{ url_for_asset('airflowDefaultTheme.css') }}" rel="stylesheet">
   {% endif %}
   <link href="{{ url_for_asset('main.css') }}" rel="stylesheet">
-
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='pin_30.png') }}">
+  <meta name="host-name" content="{{ hostname }}"/>
+  <meta name="csrf-token" content="{{ csrf_token() }}"/>
 {% endblock %}
 
 
@@ -66,10 +67,6 @@
 
 {% block tail_js %}
 {{ super() }}
-<script type="text/javascript">
-  // below variables are used in base.js
-  var hostName = '{{ hostname }}';
-  var csrfToken = '{{ csrf_token() }}';
-</script>
+<script src="{{ url_for_asset('utils.js') }}"></script>
 <script src="{{ url_for_asset('base.js') }}" type="text/javascript"></script>
 {% endblock %}

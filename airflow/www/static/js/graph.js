@@ -20,6 +20,8 @@
 import { generateTooltipDateTime, converAndFormatUTC, secondsToString } from './datetime-utils';
 import { escapeHtml } from './base';
 
+var dagTZ = getMetaValue('dag-timezone');
+
 // Assigning css classes based on state to nodes
 // Initiating the tooltips
 function update_nodes_states(task_instances) {
@@ -44,7 +46,7 @@ function update_nodes_states(task_instances) {
         tt += "Operator: " + escapeHtml(task.task_type) + "<br>";
         tt += "Duration: " + escapeHtml(ti.duration) + "<br>";
         tt += "Started: " + escapeHtml(ti.start_date) + "<br>";
-        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ); // dagTZ has been defined in dag.html
+        tt += generateTooltipDateTime(ti.start_date, ti.end_date, dagTZ);
         return tt;
       });
   });
