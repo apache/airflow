@@ -18,16 +18,17 @@
 # under the License.
 #
 
+from copy import deepcopy
 import sys
 import unittest
-from copy import deepcopy
 
 from parameterized import parameterized
 
 from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.contrib.operators.ecs_operator import ECSOperator
+from airflow.exceptions import AirflowException
 from tests.compat import mock
+
 
 RESPONSE_WITHOUT_FAILURES = {
     "failures": [],

@@ -18,8 +18,7 @@
 # under the License.
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
-from airflow.operators.check_operator import \
-    CheckOperator, ValueCheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, IntervalCheckOperator, ValueCheckOperator
 from airflow.utils.decorators import apply_defaults
 
 

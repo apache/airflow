@@ -28,13 +28,14 @@ trigger it manually `airflow trigger_dag example_qubole_operator`.
 example. Also be aware that it might spin up clusters to run these examples.*
 """
 
-import airflow
-from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
-from airflow.contrib.operators.qubole_operator import QuboleOperator
 import filecmp
 import random
+
+import airflow
+from airflow import DAG
+from airflow.contrib.operators.qubole_operator import QuboleOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 
 default_args = {
     'owner': 'airflow',

@@ -26,14 +26,13 @@ for other uses.
 NOTE:   this hook also relies on the simple_salesforce package:
         https://github.com/simple-salesforce/simple-salesforce
 """
-from simple_salesforce import Salesforce
-from airflow.hooks.base_hook import BaseHook
-
 import json
-
-import pandas as pd
 import time
 
+import pandas as pd
+from simple_salesforce import Salesforce
+
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 

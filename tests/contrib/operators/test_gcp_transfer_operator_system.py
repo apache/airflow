@@ -19,8 +19,7 @@
 import unittest
 
 from tests.contrib.operators.test_gcp_transfer_operator_system_helper import GCPTransferTestHelper
-from tests.contrib.utils.base_gcp_system_test_case import SKIP_TEST_WARNING, DagGcpSystemTestCase
-
+from tests.contrib.utils.base_gcp_system_test_case import DagGcpSystemTestCase, SKIP_TEST_WARNING
 from tests.contrib.utils.gcp_authenticator import GCP_GCS_TRANSFER_KEY
 
 

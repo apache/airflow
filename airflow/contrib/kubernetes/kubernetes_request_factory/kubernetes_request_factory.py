@@ -16,6 +16,7 @@
 # under the License.
 
 from abc import ABCMeta, abstractmethod
+
 import six
 
 

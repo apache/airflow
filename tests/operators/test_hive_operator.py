@@ -26,7 +26,7 @@ import unittest
 import mock
 import nose
 
-from airflow import DAG, configuration, operators
+from airflow import configuration, DAG, operators
 from airflow.models import TaskInstance
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone

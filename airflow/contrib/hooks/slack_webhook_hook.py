@@ -19,8 +19,8 @@
 #
 import json
 
-from airflow.hooks.http_hook import HttpHook
 from airflow.exceptions import AirflowException
+from airflow.hooks.http_hook import HttpHook
 
 
 class SlackWebhookHook(HttpHook):

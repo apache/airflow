@@ -16,27 +16,23 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from future.utils import native
+import re
+import ssl
+import traceback
 
-import flask_login
-from flask_login import login_required, current_user, logout_user  # noqa: F401
 from flask import flash
+from flask import redirect, url_for
+import flask_login
+from flask_login import current_user, login_required, logout_user  # noqa: F401
+from future.utils import native
+from ldap3 import Connection, LEVEL, Server, set_config_parameter, SUBTREE, Tls
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, set_config_parameter, LEVEL, SUBTREE
-import ssl
-
-from flask import url_for, redirect
-
-from airflow import models
 from airflow import configuration
+from airflow import models
 from airflow.configuration import AirflowConfigException
 from airflow.utils.db import provide_session
-
-import traceback
-import re
-
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()

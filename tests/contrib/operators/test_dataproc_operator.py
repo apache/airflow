@@ -17,30 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+from copy import deepcopy
 import datetime
 import re
-import unittest
 from typing import Dict
+import unittest
 
-from airflow import DAG, AirflowException
-from airflow.contrib.operators.dataproc_operator import \
-    DataprocClusterCreateOperator, \
-    DataprocClusterDeleteOperator, \
-    DataProcHadoopOperator, \
-    DataProcHiveOperator, \
-    DataProcPySparkOperator, \
-    DataProcSparkOperator, \
-    DataprocWorkflowTemplateInstantiateInlineOperator, \
-    DataprocWorkflowTemplateInstantiateOperator, \
-    DataprocClusterScaleOperator
+from airflow import AirflowException, DAG
+from airflow.contrib.operators.dataproc_operator import (
+    DataprocClusterCreateOperator,
+    DataprocClusterDeleteOperator,
+    DataprocClusterScaleOperator,
+    DataProcHadoopOperator,
+    DataProcHiveOperator,
+    DataProcPySparkOperator,
+    DataProcSparkOperator,
+    DataprocWorkflowTemplateInstantiateInlineOperator,
+    DataprocWorkflowTemplateInstantiateOperator,
+)
 from airflow.version import version
-from tests.compat import mock
-
-from copy import deepcopy
-
-from mock import MagicMock, Mock
-from mock import patch
+from tests.compat import MagicMock, Mock, mock, patch
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'

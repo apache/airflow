@@ -27,16 +27,16 @@ from builtins import str
 from collections import OrderedDict
 import copy
 import errno
-from future import standard_library
 import os
 import shlex
-import six
-from six import iteritems
 import subprocess
 import sys
 import warnings
 
-from backports.configparser import ConfigParser, _UNSET, NoOptionError
+from backports.configparser import _UNSET, ConfigParser, NoOptionError
+from future import standard_library
+import six
+from six import iteritems
 from zope.deprecation import deprecated
 
 from airflow.exceptions import AirflowConfigException

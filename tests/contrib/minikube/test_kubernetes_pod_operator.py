@@ -14,19 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import unittest
+import json
 import os
 import shutil
-from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-from airflow.contrib.kubernetes.secret import Secret
-from airflow import AirflowException
-from kubernetes.client.rest import ApiException
 from subprocess import check_call
-import json
+import unittest
+
+from kubernetes.client.rest import ApiException
+
+from airflow import AirflowException
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
-from airflow.contrib.kubernetes.volume_mount import VolumeMount
+from airflow.contrib.kubernetes.secret import Secret
 from airflow.contrib.kubernetes.volume import Volume
+from airflow.contrib.kubernetes.volume_mount import VolumeMount
+from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from tests.compat import mock
 
 try:

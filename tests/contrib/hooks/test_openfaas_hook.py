@@ -19,12 +19,15 @@
 #
 
 import unittest
+
 import requests_mock
-from airflow.models.connection import Connection
+
+from airflow import AirflowException, configuration
 from airflow.contrib.hooks.openfaas_hook import OpenFaasHook
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration, AirflowException
+from airflow.models.connection import Connection
 from tests.compat import mock
+
 
 FUNCTION_NAME = "function_name"
 

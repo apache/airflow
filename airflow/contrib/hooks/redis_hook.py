@@ -16,11 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-"""
-RedisHook module
-"""
 from redis import Redis
+
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -32,8 +29,8 @@ class RedisHook(BaseHook):
         """
         Prepares hook to connect to a Redis database.
 
-        :param conn_id:     the name of the connection that has the parameters
-                            we need to connect to Redis.
+        :param redis_conn_id: the name of the connection that has the parameters
+            we need to connect to Redis.
         """
         self.redis_conn_id = redis_conn_id
         self.redis = None

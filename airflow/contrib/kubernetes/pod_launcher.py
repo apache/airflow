@@ -14,22 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import datetime as dt
 import json
 import time
-from typing import Tuple, Optional
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
-from datetime import datetime as dt
-from airflow.contrib.kubernetes.pod import Pod
-from airflow.contrib.kubernetes.kubernetes_request_factory import \
-    pod_request_factory as pod_factory
-from kubernetes import watch, client
+from typing import Optional, Tuple
+
+from kubernetes import client, watch
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
-from airflow import AirflowException
 from requests.exceptions import HTTPError
-from .kube_client import get_kube_client
+
+from airflow import AirflowException
+from airflow.contrib.kubernetes.kube_client import get_kube_client
+from airflow.contrib.kubernetes.kubernetes_request_factory import pod_request_factory as pod_factory
+from airflow.contrib.kubernetes.pod import Pod
+from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.state import State
 
 
 class PodStatus(object):

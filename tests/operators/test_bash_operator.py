@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-import unittest
 from datetime import datetime, timedelta
+import os
 from tempfile import NamedTemporaryFile
+import unittest
 
 from airflow import DAG
 from airflow.models import State

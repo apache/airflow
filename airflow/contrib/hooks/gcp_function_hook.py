@@ -18,8 +18,9 @@
 # under the License.
 
 import time
-import requests
+
 from googleapiclient.discovery import build
+import requests
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook

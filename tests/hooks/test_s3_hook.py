@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import mock
 import tempfile
 import unittest
 
 from botocore.exceptions import NoCredentialsError
+import mock
 
 from airflow import configuration
 

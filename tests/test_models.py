@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
@@ -27,31 +28,31 @@ import inspect
 import logging
 import os
 import re
+import shutil
+from tempfile import mkdtemp, NamedTemporaryFile
 import textwrap
 import time
 import unittest
 import urllib
 import uuid
-import shutil
-from tempfile import NamedTemporaryFile, mkdtemp
 
-import pendulum
-import six
 from cryptography.fernet import Fernet
 from freezegun import freeze_time
+import jinja2
 from mock import ANY, mock_open, patch
 from parameterized import parameterized
-import jinja2
+import pendulum
+import six
 
 from airflow import AirflowException, configuration, models, settings
 from airflow.contrib.sensors.python_sensor import PythonSensor
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
-from airflow.models import DAG, TaskInstance as TI, DagBag
+from airflow.models import clear_task_instances
+from airflow.models import DAG, DagBag, TaskInstance as TI
 from airflow.models import DagModel, DagRun
 from airflow.models import State as ST
 from airflow.models import Variable
-from airflow.models import clear_task_instances
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.xcom import XCom

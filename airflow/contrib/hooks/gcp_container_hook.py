@@ -20,16 +20,16 @@
 import json
 import time
 
-from airflow import AirflowException, version
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.client_info import ClientInfo
 from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud import container_v1, exceptions
 from google.cloud.container_v1.gapic.enums import Operation
 from google.cloud.container_v1.types import Cluster
 from google.protobuf import json_format
-from google.api_core.gapic_v1.client_info import ClientInfo
+
+from airflow import AirflowException, version
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 OPERATIONAL_POLL_INTERVAL = 15
 

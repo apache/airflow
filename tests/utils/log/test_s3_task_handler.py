@@ -16,18 +16,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+import unittest
 
 import mock
-import unittest
-import os
 
 from airflow import configuration
+from airflow.hooks.S3_hook import S3Hook
+from airflow.models import DAG, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.log.s3_task_handler import S3TaskHandler
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
-from airflow.hooks.S3_hook import S3Hook
-from airflow.models import TaskInstance, DAG
-from airflow.operators.dummy_operator import DummyOperator
 
 try:
     import boto3

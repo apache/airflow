@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Integer, Column, String, Text
+from sqlalchemy import Column, Integer, String, Text
 
 from airflow.models.base import Base
 from airflow.utils.sqlalchemy import UtcDateTime

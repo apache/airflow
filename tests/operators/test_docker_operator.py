@@ -17,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import logging
+import unittest
 
 try:
-    from airflow.operators.docker_operator import DockerOperator
-    from airflow.hooks.docker_hook import DockerHook
     from docker import APIClient
+
+    from airflow.hooks.docker_hook import DockerHook
+    from airflow.operators.docker_operator import DockerOperator
 except ImportError:
     pass
 

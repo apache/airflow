@@ -17,13 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from builtins import str
+from datetime import datetime
+
 import cx_Oracle
+import numpy
+from past.builtins import basestring
 
 from airflow.hooks.dbapi_hook import DbApiHook
-from builtins import str
-from past.builtins import basestring
-from datetime import datetime
-import numpy
 
 
 class OracleHook(DbApiHook):

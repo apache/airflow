@@ -18,12 +18,15 @@
 # under the License.
 
 from __future__ import absolute_import
+
 from datetime import datetime, timedelta
-import dateutil # noqa
 from random import random # noqa
 import time # noqa
-from . import hive # noqa
 import uuid # noqa
+
+import dateutil # noqa
+
+from airflow.macros import hive # noqa
 
 
 def ds_add(ds, days):

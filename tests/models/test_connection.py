@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from collections import namedtuple
+import unittest
 
 from cryptography.fernet import Fernet
 from mock import patch

@@ -20,9 +20,9 @@
 
 import base64
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
 from googleapiclient.discovery import build
+
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
 def _b64encode(s):

@@ -17,23 +17,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from collections import namedtuple
 import json
 import unittest
-from collections import namedtuple
+
+
+from azure.mgmt.containerinstance.models import (
+    Container,
+    ContainerGroup,
+    ContainerState,
+    Event,
+    Logs,
+    ResourceRequests,
+    ResourceRequirements,
+)
 from mock import patch
 
 from airflow import configuration
-from airflow.models.connection import Connection
 from airflow.contrib.hooks.azure_container_instance_hook import AzureContainerInstanceHook
+from airflow.models.connection import Connection
 from airflow.utils import db
-
-from azure.mgmt.containerinstance.models import (Container,
-                                                 ContainerGroup,
-                                                 ContainerState,
-                                                 Event,
-                                                 Logs,
-                                                 ResourceRequests,
-                                                 ResourceRequirements)
 
 
 class TestAzureContainerInstanceHook(unittest.TestCase):

@@ -19,10 +19,11 @@
 
 from __future__ import print_function
 
-import mock
-import unittest
-import shutil
 import os
+import shutil
+import unittest
+
+import mock
 import pysftp
 
 from airflow import configuration

@@ -18,6 +18,7 @@
 # under the License.
 #
 import os
+
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.exceptions import AirflowException
 

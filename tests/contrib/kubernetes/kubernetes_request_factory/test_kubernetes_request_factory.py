@@ -14,14 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
+import unittest
 
-from airflow.contrib.kubernetes.kubernetes_request_factory.\
-    kubernetes_request_factory import KubernetesRequestFactory
+from parameterized import parameterized
+
+from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory import (
+    KubernetesRequestFactory
+)
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
-from parameterized import parameterized
-import unittest
-import copy
 
 
 class TestKubernetesRequestFactory(unittest.TestCase):

@@ -38,42 +38,42 @@ This DAG relies on the following OS environment variables
   Look at documentation of :class:`~airflow.operators.sensors.BaseSensorOperator` for more information
 
 """
-import os
 from datetime import datetime, timedelta
+import os
 from typing import Any, Dict
 
 from airflow import models
 from airflow.contrib.hooks.gcp_transfer_hook import (
-    GcpTransferOperationStatus,
-    GcpTransferJobsStatus,
-    TRANSFER_OPTIONS,
-    PROJECT_ID,
+    ALREADY_EXISTING_IN_SINK,
+    AWS_S3_DATA_SOURCE,
     BUCKET_NAME,
-    GCS_DATA_SINK,
-    STATUS,
     DESCRIPTION,
+    FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID,
+    GcpTransferJobsStatus,
+    GcpTransferOperationStatus,
+    GCS_DATA_SINK,
     GCS_DATA_SOURCE,
-    START_TIME_OF_DAY,
+    PROJECT_ID,
+    SCHEDULE,
     SCHEDULE_END_DATE,
     SCHEDULE_START_DATE,
-    SCHEDULE,
-    AWS_S3_DATA_SOURCE,
-    TRANSFER_SPEC,
-    FILTER_PROJECT_ID,
-    FILTER_JOB_NAMES,
+    START_TIME_OF_DAY,
+    STATUS,
     TRANSFER_JOB,
     TRANSFER_JOB_FIELD_MASK,
-    ALREADY_EXISTING_IN_SINK,
+    TRANSFER_OPTIONS,
+    TRANSFER_SPEC,
 )
 from airflow.contrib.operators.gcp_transfer_operator import (
     GcpTransferServiceJobCreateOperator,
     GcpTransferServiceJobDeleteOperator,
     GcpTransferServiceJobUpdateOperator,
-    GcpTransferServiceOperationsListOperator,
+    GcpTransferServiceOperationCancelOperator,
     GcpTransferServiceOperationGetOperator,
     GcpTransferServiceOperationPauseOperator,
     GcpTransferServiceOperationResumeOperator,
-    GcpTransferServiceOperationCancelOperator,
+    GcpTransferServiceOperationsListOperator,
 )
 from airflow.contrib.sensors.gcp_transfer_sensor import GCPTransferServiceWaitForJobStatusSensor
 from airflow.utils.dates import days_ago

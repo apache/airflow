@@ -16,15 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from datetime import timedelta
 import unittest
 
 from airflow import configuration
-from airflow.models import DagBag
 from airflow.jobs import BackfillJob
+from airflow.models import DagBag
 from airflow.utils import timezone
 
-from datetime import timedelta
 
 try:
     from airflow.executors.dask_executor import DaskExecutor

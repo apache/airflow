@@ -18,11 +18,11 @@
 # under the License.
 #
 
-import os
-import unittest
 from argparse import Namespace
 from contextlib import contextmanager
 from datetime import datetime
+import os
+import unittest
 
 from airflow.utils import cli, cli_action_loggers
 

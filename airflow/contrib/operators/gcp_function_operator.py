@@ -21,12 +21,12 @@ import re
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
+from airflow.contrib.hooks.gcp_function_hook import GcfHook
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator, \
     GcpFieldValidationException
-from airflow.version import version
 from airflow.models import BaseOperator
-from airflow.contrib.hooks.gcp_function_hook import GcfHook
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 
 
 def _validate_available_memory_in_mb(value):

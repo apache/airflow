@@ -20,23 +20,22 @@
 import unittest
 
 from google.api_core.exceptions import AlreadyExists
-from google.cloud.vision_v1.types import ProductSet, Product, ReferenceImage
+from google.cloud.vision_v1.types import Product, ProductSet, ReferenceImage
 
 from airflow.contrib.operators.gcp_vision_operator import (
+    CloudVisionAddProductToProductSetOperator,
+    CloudVisionAnnotateImageOperator,
+    CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator,
+    CloudVisionProductGetOperator,
     CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator,
     CloudVisionProductSetGetOperator,
     CloudVisionProductSetUpdateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductGetOperator,
     CloudVisionProductUpdateOperator,
-    CloudVisionProductDeleteOperator,
     CloudVisionReferenceImageCreateOperator,
-    CloudVisionAddProductToProductSetOperator,
     CloudVisionRemoveProductFromProductSetOperator,
-    CloudVisionAnnotateImageOperator,
 )
-
 from tests.compat import mock
 
 PRODUCTSET_TEST = ProductSet(display_name='Test Product Set')

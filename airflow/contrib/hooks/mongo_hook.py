@@ -18,8 +18,9 @@
 # under the License.
 from ssl import CERT_NONE
 
-from airflow.hooks.base_hook import BaseHook
 from pymongo import MongoClient, ReplaceOne
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class MongoHook(BaseHook):

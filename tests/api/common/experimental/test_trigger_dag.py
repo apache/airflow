@@ -16,14 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
+import unittest
 
 import mock
-import unittest
-import json
 
+from airflow.api.common.experimental.trigger_dag import _trigger_dag
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
-from airflow.api.common.experimental.trigger_dag import _trigger_dag
 
 
 class TriggerDagTests(unittest.TestCase):

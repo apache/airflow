@@ -16,13 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
-
-import mock
 import unittest
 
-from airflow import DAG, configuration
+import mock
+
+from airflow import configuration, DAG
 from airflow.contrib.operators.vertica_to_mysql import VerticaToMySqlTransfer
 
 

@@ -24,7 +24,7 @@ so that registered callbacks can be used all through the same python process.
 from __future__ import absolute_import
 
 import logging
-from typing import List, Callable
+from typing import Callable, List
 
 from airflow.utils.db import create_session
 

@@ -16,12 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
 import unittest
 
-from datetime import timedelta
-
 from airflow import configuration
-from airflow import models, DAG
+from airflow import DAG, models
 from airflow.sensors.time_delta_sensor import TimeDeltaSensor
 from airflow.utils.timezone import datetime
 

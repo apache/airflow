@@ -20,10 +20,10 @@ import json
 import os
 import subprocess
 
-from airflow import settings, AirflowException
+from airflow import AirflowException, settings
+from airflow.models.connection import Connection
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
-from airflow.models.connection import Connection
 
 GCP_COMPUTE_KEY = 'gcp_compute.json'
 GCP_FUNCTION_KEY = 'gcp_function.json'

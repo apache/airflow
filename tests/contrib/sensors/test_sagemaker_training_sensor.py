@@ -17,13 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
+import unittest
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_training_sensor \
-    import SageMakerTrainingSensor
-from airflow.contrib.hooks.sagemaker_hook import SageMakerHook, LogState
+from airflow.contrib.hooks.sagemaker_hook import LogState, SageMakerHook
+from airflow.contrib.sensors.sagemaker_training_sensor import SageMakerTrainingSensor
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 

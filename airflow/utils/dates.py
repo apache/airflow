@@ -22,12 +22,13 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from airflow.utils import timezone
 from datetime import datetime, timedelta
+
+from croniter import croniter
 from dateutil.relativedelta import relativedelta  # noqa: F401 for doctest
 import six
 
-from croniter import croniter
+from airflow.utils import timezone
 
 cron_presets = {
     '@hourly': '0 * * * *',

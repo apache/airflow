@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import mock
 import unittest
 
-from airflow import DAG
-from airflow import configuration
+import mock
+
+from airflow import configuration, DAG
 from airflow.exceptions import AirflowException
 from airflow.sensors.sql_sensor import SqlSensor
 from airflow.utils.timezone import datetime

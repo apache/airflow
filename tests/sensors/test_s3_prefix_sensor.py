@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import unittest
 
 import mock
-import unittest
 
 from airflow.sensors.s3_prefix_sensor import S3PrefixSensor
 

@@ -17,20 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+from collections import OrderedDict
 import datetime
 import itertools
 import os
 import random
 import sys
 import unittest
-from collections import OrderedDict
 
+from hmsclient import HMSClient
 import mock
 import pandas as pd
-from hmsclient import HMSClient
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow.operators.hive_operator import HiveOperator

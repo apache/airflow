@@ -16,50 +16,50 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import itertools
-import unittest
 from copy import deepcopy
 from datetime import date, time
+import itertools
 from typing import Dict
+import unittest
 
-from parameterized import parameterized
 from botocore.credentials import Credentials
+from parameterized import parameterized
 
 from airflow import AirflowException, configuration
 from airflow.contrib.hooks.gcp_transfer_hook import (
-    FILTER_JOB_NAMES,
-    SCHEDULE_START_DATE,
-    SCHEDULE_END_DATE,
-    START_TIME_OF_DAY,
-    STATUS,
-    NAME,
-    AWS_S3_DATA_SOURCE,
-    GCS_DATA_SOURCE,
-    GCS_DATA_SINK,
-    AWS_ACCESS_KEY,
     ACCESS_KEY_ID,
-    SECRET_ACCESS_KEY,
+    AWS_ACCESS_KEY,
+    AWS_S3_DATA_SOURCE,
     BUCKET_NAME,
-    SCHEDULE,
-    TRANSFER_SPEC,
+    FILTER_JOB_NAMES,
+    GCS_DATA_SINK,
+    GCS_DATA_SOURCE,
     HTTP_DATA_SOURCE,
     LIST_URL,
+    NAME,
+    SCHEDULE,
+    SCHEDULE_END_DATE,
+    SCHEDULE_START_DATE,
+    SECRET_ACCESS_KEY,
+    START_TIME_OF_DAY,
+    STATUS,
+    TRANSFER_SPEC,
 )
 from airflow.contrib.operators.gcp_transfer_operator import (
-    GcpTransferServiceOperationCancelOperator,
-    GcpTransferServiceOperationResumeOperator,
-    GcpTransferServiceOperationsListOperator,
-    TransferJobValidator,
-    TransferJobPreprocessor,
     GcpTransferServiceJobCreateOperator,
+    GcpTransferServiceJobDeleteOperator,
     GcpTransferServiceJobUpdateOperator,
+    GcpTransferServiceOperationCancelOperator,
     GcpTransferServiceOperationGetOperator,
     GcpTransferServiceOperationPauseOperator,
-    S3ToGoogleCloudStorageTransferOperator,
+    GcpTransferServiceOperationResumeOperator,
+    GcpTransferServiceOperationsListOperator,
     GoogleCloudStorageToGoogleCloudStorageTransferOperator,
-    GcpTransferServiceJobDeleteOperator,
+    S3ToGoogleCloudStorageTransferOperator,
+    TransferJobPreprocessor,
+    TransferJobValidator,
 )
-from airflow.models import TaskInstance, DAG
+from airflow.models import DAG, TaskInstance
 from airflow.utils import timezone
 from tests.compat import mock
 

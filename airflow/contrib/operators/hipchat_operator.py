@@ -18,12 +18,13 @@
 # under the License.
 
 from builtins import str
-
-from airflow.utils.decorators import apply_defaults
-from airflow.models import BaseOperator
-from airflow.exceptions import AirflowException
-import requests
 import json
+
+import requests
+
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class HipChatAPIOperator(BaseOperator):

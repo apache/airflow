@@ -18,16 +18,21 @@
 # under the License.
 #
 
-import unittest
-import time
 from datetime import datetime
+import time
+import unittest
+
 from tzlocal import get_localzone
 
 from airflow import configuration
-from airflow.contrib.hooks.sagemaker_hook import (SageMakerHook, secondary_training_status_changed,
-                                                  secondary_training_status_message, LogState)
-from airflow.hooks.S3_hook import S3Hook
+from airflow.contrib.hooks.sagemaker_hook import (
+    LogState,
+    SageMakerHook,
+    secondary_training_status_changed,
+    secondary_training_status_message
+)
 from airflow.exceptions import AirflowException
+from airflow.hooks.S3_hook import S3Hook
 from tests.compat import mock
 
 

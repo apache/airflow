@@ -18,6 +18,7 @@
 # under the License.
 
 import time
+
 from googleapiclient.discovery import build
 
 from airflow import AirflowException

@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+
 from airflow.utils.email import get_email_address_list
 
 EMAILS = ['test1@example.com', 'test2@example.com']

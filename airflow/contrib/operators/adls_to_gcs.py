@@ -21,8 +21,8 @@ import os
 from tempfile import NamedTemporaryFile
 
 from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+from airflow.contrib.hooks.gcs_hook import _parse_gcs_url, GoogleCloudStorageHook
 from airflow.contrib.operators.adls_list_operator import AzureDataLakeStorageListOperator
-from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook, _parse_gcs_url
 from airflow.utils.decorators import apply_defaults
 
 

@@ -20,7 +20,7 @@
 import json
 import pickle
 
-from sqlalchemy import Column, Integer, String, Index, LargeBinary, and_
+from sqlalchemy import and_, Column, Index, Integer, LargeBinary, String
 from sqlalchemy.orm import reconstructor
 
 from airflow import configuration

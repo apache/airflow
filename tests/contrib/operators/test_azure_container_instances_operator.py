@@ -17,12 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-from airflow.exceptions import AirflowException
-from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
-from tests.compat import mock
-
 import unittest
+
+from airflow.contrib.operators.azure_container_instances_operator import AzureContainerInstancesOperator
+from airflow.exceptions import AirflowException
+from tests.compat import mock
 
 
 class TestACIOperator(unittest.TestCase):

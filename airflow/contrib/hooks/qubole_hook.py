@@ -18,21 +18,31 @@
 # under the License.
 #
 
+import datetime
 import os
 import time
-import datetime
+
+from qds_sdk.commands import (
+    Command,
+    DbExportCommand,
+    DbImportCommand,
+    DbTapQueryCommand,
+    HadoopCommand,
+    HiveCommand,
+    PigCommand,
+    PrestoCommand,
+    ShellCommand,
+    SparkCommand,
+    SqlCommand,
+)
+from qds_sdk.qubole import Qubole
 import six
 
+from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-
-from qds_sdk.qubole import Qubole
-from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
-    PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
-    DbImportCommand, SqlCommand
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,

@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 from builtins import bytes
-from urllib.parse import urlparse, unquote, parse_qsl
+import json
+from urllib.parse import parse_qsl, unquote, urlparse
 
-from sqlalchemy import Column, Integer, String, Boolean
+from sqlalchemy import Boolean, Column, Integer, String
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import synonym
 
-from airflow import LoggingMixin, AirflowException
+from airflow import AirflowException, LoggingMixin
 from airflow.models import get_fernet
 from airflow.models.base import Base, ID_LEN
 

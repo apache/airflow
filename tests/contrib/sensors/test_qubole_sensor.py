@@ -18,9 +18,9 @@
 # under the License.
 #
 
+from datetime import datetime
 import unittest
 
-from datetime import datetime
 from mock import patch
 
 from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor

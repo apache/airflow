@@ -18,8 +18,9 @@
 # under the License.
 
 from slackclient import SlackClient
-from airflow.hooks.base_hook import BaseHook
+
 from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 
 class SlackHook(BaseHook):

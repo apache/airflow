@@ -17,8 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from collections import OrderedDict
+import unittest
 
 from mock import patch
 

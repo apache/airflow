@@ -16,28 +16,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import contextlib
+from multiprocessing import Pool
 import os
 import sys
 import unittest
-import contextlib
-from multiprocessing import Pool
-
-import mock
 
 from celery import Celery
 from celery import states as celery_states
-from celery.contrib.testing.worker import start_worker
-from kombu.asynchronous import set_event_loop
-from parameterized import parameterized
-
-from airflow.utils.state import State
-from airflow.executors import celery_executor
-
-from airflow import configuration
-configuration.load_test_config()
-
 # leave this it is used by the test worker
 import celery.contrib.testing.tasks  # noqa: F401
+from celery.contrib.testing.worker import start_worker
+from kombu.asynchronous import set_event_loop
+import mock
+from parameterized import parameterized
+
+from airflow import configuration
+from airflow.executors import celery_executor
+from airflow.utils.state import State
+configuration.load_test_config()
 
 
 def _prepare_test_bodies():

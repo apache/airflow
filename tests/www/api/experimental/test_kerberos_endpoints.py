@@ -17,13 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
 import json
-import mock
 import os
 import socket
 import unittest
 
-from datetime import datetime
+import mock
 
 from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import client_auth

@@ -17,17 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
-import json
-import time
 import datetime
+from decimal import Decimal
+import json
+import sys
+from tempfile import NamedTemporaryFile
+import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from decimal import Decimal
-from tempfile import NamedTemporaryFile
 
 PY3 = sys.version_info[0] == 3
 

@@ -16,13 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
-from airflow.utils.state import State
+
 from mock import Mock, patch
 
 from airflow.models import DAG, DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
+from airflow.utils.state import State
 
 
 class DagrunRunningDepTest(unittest.TestCase):

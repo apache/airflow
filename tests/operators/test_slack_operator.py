@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import json
+import unittest
+
 from airflow.exceptions import AirflowException
 from airflow.operators.slack_operator import SlackAPIPostOperator
 from tests.compat import mock

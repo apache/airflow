@@ -19,11 +19,11 @@
 from googleapiclient.errors import HttpError
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_sql_hook import CloudSqlHook, CloudSqlDatabaseHook
+from airflow.contrib.hooks.gcp_sql_hook import CloudSqlDatabaseHook, CloudSqlHook
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.base_hook import BaseHook
 
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'

@@ -20,16 +20,16 @@
 from __future__ import print_function, unicode_literals
 
 import copy
+from datetime import date, timedelta
 import logging
 import os
 import unittest
-from datetime import timedelta, date
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.models import TaskInstance as TI, DAG, DagRun
+from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.operators.python_operator import BranchPythonOperator, PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.utils import timezone
 from airflow.utils.db import create_session

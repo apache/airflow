@@ -16,9 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from typing import Dict, List
 import unittest
-from typing import List, Dict
+
 import google.api_core.exceptions
 from google.cloud.bigtable.column_family import MaxVersionsGCRule
 from google.cloud.bigtable.instance import Instance
@@ -26,13 +26,14 @@ from google.cloud.bigtable.table import ClusterState
 from parameterized import parameterized
 
 from airflow import AirflowException
-from airflow.contrib.operators.gcp_bigtable_operator import \
-    BigtableInstanceDeleteOperator, \
-    BigtableTableDeleteOperator, \
-    BigtableTableCreateOperator, \
-    BigtableTableWaitForReplicationSensor, \
-    BigtableClusterUpdateOperator, \
-    BigtableInstanceCreateOperator
+from airflow.contrib.operators.gcp_bigtable_operator import (
+    BigtableClusterUpdateOperator,
+    BigtableInstanceCreateOperator,
+    BigtableInstanceDeleteOperator,
+    BigtableTableCreateOperator,
+    BigtableTableDeleteOperator,
+    BigtableTableWaitForReplicationSensor,
+)
 from tests.compat import mock
 
 PROJECT_ID = 'test_project_id'

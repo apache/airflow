@@ -16,21 +16,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """
 DAG designed to test what happens when a DAG with pooled tasks is run
 by a BackfillJob.
 Addresses issue #1225.
 """
 from datetime import datetime, timedelta
+import time
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
-import time
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(

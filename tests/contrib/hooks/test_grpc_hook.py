@@ -18,8 +18,8 @@ except ImportError:
     from io import StringIO
 
 from airflow import configuration
-from airflow.exceptions import AirflowConfigException
 from airflow.contrib.hooks.grpc_hook import GrpcHook
+from airflow.exceptions import AirflowConfigException
 from airflow.models.connection import Connection
 from tests.compat import mock
 

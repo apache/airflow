@@ -17,14 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
-import tempfile
 import os
+import tempfile
+import unittest
+
+from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import gcs_hook
 from airflow.exceptions import AirflowException
-from googleapiclient.errors import HttpError
 from tests.compat import mock
+
 
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 GCS_STRING = 'airflow.contrib.hooks.gcs_hook.{}'

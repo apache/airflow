@@ -18,8 +18,8 @@
 # under the License.
 
 import json
-import unittest
 from typing import List
+import unittest
 
 from airflow import configuration
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor

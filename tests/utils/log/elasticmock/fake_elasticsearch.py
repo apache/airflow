@@ -23,11 +23,12 @@
 # SOFTWARE.
 
 import json
-import six
 
 from elasticsearch import Elasticsearch
 from elasticsearch.client.utils import query_params
 from elasticsearch.exceptions import NotFoundError
+import six
+
 
 from .utilities import get_random_id
 

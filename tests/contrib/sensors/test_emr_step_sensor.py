@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from datetime import datetime
-from mock import MagicMock, patch
-from dateutil.tz import tzlocal
+import unittest
 
-from airflow import configuration, AirflowException
+from dateutil.tz import tzlocal
+from mock import MagicMock, patch
+
+from airflow import AirflowException, configuration
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {

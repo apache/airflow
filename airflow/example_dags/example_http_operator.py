@@ -19,8 +19,8 @@
 """
 ### Example HTTP operator and sensor
 """
-import json
 from datetime import timedelta
+import json
 
 import airflow
 from airflow import DAG

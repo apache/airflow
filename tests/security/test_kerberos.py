@@ -16,13 +16,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from argparse import Namespace
 import os
 import unittest
-from argparse import Namespace
-from airflow import configuration
+
+from airflow import configuration, LoggingMixin
 from airflow.security.kerberos import renew_from_kt
-from airflow import LoggingMixin
 
 
 @unittest.skipIf('KRB5_KTNAME' not in os.environ,

@@ -18,10 +18,10 @@
 # under the License.
 from __future__ import absolute_import
 
+from celery.app import control
+
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-
-from celery.app import control
 
 
 class CeleryQueueSensor(BaseSensorOperator):

@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import unittest
 
 import mock
-import unittest
 
 from airflow.hooks.dbapi_hook import DbApiHook
 

@@ -18,11 +18,8 @@
 # under the License.
 import unittest
 
-from tests.contrib.utils.base_gcp_system_test_case import \
-    SKIP_TEST_WARNING, DagGcpSystemTestCase
-
-from tests.contrib.operators.test_gcp_compute_operator_system_helper import \
-    GCPComputeTestHelper
+from tests.contrib.operators.test_gcp_compute_operator_system_helper import GCPComputeTestHelper
+from tests.contrib.utils.base_gcp_system_test_case import DagGcpSystemTestCase, SKIP_TEST_WARNING
 from tests.contrib.utils.gcp_authenticator import GCP_COMPUTE_KEY
 
 

@@ -16,12 +16,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import gzip
 import functools
-import pendulum
+import gzip
 from io import BytesIO as IO
-from flask import after_this_request, flash, redirect, request, url_for, g
+
+from flask import after_this_request, flash, g, redirect, request, url_for
+import pendulum
+
 from airflow.models.log import Log
 from airflow.utils.db import create_session
 

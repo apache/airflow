@@ -18,6 +18,7 @@
 # under the License.
 
 from functools import wraps
+
 from flask import Response
 
 client_auth = None

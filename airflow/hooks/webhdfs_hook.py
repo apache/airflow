@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from hdfs import InsecureClient, HdfsError
+from hdfs import HdfsError, InsecureClient
 
 from airflow import configuration
 from airflow.exceptions import AirflowException

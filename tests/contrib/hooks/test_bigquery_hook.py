@@ -17,17 +17,19 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import unittest
 from typing import List
+import unittest
 
 from google.auth.exceptions import GoogleAuthError
-import mock
 from googleapiclient.errors import HttpError
 
 from airflow.contrib.hooks import bigquery_hook as hook
-from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning, \
-    _validate_value, _api_resource_configs_duplication_check
+from airflow.contrib.hooks.bigquery_hook import (
+    _api_resource_configs_duplication_check,
+    _cleanse_time_partitioning,
+    _validate_value,
+)
+from tests.compat import mock
 
 bq_available = True
 

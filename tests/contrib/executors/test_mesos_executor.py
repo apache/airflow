@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from queue import Queue
 import unittest
-from tests.compat import mock
 
 try:
     from mesos.interface import mesos_pb2
@@ -28,7 +27,7 @@ except ImportError:
     mock_mesos = None  # type: ignore
 
 from airflow import configuration
-from queue import Queue
+from tests.compat import mock
 
 
 class MesosExecutorTest(unittest.TestCase):

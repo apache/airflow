@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import mock
 import unittest
+
+import mock
 
 from airflow.www import validators
 

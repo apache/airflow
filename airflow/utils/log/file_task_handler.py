@@ -19,6 +19,7 @@
 
 import logging
 import os
+
 import requests
 
 from airflow import configuration as conf

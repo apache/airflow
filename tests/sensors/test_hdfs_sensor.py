@@ -16,9 +16,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import unittest
-
 from datetime import timedelta
+import unittest
 
 from airflow import configuration
 from airflow.exceptions import AirflowSensorTimeout

@@ -17,12 +17,12 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import unittest
+
 from airflow.contrib.hooks.gcp_dataproc_hook import _DataProcJob
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
-from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 from tests.compat import mock
+from tests.contrib.utils.base_gcp_mock import GCP_PROJECT_ID_HOOK_UNIT_TEST
 
 JOB = 'test-job'
 GCP_REGION = 'global'

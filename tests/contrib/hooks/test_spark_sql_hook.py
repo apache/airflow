@@ -17,17 +17,16 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import six
-import unittest
 from itertools import dropwhile
+import unittest
 
-from mock import patch, call
+from mock import call, patch
+import six
 
 from airflow import configuration
+from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 from airflow.models.connection import Connection
 from airflow.utils import db
-from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 
 
 def get_after(sentinel, iterable):

@@ -18,13 +18,12 @@
 # under the License.
 #
 import os
-
-import mock
 import unittest
 
-from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+import mock
 
 from airflow.contrib.hooks.snowflake_hook import SnowflakeHook
 

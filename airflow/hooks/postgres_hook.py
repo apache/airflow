@@ -16,11 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from contextlib import closing
 import os
+
 import psycopg2
 import psycopg2.extensions
-from contextlib import closing
 
 from airflow.hooks.dbapi_hook import DbApiHook
 

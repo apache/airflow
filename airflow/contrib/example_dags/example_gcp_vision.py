@@ -35,39 +35,39 @@ import os
 
 # [START howto_operator_vision_retry_import]
 from google.api_core.retry import Retry
-
 # [END howto_operator_vision_retry_import]
-# [START howto_operator_vision_product_set_import]
-from google.cloud.vision_v1.types import ProductSet
-# [END howto_operator_vision_product_set_import]
-# [START howto_operator_vision_product_import]
-from google.cloud.vision_v1.types import Product
-# [END howto_operator_vision_product_import]
-# [START howto_operator_vision_reference_image_import]
-from google.cloud.vision_v1.types import ReferenceImage
-# [END howto_operator_vision_reference_image_import]
 # [START howto_operator_vision_enums_import]
 from google.cloud.vision import enums
 # [END howto_operator_vision_enums_import]
+# [START howto_operator_vision_product_import]
+from google.cloud.vision_v1.types import Product
+# [END howto_operator_vision_product_import]
+# [START howto_operator_vision_product_set_import]
+from google.cloud.vision_v1.types import ProductSet
+# [END howto_operator_vision_product_set_import]
+# [START howto_operator_vision_reference_image_import]
+from google.cloud.vision_v1.types import ReferenceImage
+# [END howto_operator_vision_reference_image_import]
+
 
 import airflow
 from airflow import models
-from airflow.operators.bash_operator import BashOperator
-
 from airflow.contrib.operators.gcp_vision_operator import (
+    CloudVisionAddProductToProductSetOperator,
+    CloudVisionAnnotateImageOperator,
+    CloudVisionProductCreateOperator,
+    CloudVisionProductDeleteOperator,
+    CloudVisionProductGetOperator,
     CloudVisionProductSetCreateOperator,
+    CloudVisionProductSetDeleteOperator,
     CloudVisionProductSetGetOperator,
     CloudVisionProductSetUpdateOperator,
-    CloudVisionProductSetDeleteOperator,
-    CloudVisionProductCreateOperator,
-    CloudVisionProductGetOperator,
     CloudVisionProductUpdateOperator,
-    CloudVisionProductDeleteOperator,
     CloudVisionReferenceImageCreateOperator,
-    CloudVisionAddProductToProductSetOperator,
     CloudVisionRemoveProductFromProductSetOperator,
-    CloudVisionAnnotateImageOperator,
 )
+from airflow.operators.bash_operator import BashOperator
+
 
 default_args = {'start_date': airflow.utils.dates.days_ago(1)}
 

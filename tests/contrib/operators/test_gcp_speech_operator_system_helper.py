@@ -22,7 +22,7 @@ import argparse
 import os
 
 from tests.contrib.utils.base_gcp_system_test_case import RetrieveVariables
-from tests.contrib.utils.gcp_authenticator import GcpAuthenticator, GCP_GCS_KEY
+from tests.contrib.utils.gcp_authenticator import GCP_GCS_KEY, GcpAuthenticator
 from tests.contrib.utils.logging_command_executor import LoggingCommandExecutor
 
 

@@ -20,13 +20,13 @@ import os
 import re
 
 import dill
+from six.moves.urllib.parse import urlsplit
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
+from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
-from six.moves.urllib.parse import urlsplit
 
 
 def create_evaluate_ops(task_prefix,

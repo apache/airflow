@@ -17,28 +17,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from future import standard_library  # noqa
-standard_library.install_aliases()  # noqa
-
 import inspect
-import json
-import time
-import markdown
-import re
-import zipfile
-import os
 import io
+import json
+import os
+import re
+import time
+import zipfile
 
-from builtins import str
+from flask import Markup, request, Response, url_for
+import flask_appbuilder.models.sqla.filters as fab_sqlafilters
+from flask_appbuilder.models.sqla.interface import SQLAInterface
+import markdown
 from past.builtins import basestring
-
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
-from flask import request, Response, Markup, url_for
-from flask_appbuilder.models.sqla.interface import SQLAInterface
-import flask_appbuilder.models.sqla.filters as fab_sqlafilters
-import sqlalchemy as sqla
 from six.moves.urllib.parse import urlencode
+import sqlalchemy as sqla
 
 from airflow import configuration
 from airflow.models import BaseOperator
@@ -46,6 +41,9 @@ from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
+
+from future import standard_library  # noqa
+standard_library.install_aliases()  # noqa
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',

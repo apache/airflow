@@ -17,8 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 import datetime
+import unittest
+
 from dateutil.tz import tzlocal
 from mock import MagicMock, patch
 

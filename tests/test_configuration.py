@@ -20,15 +20,15 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from collections import OrderedDict
 import contextlib
 import os
 import warnings
-from collections import OrderedDict
 
 import six
 
 from airflow import configuration
-from airflow.configuration import conf, AirflowConfigParser, parameterized_config
+from airflow.configuration import AirflowConfigParser, conf, parameterized_config
 
 if six.PY2:
     # Need `assertWarns` back-ported from unittest2

@@ -18,10 +18,11 @@
 # under the License.
 #
 
-from airflow.hooks.base_hook import BaseHook
+from distutils.util import strtobool
 
 import jenkins
-from distutils.util import strtobool
+
+from airflow.hooks.base_hook import BaseHook
 
 
 class JenkinsHook(BaseHook):

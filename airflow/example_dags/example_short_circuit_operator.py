@@ -17,10 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow.utils.helpers
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import ShortCircuitOperator
+import airflow.utils.helpers
 
 args = {
     'owner': 'airflow',

@@ -37,13 +37,14 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_spanner_operator import \
-    CloudSpannerInstanceDeployOperator, \
-    CloudSpannerInstanceDatabaseQueryOperator, \
-    CloudSpannerInstanceDeleteOperator, \
-    CloudSpannerInstanceDatabaseDeployOperator, \
-    CloudSpannerInstanceDatabaseUpdateOperator, \
-    CloudSpannerInstanceDatabaseDeleteOperator
+from airflow.contrib.operators.gcp_spanner_operator import (
+    CloudSpannerInstanceDatabaseDeleteOperator,
+    CloudSpannerInstanceDatabaseDeployOperator,
+    CloudSpannerInstanceDatabaseQueryOperator,
+    CloudSpannerInstanceDatabaseUpdateOperator,
+    CloudSpannerInstanceDeleteOperator,
+    CloudSpannerInstanceDeployOperator,
+)
 
 # [START howto_operator_spanner_arguments]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

@@ -18,6 +18,7 @@
 # under the License.
 
 import six
+
 from airflow.contrib.utils.weekday import WeekDay
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils import timezone

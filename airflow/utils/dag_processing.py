@@ -22,6 +22,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from abc import ABCMeta, abstractmethod
+from collections import defaultdict
+from collections import namedtuple
+from datetime import timedelta
+import enum
+from importlib import import_module
 import logging
 import multiprocessing
 import os
@@ -30,23 +36,16 @@ import signal
 import sys
 import time
 import zipfile
-from abc import ABCMeta, abstractmethod
-from collections import defaultdict
-from collections import namedtuple
-from datetime import timedelta
-from importlib import import_module
-import enum
 
 import psutil
 from six.moves import range, reload_module
 from sqlalchemy import or_
 from tabulate import tabulate
 
-# To avoid circular imports
-import airflow.models
 from airflow import configuration as conf
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+import airflow.models
 from airflow.models import errors
 from airflow.stats import Stats
 from airflow.utils import timezone

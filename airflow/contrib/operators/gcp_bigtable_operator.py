@@ -18,15 +18,16 @@
 # under the License.
 
 from typing import Iterable
+
 import google.api_core.exceptions
+from google.cloud.bigtable.table import ClusterState
+from google.cloud.bigtable_admin_v2 import enums
 
 from airflow import AirflowException
+from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
 from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
-from airflow.contrib.hooks.gcp_bigtable_hook import BigtableHook
 from airflow.utils.decorators import apply_defaults
-from google.cloud.bigtable_admin_v2 import enums
-from google.cloud.bigtable.table import ClusterState
 
 
 class BigtableValidationMixin(object):

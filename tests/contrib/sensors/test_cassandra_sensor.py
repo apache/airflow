@@ -16,14 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 import unittest
 
 from mock import patch
 
-from airflow import DAG
-from airflow import configuration
+from airflow import configuration, DAG
 from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
 from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
 from airflow.utils import timezone

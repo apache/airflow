@@ -20,8 +20,7 @@
 
 import unittest
 
-from airflow import DAG
-from airflow import configuration
+from airflow import configuration, DAG
 from airflow.contrib.hooks.mongo_hook import MongoHook
 from airflow.contrib.sensors.mongo_sensor import MongoSensor
 from airflow.models.connection import Connection

@@ -33,8 +33,11 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOperator, \
-    GceInstanceStopOperator, GceSetMachineTypeOperator
+from airflow.contrib.operators.gcp_compute_operator import (
+    GceInstanceStartOperator,
+    GceInstanceStopOperator,
+    GceSetMachineTypeOperator
+)
 
 # [START howto_operator_gce_args_common]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

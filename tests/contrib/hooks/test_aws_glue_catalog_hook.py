@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 
 import boto3
+
 from airflow.contrib.hooks.aws_glue_catalog_hook import AwsGlueCatalogHook
 from tests.compat import mock
 

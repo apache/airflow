@@ -43,8 +43,11 @@ import os
 
 import airflow
 from airflow import models
-from airflow.contrib.operators.gcp_compute_operator import \
-    GceInstanceTemplateCopyOperator, GceInstanceGroupManagerUpdateTemplateOperator
+from airflow.contrib.operators.gcp_compute_operator import (
+    GceInstanceGroupManagerUpdateTemplateOperator,
+    GceInstanceTemplateCopyOperator,
+)
+
 
 # [START howto_operator_compute_igm_common_args]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')

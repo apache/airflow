@@ -23,15 +23,15 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
-import os
 import json
-import pendulum
-import time
+import os
 import random
+import time
 
 from dateutil import relativedelta
+import pendulum
 from sqlalchemy import event, exc, select
-from sqlalchemy.types import Text, DateTime, TypeDecorator
+from sqlalchemy.types import DateTime, Text, TypeDecorator
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 

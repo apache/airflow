@@ -14,14 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import unittest
 
-from airflow.contrib.kubernetes.kubernetes_request_factory.\
-    pod_request_factory import SimplePodRequestFactory, \
-    ExtractXcomPodRequestFactory
+from airflow.contrib.kubernetes.kubernetes_request_factory.pod_request_factory import (
+    ExtractXcomPodRequestFactory,
+    SimplePodRequestFactory,
+)
 from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.exceptions import AirflowConfigException
-import unittest
 
 XCOM_CMD = """import time
 while True:

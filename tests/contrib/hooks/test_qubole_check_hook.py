@@ -18,6 +18,7 @@
 # under the License.
 #
 import unittest
+
 from airflow.contrib.hooks.qubole_check_hook import parse_first_row
 
 

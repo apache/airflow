@@ -21,10 +21,8 @@ import unittest
 
 import jenkins
 
-from airflow.contrib.operators.jenkins_job_trigger_operator \
-    import JenkinsJobTriggerOperator
 from airflow.contrib.hooks.jenkins_hook import JenkinsHook
-
+from airflow.contrib.operators.jenkins_job_trigger_operator import JenkinsJobTriggerOperator
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 

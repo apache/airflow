@@ -20,8 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
-
+from airflow import configuration, DAG
 from airflow.contrib.operators.spark_jdbc_operator import SparkJDBCOperator
 from airflow.utils import timezone
 

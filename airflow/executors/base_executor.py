@@ -20,10 +20,10 @@
 from builtins import range
 from collections import OrderedDict
 
-# To avoid circular imports
-import airflow.utils.dag_processing
+
 from airflow import configuration
 from airflow.stats import Stats
+import airflow.utils.dag_processing
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 

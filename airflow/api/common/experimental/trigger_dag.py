@@ -19,8 +19,8 @@
 
 import json
 
-from airflow.exceptions import DagRunAlreadyExists, DagNotFound
-from airflow.models import DagRun, DagBag, DagModel
+from airflow.exceptions import DagNotFound, DagRunAlreadyExists
+from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
 from airflow.utils.state import State
 

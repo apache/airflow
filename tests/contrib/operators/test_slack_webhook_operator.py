@@ -20,8 +20,7 @@
 
 import unittest
 
-from airflow import DAG, configuration
-
+from airflow import configuration, DAG
 from airflow.contrib.operators.slack_webhook_operator import SlackWebhookOperator
 from airflow.utils import timezone
 

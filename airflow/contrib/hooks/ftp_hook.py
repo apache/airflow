@@ -21,8 +21,10 @@
 import datetime
 import ftplib
 import os.path
-from airflow.hooks.base_hook import BaseHook
+
 from past.builtins import basestring
+
+from airflow.hooks.base_hook import BaseHook
 
 
 def mlsd(conn, path="", facts=None):

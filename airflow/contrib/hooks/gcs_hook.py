@@ -17,18 +17,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import gzip as gz
+import os
+import re
+import shutil
 
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
-
-import gzip as gz
-import shutil
-import re
-import os
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):

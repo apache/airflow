@@ -17,35 +17,35 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+from copy import deepcopy
 import json
 import unittest
-from copy import deepcopy
 
-import six
 from parameterized import parameterized
+import six
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_transfer_hook import (
-    GCPTransferServiceHook,
-    TIME_TO_SLEEP_IN_SECONDS,
-    GcpTransferOperationStatus,
+    DESCRIPTION,
+    FILTER_JOB_NAMES,
+    FILTER_PROJECT_ID,
     GcpTransferJobsStatus,
+    GcpTransferOperationStatus,
+    GCPTransferServiceHook,
+    METADATA,
+    OPERATIONS,
     PROJECT_ID,
     STATUS,
-    DESCRIPTION,
-    FILTER_PROJECT_ID,
-    FILTER_JOB_NAMES,
-    TRANSFER_JOBS,
-    OPERATIONS,
-    METADATA,
+    TIME_TO_SLEEP_IN_SECONDS,
     TRANSFER_JOB,
     TRANSFER_JOB_FIELD_MASK,
-)
-from tests.contrib.utils.base_gcp_mock import (
-    mock_base_gcp_hook_no_default_project_id,
-    mock_base_gcp_hook_default_project_id,
+    TRANSFER_JOBS,
 )
 from tests.compat import mock
+from tests.contrib.utils.base_gcp_mock import (
+    mock_base_gcp_hook_default_project_id,
+    mock_base_gcp_hook_no_default_project_id,
+)
 
 NAME = "name"
 

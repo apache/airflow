@@ -22,6 +22,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from collections import defaultdict, OrderedDict
+from datetime import timedelta
 import getpass
 import logging
 import multiprocessing
@@ -30,14 +32,20 @@ import signal
 import sys
 import threading
 import time
-from collections import defaultdict, OrderedDict
-from datetime import timedelta
-from time import sleep
 from typing import Any
 
-import six
 from past.builtins import basestring
-from sqlalchemy import (Column, Index, Integer, String, and_, func, not_, or_)
+import six
+from sqlalchemy import (
+    and_,
+    Column,
+    func,
+    Index,
+    Integer,
+    not_,
+    or_,
+    String,
+)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 
@@ -52,15 +60,17 @@ from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.configuration import tmp_configuration_copy
-from airflow.utils.dag_processing import (AbstractDagFileProcessor,
-                                          DagFileProcessorAgent,
-                                          SimpleDag,
-                                          SimpleDagBag,
-                                          SimpleTaskInstance,
-                                          list_py_file_paths)
+from airflow.utils.dag_processing import (
+    AbstractDagFileProcessor,
+    DagFileProcessorAgent,
+    list_py_file_paths,
+    SimpleDag,
+    SimpleDagBag,
+    SimpleTaskInstance,
+)
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import get_email_address_list, send_email
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter, set_context
+from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.state import State
@@ -180,7 +190,7 @@ class BaseJob(Base, LoggingMixin):
                         .total_seconds()
                     sleep_for = max(0, seconds_remaining)
 
-                sleep(sleep_for)
+                time.sleep(sleep_for)
 
             # Update last heartbeat time
             with create_session() as session:
@@ -1652,7 +1662,7 @@ class SchedulerJob(BaseJob):
                 self.log.debug(
                     "Sleeping for {0:.2f} seconds to prevent excessive logging"
                     .format(sleep_length))
-                sleep(sleep_length)
+                time.sleep(sleep_length)
 
         # Stop any processors
         self.processor_agent.terminate()

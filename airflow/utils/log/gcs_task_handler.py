@@ -20,8 +20,8 @@ import os
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class GCSTaskHandler(FileTaskHandler, LoggingMixin):

@@ -19,6 +19,7 @@
 from copy import deepcopy
 
 from googleapiclient.errors import HttpError
+from json_merge_patch import merge
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_compute_hook import GceHook
@@ -26,7 +27,6 @@ from airflow.contrib.utils.gcp_field_sanitizer import GcpBodyFieldSanitizer
 from airflow.contrib.utils.gcp_field_validator import GcpBodyFieldValidator
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from json_merge_patch import merge
 
 
 class GceBaseOperator(BaseOperator):

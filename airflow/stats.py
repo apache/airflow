@@ -20,11 +20,12 @@
 
 from functools import wraps
 import logging
-from six import string_types
 import socket
 import string
 import textwrap
 from typing import Any
+
+from six import string_types
 
 from airflow import configuration as conf
 from airflow.exceptions import InvalidStatsNameException

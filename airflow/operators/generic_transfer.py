@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.hooks.base_hook import BaseHook
 
 
 class GenericTransfer(BaseOperator):

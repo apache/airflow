@@ -18,22 +18,16 @@
 # under the License.
 # --------------------------------------------------------------------------------
 # Written By: Ekhtiar Syed
-# Last Update: 8th April 2016
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
-
-# --------------------------------------------------------------------------------
-# Load The Dependencies
-# --------------------------------------------------------------------------------
-import airflow
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.models import DAG
 from datetime import timedelta
 
+import airflow
 from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.contrib.operators.winrm_operator import WinRMOperator
-
+from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
 args = {
     'owner': 'airflow',

@@ -16,10 +16,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from airflow import settings
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
-
-from airflow import settings
 
 
 class TestExecutor(BaseExecutor):

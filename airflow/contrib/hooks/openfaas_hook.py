@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.base_hook import BaseHook
 import requests
+
 from airflow import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 OK_STATUS_CODE = 202
 

@@ -17,9 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import six
 import sys
 import tempfile
+
+import six
 
 from airflow import configuration as conf
 from airflow.configuration import mkdir_p

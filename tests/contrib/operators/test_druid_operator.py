@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import mock
 import unittest
 
-from airflow import DAG, configuration
+import mock
+
+from airflow import configuration, DAG
 from airflow.contrib.operators.druid_operator import DruidOperator
-from airflow.utils import timezone
 from airflow.models import TaskInstance
+from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

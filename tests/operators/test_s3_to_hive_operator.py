@@ -17,20 +17,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import bz2
+from collections import OrderedDict
+import errno
+import filecmp
+from gzip import GzipFile
+from itertools import product
+import logging
+import shutil
+from tempfile import mkdtemp, NamedTemporaryFile
 import unittest
 
-from tests.compat import mock
-import logging
-from itertools import product
-from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
-from collections import OrderedDict
 from airflow.exceptions import AirflowException
-from tempfile import NamedTemporaryFile, mkdtemp
-from gzip import GzipFile
-import bz2
-import shutil
-import filecmp
-import errno
+from airflow.operators.s3_to_hive_operator import S3ToHiveTransfer
+from tests.compat import mock
 
 try:
     import boto3

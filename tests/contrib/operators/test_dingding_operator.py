@@ -21,7 +21,7 @@ import unittest
 
 import mock
 
-from airflow import DAG, configuration
+from airflow import configuration, DAG
 from airflow.contrib.operators.dingding_operator import DingdingOperator
 from airflow.utils import timezone
 

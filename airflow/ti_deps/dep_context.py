@@ -24,8 +24,8 @@ from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterSta
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
-from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
 
 

@@ -18,6 +18,8 @@
 # under the License.
 import unittest
 
+from backports.configparser import DuplicateSectionError
+
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
 from airflow.lineage.backend.atlas import AtlasBackend
@@ -27,7 +29,6 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils import timezone
 from tests.compat import mock
 
-from backports.configparser import DuplicateSectionError
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 

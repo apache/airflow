@@ -17,11 +17,11 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
-import mock
 import unittest
 
 from boto3.session import Session
+import mock
+
 from airflow.operators.redshift_to_s3_operator import RedshiftToS3Transfer
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 

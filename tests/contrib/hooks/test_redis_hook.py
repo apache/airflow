@@ -19,6 +19,7 @@
 
 
 import unittest
+
 from airflow import configuration
 from airflow.contrib.hooks.redis_hook import RedisHook
 

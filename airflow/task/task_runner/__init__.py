@@ -18,8 +18,8 @@
 # under the License.
 
 from airflow import configuration
-from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 from airflow.exceptions import AirflowException
+from airflow.task.task_runner.standard_task_runner import StandardTaskRunner
 
 _TASK_RUNNER = configuration.conf.get('core', 'TASK_RUNNER')
 

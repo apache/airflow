@@ -16,16 +16,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from setuptools import setup, find_packages, Command
-from setuptools.command.test import test as TestCommand
-
 import imp
 import io
 import logging
 import os
-import sys
 import subprocess
+import sys
+
+from setuptools import Command, find_packages, setup
+from setuptools.command.test import test as TestCommand
 
 logger = logging.getLogger(__name__)
 
@@ -269,12 +268,14 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + slack + crypto + oracle 
              druid + pinot + segment + snowflake + elasticsearch +
              atlas + azure + aws)
 
-# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+# Snakebite are not Python 3 compatible :'(
 if PY3:
     devel_ci = [package for package in devel_all if package not in
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
     devel_ci = devel_all
+
+devel_ci += ['flake8-import-order>=0.18']
 
 
 def do_setup():

@@ -22,9 +22,10 @@ import sys
 import unittest
 
 from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.contrib.operators.awsbatch_operator import AWSBatchOperator
+from airflow.exceptions import AirflowException
 from tests.compat import mock
+
 
 RESPONSE_WITHOUT_FAILURES = {
     "jobName": "51455483-c62c-48ac-9b88-53a6a725baa3",

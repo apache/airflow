@@ -17,15 +17,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from builtins import str
 import inspect
 import os
 import pickle
 import subprocess
 import sys
-import types
-from builtins import str
 from textwrap import dedent
-from typing import Optional, Iterable, Dict, Callable
+import types
+from typing import Callable, Dict, Iterable, Optional
 
 import dill
 import six

@@ -20,9 +20,8 @@
 
 import unittest
 
-from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook,\
-    _Dataflow, _DataflowJob
-from tests.compat import mock, MagicMock
+from airflow.contrib.hooks.gcp_dataflow_hook import _Dataflow, _DataflowJob, DataFlowHook
+from tests.compat import MagicMock, mock
 
 
 TASK_ID = 'test-dataflow-operator'

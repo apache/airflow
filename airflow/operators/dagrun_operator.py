@@ -18,13 +18,14 @@
 # under the License.
 
 import datetime
+import json
+
 import six
+
+from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import BaseOperator
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-
-import json
 
 
 class DagRunOrder(object):

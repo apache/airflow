@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from ftplib import error_perm
 import unittest
 
-from ftplib import error_perm
 from mock import MagicMock
 
 from airflow.contrib.hooks.ftp_hook import FTPHook

@@ -21,8 +21,7 @@ import unittest
 
 from airflow import configuration
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
-from airflow.contrib.operators.sagemaker_model_operator \
-    import SageMakerModelOperator
+from airflow.contrib.operators.sagemaker_model_operator import SageMakerModelOperator
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 

@@ -18,10 +18,10 @@
 # under the License.
 #
 
-import mock
+from tempfile import NamedTemporaryFile
 import unittest
 
-from tempfile import NamedTemporaryFile
+import mock
 
 from airflow.hooks.postgres_hook import PostgresHook
 

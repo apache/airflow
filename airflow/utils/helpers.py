@@ -22,19 +22,17 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import errno
-
-import psutil
-
 from builtins import input
-from past.builtins import basestring
 from datetime import datetime
+import errno
 from functools import reduce
 import os
 import re
 import signal
 
 from jinja2 import Template
+from past.builtins import basestring
+import psutil
 
 from airflow import configuration
 from airflow.exceptions import AirflowException

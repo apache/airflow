@@ -17,9 +17,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from builtins import zip
 from builtins import str
-from typing import Optional, Any, Iterable, Dict, SupportsAbs
+from builtins import zip
+from typing import Any, Dict, Iterable, Optional, SupportsAbs
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

@@ -33,8 +33,8 @@ This example illustrates the following features :
 2. A Target DAG : c.f. example_trigger_target_dag.py
 """
 
-import pprint
 from datetime import datetime
+import pprint
 
 from airflow import DAG
 from airflow.operators.dagrun_operator import TriggerDagRunOperator

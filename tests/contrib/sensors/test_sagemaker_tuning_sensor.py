@@ -20,9 +20,8 @@
 import unittest
 
 from airflow import configuration
-from airflow.contrib.sensors.sagemaker_tuning_sensor \
-    import SageMakerTuningSensor
 from airflow.contrib.hooks.sagemaker_hook import SageMakerHook
+from airflow.contrib.sensors.sagemaker_tuning_sensor import SageMakerTuningSensor
 from airflow.exceptions import AirflowException
 from tests.compat import mock
 

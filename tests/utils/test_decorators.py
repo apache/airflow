@@ -16,11 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 
-from airflow.utils.decorators import apply_defaults, cached_property
 from airflow.exceptions import AirflowException
+from airflow.utils.decorators import apply_defaults, cached_property
 
 
 # Essentially similar to airflow.models.BaseOperator

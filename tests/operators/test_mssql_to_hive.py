@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from collections import OrderedDict
+import unittest
 
 try:
     import pymssql
 except ImportError:
     pymssql = None
-from mock import patch, PropertyMock, Mock
+from mock import Mock, patch, PropertyMock
 
 from airflow.operators.mssql_to_hive import MsSqlToHiveTransfer
 

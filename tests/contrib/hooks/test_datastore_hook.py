@@ -20,7 +20,7 @@
 
 import unittest
 
-from mock import patch, call
+from mock import call, patch
 
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
 
