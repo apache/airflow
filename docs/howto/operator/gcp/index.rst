@@ -15,31 +15,12 @@
     specific language governing permissions and limitations
     under the License.
 
-How-to Guides
-=============
+Google Cloud Operators
+======================
 
-Setting up the sandbox in the :doc:`../start` section was easy;
-building a production-grade environment requires a bit more work!
-
-These how-to guides will step you through common tasks in using and
-configuring an Airflow environment.
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
+    :glob:
 
-    add-new-role
-    set-config
-    initialize-database
-    operator/index
-    connection/index
-    secure-connections
-    write-logs
-    executor/use-celery
-    executor/use-dask
-    executor/use-mesos
-    run-behind-proxy
-    run-with-systemd
-    run-with-upstart
-    use-test-config
-    check-health
-
+    *
