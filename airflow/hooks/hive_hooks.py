@@ -25,7 +25,6 @@ import re
 import subprocess
 import time
 import socket
-import logging
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 
@@ -479,7 +478,7 @@ class HiveMetastoreHook(BaseHook):
     MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
-        self.metastore_conn = self.get_connection(metastore_conn_id)
+        self.conn_id = metastore_conn_id
         self.metastore = self.get_metastore_client()
 
     def __getstate__(self):
@@ -499,26 +498,18 @@ class HiveMetastoreHook(BaseHook):
         """
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        result = 1
-        ms = self.metastore_conn
-        auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
+
+        valid_conn = self._find_valid_server()
+
+        if valid_conn is None:
+            raise AirflowException("Failed to locate the valid server.")
+
+        auth_mechanism = valid_conn.extra_dejson.get('authMechanism', 'NOSASL')
         if configuration.conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
-            kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
-        hosts_list = ms.host.split(';') #split by semicolon
-        for host_name in range(len(hosts_list)):
-            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            logging.info("Trying to connect to " + hosts_list[host_name])
-            try:
-                result = host_socket.connect_ex((hosts_list[host_name], ms.port))
-                host_socket.close()
-            except Exception:
-                pass
-            if result == 0:
-                logging.info('Connected to ' + hosts_list[host_name] + ':' + str(ms.port))
-                conn_url = hosts_list[host_name]
-                break
-        conn_socket = TSocket.TSocket(conn_url, ms.port)
+            auth_mechanism = valid_conn.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = valid_conn.extra_dejson.get('kerberos_service_name', 'hive')
+
+        conn_socket = TSocket.TSocket(valid_conn.host, valid_conn.port)
         if configuration.conf.get('core', 'security') == 'kerberos' \
                 and auth_mechanism == 'GSSAPI':
             try:
@@ -528,7 +519,7 @@ class HiveMetastoreHook(BaseHook):
  
             def sasl_factory():
                 sasl_client = sasl.Client()
-                sasl_client.setAttr("host", conn_url)
+                sasl_client.setAttr("host", conn.host)
                 sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
                 return sasl_client
@@ -541,6 +532,23 @@ class HiveMetastoreHook(BaseHook):
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
  
         return hmsclient.HMSClient(iprot=protocol)
+
+    def _find_valid_server(self):
+        result = 1
+        conns = self.get_connections(self.conn_id)
+        for conn in conns:
+            host_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.log.info("Trying to connect to %:%", conn.host, conn.port)
+            try:
+                result = host_socket.connect_ex((conn.host, conn.port))
+                host_socket.close()
+            except Exception:
+                pass
+            if result == 0:
+                logging.info('Connected to %s:%s', conn.host, str(conn.port))
+                valid_conn = conn
+                break
+        return valid_conn
 
     def get_conn(self):
         return self.metastore
