@@ -26,24 +26,52 @@
 
 {% block content %}
 <div>
-    <h3 class="pull-left">
-      {% if dag.parent_dag is defined and dag.parent_dag %}
-        <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
-      {% else %}
-        <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
-        <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
-      {% endif %}
-      {% if root %}
-        <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>
-      {% endif %}
-    </h3>
-    <h4 class="pull-right">
-      <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
-        schedule: {{ dag.schedule_interval }}
-      </a>
-    </h4>
+  <div class="clearfix">
+    <div class="pull-right">
+      <div class="btn-group">
+        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=request.base_url ) }}"
+           onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')"
+           class="btn btn-primary"
+        >
+          <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
+          Trigger DAG
+        </a>
+        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}"
+           class="btn btn-primary"
+        >
+          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+          Refresh
+        </a>
+        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
+           onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')"
+           class="btn btn-danger"
+        >
+          <span class="glyphicon glyphicon-remove-circle" aria-hidden="true"></span>
+          Delete
+        </a>
+      </div>
+    </div>
+    <div style="display: flex; align-items: center;">
+      <h2>
+        {% if dag.parent_dag is defined and dag.parent_dag %}
+          <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
+        {% else %}
+          <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
+          <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span> <small class="text-muted"> {{ dag.description }} </small>
+        {% endif %}
+        {% if root %}
+          <span style='color:#AAA;'>ROOT: </span> <span> {{ root }}</span>
+        {% endif %}
+      </h2>
+      <h4 style="padding-left: 16px">
+        <a class="label label-default" href="{{ url_for('DagRunModelView.list') }}?_flt_3_dag_id={{ dag.dag_id }}">
+          schedule: {{ dag.schedule_interval }}
+        </a>
+      </h4>
+    </div>
+
   </div>
-  <div class="clearfix"></div>
+
   <div>
     {% set base_date_arg = request.args.get('base_date') %}
     {% set num_runs_arg = request.args.get('num_runs') %}
@@ -92,26 +120,6 @@
         <a href="{{ url_for('Airflow.code', dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-file" aria-hidden="true"></span>
           Code
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.trigger', dag_id=dag.dag_id, origin=request.base_url ) }}"
-          onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
-          Trigger DAG
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.refresh', dag_id=dag.dag_id) }}" title="Refresh">
-          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-          Refresh
-        </a>
-      </li>
-      <li>
-        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
-          onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
-          <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
-          Delete
         </a>
       </li>
     </ul>
