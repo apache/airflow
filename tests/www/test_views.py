@@ -184,6 +184,11 @@ class TestVariableModelView(TestBase):
         self.assertNotIn("<img src='' onerror='alert(1);'>",
                          resp.data.decode("utf-8"))
 
+    def test_import_variables_no_file(self):
+        resp = self.client.post('/variable/varimport',
+                                follow_redirects=True)
+        self.check_content_in_response('Missing file or syntax error.', resp)
+
     def test_import_variables_failed(self):
         content = '{"str_key": "str_value"}'
 
