@@ -414,7 +414,7 @@ need to supply an explicit connection ID. For example, the default
 ``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
 ``postgres_default``.
 
-See :doc:`howto/manage-connections` for how to create and manage connections.
+See :doc:`howto/connection/index` for how to create and manage connections.
 
 Queues
 ======
