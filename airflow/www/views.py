@@ -1944,6 +1944,18 @@ class VersionView(AirflowBaseView):
             git_version=git_version)
 
 
+class PygmentsView(AirflowBaseView):
+
+    @expose('/pygments.css')
+    @has_access
+    def style_defs(self):
+        formatter = HtmlFormatter(style='default')
+        style_defs = formatter.get_style_defs()
+        response = make_response(style_defs, 200)
+        response.headers['Content-Type'] = "text/css"
+        return response
+
+
 class ConfigurationView(AirflowBaseView):
     @expose('/configuration')
     @has_access
