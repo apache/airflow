@@ -30,12 +30,13 @@ function displayTime() {
   setTimeout(displayTime, 1000);
 }
 
+var el = document.createElement("span");
+
 export function escapeHtml(text) {
-  var entityMap = { '"': '&quot;', "'": '&#27;', '/': '&#x2F;', '&': '&amp;', '<': '&lt;', '>': '&gt;' };
-  return (""+ text).replace(/[\"'\/&<>]/g, function (a) {
-    return entityMap[a];
-  });
+  el.textContent = text;
+  return el.innerHTML;
 }
+
 window.escapeHtml = escapeHtml;
 
 $(document).ready(function () {
