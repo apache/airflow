@@ -3398,3 +3398,20 @@ class ConnectionTest(unittest.TestCase):
         self.assertEqual(connection.login, 'user')
         self.assertEqual(connection.password, 'password with space')
         self.assertEqual(connection.port, 1234)
+
+    def test_connection_from_uri_with_underscore(self):
+        uri = 'google-cloud-platform://?extra__google_cloud_platform__key_' \
+              'path=%2Fkeys%2Fkey.json&extra__google_cloud_platform__scope=' \
+              'https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform&extra' \
+              '__google_cloud_platform__project=airflow'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'google_cloud_platform')
+        self.assertEqual(connection.host, '')
+        self.assertEqual(connection.schema, '')
+        self.assertEqual(connection.login, None)
+        self.assertEqual(connection.password, None)
+        self.assertEqual(connection.extra_dejson, dict(
+            extra__google_cloud_platform__key_path='/keys/key.json',
+            extra__google_cloud_platform__project='airflow',
+            extra__google_cloud_platform__scope='https://www.googleapis.com/'
+                                                'auth/cloud-platform'))
