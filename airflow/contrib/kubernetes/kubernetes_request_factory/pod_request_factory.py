@@ -66,12 +66,11 @@ spec:
 
 
 class ExtractXcomPodRequestFactory(KubernetesRequestFactory):
-
-    XCOM_MOUNT_PATH = '/airflow/xcom'
-    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     """
     Request generator for a pod with sidecar container.
     """
+    XCOM_MOUNT_PATH = '/airflow/xcom'
+    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:

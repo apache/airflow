@@ -24,7 +24,6 @@ from __future__ import unicode_literals
 
 import copy
 from collections import defaultdict, namedtuple, OrderedDict
-
 from builtins import ImportError as BuiltinImportError, bytes, object, str
 from future.standard_library import install_aliases
 
@@ -3941,7 +3940,7 @@ class DAG(BaseDag, LoggingMixin):
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
-        :type executor: BaseExecutor
+        :type executor: airflow.executor.BaseExecutor
         :param donot_pickle: True to avoid pickling DAG object and send to workers
         :type donot_pickle: bool
         :param ignore_task_deps: True to skip upstream tasks

@@ -30,13 +30,18 @@ class NameDeterminer:
     """
     Class used for checking if the entity has the 'name' attribute set.
 
-    - If so, no action is taken.
-    - If not, and the name can be constructed from other parameters provided, it is created and filled in
+    * If so, no action is taken.
+
+    * If not, and the name can be constructed from other parameters provided, it is created and filled in
       the entity.
-    - If both the entity's 'name' attribute is set and the name can be constructed from other parameters
+
+    * If both the entity's 'name' attribute is set and the name can be constructed from other parameters
       provided:
-        - If they are the same: no action is taken.
-        - If they are different: an exception is thrown.
+
+        * If they are the same - no action is taken
+
+        * if they are different - an exception is thrown.
+
     """
 
     def __init__(self, label, id_label, get_path):
@@ -122,7 +127,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetCreateOperator`
         """
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
@@ -152,7 +157,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetGetOperator`
         """
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
@@ -182,7 +187,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetUpdateOperator`
         """
         client = self.get_conn()
         product_set = self.product_set_name_determiner.get_entity_with_name(
@@ -207,7 +212,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductSetDeleteOperator`
         """
         client = self.get_conn()
         name = ProductSearchClient.product_set_path(project_id, location, product_set_id)
@@ -228,7 +233,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductCreateOperator`
         """
         client = self.get_conn()
         parent = ProductSearchClient.location_path(project_id, location)
@@ -256,7 +261,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def get_product(self, location, product_id, project_id=None, retry=None, timeout=None, metadata=None):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductGetOperator`
         """
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)
@@ -286,7 +291,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     ):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductUpdateOperator`
         """
         client = self.get_conn()
         product = self.product_name_determiner.get_entity_with_name(product, product_id, location, project_id)
@@ -307,7 +312,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def delete_product(self, location, product_id, project_id=None, retry=None, timeout=None, metadata=None):
         """
         For the documentation see:
-        :py:class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
+        :class:`~airflow.contrib.operators.gcp_vision_operator.CloudVisionProductDeleteOperator`
         """
         client = self.get_conn()
         name = ProductSearchClient.product_path(project_id, location, product_id)

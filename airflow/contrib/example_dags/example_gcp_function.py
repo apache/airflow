@@ -23,22 +23,22 @@ It creates a function and then deletes it.
 
 This DAG relies on the following OS environment variables
 https://airflow.apache.org/concepts.html#variables
+
 * GCP_PROJECT_ID - Google Cloud Project to use for the Cloud Function.
 * GCP_LOCATION - Google Cloud Functions region where the function should be
   created.
 * GCF_ENTRYPOINT - Name of the executable function in the source code.
 * and one of the below:
-    - GCF_SOURCE_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage
-    or
-    (
-        - GCF_SOURCE_UPLOAD_URL - Generated upload URL for the zipped source
-        and
-        - GCF_ZIP_PATH - Local path to the zipped source archive
-    )
-    or
-    - GCF_SOURCE_REPOSITORY - The URL pointing to the hosted repository where the function
-    is defined in a supported Cloud Source Repository URL format
-    https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#SourceRepository
+
+    * GCF_SOURCE_ARCHIVE_URL - Path to the zipped source in Google Cloud Storage
+
+    * GCF_SOURCE_UPLOAD_URL - Generated upload URL for the zipped source and GCF_ZIP_PATH - Local path to
+      the zipped source archive
+
+    * GCF_SOURCE_REPOSITORY - The URL pointing to the hosted repository where the function
+      is defined in a supported Cloud Source Repository URL format
+      https://cloud.google.com/functions/docs/reference/rest/v1/projects.locations.functions#SourceRepository
+
 """
 
 import os

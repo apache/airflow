@@ -41,8 +41,21 @@ cron_presets = {
 def date_range(start_date, end_date=None, num=None, delta=None):
     """
     Get a set of dates as a list based on a start, end and delta, delta
-    can be something that can be added to ``datetime.datetime``
-    or a cron expression as a ``str``
+    can be something that can be added to `datetime.datetime`
+    or a cron expression as a `str`
+
+    :Example::
+
+        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+            datetime.datetime(2016, 1, 3, 0, 0)]
+        date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
+            datetime.datetime(2016, 1, 3, 0, 0)]
+        date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
+            [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
+            datetime.datetime(2016, 3, 1, 0, 0)]
+
     :param start_date: anchor date to start the series from
     :type start_date: datetime.datetime
     :param end_date: right boundary for the date range
@@ -51,15 +64,6 @@ def date_range(start_date, end_date=None, num=None, delta=None):
         number of entries you want in the range. This number can be negative,
         output will always be sorted regardless
     :type num: int
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta=timedelta(1))
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-     datetime.datetime(2016, 1, 3, 0, 0)]
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 1, 3), delta='0 0 * * *')
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 1, 2, 0, 0),
-     datetime.datetime(2016, 1, 3, 0, 0)]
-    >>> date_range(datetime(2016, 1, 1), datetime(2016, 3, 3), delta="0 0 0 * *")
-    [datetime.datetime(2016, 1, 1, 0, 0), datetime.datetime(2016, 2, 1, 0, 0),
-     datetime.datetime(2016, 3, 1, 0, 0)]
     """
     if not delta:
         return []
