@@ -29,6 +29,7 @@ from airflow.contrib.operators.gcp_compute_operator import GceInstanceStartOpera
     GceInstanceGroupManagerUpdateTemplateOperator
 from airflow.models import TaskInstance, DAG
 from airflow.utils import timezone
+from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 try:
     # noinspection PyProtectedMember
@@ -404,6 +405,8 @@ class GceInstanceSetMachineTypeTest(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook'
                 '._execute_set_machine_type')
     @mock.patch('airflow.contrib.operators.gcp_compute_operator.GceHook.get_conn')
+    @mock.patch('airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+                new=mock_base_gcp_hook_default_project_id)
     def test_set_machine_type_should_handle_and_trim_gce_error(
             self, get_conn, _execute_set_machine_type, _check_zone_operation_status):
         get_conn.return_value = {}

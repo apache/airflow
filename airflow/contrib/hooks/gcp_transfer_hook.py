@@ -25,7 +25,8 @@ import six
 from googleapiclient.discovery import build
 
 from airflow.exceptions import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook, catch_http_exception, \
+    fallback_to_default_project_id
 
 # Time to sleep between active checks of the operation results
 TIME_TO_SLEEP_IN_SECONDS = 10
@@ -118,7 +119,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             )
         return self._conn
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def create_transfer_job(self, body):
         """
         Creates a transfer job that runs periodically.
@@ -134,8 +135,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         body = self._inject_project_id(body, BODY, PROJECT_ID)
         return self.get_conn().transferJobs().create(body=body).execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    @GoogleCloudBaseHook.catch_http_exception
+    @fallback_to_default_project_id
+    @catch_http_exception
     def get_transfer_job(self, job_name, project_id=None):
         """
         Gets the latest state of a long-running operation in Google Storage
@@ -181,7 +182,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
 
         return jobs
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def update_transfer_job(self, job_name, body):
         """
         Updates a transfer job that runs periodically.
@@ -199,8 +200,8 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             self.get_conn().transferJobs().patch(jobName=job_name, body=body).execute(num_retries=NUM_RETRIES)
         )
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
-    @GoogleCloudBaseHook.catch_http_exception
+    @fallback_to_default_project_id
+    @catch_http_exception
     def delete_transfer_job(self, job_name, project_id):
         """
         Deletes a transfer job. This is a soft delete. After a transfer job is
@@ -231,7 +232,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
             .execute(num_retries=NUM_RETRIES)
         )
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def cancel_transfer_operation(self, operation_name):
         """
         Cancels an transfer operation in Google Storage Transfer Service.
@@ -242,7 +243,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         self.get_conn().transferOperations().cancel(name=operation_name).execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def get_transfer_operation(self, operation_name):
         """
         Gets an transfer operation in Google Storage Transfer Service.
@@ -256,7 +257,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         return self.get_conn().transferOperations().get(name=operation_name).execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def list_transfer_operations(self, filter):
         """
         Gets an transfer operation in Google Storage Transfer Service.
@@ -292,7 +293,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
 
         return operations
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def pause_transfer_operation(self, operation_name):
         """
         Pauses an transfer operation in Google Storage Transfer Service.
@@ -303,7 +304,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         self.get_conn().transferOperations().pause(name=operation_name).execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def resume_transfer_operation(self, operation_name):
         """
         Resumes an transfer operation in Google Storage Transfer Service.
@@ -314,7 +315,7 @@ class GCPTransferServiceHook(GoogleCloudBaseHook):
         """
         self.get_conn().transferOperations().resume(name=operation_name).execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,), timeout=60):
         """
         Waits until the job reaches the expected state.

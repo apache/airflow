@@ -22,7 +22,8 @@ from google.cloud.vision_v1 import ProductSearchClient, ImageAnnotatorClient
 from google.protobuf.json_format import MessageToDict
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook, fallback_to_default_project_id, \
+    catch_http_exception
 from airflow.utils.decorators import cached_property
 
 
@@ -118,8 +119,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
     def annotator_client(self):
         return ImageAnnotatorClient(credentials=self._get_credentials())
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def create_product_set(
         self,
         location,
@@ -155,8 +156,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         return product_set_id
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def get_product_set(
         self, location, product_set_id, project_id=None, retry=None, timeout=None, metadata=None
     ):
@@ -172,8 +173,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self.log.debug('ProductSet retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def update_product_set(
         self,
         product_set,
@@ -201,8 +202,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self.log.debug('ProductSet updated:\n%s', response)
         return MessageToDict(response)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def delete_product_set(
         self, location, product_set_id, project_id=None, retry=None, timeout=None, metadata=None
     ):
@@ -216,8 +217,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         client.delete_product_set(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('ProductSet with the name [%s] deleted.', name)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def create_product(
         self, location, product, project_id=None, product_id=None, retry=None, timeout=None, metadata=None
     ):
@@ -246,8 +247,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         return product_id
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def get_product(self, location, product_id, project_id=None, retry=None, timeout=None, metadata=None):
         """
         For the documentation see:
@@ -261,8 +262,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self.log.debug('Product retrieved:\n%s', response)
         return MessageToDict(response)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def update_product(
         self,
         product,
@@ -288,8 +289,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         self.log.debug('Product updated:\n%s', response)
         return MessageToDict(response)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def delete_product(self, location, product_id, project_id=None, retry=None, timeout=None, metadata=None):
         """
         For the documentation see:
@@ -301,8 +302,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
         client.delete_product(name=name, retry=retry, timeout=timeout, metadata=metadata)
         self.log.info('Product with the name [%s] deleted:', name)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def create_reference_image(
         self,
         location,
@@ -343,8 +344,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         return reference_image_id
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def delete_reference_image(
         self,
         location,
@@ -369,8 +370,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         return MessageToDict(response)
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def add_product_to_product_set(
         self,
         product_set_id,
@@ -398,8 +399,8 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         self.log.info('Product added to Product Set')
 
-    @GoogleCloudBaseHook.catch_http_exception
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @catch_http_exception
+    @fallback_to_default_project_id
     def remove_product_from_product_set(
         self,
         product_set_id,
@@ -427,7 +428,7 @@ class CloudVisionHook(GoogleCloudBaseHook):
 
         self.log.info('Product removed from Product Set')
 
-    @GoogleCloudBaseHook.catch_http_exception
+    @catch_http_exception
     def annotate_image(self, request, retry=None, timeout=None):
         """
         For the documentation see:

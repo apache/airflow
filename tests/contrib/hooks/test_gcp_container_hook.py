@@ -22,7 +22,7 @@ import unittest
 
 from airflow import AirflowException
 from airflow.contrib.hooks.gcp_container_hook import GKEClusterHook
-
+from tests.contrib.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 TASK_ID = 'test-gke-cluster-operator'
 CLUSTER_NAME = 'test-cluster'
@@ -32,12 +32,15 @@ GKE_ZONE = 'test-zone'
 
 class GKEClusterHookDeleteTest(unittest.TestCase):
     def setUp(self):
-        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
+        with mock.patch(
+            'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
-    @mock.patch(
-        "airflow.contrib.hooks.gcp_container_hook.GKEClusterHook.wait_for_operation")
+    @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook.wait_for_operation")
     def test_delete_cluster(self, wait_mock, convert_mock):
         retry_mock, timeout_mock = mock.Mock(), mock.Mock()
 
@@ -86,7 +89,11 @@ class GKEClusterHookDeleteTest(unittest.TestCase):
 
 class GKEClusterHookCreateTest(unittest.TestCase):
     def setUp(self):
-        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
+        with mock.patch(
+            'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch("airflow.contrib.hooks.gcp_container_hook.GKEClusterHook._dict_to_proto")
@@ -167,7 +174,11 @@ class GKEClusterHookCreateTest(unittest.TestCase):
 
 class GKEClusterHookGetTest(unittest.TestCase):
     def setUp(self):
-        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
+        with mock.patch(
+            'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     def test_get_cluster(self):
@@ -189,7 +200,11 @@ class GKEClusterHookGetTest(unittest.TestCase):
 class GKEClusterHookTest(unittest.TestCase):
 
     def setUp(self):
-        self.gke_hook = GKEClusterHook(location=GKE_ZONE)
+        with mock.patch(
+            'airflow.contrib.hooks.gcp_api_base_hook.GoogleCloudBaseHook.__init__',
+            new=mock_base_gcp_hook_default_project_id
+        ):
+            self.gke_hook = GKEClusterHook(location=GKE_ZONE)
         self.gke_hook._client = mock.Mock()
 
     @mock.patch('airflow.contrib.hooks.gcp_container_hook.container_v1.'
