@@ -25,7 +25,7 @@ import uuid
 
 from googleapiclient.discovery import build
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook, provide_gcp_credential_file
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 # This is the default location
@@ -190,7 +190,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         return build(
             'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
-    @GoogleCloudBaseHook._Decorators.provide_gcp_credential_file
+    @provide_gcp_credential_file
     def _start_dataflow(self, variables, name, command_prefix, label_formatter):
         variables = self._set_variables(variables)
         cmd = command_prefix + self._build_cmd(variables, label_formatter)

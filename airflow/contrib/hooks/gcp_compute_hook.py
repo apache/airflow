@@ -21,7 +21,7 @@ import time
 from googleapiclient.discovery import build
 
 from airflow import AirflowException
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook, fallback_to_default_project_id
 
 # Number of retries - used by googleapiclient method calls to perform retries
 # For requests that are "retriable"
@@ -68,7 +68,7 @@ class GceHook(GoogleCloudBaseHook):
                                http=http_authorized, cache_discovery=False)
         return self._conn
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def start_instance(self, zone, resource_id, project_id=None):
         """
         Starts an existing instance defined by project_id, zone and resource_id.
@@ -99,7 +99,7 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def stop_instance(self, zone, resource_id, project_id=None):
         """
         Stops an instance defined by project_id, zone and resource_id
@@ -130,7 +130,7 @@ class GceHook(GoogleCloudBaseHook):
                                              operation_name=operation_name,
                                              zone=zone)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def set_machine_type(self, zone, resource_id, body, project_id=None):
         """
         Sets machine type of an instance defined by project_id, zone and resource_id.
@@ -166,7 +166,7 @@ class GceHook(GoogleCloudBaseHook):
             project=project_id, zone=zone, instance=resource_id, body=body)\
             .execute(num_retries=NUM_RETRIES)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def get_instance_template(self, resource_id, project_id=None):
         """
         Retrieves instance template by project_id and resource_id.
@@ -188,7 +188,7 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def insert_instance_template(self, body, request_id=None, project_id=None):
         """
         Inserts instance template using body specified
@@ -222,7 +222,7 @@ class GceHook(GoogleCloudBaseHook):
         self._wait_for_operation_to_complete(project_id=project_id,
                                              operation_name=operation_name)
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def get_instance_group_manager(self, zone, resource_id, project_id=None):
         """
         Retrieves Instance Group Manager by project_id, zone and resource_id.
@@ -247,7 +247,7 @@ class GceHook(GoogleCloudBaseHook):
         ).execute(num_retries=NUM_RETRIES)
         return response
 
-    @GoogleCloudBaseHook.fallback_to_default_project_id
+    @fallback_to_default_project_id
     def patch_instance_group_manager(self, zone, resource_id,
                                      body, request_id=None, project_id=None):
         """
