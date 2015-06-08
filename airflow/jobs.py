@@ -108,7 +108,7 @@ class BaseJob(Base):
 
     def heartbeat(self):
         '''
-        Heartbeats update the job's entry in the the database with a timestamp
+        Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
         externally. This allows at the system level to monitor what is
         actually active.
@@ -172,12 +172,12 @@ class BaseJob(Base):
             statsd.incr(self.__class__.__name__.lower()+'_end', 1, 1)
 
     def _execute(self):
-        raise NotImplemented("This method needs to be overriden")
+        raise NotImplemented("This method needs to be overridden")
 
 
 class SchedulerJob(BaseJob):
     """
-    This SchedulerJob runs indefinetly and constantly schedules the jobs
+    This SchedulerJob runs indefinitely and constantly schedules the jobs
     that are ready to run. It figures out the latest runs for each
     task and see if the dependencies for the next schedules are met.
     If so it triggers the task instance. It does this for each task
@@ -216,8 +216,8 @@ class SchedulerJob(BaseJob):
 
     def process_dag(self, dag, executor):
         """
-        This moethod schedules a single DAG by looking at the latest
-        run for eachtask and attempting to schedule the following run.
+        This method schedules a single DAG by looking at the latest
+        run for each task and attempting to schedule the following run.
 
         As multiple schedulers may be running for redundancy, this
         function takes a lock on the DAG and timestamps the last run
@@ -404,7 +404,7 @@ class SchedulerJob(BaseJob):
                 except Exception as e:
                     logging.exception(e)
             logging.debug(
-                "Done qeuing tasks, calling the executor's heartbeat")
+                "Done queuing tasks, calling the executor's heartbeat")
             try:
                 # We really just want the scheduler to never ever stop.
                 executor.heartbeat()
@@ -467,7 +467,7 @@ class BackfillJob(BaseJob):
         executor = self.executor
         executor.start()
 
-        # Build a list of all intances to run
+        # Build a list of all instances to run
         tasks_to_run = {}
         failed = []
         succeeded = []

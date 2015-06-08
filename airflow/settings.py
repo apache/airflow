@@ -24,7 +24,7 @@ if DAGS_FOLDER not in sys.path:
 
 engine_args = {}
 if 'sqlite' not in SQL_ALCHEMY_CONN:
-    # Engine args not supported by sqllite
+    # Engine args not supported by sqlite
     engine_args['pool_size'] = 50
     engine_args['pool_recycle'] = 3600
 

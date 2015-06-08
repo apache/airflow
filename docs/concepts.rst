@@ -8,7 +8,7 @@ Operators allow for generating a certain type of task on the graph. There
 are 3 main type of operators:
 
 -  **Sensor:** Waits for events to happen, it could be a file appearing
-   in HDFS, the existance of a Hive partition or for an arbitrary MySQL
+   in HDFS, the existence of a Hive partition or for an arbitrary MySQL
    query to return a row.
 -  **Remote Execution:** Trigger an operation in a remote system, this
    could be a HQL statement in Hive, a Pig script, a map reduce job, a
@@ -23,7 +23,7 @@ Tasks
 A task represent the instantiation of an operator and becomes a node in
 the directed acyclic graph (DAG). The instantiation defines specific
 values when calling the abstract operator. A task could be waiting for a
-specific partition in Hive, or triggerring a specific DML statement in
+specific partition in Hive, or triggering a specific DML statement in
 Oracle.
 
 Task Instances
@@ -52,7 +52,7 @@ like iPython or Jupyter Notebook.
 Pools
 '''''
 
-Some systems can get overwelmed when too many processes hit them at the same
+Some systems can get overwhelmed when too many processes hit them at the same
 time. Airflow pools can be used to **limit the execution parallelism** on 
 arbitrary sets of tasks. The list of pools is managed in the UI 
 (``Menu -> Admin -> Pools``) by giving the pools a name and assigning 
@@ -110,7 +110,7 @@ queue names can be specified (``airflow worker -q spark``). This worker
 will then only pick up tasks wired to the specified queue(s).
 
 This can be useful if you need specialized workers, either from a 
-ressource perpective (for say very lightweight tasks where one worker 
+resource perspective (for say very lightweight tasks where one worker 
 could take thousands of task without a problem), or from an environment
-perpective (you want a worker running from whithin the Spark cluster 
-itself because it needs a very specific environment and secutiry rights).
+perspective (you want a worker running from within the Spark cluster 
+itself because it needs a very specific environment and security rights).

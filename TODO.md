@@ -25,7 +25,7 @@ TODO
 * Add queued_dttm to task_instance table
 
 #### Wishlist
-* Support for cron like synthax (0 * * * ) using croniter library
+* Support for cron like syntax (0 * * * ) using croniter library
 * Pause flag at the task level
 * Task callbacks as tasks?
 * Increase unit test coverage

@@ -63,7 +63,7 @@ Install development requirements:
 
 Tests can then be run with:
 
-    ./rununittests.sh
+    ./run_unit_tests.sh
 
 Lint the project with:
 

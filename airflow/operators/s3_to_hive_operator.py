@@ -12,7 +12,7 @@ class S3ToHiveTransfer(BaseOperator):
     stores the file locally before loading it into a Hive table.
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
-    Hive data types are inferred from the cursors's metadata from.
+    Hive data types are inferred from the cursor's metadata from.
 
     Note that the table generated in Hive uses ``STORED AS textfile``
     which isn't the most efficient serialization format. If a
@@ -50,7 +50,7 @@ class S3ToHiveTransfer(BaseOperator):
     :type delimiter: str
     :param s3_conn_id: source s3 connection
     :type s3_conn_id: str
-    :param hive_conn_id: desctination hive connection
+    :param hive_conn_id: destination hive connection
     :type hive_conn_id: str
     """
 
@@ -98,7 +98,8 @@ class S3ToHiveTransfer(BaseOperator):
             s3_key_object = self.s3.get_wildcard_key(self.s3_key)
         else:
             if not self.s3.check_for_key(self.s3_key):
-                raise Exception("The key {0} does not exists".format(self.s3_key))
+                raise Exception(
+                    "The key {0} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
         with NamedTemporaryFile("w") as f:
             logging.info("Dumping S3 key {0} contents to local"

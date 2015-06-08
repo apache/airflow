@@ -18,7 +18,7 @@ class HiveOperator(BaseOperator):
         ${var} gets translated into jina-type templating {{ var }}
     :type hiveconf_jinja_translate: boolean
     :param script_begin_tag: If defined, the operator will get rid of the
-        part of the script before the first occurence of `script_begin_tag`
+        part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
     """
 

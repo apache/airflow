@@ -172,7 +172,7 @@ def list_dags(args):
 
 
 def list_tasks(args):
-    dagbag = DagBag()
+    dagbag = DagBag(args.subdir)
     if args.dag_id not in dagbag.dags:
         raise Exception('dag_id could not be found')
     dag = dagbag.dags[args.dag_id]
@@ -301,7 +301,7 @@ def initdb(args):
 def resetdb(args):
     print("DB: " + conf.get('core', 'SQL_ALCHEMY_CONN'))
     if raw_input(
-            "This will drop exisiting tables if they exist. "
+            "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=logging.DEBUG,
                             format=settings.SIMPLE_LOG_FORMAT)
@@ -365,9 +365,9 @@ def get_parser():
         "-t", "--task_regex",
         help="The regex to filter specific task_ids to clear (optional)")
     parser_clear.add_argument(
-        "-s", "--start_date", help="Overide start_date YYYY-MM-DD")
+        "-s", "--start_date", help="Override start_date YYYY-MM-DD")
     parser_clear.add_argument(
-        "-e", "--end_date", help="Overide end_date YYYY-MM-DD")
+        "-e", "--end_date", help="Override end_date YYYY-MM-DD")
     ht = "Include upstream tasks"
     parser_clear.add_argument(
         "-u", "--upstream", help=ht, action="store_true")
@@ -485,12 +485,15 @@ def get_parser():
     parser_list_dags = subparsers.add_parser('list_dags', help=ht)
     parser_list_dags.set_defaults(func=list_dags)
 
-    ht = "List the tasks whithin a DAG"
+    ht = "List the tasks within a DAG"
     parser_list_tasks = subparsers.add_parser('list_tasks', help=ht)
     parser_list_tasks.add_argument(
         "-t", "--tree", help="Tree view", action="store_true")
     parser_list_tasks.add_argument(
         "dag_id", help="The id of the dag")
+    parser_list_tasks.add_argument(
+        "-sd", "--subdir", help=subdir_help,
+        default=DAGS_FOLDER)
     parser_list_tasks.set_defaults(func=list_tasks)
 
     ht = "Start a Celery worker node"

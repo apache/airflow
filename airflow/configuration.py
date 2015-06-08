@@ -63,7 +63,7 @@ load_examples = True
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
-# cname you are using. This is use in autamated emails that
+# cname you are using. This is use in automated emails that
 # airflow sends to point links to the right web server
 base_url = http://localhost:8080
 
@@ -104,7 +104,7 @@ celeryd_concurrency = 16
 # visible from the main web server to connect into the workers.
 worker_log_server_port = 8793
 
-# The Celery broker URL. Celery supports RabbitMQ, Redis and experimentaly
+# The Celery broker URL. Celery supports RabbitMQ, Redis and experimentally
 # a sqlalchemy database. Refer to the Celery documentation for more
 # information.
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
@@ -191,6 +191,8 @@ class ConfigParserWithDefaults(ConfigParser):
 
     def getboolean(self, section, key):
         val = str(self.get(section, key)).lower().strip()
+        if '#' in val:
+            val = val.split('#')[0].strip()
         if val == "true":
             return True
         elif val == "false":
@@ -214,7 +216,7 @@ def mkdir_p(path):
 
 '''
 Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
-"~/airflow" and "~/airflow/airflow.cfg" repectively as defaults.
+"~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
 '''
 
 if 'AIRFLOW_HOME' not in os.environ:
@@ -238,14 +240,14 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     it is missing. The right way to change your configuration is to alter your
     configuration file, not this code.
     '''
-    logging.info("Createing new config file in: " + AIRFLOW_CONFIG)
+    logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
     f = open(AIRFLOW_CONFIG, 'w')
     f.write(DEFAULT_CONFIG.format(**locals()))
     f.close()
 
 TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
 if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Createing new config file in: " + TEST_CONFIG_FILE)
+    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
     f = open(TEST_CONFIG_FILE, 'w')
     f.write(TEST_CONFIG.format(**locals()))
     f.close()

@@ -58,7 +58,7 @@ class SqlSensor(BaseSensorOperator):
     Runs a sql statement until a criteria is met. It will keep trying until
     sql returns no row, or if the first cell in (0, '0', '').
 
-    :param conn_id: The connection to run the sensor agains
+    :param conn_id: The connection to run the sensor against
     :type conn_id: string
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
@@ -142,7 +142,7 @@ class HivePartitionSensor(BaseSensorOperator):
         notation (my_database.my_table)
     :type table: string
     :param partition: The partition clause to wait for. This is passed as
-        is to the Metastor Thrift client "get_partitions_by_filter" method,
+        is to the Metastore Thrift client "get_partitions_by_filter" method,
         and apparently supports SQL like notation as in `ds='2015-01-01'
         AND type='value'` and > < sings as in "ds>=2015-01-01"
     :type partition: string
@@ -218,8 +218,8 @@ class S3KeySensor(BaseSensorOperator):
     :type bucket_key: str
     :param bucket_name: Name of the S3 bucket
     :type bucket_name: str
-    :param wildcard_match: whether the bucket_key should be interpreted as a Unix
-        wildcard pattern
+    :param wildcard_match: whether the bucket_key should be interpreted as a
+        Unix wildcard pattern
     :type wildcard_match: bool
     """
     template_fields = ('bucket_key', 'bucket_name')

@@ -10,7 +10,7 @@ class PythonOperator(BaseOperator):
 
     :param python_callable: A reference to an object that is callable
     :type python_callable: python callable
-    :param op_kwargs: a dictionnary of keyword arguments that will get unpacked
+    :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
     :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when

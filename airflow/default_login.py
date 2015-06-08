@@ -1,5 +1,5 @@
 '''
-Override this file to handle your authenticatin / login.
+Override this file to handle your authenticating / login.
 
 Copy and alter this file and put in your PYTHONPATH as airflow_login.py,
 the new module will override this one.

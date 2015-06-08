@@ -15,9 +15,11 @@ args = {
 
 dag = DAG(dag_id='example_python_operator', default_args=args)
 
+
 def my_sleeping_function(random_base):
-    '''This is a function that will run whithin the DAG execution'''
+    '''This is a function that will run within the DAG execution'''
     time.sleep(random_base)
+
 
 def print_context(ds, **kwargs):
     pprint(kwargs)

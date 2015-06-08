@@ -17,12 +17,12 @@ Charts
 -------------
 A simple UI built on top of flask-admin and highcharts allows to build
 data visualizations and charts easily. Fill in a form with a label, sql,
-chart tyoe, pick a source database from your environment's connecton, 
-select a few other otpions, and save it for later use. 
+chart type, pick a source database from your environment's connecton, 
+select a few other options, and save it for later use. 
 
-You can even use the same templating and macros availlable when writting 
+You can even use the same templating and macros available when writing 
 airflow pipelines, parameterizing your queries and modifying parameters 
-direclty in the URL.
+directly in the URL.
 
 These charts are basic, but they're easy to create, modify and share.
 

@@ -1,3 +1,5 @@
+from datetime import datetime
+import numpy
 import logging
 
 import MySQLdb
@@ -79,6 +81,10 @@ class MySqlHook(BaseHook):
                     l.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     l.append('NULL')
+                elif isinstance(cell, numpy.datetime64):
+                    l.append("'" + str(cell) + "'")
+                elif isinstance(cell, datetime):
+                    l.append("'" + cell.isoformat() + "'")
                 else:
                     l.append(str(cell))
             values = tuple(l)

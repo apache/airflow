@@ -15,7 +15,7 @@ class BaseExecutor(object):
 
         :param parallelism: how many jobs should run at one time. Set to
             ``0`` for infinity
-        :type paralllelism: int
+        :type parallelism: int
         """
         self.parallelism = parallelism
         self.queued_tasks = {}

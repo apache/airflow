@@ -63,11 +63,11 @@ def closest_ds_partition(
         metastore_conn_id='metastore_default'):
     '''
     This function finds the date in a list closest to the target date.
-    An optional paramter can be given to get the closest before or after.
+    An optional parameter can be given to get the closest before or after.
 
     :param table: A hive table name
     :type table: str
-    :param ds: A datestamp ``%Y-%m-%d`` i.e. ``yyyy-mm-dd``
+    :param ds: A datestamp ``%Y-%m-%d`` e.g. ``yyyy-mm-dd``
     :type ds: datetime.date list
     :param before: closest before (True), after (False) or either side of ds
     :type before: bool or None

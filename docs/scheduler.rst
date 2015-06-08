@@ -21,11 +21,11 @@ of some task instances, or mark them as successful.
 Here are some of the ways you can **unblock tasks**:
 
 * From the UI, you can **clear** (as in delete the status of) individual task instances from the tasks instance dialog, while defining whether you want to includes the past/future and the upstream/downstream dependencies. Note that a confirmation window comes next and allows you to see the set you are about to clear.
-* The CLI ``airflow clear -h`` has lots of options when it comes to clearing task instances states, including specfying date ranges, targeting task_ids by specifying a regular expression, flags for including upstream and downstream relatives, and targeting task instances in specific states (``failed``, or ``success``)
-* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or when the fix has been applied oustide of Airflow for instance.
+* The CLI ``airflow clear -h`` has lots of options when it comes to clearing task instances states, including specifying date ranges, targeting task_ids by specifying a regular expression, flags for including upstream and downstream relatives, and targeting task instances in specific states (``failed``, or ``success``)
+* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or when the fix has been applied outside of Airflow for instance.
 * The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows to select subsections of the dag as well as specifying date ranges.
 
-The Airflow scheduler is designed to run as a persitent service in an
-Airflow production envrionement. To kick it off, all you need to do is 
+The Airflow scheduler is designed to run as a persistent service in an
+Airflow production environment. To kick it off, all you need to do is 
 execute ``airflow scheduler``. It will use the configuration specified in the
 ``airflow.cfg``.

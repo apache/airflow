@@ -78,7 +78,7 @@ an Airflow DAG object. Let's start by importing the libraries we will need.
 Default Arguments
 -----------------
 We're about to create a DAG and some tasks, and we have the choice to 
-explicitely pass a set of arguments to each task's constructor 
+explicitly pass a set of arguments to each task's constructor 
 (which would become redundant), or (better!) we can define a dictionary 
 of default parameters that we can use when creating tasks.
 
@@ -108,7 +108,7 @@ Instantiate a DAG
 
 We'll need a DAG object to nest our tasks into. Here we pass a string 
 that defines the dag_id, which serves as a unique identifier for your DAG.
-We also pass the default argument dictonary that we just define.
+We also pass the default argument dictionary that we just define.
 
 .. code:: python
 
@@ -122,14 +122,14 @@ argument ``task_id`` acts as a unique identifier for the task.
 .. code:: python
 
     t1 = BashOperator(
-        task_id='print_date', 
-        bash_command='date', 
+        task_id='print_date',
+        bash_command='date',
         dag=dag)
 
     t2 = BashOperator(
-        task_id='sleep', 
+        task_id='sleep',
         email_on_failure=False,
-        bash_command='sleep 5', 
+        bash_command='sleep 5',
         dag=dag)
 
 Notice how we pass a mix of operator specific arguments (``bash_command``) and
@@ -138,10 +138,10 @@ from BaseOperator to the operators constructor. This is simpler than
 passing every argument for every constructor call. Also, notice that in 
 the second call we override ``email_on_failure`` parameter with ``False``.
 
-The precendence rules for operator is:
+The precedence rules for operator is:
 
-* Use the argument explicitely passed to the constructor
-* Look in te default_args dictonary, use the value from there if it exists
+* Use the argument explicitly passed to the constructor
+* Look in the default_args dictonary, use the value from there if it exists
 * Use the operator's default, if any
 * If none of these are defined, Airflow raises an exception
 
@@ -207,7 +207,7 @@ you can define dependencies between them:
 .. code:: python
 
     t2.set_upstream(t1)
-    
+
     # This means that t2 will depend on t1 
     # running successfully to run
     # It is equivalent to
@@ -229,7 +229,7 @@ Alright, so we have a pretty basic DAG. At this point your code should look
 something like this:
 
 .. code:: python
-    
+
     """
     Code that goes along with the Airflow located at:
     http://airflow.readthedocs.org/en/latest/tutorial.html
@@ -272,7 +272,7 @@ something like this:
     t3 = BashOperator(
         task_id='templated',
         bash_command=templated_command,
-        params={'my_param': 'Paramater I passed in'},
+        params={'my_param': 'Parameter I passed in'},
         dag=dag)
 
     t2.set_upstream(t1)
@@ -336,7 +336,7 @@ gets rendered and executed by running this command:
     airflow test tutorial templated 2015-01-01
 
 This should result in displaying a verbose log of events and ultimately 
-running your bash command and priting the result.
+running your bash command and printing the result.
 
 Note that the ``airflow test`` command runs task instances locally, output
 their log to stdout (on screen), don't bother with dependencies, and

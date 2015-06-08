@@ -216,7 +216,7 @@ class HiveMetastoreHook(BaseHook):
         '''
         Returns a list of all partitions in a table. Works only
         for tables with less than 32767 (java short max val).
-        For subpartitionned table, the number might easily exceed this.
+        For subpartitioned table, the number might easily exceed this.
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -229,7 +229,7 @@ class HiveMetastoreHook(BaseHook):
         self.metastore._oprot.trans.open()
         table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
         if len(table.partitionKeys) == 0:
-            raise Exception("The table isn't partitionned")
+            raise Exception("The table isn't partitioned")
         else:
             if filter:
                 parts = self.metastore.get_partitions_by_filter(
@@ -246,7 +246,7 @@ class HiveMetastoreHook(BaseHook):
     def max_partition(self, schema, table_name, field=None, filter=None):
         '''
         Returns the maximum value for all partitions in a table. Works only
-        for tables that have a single partition key. For subpartitionned
+        for tables that have a single partition key. For subpartitioned
         table, we recommend using signal tables.
 
         >>> hh = HiveMetastoreHook()

@@ -356,7 +356,7 @@ def send_MIME_email(e_from, e_to, mime_msg):
 
 def import_module_attrs(parent_module_globals, module_attrs_dict):
     '''
-    Attemps to import a set of modules and specified attributes in the
+    Attempts to import a set of modules and specified attributes in the
     form of a dictionary. The attributes are copied in the parent module's
     namespace. The function returns a list of attributes names that can be
     affected to __all__.

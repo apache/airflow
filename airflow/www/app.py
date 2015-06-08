@@ -74,7 +74,7 @@ def superuser_required(f):
         ):
             return f(*args, **kwargs)
         else:
-            flash("This page requires superuser priviledges", "error")
+            flash("This page requires superuser privileges", "error")
             return redirect(url_for('admin.index'))
     return decorated_function
 
@@ -91,7 +91,7 @@ def data_profiling_required(f):
         ):
             return f(*args, **kwargs)
         else:
-            flash("This page requires data profiling priviledges", "error")
+            flash("This page requires data profiling privileges", "error")
             return redirect(url_for('admin.index'))
     return decorated_function
 
@@ -1746,6 +1746,7 @@ def fqueued_slots(v, c, m, p):
         '?flt1_pool_equals=' + m.pool +
         '&flt2_state_equals=queued')
     return Markup("<a href='{0}'>{1}</a>".format(url, m.queued_slots()))
+
 
 class PoolModelView(SuperUserMixin, ModelView):
     column_list = ('pool', 'slots', 'used_slots', 'queued_slots')

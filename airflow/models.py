@@ -129,7 +129,7 @@ class DagBag(object):
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
         Given a path to a python module, this method imports the module and
-        look for dag objects whithin it.
+        look for dag objects within it.
         """
         try:
             # This failed before in what may have been a git sync
@@ -1349,7 +1349,7 @@ class DAG(object):
     :type default_args: dict
     :param params: a dictionary of DAG level parameters that are made
         accessible in templates, namespaced under `params`. These
-        params can be overriden at the task level.
+        params can be overridden at the task level.
     :type params: dict
     """
 
@@ -1430,8 +1430,8 @@ class DAG(object):
     def crawl_for_tasks(objects):
         """
         Typically called at the end of a script by passing globals() as a
-        parameter. This allows to not explicitely add every single task to the
-        dag explicitely.
+        parameter. This allows to not explicitly add every single task to the
+        dag explicitly.
         """
         raise NotImplemented("")
 
@@ -1504,7 +1504,7 @@ class DAG(object):
         TI = TaskInstance
         tis = session.query(TI)
         if include_subdags:
-            # Creafting the right filter for dag_id and task_ids combo
+            # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
                 conditions.append(

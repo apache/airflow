@@ -282,7 +282,7 @@ class S3Hook(BaseHook):
         :type key: str
         :param bucket_name: Name of the bucket in which to store the file
         :type bucket_name: str
-        :param replace: A flag to decide whther or not to overwrite the key
+        :param replace: A flag to decide whether or not to overwrite the key
             if it already exists
         :type replace: bool
         """
@@ -296,4 +296,3 @@ class S3Hook(BaseHook):
         key_size = key_obj.set_contents_from_filename(filename, replace=replace)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
-

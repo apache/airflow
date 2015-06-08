@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 # Kept manually in sync with airflow.__version__
-version = '1.0.0'
+version = '1.0.1'
 
 doc = [
     'sphinx>=1.2.3',
@@ -66,7 +66,7 @@ setup(
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',
-    url='https://github.com/mistercrunch/Airflow',
+    url='https://github.com/airbnb/airflow',
     download_url=(
-        'https://github.com/mistercrunch/Airflow/tarball/' + version),
+        'https://github.com/airbnb/airflow/tarball/' + version),
 )
