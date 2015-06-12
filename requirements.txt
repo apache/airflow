@@ -15,6 +15,7 @@ jinja2
 librabbitmq
 markdown
 mysql-python
+nose
 pandas
 pygments
 pyhive
