@@ -1719,7 +1719,8 @@ class Chart(Base):
 
     id = Column(Integer, primary_key=True)
     label = Column(String(200))
-    conn_id = Column(String(ID_LEN), nullable=False)
+    conn_id = Column(
+        String(ID_LEN), ForeignKey('connection.conn_id'), nullable=False)
     user_id = Column(Integer(), ForeignKey('user.id'),)
     chart_type = Column(String(100), default="line")
     sql_layout = Column(String(50), default="series")
@@ -1732,9 +1733,7 @@ class Chart(Base):
     owner = relationship(
         "User", cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
-    db = relationship(
-        "Connection",
-        primaryjoin='Chart.conn_id == foreign(Connection.conn_id)')
+    db = relationship("Connection")
     iteration_no = Column(Integer, default=0)
     last_modified = Column(DateTime, default=datetime.now())
 
