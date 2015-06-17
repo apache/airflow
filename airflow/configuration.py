@@ -66,7 +66,7 @@ parallelism = 32
 load_examples = True
 
 # Where your Airflow plugins are stored
-{AIRFLOW_HOME}/plugins
+plugins_folder = {AIRFLOW_HOME}/plugins
 
 
 [webserver]
