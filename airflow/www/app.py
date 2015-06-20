@@ -1526,6 +1526,7 @@ class ConnectionModelView(SuperUserMixin, ModelView):
     form_overrides = dict(password=VisiblePasswordField)
     form_choices = {
         'conn_type': [
+            ('exasol', 'Exasol',),
             ('ftp', 'FTP',),
             ('hdfs', 'HDFS',),
             ('hive_cli', 'Hive Client Wrapper',),

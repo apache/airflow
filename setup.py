@@ -40,6 +40,7 @@ setup(
         'flask-cache>=0.13.1',
         'flask-login>=0.2.11',
         'flower>=0.7.3',
+        'jaydebeapi>=0.2.0',
         'jinja2>=2.7.3',
         'markdown>=2.5.2',
         'pandas>=0.15.2',
