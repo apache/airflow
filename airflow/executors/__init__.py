@@ -17,10 +17,9 @@ elif _EXECUTOR == 'SequentialExecutor':
     DEFAULT_EXECUTOR = SequentialExecutor()
 else:
     # Loading plugins
-    from airflow.plugins_manager import get_plugins
-    executor_plugins = {}
-    for _plugin in get_plugins(BaseExecutor):
-        globals()[_plugin.__name__] = _plugin
+    from airflow.plugins_manager import executors as _executors
+    for _executor in _executors:
+        globals()[_executor.__name__] = _executor
     if _EXECUTOR in globals():
         DEFAULT_EXECUTOR = globals()[_EXECUTOR]
     else:

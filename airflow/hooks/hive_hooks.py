@@ -212,6 +212,15 @@ class HiveMetastoreHook(BaseHook):
         self.metastore._oprot.trans.close()
         return objs
 
+    def get_databases(self, pattern='*'):
+        '''
+        Get a metastore table object
+        '''
+        self.metastore._oprot.trans.open()
+        dbs = self.metastore.get_databases(pattern)
+        self.metastore._oprot.trans.close()
+        return dbs
+
     def get_partitions(
             self, schema, table_name, filter=None):
         '''

@@ -1788,9 +1788,14 @@ admin.add_view(mv)
 
 def integrate_plugins():
     """Integrate plugins to the context"""
-    from airflow.plugins_manager import get_plugins, register_templates_folders
-    from airflow import AirflowViewPlugin
-    for view in get_plugins(AirflowViewPlugin, expect_class=False):
-        admin.add_view(view)
-    register_templates_folders(app)
+    from airflow.plugins_manager import (
+        admin_views, flask_blueprints, menu_links)
+    for v in admin_views:
+        admin.add_view(v)
+    for bp in flask_blueprints:
+        print bp
+        app.register_blueprint(bp)
+    for ml in menu_links:
+        admin.add_link(ml)
+
 integrate_plugins()

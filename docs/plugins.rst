@@ -9,18 +9,6 @@ The python modules in the ``plugins`` folder get imported,
 and **hooks**, **operators**, **macros**, **executors** and web **views** 
 get integrated to Airflow's main collections and become available for use.
 
-Objects
--------
-
-* Classes derived from ``BaseOperator`` land in ``airflow.operators``
-* Classes derived from ``BaseHook`` land in ``airflow.hooks``
-* Classes derived from ``BaseExecutor`` land ``airflow.executors``
-* object created from a class derived from ``airflow.PluginView`` get integrated in the Flask app
-* object created from ``AirflowMacroPlugin(namespace="foo")`` land in ``airflow.macros.foo``
-* Files located in subfolders named ``templates`` folders become available when rendering pages
-* (upcoming) CLI subcommands
-
-
 What for?
 ---------
 
@@ -44,7 +32,6 @@ Examples:
   they should land, alert people and exposes visualization of outages
 * ...
 
-
 Why build on top Airflow?
 -------------------------
 
@@ -58,6 +45,37 @@ Airflow has many components that can be reused when building an application:
 * Basic charting capabilities, underlying libraries and abstractions
 
 
+Interface
+---------
+
+To create a plugin you will need to derive the 
+``airflow.plugins_manager.AirflowPlugin`` class and reference the objects
+you want to plug into Airflow. Here's what the class you need to derive
+look like:
+
+
+.. code:: python
+
+    class AirflowPlugin(object):
+        # The name of your plugin (str)
+        name = None
+        # A list of class(es) derived from BaseOperator
+        operators = []
+        # A list of class(es) derived from BaseHook
+        hooks = []
+        # A list of class(es) derived from BaseExecutor
+        executors = []
+        # A list of references to inject into the macros namespace
+        macros = []
+        # A list of objects created from a class derived 
+        # from flask_admin.BaseView
+        admin_views = []
+        # A list of Blueprint object created from flask.Blueprint
+        flask_blueprints = []
+        # A list of menu links (flask.ext.admin.base.MenuLink)
+        menu_links = []
+
+
 Example
 -------
 
@@ -65,13 +83,18 @@ The code bellow defines a plugin that injects a set of dummy object
 definitions in Airflow. 
 
 .. code:: python
+    
+    # This is the class you derive to create a plugin
+    from airflow.plugins_manager import AirflowPlugin
+
+    from flask import Blueprint
+    from flask.ext.admin import BaseView
+    from flask.ext.admin.base import MenuLink
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
     from airflow.models import  BaseOperator
     from airflow.executors.base_executor import BaseExecutor
-    from airflow import AirflowViewPlugin, AirflowMacroPlugin
-    from flask_admin import expose
 
     # Will show up under airflow.hooks.PluginHook
     class PluginHook(BaseHook):
@@ -85,17 +108,32 @@ definitions in Airflow.
     class PluginExecutor(BaseExecutor):
         pass
 
-    # Shows up in the UI in menu -> Plugins -> Test
-    class TestView(AirflowViewPlugin):
+    # Creating a flask admin BaseView
+    class TestView(BaseView):
         @expose('/')
-        def query(self):
-            return self.render("test.html", content="Hello galaxy!")
-    v = TestView(category="Plugins", name="Test")
+        def test(self):
+            return self.render("test_plugin/test.html", content="Hello galaxy!")
+    v = TestView(category="Test Plugin", name="Test View")
+
+    # Creating a flask blueprint to intergrate the templates and static folder
+    bp = Blueprint(
+        "test_plugin", __name__,
+        template_folder='templates',
+        static_folder='static',
+        static_url_path='/static/test_plugin')
 
 
-    # Available as other macros in templates {{ macros.foo_plugin.success() }}
-    def success():
-        return "Success!"
-    obj = AirflowMacroPlugin(namespace="foo_plugin")
-    obj.success = success
+    ml = MenuLink(
+        category='Test Plugin',
+        name='Test Menu Link',
+        url='http://pythonhosted.org/airflow/')
 
+    # Defining the plugin class
+    class AirflowTestPlugin(AirflowPlugin):
+        name = "test_plugin"
+        operators = [PluginOperator]
+        flask_blueprints = [bp]
+        hooks = [PluginHook]
+        executors = [PluginExecutor]
+        admin_views = [v]
+        menu_links = [ml]
