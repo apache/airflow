@@ -141,6 +141,14 @@ def initdb():
                 host='{}/sqlite_default.db'.format(home)))
         session.commit()
 
+    conn = session.query(C).filter(C.conn_id == 'ftp_default').first()
+    if not conn:
+        session.add(
+            models.Connection(
+                conn_id='ftp_default', conn_type='ftp',
+                host='localhost', port=21))
+        session.commit()
+
     # Known event types
     KET = models.KnownEventType
     if not session.query(KET).filter(KET.know_event_type == 'Holiday').first():
