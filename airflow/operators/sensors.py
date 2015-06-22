@@ -87,7 +87,7 @@ class SqlSensor(BaseSensorOperator):
         if not records:
             return False
         else:
-            if str(records[0][0]) in ('0', '',):
+            if records[0][0] is None or str(records[0][0]) in ('0', '0.0', ''):
                 return False
             else:
                 return True
