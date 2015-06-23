@@ -1,5 +1,3 @@
-import logging
-
 import os.path
 import ftplib
 from airflow.hooks.base_hook import BaseHook
@@ -9,20 +7,33 @@ class FTPHook(BaseHook):
 
     """
     Interact with FTP.
+
+    Errors that may occur throughout but should be handled
+    downstream.
     """
 
     def __init__(
             self, ftp_conn_id='ftp_default'):
         self.ftp_conn_id = ftp_conn_id
+        self.conn = None
 
     def get_conn(self):
         """
         Returns a FTP connection object
         """
-        conn = self.get_connection(self.ftp_conn_id)
-        conn = ftplib.FTP(conn.host, conn.login, conn.password)
-        
-        return conn
+        if self.conn is None:
+            params = self.get_connection(self.ftp_conn_id)
+            self.conn = ftplib.FTP(params.host, params.login, params.password)
+
+        return self.conn
+
+    def close_conn(self):
+        """
+        Closes the connection. An error will occur if the
+        connection wasnt ever opened.
+        """
+        conn = self.conn
+        conn.quit()
 
     def list_directory(self, path):
         """
@@ -35,12 +46,7 @@ class FTPHook(BaseHook):
         conn.cwd(path)
 
         files = []
-
-        try:
-            files = conn.nlst()
-        finally:
-            conn.quit()
-
+        files = conn.nlst()
         return files
 
     def create_directory(self, path):
@@ -51,10 +57,7 @@ class FTPHook(BaseHook):
         :type path: str
         """
         conn = self.get_conn()
-        try:
-            conn.mkd(path)
-        finally:
-            conn.quit()
+        conn.mkd(path)
 
     def delete_directory(self, path):
         """
@@ -64,10 +67,7 @@ class FTPHook(BaseHook):
         :type path: str
         """
         conn = self.get_conn()
-        try:
-            conn.rmd(path)
-        finally:     
-            conn.quit()
+        conn.rmd(path)
 
     def retrieve_file(self, remote_full_path, local_full_path):
         """
@@ -79,17 +79,13 @@ class FTPHook(BaseHook):
         :type local_full_path: str
         """
         conn = self.get_conn()
-        try:
-            output_handle = open(local_full_path, 'wb')
 
-            remote_path, remote_file_name = os.path.split(remote_full_path)
+        output_handle = open(local_full_path, 'wb')
+        remote_path, remote_file_name = os.path.split(remote_full_path)
+        conn.cwd(remote_path)
+        conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
 
-            conn.cwd(remote_path)
-            conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
-
-        finally:
-            output_handle.close()
-            conn.quit()
+        output_handle.close()
 
     def store_file(self, remote_full_path, local_full_path):
         """
@@ -101,16 +97,13 @@ class FTPHook(BaseHook):
         :type local_full_path: str
         """
         conn = self.get_conn()
-        try:
-            input_handle = open(local_full_path, 'rb')
 
-            remote_path, remote_file_name = os.path.split(remote_full_path)
+        input_handle = open(local_full_path, 'rb')
+        remote_path, remote_file_name = os.path.split(remote_full_path)
+        conn.cwd(remote_path)
+        conn.storbinary('STOR %s' % remote_file_name, input_handle)
 
-            conn.cwd(remote_path)
-            conn.storbinary('STOR %s' % remote_file_name, input_handle)
-        finally:
-            input_handle.close()
-            conn.quit()
+        input_handle.close()
 
     def delete_file(self, path):
         """
@@ -120,9 +113,4 @@ class FTPHook(BaseHook):
         :type path: str
         """
         conn = self.get_conn()
-        try:
-            conn.delete(path)
-        finally:
-            conn.quit()
-
-
+        conn.delete(path)
