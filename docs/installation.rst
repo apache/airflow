@@ -74,6 +74,9 @@ to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, ...) and
 change your ``airflow.cfg`` to point the executor parameter to 
 CeleryExecutor and provide the related Celery settings.
 
+For more information about setting up a Celery broker, refer to the
+exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/brokers/index.html>`_.
+
 To kick off a worker, you need to setup Airflow and quick off the worker 
 subcommand
 

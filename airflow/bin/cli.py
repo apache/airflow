@@ -173,7 +173,7 @@ def task_state(args):
 
 
 def list_dags(args):
-    dagbag = DagBag()
+    dagbag = DagBag(args.subdir)
     print("\n".join(sorted(dagbag.dags)))
 
 
@@ -494,6 +494,9 @@ def get_parser():
 
     ht = "List the DAGs"
     parser_list_dags = subparsers.add_parser('list_dags', help=ht)
+    parser_list_dags.add_argument(
+        "-sd", "--subdir", help=subdir_help,
+        default=DAGS_FOLDER)
     parser_list_dags.set_defaults(func=list_dags)
 
     ht = "List the tasks within a DAG"

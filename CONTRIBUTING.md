@@ -53,7 +53,7 @@ If you are proposing a feature:
 
 ## Latests Documentation
 
-[API Documentation][(http://pythonhosted.com/airflow)]
+[API Documentation](http://pythonhosted.com/airflow)
 
 ## Testing
 
@@ -88,6 +88,6 @@ meets these guidelines:
     sure to follow the sphinx compatible standards.
 3.  The pull request should work for Python 2.6, 2.7, and ideally python 3.3.
     `from __future__ import ` will be required in every `.py` file soon.
-4.  Code will be reviewed by re running the unittests, flake8 and synthax
+4.  Code will be reviewed by re running the unittests, flake8 and syntax
     should be as rigorous as the core Python project.
 5.  Please rebase and resolve all conflicts before submitting.

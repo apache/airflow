@@ -57,12 +57,16 @@ class HiveCliHook(BaseHook):
                     cwd=tmp_dir)
                 all_err = ''
                 self.sp = sp
+                stdout = ""
                 for line in iter(sp.stdout.readline, ''):
+                    stdout += line
                     logging.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:
                     raise AirflowException(all_err)
+
+                return stdout
 
     def load_file(
             self,
@@ -212,6 +216,15 @@ class HiveMetastoreHook(BaseHook):
         self.metastore._oprot.trans.close()
         return objs
 
+    def get_databases(self, pattern='*'):
+        '''
+        Get a metastore table object
+        '''
+        self.metastore._oprot.trans.open()
+        dbs = self.metastore.get_databases(pattern)
+        self.metastore._oprot.trans.close()
+        return dbs
+
     def get_partitions(
             self, schema, table_name, filter=None):
         '''
@@ -292,7 +305,10 @@ class HiveServer2Hook(BaseHook):
                         'header': cur.getSchema(),
                     }
                 else:
-                    return {}
+                    return {
+                        'data': [],
+                        'header': [],
+                    }
 
     def to_csv(self, hql, csv_filepath, schema='default'):
         schema = schema or 'default'

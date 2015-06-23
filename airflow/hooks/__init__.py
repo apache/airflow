@@ -26,6 +26,6 @@ _import_module_attrs(globals(), _hooks)
 
 def integrate_plugins():
     """Integrate plugins to the context"""
-    from airflow.plugins_manager import get_plugins
-    for _plugin in get_plugins(_BaseHook):
-        globals()[_plugin.__name__] = _plugin
+    from airflow.plugins_manager import hooks as _hooks
+    for _h in _hooks:
+        globals()[_h.__name__] = _h
