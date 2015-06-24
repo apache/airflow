@@ -4,8 +4,38 @@ import gzip
 import functools
 
 from flask import after_this_request, request
+from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
+
+from airflow.configuration import conf
+AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
+
+
+class LoginMixin(object):
+    def is_accessible(self):
+        return (
+            not AUTHENTICATE or (
+                not current_user.is_anonymous() and
+                current_user.is_authenticated()
+            )
+        )
+
+
+class SuperUserMixin(object):
+    def is_accessible(self):
+        return (
+            not AUTHENTICATE or
+            (not current_user.is_anonymous() and current_user.is_superuser())
+        )
+
+
+class DataProfilingMixin(object):
+    def is_accessible(self):
+        return (
+            not AUTHENTICATE or
+            (not current_user.is_anonymous() and current_user.data_profiling())
+        )
 
 
 def limit_sql(sql, limit):

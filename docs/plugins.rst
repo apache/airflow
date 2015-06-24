@@ -88,7 +88,7 @@ definitions in Airflow.
     from airflow.plugins_manager import AirflowPlugin
 
     from flask import Blueprint
-    from flask.ext.admin import BaseView
+    from flask.ext.admin import BaseView, expose
     from flask.ext.admin.base import MenuLink
 
     # Importing base classes that we need to derive

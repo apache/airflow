@@ -4,8 +4,19 @@ The Scheduler
 The Airflow scheduler monitors all tasks and all dags and schedules the
 task instances whose dependencies have been met. Behinds the scene, 
 it monitors a folder for all dag objects it may contain,
-and periodically inspects all tasks to see whether is can schedule the
+and periodically inspects all tasks to see whether it can schedule the
 next run.
+
+The scheduler starts an instance of the executor specified in the your
+``airflow.cfg``, if it happens to be the LocalExecutor, tasks will be
+executed as subprocesses, in the case of CeleryExecutor, tasks are 
+executed remotely.
+
+To start a scheduler, simply run the command:
+
+.. code:: bash
+
+    airflow scheduler
 
 Note that: 
 

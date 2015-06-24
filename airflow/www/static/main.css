@@ -54,9 +54,6 @@ span.queued{
 input#execution_date {
     margin-bottom: 0px;
 }
-.modal{
-    margin-top:5000px;
-}
 table.highlighttable{
     width: 100%;
     table-layout:fixed;

@@ -1,0 +1,38 @@
+{% extends 'airflow/master.html' %}
+
+{% block body %}
+<div>
+    <h3 style="float: left"> 
+        {% block page_header %}Hive Metastore Browser{% endblock%}
+    </h3>
+    <div id="object" class="select2-drop-mask" style="margin-top: 25px; width: 400px;float: right"></div>
+    <div style="clear: both"></div>
+</div>
+{% block plugin_content %}{% endblock %}
+{% endblock %}
+
+{% block head %}
+{{ super() }}
+<link rel="stylesheet" type="text/css" href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
+<link href="/admin/static/vendor/select2/select2.css" rel="stylesheet">
+{% endblock %}
+
+{% block tail %}
+{{ super() }}
+<script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
+<script src="/admin/static/vendor/select2/select2.min.js" type="text/javascript"></script>
+<script>
+    // Filling up the table selector
+    url = "{{ url_for('.objects') }}";
+    $.get(url, function( data ) {
+        $("#object").select2({
+            data: data,
+            placeholder: "Table Selector",
+        })
+        .on("change", function(e){
+            window.location = "{{ url_for('.table') }}?table=" + e.val;
+        });
+    }, "json");
+</script>
+{% endblock %}

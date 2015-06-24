@@ -36,7 +36,9 @@ class HiveCliHook(BaseHook):
         Run an hql statement using the hive cli
 
         >>> hh = HiveCliHook()
-        >>> hh.run_cli("USE airflow;")
+        >>> result = hh.run_cli("USE airflow;")
+        >>> ("OK" in result)
+        True
         '''
         if schema:
             hql = "USE {schema};\n{hql}".format(**locals())
@@ -57,12 +59,16 @@ class HiveCliHook(BaseHook):
                     cwd=tmp_dir)
                 all_err = ''
                 self.sp = sp
+                stdout = ""
                 for line in iter(sp.stdout.readline, ''):
+                    stdout += line
                     logging.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:
                     raise AirflowException(all_err)
+
+                return stdout
 
     def load_file(
             self,

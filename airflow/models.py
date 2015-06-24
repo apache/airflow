@@ -764,7 +764,10 @@ class TaskInstance(Base):
                     signal.signal(signal.SIGTERM, signal_handler)
 
                     self.render_templates()
-                    task_copy.execute(context=self.get_template_context())
+                    context = self.get_template_context()
+                    task_copy.pre_execute(context=context)
+                    task_copy.execute(context=context)
+                    task_copy.post_execute(context=context)
             except (Exception, StandardError, KeyboardInterrupt) as e:
                 self.record_failure(e, test_mode)
                 raise e
@@ -1079,14 +1082,28 @@ class BaseOperator(object):
                 return -1
         return 0
 
+    def pre_execute(self, context):
+        """
+        This is triggered right before self.execute, it's mostly a hook
+        for people deriving operators.
+        """
+        pass
+
     def execute(self, context):
-        '''
+        """
         This is the main method to derive when creating an operator.
         Context is the same dictionary used as when rendering jinja templates.
 
         Refer to get_template_context for more context.
-        '''
+        """
         raise NotImplemented()
+
+    def post_execute(self, context):
+        """
+        This is triggered right after self.execute, it's mostly a hook
+        for people deriving operators.
+        """
+        pass
 
     def on_kill(self):
         '''

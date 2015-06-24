@@ -1,0 +1,8 @@
+{% extends 'metastore_browser/base.html' %}
+
+{% block plugin_content %}
+    <h4> 
+        <span>Hive Databases</span>
+    </h4>
+    {{ table|safe }}
+{% endblock %}

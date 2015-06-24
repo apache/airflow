@@ -3,6 +3,7 @@ import errno
 import logging
 import os
 
+
 class AirflowConfigException(Exception):
     pass
 
@@ -19,6 +20,7 @@ defaults = {
         'web_server_port': '8080',
         'authenticate': False,
         'demo_mode': False,
+        'secret_key': 'airflowified',
     },
     'scheduler': {
         'statsd_on': False,
@@ -80,6 +82,9 @@ web_server_host = 0.0.0.0
 
 # The port on which to run the web server
 web_server_port = 8080
+
+# Secret key used to run your flask app
+secret_key = temporary_key
 
 
 [smtp]
