@@ -96,10 +96,10 @@ class S3Hook(BaseHook):
                 self.role_arn += ":role/" + self.aws_iam_role
         except TypeError as e:
             raise AirflowException("S3 connection needs to set configuration"
-                            "parameters in extra")
+                            " parameters in extra")
         except KeyError as e:
             raise AirflowException("S3 connection definition needs to include"
-                            "{p} in extra".format(p=e.message))
+                            " {p} in extra".format(p=e.message))
         self.connection = self.get_conn()
 
     def __getstate__(self):

@@ -332,12 +332,14 @@ class Connection(Base):
     def extra_dejson(self):
         """Returns the extra property by deserializing json"""
         obj = {}
-        try:
-            obj = json.loads(self.extra)
-        except Exception as e:
-            logging.exception(e)
-            logging.error(
-                "Failed parsing the json for conn_id {}".format(self.conn_id))
+        if self.extra:
+            try:
+                obj = json.loads(self.extra)
+            except Exception as e:
+                logging.exception(e)
+                logging.error(
+                    "Failed parsing the json for "
+                    "conn_id {}".format(self.conn_id))
         return obj
 
 

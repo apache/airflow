@@ -285,41 +285,46 @@ class HiveMetastoreHook(BaseHook):
 
 class HiveServer2Hook(BaseHook):
     '''
-    Wrapper around the pyhs2 lib
+    Wrapper around the pyhs2 library
+
+    Note that the default authMechanism is NOSASL, to override it you
+    can specify it in the ``extra`` of your connection in the UI as in
+    ``{"authMechanism": "PLAIN"}``. Refer to the pyhs2 for more details.
     '''
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
-        self.hiveserver2_conn = self.get_connection(hiveserver2_conn_id)
+        self.hiveserver2_conn_id = hiveserver2_conn_id
+
+    def get_conn(self):
+        db = self.get_connection(self.hiveserver2_conn_id)
+        return pyhs2.connect(
+            host=db.host,
+            port=db.port,
+            authMechanism=db.extra_dejson.get('authMechanism', 'NOSASL'),
+            user=db.login,
+            database=db.schema or 'default')
 
     def get_results(self, hql, schema='default', arraysize=1000):
-        schema = schema or 'default'
-        with pyhs2.connect(
-                host=self.hiveserver2_conn.host,
-                port=self.hiveserver2_conn.port,
-                authMechanism="NOSASL",
-                user='airflow',
-                database=schema) as conn:
-            with conn.cursor() as cur:
-                cur.execute(hql)
-                results = cur.fetchall()
-                if results:
-                    return {
-                        'data': results,
-                        'header': cur.getSchema(),
-                    }
-                else:
-                    return {
-                        'data': [],
-                        'header': [],
-                    }
+        with self.get_conn() as conn:
+            if isinstance(hql, basestring):
+                hql = [hql]
+            results = {
+                'data': [],
+                'header': [],
+            }
+            for statement in hql:
+                with conn.cursor() as cur:
+                    cur.execute(statement)
+                    records = cur.fetchall()
+                    if records:
+                        results = {
+                            'data': records,
+                            'header': cur.getSchema(),
+                        }
+            return results
 
     def to_csv(self, hql, csv_filepath, schema='default'):
         schema = schema or 'default'
-        with pyhs2.connect(
-                host=self.hiveserver2_conn.host,
-                port=self.hiveserver2_conn.port,
-                authMechanism="NOSASL",
-                user='airflow',
-                database=schema) as conn:
+        with self.get_conn() as conn:
             with conn.cursor() as cur:
                 logging.info("Running query: " + hql)
                 cur.execute(hql)
@@ -361,10 +366,3 @@ class HiveServer2Hook(BaseHook):
         df = pd.DataFrame(res['data'])
         df.columns = [c['columnName'] for c in res['header']]
         return df
-
-    def run(self, hql, schema=None):
-        self.hive._oprot.trans.open()
-        if schema:
-            self.hive.execute("USE " + schema)
-        self.hive.execute(hql)
-        self.hive._oprot.trans.close()

@@ -18,6 +18,14 @@ td>span.glyphicon{
 button.btn {
     border: 1px solid black;
 }
+
+div.rich_doc {
+    padding: 5px 10px;
+    border: 1px solid #dddddd;
+    background: white;
+    border-radius: 4px;
+}
+
 span.status_square {
     width:10px;
     height:10px;

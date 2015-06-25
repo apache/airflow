@@ -20,10 +20,7 @@ from wtforms import (
     widgets,
     Form, DateTimeField, SelectField, TextAreaField, PasswordField)
 
-from pygments import highlight
-from pygments.lexers import (
-    PythonLexer, SqlLexer, BashLexer,
-    IniLexer, YamlLexer, JsonLexer, TextLexer)
+from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 import chartkick
@@ -108,13 +105,26 @@ def data_profiling_required(f):
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-special_attrs = {
-    'sql': SqlLexer,
-    'hql': SqlLexer,
-    'doc_yaml': YamlLexer,
-    'doc_json': JsonLexer,
-    'doc': TextLexer,
-    'bash_command': BashLexer,
+def pygment_html_render(s, lexer=lexers.TextLexer):
+    return highlight(
+        s,
+        lexer(),
+        HtmlFormatter(linenos=True),
+    )
+    return s
+
+def wrapped_markdown(s):
+    return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
+
+attr_renderer = {
+    'bash_command': lambda x: pygment_html_render(x, lexers.BashLexer),
+    'hql': lambda x: pygment_html_render(x, lexers.SqlLexer),
+    'sql': lambda x: pygment_html_render(x, lexers.SqlLexer),
+    'doc': lambda x: pygment_html_render(x, lexers.TextLexer),
+    'doc_json': lambda x: pygment_html_render(x, lexers.JsonLexer),
+    'doc_rst': lambda x: pygment_html_render(x, lexers.RstLexer),
+    'doc_yaml': lambda x: pygment_html_render(x, lexers.YamlLexer),
+    'doc_md': wrapped_markdown,
 }
 
 
@@ -136,6 +146,13 @@ ck = Blueprint(
     static_folder=chartkick.js(), static_url_path='/static')
 app.register_blueprint(ck, url_prefix='/ck')
 app.jinja_env.add_extension("chartkick.ext.charts")
+
+
+@app.context_processor
+def jinja_globals():
+    return {
+        'hostname': socket.gethostname(),
+    }
 
 
 class DateTimeForm(Form):
@@ -306,7 +323,7 @@ class Airflow(BaseView):
         label = jinja2.Template(chart.label).render(**args)
         payload['sql_html'] = Markup(highlight(
             sql,
-            SqlLexer(),  # Lexer call
+            lexers.SqlLexer(),  # Lexer call
             HtmlFormatter(noclasses=True))
         )
         payload['label'] = label
@@ -561,7 +578,7 @@ class Airflow(BaseView):
         if chart.show_sql:
             sql = Markup(highlight(
                 chart.sql,
-                SqlLexer(),  # Lexer call
+                lexers.SqlLexer(),  # Lexer call
                 HtmlFormatter(noclasses=True))
             )
         return self.render(
@@ -621,7 +638,7 @@ class Airflow(BaseView):
         code = "".join(open(dag.full_filepath, 'r').readlines())
         title = dag.filepath
         html_code = highlight(
-            code, PythonLexer(), HtmlFormatter(linenos=True))
+            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
@@ -643,7 +660,7 @@ class Airflow(BaseView):
         f.close()
         code_html = Markup(highlight(
             config,
-            IniLexer(),  # Lexer call
+            lexers.IniLexer(),  # Lexer call
             HtmlFormatter(noclasses=True))
         )
         return self.render(
@@ -694,12 +711,8 @@ class Airflow(BaseView):
         html_dict = {}
         for template_field in task.__class__.template_fields:
             content = getattr(task, template_field)
-            if template_field in special_attrs:
-                html_dict[template_field] = highlight(
-                    content,
-                    special_attrs[template_field](),  # Lexer call
-                    HtmlFormatter(linenos=True),
-                )
+            if template_field in attr_renderer:
+                html_dict[template_field] = attr_renderer[template_field](content)
             else:
                 html_dict[template_field] = (
                     "<pre><code>" + str(content) + "</pre></code>")
@@ -787,20 +800,16 @@ class Airflow(BaseView):
             if not attr_name.startswith('_'):
                 attr = getattr(task, attr_name)
                 if type(attr) != type(self.task) and \
-                        attr_name not in special_attrs:
+                        attr_name not in attr_renderer:
                     attributes.append((attr_name, str(attr)))
 
         title = "Task Details"
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
-        for attr_name in special_attrs:
+        for attr_name in attr_renderer:
             if hasattr(task, attr_name):
                 source = getattr(task, attr_name)
-                special_attrs_rendered[attr_name] = highlight(
-                    source,
-                    special_attrs[attr_name](),  # Lexer call
-                    HtmlFormatter(linenos=True),
-                )
+                special_attrs_rendered[attr_name] = attr_renderer[attr_name](source)
 
         return self.render(
             'airflow/task.html',
@@ -1546,7 +1555,7 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
         else:
             code_html = Markup(highlight(
                 config,
-                IniLexer(),  # Lexer call
+                lexers.IniLexer(),  # Lexer call
                 HtmlFormatter(noclasses=True))
             )
             return self.render(
