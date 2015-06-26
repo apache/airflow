@@ -13,6 +13,7 @@ defaults = {
         'parallelism': 32,
         'load_examples': True,
         'plugins_folder': None,
+        'logging_level': logging.INFO,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -47,6 +48,9 @@ dags_folder = {AIRFLOW_HOME}/dags
 
 # The folder where airflow should store its log files
 base_log_folder = {AIRFLOW_HOME}/logs
+
+# set the logging level (e.g. logging.INFO or logging.DEBUG)
+logging_level = logging.INFO
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
