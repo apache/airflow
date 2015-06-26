@@ -15,6 +15,9 @@
 
 {% block body %}
 {{ super() }}
+    {% if dag.doc_md %}
+        <div class="rich_doc" style="margin-bottom: 15px;">{{ doc_md|safe }}</div>
+    {% endif %}
     <div class="form-inline">
         <form method="get" style="float:left;">
             Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">

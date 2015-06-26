@@ -64,7 +64,7 @@
       <div class="modal-content">
         <div class="modal-header">
           <h4 class="modal-title" id="myModalLabel">
-            <span id='task_id'></span> 
+            <span id='task_id'></span>
             <button id="btn_filter" type="button" class="btn btn-default" title="Filter on this task and upstream ">
               <span class="glyphicon glyphicon-filter" style="margin-left: 0px;" aria-hidden="true"></span>
             </button>
@@ -86,7 +86,7 @@
             Rendered
           </button>
           <button id="btn_ti" type="button" class="btn btn-primary">
-            Task Instances 
+            Task Instances
           </button>
           <button id="btn_log" type="button" class="btn btn-primary">
             View Log
@@ -133,7 +133,7 @@
           </span>
           <hr/>
           <button id="btn_success" type="button" class="btn btn-primary">
-            Mark Success    
+            Mark Success
           </button>
           <span class="btn-group">
             <button id="btn_success_upstream"
@@ -229,7 +229,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_ti").click(function(){
-      url = "/admin/taskinstanceview/" +
+      url = "/admin/taskinstance/" +
         "?flt1_dag_id_equals=" + dag_id +
         "&flt2_task_id_equals=" + task_id +
         "&sort=3&desc=1";
@@ -271,7 +271,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
-      
+
       window.location = url;
     });
 

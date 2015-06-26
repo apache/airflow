@@ -1,6 +1,7 @@
 """
-Code that goes along with the Airflow located at:
-http://airflow.readthedocs.org/en/latest/tutorial.html
+### Tutorial Documentation
+Code that goes along with the Airflow located
+[here](http://pythonhosted.org/airflow/tutorial.html)
 """
 from airflow import DAG
 from airflow.operators import BashOperator
@@ -40,6 +41,8 @@ You can document your task using the attributes `doc_md` (markdown),
 rendered in the UI's Task Details page.
 ![img](http://montcs.bloomu.edu/~bobmon/Semesters/2012-01/491/import%20soul.png)
 """
+
+dag.doc_md = __doc__
 
 t2 = BashOperator(
     task_id='sleep',

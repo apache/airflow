@@ -1,8 +1,6 @@
-{% extends "airflow/master.html" %}
-
-{% block body %}
-    {{ super() }}
-    <div 
+<div style="font-family: verdana;">
+    <h1>Airflow 404 = lots of circles</h1>
+<div 
             id="div_svg"
             class="content" 
             class="centered text-center" 
@@ -10,9 +8,6 @@
         <svg></svg>
 
     </div>
-{% endblock %}
-{% block tail %}
-    {{ super() }}
     <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
     <script>
     var height =700;
@@ -129,4 +124,3 @@
 
     </script>
 
-{% endblock %}

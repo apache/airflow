@@ -8,7 +8,9 @@ import os
 import socket
 import sys
 
-from flask import Flask, url_for, Markup, Blueprint, redirect, flash, Response
+from flask import (
+    Flask, url_for, Markup, Blueprint, redirect,
+    flash, Response, render_template)
 from flask.ext.admin import Admin, BaseView, expose, AdminIndexView
 from flask.ext.admin.form import DateTimePickerWidget
 from flask.ext.admin import base
@@ -105,13 +107,14 @@ def data_profiling_required(f):
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
+
 def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(
         s,
         lexer(),
         HtmlFormatter(linenos=True),
     )
-    return s
+
 
 def wrapped_markdown(s):
     return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
@@ -643,11 +646,9 @@ class Airflow(BaseView):
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
-    @expose('/circles')
-    @login_required
+    @app.errorhandler(404)
     def circles(self):
-        return self.render(
-            'airflow/circles.html')
+        return render_template('airflow/circles.html'), 404
 
     @expose('/sandbox')
     @login_required
@@ -1118,6 +1119,7 @@ class Airflow(BaseView):
             flash("No tasks found", "error")
         session.commit()
         session.close()
+        doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') else ''
 
         return self.render(
             'airflow/graph.html',
@@ -1126,6 +1128,7 @@ class Airflow(BaseView):
             width=request.args.get('width', "100%"),
             height=request.args.get('height', "800"),
             execution_date=dttm.isoformat(),
+            doc_md=doc_md,
             arrange=arrange,
             operators=sorted(
                 list(set([op.__class__ for op in dag.tasks])),
