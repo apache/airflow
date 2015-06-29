@@ -159,6 +159,7 @@ TEST_CONFIG = """\
 airflow_home = {AIRFLOW_HOME}
 dags_folder = {AIRFLOW_HOME}/dags
 base_log_folder = {AIRFLOW_HOME}/logs
+logging_level = logging.DEBUG
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 unit_test_mode = True
