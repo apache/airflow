@@ -923,6 +923,7 @@ class TaskInstance(Base):
             "Log: <a href='{self.log_url}'>Link</a><br>"
             "Host: {self.hostname}<br>"
             "Log file: {self.log_filepath}<br>"
+            "Mark Success: link to mark success here plz"
         ).format(**locals())
         utils.send_email(task.email, title, body)
 
