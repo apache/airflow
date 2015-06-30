@@ -400,6 +400,11 @@ def is_in(obj, l):
     return False
 
 
+def get_val_or_default( self, context, key, default ):
+    if key in context:
+        return context[key]
+    return default
+
 @contextmanager
 def TemporaryDirectory(suffix='', prefix=None, dir=None):
     name = mkdtemp(suffix=suffix, prefix=prefix, dir=dir)

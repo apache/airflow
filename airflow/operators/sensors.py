@@ -331,3 +331,39 @@ class TimeSensor(BaseSensorOperator):
         logging.info(
             'Checking if the time ({0}) has come'.format(self.target_time))
         return datetime.now().time() > self.target_time
+
+class HttpSensor(BaseSensorOperator):
+    """
+    Executes an HTTP get statement until the specified criteria is met.
+
+    :param conn_id: The connection to run the sensor against
+    :type conn_id: string
+    :param url: To pass, the url must respond with 
+    """
+
+    @apply_defaults
+    def __init__(self, conn_id, url, params={}, headers=None, context={}, *args, **kwargs):
+        super(HttpSensor, self).__init__(*args, **kwargs)
+
+        self.url = url
+        self.conn_id = conn_id
+        self.params = params
+        self.headers = headers
+        self.context = context
+
+        session = settings.Session()
+        site = session.query(DB).filter(DB.conn_id == conn_id).first()
+        if not site:
+            raise AirflowException("conn_id doesn't exist in the repository")
+        self.hook = site.get_hook()
+        session.commit()
+        session.close()
+
+    def poke(self, context):
+        logging.info('Poking: ' + self.url)
+        records = self.hook.get( self.url, params=self.params, headers=self.headers, context=self.context )
+        if not records:
+            return False
+        else:
+            return True
+
