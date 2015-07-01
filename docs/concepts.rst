@@ -137,3 +137,18 @@ accessible and modifiable through the UI.
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
+
+
+Branching
+'''''''''
+
+Sometimes you need a workflow to branch, or only go down a certain path
+based on an arbitrary condition which is typically related to something
+that happened in an upstream task. One way to do this is by using the
+``BranchPythonOperator``.
+
+The ``BranchPythonOperator`` is much like the PythonOperator except that it
+expects a python_callable that returns a task_id. The task_id returned
+is followed, and all of the other paths are skipped.
+The task_id returned by the Python function has to be referencing a task 
+directly downstream from the BranchPythonOperator task.

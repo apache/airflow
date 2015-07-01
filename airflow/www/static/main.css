@@ -58,6 +58,9 @@ span.queued{
 span.upstream_failed{
     background-color: #FFB400;
 }
+span.skipped{
+    background-color:pink;
+}
 .tooltip-inner {
     text-align:left !important;
     font-size: 12px;

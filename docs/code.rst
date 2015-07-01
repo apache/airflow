@@ -23,6 +23,7 @@ There are 3 main types of operators:
     :show-inheritance:
     :members:
         BashOperator,
+        BranchPythonOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,

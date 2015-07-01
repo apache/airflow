@@ -110,7 +110,7 @@ class HiveCliHook(BaseHook):
         if create or recreate:
             fields = ",\n    ".join(
                 [k + ' ' + v for k, v in field_dict.items()])
-            hql += "CREATE EXTERNAL TABLE IF NOT EXISTS {table} (\n{fields})\n"
+            hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
             if partition:
                 pfields = ",\n    ".join(
                     [p + " STRING" for p in partition])

@@ -40,6 +40,9 @@ rect.shutdown {
 rect.upstream_failed {
     fill: #FFB400;
 }
+rect.skipped {
+    fill: pink;
+}
 .tooltip.in {
     opacity: 1;
     filter: alpha(opacity=100);

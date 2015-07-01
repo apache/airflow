@@ -7,7 +7,7 @@ from airflow.models import BaseOperator as _BaseOperator
 
 _operators = {
     'bash_operator': ['BashOperator'],
-    'python_operator': ['PythonOperator'],
+    'python_operator': ['PythonOperator', 'BranchPythonOperator'],
     'hive_operator': ['HiveOperator'],
     'presto_check_operator': [
         'PrestoCheckOperator',

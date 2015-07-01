@@ -49,6 +49,7 @@ class State(object):
         FAILED: 'red',
         UP_FOR_RETRY: 'yellow',
         UPSTREAM_FAILED: 'blue',
+        SKIPPED: 'pink',
     }
 
     @classmethod
@@ -57,7 +58,9 @@ class State(object):
 
     @classmethod
     def runnable(cls):
-        return [None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED]
+        return [
+            None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
+            cls.SKIPPED]
 
 
 def pessimistic_connection_handling():
@@ -430,11 +433,14 @@ class timeout:
     def __init__(self, seconds=1, error_message='Timeout'):
         self.seconds = seconds
         self.error_message = error_message
+
     def handle_timeout(self, signum, frame):
         logging.error("Process timed out")
         raise TimeoutError(self.error_message)
+
     def __enter__(self):
         signal.signal(signal.SIGALRM, self.handle_timeout)
         signal.alarm(self.seconds)
+
     def __exit__(self, type, value, traceback):
         signal.alarm(0)

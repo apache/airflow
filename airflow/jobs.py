@@ -267,7 +267,7 @@ class SchedulerJob(BaseJob):
                 # Brand new task, let's get started
                 ti = TI(task, task.start_date)
                 ti.refresh_from_db()
-                if ti.is_runnable():
+                if ti.is_queueable(flag_upstream_failed=True):
                     logging.info(
                         'First run for {ti}'.format(**locals()))
                     executor.queue_task_instance(ti)

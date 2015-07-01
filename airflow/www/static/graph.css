@@ -24,6 +24,9 @@ g.node.shutdown rect{
 g.node.upstream_failed rect{
     stroke: #FFB400;
 }
+g.node.skipped rect{
+    stroke: pink;
+}
 div#svg_container {
  border: 1px solid black;
  background-color: #EEE;

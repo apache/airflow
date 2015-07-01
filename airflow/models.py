@@ -478,6 +478,20 @@ class TaskInstance(Base):
             "&execution_date={iso}"
         ).format(**locals())
 
+    @property
+    def mark_success_url(self):
+        iso = self.execution_date.isoformat()
+        BASE_URL = conf.get('webserver', 'BASE_URL')
+        return BASE_URL + (
+            "/admin/airflow/action"
+            "?action=success"
+            "&task_id={self.task_id}"
+            "&dag_id={self.dag_id}"
+            "&execution_date={iso}"
+            "&upstream=false"
+            "&downstream=false"
+        ).format(**locals())
+
     def current_state(self, main_session=None):
         """
         Get the very latest state from the database, if a session is passed,
@@ -647,6 +661,8 @@ class TaskInstance(Base):
                 .query(
                     func.sum(
                         case([(TI.state==State.SUCCESS, 1)], else_=0)),
+                    func.sum(
+                        case([(TI.state==State.SKIPPED, 1)], else_=0)),
                     func.count(TI.task_id),
                 )
                 .filter(
@@ -654,15 +670,23 @@ class TaskInstance(Base):
                     TI.task_id.in_(upstream_task_ids),
                     TI.execution_date == self.execution_date,
                     TI.state.in_([
-                        State.SUCCESS, State.FAILED, State.UPSTREAM_FAILED]),
+                        State.SUCCESS, State.FAILED,
+                        State.UPSTREAM_FAILED, State.SKIPPED]),
                 )
             )
-            successes, done  = qry[0]
-            if successes < done >= len(task._upstream_list):
-                self.state = State.UPSTREAM_FAILED
-                self.start_date = datetime.now()
-                self.end_date = datetime.now()
-                session.merge(self)
+            successes, skipped, done = qry[0]
+            if flag_upstream_failed:
+                if skipped:
+                    self.state = State.SKIPPED
+                    self.start_date = datetime.now()
+                    self.end_date = datetime.now()
+                    session.merge(self)
+
+                elif successes < done >= len(task._upstream_list):
+                    self.state = State.UPSTREAM_FAILED
+                    self.start_date = datetime.now()
+                    self.end_date = datetime.now()
+                    session.merge(self)
 
             if successes < len(task._upstream_list):
                 return False
@@ -913,6 +937,7 @@ class TaskInstance(Base):
             "Log: <a href='{self.log_url}'>Link</a><br>"
             "Host: {self.hostname}<br>"
             "Log file: {self.log_filepath}<br>"
+            "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(**locals())
         utils.send_email(task.email, title, body)
 
