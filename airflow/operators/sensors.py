@@ -359,11 +359,15 @@ class HttpSensor(BaseSensorOperator):
         session.commit()
         session.close()
 
-    def poke(self, context):
+    def poke(self, regex=None):
         logging.info('Poking: ' + self.url)
-        records = self.hook.get( self.url, params=self.params, headers=self.headers, context=self.context )
-        if not records:
+        result, content = self.hook.get( self.url, params=self.params, headers=self.headers, context=self.context )
+        if not result:
             return False
-        else:
-            return True
+
+        if regex != None:
+            # run regex for fail condition
+            pass
+
+        return result
 

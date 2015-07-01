@@ -13,8 +13,9 @@ class HttpHook(BaseHook):
     """
 
     def __init__(
-            self, http_conn_id='http_default'):
+            self, method='POST', http_conn_id='http_default'):
         self.http_conn_id = http_conn_id
+        self.method = method
 
     def get_conn(self, headers):
         """
@@ -29,12 +30,25 @@ class HttpHook(BaseHook):
 
         return session
 
-    def execute_and_check( self, s, prepped, context ):
-        stream = utils.get_val_or_default( context, "stream", False )
-        verify = utils.get_val_or_default( context, "verify", False )
-        proxies= utils.get_val_or_default( context, "proxies", {} )
-        cert = utils.get_val_or_default( context, "cert", None )
-        timeout = utils.get_val_or_default( context, "timeout", None )
+    def run(self, url, data={}, headers=None, extra_options={}):
+        """
+        Performs the request
+        """
+        s = get_conn( headers )
+        req = Request( self.method, url,
+            data=data
+            headers=headers
+        )
+        prepped = s.prepare_request( req )
+        logging.info("Posting to url: " + url)
+        return self.run_and_check( s, prepped, extra_options )    
+
+    def run_and_check( self, s, prepped, extra_options ):
+        stream = utils.get_val_or_default( extra_options, "stream", False )
+        verify = utils.get_val_or_default( extra_options, "verify", False )
+        proxies= utils.get_val_or_default( extra_options, "proxies", {} )
+        cert = utils.get_val_or_default( extra_options, "cert", None )
+        timeout = utils.get_val_or_default( extra_options, "timeout", None )
 
         s.send(prepped,
             stream=stream,
@@ -44,59 +58,7 @@ class HttpHook(BaseHook):
             timeout=timeout
         )
         if resp.status_code != requests.codes.ok:
-            raise AirflowException("%s failed. %d [%s]"%( op, resp.status_code, resp.reason ))
-
-        return resp.content
-
-    def get(self, url, params={}, headers=None, context={}):
-        """
-        Performs a GET request
-        """
-        s = get_conn( headers )
-        req = Request('GET',  url,
-            data=params
-            headers=headers
-        )
-        prepped = s.prepare_request( req )
-        logging.info("Getting url: " + url)
-        self.execute_and_check( s, prepped, context )
-
-    def post(self, url, data, headers=None, context={}):
-        """
-        Performs a POST request
-        """
-        s = get_conn( headers )
-        req = Request('POST',  url,
-            data=data
-            headers=headers
-        )
-        prepped = s.prepare_request( req )
-        logging.info("Posting to url: " + url)
-        self.execute_and_check( s, prepped, context )
-
-    def put(self, url, data, headers=None, context={}):
-        """
-        Performs a PUT request
-        """
-        s = get_conn( headers )
-        req = Request('PUT',  url,
-            data=data
-            headers=headers
-        )
-        prepped = s.prepare_request( req )
-        logging.info("Putting to url: " + url)
-        self.execute_and_check( s, prepped, context )
-
-    def delete(self, url, data, headers=None, context={}):
-        """
-        Performs a PUT request
-        """
-        s = get_conn( headers )
-        req = Request('DELETE',  url,
-            data=data
-            headers=headers
-        )
-        prepped = s.prepare_request( req )
-        logging.info("Deleting from url: " + url)
-        self.execute_and_check( s, prepped, context )
+            logger.warn("HTTP call failed: %d[%s]"%( response.status_code, response.reason ))
+            return False, response.reason
+        return True, response.content
 
