@@ -15,7 +15,7 @@ class SimpleHttpOperator(BaseOperator):
     ui_color = '#f4a460'
 
     @apply_defaults
-    def __init__(self, method, url, data, headers, http_conn_id='http_default', *args, **kwargs):
+    def __init__(self, url, method='POST', data=None, headers={}, http_conn_id='http_default', *args, **kwargs):
         super(SimpleHttpOperator, self).__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
@@ -24,7 +24,7 @@ class SimpleHttpOperator(BaseOperator):
         self.headers = headers
 
     def execute(self, context):
-        http = HttpHook(http_conn_id=self.http_conn_id)
+        http = HttpHook(self.method, http_conn_id=self.http_conn_id)
         logging.info("Calling HTTP method")
         result, content = http.run( self.url, self.data, self.headers )
         if not result:
