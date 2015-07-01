@@ -342,26 +342,27 @@ class HttpSensor(BaseSensorOperator):
     """
 
     @apply_defaults
-    def __init__(self, conn_id, url, params={}, headers=None, context={}, *args, **kwargs):
+    def __init__(self, conn_id, url, params={}, headers=None, extra_options={}, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
 
         self.url = url
         self.conn_id = conn_id
         self.params = params
         self.headers = headers
-        self.context = context
+        self.extra_options = extra_options
 
         session = settings.Session()
         site = session.query(DB).filter(DB.conn_id == conn_id).first()
         if not site:
             raise AirflowException("conn_id doesn't exist in the repository")
-        self.hook = site.get_hook()
+        self.conn_id = conn_id
+        self.hook = hooks.HttpHook( method='GET', http_conn_id=self.conn_id )
         session.commit()
         session.close()
 
     def poke(self, regex=None):
         logging.info('Poking: ' + self.url)
-        result, content = self.hook.get( self.url, params=self.params, headers=self.headers, context=self.context )
+        result, content = self.hook.run( self.url, data=self.params, headers=self.headers, extra_options=self.extra_options )
         if not result:
             return False
 
