@@ -77,7 +77,8 @@ class HttpHook(BaseHook):
         )
         if response.status_code != requests.codes.ok:
             logging.error("HTTP call failed: %d[%s]"%( response.status_code, response.reason ))
-            logging.error( response.text )
+            if self.method != 'GET':
+                logging.error( response.text )
             return False, response.reason
         return True, response.content
 
