@@ -1525,6 +1525,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, ModelView):
         'conn_type': [
             ('ftp', 'FTP',),
             ('hdfs', 'HDFS',),
+            ('http', 'HTTP',),
             ('hive_cli', 'Hive Client Wrapper',),
             ('hive_metastore', 'Hive Metastore Thrift',),
             ('hiveserver2', 'Hive Server 2 Thrift',),

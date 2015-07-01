@@ -400,7 +400,7 @@ def is_in(obj, l):
     return False
 
 
-def get_val_or_default( self, context, key, default ):
+def get_val_or_default( context, key, default ):
     if key in context:
         return context[key]
     return default

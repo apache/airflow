@@ -23,22 +23,38 @@ class HttpHook(BaseHook):
         """
         conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
+        self.base_url = conn.host
+
+        if conn.port != None and conn.port > 0:
+            self.base_url = self.base_url + ":%d/"%( conn.port )
+
         if len(conn.login) > 0:
             session.auth = (conn.login, conn.password)
         if headers != None:
-            s.headers.update(headers)
+            session.headers.update(headers)
 
         return session
 
-    def run(self, url, data={}, headers=None, extra_options={}):
+    def run(self, url, data=None, headers=None, extra_options={}):
         """
         Performs the request
         """
-        s = get_conn( headers )
-        req = Request( self.method, url,
-            data=data
-            headers=headers
-        )
+        s = self.get_conn( headers )
+
+        url = self.base_url + url
+        req = None
+        if self.method == 'GET':
+            req = requests.Request( self.method, 
+                url,
+                params=data,
+                headers=headers
+            )
+        else:
+            req = requests.Request( self.method, 
+                url,
+                data=data,
+                headers=headers
+            )
         prepped = s.prepare_request( req )
         logging.info("Posting to url: " + url)
         return self.run_and_check( s, prepped, extra_options )    
@@ -49,16 +65,19 @@ class HttpHook(BaseHook):
         proxies= utils.get_val_or_default( extra_options, "proxies", {} )
         cert = utils.get_val_or_default( extra_options, "cert", None )
         timeout = utils.get_val_or_default( extra_options, "timeout", None )
+        allow_redirects = utils.get_val_or_default( extra_options, "allow_redirects", True )
 
-        s.send(prepped,
+        response = s.send(prepped,
             stream=stream,
             verify=verify,
             proxies=proxies,
             cert=cert,
-            timeout=timeout
+            timeout=timeout,
+            allow_redirects=allow_redirects
         )
-        if resp.status_code != requests.codes.ok:
-            logger.warn("HTTP call failed: %d[%s]"%( response.status_code, response.reason ))
+        if response.status_code != requests.codes.ok:
+            logging.error("HTTP call failed: %d[%s]"%( response.status_code, response.reason ))
+            logging.error( response.text )
             return False, response.reason
         return True, response.content
 
