@@ -30,6 +30,7 @@ t1 = SimpleHttpOperator(
     endpoint='api/v1.0/nodes',
     data=json.dumps({"priority":5}),
     headers={"Content-Type":"application/json"},
+    response_check=lambda response: True if len(response.json()) == 0 else False,
     dag=dag)
 
 t5 = SimpleHttpOperator(
@@ -67,6 +68,8 @@ sensor = HttpSensor(
     task_id='http_sensor_check',
     conn_id='http_default',
     endpoint='api/v1.0/apps',
+    headers={"Content-Type":"application/json"},
+    response_check=lambda response: True if "collation" in response.content else False,
     poke_interval=5,
     dag=dag)
 
@@ -75,4 +78,3 @@ t2.set_upstream(t1)
 t3.set_upstream(t2)
 t4.set_upstream(t3)
 t5.set_upstream(t4)
-

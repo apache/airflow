@@ -92,4 +92,4 @@ class HttpHook(BaseHook):
                 # all data should be visible in the log (no post data)
                 logging.error(response.text)
             raise AirflowException(str(response.status_code)+":"+response.reason)
-        return response.content
+        return response

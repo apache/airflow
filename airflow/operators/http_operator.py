@@ -2,7 +2,7 @@ import logging
 
 from airflow.hooks import HttpHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils import apply_defaults, AirflowException
 
 
 class SimpleHttpOperator(BaseOperator):
@@ -20,7 +20,7 @@ class SimpleHttpOperator(BaseOperator):
                  method='POST',
                  data=None,
                  headers={},
-                 regex=None,
+                 response_check=None,
                  http_conn_id='http_default', *args, **kwargs):
         super(SimpleHttpOperator, self).__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
@@ -28,11 +28,12 @@ class SimpleHttpOperator(BaseOperator):
         self.endpoint = endpoint
         self.data = data
         self.headers = headers
-        self.regex = regex
+        self.response_check = response_check
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
         logging.info("Calling HTTP method")
-        content = http.run(self.endpoint, self.data, self.headers)
-        if self.regex:
-            pass
+        response = http.run(self.endpoint, self.data, self.headers)
+        if self.response_check:
+            if not self.response_check(response):
+                raise AirflowException("Response check returned False.")

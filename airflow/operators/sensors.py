@@ -348,6 +348,7 @@ class HttpSensor(BaseSensorOperator):
                  endpoint,
                  params={},
                  headers=None,
+                 response_check=None,
                  extra_options={}, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
 
@@ -356,6 +357,7 @@ class HttpSensor(BaseSensorOperator):
         self.params = params
         self.headers = headers
         self.extra_options = extra_options
+        self.response_check = response_check
 
         session = settings.Session()
         site = session.query(DB).filter(DB.conn_id == conn_id).first()
@@ -366,7 +368,7 @@ class HttpSensor(BaseSensorOperator):
         session.commit()
         session.close()
 
-    def poke(self, regex=None):
+    def poke(self, context):
         logging.info('Poking: ' + self.endpoint)
 
         try:
@@ -374,13 +376,12 @@ class HttpSensor(BaseSensorOperator):
                                      data=self.params,
                                      headers=self.headers,
                                      extra_options=self.extra_options)
+            if self.response_check:
+                # run content check on response
+                return self.response_check(response)
         except AirflowException as ae:
             if ae.message.startswith("404"):
                 return False
             raise
-
-        if regex:
-            # run regex on response for fail condition
-            pass
 
         return True
