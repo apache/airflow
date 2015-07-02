@@ -18,6 +18,7 @@ _hooks = {
     'samba_hook': ['SambaHook'],
     'sqlite_hook': ['SqliteHook'],
     'S3_hook': ['S3Hook'],
+    'http_hook': ['HttpHook'],
 }
 
 _import_module_attrs(globals(), _hooks)
