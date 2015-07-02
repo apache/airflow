@@ -332,20 +332,26 @@ class TimeSensor(BaseSensorOperator):
             'Checking if the time ({0}) has come'.format(self.target_time))
         return datetime.now().time() > self.target_time
 
+
 class HttpSensor(BaseSensorOperator):
     """
     Executes an HTTP get statement until the specified criteria is met.
 
     :param conn_id: The connection to run the sensor against
     :type conn_id: string
-    :param url: To pass, the url must respond with 
+    :param url: To pass, the url must respond with
     """
 
     @apply_defaults
-    def __init__(self, conn_id, url, params={}, headers=None, extra_options={}, *args, **kwargs):
+    def __init__(self,
+                 conn_id,
+                 endpoint,
+                 params={},
+                 headers=None,
+                 extra_options={}, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
 
-        self.url = url
+        self.endpoint = endpoint
         self.conn_id = conn_id
         self.params = params
         self.headers = headers
@@ -356,19 +362,25 @@ class HttpSensor(BaseSensorOperator):
         if not site:
             raise AirflowException("conn_id doesn't exist in the repository")
         self.conn_id = conn_id
-        self.hook = hooks.HttpHook( method='GET', http_conn_id=self.conn_id )
+        self.hook = hooks.HttpHook(method='GET', http_conn_id=self.conn_id)
         session.commit()
         session.close()
 
     def poke(self, regex=None):
-        logging.info('Poking: ' + self.url)
-        result, content = self.hook.run( self.url, data=self.params, headers=self.headers, extra_options=self.extra_options )
-        if not result:
-            return False
+        logging.info('Poking: ' + self.endpoint)
 
-        if regex != None:
-            # run regex for fail condition
+        try:
+            response = self.hook.run(self.endpoint,
+                                     data=self.params,
+                                     headers=self.headers,
+                                     extra_options=self.extra_options)
+        except AirflowException as ae:
+            if ae.message.startswith("404"):
+                return False
+            raise
+
+        if regex:
+            # run regex on response for fail condition
             pass
 
-        return result
-
+        return True

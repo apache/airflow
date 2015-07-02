@@ -41,6 +41,7 @@ _operators = {
 
 _import_module_attrs(globals(), _operators)
 
+
 def integrate_plugins():
     """Integrate plugins to the context"""
     from airflow.plugins_manager import operators as _operators
