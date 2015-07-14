@@ -853,11 +853,11 @@ class TaskInstance(Base):
             if self.try_number <= task.retries:
                 self.state = State.UP_FOR_RETRY
                 if task.email_on_retry and task.email:
-                    self.email_alert(error, is_retry=True)
+                    self.email_alert(error)
             else:
                 self.state = State.FAILED
                 if task.email_on_failure and task.email:
-                    self.email_alert(error, is_retry=False)
+                    self.email_alert(error)
         except Exception as e2:
             logging.error(
                 'Failed to send email to: ' + str(task.email))
@@ -929,7 +929,7 @@ class TaskInstance(Base):
                     raise AirflowException("Type not supported for templating")
                 setattr(task, attr, result)
 
-    def email_alert(self, exception, is_retry=False):
+    def email_alert(self, exception):
         task = self.task
         title = "Airflow alert: {self}".format(**locals())
         exception = str(exception).replace('\n', '<br>')
@@ -942,6 +942,8 @@ class TaskInstance(Base):
             "Log file: {self.log_filepath}<br>"
             "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(**locals())
+        if task.email_message:
+            body = "{task.email_message}<br><br>{body}".format(**locals())
         utils.send_email(task.email, title, body)
 
     def set_duration(self):
@@ -1068,6 +1070,7 @@ class BaseOperator(object):
             task_id,
             owner,
             email=None,
+            email_message=None,
             email_on_retry=True,
             email_on_failure=True,
             retries=0,
@@ -1093,6 +1096,7 @@ class BaseOperator(object):
         self.task_id = task_id
         self.owner = owner
         self.email = email
+        self.email_message = email_message
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
         self.start_date = start_date
