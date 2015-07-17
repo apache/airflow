@@ -4,6 +4,7 @@
 .DS_Store
 .ipynb*
 .coverage
+.inenv
 airflow/www/static/coverage/
 airflow.db
 airflow.cfg
