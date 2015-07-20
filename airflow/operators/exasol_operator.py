@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from airflow.hooks import ExasolHook
 from airflow.models import BaseOperator
@@ -20,12 +21,22 @@ class ExasolOperator(BaseOperator):
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
+    # default retry parameters for ExasolOperator
+    default_retries = 17
+    default_retry_delay = timedelta(seconds=600)
+
     @apply_defaults
     def __init__(
             self, sql,
             exasol_conn_id='exasol_default', autocommit=False,
             *args, **kwargs):
         super(ExasolOperator, self).__init__(*args, **kwargs)
+
+        if not 'retries' in kwargs or not kwargs['retries']:
+            self.retries = self.default_retries
+
+        if not 'retry_delay' in kwargs or not kwargs['retry_delay']:
+            self.retry_delay = self.default_retry_delay
 
         self.sql = sql
         self.exasol_conn_id = exasol_conn_id
