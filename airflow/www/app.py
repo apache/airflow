@@ -1586,6 +1586,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     form_overrides = dict(password=VisiblePasswordField)
     form_choices = {
         'conn_type': [
+            ('exasol', 'Exasol',),
             ('ftp', 'FTP',),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),

@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timedelta
 import logging
 from urlparse import urlparse
 from time import sleep
@@ -66,10 +67,20 @@ class SqlSensor(BaseSensorOperator):
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
 
+    # default retry parameters for SqlSensor
+    default_retries = 17
+    default_retry_delay = timedelta(seconds=600)
+
     @apply_defaults
     def __init__(self, conn_id, sql, *args, **kwargs):
 
         super(SqlSensor, self).__init__(*args, **kwargs)
+
+        if not 'retries' in kwargs or not kwargs['retries']:
+            self.retries = self.default_retries
+
+        if not 'retry_delay' in kwargs or not kwargs['retry_delay']:
+            self.retry_delay = self.default_retry_delay
 
         self.sql = sql
         self.conn_id = conn_id
@@ -88,7 +99,7 @@ class SqlSensor(BaseSensorOperator):
         if not records:
             return False
         else:
-            if str(records[0][0]) in ('0', '',):
+            if records[0][0] is None or str(records[0][0]) in ('0', '0.0', ''):
                 return False
             else:
                 return True

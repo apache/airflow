@@ -11,6 +11,7 @@ flask-login
 flower
 hive-thrift-py
 ipython[all]
+jaydebeapi
 jinja2
 librabbitmq
 markdown
