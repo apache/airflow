@@ -319,6 +319,8 @@ class Connection(Base):
                 return hooks.HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
             elif self.conn_type == 'sqlite':
                 return hooks.SqliteHook(sqlite_conn_id=self.conn_id)
+            elif self.conn_type == 'mssql':
+                return hooks.MsSqlHook(mssql_conn_id=self.conn_id)
             elif self.conn_type == 'jdbc':
                 return hooks.JdbcHook(conn_id=self.conn_id)
         except:
@@ -957,7 +959,7 @@ class TaskInstance(Base):
                 elif isinstance(content, dict):
                     result = {
                         k: rt(v, jinja_context)
-                        for k, v in content.item()}
+                        for k, v in content.items()}
                 else:
                     raise AirflowException("Type not supported for templating")
                 setattr(task, attr, result)

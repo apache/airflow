@@ -50,6 +50,17 @@ def limit_sql(sql, limit):
         """.format(**locals())
     return sql
 
+def top_sql(sql, limit):
+    sql = sql.strip()
+    sql = sql.rstrip(';')
+    if sql.lower().startswith("select"):
+        sql = """\
+        SELECT TOP {limit} * FROM (
+        {sql}
+        ) qry
+        """.format(**locals())
+    return sql
+
 
 def gzipped(f):
     '''
