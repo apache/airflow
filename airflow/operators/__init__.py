@@ -40,6 +40,8 @@ _operators = {
     's3_to_hive_operator': ['S3ToHiveTransfer'],
     'hive_to_mysql': ['HiveToMySqlTransfer'],
     's3_file_transform_operator': ['S3FileTransformOperator'],
+    'mssql_operator': ['MsSqlOperator'],
+    'mssql_to_hive': ['MsSqlToHiveTransfer'],
     'http_operator': ['SimpleHttpOperator'],
     'hive_to_druid': ['HiveToDruidTransfer'],
     'jdbc_operator': ['JdbcOperator'],

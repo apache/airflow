@@ -15,6 +15,7 @@ hive = [
     'pyhs2>=0.6.0',
 ]
 mysql = ['mysql-python>=1.2.5']
+mssql = ['pymssql>=2.1.1']
 postgres = ['psycopg2>=2.6']
 optional = ['librabbitmq>=1.6.1']
 samba = ['pysmbclient>=0.1.3']
@@ -22,7 +23,7 @@ druid = ['pydruid>=0.2.1']
 s3 = ['boto>=2.36.0']
 jdbc = ['jaydebeapi>=0.2.0']
 
-all_dbs = postgres + mysql + hive
+all_dbs = postgres + mysql + hive + mssql
 devel = all_dbs + doc + samba + s3 + ['nose']
 
 setup(
@@ -62,6 +63,7 @@ setup(
         'devel': devel,
         'hive': hive,
         'mysql': mysql,
+        'mssql': mssql,
         'postgres': postgres,
         's3': s3,
         'samba': samba,
