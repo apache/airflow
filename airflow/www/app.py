@@ -1781,13 +1781,18 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
     form_columns = (
         'label',
         'event_type',
+        'event_tags',
         'start_date',
         'end_date',
         'reported_by',
         'description')
     column_list = (
-        'label', 'event_type', 'start_date', 'end_date', 'reported_by')
+        'label', 'event_type', 'event_tags', 
+        'start_date', 'end_date', 'reported_by')
     column_default_sort = ("start_date", True)
+    column_labels = {
+        'event_tags': 'Tags',
+    }
 mv = KnowEventView(
     models.KnownEvent, Session, name="Known Events", category="Data Profiling")
 admin.add_view(mv)
