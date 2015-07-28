@@ -19,7 +19,7 @@ BASE_LOG_URL = '/admin/airflow/log'
 AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = conf.get('core', 'LOGGING_LEVEL')
 
 if DAGS_FOLDER not in sys.path:
     sys.path.append(DAGS_FOLDER)

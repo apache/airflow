@@ -13,6 +13,7 @@ defaults = {
         'parallelism': 32,
         'load_examples': True,
         'plugins_folder': None,
+        'logging_level': logging.INFO,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -51,6 +52,9 @@ dags_folder = {AIRFLOW_HOME}/dags
 
 # The folder where airflow should store its log files
 base_log_folder = {AIRFLOW_HOME}/logs
+
+# set the logging level (e.g. logging.INFO or logging.DEBUG)
+logging_level = logging.INFO
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -163,6 +167,7 @@ TEST_CONFIG = """\
 airflow_home = {AIRFLOW_HOME}
 dags_folder = {AIRFLOW_HOME}/dags
 base_log_folder = {AIRFLOW_HOME}/logs
+logging_level = logging.DEBUG
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 unit_test_mode = True
