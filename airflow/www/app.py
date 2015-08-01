@@ -261,7 +261,9 @@ class HomeView(AdminIndexView):
         session = Session()
         DM = models.DagModel
         qry = session.query(DM).filter(~DM.is_subdag, DM.is_active).all()
+        paused = session.query(DM).filter(~DM.is_subdag, DM.is_paused).all()
         orm_dags = {dag.dag_id: dag for dag in qry}
+        paused_dags = {dag.dag_id: dag for dag in paused}
         session.expunge_all()
         session.commit()
         session.close()
@@ -272,6 +274,7 @@ class HomeView(AdminIndexView):
             'airflow/dags.html',
             dags=dags,
             orm_dags=orm_dags,
+            paused_dags=paused_dags,
             all_dag_ids=all_dag_ids)
 
 admin = Admin(
@@ -1240,6 +1243,29 @@ class Airflow(BaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
         )
+
+    @expose('/paused')
+    @login_required
+    def paused(self):
+        DagModel = models.DagModel
+        dag_id = request.args.get('dag_id')
+        session = settings.Session()
+        orm_dag = session.query(
+            DagModel).filter(DagModel.dag_id == dag_id).first()
+
+        if orm_dag.is_paused == False:
+            orm_dag.is_paused = True
+            announce = 'has just been paused.'
+        else:
+            orm_dag.is_paused = False
+            announce = 'is now active.'
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        dagbag.get_dag(dag_id)
+        flash("DAG [{}] {}.".format(dag_id,announce))
+        return redirect('/')
 
     @expose('/refresh')
     @login_required

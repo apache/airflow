@@ -28,7 +28,7 @@
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
                     <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
-                        <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
+                        <span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>
                     </a>
                     {% endif %}
                 </td>
@@ -49,8 +49,17 @@
                 <td style="padding:0px; width:180px; height:10px;">
                     <svg height="10" width="10" id='{{ dag.dag_id }}' style="display: block;"></svg>
                 </td>
-                <td class="text-center" style="width:160px;">
+                <td class="text-center" style="width:180px;">
                 {% if dag %}
+                  {% if dag_id in paused_dags %}
+                    <a href="{{ url_for("airflow.paused", dag_id=dag.dag_id) }}" title="Paused">
+                        <span class="glyphicon glyphicon-pause" aria-hidden="true"></span>
+                    </a>
+                  {% else %}
+                    <a href="{{ url_for("airflow.paused", dag_id=dag.dag_id) }}" title="Active">
+                        <span class="glyphicon glyphicon-play" aria-hidden="true"></span>
+                    </a>
+                  {% endif %}
     <a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
         <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
     </a>
