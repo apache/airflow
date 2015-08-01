@@ -27,6 +27,7 @@ if you may.
 
 * Airbnb [@mistercrunch]
 * Agari [@r39132]
+* [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
 * Lyft
 * Stripe [@jbalogh]
 * Wooga
