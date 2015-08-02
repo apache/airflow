@@ -4,7 +4,7 @@ implement their own login mechanisms by providing an `airflow_login` module
 in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
-__version__ = "1.2.1"
+__version__ = "1.3.0"
 
 import logging
 import os
