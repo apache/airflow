@@ -20,24 +20,32 @@ these extra dependencies.
 
 Here's the list of the subpackages and what they enable:
 
-+-------------+------------------------------------+---------------------------------------+
-| subpackage  |     install command                | enables                               |
-+=============+====================================+=======================================+
-|  mssql      |  ``pip install airflow[mssql]``    | Microsoft SQQL operators and hook,    |
-|             |                                    | support as an Airflow backend         |
-+-------------+------------------------------------+---------------------------------------+
-|  mysql      |  ``pip install airflow[mysql]``    | MySQL operators and hook, support as  |
-|             |                                    | an Airflow backend                    |
-+-------------+------------------------------------+---------------------------------------+
-|  postgres   |  ``pip install airflow[postgres]`` | Postgres operators and hook, support  |
-|             |                                    | as an Airflow backend                 |
-+-------------+------------------------------------+---------------------------------------+
-|  samba      |  ``pip install airflow[samba]``    | ``Hive2SambaOperator``                |
-+-------------+------------------------------------+---------------------------------------+
-|  s3         | ``pip install airflow[s3]``        | ``S3KeySensor``, ``S3PrefixSensor``   |
-+-------------+------------------------------------+---------------------------------------+
-|  all        | ``pip install airflow[all]``       | All Airflow features known to man     |
-+-------------+------------------------------------+---------------------------------------+
++-------------+------------------------------------+------------------------------------------------+
+| subpackage  |     install command                | enables                                        |
++=============+====================================+================================================+
+|  mysql      |  ``pip install airflow[mysql]``    | MySQL operators and hook, support as           |
+|             |                                    | an Airflow backend                             |
++-------------+------------------------------------+------------------------------------------------+
+|  postgres   |  ``pip install airflow[postgres]`` | Postgres operators and hook, support           |
+|             |                                    | as an Airflow backend                          |
++-------------+------------------------------------+------------------------------------------------+
+|  samba      |  ``pip install airflow[samba]``    | ``Hive2SambaOperator``                         |
++-------------+------------------------------------+------------------------------------------------+
+|  jdbc       |  ``pip install airflow[jdbc]``     | JDBC hooks and operators                       |
++-------------+------------------------------------+------------------------------------------------+
+|  hdfs       |  ``pip install airflow[hdfs]``     | HDFS hooks and operators                       |
++-------------+------------------------------------+------------------------------------------------+
+|  s3         | ``pip install airflow[s3]``        | ``S3KeySensor``, ``S3PrefixSensor``            |
++-------------+------------------------------------+------------------------------------------------+
+|  druid      | ``pip install airflow[druid]``     | Druid.io related operators & hooks             |
++-------------+------------------------------------+------------------------------------------------+
+|  mssql      |  ``pip install airflow[mssql]``    | Microsoft SQL operators and hook,              |
+|             |                                    | support as an Airflow backend                  |
++-------------+------------------------------------+------------------------------------------------+
+|  all        | ``pip install airflow[all]``       | All Airflow features known to man              |
++-------------+------------------------------------+------------------------------------------------+
+|  devel      | ``pip install airflow[devel]``     | All Airflow features + useful dev tools        |
++-------------+------------------------------------+------------------------------------------------+
 
 
 Setting up a Backend
