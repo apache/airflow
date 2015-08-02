@@ -37,3 +37,4 @@ thrift
 jaydebeapi
 pymssql
 unicodecsv
+slackclient
