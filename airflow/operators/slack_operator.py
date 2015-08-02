@@ -18,19 +18,16 @@ class SlackAPIOperator(BaseOperator):
     def __init__(self,
                  token='unset',
                  method='unset',
-                 params={},
+                 params=None,
                  *args, **kwargs):
         super(SlackAPIOperator, self).__init__(*args, **kwargs)
         self.token = token
         self.method = method
         self.params = params
 
-    def execute(self, *args, **kwargs):
-        print self.method
-        print self.token
-        print self.params
+    def execute(self, **kwargs):
         sc = SlackClient(self.token)
-        print sc.api_call(self.method, **self.params)
+        sc.api_call(self.method, **self.params)
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
@@ -71,3 +68,4 @@ class SlackAPIPostOperator(SlackAPIOperator):
         super(SlackAPIPostOperator, self).__init__(method=self.method,
                                                    params=self.params,
                                                    *args, **kwargs)
+
