@@ -63,6 +63,8 @@ Operator API
         PythonOperator,
         S3KeySensor,
         S3ToHiveTransfer,
+        SlackAPIOperator,
+        SlackAPIPostOperator,
         SqlSensor,
         SubDagOperator,
         TimeSensor
