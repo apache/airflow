@@ -1997,6 +1997,101 @@ class Variable(Base):
         return v
 
 
+class TaskValue(Base):
+    __tablename__ = "task_value"
+
+    id = Column(Integer, primary_key=True)
+    task_id = Column(
+        String(ID_LEN),
+        ForeignKey('task_instance.task_id'),
+        nullable=False)
+    dag_id = Column(
+        String(ID_LEN),
+        ForeignKey('task_instance.dag_id'),
+        nullable=False)
+    execution_date = Column(DateTime, nullable=False)
+    key = Column(String(ID_LEN))
+    val = Column(Text)
+    timestamp = Column(DateTime, server_default=func.current_timestamp())
+
+    def __repr__(self):
+        s = '<TaskValue {key} : {val} at {timestamp}>'
+        return s.format(
+            key=self.key,
+            val=self.val,
+            timestamp=self.timestamp)
+
+    @classmethod
+    def set_from_context(cls, context, key, value):
+        cls.set(
+            task_instance=context['task_instance'],
+            key=key,
+            value=value)
+
+    @classmethod
+    def set(cls, task_instance, key, value):
+        if not isinstance(task_instance, TaskInstance):
+            recd = type(task_instance)
+            raise TypeError('Expected TaskInstance, received {}.'.format(recd))
+        cls._set(
+            execution_date=task_instance.execution_date,
+            task_id=task_instance.task_id,
+            dag_id=task_instance.dag_id,
+            key=key,
+            value=value)
+
+    @classmethod
+    @provide_session
+    def _set(cls, task_id, dag_id, execution_date, key, value, session):
+        session.expunge_all()
+        session.add(TaskValue(
+            task_id=task_id,
+            dag_id=dag_id,
+            execution_date=execution_date,
+            key=key,
+            val=json.dumps(value)))
+        session.commit()
+        session.close()
+
+    @classmethod
+    @provide_session
+    def get(
+            cls, execution_date, key=None, task_id=None, dag_id=None,
+            session=None, include_previous_dates=False):
+        """
+        Returns the most recently stored value corresponding to the provided
+        key, task, and/or dag (at least one must be provided). Results are
+        only returned for the current execution_date; if
+        include_previous_dates is True, then prior results are also included.
+
+        Raises  None if no match is found.
+        """
+        if all(arg is None for arg in [key, task_id, dag_id]):
+            raise ValueError(
+                'At least one of "key", "task", or "dag" must be provided.')
+
+        query = session.query(cls)
+        if key is not None:
+            query = query.filter(cls.key == key)
+        if task_id is not None:
+            query = query.filter(cls.task_id == task_id)
+        if dag_id is not None:
+            query = query.filter(cls.dag_id == dag_id)
+
+        if include_previous_dates:
+            query = query.filter(cls.execution_date <= execution_date)
+        else:
+            query = query.filter(cls.execution_date == execution_date)
+
+        result = query.order_by(cls.timestamp.desc()).first()
+
+        if result is None:
+            raise AirflowException('No values found.')
+
+        val = json.loads(result.val)
+        return val
+
+
 class Pool(Base):
     __tablename__ = "slot_pool"
 
