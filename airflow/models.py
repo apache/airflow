@@ -1456,6 +1456,19 @@ class BaseOperator(object):
         """
         self._set_relatives(task_or_task_list, upstream=True)
 
+    def set_value(self, key, value, context):
+        TaskValue.set_from_context(
+            context=context,
+            key=key,
+            value=value)
+
+    def get_value(self, context, key=None, task_id=None, dag_id=None):
+        return TaskValue.get(
+            execution_date=context['execution_date'],
+            key=key,
+            task_id=task_id,
+            dag_id=dag_id)
+
 
 class DagModel(Base):
 
