@@ -2,9 +2,9 @@ TODO
 -----
 #### UI
 * Backfill form
-* Implement the ROOT filter for duration graph, landing time and gantt chart
 * Better task filtering int duration and landing time charts (operator toggle, task regex, uncheck all button)
 * Add templating to adhoc queries
+* is_paused toggle for DAGs
 
 #### Command line
 * Backfill, better logging, prompt with details about what tasks are about to run

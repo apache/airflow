@@ -36,4 +36,5 @@ Content
     cli
     scheduler
     plugins
+    faq 
     code

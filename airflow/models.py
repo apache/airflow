@@ -1,3 +1,4 @@
+from __future__ import print_function
 import copy
 from datetime import datetime, timedelta
 import getpass
@@ -14,7 +15,7 @@ import sys
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
-    Index,)
+    Index, BigInteger)
 from sqlalchemy import case, func, or_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mysql import LONGTEXT
@@ -179,6 +180,9 @@ class DagBag(object):
         self.dags[dag.dag_id] = dag
         dag.resolve_template_files()
         dag.last_loaded = datetime.now()
+
+        for task in dag.tasks:
+            settings.policy(task)
 
         if self.sync_to_db:
             session = settings.Session()
@@ -359,7 +363,7 @@ class DagPickle(Base):
     id = Column(Integer, primary_key=True)
     pickle = Column(PickleType(pickler=dill))
     created_dttm = Column(DateTime, default=func.now())
-    pickle_hash = Column(Integer)
+    pickle_hash = Column(BigInteger)
 
     __tablename__ = "dag_pickle"
 
@@ -828,7 +832,6 @@ class TaskInstance(Base):
                     signal.signal(signal.SIGTERM, signal_handler)
 
                     self.render_templates()
-                    settings.policy(task_copy)
                     task_copy.pre_execute(context=context)
 
                     # If a timout is specified for the task, make it fail
@@ -840,7 +843,7 @@ class TaskInstance(Base):
                     else:
                         task_copy.execute(context=context)
                     task_copy.post_execute(context=context)
-            except (Exception, StandardError, KeyboardInterrupt) as e:
+            except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
                 raise
 
@@ -1051,8 +1054,6 @@ class BaseOperator(object):
     :type start_date: datetime
     :param end_date: if specified, the scheduler won't go beyond this date
     :type end_date: datetime
-    :param schedule_interval: interval at which to schedule the task
-    :type schedule_interval: timedelta
     :param depends_on_past: when set to true, task instances will run
         sequentially while relying on the previous task's schedule to
         succeed. The task instance for the start_date is allowed to run.
@@ -1124,7 +1125,7 @@ class BaseOperator(object):
             retry_delay=timedelta(seconds=300),
             start_date=None,
             end_date=None,
-            schedule_interval=timedelta(days=1),
+            schedule_interval=timedelta(days=1),  # not hooked as of now
             depends_on_past=False,
             wait_for_downstream=False,
             dag=None,
@@ -1574,12 +1575,18 @@ class DAG(object):
 
     @property
     def filepath(self):
+        """
+        File location of where the dag object is instantiated
+        """
         fn = self.full_filepath.replace(DAGS_FOLDER + '/', '')
         fn = fn.replace(os.path.dirname(__file__) + '/', '')
         return fn
 
     @property
     def folder(self):
+        """
+        Folder location of where the dag object is instantiated
+        """
         return os.path.dirname(self.full_filepath)
 
     @property
@@ -1588,6 +1595,9 @@ class DAG(object):
 
     @property
     def latest_execution_date(self):
+        """
+        Returns the latest date for which at least one task instance exists
+        """
         TI = TaskInstance
         session = settings.Session()
         execution_date = session.query(func.max(TI.execution_date)).filter(
@@ -1600,6 +1610,9 @@ class DAG(object):
 
     @property
     def subdags(self):
+        """
+        Returns a list of the subdag objects associated to this DAG
+        """
         # Late import to prevent circular imports
         from airflow.operators import SubDagOperator
         l = []
@@ -1836,7 +1849,7 @@ class DAG(object):
         Shows an ascii tree representation of the DAG
         """
         def get_downstream(task, level=0):
-            print (" " * level * 4) + str(task)
+            print((" " * level * 4) + str(task))
             level += 1
             for t in task.upstream_list:
                 get_downstream(t, level)

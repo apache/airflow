@@ -1,3 +1,4 @@
+from __future__ import print_function
 import logging
 import json
 import time
@@ -115,8 +116,8 @@ class DruidHook(BaseHook):
             metric_spec, intervals)
 	r = requests.post(
             self.ingest_post_url, headers=self.header, data=query)
-        print self.ingest_post_url
-        print query
+        print(self.ingest_post_url)
+        print(query)
         print(r.text)
         d = json.loads(r.text)
         if "task" not in d:

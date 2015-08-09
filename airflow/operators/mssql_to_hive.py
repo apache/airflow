@@ -12,9 +12,10 @@ from airflow.utils import apply_defaults
 
 class MsSqlToHiveTransfer(BaseOperator):
     """
-    Moves data from Microsoft SQL Server to Hive. The operator runs your query against
-    Microsoft SQL Server, stores the file locally before loading it into a Hive table.
-    If the ``create`` or ``recreate`` arguments are set to ``True``,
+    Moves data from Microsoft SQL Server to Hive. The operator runs
+    your query against Microsoft SQL Server, stores the file locally
+    before loading it into a Hive table. If the ``create`` or
+    ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
     Hive data types are inferred from the cursor's metadata.
     Note that the table generated in Hive uses ``STORED AS textfile``
@@ -26,15 +27,13 @@ class MsSqlToHiveTransfer(BaseOperator):
     :param sql: SQL query to execute against the Microsoft SQL Server database
     :type sql: str
     :param hive_table: target Hive table, use dot notation to target a
-        specific database
+    specific database
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
-    :param recreate: whether to drop and recreate the table at every
-        execution
+    :param recreate: whether to drop and recreate the table at every execution
     :type recreate: bool
-    :param partition: target partition as a dict of partition columns
-        and values
+    :param partition: target partition as a dict of partition columns and values
     :type partition: dict
     :param delimiter: field delimiter in the file
     :type delimiter: str

@@ -34,7 +34,6 @@ complicated, a line by line explanation follows below.
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,
-        # 'schedule_interval': timedelta(1),
         # 'end_date': datetime(2016, 1, 1),
     }
 
@@ -106,7 +105,6 @@ of default parameters that we can use when creating tasks.
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,
-        # 'schedule_interval': timedelta(1),
         # 'end_date': datetime(2016, 1, 1),
     }
 
@@ -122,12 +120,14 @@ Instantiate a DAG
 -----------------
 
 We'll need a DAG object to nest our tasks into. Here we pass a string
-that defines the dag_id, which serves as a unique identifier for your DAG.
-We also pass the default argument dictionary that we just defined.
+that defines the ``dag_id``, which serves as a unique identifier for your DAG.
+We also pass the default argument dictionary that we just defined and 
+define a ``schedule_interval`` of 1 day for the DAG.
 
 .. code:: python
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG(
+        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
 
 Tasks
 -----
@@ -262,11 +262,11 @@ something like this:
         # 'queue': 'bash_queue',
         # 'pool': 'backfill',
         # 'priority_weight': 10,
-        # 'schedule_interval': timedelta(1),
         # 'end_date': datetime(2016, 1, 1),
     }
 
-    dag = DAG('tutorial', default_args=default_args)
+    dag = DAG(
+        'tutorial', default_args=default_args, schedule_interval=timedelta(1))
 
     # t1, t2 and t3 are examples of tasks created by instatiating operators
     t1 = BashOperator(

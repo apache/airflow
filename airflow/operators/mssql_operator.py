@@ -11,8 +11,8 @@ class MsSqlOperator(BaseOperator):
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
-        a '.sql' extensions.
+    :type sql: string or string pointing to a template file.
+    File must have a '.sql' extensions.
     """
 
     template_fields = ('sql',)

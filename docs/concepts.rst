@@ -132,7 +132,7 @@ accessible and modifiable through the UI.
 
     from airflow.models import Variable
     foo = Variable.get("foo")
-    bar = Variable.get("bar", deser_json=True)
+    bar = Variable.get("bar", deserialize_json=True)
 
 The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used

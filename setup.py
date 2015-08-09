@@ -1,7 +1,8 @@
 from setuptools import setup, find_packages
+import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.2.1'
+version = '1.3.0'
 
 doc = [
     'sphinx>=1.2.3',
@@ -22,9 +23,11 @@ druid = ['pydruid>=0.2.1']
 s3 = ['boto>=2.36.0']
 jdbc = ['jaydebeapi>=0.2.0']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']
+hdfs = ['snakebite>=2.4.13']
+slack = ['slackclient>=0.15']
 
-all_dbs = postgres + mysql + hive + mssql
-devel = all_dbs + doc + samba + s3 + ['nose']
+all_dbs = postgres + mysql + hive + mssql + hdfs
+devel = all_dbs + doc + samba + s3 + ['nose'] + slack
 
 setup(
     name='airflow',
@@ -43,6 +46,7 @@ setup(
         'flask-cache>=0.13.1',
         'flask-login>=0.2.11',
         'flower>=0.7.3',
+        'future>=0.15.0',
         'jinja2>=2.7.3',
         'markdown>=2.5.2',
         'pandas>=0.15.2',
@@ -50,7 +54,6 @@ setup(
         'python-dateutil>=2.3',
         'requests>=2.5.1',
         'setproctitle>=1.1.8',
-        'snakebite>=2.4.13',
         'sqlalchemy>=0.9.8',
         'statsd>=3.0.1',
         'thrift>=0.9.2',
@@ -59,16 +62,18 @@ setup(
     extras_require={
         'all': devel + optional,
         'all_dbs': all_dbs,
-        'doc': doc,
         'devel': devel,
+        'doc': doc,
+        'druid': druid,
+        'hdfs': hdfs,
         'hive': hive,
+        'jdbc': jdbc,
+        'mssql': mssql,
         'mysql': mysql,
         'postgres': postgres,
         's3': s3,
         'samba': samba,
-        'druid': druid,
-        'jdbc': jdbc,
-        'mssql': mssql,
+        'slack': slack,
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',

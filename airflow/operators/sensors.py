@@ -1,3 +1,4 @@
+from __future__ import print_function
 from datetime import datetime
 import logging
 from urlparse import urlparse
@@ -105,11 +106,25 @@ class ExternalTaskSensor(BaseSensorOperator):
     :param external_task_id: The task_id that contains the task you want to
         wait for
     :type external_task_id: string
+    :param allowed_states: list of allowed states, default is ``['success']``
+    :type allowed_states: list
+    :param execution_delta: time difference with the previous execution to
+        look at, the default is the same execution_date as the current task.
+        For yesterday, use [positive!] datetime.timedelta(days=1)
+    :type execution_delta: datetime.timedelta
     """
 
     @apply_defaults
-    def __init__(self, external_dag_id, external_task_id, *args, **kwargs):
+    def __init__(
+            self,
+            external_dag_id,
+            external_task_id,
+            allowed_states=None,
+            execution_delta=None,
+            *args, **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
+        self.allowed_states = allowed_states or [State.SUCCESS]
+        self.execution_delta = execution_delta
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
 
@@ -120,12 +135,18 @@ class ExternalTaskSensor(BaseSensorOperator):
             '{self.external_task_id} on '
             '{context[execution_date]} ... '.format(**locals()))
         TI = TaskInstance
+
+        if self.execution_delta:
+            dttm = context['execution_date'] - self.execution_delta
+        else:
+            dttm = context['execution_date']
+
         session = settings.Session()
         count = session.query(TI).filter(
             TI.dag_id == self.external_dag_id,
             TI.task_id == self.external_task_id,
-            TI.state == State.SUCCESS,
-            TI.execution_date == context['execution_date'],
+            TI.state.in_(self.allowed_states),
+            TI.execution_date == dttm,
         ).count()
         session.commit()
         session.close()
@@ -330,6 +351,32 @@ class TimeSensor(BaseSensorOperator):
         logging.info(
             'Checking if the time ({0}) has come'.format(self.target_time))
         return datetime.now().time() > self.target_time
+
+
+class TimeDeltaSensor(BaseSensorOperator):
+    """
+    Waits for a timedelta after the task's execution_date + schedule_interval.
+    In Airflow, the daily task stamped with ``execution_date``
+    2016-01-01 can only start running on 2016-01-02. The timedelta here
+    represents the time after the execution period has closed.
+
+    :param delta: time length to wait after execution_date before succeeding
+    :type delta: datetime.timedelta
+    """
+    template_fields = tuple()
+
+    @apply_defaults
+    def __init__(self, delta, *args, **kwargs):
+        super(TimeDeltaSensor, self).__init__(*args, **kwargs)
+        self.delta = delta
+
+    def poke(self, context):
+        target_dttm = (
+            context['execution_date'] +
+            context['dag'].schedule_interval +
+            self.delta)
+        logging.info('Checking if the time ({0}) has come'.format(target_dttm))
+        return datetime.now() > target_dttm
 
 
 class HttpSensor(BaseSensorOperator):

@@ -38,8 +38,8 @@ class JdbcHook(DbApiHook):
         host = conn.host
         login = conn.login
         psw = conn.password
-        jdbc_driver_loc = conn.extra_dejson.get('jdbc_drv_path')
-        jdbc_driver_name = conn.extra_dejson.get('jdbc_drv_clsname')
+        jdbc_driver_loc = conn.extra_dejson.get('extra__jdbc__drv_path')
+        jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
         conn = jaydebeapi.connect(jdbc_driver_name,
                            [str(host), str(login), str(psw)],

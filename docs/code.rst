@@ -27,10 +27,8 @@ it's worth taking the time to understand the parameters of ``BaseOperator``
 to understand the primitive features that can be leveraged in your
 DAGs.
 
-.. automodule:: airflow.operators
-    :show-inheritance:
-    :members:
-        BaseOperator
+
+.. autoclass:: airflow.models.BaseOperator
 
 
 Operator API
@@ -48,6 +46,7 @@ Operator API
         Hive2SambaOperator,
         HiveOperator,
         HivePartitionSensor,
+        HiveToDruidTransfer,
         HiveToMySqlTransfer,
         SimpleHttpOperator,
         HttpSensor,
@@ -62,6 +61,8 @@ Operator API
         PythonOperator,
         S3KeySensor,
         S3ToHiveTransfer,
+        SlackAPIOperator,
+        SlackAPIPostOperator,
         SqlSensor,
         SubDagOperator,
         TimeSensor
@@ -136,7 +137,18 @@ Hooks
 -----
 .. automodule:: airflow.hooks
     :show-inheritance:
-    :members: MsSqlHook, MySqlHook, PostgresHook, PrestoHook, HiveCliHook, HiveServer2Hook, HiveMetastoreHook, HttpHook, S3Hook, SqliteHook
+    :members:
+        HiveCliHook,
+        HiveMetastoreHook,
+        HiveServer2Hook,
+        HttpHook,
+        DruidHook,
+        MsSqlHook,
+        MySqlHook,
+        PostgresHook,
+        PrestoHook,
+        S3Hook,
+        SqliteHook
 
 Executors
 ---------

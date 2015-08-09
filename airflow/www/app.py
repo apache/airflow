@@ -1,3 +1,4 @@
+from __future__ import print_function
 import copy
 from datetime import datetime, timedelta
 import dateutil.parser
@@ -706,7 +707,7 @@ class Airflow(BaseView):
     @expose('/logout')
     def logout(self):
         logout_user()
-        return redirect('/admin/dagmodel/')
+        return redirect(url_for('admin.index'))
 
     @expose('/rendered')
     @login_required
@@ -1069,6 +1070,7 @@ class Airflow(BaseView):
 
     @expose('/graph')
     @login_required
+    @wwwutils.gzipped
     def graph(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
@@ -1586,9 +1588,15 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_default_sort = ('conn_id', False)
     column_list = ('conn_id', 'conn_type', 'host', 'port')
     form_overrides = dict(password=VisiblePasswordField)
-    form_extra_fields = { 'jdbc_drv_path' : StringField('Driver Path'),
-                          'jdbc_drv_clsname': StringField('Driver Class'),
-                        }
+    # Used to customized the form, the forms elements get rendered
+    # and results are stored in the extra field as json. All of these
+    # need to be prefixed with extra__ and then the conn_type ___ as in
+    # extra__{conn_type}__name. You can also hide form elements and rename
+    # others from the connection_form.js file
+    form_extra_fields = {
+        'extra__jdbc__drv_path' : StringField('Driver Path'),
+        'extra__jdbc__drv_clsname': StringField('Driver Class'),
+    }
     form_choices = {
         'conn_type': [
             ('ftp', 'FTP',),
@@ -1607,24 +1615,27 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('sqlite', 'Sqlite',),
             ('mssql', 'Microsoft SQL Server'),
         ]
-
     }
 
     def on_model_change(self, form, model, is_created):
         formdata = form.data
-        if formdata['conn_type'] == 'jdbc':
-            jdbc = {key:formdata[key] for key in ('jdbc_drv_path','jdbc_drv_clsname'
-                                                  #, 'jdbc_conn_url'
-                                                   ) if key in formdata}
-            model.extra = json.dumps(jdbc)
+        if formdata['conn_type'] in ['jdbc']:
+            extra = {
+                key:formdata[key]
+                for key in self.form_extra_fields.keys() if key in formdata}
+            model.extra = json.dumps(extra)
 
     def on_form_prefill(self, form, id):
-        data = form.data
-        if 'extra' in data and data['extra'] != None:
-            d = json.loads(data['extra'])
-           #form.jdbc_conn_url.data = d['jdbc_conn_url']
-            form.jdbc_drv_path.data = d['jdbc_drv_path']
-            form.jdbc_drv_clsname.data = d['jdbc_drv_clsname']
+        try:
+            d = json.loads(form.data.get('extra', '{}'))
+        except Exception as e:
+            d = {}
+
+        for field in self.form_extra_fields.keys():
+            value = d.get(field, '')
+            if value:
+                field = getattr(form, field)
+                field.data = value
 
 mv = ConnectionModelView(
     models.Connection, Session,
@@ -1880,7 +1891,7 @@ mv = PoolModelView(models.Pool, Session, name="Pools", category="Admin")
 admin.add_view(mv)
 
 
-class SlaMissModelView(wwwutils.SuperUserMixin, AirflowModelView):
+class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
     verbose_name_plural = "SLA misses"
     verbose_name = "SLA miss"
     column_list = (
@@ -1910,7 +1921,7 @@ def integrate_plugins():
     for v in admin_views:
         admin.add_view(v)
     for bp in flask_blueprints:
-        print bp
+        print(bp)
         app.register_blueprint(bp)
     for ml in menu_links:
         admin.add_link(ml)

@@ -18,8 +18,8 @@ class HiveToMySqlTransfer(BaseOperator):
     :type mysql_table: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
-    :param hive_conn_id: destination hive connection
-    :type hive_conn_id: str
+    :param hiveserver2_conn_id: destination hive connection
+    :type hiveserver2_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place of the data
         coming in, allowing the task to be idempotent (running the task
@@ -27,7 +27,7 @@ class HiveToMySqlTransfer(BaseOperator):
     :type mysql_preoperator: str
     """
 
-    template_fields = ('sql', 'mysql_table')
+    template_fields = ('sql', 'mysql_table', 'mysql_preoperator')
     template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
@@ -50,11 +50,14 @@ class HiveToMySqlTransfer(BaseOperator):
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         logging.info("Extracting data from Hive")
+        logging.info(self.sql)
         results = hive.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
             logging.info("Running MySQL preoperator")
+            logging.info(self.mysql_preoperator)
             mysql.run(self.mysql_preoperator)
+
         logging.info("Inserting rows into MySQL")
         mysql.insert_rows(table=self.mysql_table, rows=results)

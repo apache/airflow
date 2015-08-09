@@ -1,3 +1,4 @@
+from __future__ import print_function
 from copy import copy
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
