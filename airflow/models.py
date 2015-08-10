@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import dill
+import pandas as pd
 import re
 import signal
 import socket
@@ -2263,7 +2264,7 @@ class XCom(Base):
         target_dag=None,
         include_prior_dates=False,
         limit=1,
-        return_as_XCom=False,
+        return_table=False,
         session=None):
 
         """
@@ -2295,18 +2296,15 @@ class XCom(Base):
 
         if limit is None or limit > 100:
             limit = 100
-        results = query.limit(limit).all()
+        query = query.limit(limit)
 
-        if not results:
+        result = pd.read_sql(query.statement, query.session.bind)
+        if result.empty:
             raise AirflowException('No XCom values found.')
-
-        if return_as_XCom:
-            return results
-
-        if limit == 1:
-            return results[0].val
+        elif not return_table and limit == 1:
+            return result.iloc[0].val
         else:
-            return {r: r.val for r in results}
+            return result
 
 
 class Pool(Base):
