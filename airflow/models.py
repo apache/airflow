@@ -30,6 +30,8 @@ Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+SELF = '__self__'
+RETURNED_VALUE = '__returned_value__'
 
 if 'mysql' in SQL_ALCHEMY_CONN:
     LongText = LONGTEXT
@@ -845,9 +847,7 @@ class TaskInstance(Base):
                     task_copy.post_execute(context=context)
 
                     if task_result is not None:
-                        self.xcom_set(
-                            key=task_copy.task_id,
-                            value=task_result)
+                        self.xcom_set(key=RETURNED_VALUE, value=task_result)
 
             except (Exception, StandardError, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
@@ -999,100 +999,137 @@ class TaskInstance(Base):
             self,
             value,
             key=None,
-            task_id=None,
-            dag_id=None,
-            execution_date=None):
+            execution_date=None,
+            target_task=None,
+            target_dag=None):
         """
-        Store an XCom value. If no key is provided, the task_id is used.
+        Store an XCom value.
 
-        task_id, dag_id, and execution_date can be optionally provided. If
-        they are None, then the value of the calling TaskInstance is used.
+        XCom values are automatically associated with the source Task and
+        optionally with a target Task as well.
 
-        Examples:
+        :param key: [Optional] The key of the XCom. If no key is provided,
+            the task_id is used.
+        :type key: string
+        :param execution_date: [Optional] An execution date. The XCom value
+            will only be available on or after this date. If no date is
+            provided, the current execution date is used.
+        :type execution_date: datetime.datetime
+        :param target_task: [Optional] If provided, the XCom will target this
+            task. Possible values include:
+                [a string]          : target any task with this task_id
+                [a TaskInstance]    : target a specific task
+                None                : target any task
+                airflow.models.SELF : target the calling task (for convenience)
+        :type target_task: string, TaskInstance, None
+        :param target_dag: [Optional] If provided, only XComs targeting
+            the specified DAG will be returned. Possible values include:
+                [a string]          : target a specific dag_id
+                [a DAG]             : target a specific DAG
+                None                : target any DAG
+                airflow.models.SELF : target the calling DAG (for convenience)
+        :type target_dag: string, DAG, None
 
-        # stores a value (bar) attached to this task running
-        # in this DAG on this execution_date. The key is the task name.
-        self.xcom_set(bar)
-
-        # stores a value (bar) with key 'foo', attached to this task running
-        # in this DAG on this execution_date.
-        self.xcom_set(bar, key='foo')
-
-        # stores a value (bar) with key 'foo', attached to a task 'my_task'
-        # in the current DAG and on the current execution_date
-        self.xcom_set('foo', bar, task_id='my_task')
-
-        See also: XCom.set(), BaseOperator.xcom_set()
         """
-        if task_id is None:
-            task_id = self.task_id
         if key is None:
-            key = task_id
-        if dag_id is None:
-            dag_id = self.dag_id
+            key = self.task_id
         if execution_date is None:
             execution_date = self.execution_date
 
+        if target_task is SELF:
+            target_task = self
+        if target_dag is SELF:
+            target_dag = self
+
         XCom.set(
-            task_id=task_id,
-            dag_id=dag_id,
-            execution_date=execution_date,
             key=key,
-            value=value)
+            value=value,
+            source_task=self.task_id,
+            source_dag=self.dag_id,
+            execution_date=execution_date,
+            target_task=target_task,
+            target_dag=target_dag)
 
     def xcom_get(
             self,
             key=None,
-            task_id=None,
-            dag_id=None,
+            source_task=None,
+            source_dag=None,
+            target_task=SELF,
+            target_dag=None,
             execution_date=None,
-            include_prior_dates=False):
+            include_prior_dates=False,
+            limit=1):
         """
-        Retrieve an XCom value corresponding to the provided key. If multiple
-        XComs match the provided criteria, the most recently-stored value is
-        retrieved.
+        Retrieve an XCom value.
 
-        If key is None, then key is not used to match.
-
-        task_id, dag_id, and execution_date can be optionally provided:
-            None (default)  : use the value of the calling TaskInstance
-            False           : ignore the field when filtering
-            [value]         : use the provided value
-
-        If include_prior_dates is True, then values from
-        execution_dates equal to OR before the provided execution_date are
-        returned. If it is False (default), then only values matching the
-        provided execution_date are returned.
-
-        Examples:
-
-        # retrieves the most recent XCom value with key 'foo' attached to
-        # this TaskInstance running in this DAG on the current execution_date
-        value = self.xcom_get('foo')
-
-        # retrives the most recent XCom value attached to a task with id
-        # 'my_task' running in any DAG on the current execution_date.
-        value = self.xcom_get(task_id='my_task', dag_id=False)
-
-        # retrives the most recent XCom values with key 'foo' from any task
-        # in the current DAG that was stored on or before the current
-        # execution_date or
-        value = self.xcom_get(
-            'foo', task_id=False, include_prior_dates=True)
+        :param key: [Optional] The key of the XCom.
+        :type key: string
+        :param source_task: [Optional] If provided, only XComs from the
+            specified task will be returned.
+        :type source_task: string
+        :param source_dag: [Optional] If provided, only XComs from the
+            specified DAG will be returned.
+        :type source_dag: string
+        :param target_task: [Optional] If provided, only XComs targeting
+            the specified task will be returned. Possible values include:
+                [a string]          : match any task with this task_id
+                [a TaskInstance]    : match a specific task
+                None                : match any task
+                airflow.models.SELF : match the calling task (for convenience)
+        :type target_task: string, TaskInstance, None
+        :param target_dag: [Optional] If provided, only XComs targeting
+            the specified DAG will be returned. Possible values include:
+                [a string]          : match a specific dag_id
+                [a DAG]             : match a specific DAG
+                None                : match any DAG
+                airflow.models.SELF : match the calling DAG (for convenience)
+        :type target_dag: string, DAG, None
+        :param execution_date: [Optional] If provided, only XComs with
+            execution dates on or prior to this date will be returned.
+            Defaults to the current execution date.
+        :type execution_date: datetime.datetime
+        :param include_prior_dates: If False (the default), only XComs matching
+            the provided execution date are returned. If True, results can
+            include XComs with execution dates on or before the provided one.
+        :type include_prior_dates: bool
+        :param limit: the number of XCom values to return. If 1 (the default),
+            the value is returned directly. If greater than 1, a {key: value}
+            dict is returned. More recent results are always prioritized (note
+            this is based on the actual record time, not the execution_date).
+        :type limit: int
         """
-        if task_id is None:
-            task_id = self.task_id
-        if dag_id is None:
-            dag_id = self.dag_id
+
         if execution_date is None:
             execution_date = self.execution_date
+        elif execution_date > self.execution_date:
+            raise ValueError(
+                'Execution dates can not be in the future (current '
+                'execution_date is {cur}; requested {arg}).'.format(
+                    cur=self.execution_date,
+                    arg=execution_date))
+
+        # convenient value for getting self
+        if source_task is SELF:
+            source_task = self
+        if source_dag is SELF:
+            source_dag = self.dag_id
+
+        # convenient value for getting self
+        if target_task is SELF:
+            target_task = self
+        if target_dag is SELF:
+            target_dag = self.dag_id
 
         return XCom.get(
+            execution_date=execution_date,
             key=key,
-            task_id=task_id or None,
-            dag_id=dag_id or None,
-            execution_date=execution_date or None,
-            include_prior_dates=include_prior_dates)
+            source_task=source_task,
+            source_dag=source_dag,
+            target_task=target_task,
+            target_dag=target_dag,
+            include_prior_dates=include_prior_dates,
+            limit=limit)
 
 
 class Log(Base):
@@ -1565,102 +1602,37 @@ class BaseOperator(object):
     def xcom_set(
             self,
             context,
-            value,
             key=None,
-            task_id=None,
-            dag_id=None,
-            execution_date=None):
-        """
-        Store an XCom value. If no key is provided, the task_id is used.
-
-        task_id, dag_id, and execution_date can be optionally provided. If
-        they are None, then the value of the calling Operator is used.
-
-        Examples:
-
-        # stores a value (bar) attached to this task running
-        # in this DAG on this execution_date. The key is the task name.
-        self.xcom_set(context, bar)
-
-        # stores a value (bar) with key 'foo', attached to this task running
-        # in this DAG on this execution_date.
-        self.xcom_set(context, bar, key='foo')
-
-        # stores a value (bar) with key 'foo', attached to a task 'my_task'
-        # in the current DAG and on the current execution_date
-        self.xcom_set('foo', bar, context, task_id='my_task')
-
-        See also: XCom.set(), TaskInstance.xcom_set()
-        """
-        if task_id is None:
-            task_id = self.task_id
-        if key is None:
-            key = task_id
-        if dag_id is None:
-            dag_id = self.dag_id
-        if execution_date is None:
-            execution_date = context['execution_date']
-
-        XCom.set(
-            task_id=task_id,
-            dag_id=dag_id,
-            execution_date=execution_date,
+            execution_date=None,
+            target_task=None,
+            target_dag=None):
+        context['ti'].xcom_set(
+            value=value,
             key=key,
-            value=value)
+            execution_date=execution_date,
+            target_task=target_task,
+            target_dag=target_dag)
 
     def xcom_get(
             self,
             context,
             key=None,
-            task_id=None,
-            dag_id=None,
+            source_task=None,
+            source_dag=None,
+            target_task=SELF,
+            target_dag=SELF,
             execution_date=None,
-            include_prior_dates=False):
-        """
-        Retrieve an XCom value corresponding to certain criteria. If multiple
-        XComs match, the most recently-stored value is retrieved.
-
-        If key is None, then key is not used to match.
-
-        task_id, dag_id, and execution_date can be optionally provided:
-            None (default)  : use the current Operator's value
-            False           : ignore the field when filtering
-            [value]         : use the provided value
-
-        If include_prior_dates is True, then values from
-        execution_dates equal to OR before the provided execution_date are
-        returned. If it is False (default), then only values matching the
-        provided execution_date are returned.
-
-        Examples:
-
-        # retrieves the most recent XCom value with key 'foo' attached to
-        # this Operator running in this DAG on the current execution_date
-        value = self.xcom_get(context, 'foo')
-
-        # retrives the most recent XCom value attached to a task with id
-        # 'my_task' running in any DAG on the current execution_date.
-        value = self.xcom_get(context, task_id='my_task', dag_id=False)
-
-        # retrives the most recent XCom values with key 'foo' from any task
-        # in the current DAG that was stored on or before the current
-        # execution_date or
-        value = self.xcom_get(
-            context, 'foo', task_id=False, include_prior_dates=True)
-        """
-        if task_id is None:
-            task_id = self.task_id
-        if dag_id is None:
-            dag_id = self.dag_id
-        if execution_date is None:
-            execution_date = context['execution_date']
-
-        return XCom.get(
+            include_prior_dates=False,
+            limit=1):
+        return context['ti'].xcom_get(
             key=key,
-            task_id=task_id or None,
-            dag_id=dag_id or None,
-            execution_date=execution_date or None,
-            include_prior_dates=include_prior_dates)
+            source_task=source_task,
+            source_dag=source_dag,
+            target_task=target_task,
+            target_dag=target_dag,
+            execution_date=execution_date,
+            include_prior_dates=include_prior_dates,
+            limit=limit)
 
 
 class DagModel(Base):
@@ -2206,97 +2178,113 @@ class Variable(Base):
 class XCom(Base):
     """
     Base class for XCom objects.
-
-    See also: TaskInstance.xcom_set(), BaseOperator.xcom_set()
     """
+
     __tablename__ = "xcom"
 
     id = Column(Integer, primary_key=True)
-    storetask_id = Column(
-        String(ID_LEN),
-        ForeignKey('task_instance.task_id'),
-        nullable=False)
-    dag_id = Column(
-        String(ID_LEN),
-        ForeignKey('task_instance.dag_id'),
-        nullable=False)
-    execution_date = Column(DateTime, nullable=False)
-    key = Column(String(ID_LEN))
+    key = Column(String)
     val = Column(PickleType(pickler=dill))
     timestamp = Column(DateTime, server_default=func.current_timestamp())
+    execution_date = Column(DateTime, nullable=False)
+
+    # source information
+    source_task = Column(
+        String,
+        ForeignKey('task_instance.task_id'),
+        nullable=False)
+    source_dag = Column(
+        String,
+        ForeignKey('task_instance.dag_id'),
+        nullable=False)
+
+    # target information (optional)
+    target_task = Column(String, ForeignKey('task_instance.task_id'))
+    target_dag = Column(String, ForeignKey('task_instance.dag_id'))
 
     def __repr__(self):
-        s = '<XCom "{key}" ({task_id}:{dag_id}:{date})>'
-        return s.format(
+        return '<XCom "{key}" ({source_task} -> {target_task})>'.format(
             key=self.key,
-            val=self.val,
-            task_id=self.task_id,
-            dag_id=self.dag_id,
-            date=self.execution_date)
+            source_task=self.source_task,
+            target_task=self.target_task)
+
+    @classmethod
+    def resolve_args(cls, task, dag):
+        if isinstance(task, TaskInstance):
+            if dag:
+                raise ValueError(
+                    'Can\'t supply a TaskInstance and a DAG. '
+                    '(TaskInstances contain DAG information)')
+            task, dag = task.task_id, task.dag_id
+        elif isinstance(dag, DAG):
+            dag = dag.dag_id
+
+        return task, dag
 
     @classmethod
     @provide_session
-    def set(cls, task_id, dag_id, execution_date, key, value, session):
+    def set(
+            cls,
+            key,
+            value,
+            execution_date,
+            source_task,
+            source_dag,
+            target_task=None,
+            target_dag=None,
+            session=None):
         """
-        Store an XCom value corresponding to the provided key, task_id, dag_id,
-        and execution_date.
+        Store an XCom value.
         """
+
+        source_task, source_dag = cls.resolve_args(source_task, source_dag)
+        target_task, target_dag = cls.resolve_args(target_task, target_dag)
+
         session.expunge_all()
         session.add(XCom(
-            task_id=task_id,
-            dag_id=dag_id,
-            execution_date=execution_date,
             key=key,
-            val=value))
+            val=value,
+            execution_date=execution_date,
+            source_task=source_task,
+            source_dag=source_dag,
+            target_task=target_task,
+            target_dag=target_dag))
         session.commit()
 
     @classmethod
     @provide_session
-    def get(cls, execution_date, key=None, task_id=None, dag_id=None,
-            include_previous_dates=False, limit=1, session=None):
+    def get(
+        cls,
+        execution_date,
+        key=None,
+        source_task=None,
+        source_dag=None,
+        target_task=None,
+        target_dag=None,
+        include_prior_dates=False,
+        limit=1,
+        return_as_XCom=False,
+        session=None):
 
         """
-        Retrieve an XCom value corresponding to the provided key. If multiple
-        XComs match the provided criteria, the most recently-stored value is
-        retrieved.
-
-        task_id, dag_id, and execution_date can be optionally provided, or
-        left as False to ignore the field entirely.
-
-        If include_prior_dates is True, then values from
-        execution_dates equal to OR before the provided execution_date are
-        returned. If it is False (default), then only values matching the
-        provided execution_date are returned.
-
-        Examples:
-
-        # retrieves the most recent XCom value with key 'foo' from any task
-        # in any DAG, stored on 1/1/15
-        value = XCom.get(execution_date='2015-01-01', key='foo')
-
-        # retrives the most recent XCom values with key 'foo' attached to a
-        # task with id 'my_task' running in any DAG on 1/1/15.
-        value = XCom.get(
-            execution_date=datetime.datetime(2015, 1, 1),
-            key='foo',
-            task_id='my_task')
-
-        # retrives the most recent XCom values with key 'foo' from any task
-        # in the 'my_dag' DAG that was stored on or before 1/1/15
-        value = XCom.get(
-            execution_date=datetime.datetime(2015, 1, 1),
-            key='foo',
-            dag_id='my_dag',
-            include_prior_dates=True)
+        Retrieve an XCom value, optionally meeting certain criteria
         """
+
+        source_task, source_dag = cls.resolve_args(source_task, source_dag)
+        target_task, target_dag = cls.resolve_args(target_task, target_dag)
 
         query = session.query(cls)
+
         if key:
             query = query.filter(cls.key == key)
-        if task_id:
-            query = query.filter(cls.task_id == task_id)
-        if dag_id:
-            query = query.filter(cls.dag_id == dag_id)
+        if source_task:
+            query = query.filter(cls.source_task == source_task)
+        if source_dag:
+            query = query.filter(cls.source_dag == source_dag)
+        if target_task:
+            query = query.filter(cls.target_task == target_task)
+        if target_dag:
+            query = query.filter(cls.target_dag == target_dag)
 
         if include_prior_dates:
             query = query.filter(cls.execution_date <= execution_date)
@@ -2305,15 +2293,20 @@ class XCom(Base):
 
         query = query.order_by(cls.timestamp.desc())
 
-        # if limit is None:
-        #     result = query.first()
-        # else:
-        return query.limit(limit).all()
+        if limit is None or limit > 100:
+            limit = 100
+        results = query.limit(limit).all()
 
-        if result is None:
+        if not results:
             raise AirflowException('No XCom values found.')
 
-        return result.val
+        if return_as_XCom:
+            return results
+
+        if limit == 1:
+            return results[0].val
+        else:
+            return {r.key: r.val for r in results}
 
 
 class Pool(Base):
