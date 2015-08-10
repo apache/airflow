@@ -1046,7 +1046,7 @@ class TaskInstance(Base):
             task_id=None,
             dag_id=None,
             execution_date=None,
-            include_previous_dates=False):
+            include_prior_dates=False):
         """
         Retrieve an XCom value corresponding to the provided key. If multiple
         XComs match the provided criteria, the most recently-stored value is
@@ -1059,7 +1059,7 @@ class TaskInstance(Base):
             False           : ignore the field when filtering
             [value]         : use the provided value
 
-        If include_previous_dates is True, then values from
+        If include_prior_dates is True, then values from
         execution_dates equal to OR before the provided execution_date are
         returned. If it is False (default), then only values matching the
         provided execution_date are returned.
@@ -1078,7 +1078,7 @@ class TaskInstance(Base):
         # in the current DAG that was stored on or before the current
         # execution_date or
         value = self.xcom_get(
-            'foo', task_id=False, include_previous_dates=True)
+            'foo', task_id=False, include_prior_dates=True)
         """
         if task_id is None:
             task_id = self.task_id
@@ -1092,7 +1092,7 @@ class TaskInstance(Base):
             task_id=task_id or None,
             dag_id=dag_id or None,
             execution_date=execution_date or None,
-            include_previous_dates=include_previous_dates)
+            include_prior_dates=include_prior_dates)
 
 
 class Log(Base):
@@ -1615,7 +1615,7 @@ class BaseOperator(object):
             task_id=None,
             dag_id=None,
             execution_date=None,
-            include_previous_dates=False):
+            include_prior_dates=False):
         """
         Retrieve an XCom value corresponding to certain criteria. If multiple
         XComs match, the most recently-stored value is retrieved.
@@ -1627,7 +1627,7 @@ class BaseOperator(object):
             False           : ignore the field when filtering
             [value]         : use the provided value
 
-        If include_previous_dates is True, then values from
+        If include_prior_dates is True, then values from
         execution_dates equal to OR before the provided execution_date are
         returned. If it is False (default), then only values matching the
         provided execution_date are returned.
@@ -1646,7 +1646,7 @@ class BaseOperator(object):
         # in the current DAG that was stored on or before the current
         # execution_date or
         value = self.xcom_get(
-            context, 'foo', task_id=False, include_previous_dates=True)
+            context, 'foo', task_id=False, include_prior_dates=True)
         """
         if task_id is None:
             task_id = self.task_id
@@ -1660,7 +1660,7 @@ class BaseOperator(object):
             task_id=task_id or None,
             dag_id=dag_id or None,
             execution_date=execution_date or None,
-            include_previous_dates=include_previous_dates)
+            include_prior_dates=include_prior_dates)
 
 
 class DagModel(Base):
@@ -2263,7 +2263,7 @@ class XCom(Base):
         task_id, dag_id, and execution_date can be optionally provided, or
         left as False to ignore the field entirely.
 
-        If include_previous_dates is True, then values from
+        If include_prior_dates is True, then values from
         execution_dates equal to OR before the provided execution_date are
         returned. If it is False (default), then only values matching the
         provided execution_date are returned.
@@ -2287,12 +2287,8 @@ class XCom(Base):
             execution_date=datetime.datetime(2015, 1, 1),
             key='foo',
             dag_id='my_dag',
-            include_previous_dates=True)
+            include_prior_dates=True)
         """
-
-        if execution_date==False:
-            execution_date = datetime(2020, 1, 1)
-            include_previous_dates=True
 
         query = session.query(cls)
         if key:
@@ -2302,7 +2298,7 @@ class XCom(Base):
         if dag_id:
             query = query.filter(cls.dag_id == dag_id)
 
-        if include_previous_dates:
+        if include_prior_dates:
             query = query.filter(cls.execution_date <= execution_date)
         else:
             query = query.filter(cls.execution_date == execution_date)
