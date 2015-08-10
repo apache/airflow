@@ -2306,7 +2306,7 @@ class XCom(Base):
         if limit == 1:
             return results[0].val
         else:
-            return {r.key: r.val for r in results}
+            return {r: r.val for r in results}
 
 
 class Pool(Base):
