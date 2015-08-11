@@ -1,6 +1,7 @@
 boto
 celery
 chartkick
+cryptography
 coverage
 dill
 flake8
