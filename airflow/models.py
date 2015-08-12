@@ -850,7 +850,7 @@ class TaskInstance(Base):
                     if task_result is not None:
                         self.xcom_set(key=RETURNED_VALUE, value=task_result)
 
-            except (Exception, StandardError, KeyboardInterrupt) as e:
+            except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
                 raise
 
