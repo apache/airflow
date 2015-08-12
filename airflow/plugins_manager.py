@@ -1,4 +1,3 @@
-from builtins import object
 import imp
 import inspect
 import logging
@@ -46,7 +45,7 @@ for root, dirs, files in os.walk(plugins_folder):
             if file_ext != '.py':
                 continue
             m = imp.load_source(mod_name, filepath)
-            for obj in list(m.__dict__.values()):
+            for obj in m.__dict__.values():
                 if (
                         inspect.isclass(obj) and
                         issubclass(obj, AirflowPlugin) and

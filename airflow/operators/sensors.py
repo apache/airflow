@@ -1,10 +1,6 @@
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
 from datetime import datetime
 import logging
-from urllib.parse import urlparse
+from urlparse import urlparse
 from time import sleep
 
 from airflow import hooks, settings
@@ -354,32 +350,6 @@ class TimeSensor(BaseSensorOperator):
         logging.info(
             'Checking if the time ({0}) has come'.format(self.target_time))
         return datetime.now().time() > self.target_time
-
-
-class TimeDeltaSensor(BaseSensorOperator):
-    """
-    Waits for a timedelta after the task's execution_date + schedule_interval.
-    In Airflow, the daily task stamped with ``execution_date``
-    2016-01-01 can only start running on 2016-01-02. The timedelta here
-    represents the time after the execution period has closed.
-
-    :param delta: time length to wait after execution_date before succeeding
-    :type delta: datetime.timedelta
-    """
-    template_fields = tuple()
-
-    @apply_defaults
-    def __init__(self, delta, *args, **kwargs):
-        super(TimeDeltaSensor, self).__init__(*args, **kwargs)
-        self.delta = delta
-
-    def poke(self, context):
-        target_dttm = (
-            context['execution_date'] +
-            context['dag'].schedule_interval +
-            self.delta)
-        logging.info('Checking if the time ({0}) has come'.format(target_dttm))
-        return datetime.now() > target_dttm
 
 
 class HttpSensor(BaseSensorOperator):

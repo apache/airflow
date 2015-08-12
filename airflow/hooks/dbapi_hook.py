@@ -1,5 +1,3 @@
-from builtins import str
-from past.builtins import basestring
 from datetime import datetime
 import numpy
 import logging

@@ -10,8 +10,7 @@ from airflow import utils
 NUM_EXAMPLE_DAGS = 5
 DEV_NULL = '/dev/null'
 LOCAL_EXECUTOR = executors.LocalExecutor()
-DEFAULT_DATE = datetime(2015, 8, 1)
-TEST_DAG_ID = 'unit_tests'
+DEFAULT_DATE = datetime(2015, 1, 1)
 configuration.test_mode()
 
 
@@ -21,7 +20,7 @@ class TransferTests(unittest.TestCase):
         configuration.test_mode()
         utils.initdb()
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG('hive_test', default_args=args)
         self.dag = dag
 
     def test_mysql_to_hive(self):
@@ -55,7 +54,7 @@ class HivePrestoTest(unittest.TestCase):
         configuration.test_mode()
         utils.initdb()
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG('hive_test', default_args=args)
         self.dag = dag
         self.hql = """
         USE airflow;
@@ -132,7 +131,6 @@ class HivePrestoTest(unittest.TestCase):
 
     def test_hive_to_mysql(self):
         t = operators.HiveToMySqlTransfer(
-            mysql_conn_id='airflow_db',
             task_id='hive_to_mysql_check',
             sql="""
             SELECT name, count(*) as ccount
@@ -142,7 +140,6 @@ class HivePrestoTest(unittest.TestCase):
             mysql_table='test_static_babynames',
             mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
             dag=self.dag)
-        t.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
 
@@ -155,7 +152,7 @@ class CoreTest(unittest.TestCase):
             dag_folder=DEV_NULL, include_examples=True)
         utils.initdb()
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG('core_test', default_args=args)
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
@@ -167,20 +164,6 @@ class CoreTest(unittest.TestCase):
         t = operators.TimeSensor(
             task_id='time_sensor_check',
             target_time=time(0),
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
-    def test_bash_operator(self):
-        t = operators.BashOperator(
-            task_id='time_sensor_check',
-            bash_command="echo success",
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
-    def test_timedelta_sensor(self):
-        t = operators.TimeDeltaSensor(
-            task_id='timedelta_sensor_check',
-            delta=timedelta(seconds=2),
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
@@ -346,7 +329,7 @@ if 'MySqlOperator' in dir(operators):
             configuration.test_mode()
             utils.initdb()
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = DAG('hive_test', default_args=args)
             self.dag = dag
 
         def mysql_operator_test(self):
@@ -367,7 +350,7 @@ if 'PostgresOperator' in dir(operators):
             configuration.test_mode()
             utils.initdb()
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = DAG('hive_test', default_args=args)
             self.dag = dag
 
         def postgres_operator_test(self):
@@ -397,7 +380,7 @@ class HttpOpSensorTest(unittest.TestCase):
         configuration.test_mode()
         utils.initdb()
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = DAG('http_test', default_args=args)
         self.dag = dag
 
     def test_get(self):

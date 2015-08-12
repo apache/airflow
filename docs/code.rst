@@ -27,8 +27,10 @@ it's worth taking the time to understand the parameters of ``BaseOperator``
 to understand the primitive features that can be leveraged in your
 DAGs.
 
-
-.. autoclass:: airflow.models.BaseOperator
+.. automodule:: airflow.operators
+    :show-inheritance:
+    :members:
+        BaseOperator
 
 
 Operator API
@@ -61,8 +63,6 @@ Operator API
         PythonOperator,
         S3KeySensor,
         S3ToHiveTransfer,
-        SlackAPIOperator,
-        SlackAPIPostOperator,
         SqlSensor,
         SubDagOperator,
         TimeSensor

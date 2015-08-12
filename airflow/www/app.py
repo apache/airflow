@@ -1,7 +1,3 @@
-from __future__ import print_function
-from __future__ import division
-from builtins import str
-from past.utils import old_div
 import copy
 from datetime import datetime, timedelta
 import dateutil.parser
@@ -266,11 +262,6 @@ class HomeView(AdminIndexView):
         DM = models.DagModel
         qry = session.query(DM).filter(~DM.is_subdag, DM.is_active).all()
         orm_dags = {dag.dag_id: dag for dag in qry}
-        import_errors = session.query(models.ImportError).all()
-        for ie in import_errors:
-            flash(
-                "Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=ie),
-                "error")
         session.expunge_all()
         session.commit()
         session.close()
@@ -520,9 +511,8 @@ class Airflow(BaseView):
                     series.append({
                         'name': col,
                         'data': [
-                            (k, df[col][k])
-                            for k in df[col].keys()
-                            if not np.isnan(df[col][k])]
+                            (i, v)
+                            for i, v in df[col].iteritems() if not np.isnan(v)]
                     })
                 series = [serie for serie in sorted(
                     series, key=lambda s: s['data'][0][1], reverse=True)]
@@ -1003,19 +993,13 @@ class Airflow(BaseView):
         else:
             base_date = dateutil.parser.parse(base_date)
 
-        start_date = dag.start_date
-        if not start_date:
-            start_date = dag.default_args['start_date']
-
-        if start_date:
-            difference = base_date - start_date
-            offset = timedelta(seconds=int(difference.total_seconds() % dag.schedule_interval.total_seconds()))
-            base_date -= offset
-            base_date -= timedelta(microseconds=base_date.microsecond)
-    
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else 25
-        from_date = (base_date-(num_runs * dag.schedule_interval))
+        from_time = datetime.min.time()
+        if dag.start_date:
+            from_time = dag.start_date.time()
+        from_date = (base_date-(num_runs * dag.schedule_interval)).date()
+        from_date = datetime.combine(from_date, from_time)
 
         dates = utils.date_range(
             from_date, base_date, dag.schedule_interval)
@@ -1238,10 +1222,10 @@ class Airflow(BaseView):
             for ti in task.get_task_instances(session, from_date):
                 if ti.end_date:
                     data.append([
-                        ti.execution_date.isoformat(), old_div((
+                        ti.execution_date.isoformat(), (
                             ti.end_date - (
                                 ti.execution_date + task.schedule_interval)
-                        ).total_seconds(),(60*60))
+                        ).total_seconds()/(60*60)
                     ])
             all_data.append({'data': data, 'name': task.task_id})
 
@@ -1646,7 +1630,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         except Exception as e:
             d = {}
 
-        for field in list(self.form_extra_fields.keys()):
+        for field in self.form_extra_fields.keys():
             value = d.get(field, '')
             if value:
                 field = getattr(form, field)
@@ -1936,7 +1920,7 @@ def integrate_plugins():
     for v in admin_views:
         admin.add_view(v)
     for bp in flask_blueprints:
-        print(bp)
+        print bp
         app.register_blueprint(bp)
     for ml in menu_links:
         admin.add_link(ml)

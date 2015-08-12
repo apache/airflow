@@ -1,8 +1,3 @@
-from __future__ import print_function
-from builtins import str
-from builtins import input
-from builtins import object
-from past.builtins import basestring
 from copy import copy
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
@@ -204,7 +199,7 @@ def resetdb():
 
 
 def validate_key(k, max_length=250):
-    if not isinstance(k, basestring):
+    if type(k) is not str:
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
         raise AirflowException("The key has to be less than {0} characters".format(
@@ -346,7 +341,7 @@ def ask_yesno(question):
     done = False
     print(question)
     while not done:
-        choice = input().lower()
+        choice = raw_input().lower()
         if choice in yes:
             return True
         elif choice in no:
@@ -358,7 +353,7 @@ def ask_yesno(question):
 def send_email(to, subject, html_content):
     SMTP_MAIL_FROM = conf.get('smtp', 'SMTP_MAIL_FROM')
 
-    if isinstance(to, basestring):
+    if isinstance(to, unicode) or isinstance(to, str):
         if ',' in to:
             to = to.split(',')
         elif ';' in to:
@@ -406,7 +401,7 @@ def import_module_attrs(parent_module_globals, module_attrs_dict):
     brings functional operators to those namespaces.
     '''
     imported_attrs = []
-    for mod, attrs in list(module_attrs_dict.items()):
+    for mod, attrs in module_attrs_dict.items():
         try:
             folder = os.path.dirname(parent_module_globals['__file__'])
             f, filename, description = imp.find_module(mod, [folder])
@@ -449,7 +444,7 @@ class AirflowTaskTimeout(Exception):
     pass
 
 
-class timeout(object):
+class timeout:
     """
     To be used in a ``with`` block and timeout its content.
     """

@@ -37,7 +37,6 @@ _operators = {
         'S3PrefixSensor',
         'HdfsSensor',
         'TimeSensor',
-        'TimeDeltaSensor',
         'HttpSensor'
     ],
     'subdag_operator': ['SubDagOperator'],
@@ -50,7 +49,6 @@ _operators = {
     'jdbc_operator': ['JdbcOperator'],
     'mssql_operator': ['MsSqlOperator'],
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
-    'slack_operator': ['SlackAPIPostOperator'],
 }
 
 _import_module_attrs(globals(), _operators)

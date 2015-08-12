@@ -1,6 +1,5 @@
-from builtins import chr
 from collections import OrderedDict
-import unicodecsv as csv
+import csv
 import logging
 from tempfile import NamedTemporaryFile
 import MySQLdb
@@ -68,7 +67,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.partition = partition
         self.create = create
         self.recreate = recreate
-        self.delimiter = str(delimiter)
+        self.delimiter = delimiter
         self.mysql_conn_id = mysql_conn_id
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
