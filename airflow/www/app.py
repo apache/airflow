@@ -1268,31 +1268,16 @@ class Airflow(BaseView):
         session = settings.Session()
         orm_dag = session.query(
             DagModel).filter(DagModel.dag_id == dag_id).first()
-<<<<<<< HEAD
         if request.args.get('is_paused') == 'false':
             orm_dag.is_paused = True
         else:
             orm_dag.is_paused = False
-=======
-
-        if orm_dag.is_paused == False:
-            orm_dag.is_paused = True
-            announce = 'has just been paused.'
-        else:
-            orm_dag.is_paused = False
-            announce = 'is now active.'
->>>>>>> 99667b5c58472b5d07b8506aa998851c48cbeb47
         session.merge(orm_dag)
         session.commit()
         session.close()
 
         dagbag.get_dag(dag_id)
-<<<<<<< HEAD
         return "OK"
-=======
-        flash("DAG [{}] {}.".format(dag_id,announce))
-        return redirect('/')
->>>>>>> 99667b5c58472b5d07b8506aa998851c48cbeb47
 
     @expose('/refresh')
     @login_required
