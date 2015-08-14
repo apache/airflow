@@ -1,6 +1,8 @@
 *.bkp
 *.egg-info
 *.pyc
+*.swp
+*.orig
 .DS_Store
 .ipynb*
 .coverage
@@ -11,6 +13,7 @@ airflow_login.py
 build
 cover
 dbinit.py
+dags
 docs/_*
 dist
 env
