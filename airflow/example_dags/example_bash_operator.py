@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import range
 from airflow.operators import BashOperator, DummyOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta

@@ -1,3 +1,5 @@
+from builtins import str
+from past.builtins import basestring
 from collections import defaultdict
 from datetime import datetime
 import getpass
@@ -294,6 +296,14 @@ class SchedulerJob(BaseJob):
         session.commit()
         session.close()
 
+    def import_errors(self, dagbag):
+        session = settings.Session()
+        session.query(models.ImportError).delete()
+        for filename, stacktrace in list(dagbag.import_errors.items()):
+            session.add(models.ImportError(
+                filename=filename, stacktrace=stacktrace))
+        session.commit()
+
     def process_dag(self, dag, executor):
         """
         This method schedules a single DAG by looking at the latest
@@ -425,7 +435,7 @@ class SchedulerJob(BaseJob):
             else:
                 d[ti.pool].append(ti)
 
-        for pool, tis in d.items():
+        for pool, tis in list(d.items()):
             open_slots = pools[pool].open_slots(session=session)
             if open_slots > 0:
                 tis = sorted(
@@ -502,14 +512,9 @@ class SchedulerJob(BaseJob):
             duration_sec = (datetime.now() - loop_start_dttm).total_seconds()
             logging.info("Loop took: {} seconds".format(duration_sec))
             try:
-                dag_sizes = sorted(
-                    [(sys.getsizeof(dag), dag.dag_id) for dag in dags],
-                    key=lambda x: x[0],
-                    reverse=True,
-                )
-                logging.debug("DAG sizes: " + str(dag_sizes))
-            except:
-                logging.error("Failed at getting DAG sizes")
+                self.import_errors(dagbag)
+            except Exception as e:
+                logging.exception(e)
             try:
                 # We really just want the scheduler to never ever stop.
                 executor.heartbeat()
@@ -593,7 +598,7 @@ class BackfillJob(BaseJob):
 
         # Triggering what is ready to get triggered
         while tasks_to_run:
-            for key, ti in tasks_to_run.items():
+            for key, ti in list(tasks_to_run.items()):
                 ti.refresh_from_db()
                 if ti.state == State.SUCCESS and key in tasks_to_run:
                     succeeded.append(key)
@@ -612,7 +617,7 @@ class BackfillJob(BaseJob):
             executor.heartbeat()
 
             # Reacting to events
-            for key, state in executor.get_event_buffer().items():
+            for key, state in list(executor.get_event_buffer().items()):
                 dag_id, task_id, execution_date = key
                 if key not in tasks_to_run:
                     continue

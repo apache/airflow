@@ -85,7 +85,7 @@ def closest_ds_partition(
     partitions = hh.get_partitions(schema=schema, table_name=table)
     if not partitions:
         return None
-    part_vals = [p.values()[0] for p in partitions]
+    part_vals = [list(p.values())[0] for p in partitions]
     if ds in part_vals:
         return ds
     else:

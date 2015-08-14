@@ -1,4 +1,7 @@
 from __future__ import print_function
+from builtins import str
+from past.builtins import basestring
+from builtins import object
 import copy
 from datetime import datetime, timedelta
 import getpass
@@ -93,12 +96,13 @@ class DagBag(object):
         self.sync_to_db = sync_to_db
         self.file_last_changed = {}
         self.executor = executor
-        self.collect_dags(dag_folder)
+        self.import_errors = {}
         if include_examples:
             example_dag_folder = os.path.join(
                 os.path.dirname(__file__),
                 'example_dags')
             self.collect_dags(example_dag_folder)
+        self.collect_dags(dag_folder)
         if sync_to_db:
             self.deactivate_inactive_dags()
 
@@ -158,13 +162,14 @@ class DagBag(object):
                     del sys.modules[mod_name]
                 with utils.timeout(30):
                     m = imp.load_source(mod_name, filepath)
-            except:
+            except Exception as e:
                 logging.error("Failed to import: " + filepath)
-                logging.exception("")
+                self.import_errors[filepath] = e
+                logging.exception(e)
                 self.file_last_changed[filepath] = dttm
                 return
 
-            for dag in m.__dict__.values():
+            for dag in list(m.__dict__.values()):
                 if isinstance(dag, DAG):
                     dag.full_filepath = filepath
                     dag.is_subdag = False
@@ -239,14 +244,15 @@ class DagBag(object):
                             os.path.split(filepath)[-1])
                         if file_ext != '.py':
                             continue
-                        if not any([re.findall(p, filepath) for p in patterns]):
+                        if not any(
+                                [re.findall(p, filepath) for p in patterns]):
                             self.process_file(
                                 filepath, only_if_updated=only_if_updated)
                     except:
                         pass
 
     def deactivate_inactive_dags(self):
-        active_dag_ids = [dag.dag_id for dag in self.dags.values()]
+        active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
         session = settings.Session()
         for dag in session.query(
                 DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
@@ -275,7 +281,7 @@ class BaseUser(Base):
         return self.username
 
     def get_id(self):
-        return unicode(self.id)
+        return str(self.id)
 
 
 class Connection(Base):
@@ -963,9 +969,13 @@ class TaskInstance(Base):
                 elif isinstance(content, dict):
                     result = {
                         k: rt(v, jinja_context)
-                        for k, v in content.items()}
+                        for k, v in list(content.items())}
                 else:
-                    raise AirflowException("Type not supported for templating")
+                    param_type = type(content)
+                    msg = (
+                        "Type '{param_type}' used for parameter '{attr}' is "
+                        "not supported for templating").format(**locals())
+                    raise AirflowException(msg)
                 setattr(task, attr, result)
 
     def email_alert(self, exception, is_retry=False):
@@ -1255,7 +1265,7 @@ class BaseOperator(object):
 
         self._upstream_list = sorted(self._upstream_list, key=lambda x: x.task_id)
         self._downstream_list = sorted(self._downstream_list, key=lambda x: x.task_id)
-        for k, v in self.__dict__.items():
+        for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
                 setattr(result, k, copy.deepcopy(v, memo))
 
@@ -1761,7 +1771,7 @@ class DAG(object):
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
-        for k, v in self.__dict__.items():
+        for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
                 setattr(result, k, copy.deepcopy(v, memo))
 
@@ -2061,3 +2071,11 @@ class SlaMiss(Base):
     def __repr__(self):
         return str((
             self.dag_id, self.task_id, self.execution_date.isoformat()))
+
+
+class ImportError(Base):
+    __tablename__ = "import_error"
+    id = Column(Integer, primary_key=True)
+    timestamp = Column(DateTime)
+    filename = Column(String(1024))
+    stacktrace = Column(Text)

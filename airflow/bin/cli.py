@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function
+from builtins import input
 import argparse
 import dateutil.parser
 from datetime import datetime
@@ -312,7 +313,7 @@ def initdb(args):
 
 def resetdb(args):
     print("DB: " + conf.get('core', 'SQL_ALCHEMY_CONN'))
-    if raw_input(
+    if input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,

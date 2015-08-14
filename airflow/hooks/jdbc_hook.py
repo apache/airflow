@@ -1,3 +1,4 @@
+from builtins import str
 __author__ = 'janomar'
 
 import logging

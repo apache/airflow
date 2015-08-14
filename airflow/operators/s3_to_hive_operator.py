@@ -1,3 +1,5 @@
+from builtins import next
+from builtins import zip
 import logging
 from tempfile import NamedTemporaryFile
 

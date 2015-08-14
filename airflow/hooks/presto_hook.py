@@ -1,3 +1,4 @@
+from builtins import str
 from pyhive import presto
 from pyhive.exc import DatabaseError
 

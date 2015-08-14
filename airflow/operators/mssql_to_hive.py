@@ -1,3 +1,4 @@
+from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
 import logging

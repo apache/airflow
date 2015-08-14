@@ -1,4 +1,7 @@
-from ConfigParser import ConfigParser
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from configparser import ConfigParser
 import errno
 import logging
 import os
@@ -45,7 +48,7 @@ DEFAULT_CONFIG = """\
 # The home folder for airflow, default is ~/airflow
 airflow_home = {AIRFLOW_HOME}
 
-# The folder where you airflow pipelines live, most likely a
+# The folder where your airflow pipelines live, most likely a
 # subfolder in a code repository
 dags_folder = {AIRFLOW_HOME}/dags
 
