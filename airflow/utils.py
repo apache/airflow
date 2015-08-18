@@ -192,6 +192,10 @@ def initdb():
     models.DagBag(sync_to_db=True)
 
 
+def migratedb():
+    pass
+
+
 def resetdb():
     '''
     Clear out the database

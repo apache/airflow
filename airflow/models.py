@@ -301,7 +301,8 @@ class Connection(Base):
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
-    _password = Column(String(500))
+    _password = Column('password', String(500))
+    is_encrypted = Column(Boolean, unique=False, default=False)
     port = Column(Integer())
     extra = Column(String(5000))
 
@@ -318,15 +319,16 @@ class Connection(Base):
         self.port = port
 
     def get_password(self):
-        if self._password:
+        if self._password and self.is_encrypted:
             return FERNET.decrypt(self._password)
         else:
-            return None
+            return self._password
 
     def set_password(self, value):
         if value:
             val = bytes(value.encode('utf-8'))
             self._password = FERNET.encrypt(val)
+            self.is_encrypted = True
 
     @declared_attr
     def password(cls):
