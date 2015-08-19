@@ -19,6 +19,9 @@ import signal
 import smtplib
 from tempfile import mkdtemp
 
+from alembic.config import Config
+from alembic import command
+
 from contextlib import contextmanager
 
 from sqlalchemy import event, exc
@@ -89,8 +92,7 @@ def pessimistic_connection_handling():
 
 def initdb():
     from airflow import models
-    logging.info("Creating all tables")
-    models.Base.metadata.create_all(settings.engine)
+    upgradedb()
 
     # Creating the local_mysql DB connection
     C = models.Connection
@@ -192,8 +194,15 @@ def initdb():
     models.DagBag(sync_to_db=True)
 
 
-def migratedb():
-    pass
+def upgradedb():
+    logging.info("Creating tables")
+    package_dir = os.path.abspath(os.path.dirname(__file__))
+    directory = os.path.join(package_dir, 'migrations')
+    config = Config(os.path.join(package_dir, 'alembic.ini'))
+    config.set_main_option('script_location', directory)
+    config.set_main_option('sqlalchemy.url',
+                           conf.get('core', 'SQL_ALCHEMY_CONN'))
+    command.upgrade(config, 'head')
 
 
 def resetdb():
@@ -211,8 +220,8 @@ def validate_key(k, max_length=250):
     if not isinstance(k, basestring):
         raise TypeError("The key has to be a string")
     elif len(k) > max_length:
-        raise AirflowException("The key has to be less than {0} characters".format(
-            max_length))
+        raise AirflowException(
+            "The key has to be less than {0} characters".format(max_length))
     elif not re.match(r'^[A-Za-z0-9_\-\.]+$', k):
         raise AirflowException(
             "The key ({k}) has to be made of alphanumeric characters, dashes, "

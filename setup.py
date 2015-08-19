@@ -34,6 +34,7 @@ setup(
     description='Programmatically author, schedule and monitor data pipelines',
     version=version,
     packages=find_packages(),
+    package_data={'': ['airflow/alembic.ini']},
     include_package_data=True,
     zip_safe=False,
     scripts=['airflow/bin/airflow'],
