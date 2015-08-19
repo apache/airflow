@@ -31,6 +31,7 @@ if you may.
 * Lyft
 * Stripe [@jbalogh]
 * Wooga
+* Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 * Yahoo!
 
 ## Documentation

@@ -4,20 +4,24 @@
 
 {% block head_css %}
 {{ super() }}
-<link rel="stylesheet" type="text/css"
-    href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
+<link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
+<link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block body %}
   <h2>DAGs</h2>
 
+  <div id="main_content" style="display:none;">
     <table id="dags" class="table table-striped table-bordered">
         <thead>
             <tr>
                 <th></th>
+                <th width="12"><span id="pause_header"class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
                 <th>Owner</th>
-                <th style="padding-left: 5px;">Statuses<img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}"></th>
+                <th style="padding-left: 5px;">Statuses
+                  <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                </th>
                 <th class="text-center">Links</th>
             </tr>
         </thead>
@@ -28,9 +32,14 @@
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
                     <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
-                        <span class="glyphicon glyphicon-search" aria-hidden="true"></span>
+                        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
                     </a>
                     {% endif %}
+                </td>
+                <td>
+                  {% if dag_id in orm_dags %}
+                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini">
+                  {% endif %}
                 </td>
                 <td>
                     {% if dag %}
@@ -75,14 +84,15 @@
          <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
       </a>
                 {% endif %}
-      <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
-        <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-      </a>
+                    <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
+                      <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+                    </a>
                 </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
+  </div>
 {% endblock %}
 
 {% block tail %}
@@ -90,11 +100,26 @@
   <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
   <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
+  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
+      all_dags = $("[id^=toggle]");
+      $.each(all_dags, function(i,v) {
+        $(v).change (function() {
+          var dag_id =  $(v).attr('dag_id');
+          if ($(v).prop('checked')) {
+            is_paused = 'true'
+          } else {
+            is_paused = 'false'
+          }
+          url = 'airflow/paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
+          $.ajax(url);
+        });
+      });
       $('#dags').dataTable({
         "iDisplayLength": 100,
         "bSort": false,
       });
+      $("#main_content").show(250);
       diameter = 25;
       circle_margin = 4;
       stroke_width = 2;
@@ -125,14 +150,14 @@
 
             g.append('circle')
               .attr('stroke-width', function(d) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     return stroke_width;
                   else {
                     return 1;
                   }
               })
               .attr('stroke', function(d) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     return d.color;
                   else {
                     return 'gainsboro';
@@ -146,7 +171,7 @@
                     return"cursor:pointer;"
               })
               .on('click', function(d, i) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     window.location = "/admin/taskinstance/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
@@ -170,6 +195,7 @@
               .style("opacity", 1);
             d3.select("#loading").remove();
         }
+        $("#pause_header").tooltip();
 
         $("circle").tooltip({
           html: true,

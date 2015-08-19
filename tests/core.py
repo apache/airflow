@@ -10,7 +10,7 @@ from airflow import utils
 NUM_EXAMPLE_DAGS = 5
 DEV_NULL = '/dev/null'
 LOCAL_EXECUTOR = executors.LocalExecutor()
-DEFAULT_DATE = datetime(2015, 8, 1)
+DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_tests'
 configuration.test_mode()
 
@@ -22,6 +22,7 @@ class TransferTests(unittest.TestCase):
         utils.initdb()
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
         dag = DAG(TEST_DAG_ID, default_args=args)
+        dag.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
         self.dag = dag
 
     def test_mysql_to_hive(self):
@@ -170,6 +171,14 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    def test_clear_api(self):
+        task = self.dag_bash.tasks[0]
+        task.clear(
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+            upstream=True, downstream=True)
+        ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.are_dependents_done()
+
     def test_bash_operator(self):
         t = operators.BashOperator(
             task_id='time_sensor_check',
@@ -187,7 +196,7 @@ class CoreTest(unittest.TestCase):
     def test_external_task_sensor(self):
         t = operators.ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
-            external_dag_id='core_test',
+            external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
@@ -195,7 +204,7 @@ class CoreTest(unittest.TestCase):
     def test_external_task_sensor_delta(self):
         t = operators.ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
-            external_dag_id='core_test',
+            external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
             execution_delta=timedelta(0),
             allowed_states=['success'],
@@ -316,16 +325,30 @@ class WebUiTests(unittest.TestCase):
             'dag_id=example_bash_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date=2015-01-01T00:00:00&'
-            'origin=http%3A%2F%2Fjn8.brain.musta.ch%3A8080%2Fadmin%2Fairflow'
-            '%2Ftree%3Fnum_runs%3D65%26dag_id%3Dexample_bash_operator')
+            'origin=/admin')
         assert "Wait a minute" in response.data
         response = self.app.get(
             '/admin/airflow/action?action=clear&task_id=run_this_last&'
             'dag_id=example_bash_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date=2015-01-01T00:00:00&confirmed=true&'
-            'origin=http%3A%2F%2Fjn8.brain.musta.ch%3A8080%2Fadmin%2Fairflow'
-            '%2Ftree%3Fnum_runs%3D65%26dag_id%3Dexample_bash_operator')
+            'origin=/admin')
+        url = (
+            '/admin/airflow/action?action=success&task_id=runme_0&'
+            'dag_id=example_bash_operator&upstream=false&'
+            'downstream=false&execution_date=2015-08-12&'
+            'origin=/admin')
+        response = self.app.get(url)
+        assert "Wait a minute" in response.data
+        response = self.app.get(url + "&confirmed=true")
+        url = (
+            "/admin/airflow/action?action=run&task_id=runme_0&"
+            "dag_id=example_bash_operator&force=true&deps=true&"
+            "execution_date=2015-08-12T00:00:00&origin=/admin")
+        response = self.app.get(url)
+        response = self.app.get(
+            "/admin/airflow/refresh?dag_id=example_bash_operator")
+        response = self.app.get("/admin/airflow/refresh_all")
 
     def test_charts(self):
         response = self.app.get(

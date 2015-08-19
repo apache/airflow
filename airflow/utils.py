@@ -467,3 +467,10 @@ class timeout(object):
 
     def __exit__(self, type, value, traceback):
         signal.alarm(0)
+
+
+def round_time(dt, delta):
+    delta = delta.total_seconds()
+    seconds = (dt - dt.min).seconds
+    rounding = (seconds + delta / 2) // delta * delta
+    return dt + timedelta(0, rounding - seconds, -dt.microsecond)

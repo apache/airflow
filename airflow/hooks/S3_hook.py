@@ -297,3 +297,36 @@ class S3Hook(BaseHook):
                                                       replace=replace)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
+
+    def load_string(self, string_data,
+                    key, bucket_name=None,
+                    replace=False):
+        """
+        Loads a local file to S3
+
+        This is provided as a convenience to drop a file in S3. It uses the
+        boto infrastructure to ship a file to s3. It is currently using only
+        a single part download, and should not be used to move large files.
+
+        :param string_data: string to set as content for the key.
+        :type string_data: str
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag to decide whether or not to overwrite the key
+            if it already exists
+        :type replace: bool
+        """
+        if not bucket_name:
+            (bucket_name, key) = self._parse_s3_url(key)
+        bucket = self.get_bucket(bucket_name)
+        if not self.check_for_key(key, bucket_name):
+            key_obj = bucket.new_key(key_name=key)
+        else:
+            key_obj = bucket.get_key(key)
+        key_size = key_obj.set_contents_from_string(string_data,
+                                                      replace=replace)
+        logging.info("The key {key} now contains"
+                     " {key_size} bytes".format(**locals()))
+

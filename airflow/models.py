@@ -306,7 +306,7 @@ class Connection(Base):
     def __init__(
             self, conn_id=None, conn_type=None,
             host=None, login=None, password=None,
-            schema=None, port=None):
+            schema=None, port=None, extra=None):
         self.conn_id = conn_id
         self.conn_type = conn_type
         self.host = host
@@ -314,6 +314,7 @@ class Connection(Base):
         self.password = password
         self.schema = schema
         self.port = port
+        self.extra = extra
 
     def get_hook(self):
         from airflow import hooks
@@ -1535,7 +1536,11 @@ class DAG(object):
         Note that jinja/airflow includes the path of your DAG file by
         default
     :type template_searchpath: string or list of stings
-    :param user_defined_macros: a dictionary of macros that will be merged
+    :param user_defined_macros: a dictionary of macros that will be exposed
+        in your jinja templates. For example, passing ``dict(foo='bar')``
+        to this argument allows you to ``{{ foo }}`` in all jinja
+        templates related to this DAG. Note that you can pass any
+        type of object here.
     :type user_defined_macros: dict
     :param default_args: A dictionary of default parameters to be used
         as constructor keyword parameters when initialising operators.
