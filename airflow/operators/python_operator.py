@@ -37,6 +37,13 @@ class PythonOperator(BaseOperator):
             op_kwargs=None,
             provide_context=False,
             *args, **kwargs):
+
+        if 'task_id' not in kwargs:
+            try:
+                kwargs['task_id'] = python_callable.__name__
+            except AttributeError:
+                pass
+
         super(PythonOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []
