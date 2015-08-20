@@ -26,7 +26,6 @@ from sqlalchemy import case, func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship, synonym
-from cryptography.fernet import Fernet
 
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
@@ -42,6 +41,11 @@ DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 FERNET = Fernet(conf.get('core', 'FERNET_KEY'))
 XCOM_RETURN_KEY = 'return_value'
 
+try:
+    from cryptography.fernet import Fernet
+    FERNET = Fernet(conf.get('core', 'FERNET_KEY'))
+except:
+    pass
 
 if 'mysql' in SQL_ALCHEMY_CONN:
     LongText = LONGTEXT
@@ -333,9 +337,13 @@ class Connection(Base):
 
     def set_password(self, value):
         if value:
-            val = bytes(value.encode('utf-8'))
-            self._password = FERNET.encrypt(val)
-            self.is_encrypted = True
+            try:
+                val = bytes(value.encode('utf-8'))
+                self._password = FERNET.encrypt(val)
+                self.is_encrypted = True
+            except NameError:
+                self._password = val
+                self.is_encrypted = False
 
     @declared_attr
     def password(cls):
