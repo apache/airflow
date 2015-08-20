@@ -62,6 +62,7 @@ def backfill(args):
         mark_success=args.mark_success,
         include_adhoc=args.include_adhoc,
         local=args.local,
+        donot_pickle=args.donot_pickle,
         ignore_dependencies=args.ignore_dependencies)
 
 
@@ -362,6 +363,13 @@ def get_parser():
     parser_backfill.add_argument(
         "-l", "--local",
         help="Run the task using the LocalExecutor", action="store_true")
+    parser_backfill.add_argument(
+        "-x", "--donot_pickle",
+        help=(
+            "Do not attempt to pickle the DAG object to send over "
+            "to the workers, just tell the workers to run their version "
+            "of the code."),
+        action="store_true")
     parser_backfill.add_argument(
         "-a", "--include_adhoc",
         help="Include dags with the adhoc parameter.", action="store_true")
