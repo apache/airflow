@@ -38,7 +38,6 @@ Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
-FERNET = Fernet(conf.get('core', 'FERNET_KEY'))
 XCOM_RETURN_KEY = 'return_value'
 
 try:
