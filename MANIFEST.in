@@ -1,3 +1,4 @@
 recursive-include airflow/www/templates *
 recursive-include airflow/www/static *
+include airflow/alembic.ini
 include requirements.txt

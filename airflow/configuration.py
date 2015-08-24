@@ -6,6 +6,11 @@ import errno
 import logging
 import os
 
+try:
+    from cryptography.fernet import Fernet
+except:
+    pass
+
 
 class AirflowConfigException(Exception):
     pass
@@ -78,6 +83,8 @@ load_examples = True
 # Where your Airflow plugins are stored
 plugins_folder = {AIRFLOW_HOME}/plugins
 
+# Secret key to save connection passwords in the db
+fernet_key = {FERNET_KEY}
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
@@ -280,6 +287,11 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     when it is missing. The right way to change your configuration is to alter
     your configuration file, not this code.
     """
+    try:
+        FERNET_KEY = Fernet.generate_key()
+    except NameError:
+        FERNET_KEY = "storing_passwords_in_plain_text"
+
     logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
     f = open(AIRFLOW_CONFIG, 'w')
     f.write(DEFAULT_CONFIG.format(**locals()))

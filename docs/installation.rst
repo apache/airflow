@@ -48,6 +48,8 @@ Here's the list of the subpackages and what they enable:
 +-------------+------------------------------------+------------------------------------------------+
 |  devel      | ``pip install airflow[devel]``     | All Airflow features + useful dev tools        |
 +-------------+------------------------------------+------------------------------------------------+
+|  crypto     | ``pip install airflow[crypto]``    | Encrypt passwords in metadata db               |
++-------------+------------------------------------+------------------------------------------------+
 
 
 Configuration
@@ -102,6 +104,11 @@ handled in the ``Admin->Connection`` section of the UI. The pipeline code you
 will author will reference the 'conn_id' of the Connection objects.
 
 .. image:: img/connections.png
+
+By default, Airflow will save the passwords for the connection in plain text
+within the metadata database. The ``crypto`` package is highly recommended
+during installation. The ``crypto`` package does require that your operating
+system have libffi-dev installed.
 
 
 Scaling Out

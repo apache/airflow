@@ -21,9 +21,11 @@ from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, BigInteger)
 from sqlalchemy import case, func, or_, and_
+from sqlalchemy.ext.declarative import declarative_base, declared_attr
+from sqlalchemy import case, func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, synonym
 
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
@@ -38,6 +40,11 @@ SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 XCOM_RETURN_KEY = 'return_value'
 
+try:
+    from cryptography.fernet import Fernet
+    FERNET = Fernet(conf.get('core', 'FERNET_KEY'))
+except:
+    pass
 
 if 'mysql' in SQL_ALCHEMY_CONN:
     LongText = LONGTEXT
@@ -303,7 +310,8 @@ class Connection(Base):
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))
-    password = Column(String(500))
+    _password = Column('password', String(500))
+    is_encrypted = Column(Boolean, unique=False, default=False)
     port = Column(Integer())
     extra = Column(String(5000))
 
@@ -319,6 +327,27 @@ class Connection(Base):
         self.schema = schema
         self.port = port
         self.extra = extra
+
+    def get_password(self):
+        if self._password and self.is_encrypted:
+            return FERNET.decrypt(self._password)
+        else:
+            return self._password
+
+    def set_password(self, value):
+        if value:
+            try:
+                val = bytes(value.encode('utf-8'))
+                self._password = FERNET.encrypt(val)
+                self.is_encrypted = True
+            except NameError:
+                self._password = val
+                self.is_encrypted = False
+
+    @declared_attr
+    def password(cls):
+        return synonym('_password',
+                       descriptor=property(cls.get_password, cls.set_password))
 
     def get_hook(self):
         from airflow import hooks

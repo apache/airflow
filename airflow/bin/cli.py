@@ -324,6 +324,11 @@ def resetdb(args):
         print("Bail.")
 
 
+def upgradedb(args):
+    print("DB: " + conf.get('core', 'SQL_ALCHEMY_CONN'))
+    utils.upgradedb()
+
+
 def version(args):
     print(settings.HEADER + "  v" + airflow.__version__)
 
@@ -509,6 +514,10 @@ def get_parser():
     ht = "Burn down and rebuild the metadata database"
     parser_resetdb = subparsers.add_parser('resetdb', help=ht)
     parser_resetdb.set_defaults(func=resetdb)
+
+    ht = "Upgrade metadata database to latest version"
+    parser_upgradedb = subparsers.add_parser('upgradedb', help=ht)
+    parser_upgradedb.set_defaults(func=upgradedb)
 
     ht = "List the DAGs"
     parser_list_dags = subparsers.add_parser('list_dags', help=ht)
