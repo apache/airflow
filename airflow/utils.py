@@ -502,8 +502,24 @@ def as_tuple(obj):
         return tuple([obj])
 
 
-def round_time(dt, delta):
-    delta = delta.total_seconds()
-    seconds = (dt - dt.min).seconds
-    rounding = (seconds + delta / 2) // delta * delta
-    return dt + timedelta(0, rounding - seconds, -dt.microsecond)
+def round_time(dt, delta, start_date=datetime.min):
+    dt -= timedelta(microseconds = dt.microsecond)
+
+    upper = 1
+    while start_date + upper*delta < dt:
+        upper *= 2
+
+    lower = upper // 2
+
+    while True:
+        if start_date + (lower + 1)*delta > dt:
+            if (start_date + (lower + 1)*delta) - dt < dt - (start_date + lower*delta):
+                return start_date + (lower + 1)*delta
+            else:
+                return start_date + lower*delta
+
+        candidate = lower + (upper - lower) // 2
+        if start_date + candidate*delta > dt:
+            upper = candidate
+        else:
+            lower = candidate
