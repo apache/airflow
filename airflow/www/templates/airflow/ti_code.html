@@ -8,7 +8,7 @@
         {{ html_code|safe }}
     {% endif %}
     {% if code %}
-        <pre>{{ code }}</pre>
+        <pre>{{ code.decode('utf8') }}</pre>
     {% endif %}
 
     {% if code_dict %}
