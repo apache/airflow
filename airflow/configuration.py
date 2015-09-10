@@ -338,7 +338,7 @@ def test_mode():
     conf = ConfigParserWithDefaults(defaults)
     conf.read(TEST_CONFIG)
 
-conf = ConfigParserWithDefaults(defaults)
+conf = ConfigParserWithDefaults(defaults, os.environ)
 conf.read(AIRFLOW_CONFIG)
 if 'cryptography' in sys.modules and not conf.has_option('core', 'fernet_key'):
     logging.warning(textwrap.dedent("""
