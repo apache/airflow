@@ -2112,18 +2112,28 @@ class DAG(object):
 
     def pickle(self, main_session=None):
         session = main_session or settings.Session()
-        dag = session.query(
-            DagModel).filter(DAG.dag_id == self.dag_id).first()
+        orm_dag = session.query(
+            DagModel).filter(DagModel.dag_id == self.dag_id).first()
         dp = None
-        if dag and dag.pickle_id:
+
+        if not orm_dag:
+            raise ValueError(
+                "Tried to pickle a DAG that hasn't been loaded yet: {}".format(
+                    self.dag_id))
+
+        if orm_dag.pickle_id:
             dp = session.query(DagPickle).filter(
-                DagPickle.id == dag.pickle_id).first()
+                DagPickle.id == orm_dag.pickle_id).first()
+
         if not dp or dp.pickle != self:
+            orm_dag.last_pickled = datetime.now()
             dp = DagPickle(dag=self)
             session.add(dp)
-            self.last_pickled = datetime.now()
             session.commit()
-            self.pickle_id = dp.id
+
+            orm_dag.pickle_id = dp.id
+            session.merge(orm_dag)
+            session.commit()
 
         if not main_session:
             session.close()
