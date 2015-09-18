@@ -1,8 +1,7 @@
-import MySQLdb
-import MySQLdb.cursors
+import pymysql
+import pymysql.cursors
 
 from airflow.hooks.dbapi_hook import DbApiHook
-
 
 class MySqlHook(DbApiHook):
     '''
@@ -10,7 +9,7 @@ class MySqlHook(DbApiHook):
 
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
-    ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
+    ``{"cursor": "SSCursor"}``. Refer to the pymysql.cursors for more details.
     '''
 
     conn_name_attr = 'mysql_conn_id'
@@ -41,11 +40,11 @@ class MySqlHook(DbApiHook):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get('cursor', False):
             if (conn.extra_dejson["cursor"]).lower() == 'sscursor':
-                conn_config["cursorclass"] = MySQLdb.cursors.SSCursor
+                conn_config["cursorclass"] = pymysql.cursors.SSCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'dictcursor':
-                conn_config["cursorclass"] = MySQLdb.cursors.DictCursor
+                conn_config["cursorclass"] = pymysql.cursors.DictCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'ssdictcursor':
-                conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
+                conn_config["cursorclass"] = pymysql.cursors.SSDictCursor
 
-        conn = MySQLdb.connect(**conn_config)
+        conn = pymysql.connect(**conn_config)
         return conn
