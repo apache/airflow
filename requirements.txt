@@ -18,12 +18,12 @@ ipython
 jinja2
 librabbitmq
 markdown
-mysql-python
 nose
 pandas
 pygments
 pyhive
 pydruid
+pymysql
 PySmbClient
 python-dateutil
 #pyhs2
