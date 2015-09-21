@@ -1,7 +1,13 @@
-import pymysql
-import pymysql.cursors
-
 from airflow.hooks.dbapi_hook import DbApiHook
+try:
+    import MySQLdb as mysql
+    import MySQLdb.cursors as cursors
+except ImportError as e:
+    logging.debug("MySQLdb not installed, falling back on pymysql")
+    import pymysql as mysql
+    import pymysql.cursors as cursors
+
+
 
 class MySqlHook(DbApiHook):
     '''
@@ -9,7 +15,7 @@ class MySqlHook(DbApiHook):
 
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
-    ``{"cursor": "SSCursor"}``. Refer to the pymysql.cursors for more details.
+    ``{"cursor": "SSCursor"}``. Refer to the driver's doc for more details.
     '''
 
     conn_name_attr = 'mysql_conn_id'
@@ -40,11 +46,11 @@ class MySqlHook(DbApiHook):
                 conn_config["use_unicode"] = True
         if conn.extra_dejson.get('cursor', False):
             if (conn.extra_dejson["cursor"]).lower() == 'sscursor':
-                conn_config["cursorclass"] = pymysql.cursors.SSCursor
+                conn_config["cursorclass"] = cursors.SSCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'dictcursor':
-                conn_config["cursorclass"] = pymysql.cursors.DictCursor
+                conn_config["cursorclass"] = cursors.DictCursor
             elif (conn.extra_dejson["cursor"]).lower() == 'ssdictcursor':
-                conn_config["cursorclass"] = pymysql.cursors.SSDictCursor
+                conn_config["cursorclass"] = cursors.SSDictCursor
 
-        conn = pymysql.connect(**conn_config)
+        conn = mysql.connect(**conn_config)
         return conn
