@@ -78,7 +78,7 @@ class VerticaToHiveTransfer(BaseOperator):
             7: 'FLOAT',
             8: 'STRING',
             9: 'STRING',
-            16: 'FLOAT',
+            16: 'DOUBLE',
         }
         return d[vertica_type] if vertica_type in d else 'STRING'
 
