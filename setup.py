@@ -15,7 +15,7 @@ hive = [
     'pyhive>=0.1.3',
     'pyhs2>=0.6.0',
 ]
-mysql = ['mysql-python>=1.2.5']
+mysql = ['pymysql>=0.6.6']
 postgres = ['psycopg2>=2.6']
 optional = ['librabbitmq>=1.6.1']
 samba = ['pysmbclient>=0.1.3']
