@@ -30,7 +30,7 @@ from sqlalchemy.orm import relationship, synonym
 
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
-from airflow.configuration import conf
+from airflow.configuration import conf, mkdir_p
 from airflow.utils import (
     AirflowException, State, apply_defaults, provide_session,
     is_container, as_tuple, TriggerRule)
@@ -111,6 +111,7 @@ class DagBag(object):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+        self._s3_dag_counter = -1
         if include_examples:
             example_dag_folder = os.path.join(
                 os.path.dirname(__file__),
@@ -225,6 +226,56 @@ class DagBag(object):
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
         logging.info('Loaded DAG {dag}'.format(**locals()))
 
+    def get_s3_dags(self):
+        """
+        If an s3_dags_folder was provided, this function will recursively
+        download any '.py' files found there to {DAGS_FOLDER}/__s3_dags__/,
+        where they will become available to airflow.
+        """
+        refresh_every = 10
+        self._s3_dag_counter += 1
+        if self._s3_dag_counter % refresh_every != 0:
+            return
+
+        # create necessary directories
+        s3_dag_folder = os.path.join(
+            conf.get('core', 'dags_folder'), '__s3_dags__')
+
+        mkdir_p(s3_dag_folder)
+
+        logging.info('Retrieving DAGs from S3...')
+
+        # use airflow S3Hook and Connection
+        from airflow.hooks import S3Hook
+        from  boto.utils import parse_ts
+        s3_hook = S3Hook(conf.get('core', 's3_dags_folder_conn_id'))
+        bucket, prefix = s3_hook._parse_s3_url(
+            conf.get('core', 's3_dags_folder'))
+
+        # download keys if they are new or modified later than local version
+        keys = s3_hook.list_keys(bucket, prefix, return_names=False)
+        for key in keys:
+            if key.name.endswith('.py'):
+                filename = os.path.join(s3_dag_folder, key.name)
+                if os.path.exists(filename):
+                    key_mtime = parse_ts(key.last_modified).timestamp()
+                    if os.path.getmtime(filename) >= key_mtime:
+                        continue
+                mkdir_p(os.path.dirname(filename))
+                key.get_contents_to_filename(filename)
+
+        # remove any files that aren't in the key list
+        key_names = [os.path.join(s3_dag_folder, key.name) for key in keys]
+        for root, dirs, files in os.walk(s3_dag_folder):
+            for f in files:
+                full_f = os.path.join(root, f)
+                if full_f not in key_names:
+                    os.remove(full_f)
+                    try:
+                        os.removedirs(root)
+                    except:
+                        pass
+
     def collect_dags(
             self,
             dag_folder=None,
@@ -239,6 +290,8 @@ class DagBag(object):
         in the file.
         """
         dag_folder = dag_folder or self.dag_folder
+        if conf.get('core', 's3_dags_folder'):
+            self.get_s3_dags()
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
