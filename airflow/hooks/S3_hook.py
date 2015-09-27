@@ -173,7 +173,8 @@ class S3Hook(BaseHook):
         """
         return self.connection.get_bucket(bucket_name)
 
-    def list_keys(self, bucket_name, prefix='', delimiter=''):
+    def list_keys(
+            self, bucket_name, prefix='', delimiter='', return_names=True):
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -183,10 +184,16 @@ class S3Hook(BaseHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param return_names: if True, a list of key names is returned. If False,
+            a list of key objects is returned.
+        :type return_names: bool
         """
         b = self.get_bucket(bucket_name)
         keylist = list(b.list(prefix=prefix, delimiter=delimiter))
-        return [k.name for k in keylist] if keylist != [] else None
+        if return_names:
+            return [k.name for k in keylist] if keylist != [] else None
+        else:
+            return keylist
 
     def list_prefixes(self, bucket_name, prefix='', delimiter=''):
         """
@@ -329,4 +336,3 @@ class S3Hook(BaseHook):
                                                       replace=replace)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
-
