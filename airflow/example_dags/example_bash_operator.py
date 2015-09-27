@@ -1,4 +1,3 @@
-from builtins import str
 from builtins import range
 from airflow.operators import BashOperator, DummyOperator
 from airflow.models import DAG
@@ -24,7 +23,7 @@ for i in range(3):
     i = str(i)
     task = BashOperator(
         task_id='runme_'+i,
-        bash_command='echo "{{ task_instance_key_str }}" && sleep ' + str(i),
+        bash_command='echo "{{ task_instance_key_str }}" && sleep 1',
         dag=dag)
     task.set_downstream(run_this)
 

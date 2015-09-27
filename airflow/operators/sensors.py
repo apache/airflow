@@ -278,7 +278,7 @@ class S3KeySensor(BaseSensorOperator):
 
     def poke(self, context):
         hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
-        full_url = "s3://" + self.bucket_name + self.bucket_key
+        full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         logging.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
             return hook.check_for_wildcard_key(self.bucket_key,

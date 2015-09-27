@@ -42,6 +42,7 @@ Operator API
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
+        GenericTransfer,
         HdfsSensor,
         Hive2SambaOperator,
         HiveOperator,
@@ -66,6 +67,18 @@ Operator API
         SqlSensor,
         SubDagOperator,
         TimeSensor
+
+
+Community Contributed Operators
+'''''''''''''''''''''''''''''''
+
+.. automodule:: airflow.contrib.operators
+    :show-inheritance:
+    :members:
+        VerticaOperator,
+        VerticaToHiveTransfer
+
+.. _macros:
 
 Macros
 ---------
@@ -150,10 +163,19 @@ Hooks
         S3Hook,
         SqliteHook
 
+Community Contributed Hooks
+'''''''''''''''''''''''''''
+
+.. automodule:: airflow.contrib.hooks
+    :show-inheritance:
+    :members:
+        VerticaHook,
+        FTPHook
+
 Executors
 ---------
 Executors are the mechanism by which task instances get run.
 
 .. automodule:: airflow.executors
     :show-inheritance:
-    :members: LocalExecutor, CeleryExecutor, SequentialExecutor
+    :members: LocalExecutor, CeleryExecutor, SequentialExecutor, MesosExecutor

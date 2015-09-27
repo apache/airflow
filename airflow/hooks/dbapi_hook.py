@@ -49,7 +49,7 @@ class DbApiHook(BaseHook):
         '''
         import pandas.io.sql as psql
         conn = self.get_conn()
-        df = psql.read_sql(sql, con=conn)
+        df = psql.read_sql(sql, con=conn, params=parameters)
         conn.close()
         return df
 
@@ -59,7 +59,7 @@ class DbApiHook(BaseHook):
         '''
         conn = self.get_conn()
         cur = self.get_cursor()
-        cur.execute(sql)
+        cur.execute(sql, parameters)
         rows = cur.fetchall()
         cur.close()
         conn.close()
@@ -71,7 +71,7 @@ class DbApiHook(BaseHook):
         '''
         conn = self.get_conn()
         cur = conn.cursor()
-        cur.execute(sql)
+        cur.execute(sql, parameters)
         rows = cur.fetchone()
         cur.close()
         conn.close()
@@ -79,15 +79,26 @@ class DbApiHook(BaseHook):
 
     def run(self, sql, autocommit=False, parameters=None):
         """
-        Runs a command
+        Runs a command or a list of commands. Pass a list of sql
+        statements to the sql parameter to get them to execute
+        sequentially
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :type sql: str or list
         """
         conn = self.get_conn()
+        if isinstance(sql, basestring):
+            sql = [sql]
+
         if self.supports_autocommit:
-           self.set_autocommit(conn,autocommit)
+           self.set_autocommit(conn, autocommit)
+
         cur = conn.cursor()
-        cur.execute(sql)
-        conn.commit()
+        for s in sql:
+            cur.execute(s, parameters)
         cur.close()
+        conn.commit()
         conn.close()
 
     def set_autocommit(self, conn, autocommit):

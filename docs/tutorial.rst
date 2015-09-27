@@ -68,6 +68,25 @@ complicated, a line by line explanation follows below.
     t3.set_upstream(t1)
 
 
+It's a DAG definition file
+--------------------------
+
+One thing to wrap your head around (it may not be very intuitive for everyone
+at first) is that this Airflow Python script is really
+just a configuration file specifying the DAG's structure as code.
+The actual tasks defined here will run in a different context from
+the context of this script. Different tasks run on different workers
+at different point it time, which means this script cannot be directly
+to cross communicate between tasks for instance. Note that for this
+purpose we have a more advanced feature called ``XCom``.
+
+People sometimes think of the DAG definition file as a place where they
+can do some actual data processing, that is not the case at all!
+The script's purpose is to define a DAG object. It needs to evaluate
+quickly (seconds, not minutes) since the scheduler will execute it
+periodically to reflect the changes if any.
+
+
 Importing Modules
 -----------------
 
@@ -209,6 +228,9 @@ pipeline code, allowing for proper code highlighting in files composed in
 different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
+
+For more information on the variables and macros that can be referenced
+in templates, make sure to read through the :ref:`macros` section
 
 Setting up Dependencies
 -----------------------

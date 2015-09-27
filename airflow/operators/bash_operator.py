@@ -1,3 +1,5 @@
+
+from builtins import bytes
 import logging
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
@@ -25,10 +27,20 @@ class BashOperator(BaseOperator):
     ui_color = '#f0ede4'
 
     @apply_defaults
-    def __init__(self, bash_command, env=None, *args, **kwargs):
+    def __init__(
+            self,
+            bash_command,
+            xcom_push=False,
+            env=None,
+            *args, **kwargs):
+        """
+        If xcom_push is True, the last line written to stdout will also
+        be pushed to an XCom when the bash command completes.
+        """
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
+        self.xcom_push = xcom_push
 
     def execute(self, context):
         """
@@ -39,7 +51,8 @@ class BashOperator(BaseOperator):
         logging.info("tmp dir root location: \n" + gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
-                f.write(bash_command)
+
+                f.write(bytes(bash_command, 'utf_8'))
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
@@ -54,7 +67,8 @@ class BashOperator(BaseOperator):
                 self.sp = sp
 
                 logging.info("Output:")
-                for line in iter(sp.stdout.readline, ''):
+                line = ''
+                for line in iter(sp.stdout.readline, b''):
                     logging.info(line.strip())
                 sp.wait()
                 logging.info("Command exited with "
@@ -62,6 +76,9 @@ class BashOperator(BaseOperator):
 
                 if sp.returncode:
                     raise AirflowException("Bash command failed")
+
+        if self.xcom_push:
+            return str(line.strip())
 
     def on_kill(self):
         logging.info('Sending SIGTERM signal to bash subprocess')

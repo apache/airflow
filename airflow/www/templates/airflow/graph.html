@@ -20,11 +20,12 @@
     {% endif %}
     <div class="form-inline">
         <form method="get" style="float:left;">
-            Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+            Run:
             {{ form.execution_date(class_="form-control") | safe }}
             Layout:
             {{ form.arrange(class_="form-control") | safe }}
             <input type="hidden" name="root" value="{{ root }}">
+            <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
             <input type="submit" value="Go" class="btn btn-default"
             action="" method="get">
         </form>

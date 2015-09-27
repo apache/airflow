@@ -25,8 +25,16 @@ class PythonOperator(BaseOperator):
         templates. For this to work, you need to define `**kwargs` in your
         function header.
     :type provide_context: bool
+    :param templates_dict: a dictionary where the values are templates that
+        will get templated by the Airflow engine sometime between
+        ``__init__`` and ``execute`` takes place and are made available
+        in your callable's context after the template has been applied
+    :type templates_dict: dict of str
+    :param templates_exts: a list of file extensions to resolve while
+        processing templated fields, for examples ``['.sql', '.hql']``
     """
-    template_fields = tuple()
+    template_fields = ('templates_dict',)
+    template_ext = tuple()
     ui_color = '#ffefeb'
 
     @apply_defaults
@@ -36,16 +44,22 @@ class PythonOperator(BaseOperator):
             op_args=None,
             op_kwargs=None,
             provide_context=False,
+            templates_dict=None,
+            templates_exts=None,
             *args, **kwargs):
         super(PythonOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
         self.provide_context = provide_context
+        self.templates_dict = templates_dict
+        if templates_exts:
+            self.template_ext = templates_exts
 
     def execute(self, context):
         if self.provide_context:
             context.update(self.op_kwargs)
+            context['templates_dict'] = self.templates_dict
             self.op_kwargs = context
 
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)

@@ -1,10 +1,13 @@
 from builtins import object
 import logging
+import os
 import random
 
 from airflow import settings
 from airflow.models import Connection
 from airflow.utils import AirflowException
+
+CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
 class BaseHook(object):
@@ -18,7 +21,8 @@ class BaseHook(object):
     def __init__(self, source):
         pass
 
-    def get_connections(self, conn_id):
+    @classmethod
+    def get_connections(cls, conn_id):
         session = settings.Session()
         db = (
             session.query(Connection)
@@ -32,11 +36,22 @@ class BaseHook(object):
         session.close()
         return db
 
-    def get_connection(self, conn_id):
-        conn = random.choice(self.get_connections(conn_id))
+    @classmethod
+    def get_connection(cls, conn_id):
+        environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
+        conn = None
+        if environment_uri:
+            conn = Connection(uri=environment_uri)
+        else:
+            conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
             logging.info("Using connection to: " + conn.host)
         return conn
+
+    @classmethod
+    def get_hook(cls, conn_id):
+        connection = cls.get_connection(conn_id)
+        return connection.get_hook()
 
     def get_conn(self):
         raise NotImplemented()

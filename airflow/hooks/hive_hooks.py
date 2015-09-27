@@ -3,6 +3,7 @@ from builtins import zip
 from past.builtins import basestring
 import csv
 import logging
+import re
 import subprocess
 from tempfile import NamedTemporaryFile
 
@@ -40,7 +41,7 @@ class HiveCliHook(BaseHook):
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
         self.conn = conn
 
-    def run_cli(self, hql, schema=None):
+    def run_cli(self, hql, schema=None, verbose=True):
         """
         Run an hql statement using the hive cli
 
@@ -78,24 +79,70 @@ class HiveCliHook(BaseHook):
                 if self.hive_cli_params:
                     hive_params_list = self.hive_cli_params.split()
                     hive_cmd.extend(hive_params_list)
-                logging.info(" ".join(hive_cmd))
+                if verbose:
+                    logging.info(" ".join(hive_cmd))
                 sp = subprocess.Popen(
                     hive_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     cwd=tmp_dir)
-                all_err = ''
                 self.sp = sp
                 stdout = ''
                 for line in iter(sp.stdout.readline, ''):
                     stdout += line
-                    logging.info(line.strip())
+                    if verbose:
+                        logging.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:
-                    raise AirflowException(all_err)
+                    raise AirflowException(stdout)
 
                 return stdout
+
+
+    def test_hql(self, hql):
+        """
+        Test an hql statement using the hive cli and EXPLAIN
+
+        """
+        create, insert, other = [], [], []
+        for query in hql.split(';'):  # naive
+            query_original = query
+            query = query.lower().strip()
+
+            if query.startswith('create table'):
+                create.append(query_original)
+            elif query.startswith(('set ',
+                                   'add jar ',
+                                   'create temporary function')):
+                other.append(query_original)
+            elif query.startswith('insert'):
+                insert.append(query_original)
+        other = ';'.join(other)
+        for query_set in [create, insert]:
+            for query in query_set:
+
+                query_preview = ' '.join(query.split())[:50]
+                logging.info("Testing HQL [{0} (...)]".format(query_preview))
+                if query_set == insert:
+                    query = other + '; explain ' + query
+                else:
+                    query = 'explain ' + query
+                try:
+                    self.run_cli(query, verbose=False)
+                except AirflowException as e:
+                    message = e.args[0].split('\n')[-2]
+                    logging.info(message)
+                    error_loc = re.search('(\d+):(\d+)', message)
+                    if error_loc and error_loc.group(1).isdigit():
+                        l = int(error_loc.group(1))
+                        begin = max(l-2, 0)
+                        end = min(l+3, len(query.split('\n')))
+                        context = '\n'.join(query.split('\n')[begin:end])
+                        logging.info("Context :\n {0}".format(context))
+                else:
+                    logging.info("SUCCESS")               
+
 
     def load_file(
             self,

@@ -23,8 +23,15 @@ branching = BranchPythonOperator(
     dag=dag)
 branching.set_upstream(run_this_first)
 
+join = DummyOperator(
+    task_id='join',
+    trigger_rule='one_success',
+    dag=dag
+)
+
 for option in options:
     t = DummyOperator(task_id=option, dag=dag)
     t.set_upstream(branching)
     dummy_follow = DummyOperator(task_id='follow_' + option, dag=dag)
     t.set_downstream(dummy_follow)
+    dummy_follow.set_downstream(join)

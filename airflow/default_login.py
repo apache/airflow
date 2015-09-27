@@ -65,8 +65,8 @@ def login(self, request):
             username=DEFAULT_USERNAME,
             is_superuser=True)
     session.merge(user)
-    session.expunge_all()
+    session.commit()
+    flask_login.login_user(user)
     session.commit()
     session.close()
-    flask_login.login_user(user)
     return redirect(request.args.get("next") or url_for("index"))

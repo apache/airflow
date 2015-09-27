@@ -12,8 +12,8 @@ class SlackAPIOperator(BaseOperator):
     :type token: String
     :param method: The Slack API Method to Call (https://api.slack.com/methods)
     :type method: String
-    :param params: API Method call parameters (https://api.slack.com/methods)
-    :type params: Dict
+    :param param: API Method call parameters (https://api.slack.com/methods)
+    :type param: dict
     """
     def __init__(self,
                  token='unset',
@@ -41,7 +41,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param text: message to send to slack
     :type text: string
     :param icon_url: url to icon used for this message
-    :type string
+    :type icon_url: string
     """
     template_fields = ('username', 'text')
     ui_color = '#FFBA40'

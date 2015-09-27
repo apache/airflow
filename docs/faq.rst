@@ -33,3 +33,10 @@ Here are some of the common causes:
 
 You may also want to read the Scheduler section of the docs and make 
 sure you fully understand how it proceeds.
+
+
+**How do I trigger tasks based on another task's failure?**
+
+Check out the ``Trigger Rule`` section in the Concepts section of the 
+documentation
+

@@ -28,7 +28,7 @@ open to whoever wants to implement it.
 Look through the GitHub issues for features. Anything tagged with
 "feature" is open to whoever wants to implement it.
 
-We've created the operators, hooks, macros and executors we needed, but we 
+We've created the operators, hooks, macros and executors we needed, but we
 made sure that this part of Airflow is extensible. New operators,
 hooks and operators are very welcomed!
 
@@ -78,16 +78,34 @@ Generate the documentation with:
 
 ## Pull Request Guidelines
 
-Before you submit a pull request from your forked repo, check that it 
+Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
-1.  The pull request should include tests, either as doctests,
-    unit tests, or both.
-2.  If the pull request adds functionality, the docs should be updated
-    as part of the same PR. Doc string are often sufficient, make 
-    sure to follow the sphinx compatible standards.
-3.  The pull request should work for Python 2.6, 2.7, and ideally python 3.3.
-    `from __future__ import ` will be required in every `.py` file soon.
-4.  Code will be reviewed by re running the unittests, flake8 and syntax
-    should be as rigorous as the core Python project.
-5.  Please rebase and resolve all conflicts before submitting.
+1. The pull request should include tests, either as doctests, unit tests, or both.
+1. If the pull request adds functionality, the docs should be updated as part of the same PR. Doc string are often sufficient, make sure to follow the sphinx compatible standards.
+1. The pull request should work for Python 2.6, 2.7, and 3.3. If you need help writing code that works in both Python 2 and 3, see the documentation at the [Python-Future project](http://python-future.org) (the future package is an Airflow requirement and should be used where possible).
+1.  Code will be reviewed by re running the unittests, flake8 and syntax should be as rigorous as the core Python project.
+1.  Please rebase and resolve all conflicts before submitting.
+
+## Running unit tests
+
+Here are loose guidelines on how to get your environment to run the unit tests.
+We do understand that no one out there can run the full test suite since 
+Airflow is meant to connect to virtually any external system and that you most likely 
+have only a subset of these in your environment. You should run the CoreTests and
+tests related to things you touched in your PR.
+
+To set up a unit test environment, first take a look at rununittests.sh and
+understand that your ``AIRFLOW_CONFIG`` points to an alternate config file
+while running the tests. You shouldn't have to alter this config file but
+you may if need be.
+
+From that point, you can actually export these same environement variables in
+your shell, start an Airflow webserver ``airflow webserver -d`` and go and
+configure your connection. Default connections that are used in the tests
+should already have been created, you just need to point them to the systems
+where you want your tests to run.
+
+Once your unit test environment is setup, you should be able to simply run
+``./rununittests.sh`` at will. For more information on how to run a subset
+of the tests, take a look at the nosetests docs.

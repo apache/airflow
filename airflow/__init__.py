@@ -5,7 +5,7 @@ in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
 from builtins import object
-__version__ = "1.4.0"
+__version__ = "1.5.1"
 
 import logging
 import os
@@ -41,6 +41,7 @@ from airflow import operators
 from airflow import hooks
 from airflow import executors
 from airflow import macros
+from airflow import contrib
 
 operators.integrate_plugins()
 hooks.integrate_plugins()

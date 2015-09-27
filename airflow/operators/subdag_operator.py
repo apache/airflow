@@ -31,8 +31,10 @@ class SubDagOperator(BaseOperator):
         super(SubDagOperator, self).__init__(*args, **kwargs)
         if dag.dag_id + '.' + kwargs['task_id'] != subdag.dag_id:
             raise AirflowException(
-                "The subdag's dag_id should correspond to the parent's "
-                "'dag_id.task_id'")
+                "The subdag's dag_id should have the form "
+                "'{{parent_dag_id}}.{{this_task_id}}'. Expected "
+                "'{d}.{t}'; received '{rcvd}'.".format(
+                    d=dag.dag_id, t=kwargs['task_id'], rcvd=subdag.dag_id))
         self.subdag = subdag
         self.executor = executor
 

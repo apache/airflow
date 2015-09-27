@@ -25,6 +25,9 @@ class HiveToDruidTransfer(BaseOperator):
     :type druid_ingest_conn_id: str
     :param metastore_conn_id: the metastore connection id
     :type metastore_conn_id: str
+    :param hadoop_dependency_coordinates: list of coordinates to squeeze
+        int the ingest json
+    :type hadoop_dependency_coordinates: list of str
     """
 
     template_fields = ('sql', 'intervals')
@@ -41,6 +44,7 @@ class HiveToDruidTransfer(BaseOperator):
             hive_cli_conn_id='hiveserver2_default',
             druid_ingest_conn_id='druid_ingest_default',
             metastore_conn_id='metastore_default',
+            hadoop_dependency_coordinates=None,
             intervals=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
@@ -52,6 +56,7 @@ class HiveToDruidTransfer(BaseOperator):
             "name": "count",
             "type": "count"}]
         self.hive_cli_conn_id = hive_cli_conn_id
+        self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
 
@@ -68,10 +73,18 @@ class HiveToDruidTransfer(BaseOperator):
         DROP TABLE IF EXISTS {hive_table};
         CREATE TABLE {hive_table}
         ROW FORMAT DELIMITED FIELDS TERMINATED BY  '\t'
-        STORED AS TEXTFILE AS
-        {sql};
+        STORED AS TEXTFILE
+        TBLPROPERTIES ('serialization.null.format' = '')
+        AS
+        {sql}
         """.format(**locals())
         hive.run_cli(hql)
+        #hqls = hql.split(';')
+        #logging.info(str(hqls))
+        #from airflow.hooks import HiveServer2Hook
+        #hive = HiveServer2Hook(hiveserver2_conn_id="hiveserver2_silver")
+        #hive.get_results(hqls)
+
 
         m = HiveMetastoreHook(self.metastore_conn_id)
         t = m.get_table(hive_table)
@@ -82,11 +95,22 @@ class HiveToDruidTransfer(BaseOperator):
         pos = hdfs_uri.find('/user')
         static_path = hdfs_uri[pos:]
 
+        schema, table = hive_table.split('.')
+
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
         logging.info("Inserting rows into Druid")
+        logging.info("HDFS path: " + static_path)
+
         druid.load_from_hdfs(
             datasource=self.druid_datasource,
             intervals=self.intervals,
             static_path=static_path, ts_dim=self.ts_dim,
-            columns=columns, metric_spec=self.metric_spec)
+            columns=columns, metric_spec=self.metric_spec,
+            hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
         logging.info("Load seems to have succeeded!")
+
+        logging.info(
+            "Cleaning up by dropping the temp "
+            "Hive table {}".format(hive_table))
+        hql = "DROP TABLE IF EXISTS {}".format(hive_table)
+        #hive.run_cli(hql)

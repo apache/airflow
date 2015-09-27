@@ -1,6 +1,8 @@
+alembic
 boto
 celery
 chartkick
+cryptography
 coverage
 dill
 flake8
@@ -10,8 +12,9 @@ flask-cache
 flask-login
 flower
 future
+gunicorn
 hive-thrift-py
-ipython[all]
+ipython
 jinja2
 librabbitmq
 markdown
@@ -23,7 +26,7 @@ pyhive
 pydruid
 PySmbClient
 python-dateutil
-pyhs2
+#pyhs2
 redis
 requests
 setproctitle

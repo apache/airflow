@@ -21,12 +21,15 @@ class SqliteOperator(BaseOperator):
     ui_color = '#cdaaed'
 
     @apply_defaults
-    def __init__(self, sql, sqlite_conn_id='sqlite_default', *args, **kwargs):
+    def __init__(
+            self, sql, sqlite_conn_id='sqlite_default', parameters=None,
+            *args, **kwargs):
         super(SqliteOperator, self).__init__(*args, **kwargs)
         self.sqlite_conn_id = sqlite_conn_id
         self.sql = sql
+        self.parameters = parameters
 
     def execute(self, context):
         logging.info('Executing: ' + self.sql)
         hook = SqliteHook(sqlite_conn_id=self.sqlite_conn_id)
-        hook.run(self.sql)
+        hook.run(self.sql, parameters=self.parameters)

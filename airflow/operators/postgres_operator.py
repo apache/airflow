@@ -12,8 +12,9 @@ class PostgresOperator(BaseOperator):
     :param postgres_conn_id: reference to a specific postgres database
     :type postgres_conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
-        a '.sql' extensions.
+    :type sql: Can receive a str representing a sql statement,
+        a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'
     """
 
     template_fields = ('sql',)
@@ -24,14 +25,15 @@ class PostgresOperator(BaseOperator):
     def __init__(
             self, sql,
             postgres_conn_id='postgres_default', autocommit=False,
+            parameters=None,
             *args, **kwargs):
         super(PostgresOperator, self).__init__(*args, **kwargs)
-
         self.sql = sql
         self.postgres_conn_id = postgres_conn_id
         self.autocommit = autocommit
+        self.parameters = parameters
 
     def execute(self, context):
-        logging.info('Executing: ' + self.sql)
+        logging.info('Executing: ' + str(self.sql))
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
-        self.hook.run(self.sql, self.autocommit)
+        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

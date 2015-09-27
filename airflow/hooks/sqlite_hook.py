@@ -11,7 +11,7 @@ class SqliteHook(DbApiHook):
 
     conn_name_attr = 'sqlite_conn_id'
     default_conn_name = 'sqlite_default'
-    supports_autocommit = True
+    supports_autocommit = False
 
     def get_conn(self):
         """

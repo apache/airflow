@@ -60,5 +60,9 @@ class HiveOperator(BaseOperator):
         self.hook = self.get_hook()
         self.hook.run_cli(hql=self.hql, schema=self.schema)
 
+    def dry_run(self):
+        self.hook = self.get_hook()
+        self.hook.test_hql(hql=self.hql)
+
     def on_kill(self):
         self.hook.kill()

@@ -5,10 +5,23 @@
 {{ super() }}
 <link rel="stylesheet" type="text/css"
     href="{{ url_for('static', filename='tree.css') }}">
+<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block body %}
 {{ super() }}
+<div style="float: left" class="form-inline">
+    <form method="get" style="float:left;">
+        Base date: {{ form.base_date(class_="form-control") }}
+        Number of runs: {{ form.num_runs(class_="form-control") }}
+        <input type="hidden" name="root" value="{{ root }}">
+        <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+        <input type="submit" value="Go" class="btn btn-default"
+        action="" method="get">
+    </form>
+</div>
+<div style="clear: both;"></div>
+<hr/>
 <div>
     <div class="legend_item" style="border: none;">no status</div>
     <div class="square" style="background: white;"></div>
@@ -40,6 +53,9 @@
 {% block tail %}
   {{ super() }}
   <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+    <script src="{{ admin_static.url(
+      filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
+    <script src="{{ admin_static.url(filename='admin/js/form-1.0.0.js') }}"></script>
   <script>
 $('span.status_square').tooltip({html: true});
 

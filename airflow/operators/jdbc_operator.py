@@ -24,8 +24,9 @@ class JdbcOperator(BaseOperator):
     :param conn_id: reference to a predefined database
     :type conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
-        a '.sql' extensions.
+    :type sql: Can receive a str representing a sql statement,
+        a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'
     """
 
     template_fields = ('sql',)
@@ -35,15 +36,16 @@ class JdbcOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql,
-            jdbc_conn_id='jdbc_default', autocommit=False,
+            jdbc_conn_id='jdbc_default', autocommit=False, parameters=None,
             *args, **kwargs):
         super(JdbcOperator, self).__init__(*args, **kwargs)
+        self.parameters = parameters
 
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
         self.autocommit = autocommit
 
     def execute(self, context):
-        logging.info('Executing: ' + self.sql)
+        logging.info('Executing: ' + str(self.sql))
         self.hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        self.hook.run(self.sql, self.autocommit)
+        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

@@ -57,7 +57,7 @@ class CheckOperator(BaseOperator):
 
     def execute(self, context=None):
         logging.info('Executing SQL check: ' + self.sql)
-        records = self.get_db_hook().get_first(hql=self.sql)
+        records = self.get_db_hook().get_first(self.sql)
         logging.info("Record: " + str(records))
         if not records:
             raise AirflowException("The query returned None")
@@ -67,6 +67,10 @@ class CheckOperator(BaseOperator):
         logging.info("Success.")
 
     def get_db_hook(self):
+        """
+        Requires that the hook has a ``get_first`` method receiving sql
+        and returning a tuple.
+        """
         raise NotImplemented()
 
 

@@ -35,7 +35,7 @@ plugins_folder = os.path.expanduser(plugins_folder)
 plugins = []
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
-for root, dirs, files in os.walk(plugins_folder):
+for root, dirs, files in os.walk(plugins_folder, followlinks=True):
     for f in files:
         try:
             filepath = os.path.join(root, f)
@@ -52,7 +52,8 @@ for root, dirs, files in os.walk(plugins_folder):
                         issubclass(obj, AirflowPlugin) and
                         obj is not AirflowPlugin):
                     obj.validate()
-                    plugins.append(obj)
+                    if obj not in plugins:
+                        plugins.append(obj)
 
         except Exception as e:
             logging.exception(e)
