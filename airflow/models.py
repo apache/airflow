@@ -172,6 +172,9 @@ class DagBag(object):
                 filepath not in self.file_last_changed or
                 dttm != self.file_last_changed[filepath]):
             try:
+                if '__s3_dags__' in filepath:
+                    fileloc = filepath.split('__s3_dags__/')[-1]
+                    self.get_s3_dags(force=True, fileloc=fileloc)
                 logging.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
@@ -238,7 +241,8 @@ class DagBag(object):
         If fileloc is provided, only dags at that specific location will be
         checked. Fileloc should be relative to
         {DAGS_FOLDER}/__s3_dags__/{FILELOC}; in other words, it corresponds to
-        the part of the directory structured mirrored from S3.
+        the part of the directory structured mirrored from S3 (every part of
+        the s3_dag_folder except the bucket name).
         """
         refresh_every = 10
         self._s3_dag_counter += 1
@@ -260,7 +264,7 @@ class DagBag(object):
         bucket, prefix = s3_hook._parse_s3_url(
             conf.get('core', 's3_dags_folder'))
         if fileloc:
-            prefix = os.path.join(prefix, fileloc)
+            prefix = fileloc
 
         # download keys if they are new or modified later than local version
         keys = s3_hook.list_keys(bucket, prefix, return_names=False)
