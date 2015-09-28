@@ -226,15 +226,23 @@ class DagBag(object):
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
         logging.info('Loaded DAG {dag}'.format(**locals()))
 
-    def get_s3_dags(self):
+    def get_s3_dags(self, force=False, fileloc=None):
         """
         If an s3_dags_folder was provided, this function will recursively
         download any '.py' files found there to {DAGS_FOLDER}/__s3_dags__/,
         where they will become available to airflow.
+
+        If force is True, the S3 dags will be refreshed; otherwise they are
+        refreshed every 10th time this function is called.
+
+        If fileloc is provided, only dags at that specific location will be
+        checked. Fileloc should be relative to
+        {DAGS_FOLDER}/__s3_dags__/{FILELOC}; in other words, it corresponds to
+        the part of the directory structured mirrored from S3.
         """
         refresh_every = 10
         self._s3_dag_counter += 1
-        if self._s3_dag_counter % refresh_every != 0:
+        if not force and self._s3_dag_counter % refresh_every != 0:
             return
 
         # create necessary directories
@@ -251,6 +259,8 @@ class DagBag(object):
         s3_hook = S3Hook(conf.get('core', 's3_dags_folder_conn_id'))
         bucket, prefix = s3_hook._parse_s3_url(
             conf.get('core', 's3_dags_folder'))
+        if fileloc:
+            prefix = os.path.join(prefix, fileloc)
 
         # download keys if they are new or modified later than local version
         keys = s3_hook.list_keys(bucket, prefix, return_names=False)
@@ -263,6 +273,9 @@ class DagBag(object):
                         continue
                 mkdir_p(os.path.dirname(filename))
                 key.get_contents_to_filename(filename)
+
+        if fileloc:
+            return
 
         # remove any files that aren't in the key list
         key_names = [os.path.join(s3_dag_folder, key.name) for key in keys]
