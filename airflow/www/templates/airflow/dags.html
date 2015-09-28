@@ -51,7 +51,7 @@
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metdata database."></span>
                     {% endif %}
                     {% if dag_id not in orm_dags and False %}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
+                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG  exists only locally. The master scheduler doesn't seem to be aware of it."></span>
                     {% endif %}
                 </td>
                     <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
