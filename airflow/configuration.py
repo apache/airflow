@@ -80,6 +80,7 @@ defaults = {
         'principal': 'airflow',                 # gets augmented with fqdn
         'reinit_frequency': '3600',
         'kinit_path': 'kinit',
+        'keytab': 'airflow.keytab',
     }
 }
 
