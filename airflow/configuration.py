@@ -46,6 +46,7 @@ defaults = {
         'parallelism': 32,
         'load_examples': True,
         'plugins_folder': None,
+        's3_dags_folder': None,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -84,6 +85,11 @@ airflow_home = {AIRFLOW_HOME}
 # The folder where your airflow pipelines live, most likely a
 # subfolder in a code repository
 dags_folder = {AIRFLOW_HOME}/dags
+
+# Dags can also be stored in S3. The S3 dags folder must begin with 's3://'.
+# An airflow S3 Connection is required to access the S3 location.
+# s3_dags_folder = s3://<s3 dags folder>
+# s3_dags_folder_conn_id = S3
 
 # The folder where airflow should store its log files
 base_log_folder = {AIRFLOW_HOME}/logs
