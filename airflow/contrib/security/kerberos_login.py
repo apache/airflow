@@ -7,7 +7,7 @@ from wtforms.validators import InputRequired
 
 # pykerberos is used as it verifies the KDC, the "kerberos" module does not do so
 # and make it possible to spoof the KDC
-import pykerberos as kerberos
+import kerberos as kerberos
 import airflow.security.utils as utils
 
 from flask import url_for, redirect
@@ -36,7 +36,7 @@ class User(models.BaseUser):
         user_principal = utils.principal_from_username(username)
 
         try:
-            if not kerberos.checkPassword(user_principal, password, service_principal, realm):
+            if not kerberos.checkPassword(user_principal, password, service_principal, realm, verify=True):
                 raise AuthenticationError()
         except kerberos.KrbError, e:
             logging.error('password validation for principal %s failed %s', user_principal, e)

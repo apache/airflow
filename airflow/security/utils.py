@@ -69,8 +69,8 @@ def get_fqdn(hostname_or_ip):
     return fqdn
 
 def principal_from_username(username):
-    realm = conf.get("kerberos", "default_realm")
+    realm = conf.get("security", "default_realm")
     if '@' not in username and realm:
-        username = "%s@%s".format(username, realm)
+        username = "{}@{}".format(username, realm)
 
     return username
