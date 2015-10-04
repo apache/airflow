@@ -56,10 +56,10 @@ if conf.getboolean('webserver', 'AUTHENTICATE'):
     try:
         # Environment specific login
         import airflow_login as login
-    except ImportError:
+    except ImportError as e:
         logging.error(
             "authenticate is set to True in airflow.cfg, "
-            "but airflow_login failed to import")
+            "but airflow_login failed to import %s" % e)
 login_required = login.login_required
 current_user = login.current_user
 logout_user = login.logout_user
@@ -750,7 +750,7 @@ class Airflow(BaseView):
             response=json.dumps(d, indent=4),
             status=200, mimetype="application/json")
 
-    @expose('/login')
+    @expose('/login', methods=['GET', 'POST'])
     def login(self):
         return login.login(self, request)
 

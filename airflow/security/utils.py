@@ -18,6 +18,7 @@
 
 import re
 import socket
+import airflow.configuration as conf
 
 # Pattern to replace with hostname
 HOSTNAME_PATTERN = '_HOST'
@@ -66,3 +67,10 @@ def get_fqdn(hostname_or_ip):
         fqdn = get_localhost_name()
 
     return fqdn
+
+def principal_from_username(username):
+    realm = conf.get("kerberos", "default_realm")
+    if '@' not in username and realm:
+        username = "%s@%s".format(username, realm)
+
+    return username
