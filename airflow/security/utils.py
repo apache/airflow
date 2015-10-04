@@ -56,10 +56,13 @@ def get_localhost_name():
     return socket.getfqdn()
 
 
-def get_fqdn(hostname_or_ip):
+def get_fqdn(hostname_or_ip=None):
     # Get hostname
     try:
-        fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
+        if hostname_or_ip:
+            fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
+        else:
+            fqdn = get_localhost_name()
     except IOError:
         fqdn = hostname_or_ip
 
