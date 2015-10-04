@@ -10,7 +10,8 @@ if __name__ == '__main__':
 
     if conf.getboolean("security", "enabled"):
         os.environ['KRB5CCNAME'] = conf.get('security', 'ccache')
-
+        os.environ['KRB5_KTNAME'] = conf.get('security', 'keytab')
+        
     parser = get_parser()
     args = parser.parse_args()
     args.func(args)
