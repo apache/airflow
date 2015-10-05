@@ -68,7 +68,7 @@ class HiveCliHook(BaseHook):
 
                 if self.use_beeline:
                     hive_bin = 'beeline'
-                    if conf.get('security', 'enabled'):
+                    if conf.get('core', 'security') == 'kerberos':
                         template = conn.extra_dejson.get('principal',"hive/_HOST@EXAMPLE.COM")
                         template = utils.replace_hostname_pattern(utils.get_components(template))
 
@@ -391,7 +391,7 @@ class HiveServer2Hook(BaseHook):
     def get_conn(self):
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NOSASL')
-        if conf.get('security','enabled'):
+        if conf.get('core', 'security') == 'kerberos':
             auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
 
         return pyhs2.connect(

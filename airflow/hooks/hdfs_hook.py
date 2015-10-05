@@ -32,7 +32,7 @@ class HDFSHook(BaseHook):
         Returns a snakebite HDFSClient object.
         '''
         use_sasl = False
-        if conf.get('security','enabled'):
+        if conf.get('core','security') == 'kerberos':
             use_sasl = True
 
         connections = self.get_connections(self.hdfs_conn_id)

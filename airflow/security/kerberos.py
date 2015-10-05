@@ -31,13 +31,13 @@ NEED_KRB181_WORKAROUND=None
 def renew_from_kt():
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
-    renewal_lifetime = "%sm" % conf.getint('security', 'reinit_frequency')
-    principal = "%s/%s" % (conf.get('security', 'principal'), socket.getfqdn())
-    cmdv = [conf.get('security', 'kinit_path'),
+    renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
+    principal = "%s/%s" % (conf.get('kerberos', 'principal'), socket.getfqdn())
+    cmdv = [conf.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
             "-k", # host ticket
-            "-t", conf.get('security', 'keytab'),   # specify keytab
-            "-c", conf.get('security', 'ccache'),   # specify credentials cache
+            "-t", conf.get('kerberos', 'keytab'),   # specify keytab
+            "-c", conf.get('kerberos', 'ccache'),   # specify credentials cache
             principal]
     LOG.info("Reinitting kerberos from keytab: " +
              " ".join(cmdv))
@@ -66,16 +66,16 @@ def renew_from_kt():
 
 
 def perform_krb181_workaround():
-    cmdv = [conf.get('security', 'kinit_path'),
+    cmdv = [conf.get('kerberos', 'kinit_path'),
             "-R",
-            "-c", conf.get('security', 'ccache')]
+            "-c", conf.get('kerberos', 'ccache')]
     LOG.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
              " ".join(cmdv))
     ret = subprocess.call(cmdv)
     if ret != 0:
-        principal = "%s/%s" % (conf.get('security', 'principal'), socket.getfqdn())
+        principal = "%s/%s" % (conf.get('kerberos', 'principal'), socket.getfqdn())
         fmt_dict = dict(princ=principal,
-                        ccache=conf.get('security', 'principal'))
+                        ccache=conf.get('kerberos', 'principal'))
         LOG.error("Couldn't renew kerberos ticket in order to work around "
                   "Kerberos 1.8.1 issue. Please check that the ticket for "
                   "'%(princ)s' is still renewable:\n"
@@ -93,7 +93,7 @@ def detect_conf_var():
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.
     """
-    f = file(conf.get('security', 'ccache'), "rb")
+    f = file(conf.get('kerberos', 'ccache'), "rb")
 
     try:
         data = f.read()
@@ -102,10 +102,10 @@ def detect_conf_var():
         f.close()
 
 def run():
-    if conf.get('security','keytab') is None:
+    if conf.get('kerberos','keytab') is None:
         LOG.debug("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
     while True:
         renew_from_kt()
-        time.sleep(conf.getint('security', 'reinit_frequency'))
+        time.sleep(conf.getint('kerberos', 'reinit_frequency'))

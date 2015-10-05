@@ -46,6 +46,7 @@ defaults = {
         'parallelism': 32,
         'load_examples': True,
         'plugins_folder': None,
+        'security': None,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -74,8 +75,7 @@ defaults = {
     'smtp': {
         'smtp_starttls': True,
     },
-    'security': {
-        'enabled': False,
+    'kerberos': {
         'ccache': '/tmp/airflow_krb5_ccache',
         'principal': 'airflow',                 # gets augmented with fqdn
         'reinit_frequency': '3600',

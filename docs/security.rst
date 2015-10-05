@@ -33,8 +33,10 @@ your airflow.cfg
 
 .. code-block:: bash
 
-    [security]
-    enabled = True
+    [core]
+    security = kerberos
+
+    [kerberos]
     keytab = /etc/airflow/airflow.keytab
     reinit_frequency = 3600
     principal = airflow

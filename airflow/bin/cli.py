@@ -604,10 +604,10 @@ def get_parser():
     parser_kerberos = subparsers.add_parser('kerberos', help=ht)
     parser_kerberos.add_argument(
         "-kt", "--keytab", help="keytab",
-        nargs='?', default=conf.get('security', 'keytab'))
+        nargs='?', default=conf.get('kerberos', 'keytab'))
     parser_kerberos.add_argument(
         "principal", help="kerberos principal",
-        nargs='?', default=conf.get('security', 'principal'))
+        nargs='?', default=conf.get('kerberos', 'principal'))
     parser_kerberos.set_defaults(func=kerberos)
 
     return parser
