@@ -136,6 +136,12 @@
             Mark Success
           </button>
           <span class="btn-group">
+            <button id="btn_success_past"
+              type="button" class="btn" data-toggle="button">Past</button>
+            <button id="btn_success_future"
+              type="button" class="btn" data-toggle="button">
+              Future
+            </button>
             <button id="btn_success_upstream"
               type="button" class="btn" data-toggle="button">Upstream</button>
             <button id="btn_success_downstream"
@@ -269,6 +275,8 @@ function updateQueryStringParameter(uri, key, value) {
         "&dag_id=" + dag_id +
         "&upstream=" + $('#btn_success_upstream').hasClass('active') +
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
+        "&future=" + $('#btn_success_future').hasClass('active') +
+        "&past=" + $('#btn_success_past').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
 

@@ -2,7 +2,7 @@ from __future__ import print_function
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
-from datetime import datetime, timedelta
+from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -28,6 +28,8 @@ from contextlib import contextmanager
 
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
+
+import numpy as np
 
 from airflow import settings
 from airflow.configuration import conf
@@ -452,7 +454,8 @@ def import_module_attrs(parent_module_globals, module_attrs_dict):
     imported_attrs = []
     for mod, attrs in list(module_attrs_dict.items()):
         try:
-            folder = os.path.dirname(parent_module_globals['__file__'])
+            path = os.path.realpath(parent_module_globals['__file__'])
+            folder = os.path.dirname(path)
             f, filename, description = imp.find_module(mod, [folder])
             module = imp.load_module(mod, f, filename, description)
             for attr in attrs:
@@ -620,9 +623,20 @@ def chain(*tasks):
 
 class AirflowJsonEncoder(json.JSONEncoder):
     def default(self, obj):
+        # convert dates and numpy objects in a json serializable format
         if isinstance(obj, datetime):
             return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
+        elif type(obj) in [np.int_, np.intc, np.intp, np.int8, np.int16,
+                           np.int32, np.int64, np.uint8, np.uint16,
+                           np.uint32, np.uint64]:
+            return int(obj)
+        elif type(obj) in [np.bool_]:
+            return bool(obj)
+        elif type(obj) in [np.float_, np.float16, np.float32, np.float64,
+                           np.complex_, np.complex64, np.complex128]:
+            return float(obj)
+
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)

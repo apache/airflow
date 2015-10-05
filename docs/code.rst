@@ -68,6 +68,16 @@ Operator API
         SubDagOperator,
         TimeSensor
 
+
+Community Contributed Operators
+'''''''''''''''''''''''''''''''
+
+.. automodule:: airflow.contrib.operators
+    :show-inheritance:
+    :members:
+        VerticaOperator,
+        VerticaToHiveTransfer
+
 .. _macros:
 
 Macros
@@ -152,6 +162,15 @@ Hooks
         PrestoHook,
         S3Hook,
         SqliteHook
+
+Community Contributed Hooks
+'''''''''''''''''''''''''''
+
+.. automodule:: airflow.contrib.hooks
+    :show-inheritance:
+    :members:
+        VerticaHook,
+        FTPHook
 
 Executors
 ---------

@@ -272,34 +272,54 @@ class SchedulerJob(BaseJob):
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
-        task_list = "\n".join([
-            sla.task_id + ' on ' + sla.execution_date.isoformat()
-            for sla in slas])
-        from airflow import ascii
-        email_content = """\
-        Here's a list of tasks thas missed their SLAs:
-        <pre><code>{task_list}\n{ascii.bug}<code></pre>
-        """.format(**locals())
-        emails = []
-        for t in dag.tasks:
-            if t.email:
-                if isinstance(t.email, basestring):
-                    l = [t.email]
-                elif isinstance(t.email, (list, tuple)):
-                    l = t.email
-                for email in l:
-                    if email not in emails:
-                        emails.append(email)
-        if emails and len(slas):
-            utils.send_email(
-                emails,
-                "[airflow] SLA miss on DAG=" + dag.dag_id,
-                email_content)
-            for sla in slas:
-                sla.email_sent = True
-                session.merge(sla)
-        session.commit()
-        session.close()
+
+        if slas:
+            sla_dates = [sla.execution_date for sla in slas]
+            blocking_tis = (
+                session
+                .query(TI)
+                .filter(TI.state != State.SUCCESS)
+                .filter(TI.execution_date.in_(sla_dates))
+                .filter(TI.dag_id == dag.dag_id)
+                .all()
+            )
+            for ti in blocking_tis:
+                    ti.task = dag.get_task(ti.task_id)
+            blocking_tis = ([ti for ti in blocking_tis
+                            if ti.are_dependencies_met(main_session=session)])
+            task_list = "\n".join([
+                sla.task_id + ' on ' + sla.execution_date.isoformat()
+                for sla in slas])
+            blocking_task_list = "\n".join([
+                ti.task_id + ' on ' + ti.execution_date.isoformat()
+                for ti in blocking_tis])
+            from airflow import ascii
+            email_content = """\
+            Here's a list of tasks thas missed their SLAs:
+            <pre><code>{task_list}\n<code></pre>
+            Blocking tasks:
+            <pre><code>{blocking_task_list}\n{ascii.bug}<code></pre>
+            """.format(**locals())
+            emails = []
+            for t in dag.tasks:
+                if t.email:
+                    if isinstance(t.email, basestring):
+                        l = [t.email]
+                    elif isinstance(t.email, (list, tuple)):
+                        l = t.email
+                    for email in l:
+                        if email not in emails:
+                            emails.append(email)
+            if emails and len(slas):
+                utils.send_email(
+                    emails,
+                    "[airflow] SLA miss on DAG=" + dag.dag_id,
+                    email_content)
+                for sla in slas:
+                    sla.email_sent = True
+                    session.merge(sla)
+            session.commit()
+            session.close()
 
     def import_errors(self, dagbag):
         session = settings.Session()
@@ -346,7 +366,7 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
         logging.info(
             "Getting latest instance "
-            "for all task in dag " + dag.dag_id)
+            "for all tasks in dag " + dag.dag_id)
         sq = (
             session
             .query(

@@ -243,6 +243,8 @@ class S3KeySensor(BaseSensorOperator):
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
     :type wildcard_match: bool
+    :param s3_conn_id: a reference to the s3 connection
+    :type s3_conn_id: str
     """
     template_fields = ('bucket_key', 'bucket_name')
 

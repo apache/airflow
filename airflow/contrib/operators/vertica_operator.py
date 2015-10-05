@@ -1,6 +1,6 @@
 import logging
 
-from airflow.hooks import VerticaHook
+from airflow.contrib.hooks import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 

@@ -70,7 +70,7 @@ def backfill(args):
             mark_success=args.mark_success,
             include_adhoc=args.include_adhoc,
             local=args.local,
-            donot_pickle=args.donot_pickle,
+            donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
             ignore_dependencies=args.ignore_dependencies)
 
 
@@ -581,7 +581,7 @@ def get_parser():
     parser_worker = subparsers.add_parser('worker', help=ht)
     parser_worker.add_argument(
         "-q", "--queues",
-        help="Comma delimited list of queues to cater serve",
+        help="Comma delimited list of queues to serve",
         default=conf.get('celery', 'DEFAULT_QUEUE'))
     parser_worker.set_defaults(func=worker)
 

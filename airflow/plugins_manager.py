@@ -3,6 +3,7 @@ import imp
 import inspect
 import logging
 import os
+import sys
 from itertools import chain
 merge = chain.from_iterable
 
@@ -32,6 +33,9 @@ if not plugins_folder:
     plugins_folder = conf.get('core', 'airflow_home') + '/plugins'
 plugins_folder = os.path.expanduser(plugins_folder)
 
+if plugins_folder not in sys.path:
+    sys.path.append(plugins_folder)
+
 plugins = []
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
@@ -45,7 +49,8 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
                 os.path.split(filepath)[-1])
             if file_ext != '.py':
                 continue
-            m = imp.load_source(mod_name, filepath)
+            namespace = root.replace('/', '__') + '_' + mod_name
+            m = imp.load_source(namespace, filepath)
             for obj in list(m.__dict__.values()):
                 if (
                         inspect.isclass(obj) and

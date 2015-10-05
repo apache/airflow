@@ -1,7 +1,5 @@
-'''
-Imports operators dynamically while keeping the package API clean,
-abstracting the underlying modules
-'''
+# Imports operators dynamically while keeping the package API clean,
+# abstracting the underlying modules
 from airflow.utils import import_module_attrs as _import_module_attrs
 
 # These need to be integrated first as other operators depend on them
@@ -28,8 +26,6 @@ _operators = {
     'mysql_operator': ['MySqlOperator'],
     'sqlite_operator': ['SqliteOperator'],
     'mysql_to_hive': ['MySqlToHiveTransfer'],
-    'vertica_operator': ['VerticaOperator'],
-    'vertica_to_hive': ['VerticaToHiveTransfer'],
     'postgres_operator': ['PostgresOperator'],
     'sensors': [
         'SqlSensor',
@@ -52,7 +48,7 @@ _operators = {
     'jdbc_operator': ['JdbcOperator'],
     'mssql_operator': ['MsSqlOperator'],
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
-    'slack_operator': ['SlackAPIPostOperator'],
+    'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
 }
 

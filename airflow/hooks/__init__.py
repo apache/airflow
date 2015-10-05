@@ -1,7 +1,5 @@
-'''
-Imports the hooks dynamically while keeping the package API clean,
-abstracting the underlying modules
-'''
+# Imports the hooks dynamically while keeping the package API clean,
+# abstracting the underlying modules
 from airflow.utils import import_module_attrs as _import_module_attrs
 from airflow.hooks.base_hook import BaseHook as _BaseHook
 
@@ -24,11 +22,10 @@ _hooks = {
     'dbapi_hook': ['DbApiHook'],
     'mssql_hook': ['MsSqlHook'],
     'oracle_hook': ['OracleHook'],
-    'vertica_hook': ['VerticaHook'],
 }
 
 _import_module_attrs(globals(), _hooks)
-
+from airflow.hooks.base_hook import BaseHook
 
 def integrate_plugins():
     """Integrate plugins to the context"""

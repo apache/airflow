@@ -47,6 +47,7 @@ defaults = {
         'load_examples': True,
         'plugins_folder': None,
         'security': None,
+        'donot_pickle': False,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -120,6 +121,9 @@ plugins_folder = {AIRFLOW_HOME}/plugins
 
 # Secret key to save connection passwords in the db
 fernet_key = {FERNET_KEY}
+
+# Whether to disable pickling dags
+donot_pickle = False
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
@@ -251,6 +255,7 @@ executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 unit_test_mode = True
 load_examples = True
+donot_pickle = False
 
 [webserver]
 base_url = http://localhost:8080

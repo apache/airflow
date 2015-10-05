@@ -36,9 +36,10 @@ class JdbcOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql,
-            jdbc_conn_id='jdbc_default', autocommit=False,
+            jdbc_conn_id='jdbc_default', autocommit=False, parameters=None,
             *args, **kwargs):
         super(JdbcOperator, self).__init__(*args, **kwargs)
+        self.parameters = parameters
 
         self.sql = sql
         self.jdbc_conn_id = jdbc_conn_id
@@ -47,4 +48,4 @@ class JdbcOperator(BaseOperator):
     def execute(self, context):
         logging.info('Executing: ' + str(self.sql))
         self.hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        self.hook.run(self.sql, self.autocommit)
+        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

@@ -30,3 +30,6 @@ TODO
 * Pause flag at the task level
 * Task callbacks as tasks?
 * Increase unit test coverage
+
+#### OTher
+deprecate TimeSensor
