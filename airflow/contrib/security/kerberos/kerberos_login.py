@@ -31,7 +31,7 @@ class AuthenticationError(Exception):
 class User(models.BaseUser):
     @staticmethod
     def authenticate(username, password):
-        service_principal = "%s/%s" % (conf.get('security', 'principal'), utils.get_fqdn())
+        service_principal = "%s/%s" % (conf.get('kerberos', 'principal'), utils.get_fqdn())
         realm = conf.get("kerberos", "default_realm")
         user_principal = utils.principal_from_username(username)
 
@@ -40,7 +40,7 @@ class User(models.BaseUser):
             if not kerberos.checkPassword(user_principal, password, service_principal, realm, True):
                 raise AuthenticationError()
         except kerberos.KrbError, e:
-            logging.error('password validation for principal %s failed %s', user_principal, e)
+            logging.error('Password validation for principal %s failed %s', user_principal, e)
             raise AuthenticationError(e)
 
         return
