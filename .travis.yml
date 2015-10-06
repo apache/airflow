@@ -11,4 +11,4 @@ install:
   - pip install tox
 script:
   - tox --version
-  - python setup.py test --tox-args="-e $TOX_ENV"
+  - python setup.py test --tox-args="-v -e $TOX_ENV"
