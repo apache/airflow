@@ -1,6 +1,6 @@
-sudo: required
-
+sudo: false
 language: python
+jdk: oraclejdk7
 python: 
   - "2.7"
   - "3.3"
