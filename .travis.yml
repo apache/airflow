@@ -3,7 +3,11 @@ language: python
 jdk: oraclejdk7
 python: 
   - "2.7"
-  - "3.3"
-
-install: "pip install -r requirements.txt"
-script: ./run_unit_tests.sh
+env:
+  - TOX_ENV=py27-cdh
+  - TOX_ENV=py27-hdp
+install:
+  - pip install tox
+script:
+  - tox --version
+  - python setup.py test --tox-args="-e $TOX_ENV"
