@@ -12,7 +12,7 @@ env:
 install:
   - pip install tox
 before_script:
-  - mysql -e 'create db airflow'
+  - mysql -e 'create database airflow'
   - psql -c 'create database airflow;' -U postgres
 script:
   - tox --version
