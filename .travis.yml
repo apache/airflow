@@ -10,4 +10,4 @@ install:
   - pip install tox
 script:
   - tox --version
-  - python setup.py test --tox-args="-v -e $TOX_ENV"
+  - travis_wait python setup.py test --tox-args="-v -e $TOX_ENV"
