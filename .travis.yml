@@ -1,6 +1,9 @@
 sudo: false
 language: python
 jdk: oraclejdk7
+services:
+  - mysql
+  - postgresql
 python: 
   - "2.7"
 env:
@@ -8,6 +11,9 @@ env:
   - TOX_ENV=py27-hdp
 install:
   - pip install tox
+before_script:
+  - mysql -e 'create db airflow'
+  - psql -c 'create database airflow;' -U postgres
 script:
   - tox --version
   - travis_wait ./run_tox.sh
