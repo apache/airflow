@@ -33,7 +33,7 @@ class ShebangOperator(BaseOperator):
         behavior.
     :type env: dict
     """
-    template_fields = ('command',)
+    template_fields = ('command', 'interpreter', 'suffix', 'prefix', )
     template_ext = ('.shebang', '.sh', '.bash', '.rb', '.tex', '.R', )
     ui_color = '#f0ede4'
 
