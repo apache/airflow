@@ -24,7 +24,6 @@ login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
 
-
 def get_ldap_connection():
     try:
         cacert = conf.get("ldap", "cacert")
@@ -40,7 +39,7 @@ class User(models.BaseUser):
     @staticmethod
     def try_login(username, password):
         conn = get_ldap_connection()
-        if conf.getboolean("security", "enabled"):
+        if conf.get('core', 'security') == 'kerberos':
             sasl = ldap.sasl.gssapi()
             conn.sasl_interactive_bind_s("", sasl)
         else:
