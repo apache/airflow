@@ -64,6 +64,7 @@ defaults = {
         'secret_key': 'airflowified',
         'expose_config': False,
         'threads': 4,
+        'auth_backend': 'airflow.default_login'
     },
     'scheduler': {
         'statsd_on': False,
@@ -150,6 +151,9 @@ thread = 4
 
 # Expose the configuration file in the web server
 expose_config = true
+
+# Authentication backend
+auth_backend = airflow.default_login
 
 # Set to true to turn on authentication : http://pythonhosted.org/airflow/installation.html#web-authentication
 authenticate = False

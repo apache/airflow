@@ -50,12 +50,29 @@ from airflow.models import State
 from airflow.settings import Session
 from airflow.utils import AirflowException
 from airflow.www import utils as wwwutils
-
+from importlib import import_module
 
 login_required = login.login_required
 current_user = login.current_user
 logout_user = login.logout_user
 
+
+auth_backend = 'airflow.default_login'
+try:
+    auth_backend = conf.get('webserver', 'auth_backend')
+except AirflowException:
+    if conf.getboolean('webserver', 'AUTHENTICATE'):
+        logging.warning("auth_backend not found in webserver config reverting to *deprecated*"
+                        " behavior of importing airflow_login")
+        auth_backend = "airflow_login"
+
+try:
+    login = import_module(auth_backend)
+except ImportError:
+    logging.critical(
+        "Cannot import authentication module %s. Please correct your authentication backend or disable authentication"
+    )
+    raise AirflowException("Failure to import authentication backend")
 
 from airflow import default_login as login
 if conf.getboolean('webserver', 'AUTHENTICATE'):
