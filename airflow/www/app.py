@@ -45,7 +45,7 @@ from sqlalchemy import or_
 
 import airflow
 from airflow import jobs, login, models, settings, utils
-from airflow.configuration import conf
+from airflow.configuration import conf, AirflowConfigException
 from airflow.models import State
 from airflow.settings import Session
 from airflow.utils import AirflowException
@@ -57,10 +57,10 @@ current_user = login.current_user
 logout_user = login.logout_user
 
 
-auth_backend = 'airflow.default_login'
+auth_backend = 'default_login'
 try:
     auth_backend = conf.get('webserver', 'auth_backend')
-except AirflowException:
+except AirflowConfigException:
     if conf.getboolean('webserver', 'AUTHENTICATE'):
         logging.warning("auth_backend not found in webserver config reverting to *deprecated*"
                         " behavior of importing airflow_login")

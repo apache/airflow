@@ -64,7 +64,6 @@ defaults = {
         'secret_key': 'airflowified',
         'expose_config': False,
         'threads': 4,
-        'auth_backend': 'airflow.default_login'
     },
     'scheduler': {
         'statsd_on': False,
