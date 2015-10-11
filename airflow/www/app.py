@@ -70,9 +70,12 @@ try:
     login = import_module(auth_backend)
 except ImportError:
     logging.critical(
-        "Cannot import authentication module %s. Please correct your authentication backend or disable authentication"
+        "Cannot import authentication module %s. "
+        "Please correct your authentication backend or disable authentication",
+        auth_backend
     )
-    raise AirflowException("Failure to import authentication backend")
+    if conf.getboolean('webserver', 'AUTHENTICATE'):
+        raise AirflowException("Failed to import authentication backend")
 
 from airflow import default_login as login
 if conf.getboolean('webserver', 'AUTHENTICATE'):
