@@ -641,7 +641,7 @@ class TaskInstance(Base):
             path to add the feature
         :type flag_upstream_failed: boolean
         """
-        if self.execution_date > datetime.now() - self.task.schedule_interval:
+        if self.execution_date > datetime.now():
             return False
         elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
             return False
@@ -2473,10 +2473,15 @@ class DagRun(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     execution_date = Column(DateTime, primary_key=True)
     run_id = Column(String(ID_LEN))
-    timestamp = Column(DateTime)
-    description = Column(Text)
+    external_trigger = Column(Boolean, default=False)
 
     def __repr__(self):
+        return '<DagRun {dag_id} @ {execution_date}: {run_id}, \
+            externally triggered: {external_trigger}>'.format(
+            task_id=self.task_id,
+            execution_date=self.execution_date,
+            run_id=self.run_id,
+            external_trigger=self.external_trigger)
         return str((
             self.dag_id, self.run_id, self.execution_date.isoformat()))
 

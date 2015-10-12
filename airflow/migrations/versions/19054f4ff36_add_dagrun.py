@@ -21,7 +21,8 @@ def upgrade():
         'dag_run',
         sa.Column('dag_id', sa.String(length=250), nullable=False),
         sa.Column('execution_date', sa.DateTime(), nullable=False),
-        sa.Column('run_id', sa.String(length=250), nullable=False),
+        sa.Column('run_id', sa.String(length=250), nullable=True),
+        sa.Column('external_trigger', sa.Boolean(), nullable=True),
         sa.PrimaryKeyConstraint('dag_id', 'execution_date')
     )
 
