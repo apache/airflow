@@ -2463,6 +2463,24 @@ class XCom(Base):
         return query.all()
 
 
+class DagRun(Base):
+    """
+    DagRun describes an instance of a Dag. It can be created
+    by a scheduled of a Dag or by an external trigger
+    """
+    __tablename__ = "dag_run"
+
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(DateTime, primary_key=True)
+    run_id = Column(String(ID_LEN))
+    timestamp = Column(DateTime)
+    description = Column(Text)
+
+    def __repr__(self):
+        return str((
+            self.dag_id, self.run_id, self.execution_date.isoformat()))
+
+
 class Pool(Base):
     __tablename__ = "slot_pool"
 
