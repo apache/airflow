@@ -13,7 +13,7 @@ import airflow
 from airflow import jobs, settings, utils
 from airflow.configuration import conf
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.models import DagBag, TaskInstance, DagPickle
+from airflow.models import DagBag, TaskInstance, DagPickle, DagRun
 from airflow.utils import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
@@ -72,6 +72,21 @@ def backfill(args):
             local=args.local,
             donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
             ignore_dependencies=args.ignore_dependencies)
+
+
+def trigger_dag(args):
+    session = settings.Session()
+    # TODO: verify dag_id
+    dag_id = args.dag_id
+    run_id = args.run_id or None
+    execution_date = datetime.now()
+    trigger = DagRun(
+        dag_id=dag_id,
+        run_id=run_id,
+        execution_date=execution_date,
+        external_trigger=True)
+    session.add(trigger)
+    session.commit()
 
 
 def run(args):
@@ -435,6 +450,14 @@ def get_parser():
     parser_clear.add_argument(
         "-c", "--no_confirm", help=ht, action="store_true")
     parser_clear.set_defaults(func=clear)
+
+    ht = "Trigger a DAG"
+    parser_trigger_dag = subparsers.add_parser('trigger_dag', help=ht)
+    parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run")
+    parser_trigger_dag.add_argument(
+        "-r", "--run_id",
+        help="Helps to indentify this run")
+    parser_trigger_dag.set_defaults(func=trigger_dag)
 
     ht = "Run a single task instance"
     parser_run = subparsers.add_parser('run', help=ht)
