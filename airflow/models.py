@@ -2466,7 +2466,7 @@ class XCom(Base):
 class DagRun(Base):
     """
     DagRun describes an instance of a Dag. It can be created
-    by a scheduled of a Dag or by an external trigger
+    by the scheduler (for regular runs) or by an external trigger
     """
     __tablename__ = "dag_run"
 

@@ -423,7 +423,7 @@ class SchedulerJob(BaseJob):
             if task.adhoc:
                 continue
             if task.task_id not in ti_dict:
-                # TODO: Needs this be changed with DagRun refactoring
+                # TODO: Check whether this needs to be changed with DagRun refactoring
                 # Brand new task, let's get started
                 ti = TI(task, task.start_date)
                 ti.refresh_from_db()
@@ -447,8 +447,8 @@ class SchedulerJob(BaseJob):
                     # in self.prioritize_queued
                     continue
                 else:
-                    # Checking whether there is a dag for which no task exists
-                    # up to now
+                    # Checking whether there is a DagRun for which a task
+                    # needs to be created
                     qry = session.query(func.min(models.DagRun.execution_date)).filter(
                         and_(models.DagRun.dag_id == dag.dag_id,
                         models.DagRun.execution_date > ti.execution_date))
