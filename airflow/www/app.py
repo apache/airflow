@@ -931,6 +931,13 @@ class Airflow(BaseView):
             deps = request.args.get('deps') == "true"
             ti = models.TaskInstance(task=task, execution_date=execution_date)
             executor.start()
+
+            session = settings.Session()
+            session.add(models.Log(event='web_ui_run',
+                                   task_instance=ti,
+                                   owner=(current_user.get_id() or 'anon')))
+            session.commit()
+
             executor.queue_task_instance(
                 ti, force=force, ignore_dependencies=deps)
             executor.heartbeat()
@@ -956,6 +963,7 @@ class Airflow(BaseView):
                 flash("{0} task instances have been cleared".format(count))
                 return redirect(origin)
             else:
+                # placeholder for comments
                 tis = dag.clear(
                     start_date=start_date,
                     end_date=end_date,
@@ -1032,6 +1040,10 @@ class Airflow(BaseView):
             if confirmed:
                 for ti in tis_to_change:
                     ti.state = State.SUCCESS
+                    session.add(
+                        models.Log(event='web_ui_mark_success_change',
+                                   task_instance=ti,
+                                   owner=(current_user.get_id() or 'anon')))
                 session.commit()
 
                 for task_id, task_execution_date in tis_to_create:
@@ -1040,6 +1052,10 @@ class Airflow(BaseView):
                         execution_date=task_execution_date,
                         state=State.SUCCESS)
                     session.add(ti)
+                    session.add(
+                        models.Log(event='web_ui_mark_success_create',
+                                   task_instance=ti,
+                                   owner=(current_user.get_id() or 'anon')))
                     session.commit()
 
                 session.commit()
