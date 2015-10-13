@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+MINIKDC_VERSION=2.7.1
 
 HADOOP_DISTRO=${HADOOP_DISTRO:-"hdp"}
 
@@ -51,6 +52,26 @@ fi
 
 mkdir -p $HADOOP_HOME
 
+# Setup MiniKDC environment
+mkdir -p $HADOOP_HOME/minikdc
+
+URL=http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/2.3.0/ivy-2.3.0.jar
+echo "Downloading ivy"
+curl -o ${HADOOP_HOME}/minikdc/ivy.jar -L ${URL}
+
+if [ $? != 0 ]; then
+    echo "Failed to download ivy"
+    exit 1
+fi
+
+echo "Getting minikdc dependencies"
+java -jar ${HADOOP_HOME}/minikdc/ivy.jar -dependency org.apache.hadoop hadoop-minikdc ${MINIKDC_VERSION} -retrieve "${HADDOP_HOME}/minikdc/lib/[artifact]-[revision](-[classifier]).[ext]"
+
+if [ $? != 0 ]; then
+    echo "Failed to download dependencies for minikdc"
+    exit 1
+fi
+
 if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
@@ -81,3 +102,5 @@ if [ $? != 0 ]; then
     echo "Failed to extract Hadoop from ${HADOOP_HOME}/hadoop.tar.gz to ${HADOOP_HOME} - abort" >&2
     exit 1
 fi
+
+
