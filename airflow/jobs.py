@@ -353,6 +353,7 @@ class SchedulerJob(BaseJob):
                 dag_id=dag.dag_id,
                 run_id='scheduled',
                 execution_date=next_run_date,
+                state='active',
                 external_trigger=False
             )
             session.add(next_run)
@@ -464,6 +465,29 @@ class SchedulerJob(BaseJob):
                     if ti.is_queueable(flag_upstream_failed=True):
                         logging.debug('Queuing next run: ' + str(ti))
                         executor.queue_task_instance(ti, pickle_id=pickle_id)
+
+        # Checking state of active DagRuns
+        active_runs = session.query(models.DagRun).filter(
+            models.DagRun.dag_id == dag.dag_id,
+            models.DagRun.state == 'active'
+        ).all()
+        for run in active_runs:
+            logging.info("Checking state for " + str(run))
+            task_instances = session.query(TI).filter(
+                TI.dag_id == run.dag_id,
+                TI.execution_date == run.execution_date
+            ).all()
+            if len(task_instances) == len(dag.tasks):
+                task_states = [ti.state for ti in task_instances]
+                if 'failed' in task_states:
+                    logging.info(str(run) + 'is failed')
+                    run.state = 'failed'
+                if set(task_states) == set(['success']):
+                    logging.info(str(run) + 'is successful')
+                    run.state = 'success'
+            else:
+                logging.info('not all tasks are finished')
+
         # Releasing the lock
         logging.debug("Unlocking DAG (scheduler_lock)")
         db_dag = (

@@ -2472,13 +2472,14 @@ class DagRun(Base):
 
     dag_id = Column(String(ID_LEN), primary_key=True)
     execution_date = Column(DateTime, primary_key=True)
+    state = Column(String(50))
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=False)
 
     def __repr__(self):
         return '<DagRun {dag_id} @ {execution_date}: {run_id}, \
             externally triggered: {external_trigger}>'.format(
-            task_id=self.task_id,
+            dag_id=self.dag_id,
             execution_date=self.execution_date,
             run_id=self.run_id,
             external_trigger=self.external_trigger)
