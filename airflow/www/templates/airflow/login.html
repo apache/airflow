@@ -1,0 +1,15 @@
+{% extends "admin/master.html" %}
+{% block title %}{{ title }}{% endblock %}
+
+{% block body %}
+    <div class="login-form">
+        <img src="{{ url_for("static", filename="pin_100.png") }}"/>
+        <form method="post" action="{{ url_for('airflow.login') }}">
+            <input type="text" class="form-control" placeholder="Username" name="username" style="margin:5%" required autofocus>
+            <input type="password" class="form-control" placeholder="Password" name="password" style="margin:5%" required>
+            <button class="btn btn-lg btn-primary btn-block" type="submit" style="margin:5%">
+                Sign in
+            </button>
+        </form>
+    </div>
+{% endblock %}

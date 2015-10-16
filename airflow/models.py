@@ -290,6 +290,7 @@ class BaseUser(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(ID_LEN), unique=True)
     email = Column(String(500))
+    password = Column(String(500))
 
     def __repr__(self):
         return self.username

@@ -175,6 +175,7 @@ def upgrade():
             'user',
             sa.Column('id', sa.Integer(), nullable=False),
             sa.Column('username', sa.String(length=250), nullable=True),
+            sa.Column('password', sa.String(length=500), nullable=True),
             sa.Column('email', sa.String(length=500), nullable=True),
             sa.PrimaryKeyConstraint('id'),
             sa.UniqueConstraint('username')

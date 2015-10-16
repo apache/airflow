@@ -15,31 +15,45 @@ from wtforms.compat import text_type
 from airflow.configuration import conf
 AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
 
+'''
+    TODO:
+        Fix LoginMixin, SuperUserMixin, DataProfilingMixin bug
+        when user is not logged in. The parameters aren't working
+'''
 
 class LoginMixin(object):
     def is_accessible(self):
-        return (
-            not AUTHENTICATE or (
-                not current_user.is_anonymous() and
-                current_user.is_authenticated()
+        try:
+            return (
+                not AUTHENTICATE or (
+                    not current_user.is_anonymous() and
+                    current_user.is_authenticated()
+                )
             )
-        )
+        except:
+            return False
 
 
 class SuperUserMixin(object):
     def is_accessible(self):
-        return (
-            not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.is_superuser())
-        )
+        try:
+            return (
+                not AUTHENTICATE or
+                (not current_user.is_anonymous() and current_user.is_superuser())
+            )
+        except:
+            return False
 
 
 class DataProfilingMixin(object):
     def is_accessible(self):
-        return (
-            not AUTHENTICATE or
-            (not current_user.is_anonymous() and current_user.data_profiling())
-        )
+        try:
+            return (
+                not AUTHENTICATE or
+                (not current_user.is_anonymous() and current_user.data_profiling())
+            )
+        except:
+            return False
 
 
 def limit_sql(sql, limit, conn_type):
