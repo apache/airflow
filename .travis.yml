@@ -23,5 +23,5 @@ script:
   - pip --version
   - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
   - tox --version
-  - ./run_tox.sh
+  - tox -e $TOX_ENV
 
