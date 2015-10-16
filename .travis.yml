@@ -22,7 +22,7 @@ before_script:
 script:
   - pip --version
   - ls -l $HOME/.wheelhouse
-  - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
+#  - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
   - tox --version
   - tox -e $TOX_ENV
 
