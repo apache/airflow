@@ -10,6 +10,7 @@ flask
 flask-admin
 flask-cache
 flask-login
+flask-bcrypt
 flower
 future
 gunicorn
