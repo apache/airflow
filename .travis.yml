@@ -12,6 +12,7 @@ env:
 cache:
   directories:
     - $HOME/.pip-cache/
+    - $HOME/.wheelhouse/
 install:
   - pip install --upgrade pip
   - pip install tox
@@ -19,6 +20,8 @@ before_script:
   - mysql -e 'create database airflow'
   - psql -c 'create database airflow;' -U postgres
 script:
+  - pip --version
+  - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
   - tox --version
   - ./run_tox.sh
 
