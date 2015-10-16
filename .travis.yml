@@ -21,6 +21,7 @@ before_script:
   - psql -c 'create database airflow;' -U postgres
 script:
   - pip --version
+  - ls -l $HOME/.wheelhouse
   - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
   - tox --version
   - tox -e $TOX_ENV
