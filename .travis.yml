@@ -9,7 +9,12 @@ python:
 env:
   - TOX_ENV=py27-cdh
   - TOX_ENV=py27-hdp
+  - PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
+cache:
+  directories:
+    - $HOME/.pip-cache/
 install:
+  - pip install --upgrade pip
   - pip install tox
 before_script:
   - mysql -e 'create database airflow'
@@ -17,3 +22,4 @@ before_script:
 script:
   - tox --version
   - travis_wait ./run_tox.sh
+
