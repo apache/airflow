@@ -20,5 +20,5 @@ before_script:
   - psql -c 'create database airflow;' -U postgres
 script:
   - tox --version
-  - travis_wait ./run_tox.sh
+  - ./run_tox.sh
 
