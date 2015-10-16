@@ -13,5 +13,6 @@ args = parser.parse_args()
 req_file = open(args.file, 'r')
 
 for req in requirements.parse(req_file):
+    print "Checking " + args.wheeldir + os.path.pathsep + req.name + "*.whl"
     if not glob.glob(args.wheeldir + os.path.pathsep + req.name + "*.whl"):
         os.system("pip wheel --wheel-dir=" + args.wheeldir + " " + req.name + "".join(req.specs) + "".join(req.extras))
