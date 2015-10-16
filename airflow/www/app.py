@@ -26,6 +26,7 @@ from flask.ext.admin.form import DateTimePickerWidget
 from flask.ext.admin import base
 from flask.ext.admin.contrib.sqla import ModelView
 from flask.ext.cache import Cache
+from flask.ext.bcrypt import Bcrypt
 from flask import request
 import sqlalchemy as sqla
 from wtforms import (
@@ -166,6 +167,7 @@ dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 utils.pessimistic_connection_handling()
 
 app = Flask(__name__)
+bcrypt = Bcrypt(app)
 app.config['SQLALCHEMY_POOL_RECYCLE'] = 3600
 app.secret_key = conf.get('webserver', 'SECRET_KEY')
 
@@ -759,9 +761,14 @@ class Airflow(BaseView):
             response=json.dumps(d, indent=4),
             status=200, mimetype="application/json")
 
-    @expose('/login')
+    @expose('/login',methods=['GET','POST'])
     def login(self):
-        return login.login(self, request)
+        if request.method == 'POST':
+            validate = login.login(self,request)
+            
+            if validate:
+                return redirect(request.args.get("next") or url_for("index"))
+        return self.render('airflow/login.html')
 
     @expose('/logout')
     def logout(self):
