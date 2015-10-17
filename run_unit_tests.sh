@@ -8,8 +8,11 @@ which airflow > /dev/null || python setup.py develop
 #AIRFLOW_DB=$AIRFLOW_HOME/unittests.db
 #ls -s $AIRFLOW_DB > /dev/null 2>&1 || airflow initdb # if it's missing
 #ls -s $AIRFLOW_DB | egrep '^0 ' > /dev/null && airflow initdb # if it's blank
+
+echo "Initializing the DB"
 airflow initdb
 
+echo "Starting the unit tests"
 nosetests --with-doctest \
           --with-coverage \
           --cover-erase \
