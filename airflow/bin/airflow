@@ -11,7 +11,7 @@ if __name__ == '__main__':
     if conf.get("core", "security") == 'kerberos':
         os.environ['KRB5CCNAME'] = conf.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
-        
+
     parser = get_parser()
     args = parser.parse_args()
     args.func(args)

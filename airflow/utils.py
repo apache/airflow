@@ -111,7 +111,16 @@ def initdb():
     C = models.Connection
     session = settings.Session()
 
+    conn = session.query(C).filter(C.conn_id == 'airflow_db').first()
+    if not conn:
+        session.add(
+            models.Connection(
+                conn_id='airflow_db ', conn_type='mysql',
+                host='localhost', login='root', password='',
+                schema='airflow'))
+        session.commit()
     conn = session.query(C).filter(C.conn_id == 'local_mysql').first()
+
     if not conn:
         session.add(
             models.Connection(
