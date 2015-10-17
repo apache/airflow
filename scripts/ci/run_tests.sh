@@ -8,5 +8,4 @@ fi
 echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
 
 pwd
-
 ./run_unit_tests.sh

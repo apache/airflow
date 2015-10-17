@@ -5,9 +5,10 @@ export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
 which airflow > /dev/null || python setup.py develop
 
 # initialize the test db
-AIRFLOW_DB=$AIRFLOW_HOME/unittests.db
-ls -s $AIRFLOW_DB > /dev/null 2>&1 || airflow initdb # if it's missing
-ls -s $AIRFLOW_DB | egrep '^0 ' > /dev/null && airflow initdb # if it's blank
+#AIRFLOW_DB=$AIRFLOW_HOME/unittests.db
+#ls -s $AIRFLOW_DB > /dev/null 2>&1 || airflow initdb # if it's missing
+#ls -s $AIRFLOW_DB | egrep '^0 ' > /dev/null && airflow initdb # if it's blank
+airflow initdb
 
 nosetests --with-doctest \
           --with-coverage \
