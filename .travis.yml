@@ -12,6 +12,16 @@ env:
   - TOX_ENV=py27-hdp
   - TOX_ENV=py35-cdh
   - TOX_ENV=py35-hdp
+matrix:
+  exclude:
+    - python: "2.7"
+      env: TOX_ENV=py35-cdh
+    - python: "2.7"
+      env: TOX_ENV=py35-hdp
+    - python: "3.5"
+      env: TOX_ENV=py27-cdh
+    - python: "3.5"
+      env: TOX_ENV=py27-hdp
 cache:
   directories:
     - $HOME/.wheelhouse/
