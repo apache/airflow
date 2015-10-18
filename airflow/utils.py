@@ -115,8 +115,17 @@ def initdb():
     if not conn:
         session.add(
             models.Connection(
-                conn_id='airflow_db ', conn_type='mysql',
+                conn_id='airflow_db', conn_type='mysql',
                 host='localhost', login='root', password='',
+                schema='airflow'))
+        session.commit()
+
+    conn = session.query(C).filter(C.conn_id == 'beeline_default').first()
+    if not conn:
+        session.add(
+            models.Connection(
+                conn_id='beeline_default', conn_type='beeline',
+                host='localhost',
                 schema='airflow'))
         session.commit()
 
