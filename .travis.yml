@@ -6,9 +6,12 @@ services:
   - postgresql
 python: 
   - "2.7"
+  - "3.5"
 env:
   - TOX_ENV=py27-cdh
   - TOX_ENV=py27-hdp
+  - TOX_ENV=py35-cdh
+  - TOX_ENV=py35-hdp
 cache:
   directories:
     - $HOME/.wheelhouse/
