@@ -7,11 +7,10 @@ services:
 python: 
   - "2.7"
 env:
-  - TOX_ENV=py27-cdh PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
-  - TOX_ENV=py27-hdp PIP_DOWNLOAD_CACHE=$HOME/.pip-cache
+  - TOX_ENV=py27-cdh
+  - TOX_ENV=py27-hdp
 cache:
   directories:
-    - $HOME/.pip-cache/
     - $HOME/.wheelhouse/
 install:
   - pip install --upgrade pip
@@ -22,7 +21,6 @@ before_script:
 script:
   - pip --version
   - ls -l $HOME/.wheelhouse
-#  - pip wheel --wheel-dir=$HOME/.wheelhouse -r requirements.txt
   - tox --version
   - tox -e $TOX_ENV
 
