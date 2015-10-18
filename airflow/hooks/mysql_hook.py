@@ -24,7 +24,7 @@ class MySqlHook(DbApiHook):
         conn = self.get_connection(self.mysql_conn_id)
         conn_config = {
             "user": conn.login,
-            "passwd": conn.password
+            "passwd": conn.password or ''
         }
 
         conn_config["host"] = conn.host or 'localhost'
@@ -32,8 +32,9 @@ class MySqlHook(DbApiHook):
             conn_config["port"] = 3306
         else:
             conn_config["port"] = int(conn.port)
-        if conn.schema:
-            conn_config["db"] = conn.schema
+
+        conn_config["db"] = conn.schema or ''
+
         if conn.extra_dejson.get('charset', False):
             conn_config["charset"] = conn.extra_dejson["charset"]
             if (conn_config["charset"]).lower() == 'utf8' or\
