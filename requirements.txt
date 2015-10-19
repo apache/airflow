@@ -5,6 +5,7 @@ chartkick
 cryptography
 coverage
 dill
+filechunkio
 flake8
 flask
 flask-admin

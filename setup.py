@@ -20,7 +20,10 @@ postgres = ['psycopg2>=2.6']
 optional = ['librabbitmq>=1.6.1']
 samba = ['pysmbclient>=0.1.3']
 druid = ['pydruid>=0.2.1']
-s3 = ['boto>=2.36.0']
+s3 = [
+    'boto>=2.36.0',
+    'filechunkio>=1.6',
+]
 jdbc = ['jaydebeapi>=0.2.0']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']
 hdfs = ['snakebite>=2.4.13']

@@ -3,7 +3,6 @@ standard_library.install_aliases()
 import logging
 import json
 import re
-from filechunkio import FileChunkIO
 import fnmatch
 import configparser
 import math
@@ -297,6 +296,7 @@ class S3Hook(BaseHook):
         bucket = self.get_bucket(bucket_name)
 
         if multipart_bytes:
+            from filechunkio import FileChunkIO
             key_size = os.path.getsize(filename)
             mp = bucket.initiate_multipart_upload(key_name=key)
             total_chunks = int(math.ceil(key_size / multipart_bytes))
