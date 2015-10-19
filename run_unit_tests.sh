@@ -15,7 +15,8 @@ nosetests \
     --cover-package=airflow \
     --cover-html-dir=airflow/www/static/coverage \
     -v \
-    --logging-level=DEBUG
+    --logging-level=DEBUG \
+    --exclude-test=tests.core.HivePrestoTest
     #--with-doctest \
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job

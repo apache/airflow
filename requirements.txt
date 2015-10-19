@@ -19,6 +19,7 @@ jinja2
 markdown
 mysql-python
 nose
+nose-exclude
 pandas
 pygments
 pyhive
