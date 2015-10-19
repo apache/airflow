@@ -17,7 +17,6 @@ hive-thrift-py
 ipython
 jinja2
 markdown
-mysql-python
 nose
 nose-exclude
 pandas
@@ -39,6 +38,6 @@ Sphinx-PyPI-upload
 sqlalchemy
 thrift
 jaydebeapi
-# pymssql
+pymysql
 unicodecsv
 slackclient
