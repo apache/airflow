@@ -10,5 +10,5 @@ echo "Using ${HADOOP_DISTRO} distribution of Hadoop from ${HADOOP_HOME}"
 pwd
 
 mkdir ~/airflow/
-cp /home/travis/build/airbnb/airflow/scripts/ci/airflow_travis.cfg ~/airflow/unittests.cfg
+cp ${TRAVIS_BUILD_DIR}/airbnb/airflow/scripts/ci/airflow_travis.cfg ~/airflow/unittests.cfg
 ./run_unit_tests.sh
