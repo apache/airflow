@@ -41,7 +41,7 @@ hive = [
 ]
 jdbc = ['jaydebeapi>=0.2.0']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']
-mysql = ['mysql-python>=1.2.5']
+mysql = ['mysqlclient>=1.3.6']
 optional = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.6']

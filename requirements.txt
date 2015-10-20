@@ -38,6 +38,6 @@ Sphinx-PyPI-upload
 sqlalchemy
 thrift
 jaydebeapi
-pymysql
+mysqlclient
 unicodecsv
 slackclient
