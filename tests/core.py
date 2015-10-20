@@ -72,6 +72,26 @@ class TransferTests(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    def test_hive_to_vertica(self):
+        t = operators.HiveToVerticaTransfer(
+            vertica_conn_id='airflow_db',
+            task_id='hive_to_vertica_check',
+            create=True,
+            sql="""
+            SELECT name
+            FROM airflow.static_babynames
+            LIMIT 100
+            """,
+            vertica_table='test_static_babynames',
+            vertica_preoperator=[
+                'DROP TABLE IF EXISTS test_static_babynames;',
+                'CREATE TABLE test_static_babynames (name VARCHAR(500))',
+            ],
+            dag=self.dag)
+        t.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        
+
 
 class HivePrestoTest(unittest.TestCase):
 
