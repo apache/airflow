@@ -6,18 +6,18 @@ services:
   - postgresql
 python: 
   - "2.7"
-  - "3.5"
+  - "3.4"
 env:
   - TOX_ENV=py27-cdh
   - TOX_ENV=py27-hdp
-  - TOX_ENV=py35-cdh
-  - TOX_ENV=py35-hdp
+  - TOX_ENV=py34-cdh
+  - TOX_ENV=py34-hdp
 matrix:
   exclude:
     - python: "2.7"
-      env: TOX_ENV=py35-cdh
+      env: TOX_ENV=py34-cdh
     - python: "2.7"
-      env: TOX_ENV=py35-hdp
+      env: TOX_ENV=py34-hdp
     - python: "3.5"
       env: TOX_ENV=py27-cdh
     - python: "3.5"
