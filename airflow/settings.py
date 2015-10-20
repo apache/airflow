@@ -26,7 +26,6 @@ if 'sqlite' not in SQL_ALCHEMY_CONN:
     # Engine args not supported by sqlite
     engine_args['pool_size'] = 50
     engine_args['pool_recycle'] = 3600
-    engine_args['echo'] = True
 
 engine = create_engine(
     SQL_ALCHEMY_CONN, **engine_args)
