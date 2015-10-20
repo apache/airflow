@@ -18,9 +18,9 @@ matrix:
       env: TOX_ENV=py34-cdh
     - python: "2.7"
       env: TOX_ENV=py34-hdp
-    - python: "3.5"
+    - python: "3.4"
       env: TOX_ENV=py27-cdh
-    - python: "3.5"
+    - python: "3.4"
       env: TOX_ENV=py27-hdp
 cache:
   directories:
