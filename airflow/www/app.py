@@ -44,40 +44,34 @@ import markdown
 from sqlalchemy import or_
 
 import airflow
-from airflow import jobs, login, models, settings, utils
-from airflow.configuration import conf
+from airflow import jobs, models, settings, utils
+from airflow.configuration import AirflowConfigException, conf
 from airflow.models import State
 from airflow.settings import Session
 from airflow.utils import AirflowException
 from airflow.www import utils as wwwutils
 
+AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
 
-login_required = login.login_required
-current_user = login.current_user
-logout_user = login.logout_user
+# filter_by_owner if authentication is enabled and filter_by_owner is true
+FILTER_BY_OWNER = AUTHENTICATE and conf.getboolean('webserver',
+                                                   'FILTER_BY_OWNER')
 
-
-from airflow import default_login as login
-if conf.getboolean('webserver', 'AUTHENTICATE'):
+if AUTHENTICATE:
     try:
         # Environment specific login
         import airflow_login as login
     except ImportError as e:
-        logging.error(
+        raise AirflowConfigException(
             "authenticate is set to True in airflow.cfg, "
             "but airflow_login failed to import %s" % e)
-login_required = login.login_required
+else:
+    from airflow import default_login as login
+
 current_user = login.current_user
+login_required = login.login_required if AUTHENTICATE else lambda x: x
 logout_user = login.logout_user
 
-AUTHENTICATE = conf.getboolean('webserver', 'AUTHENTICATE')
-if AUTHENTICATE is False:
-    login_required = lambda x: x
-
-FILTER_BY_OWNER = False
-if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
-    # filter_by_owner if authentication is enabled and filter_by_owner is true
-    FILTER_BY_OWNER = AUTHENTICATE
 
 class VisiblePasswordInput(widgets.PasswordInput):
     def __init__(self, hide_value=False):
