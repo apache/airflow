@@ -42,4 +42,4 @@ jaydebeapi
 mysqlclient
 unicodecsv
 slackclient
-ldap
+python-ldap
