@@ -103,6 +103,7 @@ setup(
         'slack': slack,
         'statsd': statsd,
         'vertica': vertica,
+        'ldap': ldap,
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',
