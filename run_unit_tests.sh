@@ -2,7 +2,7 @@ export AIRFLOW_HOME=${AIRFLOW_HOME:=~/airflow}
 export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
 
 # Generate the `airflow` executable if needed
-which airflow > /dev/null || python setup.py install
+which airflow > /dev/null || python setup.py develop
 
 echo "Initializing the DB"
 airflow initdb
