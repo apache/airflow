@@ -9,11 +9,11 @@ from airflow.configuration import conf
 import airflow.www.app
 from airflow.www.app import app
 from airflow.settings import Session
-from imp import reload
-import logging
-
-log = logging.getLogger(__name__)
-
+try:
+    from importlib import reload
+except ImportError:
+    from imp import reload
+    
 NUM_EXAMPLE_DAGS = 6
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
