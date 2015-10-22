@@ -353,6 +353,32 @@ class WebUiTests(unittest.TestCase):
             '?chart_id={}&iteration_no=1'.format(chart_id))
         assert "example" in response.data.decode('utf-8')
 
+    def test_auth_ldap(self):
+        authenticate = """
+        [webserver]
+        authenticate = True
+        auth_backend = airflow.contrib.auth.backends.ldap_auth
+
+        [ldap]
+        uri=ldap://localhost
+        user_filter=objectClass=*
+        user_name_attr=uid
+        bind_user=cn=Manager,dc=example,dc=com
+        bind_password=insecure
+        basedn=cn=users,cn=accounts,dc=mac,dc=local
+        cacert=
+
+        """
+        configuration.conf.read(authenticate)
+
+        response = self.app.get(
+            '/admin/connection/')
+        assert "403" in response.data.decode('utf-8')
+
+
+
+
+
     def tearDown(self):
         pass
 

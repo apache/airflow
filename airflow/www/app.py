@@ -77,15 +77,6 @@ except ImportError:
     if conf.getboolean('webserver', 'AUTHENTICATE'):
         raise AirflowException("Failed to import authentication backend")
 
-from airflow import default_login as login
-if conf.getboolean('webserver', 'AUTHENTICATE'):
-    try:
-        # Environment specific login
-        import airflow_login as login
-    except ImportError as e:
-        logging.error(
-            "authenticate is set to True in airflow.cfg, "
-            "but airflow_login failed to import %s" % e)
 login_required = login.login_required
 current_user = login.current_user
 logout_user = login.logout_user

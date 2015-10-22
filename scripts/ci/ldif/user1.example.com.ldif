@@ -1,0 +1,5 @@
+dn: uid=user1,dc=example,dc=com
+objectClass: account
+objectClass: simpleSecurityObject
+uid: user1
+userPassword: user1
