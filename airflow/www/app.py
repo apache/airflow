@@ -57,7 +57,7 @@ current_user = login.current_user
 logout_user = login.logout_user
 
 
-auth_backend = 'default_login'
+auth_backend = 'airflow.default_login'
 try:
     auth_backend = conf.get('webserver', 'auth_backend')
 except AirflowConfigException:
