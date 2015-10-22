@@ -6,8 +6,13 @@ from airflow import configuration
 configuration.test_mode()
 from airflow import jobs, models, DAG, utils, operators, hooks
 from airflow.configuration import conf
+import airflow.www.app
 from airflow.www.app import app
 from airflow.settings import Session
+from imp import reload
+import logging
+
+log = logging.getLogger(__name__)
 
 NUM_EXAMPLE_DAGS = 6
 DEV_NULL = '/dev/null'
@@ -186,7 +191,6 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-
     def test_complex_template(self):
         class OperatorSubclass(operators.BaseOperator):
             template_fields = ['some_templated_field']
@@ -353,7 +357,13 @@ class WebUiTests(unittest.TestCase):
             '?chart_id={}&iteration_no=1'.format(chart_id))
         assert "example" in response.data.decode('utf-8')
 
-    def test_auth_ldap(self):
+    def tearDown(self):
+        pass
+
+
+class WebAuthTest(unittest.TestCase):
+
+    def setUp(self):
         authenticate = """
         [webserver]
         authenticate = True
@@ -369,18 +379,45 @@ class WebUiTests(unittest.TestCase):
         cacert=
 
         """
-        configuration.conf.read(authenticate)
+        os.environ['AIRFLOW_CONFIG'] = os.path.dirname(os.path.realpath(__file__)) + \
+                                       "/../scripts/ci/airflow_travis_ldap.cfg"
+        reload(configuration)
+        reload(airflow.www.app)
+        configuration.test_mode()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
 
-        response = self.app.get(
-            '/admin/connection/')
-        assert "403" in response.data.decode('utf-8')
+    def login(self, username, password):
+        return self.app.post('/admin/airflow/login', data=dict(
+            username=username,
+            password=password
+        ), follow_redirects=True)
 
+    def logout(self):
+        return self.app.get('/admin/airflow/logout', follow_redirects=True)
 
+    def test_login_logout_ldap(self):
+        assert configuration.conf.getboolean('webserver', 'authenticate') is True
 
+        response = self.login('user1', 'userx')
+        assert 'Incorrect login details' in response.data
 
+        response = self.login('userz', 'user1')
+        assert 'Incorrect login details' in response.data
+
+        response = self.login('user1', 'user1')
+        assert 'Data Profiling' in response.data
+
+        response = self.logout()
+        assert 'form-signin' in response.data
+
+    def test_unauthorized(self):
+        response = self.app.get("/admin/connection/")
+        assert '403 Forbidden' in response.data
 
     def tearDown(self):
         pass
+
 
 if 'MySqlOperator' in dir(operators):
     # Only testing if the operator is installed
