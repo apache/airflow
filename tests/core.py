@@ -13,7 +13,7 @@ try:
     from importlib import reload
 except ImportError:
     from imp import reload
-    
+
 NUM_EXAMPLE_DAGS = 6
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -382,6 +382,7 @@ class WebAuthTest(unittest.TestCase):
         os.environ['AIRFLOW_CONFIG'] = os.path.dirname(os.path.realpath(__file__)) + \
                                        "/../scripts/ci/airflow_travis_ldap.cfg"
         reload(configuration)
+        import airflow.contrib.auth.backends.ldap_auth
         reload(airflow.www.app)
         configuration.test_mode()
         app.config['TESTING'] = True
