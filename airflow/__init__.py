@@ -22,7 +22,7 @@ DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 if DAGS_FOLDER not in sys.path:
     sys.path.append(DAGS_FOLDER)
 
-auth_backend = 'default_login'
+auth_backend = 'airflow.default_login'
 try:
     auth_backend = conf.get('webserver', 'auth_backend')
 except AirflowConfigException:
