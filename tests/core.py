@@ -361,7 +361,7 @@ class WebUiTests(unittest.TestCase):
         pass
 
 
-class WebAuthTest(unittest.TestCase):
+class ZWebAuthTest(unittest.TestCase):
 
     def setUp(self):
         authenticate = """
@@ -413,6 +413,7 @@ class WebAuthTest(unittest.TestCase):
 
     def test_unauthorized(self):
         response = self.app.get("/admin/connection/")
+        print response.data
         assert '403 Forbidden' in response.data
 
     def tearDown(self):
