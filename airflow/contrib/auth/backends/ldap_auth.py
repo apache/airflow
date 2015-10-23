@@ -5,12 +5,8 @@ from wtforms import (
     Form, PasswordField, StringField)
 from wtforms.validators import InputRequired
 
-import ldap
-
-try:
-    import ldap.sasl
-except ImportError:
-    pass
+from ldap3 import Server, Connection, Tls, LEVEL
+import ssl
 
 from flask import url_for, redirect
 
@@ -24,26 +20,34 @@ login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
 
-def get_ldap_connection():
+
+class AuthenticationError(Exception):
+    pass
+
+
+def get_ldap_connection(dn=None, password=None):
+    tls_configuration = None
+    use_ssl = False
     try:
         cacert = conf.get("ldap", "cacert")
-        ldap.set_option(ldap.OPT_X_TLS_CACERTFILE, cacert)
-        ldap.set_option(ldap.OPT_X_TLS_REQUIRE_CERT, ldap.OPT_X_TLS_HARD)
+        tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
+        use_ssl = True
     except:
         pass
 
-    conn = ldap.initialize(conf.get("ldap", "uri"))
+    server = Server(conf.get("ldap", "uri"), use_ssl, tls_configuration)
+    conn = Connection(server, dn, password)
+
+    if not conn.bind():
+        raise AuthenticationError("Username or password incorrect")
+
     return conn
+
 
 class User(models.BaseUser):
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection()
-        if conf.get('core', 'security') == 'kerberos':
-            sasl = ldap.sasl.gssapi()
-            conn.sasl_interactive_bind_s("", sasl)
-        else:
-            conn.simple_bind_s(conf.get("ldap", "bind_user"), conf.get("ldap", "bind_password"))
+        conn = get_ldap_connection(conf.get("ldap", "bind_user"), conf.get("ldap", "bind_password"))
 
         search_filter = "(&({0})({1}={2}))".format(
             conf.get("ldap", "user_filter"),
@@ -52,18 +56,20 @@ class User(models.BaseUser):
         )
 
         # todo: BASE or ONELEVEL?
-        res = conn.search_s(conf.get("ldap", "basedn"), ldap.SCOPE_ONELEVEL, search_filter)
+
+        res = conn.search(conf.get("ldap", "basedn"), search_filter, search_scope=LEVEL)
 
         # todo: use list or result?
-        if len(res) == 0:
-            raise ldap.INVALID_CREDENTIALS
+        if not res:
+            raise AuthenticationError("Invalid username or password")
 
-        dn, entry = res[0]
-        dn = str(dn)
+        entry = conn.response[0]
 
         conn.unbind()
-        conn = get_ldap_connection()
-        conn.simple_bind_s(dn, password)
+        conn = get_ldap_connection(entry['dn'], password)
+
+        if not conn:
+            raise AuthenticationError("Invalid username or password")
 
     def is_active(self):
         '''Required by flask_login'''
@@ -137,11 +143,12 @@ def login(self, request):
         session.close()
 
         return redirect(request.args.get("next") or url_for("index"))
-    except ldap.INVALID_CREDENTIALS:
+    except AuthenticationError:
         flash("Incorrect login details")
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
+
 
 class LoginForm(Form):
     username = StringField('Username', [InputRequired()])
