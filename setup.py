@@ -71,7 +71,7 @@ setup(
         'flask>=0.10.1, <0.11',
         'flask-admin==1.2.0',
         'flask-cache>=0.13.1, <0.14',
-        'flask-login>=0.2.11',
+        'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
         'gunicorn>=19.3.0, <20.0',
         'jinja2>=2.7.3, <3.0',
