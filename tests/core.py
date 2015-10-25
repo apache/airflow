@@ -21,7 +21,7 @@ except ImportError:
 
 
 class CoreTest(unittest.TestCase):
-    def __init__(self):
+    def setUp(self):
         configuration.test_mode()
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
@@ -32,7 +32,6 @@ class CoreTest(unittest.TestCase):
         self.hooks = hooks
         self.macros = macros
 
-    def setUp(self):
         self.dagbag = self.models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
@@ -276,7 +275,7 @@ class CoreTest(unittest.TestCase):
 
 
 class WebUiTests(unittest.TestCase):
-    def __init__(self):
+    def setUp(self):
         configuration.test_mode()
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
@@ -287,8 +286,6 @@ class WebUiTests(unittest.TestCase):
         self.hooks = hooks
         self.macros = macros
 
-    def setUp(self):
-        configuration.test_mode()
         app = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -405,7 +402,7 @@ class WebUiTests(unittest.TestCase):
 if 'MySqlOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class MySqlTest(unittest.TestCase):
-        def __init__(self):
+        def setUp(self):
             configuration.test_mode()
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
@@ -416,8 +413,6 @@ if 'MySqlOperator' in dir(airflow.operators):
             self.hooks = hooks
             self.macros = macros
 
-        def setUp(self):
-            configuration.test_mode()
             args = {
                 'owner': 'airflow',
                 'mysql_conn_id': 'airflow_db',
@@ -470,7 +465,7 @@ if 'MySqlOperator' in dir(airflow.operators):
 if 'PostgresOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class PostgresTest(unittest.TestCase):
-        def __init__(self):
+        def setUp(self):
             configuration.test_mode()
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
@@ -481,8 +476,6 @@ if 'PostgresOperator' in dir(airflow.operators):
             self.hooks = hooks
             self.macros = macros
 
-        def setUp(self):
-            configuration.test_mode()
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
             dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
@@ -509,7 +502,7 @@ if 'PostgresOperator' in dir(airflow.operators):
 
 
 class HttpOpSensorTest(unittest.TestCase):
-    def __init__(self):
+    def setUp(self):
         configuration.test_mode()
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
@@ -520,7 +513,6 @@ class HttpOpSensorTest(unittest.TestCase):
         self.hooks = hooks
         self.macros = macros
 
-    def setUp(self):
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
         dag = self.DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -576,7 +568,7 @@ class HttpOpSensorTest(unittest.TestCase):
 
 
 class ConnectionTest(unittest.TestCase):
-    def __init__(self):
+    def setUp(self):
         configuration.test_mode()
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
@@ -587,7 +579,6 @@ class ConnectionTest(unittest.TestCase):
         self.hooks = hooks
         self.macros = macros
 
-    def setUp(self):
         self.utils.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
@@ -642,10 +633,8 @@ class ConnectionTest(unittest.TestCase):
 
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
-
-
     class TransferTests(unittest.TestCase):
-        def __init__(self):
+        def setUp(self):
             configuration.test_mode()
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
@@ -656,7 +645,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.hooks = hooks
             self.macros = macros
 
-        def setUp(self):
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
             dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
@@ -690,7 +678,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
 
     class HivePrestoTest(unittest.TestCase):
-        def __init__(self):
+        def setUp(self):
             configuration.test_mode()
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
@@ -701,7 +689,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.hooks = hooks
             self.macros = macros
 
-        def setUp(self):
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
             dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
