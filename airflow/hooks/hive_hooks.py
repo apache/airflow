@@ -68,8 +68,9 @@ class HiveCliHook(BaseHook):
                 if self.use_beeline:
                     hive_bin = 'beeline'
                     if conf.get('core', 'security') == 'kerberos':
-                        template = conn.extra_dejson.get('principal',"hive/_HOST@EXAMPLE.COM")
-                        template = utils.replace_hostname_pattern(utils.get_components(template))
+                        template = conn.extra_dejson.get('principal', "hive/_HOST@EXAMPLE.COM")
+                        if "_HOST" in template:
+                            template = utils.replace_hostname_pattern(utils.get_components(template))
 
                         proxy_user = ""
                         if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
@@ -80,7 +81,7 @@ class HiveCliHook(BaseHook):
                         jdbc_url = (
                             "jdbc:hive2://"
                             "{0}:{1}/{2}"
-                            ";principal={3}{4}"
+                            ";principal={3};{4}"
                         ).format(conn.host, conn.port, conn.schema, template, proxy_user)
                     else:
                         jdbc_url = (

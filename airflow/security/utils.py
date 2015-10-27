@@ -45,7 +45,7 @@ def get_components(principal):
     return re.split('[\/@]', str(principal))
 
 
-def replace_hostname_pattern(components, host):
+def replace_hostname_pattern(components, host=None):
     fqdn = host
     if not fqdn or fqdn == '0.0.0.0':
         fqdn = get_localhost_name()
