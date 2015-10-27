@@ -81,7 +81,7 @@ class BranchPythonOperator(PythonOperator):
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
         logging.info("Following branch " + branch)
-        logging.info("Marking other directly downstream tasks as failed")
+        logging.info("Marking other directly downstream tasks as skipped")
         session = settings.Session()
         for task in context['task'].downstream_list:
             if task.task_id != branch:
