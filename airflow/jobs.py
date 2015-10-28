@@ -15,7 +15,7 @@ import subprocess
 import sys
 from time import sleep
 
-from sqlalchemy import Column, Integer, String, DateTime, func, Index
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, and_
 from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models, settings, utils
@@ -334,6 +334,38 @@ class SchedulerJob(BaseJob):
                 filename=filename, stacktrace=stacktrace))
         session.commit()
 
+
+    def schedule_dag(self, dag):
+        """
+        This method checks whether a new DagRun needs to be created
+        for a DAG based on scheduling interval
+        """
+        DagRun = models.DagRun
+        session = settings.Session()
+        qry = session.query(func.max(DagRun.execution_date)).filter(and_(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.external_trigger == False
+        ))
+        last_scheduled_run = qry.scalar()
+        if not last_scheduled_run or last_scheduled_run <= datetime.now():
+            if last_scheduled_run:
+                next_run_date = last_scheduled_run + dag.schedule_interval
+            else:
+                next_run_date = dag.default_args['start_date']
+            if not next_run_date:
+                raise Exception('no next_run_date defined!')
+            next_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id='scheduled',
+                execution_date=next_run_date,
+                state='active',
+                external_trigger=False
+            )
+            session.add(next_run)
+            session.commit()
+
+
+
     def process_dag(self, dag, executor):
         """
         This method schedules a single DAG by looking at the latest
@@ -397,6 +429,7 @@ class SchedulerJob(BaseJob):
             if task.adhoc:
                 continue
             if task.task_id not in ti_dict:
+                # TODO: Check whether this needs to be changed with DagRun refactoring
                 # Brand new task, let's get started
                 ti = TI(task, task.start_date)
                 ti.refresh_from_db()
@@ -420,13 +453,15 @@ class SchedulerJob(BaseJob):
                     # in self.prioritize_queued
                     continue
                 else:
-                    # Trying to run the next schedule
-                    next_schedule = (
-                        ti.execution_date + task.schedule_interval)
-                    if (
-                            ti.task.end_date and
-                            next_schedule > ti.task.end_date):
+                    # Checking whether there is a DagRun for which a task
+                    # needs to be created
+                    qry = session.query(func.min(models.DagRun.execution_date)).filter(
+                        and_(models.DagRun.dag_id == dag.dag_id,
+                        models.DagRun.execution_date > ti.execution_date))
+                    next_schedule = qry.scalar()
+                    if not next_schedule:
                         continue
+
                     ti = TI(
                         task=task,
                         execution_date=next_schedule,
@@ -435,6 +470,29 @@ class SchedulerJob(BaseJob):
                     if ti.is_queueable(flag_upstream_failed=True):
                         logging.debug('Queuing next run: ' + str(ti))
                         executor.queue_task_instance(ti, pickle_id=pickle_id)
+
+        # Checking state of active DagRuns
+        active_runs = session.query(models.DagRun).filter(
+            models.DagRun.dag_id == dag.dag_id,
+            models.DagRun.state == 'active'
+        ).all()
+        for run in active_runs:
+            logging.info("Checking state for " + str(run))
+            task_instances = session.query(TI).filter(
+                TI.dag_id == run.dag_id,
+                TI.execution_date == run.execution_date
+            ).all()
+            if len(task_instances) == len(dag.tasks):
+                task_states = [ti.state for ti in task_instances]
+                if 'failed' in task_states:
+                    logging.info(str(run) + 'is failed')
+                    run.state = 'failed'
+                if set(task_states) == set(['success']):
+                    logging.info(str(run) + 'is successful')
+                    run.state = 'success'
+            else:
+                logging.info('not all tasks are finished')
+
         # Releasing the lock
         logging.debug("Unlocking DAG (scheduler_lock)")
         db_dag = (
@@ -548,6 +606,7 @@ class SchedulerJob(BaseJob):
                     if not dag or (dag.dag_id in paused_dag_ids):
                         continue
                     try:
+                        self.schedule_dag(dag)
                         self.process_dag(dag, executor)
                         self.manage_slas(dag)
                     except Exception as e:

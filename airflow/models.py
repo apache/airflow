@@ -677,7 +677,7 @@ class TaskInstance(Base):
             path to add the feature
         :type flag_upstream_failed: boolean
         """
-        if self.execution_date > datetime.now() - self.task.schedule_interval:
+        if self.execution_date > datetime.now():
             return False
         elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
             return False
@@ -2498,6 +2498,30 @@ class XCom(Base):
             .limit(limit))
 
         return query.all()
+
+
+class DagRun(Base):
+    """
+    DagRun describes an instance of a Dag. It can be created
+    by the scheduler (for regular runs) or by an external trigger
+    """
+    __tablename__ = "dag_run"
+
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(DateTime, primary_key=True)
+    state = Column(String(50))
+    run_id = Column(String(ID_LEN))
+    external_trigger = Column(Boolean, default=False)
+
+    def __repr__(self):
+        return '<DagRun {dag_id} @ {execution_date}: {run_id}, \
+            externally triggered: {external_trigger}>'.format(
+            dag_id=self.dag_id,
+            execution_date=self.execution_date,
+            run_id=self.run_id,
+            external_trigger=self.external_trigger)
+        return str((
+            self.dag_id, self.run_id, self.execution_date.isoformat()))
 
 
 class Pool(Base):
