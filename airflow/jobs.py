@@ -713,7 +713,7 @@ class BackfillJob(BaseJob):
                 # If the executor has a problem independent of the task, the
                 # task state could be 'running' even though the executor says
                 # 'failed'
-                elif ti.state == State.RUNNING and state == State.FAILED:
+                elif ti.state == State.RUNNING and state != ti.state:
 
                     # try/except is a hack for Python 3 because
                     # handle_failure() calls logging.exception(),
