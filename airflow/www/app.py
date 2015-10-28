@@ -1,5 +1,8 @@
-from __future__ import print_function
+from __future__ import absolute_import
 from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from builtins import str
 from past.builtins import basestring
 from past.utils import old_div
@@ -59,10 +62,10 @@ if conf.getboolean('webserver', 'AUTHENTICATE'):
     try:
         # Environment specific login
         import airflow_login as login
-    except ImportError:
+    except ImportError as e:
         logging.error(
             "authenticate is set to True in airflow.cfg, "
-            "but airflow_login failed to import")
+            "but airflow_login failed to import %s" % e)
 login_required = login.login_required
 current_user = login.current_user
 logout_user = login.logout_user
@@ -305,7 +308,13 @@ class HomeView(AdminIndexView):
         # filter the dags if filter_by_owner and current user is not superuser
         do_filter = FILTER_BY_OWNER and (not current_user.is_superuser())
         if do_filter:
-            qry = session.query(DM).filter(~DM.is_subdag, DM.is_active, DM.owners == current_user.username).all()
+            qry = (
+                session.query(DM)
+                .filter(
+                    ~DM.is_subdag, DM.is_active,
+                    DM.owners == current_user.username)
+                .all()
+            )
         else:
             qry = session.query(DM).filter(~DM.is_subdag, DM.is_active).all()
         orm_dags = {dag.dag_id: dag for dag in qry}
@@ -319,7 +328,13 @@ class HomeView(AdminIndexView):
         session.close()
         dags = dagbag.dags.values()
         if do_filter:
-            dags = {dag.dag_id: dag for dag in dags if (dag.owner == current_user.username and (not dag.parent_dag))}
+            dags = {
+                dag.dag_id: dag
+                for dag in dags
+                if (
+                    dag.owner == current_user.username and (not dag.parent_dag)
+                )
+            }
         else:
             dags = {dag.dag_id: dag for dag in dags if not dag.parent_dag}
         all_dag_ids = sorted(set(orm_dags.keys()) | set(dags.keys()))
@@ -354,9 +369,9 @@ class Airflow(BaseView):
         session = settings.Session()
         chart_id = request.args.get('chart_id')
         csv = request.args.get('csv') == "true"
-        chart = session.query(models.Chart).filter_by(id=chart_id).all()[0]
+        chart = session.query(models.Chart).filter_by(id=chart_id).first()
         db = session.query(
-            models.Connection).filter_by(conn_id=chart.conn_id).all()[0]
+            models.Connection).filter_by(conn_id=chart.conn_id).first()
         session.expunge_all()
         session.commit()
         session.close()
@@ -630,7 +645,7 @@ class Airflow(BaseView):
         session = settings.Session()
         chart_id = request.args.get('chart_id')
         embed = request.args.get('embed')
-        chart = session.query(models.Chart).filter_by(id=chart_id).all()[0]
+        chart = session.query(models.Chart).filter_by(id=chart_id).first()
         session.expunge_all()
         session.commit()
         session.close()
@@ -664,13 +679,17 @@ class Airflow(BaseView):
             State.QUEUED,
         ]
         task_ids = []
+        dag_ids = []
         for dag in dagbag.dags.values():
             task_ids += dag.task_ids
+            if not dag.is_subdag:
+                dag_ids.append(dag.dag_id)
         TI = models.TaskInstance
         session = Session()
         qry = (
             session.query(TI.dag_id, TI.state, sqla.func.count(TI.task_id))
             .filter(TI.task_id.in_(task_ids))
+            .filter(TI.dag_id.in_(dag_ids))
             .group_by(TI.dag_id, TI.state)
         )
 
@@ -684,7 +703,7 @@ class Airflow(BaseView):
 
         payload = {}
         for dag in dagbag.dags.values():
-            payload[dag.dag_id] = []
+            payload[dag.safe_dag_id] = []
             for state in states:
                 try:
                     count = data[dag.dag_id][state]
@@ -696,7 +715,7 @@ class Airflow(BaseView):
                     'dag_id': dag.dag_id,
                     'color': State.color(state)
                 }
-                payload[dag.dag_id].append(d)
+                payload[dag.safe_dag_id].append(d)
         return Response(
             response=json.dumps(payload, indent=4),
             status=200, mimetype="application/json")
@@ -759,7 +778,7 @@ class Airflow(BaseView):
             response=json.dumps(d, indent=4),
             status=200, mimetype="application/json")
 
-    @expose('/login')
+    @expose('/login', methods=['GET', 'POST'])
     def login(self):
         return login.login(self, request)
 
@@ -811,9 +830,9 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dag = dagbag.get_dag(dag_id)
-        log_relative = "/{dag_id}/{task_id}/{execution_date}".format(
+        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
             **locals())
-        loc = BASE_LOG_FOLDER + log_relative
+        loc = os.path.join(BASE_LOG_FOLDER, log_relative)
         loc = loc.format(**locals())
         log = ""
         TI = models.TaskInstance
@@ -824,28 +843,52 @@ class Airflow(BaseView):
             TI.execution_date == dttm).first()
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
+
         if ti:
             host = ti.hostname
+            log_loaded = False
+
             if socket.gethostname() == host:
                 try:
                     f = open(loc)
                     log += "".join(f.readlines())
                     f.close()
+                    log_loaded = True
                 except:
-                    log = "Log file isn't where expected.\n".format(loc)
+                    log = "*** Log file isn't where expected.\n".format(loc)
             else:
                 WORKER_LOG_SERVER_PORT = \
                     conf.get('celery', 'WORKER_LOG_SERVER_PORT')
-                url = (
-                    "http://{host}:{WORKER_LOG_SERVER_PORT}/log"
-                    "{log_relative}").format(**locals())
-                log += "Log file isn't local.\n"
-                log += "Fetching here: {url}\n".format(**locals())
+                url = os.path.join(
+                    "http://{host}:{WORKER_LOG_SERVER_PORT}/log", log_relative
+                    ).format(**locals())
+                log += "*** Log file isn't local.\n"
+                log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    log += requests.get(url).text
+                    log += '\n' + requests.get(url).text
+                    log_loaded = True
                 except:
-                    log += "Failed to fetch log file.".format(**locals())
+                    log += "*** Failed to fetch log file from worker.\n".format(
+                        **locals())
+
+            # try to load log backup from S3
+            s3_log_folder = conf.get('core', 'S3_LOG_FOLDER')
+            if not log_loaded and s3_log_folder.startswith('s3:'):
+                import boto
+                s3 = boto.connect_s3()
+                s3_log_loc = os.path.join(
+                    conf.get('core', 'S3_LOG_FOLDER'), log_relative)
+                log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
+                log += ('*** Note: S3 logs are only available once '
+                        'tasks have completed.\n')
+                bucket, key = s3_log_loc.lstrip('s3:/').split('/', 1)
+                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
+                if s3_key.exists():
+                    log += '\n' + s3_key.get_contents_as_string().decode()
+                else:
+                    log += '*** No log found on S3.\n'
+
             session.commit()
             session.close()
         log = log.decode('utf-8') if PY2 else log
@@ -1548,12 +1591,14 @@ class QueryView(wwwutils.DataProfilingMixin, BaseView):
             db = [db for db in dbs if db.conn_id == conn_id_str][0]
             hook = db.get_hook()
             try:
-                df = hook.get_pandas_df(wwwutils.limit_sql(sql, QUERY_LIMIT, conn_type=db.conn_type))
-                # df = hook.get_pandas_df(sql)
+                df = hook.get_pandas_df(
+                    wwwutils.limit_sql(
+                        sql, QUERY_LIMIT, conn_type=db.conn_type))
                 has_data = len(df) > 0
                 df = df.fillna('')
                 results = df.to_html(
-                    classes="table table-bordered table-striped no-wrap",
+                    classes=[
+                        'table', 'table-bordered', 'table-striped', 'no-wrap'],
                     index=False,
                     na_rep='',
                 ) if has_data else ''
@@ -1779,6 +1824,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('samba', 'Samba',),
             ('sqlite', 'Sqlite',),
             ('mssql', 'Microsoft SQL Server'),
+            ('mesos_framework-id', 'Mesos Framework ID'),
         ]
     }
 
@@ -1789,6 +1835,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
                 key:formdata[key]
                 for key in self.form_extra_fields.keys() if key in formdata}
             model.extra = json.dumps(extra)
+
+    @classmethod
+    def alert_fernet_key(cls):
+        return not conf.has_option('core', 'fernet_key')
 
     @classmethod
     def is_secure(self):

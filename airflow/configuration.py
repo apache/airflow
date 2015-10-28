@@ -1,3 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
@@ -48,6 +53,7 @@ defaults = {
         'plugins_folder': None,
         'security': None,
         'donot_pickle': False,
+        's3_log_folder': ''
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -94,8 +100,11 @@ airflow_home = {AIRFLOW_HOME}
 # subfolder in a code repository
 dags_folder = {AIRFLOW_HOME}/dags
 
-# The folder where airflow should store its log files
+# The folder where airflow should store its log files. This location
 base_log_folder = {AIRFLOW_HOME}/logs
+# An S3 location can be provided for log backups
+# For S3, use the full URL to the base folder (starting with "s3://...")
+s3_log_folder = None
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -236,6 +245,12 @@ task_memory = 256
 # See http://mesos.apache.org/documentation/latest/slave-recovery/
 checkpoint = False
 
+# Failover timeout in milliseconds.
+# When checkpointing is enabled and this option is set, Mesos waits until the configured timeout for
+# the MesosExecutor framework to re-register after a failover. Mesos shuts down running tasks if the
+# MesosExecutor framework fails to re-register within this timeframe.
+# failover_timeout = 604800
+
 # Enable framework authentication for mesos
 # See http://mesos.apache.org/documentation/latest/configuration/
 authenticate = False
@@ -291,7 +306,7 @@ class ConfigParserWithDefaults(ConfigParser):
         self.defaults = defaults
         ConfigParser.__init__(self, *args, **kwargs)
 
-    def get(self, section, key):
+    def get(self, section, key, **kwargs):
         section = str(section).lower()
         key = str(key).lower()
         d = self.defaults
@@ -304,7 +319,7 @@ class ConfigParserWithDefaults(ConfigParser):
 
         # ...then the config file
         elif self.has_option(section, key):
-            return expand_env_var(ConfigParser.get(self, section, key))
+            return expand_env_var(ConfigParser.get(self, section, key, **kwargs))
 
         # ...then the defaults
         elif section in d and key in d[section]:
@@ -328,6 +343,9 @@ class ConfigParserWithDefaults(ConfigParser):
 
     def getint(self, section, key):
         return int(self.get(section, key))
+
+    def getfloat(self, section, key):
+        return float(self.get(section, key))
 
 
 def mkdir_p(path):
@@ -387,21 +405,3 @@ def test_mode():
 
 conf = ConfigParserWithDefaults(defaults)
 conf.read(AIRFLOW_CONFIG)
-if 'cryptography' in sys.modules and not conf.has_option('core', 'fernet_key'):
-    logging.warning(textwrap.dedent("""
-
-        Your system supports encrypted passwords for Airflow connections but is
-        currently storing them in plaintext! To turn on encryption, add a
-        "fernet_key" option to the "core" section of your airflow.cfg file,
-        like this:
-
-            [core]
-            fernet_key = <YOUR FERNET KEY>
-
-        Your airflow.cfg file is located at: {cfg}.
-        If you need to generate a fernet key, you can run this code:
-
-            from airflow.configuration import generate_fernet_key
-            generate_fernet_key()
-
-        """.format(cfg=AIRFLOW_CONFIG)))

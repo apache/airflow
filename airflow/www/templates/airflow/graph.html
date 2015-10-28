@@ -78,6 +78,7 @@
     var arrange = "{{ arrange }}";
     var g = dagreD3.json.decode(nodes, edges);
     var duration = 500;
+    var stateFocusMap = {'no status':false, 'failed':false, 'running':false, 'success': false}
 
 
     var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);
@@ -118,38 +119,46 @@
       html: true,
       container: "body",
     });
+
     d3.selectAll("div.legend_item.state")
-        .style("cursor", "s-resize")
+        .style("cursor", "pointer")
         .on("mouseover", function(){
-            d3.selectAll("g.node")
-                .transition(duration)
-                .style("opacity", 0.2);
-            state = d3.select(this).text();
-            d3.selectAll("g.node."+state)
-                .transition(duration)
-                .style("opacity", 1);
-            d3.selectAll("g.node." + state + " rect")
-                .transition(duration)
-                .style("stroke-width", "10px")
-                .style("opacity", 1);
-            d3.select("g.edgePaths")
-                .transition().duration(duration)
-                .style("opacity", 0.2);
+            if(!stateIsSet()){
+                state = d3.select(this).text();
+                focusState(state);
+            }
         })
         .on("mouseout", function(){
-            d3.selectAll("g.node")
-                .transition(duration)
-                .style("opacity", 1);
-            d3.selectAll("g.node rect")
-                .transition(duration)
-                .style("stroke-width", "2px");
-            d3.select("g.edgePaths")
-                .transition().duration(duration)
-                .style("opacity", 1);
+            if(!stateIsSet()){
+                clearFocus();
+            }
         });
+
+    d3.selectAll("div.legend_item.state")
+        .on("click", function(){
+            state = d3.select(this).text();
+            color = d3.select(this).style("border-color");
+
+            if (!stateFocusMap[state]){
+                clearFocus();
+                focusState(state, this, color);
+                setFocusMap(state);
+
+            } else {
+                clearFocus();
+                setFocusMap();
+            }
+        });
+
     d3.select("#searchbox").on("keyup", function(){
         var s = document.getElementById("searchbox").value;
         var match = null;
+
+        if (stateIsSet){
+            clearFocus();
+            setFocusMap();
+        }
+
         d3.selectAll("g.nodes g.node").filter(function(d, i){
             if (s==""){
                 d3.select("g.edgePaths")
@@ -198,5 +207,56 @@
             renderer.zoom_obj.scale(1);
         }
     });
+
+    function clearFocus(){
+        d3.selectAll("g.node")
+            .transition(duration)
+            .style("opacity", 1);
+        d3.selectAll("g.node rect")
+            .transition(duration)
+            .style("stroke-width", "2px");
+        d3.select("g.edgePaths")
+            .transition().duration(duration)
+            .style("opacity", 1);
+        d3.selectAll("div.legend_item.state")
+            .style("background-color", null);
+    }
+
+    function focusState(state, node, color){
+        d3.selectAll("g.node")
+            .transition(duration)
+            .style("opacity", 0.2);
+        d3.selectAll("g.node."+state)
+            .transition(duration)
+            .style("opacity", 1);
+        d3.selectAll("g.node." + state + " rect")
+            .transition(duration)
+            .style("stroke-width", "10px")
+            .style("opacity", 1);
+        d3.select("g.edgePaths")
+            .transition().duration(duration)
+            .style("opacity", 0.2);
+        d3.select(node)
+            .style("background-color", color);
+    }
+
+    function setFocusMap(state){
+        for (var key in stateFocusMap){
+                stateFocusMap[key] = false;
+        }
+        if(state != null){
+            stateFocusMap[state] = true;
+        }
+    }
+
+    function stateIsSet(){
+        for (var key in stateFocusMap){
+            if (stateFocusMap[key]){
+                return true
+            }
+        }
+        return false
+    }
+
     </script>
 {% endblock %}

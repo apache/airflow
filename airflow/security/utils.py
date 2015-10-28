@@ -18,6 +18,7 @@
 
 import re
 import socket
+import airflow.configuration as conf
 
 # Pattern to replace with hostname
 HOSTNAME_PATTERN = '_HOST'
@@ -44,7 +45,7 @@ def get_components(principal):
     return re.split('[\/@]', str(principal))
 
 
-def replace_hostname_pattern(components, host):
+def replace_hostname_pattern(components, host=None):
     fqdn = host
     if not fqdn or fqdn == '0.0.0.0':
         fqdn = get_localhost_name()
@@ -55,10 +56,13 @@ def get_localhost_name():
     return socket.getfqdn()
 
 
-def get_fqdn(hostname_or_ip):
+def get_fqdn(hostname_or_ip=None):
     # Get hostname
     try:
-        fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
+        if hostname_or_ip:
+            fqdn = socket.gethostbyaddr(hostname_or_ip)[0]
+        else:
+            fqdn = get_localhost_name()
     except IOError:
         fqdn = hostname_or_ip
 
@@ -66,3 +70,10 @@ def get_fqdn(hostname_or_ip):
         fqdn = get_localhost_name()
 
     return fqdn
+
+def principal_from_username(username):
+    realm = conf.get("security", "default_realm")
+    if '@' not in username and realm:
+        username = "{}@{}".format(username, realm)
+
+    return username

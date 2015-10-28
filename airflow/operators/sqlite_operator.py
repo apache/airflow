@@ -27,7 +27,7 @@ class SqliteOperator(BaseOperator):
         super(SqliteOperator, self).__init__(*args, **kwargs)
         self.sqlite_conn_id = sqlite_conn_id
         self.sql = sql
-        self.parameters = parameters
+        self.parameters = parameters or []
 
     def execute(self, context):
         logging.info('Executing: ' + self.sql)

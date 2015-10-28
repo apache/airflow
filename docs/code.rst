@@ -71,6 +71,7 @@ Operator API
         PythonOperator,
         S3KeySensor,
         S3ToHiveTransfer,
+        ShortCircuitOperator,
         SlackAPIOperator,
         SlackAPIPostOperator,
         SqlSensor,
@@ -78,7 +79,7 @@ Operator API
         TimeSensor
 
 
-Community Contributed Operators
+Community-contributed Operators
 '''''''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.operators
@@ -106,17 +107,17 @@ Variable                            Description
 ``{{ yesterday_ds }}``              yesterday's date as  ``YYYY-MM-DD``
 ``{{ tomorrow_ds }}``               tomorrow's date as  ``YYYY-MM-DD``
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
-``{{ execution_date }}``            the execution_date, (datateime.datetime)
+``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ dag }}``                       the DAG object
 ``{{ task }}``                      the Task object
-``{{ macros }}``                    a reference to the macros package, described bellow
+``{{ macros }}``                    a reference to the macros package, described below
 ``{{ task_instance }}``             the task_instance object
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ end_date }}``                  same as ``{{ ds }}``
-``{{ lastest_date }}``              same as ``{{ ds }}``
+``{{ latest_date }}``               same as ``{{ ds }}``
 ``{{ ti }}``                        same as ``{{ task_instance }}``
-``{{ params }}``                    a reference to the user defined params dictionary
-``{{ task_instance_key_str }}``     a unique, human readable key to the task instance
+``{{ params }}``                    a reference to the user-defined params dictionary
+``{{ task_instance_key_str }}``     a unique, human-readable key to the task instance
                                     formatted ``{dag_id}_{task_id}_{ds}``
 ``conf``                            the full configuration object located at
                                     ``airflow.configuration.conf`` which
@@ -147,7 +148,7 @@ These macros live under the ``macros`` namespace in your templates.
 Models
 ------
 
-Models are built on top of th SQLAlchemy ORM Base class, and instances are
+Models are built on top of the SQLAlchemy ORM Base class, and instances are
 persisted in the database.
 
 
@@ -160,6 +161,7 @@ Hooks
 .. automodule:: airflow.hooks
     :show-inheritance:
     :members:
+        DbApiHook,
         HiveCliHook,
         HiveMetastoreHook,
         HiveServer2Hook,
@@ -189,7 +191,7 @@ Executors are the mechanism by which task instances get run.
     :show-inheritance:
     :members: LocalExecutor, CeleryExecutor, SequentialExecutor
 
-Community contributed executors
+Community-contributed executors
 '''''''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.executors

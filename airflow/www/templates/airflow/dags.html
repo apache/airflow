@@ -56,7 +56,7 @@
                 </td>
                     <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
                 <td style="padding:0px; width:180px; height:10px;">
-                    <svg height="10" width="10" id='{{ dag.dag_id }}' style="display: block;"></svg>
+                    <svg height="10" width="10" id='{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
                 <td class="text-center" style="width:160px;">
                 {% if dag %}
@@ -116,7 +116,7 @@
         });
       });
       $('#dags').dataTable({
-        "iDisplayLength": 100,
+        "iDisplayLength": 500,
         "bSort": false,
       });
       $("#main_content").show(250);

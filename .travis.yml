@@ -1,0 +1,42 @@
+sudo: false
+language: python
+jdk: oraclejdk7
+services:
+  - mysql
+  - postgresql
+python:
+  - "2.7"
+  - "3.4"
+env:
+  global:
+    - CACHE=$HOME/.cache/
+  matrix:
+    - TOX_ENV=py27-cdh
+    - TOX_ENV=py27-hdp
+    - TOX_ENV=py34-cdh
+    - TOX_ENV=py34-hdp
+matrix:
+  exclude:
+    - python: "2.7"
+      env: TOX_ENV=py34-cdh
+    - python: "2.7"
+      env: TOX_ENV=py34-hdp
+    - python: "3.4"
+      env: TOX_ENV=py27-cdh
+    - python: "3.4"
+      env: TOX_ENV=py27-hdp
+cache:
+  directories:
+    - $HOME/.wheelhouse/
+    - $HOME/.cache/
+install:
+  - pip install --upgrade pip
+  - pip install tox
+before_script:
+  - mysql -e 'create database airflow'
+  - psql -c 'create database airflow;' -U postgres
+script:
+  - pip --version
+  - ls -l $HOME/.wheelhouse
+  - tox --version
+  - tox -e $TOX_ENV

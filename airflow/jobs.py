@@ -1,3 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from builtins import str
 from past.builtins import basestring
 from collections import defaultdict
@@ -64,7 +69,7 @@ class BaseJob(Base):
     def __init__(
             self,
             executor=executors.DEFAULT_EXECUTOR,
-            heartrate=conf.getint('scheduler', 'JOB_HEARTBEAT_SEC'),
+            heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
         self.hostname = socket.gethostname()
         self.executor = executor
@@ -572,6 +577,10 @@ class SchedulerJob(BaseJob):
                 except Exception as e:
                     logging.exception(e)
                 try:
+                    dagbag.kill_zombies()
+                except Exception as e:
+                    logging.exception(e)
+                try:
                     # We really just want the scheduler to never ever stop.
                     executor.heartbeat()
                     self.heartbeat()
@@ -580,6 +589,7 @@ class SchedulerJob(BaseJob):
                     logging.error("Tachycardia!")
             except Exception as deep_e:
                 logging.exception(deep_e)
+        executor.end()
 
     def heartbeat_callback(self):
         if statsd:
@@ -657,10 +667,11 @@ class BackfillJob(BaseJob):
         while tasks_to_run:
             for key, ti in list(tasks_to_run.items()):
                 ti.refresh_from_db()
-                if ti.state == State.SUCCESS and key in tasks_to_run:
+                if ti.state in (
+                        State.SUCCESS, State.SKIPPED) and key in tasks_to_run:
                     succeeded.append(key)
-                    del tasks_to_run[key]
-                elif ti.is_runnable():
+                    tasks_to_run.pop(key)
+                elif ti.is_runnable(flag_upstream_failed=True):
                     executor.queue_task_instance(
                         ti,
                         mark_success=self.mark_success,
@@ -687,17 +698,17 @@ class BackfillJob(BaseJob):
                     elif ti.state == State.SKIPPED:
                         wont_run.append(key)
                         logging.error("Skipping " + str(key) + " failed")
-                    del tasks_to_run[key]
+                    tasks_to_run.pop(key)
                     # Removing downstream tasks that also shouldn't run
                     for t in self.dag.get_task(task_id).get_flat_relatives(
                             upstream=False):
                         key = (ti.dag_id, t.task_id, execution_date)
                         if key in tasks_to_run:
                             wont_run.append(key)
-                            del tasks_to_run[key]
+                            tasks_to_run.pop(key)
                 elif ti.state == State.SUCCESS:
                     succeeded.append(key)
-                    del tasks_to_run[key]
+                    tasks_to_run.pop(key)
 
                 # If the executor has a problem independent of the task, the
                 # task state could be 'running' even though the executor says

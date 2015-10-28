@@ -1,4 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+from __future__ import unicode_literals
+
 from future.standard_library import install_aliases
 install_aliases()
 from builtins import str
@@ -192,6 +196,39 @@ class DagBag(object):
 
             self.file_last_changed[filepath] = dttm
 
+    @provide_session
+    def kill_zombies(self, session):
+        """
+        Fails tasks that haven't had a heartbeat in too long
+        """
+        from airflow.jobs import LocalTaskJob as LJ
+        logging.info("Finding 'running' jobs without a recent heartbeat")
+        secs = (conf.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+        limit_dttm = datetime.now() - timedelta(seconds=secs)
+        print("Failing jobs without heartbeat after {}".format(limit_dttm))
+        jobs = (
+            session
+            .query(LJ)
+            .filter(
+                LJ.state == State.RUNNING,
+                LJ.latest_heartbeat < limit_dttm)
+            .all()
+        )
+        for job in jobs:
+            ti = session.query(TaskInstance).filter_by(
+                job_id=job.id, state=State.RUNNING).first()
+            logging.info("Failing job_id '{}'".format(job.id))
+            if ti and ti.dag_id in self.dags:
+                dag = self.dags[ti.dag_id]
+                if ti.task_id in dag.task_ids:
+                    task = dag.get_task(ti.task_id)
+                    ti.task = task
+                    ti.handle_failure("{} killed as zombie".format(ti))
+                    logging.info('Marked zombie job {} as failed'.format(ti))
+            else:
+                job.state = State.FAILED
+        session.commit()
+
     def bag_dag(self, dag, parent_dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
@@ -230,7 +267,7 @@ class DagBag(object):
             dag_folder=None,
             only_if_updated=True):
         """
-        Given a file path or a folder, this file looks for python modules,
+        Given a file path or a folder, this method looks for python modules,
         imports them and adds them to the dagbag collection.
 
         Note that if a .airflowignore file is found while processing,
@@ -478,19 +515,18 @@ class TaskInstance(Base):
         Index('ti_pool', pool, state, priority_weight),
     )
 
-    def __init__(self, task, execution_date, state=None, job=None):
+    def __init__(self, task, execution_date, state=None):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.execution_date = execution_date
-        self.state = state
         self.task = task
         self.queue = task.queue
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
         self.try_number = 1
         self.unixname = getpass.getuser()
-        if job:
-            self.job_id = job.id
+        if state:
+            self.state = state
 
     def command(
             self,
@@ -657,12 +693,12 @@ class TaskInstance(Base):
         else:
             return False
 
-    def is_runnable(self):
+    def is_runnable(self, flag_upstream_failed=False):
         """
         Returns whether a task is ready to run AND there's room in the
         queue.
         """
-        return self.is_queueable() and not self.pool_full()
+        return self.is_queueable(flag_upstream_failed) and not self.pool_full()
 
     def are_dependents_done(self, main_session=None):
         """
@@ -968,7 +1004,6 @@ class TaskInstance(Base):
         self.render_templates()
         task_copy.dry_run()
 
-
     def handle_failure(
                 self,
                 error,
@@ -1064,21 +1099,8 @@ class TaskInstance(Base):
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                if isinstance(content, basestring):
-                    result = rt(content, jinja_context)
-                elif isinstance(content, (list, tuple)):
-                    result = [rt(s, jinja_context) for s in content]
-                elif isinstance(content, dict):
-                    result = {
-                        k: rt(v, jinja_context)
-                        for k, v in list(content.items())}
-                else:
-                    param_type = type(content)
-                    msg = (
-                        "Type '{param_type}' used for parameter '{attr}' is "
-                        "not supported for templating").format(**locals())
-                    raise AirflowException(msg)
-                setattr(task, attr, result)
+                rendered_content = self.task.render_template(content, jinja_context)
+                setattr(task, attr, rendered_content)
 
     def email_alert(self, exception, is_retry=False):
         task = self.task
@@ -1512,6 +1534,7 @@ class BaseOperator(object):
         Hack sorting double chained task lists by task_id to avoid hitting
         max_depth on deepcopy operations.
         """
+        sys.setrecursionlimit(5000)  # TODO fix this in a better way
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
@@ -1521,21 +1544,45 @@ class BaseOperator(object):
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
                 setattr(result, k, copy.deepcopy(v, memo))
+        return result
 
+    def render_template_from_field(self, content, context, jinja_env):
+        '''
+        Renders a template from a field. If the field is a string, it will
+        simply render the string and return the result. If it is a collection or
+        nested set of collections, it will traverse the structure and render
+        all strings in it.
+        '''
+        rt = self.render_template
+        if isinstance(content, basestring):
+            result = jinja_env.from_string(content).render(**context)
+        elif isinstance(content, (list, tuple)):
+            result = [rt(e, context) for e in content]
+        elif isinstance(content, dict):
+            result = {
+                k: rt(v, context)
+                for k, v in list(content.items())}
+        else:
+            param_type = type(content)
+            msg = (
+                "Type '{param_type}' used for parameter '{attr}' is "
+                "not supported for templating").format(**locals())
+            raise AirflowException(msg)
         return result
 
     def render_template(self, content, context):
-        if hasattr(self, 'dag'):
-            env = self.dag.get_template_env()
-        else:
-            env = jinja2.Environment(cache_size=0)
+        '''
+        Renders a template either from a file or directly in a field, and returns
+        the rendered result.
+        '''
+        jinja_env = self.dag.get_template_env() \
+            if hasattr(self, 'dag') \
+            else jinja2.Environment(cache_size=0)
 
         exts = self.__class__.template_ext
-        if any([content.endswith(ext) for ext in exts]):
-            template = env.get_template(content)
-        else:
-            template = env.from_string(content)
-        return template.render(**context)
+        return jinja_env.get_template(content).render(**context) \
+            if isinstance(content, basestring) and any([content.endswith(ext) for ext in exts]) \
+            else self.render_template_from_field(content, context, jinja_env)
 
     def prepare_template(self):
         '''
@@ -1875,6 +1922,7 @@ class DAG(object):
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = datetime.now()
+        self.safe_dag_id = dag_id.replace('.', '__dot__')
 
         self._comps = {
             'dag_id',

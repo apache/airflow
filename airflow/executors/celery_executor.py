@@ -87,8 +87,9 @@ class CeleryExecutor(BaseExecutor):
                     logging.info("Unexpected state: " + async.state)
                 self.last_state[key] = async.state
 
-    def end(self):
-        while any([
-                async.state not in celery_states.READY_STATES
-                for async in self.tasks.values()]):
-            time.sleep(5)
+    def end(self, synchronous=False):
+        if synchronous:
+            while any([
+                    async.state not in celery_states.READY_STATES
+                    for async in self.tasks.values()]):
+                time.sleep(5)

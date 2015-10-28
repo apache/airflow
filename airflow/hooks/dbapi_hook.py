@@ -1,3 +1,4 @@
+
 from builtins import str
 from past.builtins import basestring
 from datetime import datetime
@@ -20,8 +21,6 @@ class DbApiHook(BaseHook):
     supports_autocommit = False
     # Override with the object that exposes the connect method
     connector = None
-    # Whether the db supports a special type of autocmmit
-    supports_autocommit = False
 
     def __init__(self, *args, **kwargs):
         if not self.conn_name_attr:
@@ -59,7 +58,10 @@ class DbApiHook(BaseHook):
         '''
         conn = self.get_conn()
         cur = self.get_cursor()
-        cur.execute(sql, parameters)
+        if parameters is not None:
+            cur.execute(sql, parameters)
+        else:
+            cur.execute(sql)
         rows = cur.fetchall()
         cur.close()
         conn.close()
@@ -71,7 +73,10 @@ class DbApiHook(BaseHook):
         '''
         conn = self.get_conn()
         cur = conn.cursor()
-        cur.execute(sql, parameters)
+        if parameters is not None:
+            cur.execute(sql, parameters)
+        else:
+            cur.execute(sql)
         rows = cur.fetchone()
         cur.close()
         conn.close()
@@ -82,7 +87,6 @@ class DbApiHook(BaseHook):
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
         sequentially
-
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
         :type sql: str or list
@@ -96,7 +100,11 @@ class DbApiHook(BaseHook):
 
         cur = conn.cursor()
         for s in sql:
-            cur.execute(s, parameters)
+            logging.info(s)
+            if parameters is not None:
+                cur.execute(s, parameters)
+            else:
+                cur.execute(s)
         cur.close()
         conn.commit()
         conn.close()
@@ -154,8 +162,9 @@ class DbApiHook(BaseHook):
         logging.info(
             "Done loading. Loaded a total of {i} rows".format(**locals()))
 
-    def get_conn(self):
+
+    def bulk_load(self, table, tmp_file):
         """
-        Retuns a sql connection that can be used to retrieve a cursor.
+        Loads a tab-delimited file into a database table
         """
         raise NotImplemented()

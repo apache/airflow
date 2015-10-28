@@ -4,6 +4,7 @@ celery
 chartkick
 cryptography
 coverage
+coveralls
 dill
 flake8
 flask
@@ -16,22 +17,21 @@ gunicorn
 hive-thrift-py
 ipython
 jinja2
-librabbitmq
 markdown
-mysql-python
 nose
+nose-exclude
 pandas
 pygments
 pyhive
 pydruid
 PySmbClient
 python-dateutil
-#pyhs2
+# pyhs2 -> not compatible with Python 3 because of sasl
 redis
 requests
 setproctitle
 statsd
-#snakebite -> not compatible with Python 3
+# snakebite -> not compatible with Python 3
 sphinx
 sphinx-argparse
 sphinx_rtd_theme
@@ -39,6 +39,6 @@ Sphinx-PyPI-upload
 sqlalchemy
 thrift
 jaydebeapi
-#pymssql
+mysqlclient
 unicodecsv
 slackclient

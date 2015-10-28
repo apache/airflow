@@ -32,7 +32,7 @@ def renew_from_kt():
     # The config is specified in seconds. But we ask for that same amount in
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = "%sm" % conf.getint('kerberos', 'reinit_frequency')
-    principal = "%s/%s" % (conf.get('kerberos', 'principal'), socket.getfqdn())
+    principal = conf.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
     cmdv = [conf.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
             "-k", # host ticket

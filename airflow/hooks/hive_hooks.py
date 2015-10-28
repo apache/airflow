@@ -8,8 +8,7 @@ import subprocess
 from tempfile import NamedTemporaryFile
 
 
-from thrift.transport import TSocket
-from thrift.transport import TTransport
+from thrift.transport import TSocket, TTransport
 from thrift.protocol import TBinaryProtocol
 from hive_service import ThriftHive
 import pyhs2
@@ -69,8 +68,9 @@ class HiveCliHook(BaseHook):
                 if self.use_beeline:
                     hive_bin = 'beeline'
                     if conf.get('core', 'security') == 'kerberos':
-                        template = conn.extra_dejson.get('principal',"hive/_HOST@EXAMPLE.COM")
-                        template = utils.replace_hostname_pattern(utils.get_components(template))
+                        template = conn.extra_dejson.get('principal', "hive/_HOST@EXAMPLE.COM")
+                        if "_HOST" in template:
+                            template = utils.replace_hostname_pattern(utils.get_components(template))
 
                         proxy_user = ""
                         if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
@@ -81,7 +81,7 @@ class HiveCliHook(BaseHook):
                         jdbc_url = (
                             "jdbc:hive2://"
                             "{0}:{1}/{2}"
-                            ";principal={3}{4}"
+                            ";principal={3};{4}"
                         ).format(conn.host, conn.port, conn.schema, template, proxy_user)
                     else:
                         jdbc_url = (
@@ -377,6 +377,23 @@ class HiveMetastoreHook(BaseHook):
         return max([p[field] for p in parts])
 
 
+    def table_exists(self, table_name, db='default'):
+        '''
+        Check if table exists
+
+        >>> hh = HiveMetastoreHook()
+        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        True
+        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        False
+        '''
+        try:
+            t = self.get_table(table_name, db)
+            return True
+        except Exception as e:
+            return False
+
+
 class HiveServer2Hook(BaseHook):
     '''
     Wrapper around the pyhs2 library
@@ -420,7 +437,14 @@ class HiveServer2Hook(BaseHook):
                         }
             return results
 
-    def to_csv(self, hql, csv_filepath, schema='default'):
+    def to_csv(
+            self,
+            hql,
+            csv_filepath,
+            schema='default',
+            delimiter=',',
+            lineterminator='\r\n',
+            output_header=True):
         schema = schema or 'default'
         with self.get_conn() as conn:
             with conn.cursor() as cur:
@@ -428,8 +452,11 @@ class HiveServer2Hook(BaseHook):
                 cur.execute(hql)
                 schema = cur.getSchema()
                 with open(csv_filepath, 'w') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([c['columnName'] for c in cur.getSchema()])
+                    writer = csv.writer(f, delimiter=delimiter,
+                        lineterminator=lineterminator)
+                    if output_header:
+                        writer.writerow([c['columnName']
+                            for c in cur.getSchema()])
                     i = 0
                     while cur.hasMoreRows:
                         rows = [row for row in cur.fetchmany() if row]
