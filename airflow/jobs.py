@@ -403,6 +403,11 @@ class SchedulerJob(BaseJob):
                 ti = ti_dict[task.task_id]
                 ti.task = task  # Hacky but worky
                 if ti.state == State.RUNNING:
+                    if ti.key not in executor.running:
+                        ti.handle_failure(
+                            error=('Unexpected problem with executor; '
+                                   'retrying task.'),
+                            force_retry=True)
                     continue  # Only one task at a time
                 elif ti.state == State.UP_FOR_RETRY:
                     # If task instance if up for retry, make sure
@@ -682,6 +687,14 @@ class BackfillJob(BaseJob):
                 elif ti.state == State.SUCCESS:
                     succeeded.append(key)
                     del tasks_to_run[key]
+
+                # If the executor has a problem independent of the task, the
+                # task state could be 'running' even though the executor says
+                # 'failed'
+                elif ti.state == State.RUNNING and state == State.FAILED:
+                    ti.handle_failure(
+                        error='Unexpected problem with executor; retrying task.',
+                        force_retry=True)
 
             msg = (
                 "[backfill progress] "
