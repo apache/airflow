@@ -211,6 +211,7 @@ class SchedulerJob(BaseJob):
 
         self.dag_id = dag_id
         self.subdir = subdir
+        self.test_mode = test_mode
         if test_mode:
             self.num_runs = 1
         else:
@@ -404,10 +405,20 @@ class SchedulerJob(BaseJob):
                 ti.task = task  # Hacky but worky
                 if ti.state == State.RUNNING:
                     if ti.key not in executor.running:
-                        ti.handle_failure(
-                            error=('Unexpected problem with executor; '
-                                   'retrying task.'),
-                            force_retry=True)
+                        # try/except is a hack for Python 3 because
+                        # handle_failure() calls logging.exception(),
+                        # which  raises an error if called outside
+                        # an except clause
+                        try:
+                            raise AirflowException(
+                                'Unexpected problem with executor; '
+                                'retrying task {}'.format(ti.key))
+                        except AirflowException as e:
+                            ti.handle_failure(
+                                error=e,
+                                test_mode=self.test_mode,
+                                context=ti.get_template_context(),
+                                force_retry=True)
                     continue  # Only one task at a time
                 elif ti.state == State.UP_FOR_RETRY:
                     # If task instance if up for retry, make sure
@@ -692,9 +703,21 @@ class BackfillJob(BaseJob):
                 # task state could be 'running' even though the executor says
                 # 'failed'
                 elif ti.state == State.RUNNING and state == State.FAILED:
-                    ti.handle_failure(
-                        error='Unexpected problem with executor; retrying task.',
-                        force_retry=True)
+
+                    # try/except is a hack for Python 3 because
+                    # handle_failure() calls logging.exception(),
+                    # which  raises an error if called outside
+                    # an except clause
+                    try:
+                        raise AirflowException(
+                            'Unexpected problem with executor; retrying '
+                            'task {}'.format(key))
+                    except AirflowException as e:
+                        ti.handle_failure(
+                            error=e,
+                            test_mode=False,
+                            context=ti.get_template_context(),
+                            force_retry=True)
 
             msg = (
                 "[backfill progress] "
