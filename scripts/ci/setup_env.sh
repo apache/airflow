@@ -50,7 +50,8 @@ if $ONLY_DOWNLOAD && $ONLY_EXTRACT; then
     exit 1
 fi
 
-mkdir -p $HADOOP_HOME
+mkdir -p ${HADOOP_HOME}
+mkdir -p ${CACHE}/${HADOOP_DISTRO}
 
 if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
@@ -62,8 +63,8 @@ else
 fi
 
 if ! $ONLY_EXTRACT; then
-    echo "Downloading Hadoop from $URL to ${HADOOP_HOME}/hadoop.tar.gz"
-    curl -z ${HADOOP_HOME}/hadoop.tar.gz -o ${HADOOP_HOME}/hadoop.tar.gz -L $URL
+    echo "Downloading Hadoop from $URL to ${CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz"
+    curl -z ${CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz -o ${CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz -L $URL
 
     if [ $? != 0 ]; then
         echo "Failed to download Hadoop from $URL - abort" >&2
@@ -76,7 +77,7 @@ if $ONLY_DOWNLOAD; then
 fi
 
 echo "Extracting ${HADOOP_HOME}/hadoop.tar.gz into $HADOOP_HOME"
-tar zxf ${HADOOP_HOME}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
+tar zxf ${CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
 
 if [ $? != 0 ]; then
     echo "Failed to extract Hadoop from ${HADOOP_HOME}/hadoop.tar.gz to ${HADOOP_HOME} - abort" >&2

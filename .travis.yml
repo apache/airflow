@@ -8,10 +8,13 @@ python:
   - "2.7"
   - "3.4"
 env:
-  - TOX_ENV=py27-cdh
-  - TOX_ENV=py27-hdp
-  - TOX_ENV=py34-cdh
-  - TOX_ENV=py34-hdp
+  global:
+    - CACHE=$HOME/.cache/
+  matrix:
+    - TOX_ENV=py27-cdh
+    - TOX_ENV=py27-hdp
+    - TOX_ENV=py34-cdh
+    - TOX_ENV=py34-hdp
 matrix:
   exclude:
     - python: "2.7"
@@ -25,6 +28,7 @@ matrix:
 cache:
   directories:
     - $HOME/.wheelhouse/
+    - $HOME/.cache/
 install:
   - pip install --upgrade pip
   - pip install tox

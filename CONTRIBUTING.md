@@ -57,9 +57,13 @@ If you are proposing a feature:
 
 ## Testing
 
-Install development requirements:
+Assuming you are working in a virtualenv. Install development requirements:
 
+    cd $AIRFLOW_HOME
+    virtualenv env
+    source env/bin/activate
     pip install -r requirements.txt
+    python setup.py develop
 
 Tests can then be run with:
 

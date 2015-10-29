@@ -18,6 +18,9 @@ and launch a ticket renewer next to every worker it will most likely work.
 Enabling security
 -----------------
 
+Airflow
+'''''''
+
 To enable kerberos you will need to generate a (service) key tab.
 
 .. code-block:: bash
@@ -48,8 +51,32 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
+Hadoop
+''''''
+
+If want to use impersonation this needs to be enabled in core-site.xml of your hadoop config.
+
+.. code-block:: bash
+
+    <property>
+      <name>hadoop.proxyuser.airflow.groups</name>
+      <value>*</value>
+    </property>
+
+    <property>
+      <name>hadoop.proxyuser.airflow.users</name>
+      <value>*</value>
+    </property>
+
+    <property>
+      <name>hadoop.proxyuser.airflow.hosts</name>
+      <value>*</value>
+    </property>
+
+Of course if you need to tighten your security replace the asterisk with something more appropriate.
+
 Using kerberos authentication
-'''''''''''''''''''''''''''''
+-----------------------------
 
 The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to use it simply
 update the connection details with, for example:

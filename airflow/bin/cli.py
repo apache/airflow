@@ -85,6 +85,14 @@ def run(args):
     args.execution_date = dateutil.parser.parse(args.execution_date)
     iso = args.execution_date.isoformat()
     filename = "{directory}/{iso}".format(**locals())
+
+    # store old log (to help with S3 appends)
+    if os.path.exists(filename):
+        with open(filename, 'r') as logfile:
+            old_log = logfile.read()
+    else:
+        old_log = None
+
     subdir = None
     if args.subdir:
         subdir = args.subdir.replace(
@@ -164,6 +172,34 @@ def run(args):
             force=args.force)
         executor.heartbeat()
         executor.end()
+
+    if conf.get('core', 'S3_LOG_FOLDER').startswith('s3:'):
+        import boto
+        s3_log = filename.replace(log, conf.get('core', 'S3_LOG_FOLDER'))
+        bucket, key = s3_log.lstrip('s3:/').split('/', 1)
+        if os.path.exists(filename):
+
+            # get logs
+            with open(filename, 'r') as logfile:
+                new_log = logfile.read()
+
+            # remove old logs (since they are already in S3)
+            if old_log:
+                new_log.replace(old_log, '')
+
+            try:
+                s3 = boto.connect_s3()
+                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
+
+                # append new logs to old S3 logs, if available
+                if s3_key.exists():
+                    old_s3_log = s3_key.get_contents_as_string().decode()
+                    new_log = old_s3_log + '\n' + new_log
+
+                # send log to S3
+                s3_key.set_contents_from_string(new_log)
+            except:
+                print('Could not send logs to S3.')
 
 
 def task_state(args):
@@ -301,10 +337,7 @@ def worker(args):
     # Worker to serve static log files through this simple flask app
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-    sp = subprocess.Popen(
-        ['airflow', 'serve_logs'],
-        env=env,
-    )
+    sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
@@ -315,6 +348,7 @@ def worker(args):
         'optimization': 'fair',
         'O': 'fair',
         'queues': args.queues,
+        'concurrency': args.concurrency,
     }
     worker.run(**options)
     sp.kill()
@@ -584,6 +618,11 @@ def get_parser():
         "-q", "--queues",
         help="Comma delimited list of queues to serve",
         default=conf.get('celery', 'DEFAULT_QUEUE'))
+    parser_worker.add_argument(
+        "-c", "--concurrency",
+        type=int,
+        help="The number of worker processes",
+        default=conf.get('celery', 'celeryd_concurrency'))
     parser_worker.set_defaults(func=worker)
 
     ht = "Serve logs generate by worker"

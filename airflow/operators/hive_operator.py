@@ -15,8 +15,8 @@ class HiveOperator(BaseOperator):
     :param hive_cli_conn_id: reference to the Hive database
     :type hive_cli_conn_id: string
     :param hiveconf_jinja_translate: when True, hiveconf-type templating
-        ${var} gets translated into jina-type templating {{ var }}. Note that
-        you may want to use along this along with the
+        ${var} gets translated into jinja-type templating {{ var }}. Note that
+        you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
     :type hiveconf_jinja_translate: boolean

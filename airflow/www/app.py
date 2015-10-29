@@ -39,6 +39,7 @@ def create_app(config=None):
         admin.add_view(
             views.TaskInstanceModelView(models.TaskInstance, Session, name="Task Instances", category="Browse")
         )
+
         admin.add_view(views.LogModelView(models.Log, Session, name="Logs", category="Browse"))
         admin.add_view(views.JobModelView(jobs.BaseJob, Session, name="Jobs", category="Browse"))
 

@@ -393,7 +393,12 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def send_email(to, subject, html_content, files=None):
+def send_email(to, subject, html_content, files=None, dryrun=False):
+    """
+    Send an email with html content
+
+    >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
+    """
     SMTP_MAIL_FROM = conf.get('smtp', 'SMTP_MAIL_FROM')
 
     if isinstance(to, basestring):
@@ -420,24 +425,25 @@ def send_email(to, subject, html_content, files=None):
                 Name=basename
             ))
 
-    send_MIME_email(SMTP_MAIL_FROM, to, msg)
+    send_MIME_email(SMTP_MAIL_FROM, to, msg, dryrun)
 
 
-def send_MIME_email(e_from, e_to, mime_msg):
+def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
     SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
     SMTP_USER = conf.get('smtp', 'SMTP_USER')
     SMTP_PASSWORD = conf.get('smtp', 'SMTP_PASSWORD')
     SMTP_STARTTLS = conf.getboolean('smtp', 'SMTP_STARTTLS')
 
-    s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-    if SMTP_STARTTLS:
-        s.starttls()
-    if SMTP_USER and SMTP_PASSWORD:
-        s.login(SMTP_USER, SMTP_PASSWORD)
-    logging.info("Sent an alert email to " + str(e_to))
-    s.sendmail(e_from, e_to, mime_msg.as_string())
-    s.quit()
+    if not dryrun:
+        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        if SMTP_STARTTLS:
+            s.starttls()
+        if SMTP_USER and SMTP_PASSWORD:
+            s.login(SMTP_USER, SMTP_PASSWORD)
+        logging.info("Sent an alert email to " + str(e_to))
+        s.sendmail(e_from, e_to, mime_msg.as_string())
+        s.quit()
 
 
 def import_module_attrs(parent_module_globals, module_attrs_dict):
