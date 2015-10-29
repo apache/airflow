@@ -58,3 +58,4 @@ mock
 hdfs
 thrift_sasl
 impyla
+cloudant

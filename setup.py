@@ -94,13 +94,14 @@ password = [
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
+cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
+
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
-
 
 setup(
     name='airflow',
@@ -168,7 +169,8 @@ setup(
         'kerberos': kerberos,
         'password': password,
         'github_enterprise': github_enterprise,
-        'qds': qds
+        'qds': qds,
+        'cloudant': cloudant
     },
     classifiers={
         'Development Status :: 5 - Production/Stable',
