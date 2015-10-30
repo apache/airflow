@@ -142,7 +142,7 @@ def login(self, request):
         session.commit()
         session.close()
 
-        return redirect(request.args.get("next") or url_for("index"))
+        return redirect(request.args.get("next") or url_for("admin.index"))
     except AuthenticationError:
         flash("Incorrect login details")
         return self.render('airflow/login.html',
