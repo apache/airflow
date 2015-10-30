@@ -35,6 +35,7 @@ from sqlalchemy.pool import Pool
 
 import numpy as np
 
+import airflow.default_login
 from airflow import settings
 from airflow.configuration import conf
 
@@ -139,7 +140,6 @@ def merge_conn(conn, session=None):
 
 
 def initdb():
-    import airflow.default_login
     session = settings.Session()
     from airflow import models
     upgradedb()
