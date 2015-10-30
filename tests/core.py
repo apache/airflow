@@ -511,12 +511,19 @@ class WebLdapAuthTest(unittest.TestCase):
         basedn=cn=users,cn=accounts,dc=mac,dc=local
         cacert=
         """
-        os.environ['AIRFLOW_CONFIG'] = os.path.dirname(os.path.realpath(__file__)) + \
-                                       "/../scripts/ci/airflow_travis_ldap.cfg"
 
         from airflow import configuration
         configuration.test_mode()
         configuration.conf.set("webserver", "authenticate", "True")
+        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
+        configuration.conf.set("ldap", "uri", "ldap://localhost")
+        configuration.conf.set("ldap", "user_filter", "objectClass=*")
+        configuration.conf.set("ldap", "user_name_attr", "True")
+        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
+        configuration.conf.set("ldap", "bind_password", "insecure")
+        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
+        configuration.conf.set("ldap", "cacert", "")
+
         self.configuration = configuration
 
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
