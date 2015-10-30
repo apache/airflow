@@ -14,7 +14,7 @@ python:
   - "3.4"
 env:
   global:
-    - CACHE=$HOME/.cache/
+    - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
     - TOX_ENV=py27-cdh
     - TOX_ENV=py27-hdp
@@ -33,12 +33,12 @@ matrix:
 cache:
   directories:
     - $HOME/.wheelhouse/
-    - $HOME/.cache/
+    - $HOME/.travis_cache/
 install:
   - pip install --upgrade pip
   - pip install tox
 before_script:
-  - mysql -e 'create database airflow'
+  - mysql -e 'drop database if exists airflow; create database airflow' -u root
   - psql -c 'create database airflow;' -U postgres
 script:
   - pip --version

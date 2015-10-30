@@ -2,6 +2,7 @@ import socket
 
 from flask import Flask
 from flask.ext.admin import Admin, base
+from flask.ext.cache import Cache
 
 from airflow import login
 from airflow import models
@@ -18,6 +19,9 @@ def create_app(config=None):
     app.secret_key = conf.get('webserver', 'SECRET_KEY')
     #app.config = config
     login.login_manager.init_app(app)
+
+    cache = Cache(
+        app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     app.register_blueprint(ck, url_prefix='/ck')
     app.register_blueprint(routes)
