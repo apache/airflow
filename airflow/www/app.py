@@ -1,10 +1,12 @@
 import socket
 
+import logging
+from importlib import import_module
+
 from flask import Flask
 from flask.ext.admin import Admin, base
 from flask.ext.cache import Cache
 
-from airflow import login
 from airflow import models
 from airflow.settings import Session
 
@@ -12,6 +14,33 @@ from airflow.www.blueprints import ck, routes
 from airflow import jobs
 from airflow import settings
 from airflow.configuration import conf
+from airflow import AirflowException, AirflowConfigException
+
+"""
+Authentication is implemented using flask_login and different environments can
+implement their own login mechanisms by providing an `airflow_login` module
+in their PYTHONPATH. airflow_login should be based off the
+`airflow.www.login`
+"""
+auth_backend = 'airflow.default_login'
+try:
+    auth_backend = conf.get('webserver', 'auth_backend')
+except AirflowConfigException:
+    if conf.getboolean('webserver', 'AUTHENTICATE'):
+        logging.warning("auth_backend not found in webserver config reverting to *deprecated*"
+                        " behavior of importing airflow_login")
+        auth_backend = "airflow_login"
+
+try:
+    login = import_module(auth_backend)
+except ImportError:
+    logging.critical(
+        "Cannot import authentication module %s. "
+        "Please correct your authentication backend or disable authentication",
+        auth_backend
+    )
+    if conf.getboolean('webserver', 'AUTHENTICATE'):
+        raise AirflowException("Failed to import authentication backend")
 
 
 def create_app(config=None):

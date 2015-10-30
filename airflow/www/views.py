@@ -39,7 +39,7 @@ from pygments.formatters import HtmlFormatter
 import airflow
 from airflow import models
 from airflow.settings import Session
-from airflow import login
+from airflow.www.app import login
 from airflow.configuration import conf, AirflowConfigException
 from airflow import utils
 from airflow.utils import AirflowException

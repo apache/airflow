@@ -321,7 +321,7 @@ class DagBag(object):
         return dag_ids
 
 
-class BaseUser(Base):
+class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True)
@@ -333,6 +333,9 @@ class BaseUser(Base):
 
     def get_id(self):
         return str(self.id)
+
+    def is_superuser(self):
+        return False
 
 
 class Connection(Base):

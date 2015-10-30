@@ -3,19 +3,14 @@ import doctest
 import os
 from time import sleep
 import unittest
-from airflow import configuration
-configuration.test_mode()
-from airflow import jobs, models, DAG, utils, operators, hooks, macros
-from airflow.bin import cli
-from airflow.configuration import conf
 from airflow.www.app import create_app
 from airflow.settings import Session
+import airflow
 
 NUM_EXAMPLE_DAGS = 7
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_tests'
-configuration.test_mode()
 
 try:
     import cPickle as pickle
@@ -26,6 +21,7 @@ except ImportError:
 
 def reset():
     session = Session()
+    from airflow import models
     tis = session.query(models.TaskInstance).filter_by(dag_id=TEST_DAG_ID)
     tis.delete()
     session.commit()
@@ -35,22 +31,33 @@ reset()
 
 
 class CoreTest(unittest.TestCase):
-
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
-        self.dagbag = models.DagBag(
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
+        self.dagbag = self.models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=self.args)
+        dag = self.DAG(TEST_DAG_ID, default_args=self.args)
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
 
     def test_confirm_unittest_mod(self):
-        assert configuration.conf.get('core', 'unit_test_mode')
+        assert self.configuration.conf.get('core', 'unit_test_mode')
 
     def test_backfill_examples(self):
-        self.dagbag = models.DagBag(
+        self.dagbag = self.models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         dags = [
             dag for dag in self.dagbag.dags.values()
@@ -62,7 +69,7 @@ class CoreTest(unittest.TestCase):
                 end_date=DEFAULT_DATE)
         for dag in dags:
             print(dag.tasks)
-            job = jobs.BackfillJob(
+            job = self.jobs.BackfillJob(
                 dag=dag,
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
@@ -74,13 +81,13 @@ class CoreTest(unittest.TestCase):
 
     def test_rich_comparison_ops(self):
 
-        class DAGsubclass(DAG):
+        class DAGsubclass(self.DAG):
             pass
 
-        dag_eq = DAG(TEST_DAG_ID, default_args=self.args)
+        dag_eq = self.DAG(TEST_DAG_ID, default_args=self.args)
 
-        dag_diff_load_time = DAG(TEST_DAG_ID, default_args=self.args)
-        dag_diff_name = DAG(TEST_DAG_ID + '_neq', default_args=self.args)
+        dag_diff_load_time = self.DAG(TEST_DAG_ID, default_args=self.args)
+        dag_diff_name = self.DAG(TEST_DAG_ID + '_neq', default_args=self.args)
 
         dag_subclass = DAGsubclass(TEST_DAG_ID, default_args=self.args)
         dag_subclass_diff_name = DAGsubclass(
@@ -118,21 +125,21 @@ class CoreTest(unittest.TestCase):
         assert hash(self.dag) != hash(dag_subclass)
 
     def test_time_sensor(self):
-        t = operators.TimeSensor(
+        t = self.operators.TimeSensor(
             task_id='time_sensor_check',
             target_time=time(0),
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_check_operators(self):
-        t = operators.CheckOperator(
+        t = self.operators.CheckOperator(
             task_id='check',
             sql="SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES",
             conn_id="mysql_default",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-        t = operators.ValueCheckOperator(
+        t = self.operators.ValueCheckOperator(
             task_id='value_check',
             pass_value=95,
             tolerance=0.1,
@@ -146,39 +153,39 @@ class CoreTest(unittest.TestCase):
         task.clear(
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
             upstream=True, downstream=True)
-        ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti = self.models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
 
     def test_bash_operator(self):
-        t = operators.BashOperator(
+        t = self.operators.BashOperator(
             task_id='time_sensor_check',
             bash_command="echo success",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_dryrun(self):
-        t = operators.BashOperator(
+        t = self.operators.BashOperator(
             task_id='time_sensor_check',
             bash_command="echo success",
             dag=self.dag)
         t.dry_run()
 
     def test_sqlite(self):
-        t = operators.SqliteOperator(
+        t = self.operators.SqliteOperator(
             task_id='time_sqlite',
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_timedelta_sensor(self):
-        t = operators.TimeDeltaSensor(
+        t = self.operators.TimeDeltaSensor(
             task_id='timedelta_sensor_check',
             delta=timedelta(seconds=2),
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_external_task_sensor(self):
-        t = operators.ExternalTaskSensor(
+        t = self.operators.ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -186,7 +193,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_external_task_sensor_delta(self):
-        t = operators.ExternalTaskSensor(
+        t = self.operators.ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -196,13 +203,13 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_timeout(self):
-        t = operators.PythonOperator(
+        t = self.operators.PythonOperator(
             task_id='test_timeout',
             execution_timeout=timedelta(seconds=1),
             python_callable=lambda: sleep(5),
             dag=self.dag)
         self.assertRaises(
-            utils.AirflowTaskTimeout,
+            self.utils.AirflowTaskTimeout,
             t.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
@@ -210,7 +217,7 @@ class CoreTest(unittest.TestCase):
         def test_py_op(templates_dict, ds, **kwargs):
             if not templates_dict['ds'] == ds:
                 raise Exception("failure")
-        t = operators.PythonOperator(
+        t = self.operators.PythonOperator(
             task_id='test_py_op',
             provide_context=True,
             python_callable=test_py_op,
@@ -218,9 +225,8 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-
     def test_complex_template(self):
-        class OperatorSubclass(operators.BaseOperator):
+        class OperatorSubclass(self.operators.BaseOperator):
             template_fields = ['some_templated_field']
             def __init__(self, some_templated_field, *args, **kwargs):
                 super(OperatorSubclass, self).__init__(*args, **kwargs)
@@ -244,25 +250,40 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
 
     def test_local_task_job(self):
-        TI = models.TaskInstance
+        TI = self.models.TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(task_instance=ti, force=True)
+        job = self.jobs.LocalTaskJob(task_instance=ti, force=True)
         job.run()
 
     def test_scheduler_job(self):
-        job = jobs.SchedulerJob(dag_id='example_bash_operator', test_mode=True)
+        job = self.jobs.SchedulerJob(dag_id='example_bash_operator', test_mode=True)
         job.run()
 
+    def test_local_backfill_job(self):
+        dags = [
+            dag for dag in self.dagbag.dags.values()
+            if dag.dag_id not in ('example_http_operator',)]
+        for dag in dags:
+            dag.clear(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE)
+        for dag in dags:
+            job = self.jobs.BackfillJob(
+                dag=dag,
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE)
+            job.run()
+
     def test_raw_job(self):
-        TI = models.TaskInstance
+        TI = self.models.TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         ti.dag = self.dag_bash
         ti.run(force=True)
 
     def test_doctests(self):
-        modules = [utils, macros]
+        modules = [self.utils, self.macros]
         for mod in modules:
             failed, tests = doctest.testmod(mod)
             if failed:
@@ -272,7 +293,21 @@ class CoreTest(unittest.TestCase):
 class CliTests(unittest.TestCase):
 
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        from airflow.bin import cli
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+        self.cli = cli
+
         app = create_app()
         app.config['TESTING'] = True
         self.parser = cli.get_parser()
@@ -281,56 +316,67 @@ class CliTests(unittest.TestCase):
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags'])
-        cli.list_dags(args)
+        self.cli.list_dags(args)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
             args = self.parser.parse_args(['list_tasks', dag_id])
-            cli.list_tasks(args)
+            self.cli.list_tasks(args)
 
         args = self.parser.parse_args([
             'list_tasks', 'example_bash_operator', '--tree'])
-        cli.list_tasks(args)
+        self.cli.list_tasks(args)
 
     def test_cli_initdb(self):
-        cli.initdb(self.parser.parse_args(['initdb']))
+        self.cli.initdb(self.parser.parse_args(['initdb']))
 
     def test_cli_test(self):
-        cli.test(self.parser.parse_args([
+        self.cli.test(self.parser.parse_args([
             'test', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
-        cli.test(self.parser.parse_args([
+        self.cli.test(self.parser.parse_args([
             'test', 'example_bash_operator', 'runme_0', '--dry_run',
             DEFAULT_DATE.isoformat()]))
 
     def test_cli_run(self):
-        cli.run(self.parser.parse_args([
+        self.cli.run(self.parser.parse_args([
             'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
 
     def test_task_state(self):
-        cli.task_state(self.parser.parse_args([
+        self.cli.task_state(self.parser.parse_args([
             'task_state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
     def test_backfill(self):
-        cli.backfill(self.parser.parse_args([
+        self.cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        cli.backfill(self.parser.parse_args([
+        self.cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator', '--dry_run',
             '-s', DEFAULT_DATE.isoformat()]))
 
-        cli.backfill(self.parser.parse_args([
+        self.cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]))
 
 
 class WebUiTests(unittest.TestCase):
-
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
         app = create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -433,7 +479,7 @@ class WebUiTests(unittest.TestCase):
         session = Session()
         chart_label = "Airflow task instance by type"
         chart = session.query(
-            models.Chart).filter(models.Chart.label==chart_label).first()
+            self.models.Chart).filter(self.models.Chart.label==chart_label).first()
         chart_id = chart.id
         session.close()
         response = self.app.get(
@@ -448,18 +494,110 @@ class WebUiTests(unittest.TestCase):
     def tearDown(self):
         pass
 
-if 'MySqlOperator' in dir(operators):
+
+class WebLdapAuthTest(unittest.TestCase):
+
+    def setUp(self):
+        authenticate = """
+        [webserver]
+        authenticate = True
+        auth_backend = airflow.contrib.auth.backends.ldap_auth
+        [ldap]
+        uri=ldap://localhost
+        user_filter=objectClass=*
+        user_name_attr=uid
+        bind_user=cn=Manager,dc=example,dc=com
+        bind_password=insecure
+        basedn=cn=users,cn=accounts,dc=mac,dc=local
+        cacert=
+        """
+
+        from airflow import configuration
+        configuration.test_mode()
+        configuration.conf.set("webserver", "authenticate", "True")
+        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
+        try:
+            configuration.conf.add_section("ldap")
+        except:
+            pass
+        configuration.conf.set("ldap", "uri", "ldap://localhost")
+        configuration.conf.set("ldap", "user_filter", "objectClass=*")
+        configuration.conf.set("ldap", "user_name_attr", "True")
+        configuration.conf.set("ldap", "bind_user", "cn=Manager,dc=example,dc=com")
+        configuration.conf.set("ldap", "bind_password", "insecure")
+        configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
+        configuration.conf.set("ldap", "cacert", "")
+
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
+        app = create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+    def login(self, username, password):
+        return self.app.post('/admin/airflow/login', data=dict(
+            username=username,
+            password=password
+        ), follow_redirects=True)
+
+    def logout(self):
+        return self.app.get('/admin/airflow/logout', follow_redirects=True)
+
+    def test_login_logout_ldap(self):
+        assert self.configuration.conf.getboolean('webserver', 'authenticate') is True
+
+        response = self.login('user1', 'userx')
+        assert 'Incorrect login details' in response.data
+
+        response = self.login('userz', 'user1')
+        assert 'Incorrect login details' in response.data
+
+        response = self.login('user1', 'user1')
+        assert 'Data Profiling' in response.data
+
+        response = self.logout()
+        assert 'form-signin' in response.data
+
+    def test_unauthorized(self):
+        response = self.app.get("/admin/connection/")
+        print response.data
+        assert '403 Forbidden' in response.data
+
+    def tearDown(self):
+        pass
+
+if 'MySqlOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class MySqlTest(unittest.TestCase):
-
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
+            from airflow import jobs, models, DAG, utils, operators, hooks, macros
+            self.jobs = jobs
+            self.models = models
+            self.DAG = DAG
+            self.utils = utils
+            self.operators = operators
+            self.hooks = hooks
+            self.macros = macros
+
             args = {
                 'owner': 'airflow',
                 'mysql_conn_id': 'airflow_db',
                 'start_date': datetime(2015, 1, 1)
             }
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
 
         def mysql_operator_test(self):
@@ -468,7 +606,7 @@ if 'MySqlOperator' in dir(operators):
                 dummy VARCHAR(50)
             );
             """
-            t = operators.MySqlOperator(
+            t = self.operators.MySqlOperator(
                 task_id='basic_mysql',
                 sql=sql,
                 mysql_conn_id='airflow_db',
@@ -480,7 +618,7 @@ if 'MySqlOperator' in dir(operators):
                 "TRUNCATE TABLE test_airflow",
                 "INSERT INTO test_airflow VALUES ('X')",
             ]
-            t = operators.MySqlOperator(
+            t = self.operators.MySqlOperator(
                 task_id='mysql_operator_test_multi',
                 mysql_conn_id='airflow_db',
                 sql=sql, dag=self.dag)
@@ -488,7 +626,7 @@ if 'MySqlOperator' in dir(operators):
 
         def test_mysql_to_mysql(self):
             sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-            t = operators.GenericTransfer(
+            t = self.operators.GenericTransfer(
                 task_id='test_m2m',
                 preoperator=[
                     "DROP TABLE IF EXISTS test_mysql_to_mysql",
@@ -503,14 +641,25 @@ if 'MySqlOperator' in dir(operators):
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
 
-if 'PostgresOperator' in dir(operators):
+if 'PostgresOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class PostgresTest(unittest.TestCase):
-
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
+            from airflow import jobs, models, DAG, utils, operators, hooks, macros
+            self.jobs = jobs
+            self.models = models
+            self.DAG = DAG
+            self.utils = utils
+            self.operators = operators
+            self.hooks = hooks
+            self.macros = macros
+
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
 
         def postgres_operator_test(self):
@@ -519,11 +668,11 @@ if 'PostgresOperator' in dir(operators):
                 dummy VARCHAR(50)
             );
             """
-            t = operators.PostgresOperator(
+            t = self.operators.PostgresOperator(
                 task_id='basic_postgres', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-            autocommitTask = operators.PostgresOperator(
+            autocommitTask = self.operators.PostgresOperator(
                 task_id='basic_postgres_with_autocommit',
                 sql=sql,
                 dag=self.dag,
@@ -535,15 +684,26 @@ if 'PostgresOperator' in dir(operators):
 
 
 class HttpOpSensorTest(unittest.TestCase):
-
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
         args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-        dag = DAG(TEST_DAG_ID, default_args=args)
+        dag = self.DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
     def test_get(self):
-        t = operators.SimpleHttpOperator(
+        t = self.operators.SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
@@ -553,7 +713,7 @@ class HttpOpSensorTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_get_response_check(self):
-        t = operators.SimpleHttpOperator(
+        t = self.operators.SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
@@ -564,7 +724,7 @@ class HttpOpSensorTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_sensor(self):
-        sensor = operators.HttpSensor(
+        sensor = self.operators.HttpSensor(
             task_id='http_sensor_check',
             conn_id='http_default',
             endpoint='/search',
@@ -576,12 +736,38 @@ class HttpOpSensorTest(unittest.TestCase):
             dag=self.dag)
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    def test_sensor_timeout(self):
+        sensor = self.operators.HttpSensor(
+            task_id='http_sensor_check',
+            conn_id='http_default',
+            endpoint='/search',
+            params={"client": "ubuntu", "q": "airflow"},
+            headers={},
+            response_check=lambda response: ("dingdong" in response.text),
+            poke_interval=2,
+            timeout=5,
+            dag=self.dag)
+        with self.assertRaises(self.utils.AirflowSensorTimeout):
+            sensor.run(
+                start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
 
 class ConnectionTest(unittest.TestCase):
-
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
-        utils.initdb()
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
+        self.utils.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
         os.environ['AIRFLOW_CONN_TEST_URI_NO_CREDS'] = (
@@ -594,7 +780,7 @@ class ConnectionTest(unittest.TestCase):
                 del os.environ[ev]
 
     def test_using_env_var(self):
-        c = hooks.SqliteHook.get_connection(conn_id='test_uri')
+        c = self.hooks.SqliteHook.get_connection(conn_id='test_uri')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login == 'username'
@@ -602,7 +788,7 @@ class ConnectionTest(unittest.TestCase):
         assert c.port == 5432
 
     def test_using_unix_socket_env_var(self):
-        c = hooks.SqliteHook.get_connection(conn_id='test_uri_no_creds')
+        c = self.hooks.SqliteHook.get_connection(conn_id='test_uri_no_creds')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login is None
@@ -610,7 +796,7 @@ class ConnectionTest(unittest.TestCase):
         assert c.port is None
 
     def test_param_setup(self):
-        c = models.Connection(conn_id='local_mysql', conn_type='mysql',
+        c = self.models.Connection(conn_id='local_mysql', conn_type='mysql',
                               host='localhost', login='airflow',
                               password='airflow', schema='airflow')
         assert c.host == 'localhost'
@@ -620,12 +806,12 @@ class ConnectionTest(unittest.TestCase):
         assert c.port is None
 
     def test_env_var_priority(self):
-        c = hooks.SqliteHook.get_connection(conn_id='airflow_db')
+        c = self.hooks.SqliteHook.get_connection(conn_id='airflow_db')
         assert c.host != 'ec2.compute.com'
 
         os.environ['AIRFLOW_CONN_AIRFLOW_DB'] = \
             'postgres://username:password@ec2.compute.com:5432/the_database'
-        c = hooks.SqliteHook.get_connection(conn_id='airflow_db')
+        c = self.hooks.SqliteHook.get_connection(conn_id='airflow_db')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login == 'username'
@@ -635,14 +821,23 @@ class ConnectionTest(unittest.TestCase):
 
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
-
-
     class TransferTests(unittest.TestCase):
-
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
+            from airflow import jobs, models, DAG, utils, operators, hooks, macros
+            self.jobs = jobs
+            self.models = models
+            self.DAG = DAG
+            self.utils = utils
+            self.operators = operators
+            self.hooks = hooks
+            self.macros = macros
+
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
 
         def test_clear(self):
@@ -650,7 +845,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         def test_mysql_to_hive(self):
             sql = "SELECT * FROM task_instance LIMIT 1000;"
-            t = operators.MySqlToHiveTransfer(
+            t = self.operators.MySqlToHiveTransfer(
                 task_id='test_m2h',
                 mysql_conn_id='airflow_db',
                 sql=sql,
@@ -661,7 +856,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
         def test_mysql_to_hive_partition(self):
             sql = "SELECT * FROM task_instance LIMIT 1000;"
-            t = operators.MySqlToHiveTransfer(
+            t = self.operators.MySqlToHiveTransfer(
                 task_id='test_m2h',
                 mysql_conn_id='airflow_db',
                 sql=sql,
@@ -674,11 +869,22 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
 
     class HivePrestoTest(unittest.TestCase):
-
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
+            from airflow import jobs, models, DAG, utils, operators, hooks, macros
+            self.jobs = jobs
+            self.models = models
+            self.DAG = DAG
+            self.utils = utils
+            self.operators = operators
+            self.hooks = hooks
+            self.macros = macros
+
             args = {'owner': 'airflow', 'start_date': datetime(2015, 1, 1)}
-            dag = DAG(TEST_DAG_ID, default_args=args)
+            dag = self.DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
             self.hql = """
             USE airflow;
@@ -696,17 +902,17 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             """
 
         def test_hive(self):
-            t = operators.HiveOperator(
+            t = self.operators.HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive_dryrun(self):
-            t = operators.HiveOperator(
+            t = self.operators.HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
         def test_beeline(self):
-            t = operators.HiveOperator(
+            t = self.operators.HiveOperator(
                 task_id='beeline_hql', hive_cli_conn_id='beeline_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
@@ -715,19 +921,19 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             sql = """
             SELECT count(1) FROM airflow.static_babynames_partitioned;
             """
-            t = operators.PrestoCheckOperator(
+            t = self.operators.PrestoCheckOperator(
                 task_id='presto_check', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hdfs_sensor(self):
-            t = operators.HdfsSensor(
+            t = self.operators.HdfsSensor(
                 task_id='hdfs_sensor_check',
                 filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_sql_sensor(self):
-            t = operators.SqlSensor(
+            t = self.operators.SqlSensor(
                 task_id='hdfs_sensor_check',
                 conn_id='presto_default',
                 sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
@@ -735,7 +941,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive_stats(self):
-            t = operators.HiveStatsCollectionOperator(
+            t = self.operators.HiveStatsCollectionOperator(
                 task_id='hive_stats_check',
                 table="airflow.static_babynames_partitioned",
                 partition={'ds': '2015-01-01'},
@@ -743,14 +949,14 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive_partition_sensor(self):
-            t = operators.HivePartitionSensor(
+            t = self.operators.HivePartitionSensor(
                 task_id='hive_partition_check',
                 table='airflow.static_babynames_partitioned',
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive_metastore_sql_sensor(self):
-            t = operators.MetastorePartitionSensor(
+            t = self.operators.MetastorePartitionSensor(
                 task_id='hive_partition_check',
                 table='airflow.static_babynames_partitioned',
                 partition_name='ds=2015-01-01',
@@ -758,8 +964,8 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive2samba(self):
-            if 'Hive2SambaOperator' in dir(operators):
-                t = operators.Hive2SambaOperator(
+            if 'Hive2SambaOperator' in dir(self.operators):
+                t = self.operators.Hive2SambaOperator(
                     task_id='hive2samba_check',
                     samba_conn_id='tableau_samba',
                     hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
@@ -768,7 +974,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hive_to_mysql(self):
-            t = operators.HiveToMySqlTransfer(
+            t = self.operators.HiveToMySqlTransfer(
                 mysql_conn_id='airflow_db',
                 task_id='hive_to_mysql_check',
                 create=True,

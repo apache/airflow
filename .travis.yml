@@ -4,6 +4,11 @@ jdk: oraclejdk7
 services:
   - mysql
   - postgresql
+addons:
+  apt:
+    packages:
+      - slapd
+      - ldap-utils
 python:
   - "2.7"
   - "3.4"
