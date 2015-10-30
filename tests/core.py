@@ -5,7 +5,7 @@ from time import sleep
 import unittest
 from airflow.www.app import create_app
 from airflow.settings import Session
-#import airflow
+import airflow
 
 NUM_EXAMPLE_DAGS = 7
 DEV_NULL = '/dev/null'
@@ -571,8 +571,6 @@ class WebLdapAuthTest(unittest.TestCase):
 
     def tearDown(self):
         pass
-
-import airflow
 
 if 'MySqlOperator' in dir(airflow.operators):
     # Only testing if the operator is installed

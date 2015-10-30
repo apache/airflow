@@ -16,32 +16,11 @@ from airflow.models import DAG
 from airflow.utils import AirflowException
 
 from flask.ext.admin import BaseView
-from importlib import import_module
 from airflow.utils import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 if DAGS_FOLDER not in sys.path:
     sys.path.append(DAGS_FOLDER)
-
-auth_backend = 'airflow.default_login'
-try:
-    auth_backend = conf.get('webserver', 'auth_backend')
-except AirflowConfigException:
-    if conf.getboolean('webserver', 'AUTHENTICATE'):
-        logging.warning("auth_backend not found in webserver config reverting to *deprecated*"
-                        " behavior of importing airflow_login")
-        auth_backend = "airflow_login"
-
-try:
-    login = import_module(auth_backend)
-except ImportError:
-    logging.critical(
-        "Cannot import authentication module %s. "
-        "Please correct your authentication backend or disable authentication",
-        auth_backend
-    )
-    if conf.getboolean('webserver', 'AUTHENTICATE'):
-        raise AirflowException("Failed to import authentication backend")
 
 
 class AirflowViewPlugin(BaseView):
