@@ -335,6 +335,10 @@ class BaseUser(Base):
         return str(self.id)
 
 
+class User(BaseUser):
+    pass
+
+
 class Connection(Base):
     """
     Placeholder to store information about different database instances
