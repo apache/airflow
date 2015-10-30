@@ -141,6 +141,7 @@ def merge_conn(conn, session=None):
 def initdb():
     session = settings.Session()
     from airflow import models
+    import airflow.www.app
     upgradedb()
 
     merge_conn(
