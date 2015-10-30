@@ -334,6 +334,9 @@ class User(Base):
     def get_id(self):
         return str(self.id)
 
+    def is_superuser(self):
+        return False
+
 
 class Connection(Base):
     """
