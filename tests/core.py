@@ -3,7 +3,6 @@ import doctest
 import os
 from time import sleep
 import unittest
-from airflow import configuration
 from airflow.www.app import create_app
 from airflow.settings import Session
 import airflow
@@ -33,7 +32,10 @@ reset()
 
 class CoreTest(unittest.TestCase):
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
         self.models = models
@@ -52,7 +54,7 @@ class CoreTest(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
 
     def test_confirm_unittest_mod(self):
-        assert configuration.conf.get('core', 'unit_test_mode')
+        assert self.configuration.conf.get('core', 'unit_test_mode')
 
     def test_backfill_examples(self):
         self.dagbag = self.models.DagBag(
@@ -291,7 +293,10 @@ class CoreTest(unittest.TestCase):
 class CliTests(unittest.TestCase):
 
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         from airflow.bin import cli
         self.jobs = jobs
@@ -359,7 +364,10 @@ class CliTests(unittest.TestCase):
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
         self.models = models
@@ -486,11 +494,80 @@ class WebUiTests(unittest.TestCase):
     def tearDown(self):
         pass
 
+
+class WebLdapAuthTest(unittest.TestCase):
+
+    def setUp(self):
+        authenticate = """
+        [webserver]
+        authenticate = True
+        auth_backend = airflow.contrib.auth.backends.ldap_auth
+        [ldap]
+        uri=ldap://localhost
+        user_filter=objectClass=*
+        user_name_attr=uid
+        bind_user=cn=Manager,dc=example,dc=com
+        bind_password=insecure
+        basedn=cn=users,cn=accounts,dc=mac,dc=local
+        cacert=
+        """
+        from airflow import configuration
+        configuration.test_mode(authenticate)
+        self.configuration = configuration
+
+        from airflow import jobs, models, DAG, utils, operators, hooks, macros
+        self.jobs = jobs
+        self.models = models
+        self.DAG = DAG
+        self.utils = utils
+        self.operators = operators
+        self.hooks = hooks
+        self.macros = macros
+
+        app = create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+    def login(self, username, password):
+        return self.app.post('/admin/airflow/login', data=dict(
+            username=username,
+            password=password
+        ), follow_redirects=True)
+
+    def logout(self):
+        return self.app.get('/admin/airflow/logout', follow_redirects=True)
+
+    def test_login_logout_ldap(self):
+        assert self.configuration.conf.getboolean('webserver', 'authenticate') is True
+
+        response = self.login('user1', 'userx')
+        assert 'Incorrect login details' in response.data
+
+        response = self.login('userz', 'user1')
+        assert 'Incorrect login details' in response.data
+
+        response = self.login('user1', 'user1')
+        assert 'Data Profiling' in response.data
+
+        response = self.logout()
+        assert 'form-signin' in response.data
+
+    def test_unauthorized(self):
+        response = self.app.get("/admin/connection/")
+        print response.data
+        assert '403 Forbidden' in response.data
+
+    def tearDown(self):
+        pass
+
 if 'MySqlOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class MySqlTest(unittest.TestCase):
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
             self.models = models
@@ -553,7 +630,10 @@ if 'PostgresOperator' in dir(airflow.operators):
     # Only testing if the operator is installed
     class PostgresTest(unittest.TestCase):
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
             self.models = models
@@ -590,7 +670,10 @@ if 'PostgresOperator' in dir(airflow.operators):
 
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
         self.models = models
@@ -656,7 +739,10 @@ class HttpOpSensorTest(unittest.TestCase):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
+        from airflow import configuration
         configuration.test_mode()
+        self.configuration = configuration
+
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
         self.jobs = jobs
         self.models = models
@@ -722,7 +808,10 @@ class ConnectionTest(unittest.TestCase):
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     class TransferTests(unittest.TestCase):
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
             self.models = models
@@ -766,7 +855,10 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
     class HivePrestoTest(unittest.TestCase):
         def setUp(self):
+            from airflow import configuration
             configuration.test_mode()
+            self.configuration = configuration
+
             from airflow import jobs, models, DAG, utils, operators, hooks, macros
             self.jobs = jobs
             self.models = models
