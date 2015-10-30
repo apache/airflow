@@ -516,7 +516,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.test_mode()
         configuration.conf.set("webserver", "authenticate", "True")
         configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.ldap_auth")
-        configuration.conf.add_section("ldap")
+        #configuration.conf.add_section("ldap")
         configuration.conf.set("ldap", "uri", "ldap://localhost")
         configuration.conf.set("ldap", "user_filter", "objectClass=*")
         configuration.conf.set("ldap", "user_name_attr", "True")
