@@ -516,6 +516,7 @@ class WebLdapAuthTest(unittest.TestCase):
 
         from airflow import configuration
         configuration.test_mode()
+        configuration.set("webserver", "authenticate", "True")
         self.configuration = configuration
 
         from airflow import jobs, models, DAG, utils, operators, hooks, macros
