@@ -44,7 +44,10 @@ def get_ldap_connection(dn=None, password=None):
     return conn
 
 
-class User(models.BaseUser):
+class LdapUser(models.User):
+    def __init__(self, user):
+        self.user = user
+
     @staticmethod
     def try_login(username, password):
         conn = get_ldap_connection(conf.get("ldap", "bind_user"), conf.get("ldap", "bind_password"))
@@ -91,9 +94,6 @@ class User(models.BaseUser):
         '''Access all the things'''
         return True
 
-models.User = User  # hack!
-del User
-
 
 @login_manager.user_loader
 def load_user(userid):
@@ -102,7 +102,7 @@ def load_user(userid):
     session.expunge_all()
     session.commit()
     session.close()
-    return user
+    return LdapUser(user)
 
 
 def login(self, request):
@@ -125,10 +125,10 @@ def login(self, request):
                            form=form)
 
     try:
-        models.User.try_login(username, password)
+        LdapUser.try_login(username, password)
 
         session = settings.Session()
-        user = session.query(models.User).filter(
+        user = session.query(models.BaseUser).filter(
             models.User.username == DEFAULT_USERNAME).first()
 
         if not user:
@@ -138,7 +138,7 @@ def login(self, request):
 
         session.merge(user)
         session.commit()
-        flask_login.login_user(user)
+        flask_login.login_user(LdapUser(user))
         session.commit()
         session.close()
 

@@ -321,7 +321,7 @@ class DagBag(object):
         return dag_ids
 
 
-class BaseUser(Base):
+class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True)

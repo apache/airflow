@@ -35,7 +35,6 @@ from sqlalchemy.pool import Pool
 
 import numpy as np
 
-import airflow.default_login
 from airflow import settings
 from airflow.configuration import conf
 
