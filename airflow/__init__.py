@@ -1,13 +1,6 @@
-"""
-Authentication is implemented using flask_login and different environments can
-implement their own login mechanisms by providing an `airflow_login` module
-in their PYTHONPATH. airflow_login should be based off the
-`airflow.www.login`
-"""
 from builtins import object
 __version__ = "1.5.2"
 
-import logging
 import os
 import sys
 

@@ -16,6 +16,12 @@ from airflow import settings
 from airflow.configuration import conf
 from airflow import AirflowException, AirflowConfigException
 
+"""
+Authentication is implemented using flask_login and different environments can
+implement their own login mechanisms by providing an `airflow_login` module
+in their PYTHONPATH. airflow_login should be based off the
+`airflow.www.login`
+"""
 auth_backend = 'airflow.default_login'
 try:
     auth_backend = conf.get('webserver', 'auth_backend')
