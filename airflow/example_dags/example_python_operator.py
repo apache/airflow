@@ -42,7 +42,7 @@ for i in range(10):
     task = PythonOperator(
         task_id='sleep_for_'+str(i),
         python_callable=my_sleeping_function,
-        op_kwargs={'random_base': i},
+        op_kwargs={'random_base': float(i)/10},
         dag=dag)
 
     task.set_upstream(run_this)

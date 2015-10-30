@@ -81,7 +81,7 @@ class BranchPythonOperator(PythonOperator):
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
         logging.info("Following branch " + branch)
-        logging.info("Marking other directly downstream tasks as failed")
+        logging.info("Marking other directly downstream tasks as skipped")
         session = settings.Session()
         for task in context['task'].downstream_list:
             if task.task_id != branch:
@@ -94,3 +94,36 @@ class BranchPythonOperator(PythonOperator):
         session.commit()
         session.close()
         logging.info("Done.")
+
+
+class ShortCircuitOperator(PythonOperator):
+    """
+    Allows a workflow to continue only if a condition is met. Otherwise, the
+    workflow "short-circuits" and downstream tasks are skipped.
+
+    The ShortCircuitOperator is derived from the PythonOperator. It evaluates a
+    condition and short-circuits the workflow if the condition is False. Any
+    downstream tasks are marked with a state of "skipped". If the condition is
+    True, downstream tasks proceed as normal.
+
+    The condition is determined by the result of `python_callable`.
+    """
+    def execute(self, context):
+        condition = super(ShortCircuitOperator, self).execute(context)
+        logging.info("Condition result is {}".format(condition))
+        if condition:
+            logging.info('Proceeding with downstream tasks...')
+            return
+        else:
+            logging.info('Skipping downstream tasks...')
+            session = settings.Session()
+            for task in context['task'].downstream_list:
+                ti = TaskInstance(
+                    task, execution_date=context['ti'].execution_date)
+                ti.state = State.SKIPPED
+                ti.start_date = datetime.now()
+                ti.end_date = datetime.now()
+                session.merge(ti)
+            session.commit()
+            session.close()
+            logging.info("Done.")

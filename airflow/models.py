@@ -693,12 +693,12 @@ class TaskInstance(Base):
         else:
             return False
 
-    def is_runnable(self):
+    def is_runnable(self, flag_upstream_failed=False):
         """
         Returns whether a task is ready to run AND there's room in the
         queue.
         """
-        return self.is_queueable() and not self.pool_full()
+        return self.is_queueable(flag_upstream_failed) and not self.pool_full()
 
     def are_dependents_done(self, main_session=None):
         """

@@ -81,11 +81,11 @@ class BaseExecutor(object):
         for i in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, priority, queue) = sorted_queue.pop(0)
             self.running[key] = command
-            del self.queued_tasks[key]
+            self.queued_tasks.pop(key)
             self.execute_async(key, command=command, queue=queue)
 
     def change_state(self, key, state):
-        del self.running[key]
+        self.running.pop(key)
         self.event_buffer[key] = state
 
     def fail(self, key):

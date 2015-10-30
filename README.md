@@ -51,16 +51,18 @@ Currently **officially** using Airflow:
 
 * Airbnb [@mistercrunch]
 * Agari [@r39132](https://github.com/r39132)
+* BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
+* Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 * [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
+* Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
+* [Jampp](https://github.com/jampp)
+* [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 * Lyft
 * Stripe [@jbalogh]
+* [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
 * Wooga
 * Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 * Yahoo!
-* [Jampp](https://github.com/jampp)
-* Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
-* BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
-* [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 
 ## Links
 

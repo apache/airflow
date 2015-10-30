@@ -92,6 +92,29 @@ class State(object):
             cls.SKIPPED]
 
 
+def provide_session(func):
+    """
+    Function decorator that provides a session if it isn't provided.
+    If you want to reuse a session or run the function as part of a
+    database transaction, you pass it to the function, if not this wrapper
+    will create one and close it for you.
+    """
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        needs_session = False
+        if 'session' not in kwargs:
+            needs_session = True
+            session = settings.Session()
+            kwargs['session'] = session
+        result = func(*args, **kwargs)
+        if needs_session:
+            session.expunge_all()
+            session.commit()
+            session.close()
+        return result
+    return wrapper
+
+
 def pessimistic_connection_handling():
     @event.listens_for(Pool, "checkout")
     def ping_connection(dbapi_connection, connection_record, connection_proxy):
@@ -106,118 +129,81 @@ def pessimistic_connection_handling():
             raise exc.DisconnectionError()
         cursor.close()
 
+@provide_session
+def merge_conn(conn, session=None):
+    from airflow import models
+    C = models.Connection
+    if not session.query(C).filter(C.conn_id == conn.conn_id).first():
+        session.add(conn)
+        session.commit()
+
 
 def initdb():
+    session = settings.Session()
     from airflow import models
     upgradedb()
 
-    # Creating the local_mysql DB connection
-    C = models.Connection
-    session = settings.Session()
-
-    conn = session.query(C).filter(C.conn_id == 'airflow_db').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='airflow_db', conn_type='mysql',
-                host='localhost', login='root', password='',
-                schema='airflow'))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'beeline_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='beeline_default', conn_type='beeline',
-                host='localhost',
-                schema='airflow'))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'local_mysql').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='local_mysql', conn_type='mysql',
-                host='localhost', login='airflow', password='airflow',
-                schema='airflow'))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'presto_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='presto_default', conn_type='presto',
-                host='localhost',
-                schema='hive', port=3400))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'hive_cli_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='hive_cli_default', conn_type='hive_cli',
-                schema='default',))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'hiveserver2_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='hiveserver2_default', conn_type='hiveserver2',
-                host='localhost',
-                schema='default', port=10000))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'metastore_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='metastore_default', conn_type='hive_metastore',
-                host='localhost',
-                port=10001))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'mysql_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='mysql_default', conn_type='mysql',
-                host='localhost'))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'sqlite_default').first()
-    if not conn:
-        home = conf.get('core', 'AIRFLOW_HOME')
-        session.add(
-            models.Connection(
-                conn_id='sqlite_default', conn_type='sqlite',
-                host='{}/sqlite_default.db'.format(home)))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'http_default').first()
-    if not conn:
-        home = conf.get('core', 'AIRFLOW_HOME')
-        session.add(
-            models.Connection(
-                conn_id='http_default', conn_type='http',
-                host='https://www.google.com'))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'mssql_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='mssql_default', conn_type='mssql',
-                host='localhost', port=1433))
-        session.commit()
-
-    conn = session.query(C).filter(C.conn_id == 'vertica_default').first()
-    if not conn:
-        session.add(
-            models.Connection(
-                conn_id='vertica_default', conn_type='vertica',
-                host='localhost', port=5433))
-        session.commit()
+    merge_conn(
+        models.Connection(
+            conn_id='airflow_db', conn_type='mysql',
+            host='localhost', login='root', password='',
+            schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='beeline_default', conn_type='beeline',
+            host='localhost',
+            schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='local_mysql', conn_type='mysql',
+            host='localhost', login='airflow', password='airflow',
+            schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='presto_default', conn_type='presto',
+            host='localhost',
+            schema='hive', port=3400))
+    merge_conn(
+        models.Connection(
+            conn_id='hive_cli_default', conn_type='hive_cli',
+            schema='default',))
+    merge_conn(
+        models.Connection(
+            conn_id='hiveserver2_default', conn_type='hiveserver2',
+            host='localhost',
+            schema='default', port=10000))
+    merge_conn(
+        models.Connection(
+            conn_id='metastore_default', conn_type='hive_metastore',
+            host='localhost',
+            port=10001))
+    merge_conn(
+        models.Connection(
+            conn_id='mysql_default', conn_type='mysql',
+            login='root',
+            host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='postgres_default', conn_type='postgres',
+            login='postgres',
+            schema='airflow',
+            host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='sqlite_default', conn_type='sqlite',
+            host='/tmp/sqlite_default.db'))
+    merge_conn(
+        models.Connection(
+            conn_id='http_default', conn_type='http',
+            host='https://www.google.com/'))
+    merge_conn(
+        models.Connection(
+            conn_id='mssql_default', conn_type='mssql',
+            host='localhost', port=1433))
+    merge_conn(
+        models.Connection(
+            conn_id='vertica_default', conn_type='vertica',
+            host='localhost', port=5433))
 
     # Known event types
     KET = models.KnownEventType
@@ -251,8 +237,6 @@ def initdb():
                 "GROUP BY state"),
         )
         session.add(chart)
-        session.commit()
-    session.close()
 
 
 def upgradedb():
@@ -337,29 +321,6 @@ def readfile(filepath):
     return content
 
 
-def provide_session(func):
-    """
-    Function decorator that provides a session if it isn't provided.
-    If you want to reuse a session or run the function as part of a
-    database transaction, you pass it to the function, if not this wrapper
-    will create one and close it for you.
-    """
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        needs_session = False
-        if 'session' not in kwargs:
-            needs_session = True
-            session = settings.Session()
-            kwargs['session'] = session
-        result = func(*args, **kwargs)
-        if needs_session:
-            session.expunge_all()
-            session.commit()
-            session.close()
-        return result
-    return wrapper
-
-
 def apply_defaults(func):
     """
     Function decorator that Looks for an argument named "default_args", and
@@ -432,7 +393,12 @@ def ask_yesno(question):
             print("Please respond by yes or no.")
 
 
-def send_email(to, subject, html_content, files=None):
+def send_email(to, subject, html_content, files=None, dryrun=False):
+    """
+    Send an email with html content
+
+    >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
+    """
     SMTP_MAIL_FROM = conf.get('smtp', 'SMTP_MAIL_FROM')
 
     if isinstance(to, basestring):
@@ -459,24 +425,25 @@ def send_email(to, subject, html_content, files=None):
                 Name=basename
             ))
 
-    send_MIME_email(SMTP_MAIL_FROM, to, msg)
+    send_MIME_email(SMTP_MAIL_FROM, to, msg, dryrun)
 
 
-def send_MIME_email(e_from, e_to, mime_msg):
+def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     SMTP_HOST = conf.get('smtp', 'SMTP_HOST')
     SMTP_PORT = conf.getint('smtp', 'SMTP_PORT')
     SMTP_USER = conf.get('smtp', 'SMTP_USER')
     SMTP_PASSWORD = conf.get('smtp', 'SMTP_PASSWORD')
     SMTP_STARTTLS = conf.getboolean('smtp', 'SMTP_STARTTLS')
 
-    s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
-    if SMTP_STARTTLS:
-        s.starttls()
-    if SMTP_USER and SMTP_PASSWORD:
-        s.login(SMTP_USER, SMTP_PASSWORD)
-    logging.info("Sent an alert email to " + str(e_to))
-    s.sendmail(e_from, e_to, mime_msg.as_string())
-    s.quit()
+    if not dryrun:
+        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        if SMTP_STARTTLS:
+            s.starttls()
+        if SMTP_USER and SMTP_PASSWORD:
+            s.login(SMTP_USER, SMTP_PASSWORD)
+        logging.info("Sent an alert email to " + str(e_to))
+        s.sendmail(e_from, e_to, mime_msg.as_string())
+        s.quit()
 
 
 def import_module_attrs(parent_module_globals, module_attrs_dict):
@@ -628,10 +595,12 @@ def round_time(dt, delta, start_date=datetime.min):
         if start_date + (lower + 1)*delta >= dt:
             # Check if start_date + (lower + 1)*delta or
             # start_date + lower*delta is closer to dt and return the solution
-            if (start_date + (lower + 1)*delta) - dt <= dt - (start_date + lower*delta):
+            if (
+                    (start_date + (lower + 1) * delta) - dt <=
+                    dt - (start_date + lower * delta)):
                 return start_date + (lower + 1)*delta
             else:
-                return start_date + lower*delta
+                return start_date + lower * delta
 
         # We intersect the interval and either replace the lower or upper
         # limit with the candidate
@@ -644,6 +613,7 @@ def round_time(dt, delta, start_date=datetime.min):
     # in the special case when start_date > dt the search for upper will
     # immediately stop for upper == 1 which results in lower = upper // 2 = 0
     # and this function returns start_date.
+
 
 def chain(*tasks):
     """
