@@ -11,6 +11,7 @@
 <link rel="stylesheet" type="text/css"
     href="{{ url_for('static', filename='graph.css') }}">
 <link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='bootstrap-slider.min.css')}}" rel="stylesheet">
 {% endblock %}
 
 {% block body %}
@@ -49,6 +50,8 @@
     <div class="legend_item state" style="border-color:green;">success</div>
     <div style="clear:both;"></div>
 </div>
+
+<input id="zoom_slider" data-slider-id='slider' type="text" data-slider-min="0" data-slider-max="10" data-slider-step="1" data-slider-value="5"/>
 <hr style="margin-bottom: 0px;"/>
 <div id="svg_container">
     <svg width="{{ width }}" height="{{ height }}">
@@ -59,6 +62,7 @@
   </svg>
 </div>
 <hr>
+
 {% endblock %}
 
 {% block tail %}
@@ -66,6 +70,7 @@
 
     <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
     <script src="{{ url_for('static', filename='dagre-d3.js') }}"></script>
+    <script src="{{ url_for('static', filename='bootstrap-slider.min.js')}}"></script>
     <script src="{{ admin_static.url(
       filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
     <script src="{{ admin_static.url(filename='admin/js/form-1.0.0.js') }}"></script>
@@ -85,6 +90,13 @@
     var renderer = new dagreD3.Renderer();
     renderer.layout(layout).run(g, d3.select("#dig"));
 
+    // initialize zoom slider
+    var slider = $('#zoom_slider').slider({
+        formatter: function(value) {
+            return value;
+        }
+    }).on('change', zoomWithSlider).data('slider');
+
     // Assigning css classes based on state to nodes for border coloring
     $.each(task_instances, function(task_id, ti) {
       $('tspan').filter(function(index) { return $(this).text() === task_id; })
@@ -102,7 +114,7 @@
           return tt;
         });
     });
-    
+
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
         if (task.task_type == "SubDagOperator")
@@ -170,7 +182,7 @@
                     .selectAll("rect")
                     .style("stroke-width", "2px");
             }
-            else{ 
+            else{
                 d3.select("g.edgePaths")
                     .transition().duration(duration)
                     .style("opacity", 0.2);
@@ -195,11 +207,11 @@
         if(match) {
             var transform = d3.transform(d3.select(match).attr("transform"));
             transform.translate = [
-                -transform.translate[0] + 520, 
+                -transform.translate[0] + 520,
                 -(transform.translate[1] - 400)
             ];
             transform.scale = [1, 1];
-            
+
             d3.select("g.zoom")
                 .transition()
                 .attr("transform", transform.toString());
@@ -256,6 +268,23 @@
             }
         }
         return false
+    }
+
+    function zoomWithSlider() {
+        var svg = d3.select("body").select("svg");
+        var container = svg.select("g");
+        var scale = 0.5 + parseInt(slider.getValue())/10;
+
+        container.attr("transform", "translate(20, 20) scale(" + scale + ")");
+
+        // var h = svg.attr("height"), w = parseInt(svg.style("width"));
+
+        // Note: works only on the <g> element and not on the <svg> element
+        // which is a common mistake
+        // container.attr("transform",
+        //         "translate(" + w/2 + ", " + h/2 + ") " +
+        //         "scale(" + scale + ") " +
+        //         "translate(" + (-w/2) + ", " + (-h/2) + ")");
     }
 
     </script>
