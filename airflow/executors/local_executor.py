@@ -14,11 +14,10 @@ PARALLELISM = conf.get('core', 'PARALLELISM')
 
 class LocalWorker(multiprocessing.Process):
 
-    def __init__(self, task_queue, result_queue, in_progress):
+    def __init__(self, task_queue, result_queue):
         multiprocessing.Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
-        self.in_progress = in_progress
 
     def run(self):
         while True:
@@ -27,9 +26,6 @@ class LocalWorker(multiprocessing.Process):
                 # Received poison pill, no more tasks to run
                 self.task_queue.task_done()
                 break
-
-            self.in_progress[str(self)] = (key, command)
-
             logging.info("%s running %s", self.__class__.__name__, command)
             command = "exec bash -c '{0}'".format(command)
             try:
@@ -40,7 +36,6 @@ class LocalWorker(multiprocessing.Process):
                 logging.error(str(e))
                 # raise e
             self.result_queue.put((key, state))
-            self.in_progress.pop(str(self))
             self.task_queue.task_done()
             time.sleep(1)
 
@@ -55,9 +50,8 @@ class LocalExecutor(BaseExecutor):
     def start(self):
         self.queue = multiprocessing.JoinableQueue()
         self.result_queue = multiprocessing.Queue()
-        self.in_progress = multiprocessing.Manager().dict()
         self.workers = [
-            LocalWorker(self.queue, self.result_queue, self.in_progress)
+            LocalWorker(self.queue, self.result_queue)
             for i in range(self.parallelism)
         ]
 
@@ -68,16 +62,6 @@ class LocalExecutor(BaseExecutor):
         self.queue.put((key, command))
 
     def sync(self):
-        for w in list(self.workers):
-            if not w.is_alive():
-                self.workers.remove(w)
-                if str(w) in self.in_progress:
-                    key, command = self.in_progress.pop(str(w))
-                    self.fail(key)
-                self.workers.append(LocalWorker(
-                    self.queue, self.result_queue, self.in_progress))
-                self.workers[-1].start()
-
         while not self.result_queue.empty():
             results = self.result_queue.get()
             self.change_state(*results)
