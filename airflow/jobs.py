@@ -630,12 +630,25 @@ class BackfillJob(BaseJob):
         executor = self.executor
         executor.start()
 
-        # Build a list of all instances to run
         tasks_to_run = {}
-        failed = []
-        succeeded = []
-        started = []
-        wont_run = []
+        ti_states = {}
+
+        # Clearing the state of task instances we're about to re-run
+        TI = models.TaskInstance
+        tis = (
+            session.query(TI)
+            .filter(
+                TI.dag_id == self.dag.dag_id,
+                TI.execution_date >= self.start_date,
+            )
+        )
+        if self.end_date:
+            tis = tis.filter(TI.execution_date <= self.end_date)
+        for ti in tis.all():
+            if ti.State in (State.FAILED, State.UPSTREAM_FAILED):
+                ti.state = None
+        session.commit()
+
         for task in self.dag.tasks:
             if (not self.include_adhoc) and task.adhoc:
                 continue
@@ -643,18 +656,24 @@ class BackfillJob(BaseJob):
             start_date = start_date or task.start_date
             end_date = end_date or task.end_date or datetime.now()
             for dttm in utils.date_range(
-                    start_date, end_date, task.dag.schedule_interval):
+                    start_date, end_date=end_date,
+                    delta=self.dag.schedule_interval):
                 ti = models.TaskInstance(task, dttm)
                 tasks_to_run[ti.key] = ti
+
+        failed = []
 
         # Triggering what is ready to get triggered
         while tasks_to_run:
             for key, ti in list(tasks_to_run.items()):
                 ti.refresh_from_db()
+                ti_states[key] = ti.state
                 if ti.state in (
-                        State.SUCCESS, State.SKIPPED) and key in tasks_to_run:
-                    succeeded.append(key)
+                        State.SUCCESS, State.SKIPPED, State.FAILED,
+                        State.UPSTREAM_FAILED):
                     tasks_to_run.pop(key)
+                    if ti.state == State.FAILED:
+                        failed += key
                 elif ti.is_runnable(flag_upstream_failed=True):
                     executor.queue_task_instance(
                         ti,
@@ -663,49 +682,15 @@ class BackfillJob(BaseJob):
                         pickle_id=pickle_id,
                         ignore_dependencies=self.ignore_dependencies)
                     ti.state = State.RUNNING
-                    if key not in started:
-                        started.append(key)
             self.heartbeat()
             executor.heartbeat()
 
-            # Reacting to events
-            for key, state in list(executor.get_event_buffer().items()):
-                dag_id, task_id, execution_date = key
-                if key not in tasks_to_run:
-                    continue
-                ti = tasks_to_run[key]
-                ti.refresh_from_db()
-                if ti.state in (State.FAILED, State.SKIPPED):
-                    if ti.state == State.FAILED:
-                        failed.append(key)
-                        logging.error("Task instance " + str(key) + " failed")
-                    elif ti.state == State.SKIPPED:
-                        wont_run.append(key)
-                        logging.error("Skipping " + str(key) + " failed")
-                    tasks_to_run.pop(key)
-                    # Removing downstream tasks that also shouldn't run
-                    for t in self.dag.get_task(task_id).get_flat_relatives(
-                            upstream=False):
-                        key = (ti.dag_id, t.task_id, execution_date)
-                        if key in tasks_to_run:
-                            wont_run.append(key)
-                            tasks_to_run.pop(key)
-                elif ti.state == State.SUCCESS:
-                    succeeded.append(key)
-                    tasks_to_run.pop(key)
-
-            msg = (
-                "[backfill progress] "
-                "waiting: {0} | "
-                "succeeded: {1} | "
-                "kicked_off: {2} | "
-                "failed: {3} | "
-                "wont_run: {4} ").format(
-                    len(tasks_to_run),
-                    len(succeeded),
-                    len(started),
-                    len(failed),
-                    len(wont_run))
+            state_counts = defaultdict(lambda: 0)
+            for k, v in ti_states.items():
+                v = v or 'waiting'
+                state_counts[v] += 1
+            msg = "[backfill progress] {}".format(
+                {k: v for k, v in state_counts.items()})
             logging.info(msg)
 
         executor.end()
