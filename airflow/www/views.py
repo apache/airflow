@@ -625,7 +625,8 @@ class Airflow(BaseView):
     @current_app.errorhandler(500)
     def show_traceback(self):
         return render_template(
-            'airflow/traceback.html', info=traceback.format_exc()), 500
+            'airflow/traceback.html', 
+            info=traceback.format_exc(), hostname=socket.gethostname()), 500
 
     @expose('/sandbox')
     @login_required
