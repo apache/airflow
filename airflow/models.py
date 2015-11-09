@@ -1000,8 +1000,12 @@ class TaskInstance(Base):
         self.render_templates()
         task_copy.dry_run()
 
-
-    def handle_failure(self, error, test_mode=False, context=None):
+    def handle_failure(
+                self,
+                error,
+                test_mode,
+                context,
+                force_retry=False):
         logging.exception(error)
         task = self.task
         session = settings.Session()
@@ -1012,7 +1016,7 @@ class TaskInstance(Base):
 
         # Let's go deeper
         try:
-            if self.try_number <= task.retries:
+            if force_retry or self.try_number <= task.retries:
                 self.state = State.UP_FOR_RETRY
                 if task.email_on_retry and task.email:
                     self.email_alert(error, is_retry=True)
