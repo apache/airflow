@@ -66,7 +66,8 @@ defaults = {
         'demo_mode': False,
         'secret_key': 'airflowified',
         'expose_config': False,
-        'threads': 4,
+        'workers': 4,
+        'threads': 1,
     },
     'scheduler': {
         'statsd_on': False,
@@ -157,8 +158,11 @@ web_server_port = 8080
 # Secret key used to run your flask app
 secret_key = temporary_key
 
-# number of threads to run the Gunicorn web server
-thread = 4
+# number of workers to run for the Gunicorn web server
+workers = 4
+
+# number of threads to run for each worker
+threads = 1
 
 # Expose the configuration file in the web server
 expose_config = true
@@ -427,9 +431,10 @@ def getboolean(section, key):
 def getfloat(section, key):
     return conf.getfloat(section, key)
 
+
 def getint(section, key):
     return conf.getint(section, key)
 
+
 def has_option(section, key):
     return conf.has_option(section, key)
-
