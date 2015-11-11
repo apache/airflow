@@ -322,6 +322,7 @@ def webserver(args):
     from airflow.www.app import cached_app
     app = cached_app(configuration)
     workers = args.workers or configuration.get('webserver', 'workers')
+    worker_class = args.worker_class or configuration.get('webserver', 'worker_class')
     threads = args.threads or configuration.get('webserver', 'threads')
     if args.debug:
         print(
@@ -330,11 +331,12 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         print(
-            'Running the Gunicorn server with {workers} workers '
-            'using {threads} threads eachon host {args.hostname} '
-            'and port {args.port}...'.format(**locals()))
+            'Running the Gunicorn server with {workers} '
+            '{worker_class} workers on host {args.hostname}'
+            ' and port {args.port}...'.format(**locals()))
         sp = subprocess.Popen([
             'gunicorn',
+            '-k', args.worker_class.lower(),
             '-w', str(args.workers),
             '--threads', str(args.threads),
             '-t', '120',
@@ -598,6 +600,12 @@ def get_parser():
         default=configuration.get('webserver', 'WEB_SERVER_PORT'),
         type=int,
         help="Set the port on which to run the web server")
+    parser_webserver.add_argument(
+        "-k", "--worker-class",
+        default=configuration.get('webserver', 'WORKER_CLASS'),
+        type=str,
+        choices=['sync', 'eventlet', 'gevent', 'tornado'],
+        help="Number of threads to run for each worker on")
     parser_webserver.add_argument(
         "-w", "--workers",
         default=configuration.get('webserver', 'WORKERS'),

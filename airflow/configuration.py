@@ -67,6 +67,7 @@ defaults = {
         'secret_key': 'airflowified',
         'expose_config': False,
         'workers': 4,
+        'worker_class': 'sync',
         'threads': 1,
     },
     'scheduler': {
@@ -157,6 +158,9 @@ web_server_port = 8080
 
 # Secret key used to run your flask app
 secret_key = temporary_key
+
+# The type of workers to use for the Gunicorn web server
+worker_class = sync
 
 # number of workers to run for the Gunicorn web server
 workers = 4
