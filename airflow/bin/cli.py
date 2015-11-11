@@ -321,6 +321,8 @@ def webserver(args):
     log_to_stdout()
     from airflow.www.app import cached_app
     app = cached_app(configuration)
+    workers = args.workers or configuration.get('webserver', 'workers')
+    worker_class = args.worker_class or configuration.get('webserver', 'worker_class')
     threads = args.threads or configuration.get('webserver', 'threads')
     if args.debug:
         print(
@@ -329,12 +331,16 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         print(
-            'Running the Gunicorn server with {threads}'
-            'on host {args.hostname} and port '
-            '{args.port}...'.format(**locals()))
+            'Running the Gunicorn server with {workers} '
+            '{worker_class} workers on host {args.hostname}'
+            ' and port {args.port}...'.format(**locals()))
         sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.threads), '-t', '120', '-b',
-            args.hostname + ':' + str(args.port),
+            'gunicorn',
+            '-k', args.worker_class.lower(),
+            '-w', str(args.workers),
+            '--threads', str(args.threads),
+            '-t', '120',
+            '-b', args.hostname + ':' + str(args.port),
             'airflow.www.app:cached_app()'])
         sp.wait()
 
@@ -595,10 +601,21 @@ def get_parser():
         type=int,
         help="Set the port on which to run the web server")
     parser_webserver.add_argument(
-        "-w", "--threads",
+        "-k", "--worker-class",
+        default=configuration.get('webserver', 'WORKER_CLASS'),
+        type=str,
+        choices=['sync', 'eventlet', 'gevent', 'tornado'],
+        help="Number of threads to run for each worker on")
+    parser_webserver.add_argument(
+        "-w", "--workers",
+        default=configuration.get('webserver', 'WORKERS'),
+        type=int,
+        help="Number of workers to run the webserver on")
+    parser_webserver.add_argument(
+        "--threads",
         default=configuration.get('webserver', 'THREADS'),
         type=int,
-        help="Number of threads to run the webserver on")
+        help="Number of threads to run for each worker on")
     parser_webserver.add_argument(
         "-hn", "--hostname",
         default=configuration.get('webserver', 'WEB_SERVER_HOST'),
