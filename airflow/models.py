@@ -213,9 +213,11 @@ class DagBag(object):
         """
         from airflow.jobs import LocalTaskJob as LJ
         logging.info("Finding 'running' jobs without a recent heartbeat")
-        secs = (configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+        secs = (
+            configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
         limit_dttm = datetime.now() - timedelta(seconds=secs)
-        print("Failing jobs without heartbeat after {}".format(limit_dttm))
+        logging.info(
+            "Failing jobs without heartbeat after {}".format(limit_dttm))
         jobs = (
             session
             .query(LJ)
@@ -1246,12 +1248,16 @@ class Log(Base):
         self.dttm = datetime.now()
         self.event = event
         self.extra = extra
-        self.owner = owner or task_instance.task.owner
+
+        task_owner = None
 
         if task_instance:
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
+            task_owner = task_instance.task.owner
+            
+        self.owner = owner or task_owner
 
 
 @functools.total_ordering
@@ -2054,7 +2060,7 @@ class DAG(object):
         has been reached
         """
         TI = TaskInstance
-        qry = session.query(func.count(TI)).filter(
+        qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
             TI.task_id.in_(self.task_ids),
             TI.state == State.RUNNING,

@@ -96,18 +96,18 @@ def trigger_dag(args):
     session = settings.Session()
     try:
         # TODO: verify dag_id
-        if args.start:
+        if args.start_date:
             if args.run_id:
                 raise AirflowException("You may not specify a single run_id for a series of DagRuns")
             dagbag = DagBag(process_subdir(args.subdir))
-            range_params = dict(start_date=args.start)
-            if args.end:
-                range_params['end_date'] = args.end
+            range_params = dict(start_date=dateutil.parser.parse(args.start_date))
+            if args.end_date:
+                range_params['end_date'] = dateutil.parser.parse(args.end_date)
             execution_dates = dagbag.get_dag(args.dag_id).date_range(**range_params)
             # this assumes that execution_dates is not a generator (i.e. iterating does not consume it)
             run_ids = map(DagRun.id_for_date, execution_dates)
         else:
-            execution_dates = [args.date || datetime.now()]
+            execution_dates = [args.date or datetime.now()]
             run_ids = [args.run_id] 
         if args.run_id:
             dr = session.query(DagRun).filter(
@@ -119,7 +119,7 @@ def trigger_dag(args):
                 dag_id=args.dag_id,
                 run_id=run_id,
                 execution_date=execution_date,
-                state=args.state || State.RUNNING,
+                state=args.state or State.RUNNING,
                 external_trigger=True)
             session.add(trigger)
             logging.info("Created {}".format(trigger))
@@ -337,7 +337,7 @@ def webserver(args):
     log_to_stdout()
     from airflow.www.app import cached_app
     app = cached_app(configuration)
-    threads = args.threads or configuration.get('webserver', 'threads')
+    workers = args.workers or configuration.get('webserver', 'workers')
     if args.debug:
         print(
             "Starting the web server on port {0} and host {1}.".format(
@@ -345,12 +345,12 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         print(
-            'Running the Gunicorn server with {threads}'
-            'on host {args.hostname} and port '
+            'Running the Gunicorn server with {workers} {args.workerclass}'
+            'workers on host {args.hostname} and port '
             '{args.port}...'.format(**locals()))
         sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.threads), '-t', '120', '-b',
-            args.hostname + ':' + str(args.port),
+            'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
+            '-t', '120', '-b', args.hostname + ':' + str(args.port),
             'airflow.www.app:cached_app()'])
         sp.wait()
 
@@ -527,7 +527,7 @@ def get_parser():
 
     ht = "Trigger a DAG"
     parser_trigger_dag = subparsers.add_parser('trigger_dag', help=ht)
-    parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run. You may only specify this if you do not specify a date.", default=None)
+    parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run.", default=None)
     parser_trigger_dag.add_argument(
         "-r", "--run_id",
         help="""Helps to identify this run. You may not set this option if you specify a range of dates.
@@ -545,6 +545,9 @@ You may not specify an id which already exists for this dag.""",
         "--state",
         help="The state in which generated DagRun objects should start",
         default=State.RUNNING)
+    parser_trigger_dag.add_argument(
+        "-sd", "--subdir", help=subdir_help,
+        default=DAGS_FOLDER)
     parser_trigger_dag.set_defaults(func=trigger_dag)
 
     ht = "Run a single task instance"
@@ -625,10 +628,15 @@ You may not specify an id which already exists for this dag.""",
         type=int,
         help="Set the port on which to run the web server")
     parser_webserver.add_argument(
-        "-w", "--threads",
-        default=configuration.get('webserver', 'THREADS'),
+        "-w", "--workers",
+        default=configuration.get('webserver', 'WORKERS'),
         type=int,
-        help="Number of threads to run the webserver on")
+        help="Number of workers to run the webserver on")
+    parser_webserver.add_argument(
+        "-k", "--workerclass",
+        default=configuration.get('webserver', 'WORKER_CLASS'),
+        choices=['sync', 'eventlet', 'gevent', 'tornado'],
+        help="The worker class to use for gunicorn")
     parser_webserver.add_argument(
         "-hn", "--hostname",
         default=configuration.get('webserver', 'WEB_SERVER_HOST'),

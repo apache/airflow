@@ -55,7 +55,10 @@ Here's the list of the subpackages and what they enable:
 +-------------+------------------------------------+------------------------------------------------+
 |  crypto     | ``pip install airflow[crypto]``    | Encrypt passwords in metadata db               |
 +-------------+------------------------------------+------------------------------------------------+
-
+|  celery     | ``pip install airflow[celery]``    | CeleryExecutor                                 |
++-------------+------------------------------------+------------------------------------------------+
+|  async      | ``pip install airflow[async]``     | Async worker classes for gunicorn              |
++-------------+------------------------------------+------------------------------------------------+
 
 Configuration
 '''''''''''''

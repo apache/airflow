@@ -3,9 +3,11 @@ import doctest
 import os
 from time import sleep
 import unittest
+
 from airflow import configuration
 configuration.test_mode()
 from airflow import jobs, models, DAG, utils, operators, hooks, macros
+from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
@@ -34,7 +36,6 @@ def reset():
     session.close()
 
 reset()
-
 
 class CoreTest(unittest.TestCase):
 
@@ -125,10 +126,17 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_check_operators(self):
+
+        conn_id = "sqlite_default"
+
+        captainHook = BaseHook.get_hook(conn_id=conn_id)
+        captainHook.run("CREATE TABLE operator_test_table (a, b)")
+        captainHook.run("insert into operator_test_table values (1,2)")
+
         t = operators.CheckOperator(
             task_id='check',
-            sql="SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES",
-            conn_id="mysql_default",
+            sql="select count(*) from operator_test_table" ,
+            conn_id=conn_id,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
@@ -136,10 +144,12 @@ class CoreTest(unittest.TestCase):
             task_id='value_check',
             pass_value=95,
             tolerance=0.1,
-            conn_id="mysql_default",
+            conn_id=conn_id,
             sql="SELECT 100",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+        captainHook.run("drop table operator_test_table")
 
     def test_clear_api(self):
         task = self.dag_bash.tasks[0]
@@ -217,7 +227,6 @@ class CoreTest(unittest.TestCase):
             templates_dict={'ds': "{{ ds }}"},
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
 
     def test_complex_template(self):
         class OperatorSubclass(operators.BaseOperator):
@@ -374,6 +383,8 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/code?dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')
+        response = self.app.get(
+            '/admin/airflow/blocked')
         response = self.app.get(
             '/admin/configurationview/')
         assert "Airflow Configuration" in response.data.decode('utf-8')
@@ -709,6 +720,21 @@ class ConnectionTest(unittest.TestCase):
         del os.environ['AIRFLOW_CONN_AIRFLOW_DB']
 
 
+@unittest.skipUnless("S3Hook" in dir(hooks),
+                     "Skipping test because S3Hook is not installed")
+class S3HookTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.test_mode()
+        self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
+
+    def test_parse_s3_url(self):
+        parsed = hooks.S3Hook.parse_s3_url(self.s3_test_url)
+        self.assertEqual(parsed,
+                         ("test", "this/is/not/a-real-key.txt"),
+                         "Incorrect parsing of the s3 url")
+
+
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
 
@@ -746,7 +772,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 create=True,
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
 
     class HivePrestoTest(unittest.TestCase):
 

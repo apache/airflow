@@ -18,10 +18,12 @@ from sqlalchemy.dialects import mysql
 
 
 def upgrade():
-    op.alter_column('task_instance', 'duration',
-               existing_type=mysql.INTEGER(display_width=11),
-               type_=sa.Float(),
-               existing_nullable=True)
+    # use batch_alter_table to support SQLite workaround
+    with op.batch_alter_table("task_instance") as batch_op:
+        batch_op.alter_column('duration',
+                              existing_type=mysql.INTEGER(display_width=11),
+                              type_=sa.Float(),
+                              existing_nullable=True)
 
 
 def downgrade():

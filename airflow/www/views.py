@@ -349,11 +349,7 @@ class Airflow(BaseView):
             if chart_type == 'datatable':
                 payload['data'] = data
                 payload['state'] = 'SUCCESS'
-                return Response(
-                    response=json.dumps(
-                        payload, indent=4, cls=utils.AirflowJsonEncoder),
-                    status=200,
-                    mimetype="application/json")
+                return wwwutils.json_response(payload)
 
             elif chart_type == 'para':
                 df.rename(columns={
@@ -516,12 +512,7 @@ class Airflow(BaseView):
             payload['hc'] = hc
             payload['data'] = data
             payload['request_dict'] = request_dict
-
-        return Response(
-            response=json.dumps(
-                payload, indent=4, cls=utils.AirflowJsonEncoder),
-            status=200,
-            mimetype="application/json")
+        return wwwutils.json_response(payload)
 
     @expose('/chart')
     @data_profiling_required
@@ -600,9 +591,8 @@ class Airflow(BaseView):
                     'color': State.color(state)
                 }
                 payload[dag.safe_dag_id].append(d)
-        return Response(
-            response=json.dumps(payload, indent=4),
-            status=200, mimetype="application/json")
+        return wwwutils.json_response(payload)
+
 
     @expose('/code')
     @login_required
@@ -666,10 +656,7 @@ class Airflow(BaseView):
             d['is_authenticated'] = current_user.is_authenticated()
         if hasattr(current_user, 'username'):
             d['username'] = current_user.username
-
-        return Response(
-            response=json.dumps(d, indent=4),
-            status=200, mimetype="application/json")
+        return wwwutils.json_response(d)
 
     @expose('/login', methods=['GET', 'POST'])
     def login(self):
@@ -923,6 +910,29 @@ class Airflow(BaseView):
                     details=details,)
 
             return response
+
+    @expose('/blocked')
+    @login_required
+    def blocked(self):
+        session = settings.Session()
+        DR = models.DagRun
+        dags = (
+            session.query(DR.dag_id, sqla.func.count(DR.id))
+            .filter(DR.state == State.RUNNING)
+            .group_by(DR.dag_id)
+            .all()
+        )
+        payload = []
+        for dag_id, active_dag_runs in dags:
+            max_active_runs = 0
+            if dag_id in dagbag.dags:
+                max_active_runs = dagbag.dags[dag_id].max_active_runs
+            payload.append({
+                'dag_id': dag_id,
+                'active_dag_run': active_dag_runs,
+                'max_active_runs': max_active_runs,
+            })
+        return wwwutils.json_response(payload)
 
     @expose('/success')
     @login_required

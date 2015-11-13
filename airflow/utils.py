@@ -153,6 +153,7 @@ def merge_conn(conn, session=None):
 
 def initdb():
     session = settings.Session()
+
     from airflow import models
     upgradedb()
 

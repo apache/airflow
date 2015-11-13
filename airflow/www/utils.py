@@ -4,16 +4,16 @@ from builtins import str
 from builtins import object
 from cgi import escape
 from io import BytesIO as IO
-import gzip
 import functools
+import gzip
+import json
 
-from flask import after_this_request, request
+from flask import after_this_request, request, Response
 from flask.ext.login import current_user
 import wtforms
 from wtforms.compat import text_type
 
-from airflow import configuration
-from airflow import login, models, settings
+from airflow import configuration, models, settings, utils
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 
@@ -94,6 +94,15 @@ def action_logging(f):
     return wrapper
 
 
+def json_response(obj):
+    """
+    returns a json response from a json serializable python object
+    """
+    return Response(
+        response=json.dumps(
+            obj, indent=4, cls=utils.AirflowJsonEncoder),
+        status=200,
+        mimetype="application/json")
 
 def gzipped(f):
     '''

@@ -65,7 +65,7 @@ Assuming you are working in a virtualenv. Install development requirements:
     pip install -r requirements.txt
     python setup.py develop
 
-Tests can then be run with:
+Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
 
     ./run_unit_tests.sh
 
@@ -99,17 +99,33 @@ Airflow is meant to connect to virtually any external system and that you most l
 have only a subset of these in your environment. You should run the CoreTests and
 tests related to things you touched in your PR.
 
-To set up a unit test environment, first take a look at rununittests.sh and
+To set up a unit test environment, first take a look at `run_unit_tests.sh` and
 understand that your ``AIRFLOW_CONFIG`` points to an alternate config file
 while running the tests. You shouldn't have to alter this config file but
 you may if need be.
 
-From that point, you can actually export these same environement variables in
+From that point, you can actually export these same environment variables in
 your shell, start an Airflow webserver ``airflow webserver -d`` and go and
 configure your connection. Default connections that are used in the tests
 should already have been created, you just need to point them to the systems
 where you want your tests to run.
 
 Once your unit test environment is setup, you should be able to simply run
-``./rununittests.sh`` at will. For more information on how to run a subset
-of the tests, take a look at the nosetests docs.
+``./run_unit_tests.sh`` at will. 
+
+For example, in order to just execute the "core" unit tests, run the following: 
+
+```
+./run_unit_tests.sh tests.core:CoreTest
+```
+
+or a single test method: 
+
+``` 
+./run_unit_tests.sh tests.core:CoreTest.test_check_operators
+```
+
+For more information on how to run a subset of the tests, take a look at the nosetests docs.
+
+See also the the list of test classes and methods in `tests/code.py`.
+

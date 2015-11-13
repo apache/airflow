@@ -56,10 +56,10 @@
                     {% endif %}
                 </td>
                 <td>
-                  <a class="label label-default" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                  <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
                       {{ dag.schedule_interval }}</a></td>
                 <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
-                <td style="padding:0px; width:180px; height:10px;">
+                <td style="padding:0px; width:200px; height:10px;">
                     <svg height="10" width="10" id='{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
                 <td class="text-center" style="width:160px;"><nobr>
@@ -129,6 +129,16 @@
       circle_margin = 4;
       stroke_width = 2;
       stroke_width_hover = 6;
+      d3.json("{{ url_for('airflow.blocked') }}", function(error, json) {
+        $.each(json, function() {
+          if(this.active_dag_run >= this.max_active_runs) {
+            $('.label.schedule.' + this.dag_id)
+            .css('background-color', 'red')
+            .attr("title", "Number of active DAG runs (" + this.active_dag_run + ") has been reached")
+            .tooltip();
+          }
+        });
+      });
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
