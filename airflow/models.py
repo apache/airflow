@@ -2657,6 +2657,8 @@ class DagRun(Base):
     by the scheduler (for regular runs) or by an external trigger
     """
     __tablename__ = "dag_run"
+    ID_PREFIX = 'scheduled__' 
+    ID_FORMAT_PREFIX = ID_PREFIX+'%s'
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
@@ -2681,7 +2683,7 @@ class DagRun(Base):
             external_trigger=self.external_trigger)
 
     @classmethod
-    def id_for_date(klass, date, prefix='scheduled__%s'):
+    def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix % date.isoformat()
 
 class Pool(Base):

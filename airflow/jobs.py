@@ -16,13 +16,13 @@ import subprocess
 import sys
 from time import sleep
 
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, and_
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, and_, or_
 from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models, settings, utils
 from airflow import configuration
 from airflow.utils import AirflowException, State
-
+from airflow.models import DagRun
 
 Base = models.Base
 ID_LEN = models.ID_LEN
@@ -343,59 +343,90 @@ class SchedulerJob(BaseJob):
                 filename=filename, stacktrace=stacktrace))
         session.commit()
 
+    def _active_runs(self, session, dag):
+        qry = session.query(func.count()).filter(
+            DagRun.dag_id == dag.dag_id,
+            DagRun.external_trigger == False,
+            DagRun.state == State.RUNNING,
+        )
+        return qry.scalar()
+
+    def _last_scheduled_run(self, session, dag,
+            scheduled_prefix=DagRun.ID_PREFIX+'%'):
+        """
+        Helper method for schedule_dag.
+        Given the database session, and dag, return the latest scheduled dag run
+        """
+        qry = session.query(func.max(DagRun.execution_date)).filter_by(
+            dag_id = dag.dag_id).filter(
+                    or_(DagRun.external_trigger == False,
+                        DagRun.run_id.like(scheduled_prefix)))
+        return qry.scalar()
+
+    def _next_dag_run_date(self, last_scheduled_run, dag):
+        next_run_date = None
+        if not last_scheduled_run:
+            # First run
+            TI = models.TaskInstance
+            latest_run = (
+                session.query(func.max(TI.execution_date))
+                .filter_by(dag_id=dag.dag_id)
+                .scalar()
+            )
+            if latest_run:
+                # Migrating from previous version
+                # make the past 5 runs active
+                next_run_date = dag.date_range(latest_run, -5)[0]
+            else:
+                next_run_date = min([t.start_date for t in dag.tasks])
+        elif dag.schedule_interval != '@once':
+            next_run_date = dag.following_schedule(last_scheduled_run)
+        elif dag.schedule_interval == '@once' and not last_scheduled_run:
+            next_run_date = datetime.now()
+
+        return next_run_date
+    
 
     def schedule_dag(self, dag):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval
         """
-        if dag.schedule_interval:
-            DagRun = models.DagRun
-            session = settings.Session()
-            qry = session.query(func.count()).filter(
-                DagRun.dag_id == dag.dag_id,
-                DagRun.external_trigger == False,
-                DagRun.state == State.RUNNING,
-            )
-            active_runs = qry.scalar()
-            if active_runs >= dag.max_active_runs:
-                return
-            qry = session.query(func.max(DagRun.execution_date)).filter(
-                DagRun.dag_id == dag.dag_id,
-                DagRun.external_trigger == False
-            )
-            last_scheduled_run = qry.scalar()
-            next_run_date = None
-            if not last_scheduled_run:
-                # First run
-                TI = models.TaskInstance
-                latest_run = (
-                    session.query(func.max(TI.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .scalar()
-                )
-                if latest_run:
-                    # Migrating from previous version
-                    # make the past 5 runs active
-                    next_run_date = dag.date_range(latest_run, -5)[0]
-                else:
-                    next_run_date = min([t.start_date for t in dag.tasks])
-            elif dag.schedule_interval != '@once':
-                next_run_date = dag.following_schedule(last_scheduled_run)
-            elif dag.schedule_interval == '@once' and not last_scheduled_run:
-                next_run_date = datetime.now()
+        # Don't schedule if there is no schedule interval
+        if not dag.schedule_interval:
+            return
 
-            schedule_end = dag.following_schedule(next_run_date)
-            if next_run_date and schedule_end and schedule_end <= datetime.now():
-                next_run = DagRun(
-                    dag_id=dag.dag_id,
-                    run_id=DagRun.id_for_date(next_run_date),
-                    execution_date=next_run_date,
-                    state=State.RUNNING,
-                    external_trigger=False
-                )
-                session.add(next_run)
-                session.commit()
+        # don't schedule if dag has maxed out its number of runs
+        session = settings.Session()
+        if self._active_runs(session, dag) >= dag.max_active_runs:
+            return
+
+        # This whole block figures out the next run date
+        last_scheduled_run = self._last_scheduled_run(session, dag)
+        next_run_date = self._next_dag_run_date(last_scheduled_run, dag)
+
+        # skip forward 
+
+
+        schedule_end = dag.following_schedule(next_run_date)
+
+        # Actually do the scheduling
+        if next_run_date and schedule_end and schedule_end <= datetime.now():
+            # check that there isn't already a dagrun with the scheduled id
+            run_id = DagRun.id_for_date(next_run_date)
+            if session.query(DagRun).filter_by(
+                    dag_id=dag.dag_id, run_id=run_id).scalar():
+                print("Totally skipping")
+                return
+            next_run = DagRun(
+                dag_id=dag.dag_id,
+                run_id=run_id,
+                execution_date=next_run_date,
+                state=State.RUNNING,
+                external_trigger=False
+            )
+            session.add(next_run)
+            session.commit()
 
     def process_dag(self, dag, executor):
         """
