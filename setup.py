@@ -4,7 +4,7 @@ from setuptools.command.test import test as TestCommand
 import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.5.2'
+version = '1.6.0'
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
