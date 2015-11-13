@@ -9,6 +9,7 @@ from datetime import datetime
 from builtins import input
 import argparse
 import dateutil.parser
+from six.moves import zip
 
 import airflow
 from airflow import jobs, settings, utils
@@ -93,22 +94,37 @@ def backfill(args):
 def trigger_dag(args):
     log_to_stdout()
     session = settings.Session()
-    # TODO: verify dag_id
-    execution_date = datetime.now()
-    dr = session.query(DagRun).filter(
-        DagRun.dag_id==args.dag_id, DagRun.run_id==args.run_id).first()
-    if dr:
-        logging.error("This run_id already exists")
-    else:
-        trigger = DagRun(
-            dag_id=args.dag_id,
-            run_id=args.run_id,
-            execution_date=execution_date,
-            state=State.RUNNING,
-            external_trigger=True)
-        session.add(trigger)
-        logging.info("Created {}".format(trigger))
-    session.commit()
+    try:
+        # TODO: verify dag_id
+        if args.start:
+            if args.run_id:
+                raise AirflowException("You may not specify a single run_id for a series of DagRuns")
+            dagbag = DagBag(process_subdir(args.subdir))
+            range_params = dict(start_date=args.start)
+            if args.end:
+                range_params['end_date'] = args.end
+            execution_dates = dagbag.get_dag(args.dag_id).date_range(**range_params)
+            # this assumes that execution_dates is not a generator (i.e. iterating does not consume it)
+            run_ids = map(DagRun.id_for_date, execution_dates)
+        else:
+            execution_dates = [args.date || datetime.now()]
+            run_ids = [args.run_id] 
+        if args.run_id:
+            dr = session.query(DagRun).filter(
+                DagRun.dag_id==args.dag_id, DagRun.run_id==args.run_id).first()
+            if dr:
+                raise AirflowException("This run_id already exists")
+        for execution_date, run_id in zip(execution_dates, run_ids):
+            trigger = DagRun(
+                dag_id=args.dag_id,
+                run_id=run_id,
+                execution_date=execution_date,
+                state=args.state || State.RUNNING,
+                external_trigger=True)
+            session.add(trigger)
+            logging.info("Created {}".format(trigger))
+    finally:
+        session.commit()
 
 
 def run(args):
@@ -511,10 +527,24 @@ def get_parser():
 
     ht = "Trigger a DAG"
     parser_trigger_dag = subparsers.add_parser('trigger_dag', help=ht)
-    parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run")
+    parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run. You may only specify this if you do not specify a date.", default=None)
     parser_trigger_dag.add_argument(
         "-r", "--run_id",
-        help="Helps to indentify this run")
+        help="""Helps to identify this run. You may not set this option if you specify a range of dates.
+You may not specify an id which already exists for this dag.""",
+        default=None)
+    parser_trigger_dag.add_argument(
+        "-s", "--start_date",
+        help="First date for which to generate DagRun objects",
+        default=None)
+    parser_trigger_dag.add_argument(
+        "-e", "--end_date",
+        help="Final date for which to generate a DagRun object",
+        default="None")
+    parser_trigger_dag.add_argument(
+        "--state",
+        help="The state in which generated DagRun objects should start",
+        default=State.RUNNING)
     parser_trigger_dag.set_defaults(func=trigger_dag)
 
     ht = "Run a single task instance"

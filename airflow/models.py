@@ -2674,6 +2674,9 @@ class DagRun(Base):
             run_id=self.run_id,
             external_trigger=self.external_trigger)
 
+    @classmethod
+    def id_for_date(klass, date, prefix='scheduled__%s'):
+        return prefix % date.isoformat()
 
 class Pool(Base):
     __tablename__ = "slot_pool"
