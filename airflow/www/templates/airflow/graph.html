@@ -275,16 +275,14 @@
         var container = svg.select("g");
         var scale = 0.5 + parseInt(slider.getValue())/10;
 
-        container.attr("transform", "translate(20, 20) scale(" + scale + ")");
-
-        // var h = svg.attr("height"), w = parseInt(svg.style("width"));
+        var h = svg.attr("height"), w = parseInt(svg.style("width"));
 
         // Note: works only on the <g> element and not on the <svg> element
         // which is a common mistake
-        // container.attr("transform",
-        //         "translate(" + w/2 + ", " + h/2 + ") " +
-        //         "scale(" + scale + ") " +
-        //         "translate(" + (-w/2) + ", " + (-h/2) + ")");
+        container.attr("transform",
+                "translate(" + w/2 + ", " + h/2 + ") " +
+                "scale(" + scale + ") " +
+                "translate(" + (-w/2) + ", " + (-h/2) + ")");
     }
 
     </script>
