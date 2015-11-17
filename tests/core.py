@@ -111,7 +111,7 @@ class CoreTest(unittest.TestCase):
         assert self.dag < dag_subclass_diff_name
 
         # greater than should have been created automatically by functools
-        assert dag_diff_name > self.dagECSOperator
+        assert dag_diff_name > self.dag
 
         # hashes are non-random and match equality
         assert hash(self.dag) == hash(self.dag)
@@ -228,11 +228,6 @@ class CoreTest(unittest.TestCase):
             t.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-
-    def test_ecs_op(self):
-        pass
-
-              
     def test_python_op(self):
         def test_py_op(templates_dict, ds, **kwargs):
             if not templates_dict['ds'] == ds:
