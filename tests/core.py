@@ -166,7 +166,10 @@ class CoreTest(unittest.TestCase):
             bash_command="echo success",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
+        
+    def test_ecs_operator(self):
+        pass
+    
     def test_trigger_dagrun(self):
         def trigga(context, obj):
             if True:

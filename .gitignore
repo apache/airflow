@@ -22,3 +22,5 @@ sftp-config.json
 unittests.cfg
 error.log
 unittests.db
+.pydevproject
+.project
