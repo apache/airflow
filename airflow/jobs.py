@@ -401,12 +401,9 @@ class SchedulerJob(BaseJob):
         if self._active_runs(session, dag) >= dag.max_active_runs:
             return
 
-        # This whole block figures out the next run date
+        # Figure out the next run date
         last_scheduled_run = self._last_scheduled_run(session, dag)
         next_run_date = self._next_dag_run_date(last_scheduled_run, dag)
-
-        # skip forward 
-
 
         schedule_end = dag.following_schedule(next_run_date)
 
@@ -416,7 +413,8 @@ class SchedulerJob(BaseJob):
             run_id = DagRun.id_for_date(next_run_date)
             if session.query(DagRun).filter_by(
                     dag_id=dag.dag_id, run_id=run_id).scalar():
-                print("Totally skipping")
+                logging.debug("Skipping creation for date because run id already exists: "+
+                        next_run_date.isoformat())
                 return
             next_run = DagRun(
                 dag_id=dag.dag_id,
@@ -427,6 +425,9 @@ class SchedulerJob(BaseJob):
             )
             session.add(next_run)
             session.commit()
+        else:
+            logging.debug('Refusing to schedule because no next_run_date or schedule_end: %s, %s'
+                    % (next_run_date, schedule_end))
 
     def process_dag(self, dag, executor):
         """
