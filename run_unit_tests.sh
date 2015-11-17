@@ -30,4 +30,4 @@ echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args
 
 # To run individual tests:
-# nosetests tests.core:CoreTest.test_scheduler_job
+# ./run_unit_tests.sh tests.core:CoreTest.test_scheduler_job

@@ -494,7 +494,6 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
-
 def test_mode():
     conf = ConfigParserWithDefaults(defaults)
     conf.read(TEST_CONFIG)
