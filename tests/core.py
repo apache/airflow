@@ -1,11 +1,10 @@
-
-from datetime import datetime, time, timedelta
 import doctest
 import json
 import os
 import re
-from time import sleep
 import unittest
+from datetime import datetime, time, timedelta
+from time import sleep
 
 from airflow import configuration
 from airflow.models import Variable
@@ -41,6 +40,7 @@ def reset(dag_id=TEST_DAG_ID):
     session.close()
 
 reset()
+
 
 class CoreTest(unittest.TestCase):
 

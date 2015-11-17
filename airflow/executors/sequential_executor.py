@@ -1,6 +1,7 @@
 from builtins import str
 import logging
 import subprocess
+import os
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils import State
@@ -15,18 +16,19 @@ class SequentialExecutor(BaseExecutor):
     Since we want airflow to work out of the box, it defaults to this
     SequentialExecutor alongside sqlite as you first install it.
     """
-    def __init__(self):
+    def __init__(self, env=None):
         super(SequentialExecutor, self).__init__()
         self.commands_to_run = []
+        self.env = env
 
     def execute_async(self, key, command, queue=None):
         self.commands_to_run.append((key, command,))
 
     def sync(self):
         for key, command in self.commands_to_run:
-            logging.info("command" + str(command))
+            logging.info("Executing command: " + str(command))
             try:
-                sp = subprocess.Popen(command, shell=True)
+                sp = subprocess.Popen(command, shell=True, env=self.env)
                 sp.wait()
             except Exception as e:
                 self.change_state(key, State.FAILED)
