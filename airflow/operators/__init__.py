@@ -18,6 +18,7 @@ _operators = {
         'BranchPythonOperator',
         'ShortCircuitOperator',
     ],
+    'ecs_operator': ['ECSOperator'],
     'hive_operator': ['HiveOperator'],
     'presto_check_operator': [
         'PrestoCheckOperator',

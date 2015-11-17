@@ -111,7 +111,7 @@ class CoreTest(unittest.TestCase):
         assert self.dag < dag_subclass_diff_name
 
         # greater than should have been created automatically by functools
-        assert dag_diff_name > self.dag
+        assert dag_diff_name > self.dagECSOperator
 
         # hashes are non-random and match equality
         assert hash(self.dag) == hash(self.dag)
@@ -228,6 +228,26 @@ class CoreTest(unittest.TestCase):
             t.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+
+    def test_ecs_op(self):
+ 
+        overrides={
+         'containerOverrides': [
+             {
+                 'name': 'RGB',
+                 'command': [
+                    "/bin/bash -c \"echo 'running';sleep 5;echo 'finished'\""
+                 ]
+             }
+         ]
+        } 
+        
+        t = operators.ECSOperator(overrides=overrides, 
+                              task_id='test-ecs', 
+                              cluster="default", taskDefinition="RGB", dag=self.dag)
+     
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+              
     def test_python_op(self):
         def test_py_op(templates_dict, ds, **kwargs):
             if not templates_dict['ds'] == ds:

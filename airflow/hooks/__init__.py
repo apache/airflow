@@ -9,6 +9,7 @@ _hooks = {
         'HiveMetastoreHook',
         'HiveServer2Hook',
     ],
+    'ecs_hook': ['ECSHook'],
     'hdfs_hook': ['HDFSHook'],
     'webhdfs_hook': ['WebHDFSHook'],
     'mysql_hook': ['MySqlHook'],
