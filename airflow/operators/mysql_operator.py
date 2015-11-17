@@ -24,13 +24,17 @@ class MySqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, mysql_conn_id='mysql_default', parameters=None,
-            *args, **kwargs):
+            autocommit=False, *args, **kwargs):
         super(MySqlOperator, self).__init__(*args, **kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
+        self.autocommit = autocommit
         self.parameters = parameters
 
     def execute(self, context):
         logging.info('Executing: ' + str(self.sql))
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
-        hook.run(self.sql, parameters=self.parameters)
+        hook.run(
+            self.sql,
+            autocommit=self.autocommit,
+            parameters=self.parameters)

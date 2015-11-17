@@ -48,6 +48,7 @@ Operator API
     :members:
         BashOperator,
         BranchPythonOperator,
+        TriggerDagRunOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -60,6 +61,7 @@ Operator API
         HiveToMySqlTransfer,
         SimpleHttpOperator,
         HttpSensor,
+        MetastorePartitionSensor,
         MsSqlOperator,
         MsSqlToHiveTransfer,
         MySqlOperator,

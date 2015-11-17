@@ -16,9 +16,8 @@ class MySqlToHiveTransfer(BaseOperator):
     MySQL, stores the file locally before loading it into a Hive table.
     If the ``create`` or ``recreate`` arguments are set to ``True``,
     a ``CREATE TABLE`` and ``DROP TABLE`` statements are generated.
-    Hive data types are inferred from the cursor's metadata.
-
-    Note that the table generated in Hive uses ``STORED AS textfile``
+    Hive data types are inferred from the cursor's metadata. Note that the
+    table generated in Hive uses ``STORED AS textfile``
     which isn't the most efficient serialization format. If a
     large amount of data is loaded and/or if the table gets
     queried considerably, you may want to use this operator only to

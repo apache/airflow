@@ -16,20 +16,44 @@ env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
   matrix:
-    - TOX_ENV=py27-cdh
-    - TOX_ENV=py27-hdp
-    - TOX_ENV=py34-cdh
-    - TOX_ENV=py34-hdp
+    - TOX_ENV=py27-cdh-airflow_backend_mysql
+    - TOX_ENV=py27-cdh-airflow_backend_sqlite
+#    - TOX_ENV=py27-cdh-airflow_backend_postgres
+    - TOX_ENV=py27-hdp-airflow_backend_mysql
+    - TOX_ENV=py27-hdp-airflow_backend_sqlite
+#    - TOX_ENV=py27-hdp-airflow_backend_postgres
+    - TOX_ENV=py34-cdh-airflow_backend_mysql
+    - TOX_ENV=py34-cdh-airflow_backend_sqlite
+#    - TOX_ENV=py34-cdh-airflow_backend_postgres
+    - TOX_ENV=py34-hdp-airflow_backend_mysql
+    - TOX_ENV=py34-hdp-airflow_backend_sqlite
+#    - TOX_ENV=py34-hdp-airflow_backend_postgres
 matrix:
   exclude:
-    - python: "2.7"
-      env: TOX_ENV=py34-cdh
-    - python: "2.7"
-      env: TOX_ENV=py34-hdp
     - python: "3.4"
-      env: TOX_ENV=py27-cdh
+      env: TOX_ENV=py27-cdh-airflow_backend_mysql
     - python: "3.4"
-      env: TOX_ENV=py27-hdp
+      env: TOX_ENV=py27-cdh-airflow_backend_sqlite
+#    - python: "3.4"
+#      env: TOX_ENV=py27-cdh-airflow_backend_postgres
+    - python: "3.4"
+      env: TOX_ENV=py27-hdp-airflow_backend_mysql
+    - python: "3.4"
+      env: TOX_ENV=py27-hdp-airflow_backend_sqlite
+#    - python: "3.4"
+#      env: TOX_ENV=py27-hdp-airflow_backend_postgres
+    - python: "2.7"
+      env: TOX_ENV=py34-cdh-airflow_backend_mysql
+    - python: "2.7"
+      env: TOX_ENV=py34-cdh-airflow_backend_sqlite
+#    - python: "2.7"
+#      env: TOX_ENV=py34-cdh-airflow_backend_postgres
+    - python: "2.7"
+      env: TOX_ENV=py34-hdp-airflow_backend_mysql
+    - python: "2.7"
+      env: TOX_ENV=py34-hdp-airflow_backend_sqlite
+#    - python: "2.7"
+#      env: TOX_ENV=py34-hdp-airflow_backend_postgres
 cache:
   directories:
     - $HOME/.wheelhouse/

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -o verbose
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 FIXTURES_DIR="$DIR/ldif"

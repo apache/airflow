@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+set -o verbose
+
 MINIKDC_VERSION=2.7.1
 
 HADOOP_DISTRO=${HADOOP_DISTRO:-"hdp"}

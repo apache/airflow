@@ -574,7 +574,7 @@ class SchedulerJob(BaseJob):
                     pickle_id = dag.pickle(session).id
 
                 if dag.dag_id in overloaded_dags or dag.concurrency_reached:
-                    overloaded_dags.append(dag.dag_id)
+                    overloaded_dags.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
                     executor.queue_task_instance(

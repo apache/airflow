@@ -4,7 +4,7 @@ from setuptools.command.test import test as TestCommand
 import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.6.0'
+version = '1.6.1'
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
@@ -61,6 +61,7 @@ statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
 devel = ['lxml>=3.3.4']
+kerberos = ['pykerberos>=1.1.8']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
 devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle
@@ -75,7 +76,7 @@ setup(
     zip_safe=False,
     scripts=['airflow/bin/airflow'],
     install_requires=[
-        'alembic>=0.8.0, <0.9',
+        'alembic>=0.8.3, <0.9',
         'chartkick>=0.4.2, < 0.5',
         'croniter>=0.3.8, <0.4',
         'dill>=0.2.2, <0.3',
@@ -119,6 +120,7 @@ setup(
         'vertica': vertica,
         'ldap': ldap,
         'webhdfs': webhdfs,
+        'kerberos': kerberos,
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',

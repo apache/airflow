@@ -1244,7 +1244,7 @@ class Log(Base):
     owner = Column(String(500))
     extra = Column(Text)
 
-    def __init__(self, event, task_instance, owner=None, extra=None):
+    def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
         self.dttm = datetime.now()
         self.event = event
         self.extra = extra
@@ -1256,7 +1256,15 @@ class Log(Base):
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
             task_owner = task_instance.task.owner
-            
+
+        if 'task_id' in kwargs:
+            self.task_id = kwargs['task_id']
+        if 'dag_id' in kwargs:
+            self.dag_id = kwargs['dag_id']
+        if 'execution_date' in kwargs:
+            if kwargs['execution_date']:
+                self.execution_date = kwargs['execution_date']
+
         self.owner = owner or task_owner
 
 
@@ -1929,7 +1937,7 @@ class DAG(object):
     :param max_active_runs: maximum number of active DAG runs, beyond this
         number of DAG runs in a running state, the scheduler won't create
         new active DAG runs
-    ":type max_active_runs: int"
+    :type max_active_runs: int
     """
 
     def __init__(

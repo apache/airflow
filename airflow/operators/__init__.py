@@ -24,6 +24,7 @@ _operators = {
         'PrestoValueCheckOperator',
         'PrestoIntervalCheckOperator',
     ],
+    'dagrun_operator': ['TriggerDagRunOperator'],
     'dummy_operator': ['DummyOperator'],
     'email_operator': ['EmailOperator'],
     'hive_to_samba_operator': ['Hive2SambaOperator'],

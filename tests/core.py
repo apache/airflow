@@ -3,6 +3,7 @@ import doctest
 import os
 from time import sleep
 import unittest
+import re
 
 from airflow import configuration
 configuration.test_mode()
@@ -163,6 +164,17 @@ class CoreTest(unittest.TestCase):
         t = operators.BashOperator(
             task_id='time_sensor_check',
             bash_command="echo success",
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_trigger_dagrun(self):
+        def trigga(context, obj):
+            if True:
+                return obj
+        t = operators.TriggerDagRunOperator(
+            task_id='test_trigger_dagrun',
+            dag_id='example_bash_operator',
+            python_callable=trigga,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
@@ -370,13 +382,20 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
         assert "runme_0" in response.data.decode('utf-8')
+        chartkick_regexp = 'new Chartkick.LineChart\(document.getElementById\(\"chart-\d+\"\),\s+\[["\w\:\s,\{\}\[\]]*\],\s+\{["\w\:\s,\{\}]+\)\;'
         response = self.app.get(
             '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')
+        chartkick_matched = re.search(chartkick_regexp,
+                                      response.data.decode('utf-8'))
+        assert chartkick_matched is not None
         response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')
+        chartkick_matched = re.search(chartkick_regexp,
+                                      response.data.decode('utf-8'))
+        assert chartkick_matched is not None
         response = self.app.get(
             '/admin/airflow/gantt?dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')

@@ -33,7 +33,8 @@ class DbApiHook(BaseHook):
             setattr(self, self.conn_name_attr, kwargs[self.conn_name_attr])
 
     def get_conn(self):
-        """Returns a connection object"""
+        """Returns a connection object
+        """
         db = self.get_connection(getattr(self, self.conn_name_attr))
         return self.connector.connect(
             host=db.host,
@@ -87,6 +88,7 @@ class DbApiHook(BaseHook):
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
         sequentially
+
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
         :type sql: str or list
@@ -113,7 +115,9 @@ class DbApiHook(BaseHook):
         conn.autocommit = autocommit
 
     def get_cursor(self):
-        """Returns a cursor"""
+        """
+        Returns a cursor
+        """
         return self.get_conn().cursor()
 
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):

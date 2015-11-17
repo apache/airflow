@@ -24,11 +24,15 @@ login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
 
+
 class AuthenticationError(Exception):
     pass
 
 
-class User(models.BaseUser):
+class KerberosUser(models.User):
+    def __init__(self, user):
+        self.user = user
+
     @staticmethod
     def authenticate(username, password):
         service_principal = "%s/%s" % (configuration.get('kerberos', 'principal'), utils.get_fqdn())
@@ -65,9 +69,6 @@ class User(models.BaseUser):
         '''Access all the things'''
         return True
 
-models.User = User  # hack!
-del User
-
 
 @login_manager.user_loader
 def load_user(userid):
@@ -76,7 +77,7 @@ def load_user(userid):
     session.expunge_all()
     session.commit()
     session.close()
-    return user
+    return KerberosUser(user)
 
 
 def login(self, request):
@@ -99,7 +100,7 @@ def login(self, request):
                            form=form)
 
     try:
-        models.User.authenticate(username, password)
+        KerberosUser.authenticate(username, password)
 
         session = settings.Session()
         user = session.query(models.User).filter(
@@ -112,16 +113,17 @@ def login(self, request):
 
         session.merge(user)
         session.commit()
-        flask_login.login_user(user)
+        flask_login.login_user(KerberosUser(user))
         session.commit()
         session.close()
 
-        return redirect(request.args.get("next") or url_for("index"))
+        return redirect(request.args.get("next") or url_for("admin.index"))
     except AuthenticationError:
         flash("Incorrect login details")
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
+
 
 class LoginForm(Form):
     username = StringField('Username', [InputRequired()])
