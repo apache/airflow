@@ -46,7 +46,7 @@ class BaseHook(object):
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         conn = None
         if environment_uri:
-            conn = Connection(uri=environment_uri)
+            conn = Connection(conn_id=conn_id, uri=environment_uri)
         else:
             conn = random.choice(cls.get_connections(conn_id))
         if conn.host:

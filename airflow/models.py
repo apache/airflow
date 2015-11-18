@@ -377,10 +377,10 @@ class Connection(Base):
             schema=None, port=None, extra=None,
             uri=None):
         self.conn_id = conn_id
-        self.conn_type = conn_type
         if uri:
             self.parse_from_uri(uri)
         else:
+            self.conn_type = conn_type
             self.host = host
             self.login = login
             self.password = password
@@ -393,6 +393,10 @@ class Connection(Base):
         hostname = temp_uri.hostname or ''
         if '%2f' in hostname:
             hostname = hostname.replace('%2f', '/').replace('%2F', '/')
+        conn_type = temp_uri.scheme
+        if conn_type == 'postgresql':
+            conn_type = 'postgres'
+        self.conn_type = conn_type
         self.host = hostname
         self.schema = temp_uri.path[1:]
         self.login = temp_uri.username
