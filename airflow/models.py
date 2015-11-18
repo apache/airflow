@@ -2692,7 +2692,7 @@ class DagRun(Base):
 
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
-        return prefix % date.isoformat()
+        return prefix % date.isoformat()[:19]
 
 class Pool(Base):
     __tablename__ = "slot_pool"

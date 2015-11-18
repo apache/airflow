@@ -363,7 +363,7 @@ class SchedulerJob(BaseJob):
                         DagRun.run_id.like(scheduled_prefix)))
         return qry.scalar()
 
-    def _next_dag_run_date(self, last_scheduled_run, dag):
+    def _next_dag_run_date(self, session, last_scheduled_run, dag):
         next_run_date = None
         if not last_scheduled_run:
             # First run
@@ -391,6 +391,7 @@ class SchedulerJob(BaseJob):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval
+        Returns the DagRun object if created; otherwise returns None
         """
         # Don't schedule if there is no schedule interval
         if not dag.schedule_interval:
@@ -403,7 +404,7 @@ class SchedulerJob(BaseJob):
 
         # Figure out the next run date
         last_scheduled_run = self._last_scheduled_run(session, dag)
-        next_run_date = self._next_dag_run_date(last_scheduled_run, dag)
+        next_run_date = self._next_dag_run_date(session, last_scheduled_run, dag)
 
         schedule_end = dag.following_schedule(next_run_date)
 
@@ -425,6 +426,7 @@ class SchedulerJob(BaseJob):
             )
             session.add(next_run)
             session.commit()
+            return next_run
         else:
             logging.debug('Refusing to schedule because no next_run_date or schedule_end: %s, %s'
                     % (next_run_date, schedule_end))
