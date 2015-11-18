@@ -34,6 +34,8 @@ def expand_env_var(env_var):
     `expandvars` and `expanduser` until interpolation stops having
     any effect.
     """
+    if not env_var:
+        return env_var
     while True:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:

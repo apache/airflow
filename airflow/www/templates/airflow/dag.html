@@ -254,8 +254,8 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#btn_run").click(function(){
       url = "{{ url_for('airflow.run') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
         "&force=" + $('#btn_force').hasClass('active') +
         "&deps=" + $('#btn_deps').hasClass('active') +
         "&execution_date=" + execution_date +
@@ -265,8 +265,8 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#btn_clear").click(function(){
       url = "{{ url_for('airflow.clear') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
         "&future=" + $('#btn_future').hasClass('active') +
         "&past=" + $('#btn_past').hasClass('active') +
         "&upstream=" + $('#btn_upstream').hasClass('active') +
@@ -278,8 +278,8 @@ function updateQueryStringParameter(uri, key, value) {
 
     $("#btn_success").click(function(){
       url = "{{ url_for('airflow.success') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
         "&upstream=" + $('#btn_success_upstream').hasClass('active') +
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
         "&future=" + $('#btn_success_future').hasClass('active') +

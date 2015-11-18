@@ -406,7 +406,10 @@ class SchedulerJob(BaseJob):
         last_scheduled_run = self._last_scheduled_run(session, dag)
         next_run_date = self._next_dag_run_date(session, last_scheduled_run, dag)
 
-        schedule_end = dag.following_schedule(next_run_date)
+        if dag.schedule_interval == '@once':
+            schedule_end = next_run_date
+        else:
+            schedule_end = dag.following_schedule(next_run_date)
 
         # Actually do the scheduling
         if next_run_date and schedule_end and schedule_end <= datetime.now():
