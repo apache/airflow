@@ -1,10 +1,11 @@
+import copy
 from datetime import datetime, time, timedelta
 import doctest
 import json
 import os
+import re
 from time import sleep
 import unittest
-import re
 
 from airflow import configuration
 configuration.test_mode()
@@ -52,15 +53,24 @@ class CoreTest(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
 
     def test_schedule_dag_no_previous_runs(self):
-        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(self.dag)
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_no_previous_runs') 
+        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0))]
+        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
         assert dag_run is not None
-        assert dag_run.dag_id == self.dag.dag_id
+        assert dag_run.dag_id == dag.dag_id
         assert dag_run.run_id is not None
         assert dag_run.run_id != ''
-        #assert dag_run.execution_date == 
-        print ("calculated execution_date:", dag_run.execution_date)
+        assert dag_run.execution_date == datetime(2015, 1, 2, 0, 0), (
+                'dag_run.execution_date did not match expectation: %s' % dag_run.execution_date)        
         assert dag_run.state == models.State.RUNNING
         assert dag_run.external_trigger == False
+
+    def test_schedule_dag_once(self):
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_once') 
+        dag.schedule_interval = '@once'
+        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+        assert dag_run is None
 
     def test_confirm_unittest_mod(self):
         assert configuration.get('core', 'unit_test_mode')

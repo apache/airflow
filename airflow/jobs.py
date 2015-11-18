@@ -377,7 +377,7 @@ class SchedulerJob(BaseJob):
                 # Migrating from previous version
                 # make the past 5 runs active
                 next_run_date = dag.date_range(latest_run, -5)[0]
-            else:
+            elif dag.tasks:
                 next_run_date = min([t.start_date for t in dag.tasks])
         elif dag.schedule_interval != '@once':
             next_run_date = dag.following_schedule(last_scheduled_run)
@@ -431,7 +431,7 @@ class SchedulerJob(BaseJob):
             session.commit()
             return next_run
         else:
-            logging.debug('Refusing to schedule because no next_run_date or schedule_end: %s, %s'
+            logging.debug('Refusing to schedule because no next_run_date or schedule_end, or schedule_end is now: %s, %s'
                     % (next_run_date, schedule_end))
 
     def process_dag(self, dag, executor):
