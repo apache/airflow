@@ -332,9 +332,11 @@ def webserver(args):
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
             '{args.port}...'.format(**locals()))
+        hn = '[' + args.hostname + ']' if ':' in args.hostname else args.hostname
+        socket = hn + ':' + str(args.port)
         sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
-            '-t', '120', '-b', args.hostname + ':' + str(args.port),
+            'gunicorn', '-w', str(args.workers), '-k', args.workerclass,
+            '-t', '120', '-b', socket,
             'airflow.www.app:cached_app()'])
         sp.wait()
 
