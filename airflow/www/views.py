@@ -968,7 +968,12 @@ class Airflow(BaseView):
                 t.task_id
                 for t in task.get_flat_relatives(upstream=True)]
         TI = models.TaskInstance
-        dates = dag.date_range(start_date, end_date=end_date)
+
+        if dag.schedule_interval == '@once':
+            dates = [start_date]
+        else:
+            dates = dag.date_range(start_date, end_date=end_date)
+
         tis = session.query(TI).filter(
             TI.dag_id == dag_id,
             TI.execution_date.in_(dates),
