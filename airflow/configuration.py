@@ -496,7 +496,7 @@ logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
 def test_mode():
     conf = ConfigParserWithDefaults(defaults)
-    conf.read(TEST_CONFIG)
+    conf.read(TEST_CONFIG_FILE)
 
 conf = ConfigParserWithDefaults(defaults)
 conf.read(AIRFLOW_CONFIG)

@@ -79,7 +79,8 @@ class BashOperator(BaseOperator):
                              "return code {0}".format(sp.returncode))
 
                 if sp.returncode:
-                    raise AirflowException("Bash command failed")
+                    raise AirflowException("Bash command failed: {}".format(
+                        bash_command))
 
         if self.xcom_push_flag:
             return line
