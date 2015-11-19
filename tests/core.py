@@ -16,6 +16,7 @@ from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from lxml import html
+from airflow.utils import AirflowException
 
 NUM_EXAMPLE_DAGS = 7
 DEV_NULL = '/dev/null'
@@ -53,6 +54,8 @@ class CoreTest(unittest.TestCase):
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.run_after_loop = self.dag_bash.get_task('run_after_loop')
+        self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -380,6 +383,33 @@ class CoreTest(unittest.TestCase):
         value = {"a": 17, "b": 47}
         Variable.set("tested_var_set_id", value, serialize_json=True)
         assert value == Variable.get("tested_var_set_id",deserialize_json=True)
+        
+    def test_duplicate_dependencies(self):
+
+        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
+                 "already registered"
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_downstream(self.run_after_loop)
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_upstream(self.runme_0)
+
+    def test_cyclic_dependencies_1(self):
+
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_upstream(self.run_after_loop)
+
+    def test_cyclic_dependencies_2(self):
+        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_downstream(self.runme_0)
+
+    def test_cyclic_dependencies_3(self):
+        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_this_last.set_downstream(self.runme_0)
 
 
 class CliTests(unittest.TestCase):
