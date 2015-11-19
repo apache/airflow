@@ -402,8 +402,14 @@ def default_config():
     """
 
     FERNET_KEY = generate_fernet_key()
-    vars = {k: v for d in [globals(), locals()] for k, v in d.iteritems()}
+    vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
     return DEFAULT_CONFIG.format(**vars)
+
+TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+if not os.path.isfile(TEST_CONFIG_FILE):
+    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
+    with open(TEST_CONFIG_FILE, 'w') as f:
+        f.write(TEST_CONFIG.format(**locals()))
 
 if not os.path.isfile(AIRFLOW_CONFIG):
     """
@@ -415,17 +421,11 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     with open(AIRFLOW_CONFIG, 'w') as f:
         f.write(default_config())
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
-if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
-    with open(TEST_CONFIG_FILE, 'w') as f:
-        f.write(TEST_CONFIG.format(**locals()))
-
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
 def test_mode():
     conf = ConfigParserWithDefaults(defaults)
-    conf.read(TEST_CONFIG)
+    conf.read(TEST_CONFIG_FILE)
 
 conf = ConfigParserWithDefaults(defaults)
 conf.read(AIRFLOW_CONFIG)

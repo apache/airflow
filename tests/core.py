@@ -122,7 +122,7 @@ class CoreTest(unittest.TestCase):
         assert dag_run is not None
         assert dag_run2 is None
 
-    def test_confirm_unittest_mod(self):
+    def test_confirm_unittest_mode(self):
         assert configuration.get('core', 'unit_test_mode')
 
     def test_backfill_examples(self):
