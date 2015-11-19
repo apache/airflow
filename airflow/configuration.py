@@ -4,15 +4,13 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import str
 from configparser import ConfigParser
 import errno
 import logging
 import os
-import sys
-import textwrap
-
 
 try:
     from cryptography.fernet import Fernet
@@ -396,24 +394,32 @@ if 'AIRFLOW_CONFIG' not in os.environ:
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
+
+def default_config():
+    """
+        Generates a default configuration from the default template + currently
+         defined variables
+    """
+
+    FERNET_KEY = generate_fernet_key()
+    vars = {k: v for d in [globals(), locals()] for k, v in d.iteritems()}
+    return DEFAULT_CONFIG.format(**vars)
+
 if not os.path.isfile(AIRFLOW_CONFIG):
     """
     These configuration options are used to generate a default configuration
     when it is missing. The right way to change your configuration is to alter
     your configuration file, not this code.
     """
-    FERNET_KEY = generate_fernet_key()
     logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
-    f = open(AIRFLOW_CONFIG, 'w')
-    f.write(DEFAULT_CONFIG.format(**locals()))
-    f.close()
+    with open(AIRFLOW_CONFIG, 'w') as f:
+        f.write(default_config())
 
 TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
 if not os.path.isfile(TEST_CONFIG_FILE):
     logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
-    f = open(TEST_CONFIG_FILE, 'w')
-    f.write(TEST_CONFIG.format(**locals()))
-    f.close()
+    with open(TEST_CONFIG_FILE, 'w') as f:
+        f.write(TEST_CONFIG.format(**locals()))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
@@ -437,9 +443,18 @@ def getboolean(section, key):
 def getfloat(section, key):
     return conf.getfloat(section, key)
 
+
 def getint(section, key):
     return conf.getint(section, key)
 
+
 def has_option(section, key):
     return conf.has_option(section, key)
+
+
+########################
+# convenience method to access config entries
+
+def get_dags_folder():
+    return os.path.expanduser(get('core', 'DAGS_FOLDER'))
 
