@@ -1741,7 +1741,7 @@ class BaseOperator(object):
             task = self
         for t in self.get_direct_relatives():
             if task is t:
-                msg = "Cycle detect in DAG. Faulty task: {0}".format(task)
+                msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
                 raise AirflowException(msg)
             else:
                 t.detect_downstream_cycle(task=task)
@@ -1805,11 +1805,12 @@ class BaseOperator(object):
             if not isinstance(task, BaseOperator):
                 raise AirflowException('Expecting a task')
             if upstream:
-                self.append_only_new(task._downstream_list, self)
+                task.append_only_new(task._downstream_list, self)
                 self.append_only_new(self._upstream_list, task)
             else:
-                self.append_only_new(task._upstream_list, self)
                 self.append_only_new(self._downstream_list, task)
+                task.append_only_new(task._upstream_list, self)
+
         self.detect_downstream_cycle()
 
     def set_downstream(self, task_or_task_list):
