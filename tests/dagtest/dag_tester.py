@@ -1,20 +1,28 @@
 """
-    General entry point for testing end to end dags
+General entry point for testing end to end dags
 """
-
-from airflow import configuration, AirflowException
-from airflow import executors, models, settings, utils
-from airflow.configuration import DEFAULT_CONFIG, AIRFLOW_HOME
-from airflow.models import DagBag, Variable
-from airflow.settings import Session
+import logging
 import os
 import re
+import tempfile
+
+from airflow import configuration, AirflowException
+from airflow import executors
+from airflow.configuration import AIRFLOW_HOME, TEST_CONFIG_FILE
+from airflow.models import DagBag, Variable
+from ..core import reset
 
 
 class DagBackfillTest(object):
     """
-        Framework to setup, run and check end to end executions of a DAG controlled
+    Framework to setup, run and check end to end executions of a DAG controlled.
+
+    Usage: just create a sub-class and implement build_job(), get_dag_id(),
+    post_check() and optionally get_test_context()
     """
+
+    ###############
+    # methods to be implemented by child test
 
     def build_job(self, dag):
         raise NotImplementedError()
@@ -22,79 +30,122 @@ class DagBackfillTest(object):
     def get_dag_id(self):
         raise NotImplementedError()
 
-    def post_check(self):
+    def post_check(self, working_dir):
         raise NotImplementedError()
 
-    def reset(self, dag_id):
-        session = Session()
-        session.query(models.TaskInstance).filter_by(dag_id=dag_id).delete()
-        session.commit()
-        session.close()
+    def get_test_context(self):
+        """
+        :return: a dictionary of variables to be stored such that the
+        tested DAG can access them through a Variable.get("key") statement
+        """
+        return {}
 
-    def copy_config(self, dags_folder):
-
-        # build a config file with a dag folder pointing to the tested dags
-        config = configuration.default_config()
-        config = re.sub("dags_folder =.*",
-                        "dags_folder = {}".format(dags_folder), config)
-        config = re.sub("job_heartbeat_sec =.*",
-                        "job_heartbeat_sec = 1", config)
-
-        # this is the config file that will be used by the child process
-        config_location = "{}/dag_test_airflow.cfg".format(AIRFLOW_HOME)
-        with open(config_location, "w") as cfg_file:
-            cfg_file.write(config)
-
-        # this is the config that is currently present in memory
-        configuration.conf.set("core", "DAGS_FOLDER", dags_folder)
-
-        return config_location
-
+    ################################
 
     def test_run(self):
 
-        #configuration.test_mode()
-        dags_folder = "%s/dags" % os.path.dirname(__file__)
-        config_location = self.copy_config(dags_folder )
+        # init
+        ctx = self._init_full_context()
+        tested_job = self._build_tested_job()
 
-        dagbag = DagBag(dags_folder, include_examples=False)
+        reset(tested_job.dag.dag_id)
+        tested_job.dag.clear()
+        
+        # run
+        try:
+            tested_job.run()
+        except SystemExit:
+            logging.warn("Tested job has failed (this might be ok if the "
+                         "test is validating a failure condition)")
+
+        # cleanup
+        temp_dir = ctx["unit_test_tmp_dir"]
+        self.post_check(temp_dir)
+        os.system("rm -rf {}".format(temp_dir))
+        reset(tested_job.dag.dag_id)
+
+    ################################
+
+    def _init_full_context(self):
+        """
+        Merge the default context (including the temp test dir) with the test
+        specific context and stores everything in persistent Variables in DB
+        :return: the merged context
+        """
+
+        full_context = self.get_test_context().copy()
+
+        tmp_dir = tempfile.mkdtemp()
+        full_context["unit_test_tmp_dir"] = tmp_dir
+
+        for key, val in full_context.items():
+            Variable.set(key, val, serialize_json=True)
+
+        return full_context
+
+    def _dag_folder(self):
+        """
+        :return: the location where to find the tested dags
+        """
+        return "{}/dags".format(os.path.dirname(__file__))
+
+    def _build_tested_job(self):
+        """
+        Builds a job for this test (actually just some boiler plate here, the
+        actual creation is done by the child class in build_job())
+        """
+
+        dagbag = DagBag(self._dag_folder(), include_examples=False)
 
         if self.get_dag_id() not in dagbag.dags:
             msg = "DAG id {id} not found in folder {folder}" \
-                  "".format(id=self.get_dag_id(), folder=dags_folder)
+                  "".format(id=self.get_dag_id(), folder=self._dag_folder())
             raise AirflowException(msg)
 
         dag = dagbag.dags[self.get_dag_id()]
         job = self.build_job(dag)
 
-        # we must set the sequencial environment ourselves to control
         if job.executor != executors.DEFAULT_EXECUTOR:
             raise AirflowException("DAG test may not set the executor")
 
+        config_location = self._create_ut_config_file(self._dag_folder())
         test_env = os.environ.copy()
         test_env.update({"AIRFLOW_CONFIG": config_location})
         job.executor = executors.SequentialExecutor(env=test_env)
 
-        self.reset(self.get_dag_id())
+        return job
 
-        job.dag.clear()
-        job.run()
+    def _create_ut_config_file(self, dags_folder):
+        """
+        Creates a custom config file called dag_test_airflow.cfg so that
+        the child OS process launched during the test to execute the DAG
+        has the correct DAG folder.
+        """
 
-        self.post_check()
+        with open(TEST_CONFIG_FILE) as test_config_file:
+            config = test_config_file.read()
 
-        os.system("rm -rf {temp_dir}".format(**locals()))
-        self.reset(job.dag.dag_id)
+            config = re.sub("dags_folder =.*",
+                            "dags_folder = {}".format(dags_folder), config)
+            config = re.sub("job_heartbeat_sec =.*",
+                            "job_heartbeat_sec = 1", config)
 
-    def add_tmp_dir_variable(self):
+            # this is the config file that will be used by the child process
+            config_location = "{}/dag_test_airflow.cfg".format(AIRFLOW_HOME)
+            with open(config_location, "w") as cfg_file:
+                cfg_file.write(config)
 
-        key = "unit_test_tmp_dir"
-        tmp_dir = tempfile.mkdtemp()
-        var = Variable(key=key, val=tmp_dir)
+        # aligns current config with test config
+        configuration.conf.set("core", "DAGS_FOLDER", dags_folder)
 
-        session = Session()
-        session.query(Variable).filter_by(key=key).delete()
-        session.add(var)
-        session.commit()
-        session.close()
+        return config_location
 
-        return tmp_dir
+
+def validate_file_content(folder, filename, expected_content):
+    """
+    Raise an exception if the specified file does not have the expected
+    content, or returns silently otherwise
+    """
+    with open("{0}/{1}".format(folder, filename)) as f:
+        assert expected_content == f.read(), "unexpected content of %s/%s" % \
+                                             (folder, filename)

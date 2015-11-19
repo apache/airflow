@@ -2539,11 +2539,10 @@ class Variable(Base):
         else:
             stored_value = value
 
-        session.query(Variable).filter_by(key=key).delete()
+        session.query(cls).filter(cls.key == key).delete()
         var = Variable(key=key, val=stored_value)
         session.add(var)
         session.flush()
-
 
 
 class XCom(Base):
