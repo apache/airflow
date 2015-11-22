@@ -397,10 +397,9 @@ else:
 
 def default_config():
     """
-        Generates a default configuration from the default template + currently
-         defined variables
+    Generates a default configuration from the default template + currently
+    defined variables
     """
-
     FERNET_KEY = generate_fernet_key()
     vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
     return DEFAULT_CONFIG.format(**vars)
@@ -422,6 +421,7 @@ if not os.path.isfile(AIRFLOW_CONFIG):
         f.write(default_config())
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
+
 
 def test_mode():
     conf = ConfigParserWithDefaults(defaults)

@@ -6,7 +6,7 @@ export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
 # any argument received is overriding the default nose execution arguments: 
 
 nose_args=$@
-if [ -a '$nose_args' ]; then
+if [ -z "$nose_args" ]; then
   nose_args="--with-coverage \
 --cover-erase \
 --cover-html \
