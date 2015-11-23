@@ -619,21 +619,19 @@ class TaskInstance(Base):
         we use and looking up the state becomes part of the session, otherwise
         a new session is used.
         """
-        session = main_session or settings.Session()
-        TI = TaskInstance
-        ti = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
-        ).all()
-        if ti:
-            state = ti[0].state
-        else:
-            state = None
-        if not main_session:
-            session.commit()
-            session.close()
-        return state
+
+        with ExecSession(main_session) as session:
+            TI = TaskInstance
+            ti = session.query(TI).filter(
+                TI.dag_id == self.dag_id,
+                TI.task_id == self.task_id,
+                TI.execution_date == self.execution_date,
+            ).all()
+            if ti:
+                return ti[0].state
+            else:
+                return None
+
 
     def error(self, main_session=None):
         """
@@ -650,22 +648,19 @@ class TaskInstance(Base):
         """
         Refreshes the task instance from the database based on the primary key
         """
-        session = main_session or settings.Session()
-        TI = TaskInstance
-        ti = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
-        ).first()
-        if ti:
-            self.state = ti.state
-            self.start_date = ti.start_date
-            self.end_date = ti.end_date
-            self.try_number = ti.try_number
 
-        if not main_session:
-            session.commit()
-            session.close()
+        with ExecSession(main_session) as session:
+            TI = TaskInstance
+            ti = session.query(TI).filter(
+                TI.dag_id == self.dag_id,
+                TI.task_id == self.task_id,
+                TI.execution_date == self.execution_date,
+            ).first()
+            if ti:
+                self.state = ti.state
+                self.start_date = ti.start_date
+                self.end_date = ti.end_date
+                self.try_number = ti.try_number
 
     @property
     def key(self):
@@ -720,24 +715,22 @@ class TaskInstance(Base):
         schedule of a task until the dependents are done. For instance,
         if the task DROPs and recreates a table.
         """
-        session = main_session or settings.Session()
-        task = self.task
+        with ExecSession(main_session) as session:
+            task = self.task
 
-        if not task._downstream_list:
-            return True
+            if not task._downstream_list:
+                return True
 
-        downstream_task_ids = [t.task_id for t in task._downstream_list]
-        ti = session.query(func.count(TaskInstance.task_id)).filter(
-            TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id.in_(downstream_task_ids),
-            TaskInstance.execution_date == self.execution_date,
-            TaskInstance.state == State.SUCCESS,
-        )
-        count = ti[0][0]
-        if not main_session:
-            session.commit()
-            session.close()
-        return count == len(task._downstream_list)
+            downstream_task_ids = [t.task_id for t in task._downstream_list]
+            ti = session.query(func.count(TaskInstance.task_id)).filter(
+                TaskInstance.dag_id == self.dag_id,
+                TaskInstance.task_id.in_(downstream_task_ids),
+                TaskInstance.execution_date == self.execution_date,
+                TaskInstance.state == State.SUCCESS,
+            )
+            count = ti[0][0]
+
+            return count == len(task._downstream_list)
 
     def are_dependencies_met(
             self, main_session=None, flag_upstream_failed=False):
@@ -755,87 +748,84 @@ class TaskInstance(Base):
         TR = TriggerRule
 
         # Using the session if passed as param
-        session = main_session or settings.Session()
-        task = self.task
+        with ExecSession(main_session) as session:
+            task = self.task
 
-        # Checking that the depends_on_past is fulfilled
-        if (task.depends_on_past and
-                not self.execution_date == task.start_date):
-            previous_ti = session.query(TI).filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id == task.task_id,
-                TI.execution_date ==
-                    self.task.dag.previous_schedule(self.execution_date),
-                TI.state == State.SUCCESS,
-            ).first()
-            if not previous_ti:
-                return False
-
-            # Applying wait_for_downstream
-            previous_ti.task = self.task
-            if task.wait_for_downstream and not \
-                    previous_ti.are_dependents_done(session):
-                return False
-
-        # Checking that all upstream dependencies have succeeded
-        if not task._upstream_list or task.trigger_rule == TR.DUMMY:
-            return True
-        else:
-            upstream_task_ids = [t.task_id for t in task._upstream_list]
-            qry = (
-                session
-                .query(
-                    func.coalesce(func.sum(
-                        case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
-                    func.coalesce(func.sum(
-                        case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
-                    func.coalesce(func.sum(
-                        case([(TI.state == State.FAILED, 1)], else_=0)), 0),
-                    func.coalesce(func.sum(
-                        case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                    func.count(TI.task_id),
-                )
-                .filter(
+            # Checking that the depends_on_past is fulfilled
+            if (task.depends_on_past and
+                    not self.execution_date == task.start_date):
+                previous_ti = session.query(TI).filter(
                     TI.dag_id == self.dag_id,
-                    TI.task_id.in_(upstream_task_ids),
-                    TI.execution_date == self.execution_date,
-                    TI.state.in_([
-                        State.SUCCESS, State.FAILED,
-                        State.UPSTREAM_FAILED, State.SKIPPED]),
+                    TI.task_id == task.task_id,
+                    TI.execution_date ==
+                        self.task.dag.previous_schedule(self.execution_date),
+                    TI.state == State.SUCCESS,
+                ).first()
+                if not previous_ti:
+                    return False
+
+                # Applying wait_for_downstream
+                previous_ti.task = self.task
+                if task.wait_for_downstream and not \
+                        previous_ti.are_dependents_done(session):
+                    return False
+
+            # Checking that all upstream dependencies have succeeded
+            if not task._upstream_list or task.trigger_rule == TR.DUMMY:
+                return True
+            else:
+                upstream_task_ids = [t.task_id for t in task._upstream_list]
+                qry = (
+                    session
+                    .query(
+                        func.coalesce(func.sum(
+                            case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
+                        func.coalesce(func.sum(
+                            case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
+                        func.coalesce(func.sum(
+                            case([(TI.state == State.FAILED, 1)], else_=0)), 0),
+                        func.coalesce(func.sum(
+                            case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
+                        func.count(TI.task_id),
+                    )
+                    .filter(
+                        TI.dag_id == self.dag_id,
+                        TI.task_id.in_(upstream_task_ids),
+                        TI.execution_date == self.execution_date,
+                        TI.state.in_([
+                            State.SUCCESS, State.FAILED,
+                            State.UPSTREAM_FAILED, State.SKIPPED]),
+                    )
                 )
-            )
-            successes, skipped, failed, upstream_failed, done = qry.first()
-            if flag_upstream_failed:
-                if skipped >= len(task._upstream_list):
-                    self.state = State.SKIPPED
-                    self.start_date = datetime.now()
-                    self.end_date = datetime.now()
-                    session.merge(self)
-                elif failed + upstream_failed >= len(task._upstream_list):
-                    self.state = State.UPSTREAM_FAILED
-                    self.start_date = datetime.now()
-                    self.end_date = datetime.now()
-                    session.merge(self)
+                successes, skipped, failed, upstream_failed, done = qry.first()
+                if flag_upstream_failed:
+                    if skipped >= len(task._upstream_list):
+                        self.state = State.SKIPPED
+                        self.start_date = datetime.now()
+                        self.end_date = datetime.now()
+                        session.merge(self)
+                    elif failed + upstream_failed >= len(task._upstream_list):
+                        self.state = State.UPSTREAM_FAILED
+                        self.start_date = datetime.now()
+                        self.end_date = datetime.now()
+                        session.merge(self)
 
-            if task.trigger_rule == TR.ONE_SUCCESS and successes > 0:
-                return True
-            elif (task.trigger_rule == TR.ONE_FAILED and
-                  (failed + upstream_failed) > 0):
-                return True
-            elif (task.trigger_rule == TR.ALL_SUCCESS and
-                  successes == len(task._upstream_list)):
-                return True
-            elif (task.trigger_rule == TR.ALL_FAILED and
-                  failed + upstream_failed == len(task._upstream_list)):
-                return True
-            elif (task.trigger_rule == TR.ALL_DONE and
-                  done == len(task._upstream_list)):
-                return True
+                if task.trigger_rule == TR.ONE_SUCCESS and successes > 0:
+                    return True
+                elif (task.trigger_rule == TR.ONE_FAILED and
+                      (failed + upstream_failed) > 0):
+                    return True
+                elif (task.trigger_rule == TR.ALL_SUCCESS and
+                      successes == len(task._upstream_list)):
+                    return True
+                elif (task.trigger_rule == TR.ALL_FAILED and
+                      failed + upstream_failed == len(task._upstream_list)):
+                    return True
+                elif (task.trigger_rule == TR.ALL_DONE and
+                      done == len(task._upstream_list)):
+                    return True
 
-        if not main_session:
-            session.commit()
-            session.close()
-        return False
+            return False
 
     def __repr__(self):
         return (
@@ -2351,25 +2341,26 @@ class DAG(object):
         raise AirflowException("Task {task_id} not found".format(**locals()))
 
     def pickle(self, main_session=None):
-        session = main_session or settings.Session()
-        dag = session.query(
-            DagModel).filter(DagModel.dag_id == self.dag_id).first()
-        dp = None
-        if dag and dag.pickle_id:
-            dp = session.query(DagPickle).filter(
-                DagPickle.id == dag.pickle_id).first()
-        if not dp or dp.pickle != self:
-            dp = DagPickle(dag=self)
-            session.add(dp)
-            self.last_pickled = datetime.now()
-            session.commit()
-            self.pickle_id = dp.id
 
-        if not main_session:
-            session.close()
-        return dp
+        with ExecSession(main_session) as session:
+            dag = session.query(
+                DagModel).filter(DagModel.dag_id == self.dag_id).first()
+            dp = None
+            if dag and dag.pickle_id:
+                dp = session.query(DagPickle).filter(
+                    DagPickle.id == dag.pickle_id).first()
+            if not dp or dp.pickle != self:
+                dp = DagPickle(dag=self)
+                session.add(dp)
+                self.last_pickled = datetime.now()
+                session.commit()
+                self.pickle_id = dp.id
+
+            return dp
 
     def tree_view(self):
+
+
         """
         Shows an ascii tree representation of the DAG
         """
@@ -2776,3 +2767,35 @@ class ImportError(Base):
     timestamp = Column(DateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+
+
+class ExecSession(object):
+    """
+    Delegate of a SQL-Alchemy execution session, usable in a loan-pattern
+      fashion, ensuring proper closing
+
+      - in case a main_session is provided: uses this one and does not close it
+      - otherwise, creates one
+
+    """
+
+    def __init__(self, main_session=None):
+        self.main_session = main_session
+        self.local_session = None
+
+    def _create_session(self):
+        return settings.Session()
+
+    def __enter__(self):
+        if self.main_session:
+            return self.main_session
+        else:
+            self.local_session = self._create_session()
+            return self.local_session
+
+    def __exit__(self, type, value, traceback):
+        if self.local_session:
+            self.local_session.expunge_all()
+            self.local_session.commit()
+            self.local_session.close()
+
