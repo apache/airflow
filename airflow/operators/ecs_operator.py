@@ -21,7 +21,7 @@ class ECSOperator(BaseOperator):
             taskDefinition,
             cluster,
             overrides,
-            aws_conn_id ="aws_credentials",
+            aws_conn_id ="ecs_default",
             *args, **kwargs):
         super(ECSOperator, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
@@ -45,10 +45,12 @@ class ECSOperator(BaseOperator):
         logging.info("Task stopped: "+str(response))
         container = response["tasks"][0]['containers'][0]
         exitCode = container['exitCode']
-        reason = container['reason']
         if exitCode:
-            raise AirflowException("ECS task failed  ["+str(reason)+"]")
- 
+            if 'reason' in container:
+                reason = container['reason']
+                raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode)+ "and Reason ["+str(reason)+"]")
+            else:
+                raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode))
  
     def get_hook(self):
         return ECSHook(aws_conn_id=self.aws_conn_id)
