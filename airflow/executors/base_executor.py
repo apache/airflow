@@ -4,6 +4,9 @@ import logging
 
 from airflow.utils import State
 from airflow import configuration
+from airflow.configuration import AirflowConfigException
+
+from importlib import import_module
 
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
@@ -110,6 +113,20 @@ class BaseExecutor(object):
         This method will execute the command asynchronously.
         """
         raise NotImplementedError()
+
+    def sync_dag_folder(self):
+        logging.info("Requesting sync of dag folder")
+        try:
+            synchronizer_module = configuration.get('core', 'dag_synchronizer')
+            synchronizer = import_module(synchronizer_module).get_instance()
+
+            synchronizer.sync()
+        except AirflowConfigException:
+            logging.info("dag_synchronizer not configured in airflow configuration. Please specify"
+                         "[core]/dag_synchronizer")
+        except ImportError:
+            logging.warn("Cannot load {} as synchronizer for dag folder".format(synchronizer_module))
+            logging.exception(ImportError)
 
     def end(self):  # pragma: no cover
         """

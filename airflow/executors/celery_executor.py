@@ -5,10 +5,14 @@ import time
 
 from celery import Celery
 from celery import states as celery_states
+from celery.worker.control import Panel
 
 from airflow.utils import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
+from airflow.configuration import AirflowConfigException
+
+from importlib import import_module
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
@@ -41,6 +45,24 @@ def execute_command(command):
     if rc:
         logging.error(rc)
         raise AirflowException('Celery command failed')
+
+
+@Panel.register
+def sync_dag_folder(state, n=1):
+    logging.info("syncing dag folder requested")
+    try:
+        synchronizer_module = configuration.get('core', 'dag_synchronizer')
+        synchronizer = import_module(synchronizer_module).get_instance()
+
+        synchronizer.sync()
+    except AirflowConfigException:
+        logging.info("dag_synchronizer not configured in airflow configuration. Please specify"
+                     "[core]/dag_synchronizer")
+    except ImportError:
+        logging.warn("Cannot load {} as synchronizer for dag folder".format(synchronizer_module))
+        logging.exception(ImportError)
+
+    return {'ok', 'dag folder synced'}
 
 
 class CeleryExecutor(BaseExecutor):
@@ -86,6 +108,10 @@ class CeleryExecutor(BaseExecutor):
                 else:
                     logging.info("Unexpected state: " + async.state)
                 self.last_state[key] = async.state
+
+    def sync_dag_folder(self):
+        logging.error("Requesting dag folder sync")
+        app.control.broadcast('sync_dag_folder', reply=True)
 
     def end(self, synchronous=False):
         if synchronous:

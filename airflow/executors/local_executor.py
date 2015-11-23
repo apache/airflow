@@ -66,6 +66,9 @@ class LocalExecutor(BaseExecutor):
             results = self.result_queue.get()
             self.change_state(*results)
 
+    def sync_dag_folder(self):
+        logging.error("Requesting sync of dag folder")
+
     def end(self):
         # Sending poison pill to all worker
         [self.queue.put((None, None)) for w in self.workers]

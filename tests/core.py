@@ -545,6 +545,22 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
+class ApiTests(unittest.TestCase):
+
+    def setUp(self):
+        configuration.test_mode()
+        configuration.conf.set("core", "dag_synchronizer", "airflow.contrib.synchronizers.base_synchronizer")
+        app = application.create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+    def test_sync_dag_folder(self):
+        response = self.app.get(
+            '/api/v1/sync_dags'
+            )
+        assert "EXECUTED" in response.data.decode('utf-8')
+
+
 if 'MySqlOperator' in dir(operators):
     # Only testing if the operator is installed
     class MySqlTest(unittest.TestCase):
