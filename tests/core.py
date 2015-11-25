@@ -8,6 +8,8 @@ from time import sleep
 import unittest
 
 from airflow import configuration
+from airflow.models import ExecSession
+
 configuration.test_mode()
 from airflow import jobs, models, DAG, utils, operators, hooks, macros, settings
 from airflow.hooks import BaseHook
@@ -198,6 +200,7 @@ class CoreTest(unittest.TestCase):
         conn_id = "sqlite_default"
 
         captainHook = BaseHook.get_hook(conn_id=conn_id)
+        captainHook.run("DROP TABLE IF EXISTS operator_test_table")
         captainHook.run("CREATE TABLE operator_test_table (a, b)")
         captainHook.run("insert into operator_test_table values (1,2)")
 
@@ -355,6 +358,98 @@ class CoreTest(unittest.TestCase):
             failed, tests = doctest.testmod(mod)
             if failed:
                 raise Exception("Failed a doctest")
+
+
+
+class ExecSessionTests(unittest.TestCase):
+
+    class FakeSession(object):
+        "fake session object to check post conditions"
+        def __init__(self):
+            self.commited = False
+            self.closed = False
+
+        def commit(self):
+            self.commited = True
+
+        def close(self):
+            self.closed = True
+
+        def expunge_all(self):
+            pass
+
+    class ExecSessionTested(ExecSession):
+        """
+          overrides the _create_session() of the tested ExecSession so we can
+          check post-conditions
+        """
+
+        def __init__(self, **kwargs):
+            super(ExecSessionTests.ExecSessionTested, self).__init__(**kwargs)
+            self.fake_session = ExecSessionTests.FakeSession()
+
+        def _create_session(self):
+            return self.fake_session
+
+    def test_execSession_should_close_local_session_after_successful_op(self):
+
+        # this test does not provide an instance of the main session
+        # => there should be a local one created for us, that gets closed at the end
+
+        state = {}
+        with ExecSessionTests.ExecSessionTested() as session:
+            state["local_session"] = session
+            assert type(session) == ExecSessionTests.FakeSession
+
+        assert state["local_session"].commited
+        assert state["local_session"].closed
+
+    def test_execSession_should_close_local_session_after_unsuccessful_op(self):
+
+        # same as above, with a simulated error
+
+        state = {}
+        try:
+            with ExecSessionTests.ExecSessionTested() as session:
+                state["local_session"] = session
+                assert type(session) == ExecSessionTests.FakeSession
+                raise Exception("simulating an error")
+        except:
+            # we don't care about the exception, just that the session gets closed
+            pass
+
+        assert state["local_session"].commited
+        assert state["local_session"].closed
+
+    def test_execSession_should_not_close_session_after_successful_op(self):
+
+        # this test provides an instance of the main session
+        # => it should not be closed upon leaving
+
+        main_session = ExecSessionTests.FakeSession()
+        with ExecSessionTests.ExecSessionTested(main_session=main_session) as session:
+            assert session == main_session
+
+        assert not main_session.commited
+        assert not main_session.closed
+
+    def test_execSession_should_not_close_session_after_unsuccessful_op(self):
+
+        # same as above, with a simulated error
+
+        main_session = ExecSessionTests.FakeSession()
+        try:
+            with ExecSessionTests.ExecSessionTested(main_session=main_session) as session:
+                assert session == main_session
+                raise Exception("simulating an error")
+        except:
+            # we don't care about the exception, just that the session gets closed
+            pass
+
+        assert not main_session.commited
+        assert not main_session.closed
+
+
 
 
 class CliTests(unittest.TestCase):
