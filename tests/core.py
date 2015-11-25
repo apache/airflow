@@ -363,7 +363,7 @@ class CoreTest(unittest.TestCase):
 
     def test_default_config_gen(self):
 
-        cfg = configuration.default_config()
+        cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
 
         # making sure some basic building blocks are present:
         assert "[core]" in cfg

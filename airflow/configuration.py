@@ -285,6 +285,7 @@ unit_test_mode = True
 load_examples = True
 donot_pickle = False
 dag_concurrency = 16
+fernet_key = {FERNET_KEY}
 
 [webserver]
 base_url = http://localhost:8080
@@ -395,20 +396,22 @@ else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
 
-def default_config():
+def parameterized_config(template):
     """
-    Generates a default configuration from the default template + currently
-    defined variables
+    Generates a configuration from the provided template + variables defined in
+    current scope
+    :param template: a config content templated with {{variables}}
     """
     FERNET_KEY = generate_fernet_key()
-    vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
-    return DEFAULT_CONFIG.format(**vars)
+    all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
+    return template.format(**all_vars)
 
 TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
 if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
-    with open(TEST_CONFIG_FILE, 'w') as f:
-        f.write(TEST_CONFIG.format(**locals()))
+    logging.info("Creating new airflow config file for unit tests in: " +
+                 TEST_CONFIG_FILE)
+    with open(AIRFLOW_CONFIG, 'w') as f:
+        f.write(parameterized_config(TEST_CONFIG))
 
 if not os.path.isfile(AIRFLOW_CONFIG):
     """
@@ -416,9 +419,9 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     when it is missing. The right way to change your configuration is to alter
     your configuration file, not this code.
     """
-    logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
+    logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
     with open(AIRFLOW_CONFIG, 'w') as f:
-        f.write(default_config())
+        f.write(parameterized_config(DEFAULT_CONFIG))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
