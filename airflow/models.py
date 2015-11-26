@@ -2529,6 +2529,21 @@ class Variable(Base):
             v = json.loads(v)
         return v
 
+    @classmethod
+    @provide_session
+    def set(cls, key, value, serialize_json=False, session=None):
+
+        if serialize_json:
+            stored_value = json.dumps(value)
+        else:
+            stored_value = value
+
+        session.query(Variable).filter_by(key=key).delete()
+        var = Variable(key=key, val=stored_value)
+        session.add(var)
+        session.flush()
+
+
 
 class XCom(Base):
     """

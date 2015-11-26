@@ -1,4 +1,4 @@
-import copy
+
 from datetime import datetime, time, timedelta
 import doctest
 import json
@@ -8,6 +8,8 @@ from time import sleep
 import unittest
 
 from airflow import configuration
+from airflow.models import Variable
+
 configuration.test_mode()
 from airflow import jobs, models, DAG, utils, operators, hooks, macros, settings
 from airflow.hooks import BaseHook
@@ -31,9 +33,9 @@ except ImportError:
     import pickle
 
 
-def reset():
+def reset(dag_id=TEST_DAG_ID):
     session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=TEST_DAG_ID)
+    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
     session.commit()
     session.close()
@@ -355,6 +357,29 @@ class CoreTest(unittest.TestCase):
             failed, tests = doctest.testmod(mod)
             if failed:
                 raise Exception("Failed a doctest")
+
+    def test_default_config_gen(self):
+
+        cfg = configuration.default_config()
+
+        # making sure some basic building blocks are present:
+        assert "[core]" in cfg
+        assert "dags_folder" in cfg
+        assert "sql_alchemy_conn" in cfg
+        assert "fernet_key" in cfg
+
+        # making sure replacement actually happened
+        assert "{AIRFLOW_HOME}" not in cfg
+        assert "{FERNET_KEY}" not in cfg
+
+    def test_variable_set_get_round_trip(self):
+        Variable.set("tested_var_set_id", "Monday morning breakfast")
+        assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
+
+    def test_variable_set_get_round_trip_json(self):
+        value = {"a": 17, "b": 47}
+        Variable.set("tested_var_set_id", value, serialize_json=True)
+        assert value == Variable.get("tested_var_set_id",deserialize_json=True)
 
 
 class CliTests(unittest.TestCase):
