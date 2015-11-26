@@ -225,12 +225,12 @@ class CoreTest(unittest.TestCase):
         captainHook.run("drop table operator_test_table")
 
     def test_clear_api(self):
-        task = self.dag_bash.tasks[0]
+        task = self.dag_bash.get_task('run_after_loop')
         task.clear(
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
             upstream=True, downstream=True)
         ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
-        ti.are_dependents_done()
+        ti.are_dependencies_met()
 
     def test_bash_operator(self):
         t = operators.BashOperator(
@@ -402,12 +402,12 @@ class CoreTest(unittest.TestCase):
             self.runme_0.set_upstream(self.run_after_loop)
 
     def test_cyclic_dependencies_2(self):
-        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_after_loop.set_downstream(self.runme_0)
 
     def test_cyclic_dependencies_3(self):
-        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_this_last.set_downstream(self.runme_0)
 
