@@ -50,11 +50,69 @@ class AirflowSensorTimeout(Exception):
 
 
 class TriggerRule(object):
+    """
+    Trigger rules that define how a task is triggered by its dependencies.
+    They are composed of two elements :
+    * a State that specifies what state the depended upon tasks should have
+    * a TriggerType that specifies whether all of the depended upon tasks
+      should have that state, whether one is enough or if it's a dummy trigger
+    """
     ALL_SUCCESS = 'all_success'
     ALL_FAILED = 'all_failed'
     ALL_DONE = 'all_done'
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
+    DUMMY = 'dummy'
+
+    @classmethod
+    def trigger_type(cls, rule):
+        if rule in [cls.ALL_FAILED, cls.ALL_SUCCESS, cls.ALL_DONE]:
+            return TriggerType.ALL
+
+        elif rule in [cls.ONE_FAILED, cls.ONE_SUCCESS]:
+            return TriggerType.ANY
+
+        elif rule == cls.DUMMY:
+            return TriggerType.DUMMY
+        else:
+            assert False, "Trigger rule is unknown : {}".format(rule)
+
+    @classmethod
+    def is_target_state_dummy(cls, rule):
+        return rule == cls.DUMMY
+
+    @classmethod
+    def is_target_state_done(cls, rule):
+        return rule == cls.ALL_DONE
+
+    @classmethod
+    def target_state(cls, rule):
+        if rule in [cls.ALL_SUCCESS, cls.ONE_SUCCESS]:
+            return State.SUCCESS
+
+        elif rule in [cls.ALL_FAILED, cls.ONE_FAILED]:
+            return State.FAILED
+
+        elif rule == cls.DUMMY:
+            msg = "`TriggerRule.target_state` should not be called with " \
+                  "`DUMMY`, as it doesn't have a target state. You should " \
+                  "verify this with `TriggerRule.is_trigger_type_dummy`"
+            raise AirflowException(msg)
+
+        elif rule == cls.ALL_DONE:
+            msg = "`TriggerRule.target_state` should not be called with " \
+                  "`ALL_DONE`, as it cannot return a single state for that " \
+                  "trigger rule. You should verify this with " \
+                  "`TriggerRule.is_target_state_done` and get the states " \
+                  "with `State.done`"
+            raise AirflowException(msg)
+        else:
+            assert False, "Trigger rule is unknown : {}".format(rule)
+
+
+class TriggerType(object):
+    ALL = 'all'
+    ANY = 'any'
     DUMMY = 'dummy'
 
 
@@ -103,6 +161,10 @@ class State(object):
         return [
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
             cls.SKIPPED]
+
+    @classmethod
+    def done(cls):
+        return [cls.SUCCESS, cls.FAILED, cls.UPSTREAM_FAILED, cls.SKIPPED]
 
 
 cron_presets = {
