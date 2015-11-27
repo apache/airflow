@@ -6,12 +6,14 @@ from airflow.operators.bash_operator import BashOperator
 
 default_args = {
     'owner': 'unittest',
-    'start_date': datetime(2015, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False
     }
 
-dag = DAG("bash_operator_abc", default_args=default_args)
+dag = DAG("bash_operator_abc",
+          start_date=datetime(2015, 1, 1),
+          end_date=datetime(2015, 1, 10),
+          default_args=default_args)
 
 # no default value for those: it is a bug to try to load this DAG without
 # preparing a tmp folder for it

@@ -1139,9 +1139,11 @@ class Airflow(BaseView):
             visited.add(task)
             node_count[0] += 1
 
-            children = [
-                recurse_nodes(t, visited) for t in task.upstream_list
-                if node_count[0] < node_limit or t not in visited]
+            children = []
+            for ta in task.upstream_list:
+                if ta.task_id != task.task_id:
+                    if node_count[0] < node_limit or ta not in visited:
+                        children.append(recurse_nodes(ta, visited))
 
             # D3 tree uses children vs _children to define what is
             # expanded or not. The following block makes it such that

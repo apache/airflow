@@ -777,8 +777,9 @@ class TaskInstance(Base):
     def are_dependencies_met(self, session, flag_upstream_failed=False,
                              verbose=False):
         """
-        Returns a boolean on whether the upstream tasks are in a SUCCESS state
-        and considers depends_on_past and the previous run's state.
+        Returns a boolean on whether the upstream tasks are in a sufficient
+        state to trigger this task. Also considers depends_on_past and
+        wait_for_downstream
 
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
@@ -818,39 +819,21 @@ class TaskInstance(Base):
         reasons = [reason for (_, reason) in evaluations]
         triggered = [x for (x, _) in evaluations]
 
-        logging.info("Evaluating " + str(self))
-        logging.info(" -- " + str(triggered))
-        logging.info(" -- " + str(reasons))
-
         # Handling instant state assignment based on trigger rules
         if flag_upstream_failed:
 
             tt = self.task.trigger_type
-            done = [reason in State.done() for reason in reasons]
-            skipped = [reason == State.SKIPPED for reason in reasons]
-
-            any_missed_success = False
-            for (trigger, reason) in zip(self.task.triggers, reasons):
-                if trigger.state == State.SUCCESS and reason == State.FAILED:
-                    any_missed_success = True
-                    break
-
-            any_missed_failure = False
-            for (trigger, reason) in zip(self.task.triggers, reasons):
-                if trigger.state == State.FAILED and reason == State.SUCCESS:
-                    any_missed_failure = True
-                    break
+            done = [reason.is_done() for reason in reasons]
+            skipped = [reason.is_skipped() for reason in reasons]
+            failed = [reason.is_failed() for reason in reasons]
 
             if tt == TriggerType.ALL and any(skipped):
                 self.set_state(State.SKIPPED, session)
 
-            elif tt == TriggerType.ALL and any_missed_success:
+            elif tt == TriggerType.ALL and any(failed):
                 self.set_state(State.UPSTREAM_FAILED, session)
 
-            elif tt == TriggerType.ALL and any_missed_failure:
-                self.set_state(State.SKIPPED, session)
-
-            elif tt == TriggerType.ANY and all(done) and not all(triggered):
+            elif tt == TriggerType.ANY and all(done) and not any(triggered):
                 self.set_state(State.SKIPPED, session)
 
         if self.task.trigger_type == TriggerType.ALL and all(triggered):
@@ -1821,7 +1804,7 @@ class BaseOperator(object):
         """
         if not task:
             task = self
-        for t in self.get_direct_relatives():
+        for t in self.get_direct_upstream_relatives_same_schedule():
             if task is t:
                 msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
                 raise AirflowException(msg)
@@ -1852,6 +1835,9 @@ class BaseOperator(object):
                 logging.info('Rendering template for {0}'.format(attr))
                 logging.info(content)
 
+    def get_direct_upstream_relatives_same_schedule(self):
+        return [trigger.task for trigger in self.triggers
+                if trigger.is_same_schedule()]
 
     def get_direct_relatives(self, upstream=False):
         """
@@ -1870,16 +1856,6 @@ class BaseOperator(object):
     def task_type(self):
         return self.__class__.__name__
 
-    def _get_task_list(self, task_or_task_list):
-        try:
-            task_list = list(task_or_task_list)
-        except TypeError:
-            task_list = [task_or_task_list]
-        for task in task_list:
-            if not isinstance(task, BaseOperator):
-                raise AirflowException('Expecting a task')
-        return task_list
-
     def add_downstream_task(self, task):
         self._downstream_list.append(task)
 
@@ -1895,7 +1871,8 @@ class BaseOperator(object):
         Set a task, or a task list to be directly downstream from the current
         task.
         """
-        task_list = self._get_task_list(task_or_task_list)
+        task_list = utils.get_list_and_check_type(task_or_task_list,
+                                                  BaseOperator)
 
         for task in task_list:
             task.set_upstream(self)
@@ -1915,12 +1892,23 @@ class BaseOperator(object):
                 target_state = TriggerRule.target_state(trigger_rule)
                 return Trigger(task, state=target_state)
 
-        task_list = self._get_task_list(task_or_task_list)
+        task_list = utils.get_list_and_check_type(task_or_task_list,
+                                                  BaseOperator)
 
         for task in task_list:
             trigger = create_trigger(self.trigger_rule, task)
             self.add_trigger(trigger)
             task.add_downstream_task(self)
+
+        self.detect_downstream_cycle()
+
+    def set_trigger(self, trigger_or_trigger_list):
+        trigger_list = utils.get_list_and_check_type(trigger_or_trigger_list,
+                                                     Trigger)
+
+        for trigger in trigger_list:
+            self.add_trigger(trigger)
+            trigger.task.add_downstream_task(self)
 
         self.detect_downstream_cycle()
 
@@ -2155,19 +2143,25 @@ class DAG(LoggingMixin):
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
-    def following_schedule(self, dttm):
-        if isinstance(self._schedule_interval, six.string_types):
-            cron = croniter(self._schedule_interval, dttm)
-            return cron.get_next(datetime)
-        elif isinstance(self._schedule_interval, timedelta):
-            return dttm + self._schedule_interval
+    def following_schedule(self, reference, n=1):
+        """
+        Returns the `n`th schedule after `reference`
+        :param reference: the reference schedule
+        :type reference: datetime
+        :param n: the number of schedules to go forward in time to
+        :type n: int
+        """
+        return self.date_range(reference, num=n+1)[-1]
 
-    def previous_schedule(self, dttm):
-        if isinstance(self._schedule_interval, six.string_types):
-            cron = croniter(self._schedule_interval, dttm)
-            return cron.get_prev(datetime)
-        elif isinstance(self._schedule_interval, timedelta):
-            return dttm - self._schedule_interval
+    def previous_schedule(self, reference, n=1):
+        """
+        Returns the `n`th schedule before `reference`
+        :param reference: the reference schedule
+        :type reference: datetime
+        :param n: the number of schedules to back in time to
+        :type n: int
+        """
+        return self.date_range(reference, num=-(n+1))[0]
 
     @property
     def task_ids(self):
@@ -2979,8 +2973,6 @@ class Trigger(object):
     another operator.
     * Trigger(t) depends on the state of t of the same schedule
     * Trigger(t, 1) depends on the state of t of the previous schedule
-
-    In the future, we would like to implement
     * Trigger(t, n) depends on the state of t of the n previous schedules
       (not including the current schedule)
     * Trigger(t, [x, y]) depends on the state of t from the now-x schedule to
@@ -2997,15 +2989,45 @@ class Trigger(object):
     :type past_executions: 0 or 1
     """
 
-    def __init__(self, task, state=State.SUCCESS, past_executions=0):
+    def __init__(self,
+                 task,
+                 state=State.SUCCESS,
+                 past_executions=0,
+                 trigger_type=TriggerType.ALL):
+
+        msg = "past_executions should be a positive integer (>= 0) or a " \
+              "tuple with two negative integers (<= 0). The first negative " \
+              "integer should be smaller or equal to the second."
+
+        assert (isinstance(past_executions, int) and past_executions >= 0) \
+            or (isinstance(past_executions, tuple) and
+                len(past_executions) == 2 and \
+                past_executions[0] <= past_executions[1] <= 0), msg
+
+        if isinstance(past_executions, int):
+            if past_executions == 0:
+                # Targeting the current execution only
+                self.past_executions = (0, 0)
+            else:
+                # If past_executions is > 0, then the Trigger is targeting past
+                # executions only, we remove the current one from the range
+                self.past_executions = (-past_executions, -1)
+        else:
+            # already a tuple
+            self.past_executions = past_executions
+
+        assert not trigger_type == TriggerType.DUMMY, \
+            "To create a Trigger with a DUMMY type, please use a DummyTrigger"
+
+        assert trigger_type == TriggerType.ALL or \
+            trigger_type == TriggerType.ANY, \
+            "Trigger type unknown : {}".format(trigger_type)
+
         self.task = task
         self.state = state
+        self.trigger_type = trigger_type
 
-        assert past_executions == 0 or past_executions == 1, \
-            "past_executions parameter must be 0 or 1"  # for now
-        self.past_executions = past_executions
-
-    def _states(self, execution_date, session):
+    def _states_by_schedule(self, execution_date, session):
         """
         Returns the state of the depended upon task instance.
 
@@ -3013,34 +3035,40 @@ class Trigger(object):
         :type execution_date: datetime
         :return: a list with the state of the depended upon task instance or
             an empty list if they are no depended upon task instance
-        :rtype: list of airflow.utils.State
+        :rtype: dict[datetime,airflow.utils.State]
         """
-        if self.past_executions == 0:
-            target_date = execution_date
-        elif self.past_executions == 1:
-            target_date = self.task.dag.previous_schedule(execution_date)
-        else:
-            assert False, "past_executions parameter must be 0 or 1"  # for now
 
-        if target_date < self.task.start_date:
-            return []
+        TI = TaskInstance
 
-        results = session.query(TaskInstance.state).filter(
-            TaskInstance.dag_id == self.task.dag_id,
-            TaskInstance.task_id == self.task.task_id,
-            TaskInstance.execution_date == target_date
+        first_date = self._compute_first_date(execution_date)
+        last_date = self._compute_last_date(execution_date)
+
+        if last_date < first_date:
+            return {}
+
+        query = session.query(TI.execution_date, TI.state).filter(
+            TI.dag_id == self.task.dag_id,
+            TI.task_id == self.task.task_id,
+            TI.execution_date >= first_date,
+            TI.execution_date <= last_date,
         )
 
-        # Filling empty states with Nones when the TI state isn't in the DB yet
-        states = [row[0] for row in results.all()] or [None]
+        states_by_schedule = dict(query.all())
+        schedules = self.task.dag.date_range(start_date=first_date,
+                                             end_date=last_date)
 
-        return states
+        # Filling states with Nones when the TI isn't in the DB yet
+        for schedule in schedules:
+            if schedule not in states_by_schedule:
+                states_by_schedule[schedule] = None
+
+        return states_by_schedule
 
     @provide_session
     def evaluate(self, execution_date, session):
         """
-        Evaluates the trigger by matching comparing self.state with the state
-        of the depended upon task instances.
+        Evaluates the trigger by comparing self.state with the state of the
+        depended upon task instances.
 
         It will return a boolean according to whether the dependency is
         triggered or not and a string representing the reason why the trigger
@@ -3052,22 +3080,43 @@ class Trigger(object):
         :param execution_date: the date on which the trigger should be evaluated
         :type execution_date: datetime
         :return: whether the dependency is triggered or not and the reason
-        :rtype: (boolean, string)
+        :rtype: (boolean, Reason)
         """
-        states = self._states(execution_date, session)
+        states_by_schedule = self._states_by_schedule(execution_date,
+                                                      session)
 
         # If states is empty, there are no task instances to depend on
         # e.g. a dependency on the past when the past date is < start_date
-        if not states:
-            return True, "no tasks instances to depend on"
+        if not states_by_schedule:
+            reason = Reason(self, execution_date, True,
+                            comment="No tasks instances to depend on")
+            return True, reason
 
-        assert len(states) == 1, "Because `past_executions` is 0 or 1, " \
-                                 "there should not be more than one state"
+        states = states_by_schedule.values()
 
-        triggered = states[0] == self.state
-        reason = states[0]
+        triggered = [state == self.state for state in states]
+        triggered_final = \
+            (self.trigger_type == TriggerType.ALL and all(triggered)) or \
+            (self.trigger_type == TriggerType.ANY and any(triggered))
 
-        return triggered, reason
+        reason = Reason(self, execution_date, triggered_final,
+                        states=states_by_schedule)
+
+        return triggered_final, reason
+
+    def _compute_first_date(self, execution_date):
+        start_date = self.task.start_date
+        first_date = self.task.dag.previous_schedule(execution_date,
+                                                     -self.past_executions[0])
+        first_possible_date = max(start_date, first_date)
+        return first_possible_date
+
+    def _compute_last_date(self, execution_date):
+        return self.task.dag.previous_schedule(execution_date,
+                                               -self.past_executions[1])
+
+    def is_same_schedule(self):
+        return self.past_executions[1] == 0
 
     def __repr__(self):
         return "<Trigger: {dag}.{task}: {t.past_executions}={t.state}>" \
@@ -3086,23 +3135,30 @@ class DoneTrigger(Trigger):
     Trigger that matches the state of the depended upon tasks with any of the
     states returned by State.done().
     """
-    def __init__(self, task, past_executions=0):
-        Trigger.__init__(self, task, None, past_executions)
+    def __init__(self, task, past_executions=0, trigger_type=TriggerType.ALL):
+        Trigger.__init__(self, task, None, past_executions, trigger_type)
 
     @provide_session
     def evaluate(self, execution_date, session):
+        states_by_schedule = self._states_by_schedule(execution_date,
+                                                      session)
 
-        states = self._states(execution_date, session)
+        if not states_by_schedule:
+            reason = Reason(self, execution_date, True,
+                            comment="No tasks instances to depend on")
+            return True, reason
 
-        if not states:
-            return True, "no tasks instances to depend on"
+        states = states_by_schedule.values()
 
-        assert len(states) == 1  # see Trigger.evaluate
+        triggered = [state in State.done() for state in states]
+        triggered_final = \
+            (self.trigger_type == TriggerType.ALL and all(triggered)) or \
+            (self.trigger_type == TriggerType.ANY and any(triggered))
 
-        triggered = states[0] in State.done()
-        reason = states[0]
+        reason = Reason(self, execution_date, triggered_final,
+                        states=states_by_schedule)
 
-        return triggered, reason
+        return triggered_final, reason
 
     def __repr__(self):
         return "<DoneTrigger: {dag}.{task}: {t.past_executions}=Done>" \
@@ -3118,8 +3174,87 @@ class DummyTrigger(Trigger):
         Trigger.__init__(self, task)
 
     def evaluate(self, execution_date, session):
-        return True, "DummyTrigger always evaluates to True"
+        reason = Reason(self, execution_date, True,
+                        comment="DummyTrigger always evaluates to True")
+        return True, reason
 
     def __repr__(self):
         return "<DummyTrigger: {dag}.{task}>" \
                "".format(dag=self.task.dag_id, task=self.task.task_id)
+
+
+class Reason(object):
+
+    def __init__(self,
+                 trigger,
+                 execution_date,
+                 result,
+                 states=None,
+                 comment=""):
+        self.trigger = trigger
+        self.execution_date = execution_date
+        self.result = result
+        self.states = states if states else {}
+        self.comment = comment
+
+    def is_failed(self):
+        # if trigger type is all
+        type_all = self.trigger.trigger_type == TriggerType.ALL
+
+        # if the goal was success
+        goal_was_success = self.trigger.state == State.SUCCESS
+
+        # if there's a failed state
+        failed_state = \
+            State.FAILED in self.states.values() or \
+            State.UPSTREAM_FAILED in self.states.values()
+
+        return type_all and goal_was_success and failed_state
+
+    def is_skipped(self):
+
+        # if trigger type is all
+        type_all = self.trigger.trigger_type == TriggerType.ALL
+
+        # if trigger type is all
+        type_any = self.trigger.trigger_type == TriggerType.ANY
+
+        # if all the dependencies are done (= have already run)
+        all_dependencies_done = all([state in State.done()
+                                     for state in self.states.values()])
+
+        # if the goal was success
+        goal_was_success = self.trigger.state == State.SUCCESS
+
+        # if the goal was success
+        goal_was_failure = self.trigger.state == State.FAILED
+
+        # if there's no failed state
+        failed_state = \
+            State.FAILED in self.states.values() or \
+            State.UPSTREAM_FAILED in self.states.values()
+
+        # if there's a skipped state
+        skipped_state = State.SKIPPED in self.states.values()
+
+        # if there's a success state
+        success_state = State.SUCCESS in self.states.values()
+
+        return \
+            (type_all and goal_was_success and not failed_state and
+             skipped_state) or \
+            (type_all and goal_was_failure and
+             (skipped_state or success_state)) or \
+            (type_any and all_dependencies_done and
+             goal_was_success and not success_state) or \
+            (type_any and all_dependencies_done and
+             goal_was_failure and not failed_state)
+
+    def is_done(self):
+        # if all the dependencies are done (= have already run)
+        all_dependencies_done = all([state in State.done()
+                                     for state in self.states.values()])
+        return all_dependencies_done
+
+    def is_success(self):
+        return self.result

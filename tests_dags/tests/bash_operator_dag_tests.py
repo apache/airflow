@@ -230,3 +230,45 @@ class BashOperatorABWaitForDownstream(BashOperatorABDownStream,
 
             prev_file_b_date = file_b_date
 
+
+class BashOperatorABRange(unittest.TestCase, EndToEndBackfillJobTest):
+    """
+    Tests that two bash operators linked with .set_downstream that are executed
+    over 10 days each produce 10 files in a legal order.
+
+    * A and B
+    * B depends on A
+    """
+    dates = ["2015-01-01", "2015-01-02", "2015-01-03", "2015-01-04",
+             "2015-01-05", "2015-01-06", "2015-01-07", "2015-01-08",
+             "2015-01-09", "2015-01-10"]
+
+    file_a = "out.a.{date}.txt"
+    file_b = "out.b.{date}.txt"
+
+    def get_dag_file_names(self):
+        return ["bash_operator_ab_range.py"]
+
+    def get_backfill_params(self):
+        return {"start_date": datetime(2015, 1, 1),
+                "end_date": datetime(2015, 1, 10)}
+
+    def post_check(self, working_dir):
+        for date in self.dates:
+
+            file_a_date = self.file_a.format(**locals())
+            file_b_date = self.file_b.format(**locals())
+
+            validate_file_content(working_dir, file_a_date, "success_a\n")
+            validate_file_content(working_dir, file_b_date, "success_b\n")
+
+        for i in range(len(self.dates)):
+            date = self.dates[i]
+            file_b_date = self.file_b.format(**locals())
+
+            # b.set_trigger(Trigger(a, past_executions=(-4, -2))
+            for offset in [-4, -3, -2]:
+                if i >= -offset:
+                    date = self.dates[i+offset]
+                    file_a_date = self.file_a.format(**locals())
+                    validate_order(working_dir, file_a_date, file_b_date)

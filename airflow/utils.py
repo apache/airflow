@@ -812,6 +812,17 @@ def chain(*tasks):
         up_task.set_downstream(down_task)
 
 
+def get_list_and_check_type(item_or_item_list, expected_type):
+    try:
+        item_list = list(item_or_item_list)
+    except TypeError:
+        item_list = [item_or_item_list]
+    for item in item_list:
+        if not isinstance(item, expected_type):
+            msg = 'Expecting a {}'.format(expected_type.__name__)
+            raise AirflowException(msg)
+    return item_list
+
 class AirflowJsonEncoder(json.JSONEncoder):
     def default(self, obj):
         # convert dates and numpy objects in a json serializable format
