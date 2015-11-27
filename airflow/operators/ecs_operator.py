@@ -35,13 +35,22 @@ class ECSOperator(BaseOperator):
         logging.info("Running ecs task - Task definition: " + self.taskDefinition+" - on cluster "+self.cluster);
         logging.info("Command: "+str(self.overrides))
         response = client.run_task(taskDefinition=self.taskDefinition, cluster=self.cluster, overrides= self.overrides)
-        logging.info("Task started: "+str(response))
         
+        failures = response["failures"]
+        if (len(failures) > 0):
+            raise AirflowException(response)
+        
+        logging.info("Task started: "+str(response))
         arn = response["tasks"][0]['taskArn']
         waiter = client.get_waiter('tasks_stopped')
         waiter.wait(cluster=self.cluster, tasks=[arn])
         
         response = client.describe_tasks(cluster= self.cluster,tasks=[arn])
+        
+        failures = response["failures"]
+        if (len(failures) > 0):
+            raise AirflowException(response)
+        
         logging.info("Task stopped: "+str(response))
         container = response["tasks"][0]['containers'][0]
         exitCode = container['exitCode']
