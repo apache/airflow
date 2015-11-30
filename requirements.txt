@@ -49,3 +49,4 @@ ldap3
 Flask-WTF
 lxml
 pykerberos
+gitpython

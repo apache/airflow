@@ -332,6 +332,11 @@ class DagBag(object):
         session.close()
         return dag_ids
 
+    def refresh(self):
+        self.collect_dags(self.dag_folder)
+        if self.sync_to_db:
+            self.deactivate_inactive_dags()
+
 
 class User(Base):
     __tablename__ = "user"

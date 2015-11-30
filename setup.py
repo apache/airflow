@@ -76,9 +76,10 @@ vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
 devel = ['lxml>=3.3.4']
 kerberos = ['pykerberos>=1.1.8']
+dag_sync = ['gitpython']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle
+devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle + dag_sync
 
 setup(
     name='airflow',
@@ -135,6 +136,7 @@ setup(
         'ldap': ldap,
         'webhdfs': webhdfs,
         'kerberos': kerberos,
+        'dag_sync': dag_sync,
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',

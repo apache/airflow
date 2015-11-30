@@ -33,6 +33,7 @@ def create_app(config=None):
 
     app.register_blueprint(ck, url_prefix='/ck')
     app.register_blueprint(routes)
+
     app.jinja_env.add_extension("chartkick.ext.charts")
 
     with app.app_context():
@@ -109,6 +110,9 @@ def create_app(config=None):
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             settings.Session.remove()
+
+        from airflow.www.api.v1.endpoints import apiv1
+        app.register_blueprint(apiv1, url_prefix='/api/v1')
 
         return app
 
