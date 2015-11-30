@@ -142,3 +142,28 @@ definitions in Airflow.
         admin_views = [v]
         flask_blueprints = [bp]
         menu_links = [ml]
+
+
+Plugins as Python packages
+--------------------------
+
+It is possible to load plugins via setuptools' entrypoint mechanism. To do this link
+your plugin using an entrypoint in your package. If the package is installed, airflow
+will automatically load the registered plugins from the entrypoint list.
+
+.. code-block:: python
+
+    from setuptools import setup
+
+    setup(
+        name="my-package",
+        ...
+        entry_points = {
+            'airflow.plugins': [
+                'my_plugin = my_package.my_plugin:MyAirflowPlugin'
+            ]
+        }
+    )
+
+.. note:: The default entrypoint group ``airflow`` can be changed in the configuration
+   file.

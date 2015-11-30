@@ -24,6 +24,7 @@ import logging
 import os
 import re
 import sys
+from pkg_resources import iter_entry_points
 
 from airflow import configuration
 
@@ -48,6 +49,7 @@ class AirflowPlugin(object):
             raise AirflowPluginException("Your plugin needs a name.")
 
 
+entrypoint_group = configuration.get('core', 'entrypoint_group')
 plugins_folder = configuration.get('core', 'plugins_folder')
 if not plugins_folder:
     plugins_folder = configuration.get('core', 'airflow_home') + '/plugins'
@@ -89,6 +91,22 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
         except Exception as e:
             logging.exception(e)
             logging.error('Failed to import plugin ' + filepath)
+
+if entrypoint_group is not None:
+    # Allow for plugin classes also to be registered as entry points in packages
+    for entry_point in iter_entry_points(group=entrypoint_group + '.plugins', name=None):
+        dist = entry_point.dist
+        try:
+            logging.info('Importing plugin module ' + entry_point.module_name)
+            obj = entry_point.load()
+            if issubclass(obj, AirflowPlugin) and obj is not AirflowPlugin:
+                obj.validate()
+                if obj not in plugins:
+
+                    plugins.append(obj)
+        except Exception as e:
+            logging.exception(e)
+            logging.error('Failed to import plugin ' + entry_point.module_name)
 
 
 def make_module(name, objects):

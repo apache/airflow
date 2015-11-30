@@ -102,6 +102,9 @@ dags_folder = {AIRFLOW_HOME}/dags
 # This path must be absolute
 base_log_folder = {AIRFLOW_HOME}/logs
 
+# The entrypoint group from which plugins and dags are loaded
+entrypoint_group = airflow
+
 # Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
 # must supply a remote location URL (starting with either 's3://...' or
 # 'gs://...') and an Airflow connection id that provides access to the storage
@@ -428,6 +431,7 @@ airflow_home = {AIRFLOW_HOME}
 dags_folder = {TEST_DAGS_FOLDER}
 plugins_folder = {TEST_PLUGINS_FOLDER}
 base_log_folder = {AIRFLOW_HOME}/logs
+entrypoint_group = {TEST_ENTRYPOINT_GROUP}
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 load_examples = True
@@ -726,6 +730,8 @@ if os.path.exists(_TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
 else:
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, 'plugins')
+
+TEST_ENTRYPOINT_GROUP = 'airflow_test'
 
 
 def parameterized_config(template):

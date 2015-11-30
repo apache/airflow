@@ -832,3 +832,26 @@ do the same, but then it is more to use a virtualenv and pip.
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
 
+Dags as Python packages
+'''''''''''''''''''''''
+
+It is possible to load dags via setuptools' entrypoint mechanism. To do this link
+your dag using an entrypoint in your package. If the package is installed, airflow
+will automatically load the registered dags from the entrypoint list.
+
+.. code-block:: python
+
+    from setuptools import setup
+
+    setup(
+        name="my-package",
+        ...
+        entry_points = {
+            'airflow.dags': [
+                'my_dag = my_package.my_dag:dag'
+            ]
+        }
+    )
+
+.. note:: The default entrypoint group ``airflow`` can be changed in the configuration
+   file.

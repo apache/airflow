@@ -68,3 +68,21 @@ class PluginsTest(unittest.TestCase):
         [menu_link] = [ml for ml in category.get_children()
                        if isinstance(ml, MenuLink)]
         assert menu_link.name == 'Test Menu Link'
+
+
+class EntrypointPluginsTest(unittest.TestCase):
+    def test_operators(self):
+        from airflow.operators.another_test_plugin import AnotherPluginOperator
+        assert issubclass(AnotherPluginOperator, BaseOperator)
+
+    def test_hooks(self):
+        from airflow.hooks.another_test_plugin import AnotherPluginHook
+        assert issubclass(AnotherPluginHook, BaseHook)
+
+    def test_executors(self):
+        from airflow.executors.another_test_plugin import AnotherPluginExecutor
+        assert issubclass(AnotherPluginExecutor, BaseExecutor)
+
+    def test_macros(self):
+        from airflow.macros.another_test_plugin import another_plugin_macro
+        assert callable(another_plugin_macro)
