@@ -414,7 +414,7 @@ def serve_logs(args):
 def worker(args):
     # Worker to serve static log files through this simple flask app
     env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
+    env['AIRFLOW_HOME'] = configuration.get_airflow_home()
     sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
 
     # Celery worker

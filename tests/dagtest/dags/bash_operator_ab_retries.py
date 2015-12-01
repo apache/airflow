@@ -6,16 +6,20 @@ from airflow.operators.bash_operator import BashOperator
 
 default_args = {
     'owner': 'unittest',
-    'start_date': datetime(2015, 1, 1),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 3,
     'retry_delay': timedelta(seconds=1)
     }
 
-dag = DAG("tests_dags__bash_operator_ab_retries", default_args=default_args)
+dag = DAG("tests_dags__bash_operator_ab_retries",
+          start_date=datetime(2015, 1, 1),
+          end_date=datetime(2015, 1, 10),
+          default_args=default_args)
 
-tempDir = Variable.get("unit_test_tmp_dir", deserialize_json=True)
+# no default value for those: it is a bug to try to load this DAG without
+# preparing a tmp folder for it
+tempDir = Variable.get("unit_test_tmp_dir")
 
 # retry a number of ( day % 3 ) times
 bash_command = """

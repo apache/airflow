@@ -4,39 +4,10 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
-import os
 import sys
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
-
-from airflow import configuration as conf
-
-
-class DummyStatsLogger(object):
-    @classmethod
-    def incr(cls, stat, count=1, rate=1):
-        pass
-    @classmethod
-    def decr(cls, stat, count=1, rate=1):
-        pass
-    @classmethod
-    def gauge(cls, stat, value, rate=1, delta=False):
-        pass
-
-Stats = DummyStatsLogger
-
-if conf.getboolean('scheduler', 'statsd_on'):
-    from statsd import StatsClient
-    statsd = StatsClient(
-        host=conf.get('scheduler', 'statsd_host'),
-        port=conf.getint('scheduler', 'statsd_port'),
-        prefix=conf.get('scheduler', 'statsd_prefix'))
-    Stats = statsd
-else:
-    Stats = DummyStatsLogger
-
-
 
 HEADER = """\
   ____________       _____________
@@ -47,26 +18,36 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  """
 
 BASE_LOG_URL = '/admin/airflow/log'
-AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
-SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 LOGGING_LEVEL = logging.INFO
-DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
-
-engine_args = {}
-if 'sqlite' not in SQL_ALCHEMY_CONN:
-    # Engine args not supported by sqlite
-    engine_args['pool_size'] = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE')
-    engine_args['pool_recycle'] = conf.getint('core',
-                                              'SQL_ALCHEMY_POOL_RECYCLE')
-
-engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
-Session = scoped_session(
-    sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 # can't move this to conf due to ConfigParser interpolation
 LOG_FORMAT = (
     '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
 SIMPLE_LOG_FORMAT = '%(asctime)s %(levelname)s - %(message)s'
+
+
+engine = None
+Session = None
+
+
+def connect(sql_alchemy_conn, pool_size, pool_recycle):
+    """
+    builds the Session object to connect to the SQL-alchemy backend.
+    """
+    global Session, engine
+
+    if Session:
+        Session.remove()
+
+    engine_args = {}
+    if 'sqlite' not in sql_alchemy_conn:
+        # Engine args not supported by sqlite
+        engine_args['pool_size'] = pool_size
+        engine_args['pool_recycle'] = pool_recycle
+
+    engine = create_engine(sql_alchemy_conn, **engine_args)
+    Session = scoped_session(sessionmaker(autocommit=False, autoflush=False,
+                                          bind=engine))
 
 
 def policy(task_instance):

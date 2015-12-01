@@ -5,6 +5,8 @@ from __future__ import unicode_literals
 
 from future import standard_library
 
+from airflow import settings
+
 standard_library.install_aliases()
 from builtins import str
 from configparser import ConfigParser
@@ -494,13 +496,6 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
-def test_mode():
-    conf = ConfigParserWithDefaults(defaults)
-    conf.read(TEST_CONFIG_FILE)
-
-conf = ConfigParserWithDefaults(defaults)
-conf.read(AIRFLOW_CONFIG)
-
 
 def get(section, key, **kwargs):
     return conf.get(section, key, **kwargs)
@@ -527,7 +522,64 @@ def set(section, option, value):
     return conf.set(section, option, value)
 
 ########################
-# convenience method to access config entries
+# Convenience method to access config entries.
 
 def get_dags_folder():
     return os.path.expanduser(get('core', 'DAGS_FOLDER'))
+
+
+def get_airflow_home():
+    return os.path.expanduser(get('core', 'AIRFLOW_HOME'))
+
+
+def get_sql_alchemy_conn():
+    return get('core', 'SQL_ALCHEMY_CONN')
+
+
+################
+# global config init
+
+conf = None
+
+
+def test_mode():
+    conf = ConfigParserWithDefaults(defaults)
+    conf.read(TEST_CONFIG_FILE)
+
+
+def load_config():
+    """
+    loads the config and triggers the connection to the SQL-alchemy backend
+    """
+    global conf
+    conf = ConfigParserWithDefaults(defaults)
+    conf.read(AIRFLOW_CONFIG)
+    settings.connect(get_sql_alchemy_conn(),
+                     conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE'),
+                     conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE'))
+
+load_config()
+
+
+class DummyStatsLogger(object):
+    @classmethod
+    def incr(cls, stat, count=1, rate=1):
+        pass
+    @classmethod
+    def decr(cls, stat, count=1, rate=1):
+        pass
+    @classmethod
+    def gauge(cls, stat, value, rate=1, delta=False):
+        pass
+
+Stats = DummyStatsLogger
+
+if conf.getboolean('scheduler', 'statsd_on'):
+    from statsd import StatsClient
+    statsd = StatsClient(
+        host=conf.get('scheduler', 'statsd_host'),
+        port=conf.getint('scheduler', 'statsd_port'),
+        prefix=conf.get('scheduler', 'statsd_prefix'))
+    Stats = statsd
+else:
+    Stats = DummyStatsLogger

@@ -23,4 +23,3 @@ sftp-config.json
 unittests.cfg
 error.log
 unittests.db
-dag_test_airflow.cfg

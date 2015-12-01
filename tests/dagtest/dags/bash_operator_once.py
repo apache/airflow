@@ -10,8 +10,9 @@ default_args = {
     'email_on_retry': False
     }
 
-dag = DAG("tests_dags__bash_operator_single",
+dag = DAG("tests_dags__bash_operator_once",
           start_date=datetime(2015, 1, 1),
+          schedule_interval="@once",
           default_args=default_args)
 
 # no default value for those: it is a bug to try to load this DAG without
