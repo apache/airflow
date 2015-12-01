@@ -467,7 +467,7 @@ def serve_logs(args):
 
 def worker(args):
     env = os.environ.copy()
-    env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
+    env['AIRFLOW_HOME'] = conf.get_airflow_home()
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
