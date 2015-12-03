@@ -381,6 +381,20 @@ class CoreTest(unittest.TestCase):
                                              default_var=default_value,
                                              deserialize_json=True)
 
+    def test_default_config_gen(self):
+
+        cfg = configuration.default_config()
+
+        # making sure some basic building blocks are present:
+        assert "[core]" in cfg
+        assert "dags_folder" in cfg
+        assert "sql_alchemy_conn" in cfg
+        assert "fernet_key" in cfg
+
+        # making sure replacement actually happened
+        assert "{AIRFLOW_HOME}" not in cfg
+        assert "{FERNET_KEY}" not in cfg
+
     def test_duplicate_dependencies(self):
 
         regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
