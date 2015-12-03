@@ -44,7 +44,6 @@ from airflow.utils import (
 Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
-DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 XCOM_RETURN_KEY = 'return_value'
 
 ENCRYPTION_ON = False
@@ -118,7 +117,7 @@ class DagBag(object):
             include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES'),
             sync_to_db=False):
 
-        dag_folder = dag_folder or DAGS_FOLDER
+        dag_folder = dag_folder or configuration.get_dags_folder()
         logging.info("Filling up the DagBag from " + dag_folder)
         self.dag_folder = dag_folder
         self.dags = {}
@@ -584,6 +583,7 @@ class TaskInstance(Base):
         if task_start_date:
             cmd += "-s " + task_start_date.isoformat() + ' '
         if not pickle_id and self.task.dag and self.task.dag.full_filepath:
+            DAGS_FOLDER = configuration.get_dags_folder()
             cmd += "-sd DAGS_FOLDER/{self.task.dag.filepath} "
         return cmd.format(**locals())
 
@@ -1741,7 +1741,7 @@ class BaseOperator(object):
             task = self
         for t in self.get_direct_relatives():
             if task is t:
-                msg = "Cycle detect in DAG. Faulty task: {0}".format(task)
+                msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
                 raise AirflowException(msg)
             else:
                 t.detect_downstream_cycle(task=task)
@@ -1805,11 +1805,12 @@ class BaseOperator(object):
             if not isinstance(task, BaseOperator):
                 raise AirflowException('Expecting a task')
             if upstream:
-                self.append_only_new(task._downstream_list, self)
+                task.append_only_new(task._downstream_list, self)
                 self.append_only_new(self._upstream_list, task)
             else:
-                self.append_only_new(task._upstream_list, self)
                 self.append_only_new(self._downstream_list, task)
+                task.append_only_new(task._upstream_list, self)
+
         self.detect_downstream_cycle()
 
     def set_downstream(self, task_or_task_list):
@@ -2062,7 +2063,7 @@ class DAG(object):
         """
         File location of where the dag object is instantiated
         """
-        fn = self.full_filepath.replace(DAGS_FOLDER + '/', '')
+        fn = self.full_filepath.replace(configuration.get_dags_folder() + '/', '')
         fn = fn.replace(os.path.dirname(__file__) + '/', '')
         return fn
 
@@ -2550,7 +2551,6 @@ class Variable(Base):
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
-
 
 
 class XCom(Base):

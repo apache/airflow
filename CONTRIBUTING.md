@@ -116,13 +116,13 @@ Once your unit test environment is setup, you should be able to simply run
 For example, in order to just execute the "core" unit tests, run the following: 
 
 ```
-./run_unit_tests.sh tests.core:CoreTest
+./run_unit_tests.sh tests.core:CoreTest -s
 ```
 
 or a single test method: 
 
 ``` 
-./run_unit_tests.sh tests.core:CoreTest.test_check_operators
+./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s
 ```
 
 For more information on how to run a subset of the tests, take a look at the nosetests docs.

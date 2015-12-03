@@ -138,7 +138,7 @@ def run(args):
     if not args.pickle:
         dagbag = DagBag(subdir)
         if args.dag_id not in dagbag.dags:
-            msg = 'DAG [{0}] could not be found'.format(args.dag_id)
+            msg = 'DAG [{0}] could not be found in {1}'.format(args.dag_id, subdir)
             logging.error(msg)
             raise AirflowException(msg)
         dag = dagbag.dags[args.dag_id]

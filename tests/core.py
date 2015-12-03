@@ -1,11 +1,10 @@
-
-from datetime import datetime, time, timedelta
 import doctest
 import json
 import os
 import re
-from time import sleep
 import unittest
+from datetime import datetime, time, timedelta
+from time import sleep
 
 from airflow import configuration
 from airflow.models import Variable
@@ -17,6 +16,7 @@ from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from lxml import html
+from airflow.utils import AirflowException
 
 NUM_EXAMPLE_DAGS = 7
 DEV_NULL = '/dev/null'
@@ -42,6 +42,7 @@ def reset(dag_id=TEST_DAG_ID):
 
 reset()
 
+
 class CoreTest(unittest.TestCase):
 
     def setUp(self):
@@ -53,6 +54,8 @@ class CoreTest(unittest.TestCase):
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.run_after_loop = self.dag_bash.get_task('run_after_loop')
+        self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -119,7 +122,7 @@ class CoreTest(unittest.TestCase):
         assert dag_run is not None
         assert dag_run2 is None
 
-    def test_confirm_unittest_mod(self):
+    def test_confirm_unittest_mode(self):
         assert configuration.get('core', 'unit_test_mode')
 
     def test_backfill_examples(self):
@@ -377,6 +380,47 @@ class CoreTest(unittest.TestCase):
         assert default_value == Variable.get("thisIdDoesNotExist",
                                              default_var=default_value,
                                              deserialize_json=True)
+
+    def test_default_config_gen(self):
+
+        cfg = configuration.default_config()
+
+        # making sure some basic building blocks are present:
+        assert "[core]" in cfg
+        assert "dags_folder" in cfg
+        assert "sql_alchemy_conn" in cfg
+        assert "fernet_key" in cfg
+
+        # making sure replacement actually happened
+        assert "{AIRFLOW_HOME}" not in cfg
+        assert "{FERNET_KEY}" not in cfg
+
+    def test_duplicate_dependencies(self):
+
+        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
+                 "already registered"
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_downstream(self.run_after_loop)
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_upstream(self.runme_0)
+
+    def test_cyclic_dependencies_1(self):
+
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_upstream(self.run_after_loop)
+
+    def test_cyclic_dependencies_2(self):
+        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_downstream(self.runme_0)
+
+    def test_cyclic_dependencies_3(self):
+        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_this_last.set_downstream(self.runme_0)
 
 
 class CliTests(unittest.TestCase):
