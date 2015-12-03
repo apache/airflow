@@ -704,7 +704,7 @@ class SchedulerJob(BaseJob):
         self.logger.info("Starting the scheduler")
 
         dagbag = models.DagBag(self.subdir, sync_to_db=True)
-        executor = self.executor = dagbag.executor
+        executor = self.executor
         executor.start()
         self.runs = 0
         while not self.num_runs or self.num_runs > self.runs:
