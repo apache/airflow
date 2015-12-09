@@ -116,16 +116,32 @@ Once your unit test environment is setup, you should be able to simply run
 For example, in order to just execute the "core" unit tests, run the following: 
 
 ```
-./run_unit_tests.sh tests.core:CoreTest
+./run_unit_tests.sh tests.core:CoreTest -s --logging-level=DEBUG
 ```
 
 or a single test method: 
 
 ``` 
-./run_unit_tests.sh tests.core:CoreTest.test_check_operators
+./run_unit_tests.sh tests.core:CoreTest.test_check_operators -s --logging-level=DEBUG
 ```
 
 For more information on how to run a subset of the tests, take a look at the nosetests docs.
 
 See also the the list of test classes and methods in `tests/code.py`.
 
+## Changing Metadata Database
+
+When developing features the need may arise to persist information to the the
+metadata database. Airflow has alembic built-in to handle all schema changes.
+Alembic must be installed on your development machine before continuing.
+
+```
+# starting at the root of the project
+$ pwd
+~/airflow
+# change to the airflow directory
+$ cd airflow
+$ alembic revision -m "add new field to db"
+  Generating
+~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
+```

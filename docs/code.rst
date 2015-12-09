@@ -110,6 +110,8 @@ Variable                            Description
 ``{{ yesterday_ds }}``              yesterday's date as  ``YYYY-MM-DD``
 ``{{ tomorrow_ds }}``               tomorrow's date as  ``YYYY-MM-DD``
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
+``{{ ts }}``                        same as ``execution_date.isoformat()``
+``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ dag }}``                       the DAG object
 ``{{ task }}``                      the Task object
@@ -128,6 +130,8 @@ Variable                            Description
                                     ``airflow.cfg``
 ``run_id``                          the ``run_id`` of the current DAG run
 ``dag_run``                         a reference to the DAG run object
+``test_mode``                       whether the task instance was called using
+                                    the CLI's test subcommand
 =================================   ====================================
 
 Note that you can access the object's attributes and methods with simple
@@ -138,7 +142,25 @@ attributes and methods.
 
 Macros
 ''''''
-These macros live under the ``macros`` namespace in your templates.
+Macros are a way to expose objects to your templates and live under the 
+``macros`` namespace in your templates.
+
+A few commonly used libraries and methods are made available.
+
+
+=================================   ====================================
+Variable                            Description
+=================================   ====================================
+``macros.datetime``                 The standard lib's ``datetime.datetime``
+``macros.timedelta``                 The standard lib's ``datetime.timedelta``
+``macros.dateutil``                 A reference to the ``dateutil`` package
+``macros.time``                     The standard lib's ``time``
+``macros.uuid``                     The standard lib's ``uuid``
+``macros.random``                   The standard lib's ``random``
+=================================   ====================================
+
+
+Some airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
     :show-inheritance:
@@ -187,7 +209,8 @@ Community contributed hooks
     :show-inheritance:
     :members:
         VerticaHook,
-        FTPHook
+        FTPHook,
+        SSHHook
 
 Executors
 ---------

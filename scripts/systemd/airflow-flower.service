@@ -1,0 +1,17 @@
+[Unit]
+Description=Airflow celery flower
+After=network.target postgresql.service mysql.service redis.service rabbitmq-server.service
+Wants=postgresql.service mysql.service redis.service rabbitmq-server.service
+
+[Service]
+EnvironmentFile=/etc/sysconfig/airflow
+User=airflow
+Group=airflow
+Type=simple
+ExecStart=/bin/airflow flower
+KillMode=process
+Restart=on-failure
+RestartSec=42s
+
+[Install]
+WantedBy=multi-user.target

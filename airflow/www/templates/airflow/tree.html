@@ -62,7 +62,7 @@ $('span.status_square').tooltip({html: true});
 
 var data = {{ data|safe }};
 var barHeight = 20;
-var axisHeight = 20;
+var axisHeight = 40;
 var square_x = 500;
 var square_size = 10;
 var square_spacing = 2;
@@ -121,7 +121,10 @@ var svg = d3.select("svg")
     .scale(xScale)
     .orient("top")
     .ticks(2)
-  );
+  )
+  .selectAll("text")
+  .attr("transform", "rotate(-30)")
+  .style("text-anchor", "start");
 
   function node_class(d) {
         var sclass = "node";

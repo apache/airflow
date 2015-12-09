@@ -9,6 +9,7 @@ addons:
     packages:
       - slapd
       - ldap-utils
+      - openssh-server
 python:
   - "2.7"
   - "3.4"
@@ -18,15 +19,15 @@ env:
   matrix:
     - TOX_ENV=py27-cdh-airflow_backend_mysql
     - TOX_ENV=py27-cdh-airflow_backend_sqlite
-#    - TOX_ENV=py27-cdh-airflow_backend_postgres
-    - TOX_ENV=py27-hdp-airflow_backend_mysql
-    - TOX_ENV=py27-hdp-airflow_backend_sqlite
+    - TOX_ENV=py27-cdh-airflow_backend_postgres
+#    - TOX_ENV=py27-hdp-airflow_backend_mysql
+#    - TOX_ENV=py27-hdp-airflow_backend_sqlite
 #    - TOX_ENV=py27-hdp-airflow_backend_postgres
     - TOX_ENV=py34-cdh-airflow_backend_mysql
     - TOX_ENV=py34-cdh-airflow_backend_sqlite
-#    - TOX_ENV=py34-cdh-airflow_backend_postgres
-    - TOX_ENV=py34-hdp-airflow_backend_mysql
-    - TOX_ENV=py34-hdp-airflow_backend_sqlite
+    - TOX_ENV=py34-cdh-airflow_backend_postgres
+#    - TOX_ENV=py34-hdp-airflow_backend_mysql
+#    - TOX_ENV=py34-hdp-airflow_backend_sqlite
 #    - TOX_ENV=py34-hdp-airflow_backend_postgres
 matrix:
   exclude:
@@ -34,30 +35,35 @@ matrix:
       env: TOX_ENV=py27-cdh-airflow_backend_mysql
     - python: "3.4"
       env: TOX_ENV=py27-cdh-airflow_backend_sqlite
-#    - python: "3.4"
-#      env: TOX_ENV=py27-cdh-airflow_backend_postgres
+    - python: "3.4"
+      env: TOX_ENV=py27-cdh-airflow_backend_postgres
     - python: "3.4"
       env: TOX_ENV=py27-hdp-airflow_backend_mysql
     - python: "3.4"
       env: TOX_ENV=py27-hdp-airflow_backend_sqlite
-#    - python: "3.4"
-#      env: TOX_ENV=py27-hdp-airflow_backend_postgres
+    - python: "3.4"
+      env: TOX_ENV=py27-hdp-airflow_backend_postgres
     - python: "2.7"
       env: TOX_ENV=py34-cdh-airflow_backend_mysql
     - python: "2.7"
       env: TOX_ENV=py34-cdh-airflow_backend_sqlite
-#    - python: "2.7"
-#      env: TOX_ENV=py34-cdh-airflow_backend_postgres
+    - python: "2.7"
+      env: TOX_ENV=py34-cdh-airflow_backend_postgres
     - python: "2.7"
       env: TOX_ENV=py34-hdp-airflow_backend_mysql
     - python: "2.7"
       env: TOX_ENV=py34-hdp-airflow_backend_sqlite
-#    - python: "2.7"
-#      env: TOX_ENV=py34-hdp-airflow_backend_postgres
+    - python: "2.7"
+      env: TOX_ENV=py34-hdp-airflow_backend_postgres
 cache:
   directories:
     - $HOME/.wheelhouse/
     - $HOME/.travis_cache/
+before_install:
+  - ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
+  - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+  - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
+  - chmod 600 ~/.ssh/*
 install:
   - pip install --upgrade pip
   - pip install tox

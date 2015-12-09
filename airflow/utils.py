@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -39,6 +40,7 @@ from croniter import croniter
 
 from airflow import settings
 from airflow import configuration
+from airflow.settings import LOGGING_LEVEL
 
 
 class AirflowException(Exception):
@@ -89,6 +91,14 @@ class State(object):
             return cls.state_color[state]
         else:
             return 'white'
+
+    @classmethod
+    def color_fg(cls, state):
+        color = cls.color(state)
+        if color in ['green', 'red']:
+            return 'white'
+        else:
+            return 'black'
 
     @classmethod
     def runnable(cls):
@@ -222,6 +232,10 @@ def initdb():
         models.Connection(
             conn_id='webhdfs_default', conn_type='hdfs',
             host='localhost', port=50070))
+    merge_conn(
+        models.Connection(
+            conn_id='ssh_default', conn_type='ssh',
+            host='localhost'))
 
     # Known event types
     KET = models.KnownEventType
@@ -448,6 +462,9 @@ def apply_defaults(func):
         return result
     return wrapper
 
+if 'BUILDING_AIRFLOW_DOCS' in os.environ:
+    # Monkey patch hook to get good function headers while building docs
+    apply_defaults = lambda x: x
 
 def ask_yesno(question):
     yes = set(['yes', 'y'])
@@ -732,3 +749,36 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+def log_to_stdout():
+
+    root_logger = logging.getLogger()
+
+    # default log level if not set externally (e.g. with --logging-level=DEBUG)
+    if root_logger.level == logging.NOTSET:
+        root_logger.setLevel(LOGGING_LEVEL)
+
+    for handler in root_logger.handlers:
+        if isinstance(handler, logging.StreamHandler):
+            root_logger.warn("not adding a stream handler: already present")
+            return
+
+    logformat = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+
+    ch = logging.StreamHandler(sys.stdout)
+    ch.setFormatter(logformat)
+    root_logger.addHandler(ch)
+
+
+class LoggingMixin(object):
+    """
+    Convenience super-class to have a logger configured with the class name
+    """
+
+    @property
+    def logger(self):
+        if not hasattr(self, "_logger"):
+            self._logger = logging.getLogger(self.__class__.__name__)
+        return self._logger

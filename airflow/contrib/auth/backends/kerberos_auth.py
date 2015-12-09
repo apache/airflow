@@ -18,8 +18,6 @@ from airflow import configuration
 
 import logging
 
-DEFAULT_USERNAME = 'airflow'
-
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
@@ -61,6 +59,10 @@ class KerberosUser(models.User):
         '''Required by flask_login'''
         return False
 
+    def get_id(self):
+        '''Returns the current user id as required by flask_login'''
+        return self.user.get_id()
+
     def data_profiling(self):
         '''Provides access to data profiling tools'''
         return True
@@ -72,8 +74,11 @@ class KerberosUser(models.User):
 
 @login_manager.user_loader
 def load_user(userid):
+    if not userid or userid == 'None':
+        return None
+
     session = settings.Session()
-    user = session.query(models.User).filter(models.User.id == userid).first()
+    user = session.query(models.User).filter(models.User.id == int(userid)).first()
     session.expunge_all()
     session.commit()
     session.close()
@@ -104,12 +109,12 @@ def login(self, request):
 
         session = settings.Session()
         user = session.query(models.User).filter(
-            models.User.username == DEFAULT_USERNAME).first()
+            models.User.username == username).first()
 
         if not user:
             user = models.User(
-                username=DEFAULT_USERNAME,
-                is_superuser=True)
+                username=username,
+                is_superuser=False)
 
         session.merge(user)
         session.commit()

@@ -1,10 +1,12 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
+import os
 import sys
 
 # Kept manually in sync with airflow.__version__
 version = '1.6.1'
+
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
@@ -20,6 +22,18 @@ class Tox(TestCommand):
         import tox
         errno = tox.cmdline(args=self.tox_args.split())
         sys.exit(errno)
+
+
+class CleanCommand(Command):
+    """Custom clean command to tidy up the project root."""
+    user_options = []
+    def initialize_options(self):
+        pass
+    def finalize_options(self):
+        pass
+    def run(self):
+        os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
+
 
 async = [
     'greenlet>=0.4.9',
@@ -62,6 +76,10 @@ vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
 devel = ['lxml>=3.3.4']
 kerberos = ['pykerberos>=1.1.8']
+password = [
+    'bcrypt>=2.0.0',
+    'flask-bcrypt>=0.7.1',
+]
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
 devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle
@@ -121,11 +139,14 @@ setup(
         'ldap': ldap,
         'webhdfs': webhdfs,
         'kerberos': kerberos,
+        'password': password,
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',
     url='https://github.com/airbnb/airflow',
     download_url=(
         'https://github.com/airbnb/airflow/tarball/' + version),
-    cmdclass={'test': Tox},
+    cmdclass={'test': Tox,
+              'extra_clean': CleanCommand,
+              },
 )

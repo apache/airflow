@@ -30,7 +30,7 @@ class SimpleHttpOperator(BaseOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint',)
+    template_fields = ('endpoint','data',)
     template_ext = ()
     ui_color = '#f4a460'
 

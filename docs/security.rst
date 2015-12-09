@@ -11,6 +11,20 @@ SSH tunnels.
 It is however possible to switch on authentication by either using one of the supplied
 backends or create your own.
 
+Password
+''''''''
+
+One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
+Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
+uses bcrypt before storing passwords.
+
+.. code-block:: bash
+
+    [webserver]
+    authenticate = True
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+
 LDAP
 ''''
 

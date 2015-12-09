@@ -19,7 +19,7 @@ has ended.
 
 The scheduler starts an instance of the executor specified in the your
 ``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
-executed as subprocesses; in the case of ``CeleryExecutor`` and 
+executed as subprocesses; in the case of ``CeleryExecutor`` and
 ``MesosExecutor``, tasks are executed remotely.
 
 To start a scheduler, simply run the command:
@@ -32,7 +32,7 @@ To start a scheduler, simply run the command:
 DAG Runs
 ''''''''
 
-A DAG Run is an object representing an instantiation of the DAG in time. 
+A DAG Run is an object representing an instantiation of the DAG in time.
 
 Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
 created. ``schedule_interval`` is defined as a DAG arguments, and receives
@@ -44,6 +44,9 @@ use one of these cron "preset":
 +--------------+----------------------------------------------------------------+---------------+
 | preset       | Run once a year at midnight of January 1                       | cron          |
 +==============+================================================================+===============+
+| ``None``     | Don't schedule, use for exclusively "externally triggered"     |               |
+|              | DAGs                                                           |               |
++--------------+----------------------------------------------------------------+---------------+
 | ``@once``    | Schedule once and only once                                    |               |
 +--------------+----------------------------------------------------------------+---------------+
 | ``@hourly``  | Run once an hour at the beginning of the hour                  | ``0 * * * *`` |

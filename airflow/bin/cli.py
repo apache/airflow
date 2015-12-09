@@ -3,7 +3,6 @@ from __future__ import print_function
 import logging
 import os
 import subprocess
-import sys
 from datetime import datetime
 
 from builtins import input
@@ -36,16 +35,6 @@ def process_subdir(subdir):
                 "subdir has to be part of your DAGS_FOLDER as defined in your "
                 "airflow.cfg")
         return subdir
-
-
-def log_to_stdout():
-    log = logging.getLogger()
-    log.setLevel(settings.LOGGING_LEVEL)
-    logformat = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setFormatter(logformat)
-    log.addHandler(ch)
 
 
 def backfill(args):
@@ -91,7 +80,7 @@ def backfill(args):
 
 
 def trigger_dag(args):
-    log_to_stdout()
+    utils.log_to_stdout()
     session = settings.Session()
     # TODO: verify dag_id
     execution_date = datetime.now()
@@ -138,7 +127,7 @@ def run(args):
     if not args.pickle:
         dagbag = DagBag(subdir)
         if args.dag_id not in dagbag.dags:
-            msg = 'DAG [{0}] could not be found'.format(args.dag_id)
+            msg = 'DAG [{0}] could not be found in {1}'.format(args.dag_id, subdir)
             logging.error(msg)
             raise AirflowException(msg)
         dag = dagbag.dags[args.dag_id]
@@ -272,7 +261,7 @@ def list_tasks(args):
 
 
 def test(args):
-    log_to_stdout()
+    utils.log_to_stdout()
     args.execution_date = dateutil.parser.parse(args.execution_date)
     dagbag = DagBag(process_subdir(args.subdir))
     if args.dag_id not in dagbag.dags:
@@ -318,7 +307,7 @@ def clear(args):
 
 def webserver(args):
     print(settings.HEADER)
-    log_to_stdout()
+    utils.log_to_stdout()
     from airflow.www.app import cached_app
     app = cached_app(configuration)
     workers = args.workers or configuration.get('webserver', 'workers')
@@ -341,7 +330,7 @@ def webserver(args):
 
 def scheduler(args):
     print(settings.HEADER)
-    log_to_stdout()
+    utils.log_to_stdout()
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
@@ -398,7 +387,7 @@ def initdb(args):
 
 def resetdb(args):
     print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
-    if input(
+    if args.yes or input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
@@ -430,7 +419,7 @@ def flower(args):
 
 def kerberos(args):
     print(settings.HEADER)
-    log_to_stdout()
+    utils.log_to_stdout()
     import airflow.security.kerberos
     airflow.security.kerberos.run()
 
@@ -641,6 +630,11 @@ def get_parser():
 
     ht = "Burn down and rebuild the metadata database"
     parser_resetdb = subparsers.add_parser('resetdb', help=ht)
+    parser_resetdb.add_argument(
+            "-y", "--yes",
+            default=False,
+            help="Do not prompt to confirm reset. Use with care!",
+            action="store_true")
     parser_resetdb.set_defaults(func=resetdb)
 
     ht = "Upgrade metadata database to latest version"
