@@ -102,7 +102,6 @@ class DbApiHook(BaseHook):
 
         cur = conn.cursor()
         for s in sql:
-            logging.info(s)
             if parameters is not None:
                 cur.execute(s, parameters)
             else:
