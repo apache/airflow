@@ -42,8 +42,8 @@ class ECSOperator(BaseOperator):
         
         logging.info("Task started: "+str(response))
         arn = response["tasks"][0]['taskArn']
-        r = client.describe_tasks(cluster='default', tasks=[arn])
-        logging.info("Describe task: "+str(r))
+        #r = client.describe_tasks(cluster='default', tasks=[arn])
+        #logging.info("Describe task: "+str(r))
         
         waiter = client.get_waiter('tasks_stopped')
         waiter.wait(cluster=self.cluster, tasks=[arn])
