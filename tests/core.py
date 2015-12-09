@@ -167,20 +167,20 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
         
-    def test_ecs_operator(self):
-        overrides1={
-         'containerOverrides': [
-             {
-                 'name': 'RGB',
-                 'command': [
-                    "/bin/bash", "-c" , "sleep 5"
-                 ]
-             }
-         ]
-        } 
-        
-        t = operators.ECSOperator(task_id='ecs_test', taskDefinition='RGB',cluster="default", overrides=overrides1, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+#     def test_ecs_operator(self):
+#         overrides1={
+#          'containerOverrides': [
+#              {
+#                  'name': 'RGB',
+#                  'command': [
+#                     "/bin/bash", "-c" , "sleep 5"
+#                  ]
+#              }
+#          ]
+#         } 
+#         
+#         t = operators.ECSOperator(task_id='ecs_test', taskDefinition='RGB',cluster="default", overrides=overrides1, dag=self.dag)
+#         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
     
     def test_trigger_dagrun(self):
         def trigga(context, obj):
