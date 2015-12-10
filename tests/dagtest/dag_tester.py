@@ -137,9 +137,16 @@ class Runner(object):
             shutil.copy2(src, self.it_dag_folder)
 
         # saving the context to Variable so the child test can access it
+        # while saving existing Variables if the test would be overwriting any
+        self.context['unit_test_tmp_dir'] = self.working_dir
+        self.saved_variables = {}
         for key, val in self.context.items():
+            try:
+                old_value = Variable.get(key)
+                self.saved_variables[key] = old_value
+            except ValueError:
+                pass
             Variable.set(key, val, serialize_json=True)
-        Variable.set("unit_test_tmp_dir", self.working_dir)
 
         self.config_file = self._create_it_config_file(self.it_dag_folder)
 
@@ -171,6 +178,10 @@ class Runner(object):
         logging.info("cleaning up {}".format(self.tested_job))
         self._reset_dags()
         os.system("rm -rf {}".format(self.working_dir))
+
+        # Restore Variables that were overwritten
+        for key, val in self.saved_variables.items():
+            Variable.set(key, val)
 
     def dag_ids(self):
         """
