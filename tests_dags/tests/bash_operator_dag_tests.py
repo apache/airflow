@@ -4,8 +4,7 @@
 import unittest
 from datetime import datetime
 
-from airflow import jobs
-from .dag_tester import validate_file_content, validate_order, \
+from ..dag_tester import validate_file_content, validate_order, \
     EndToEndBackfillJobTest, EndToEndSchedulerJobTest
 
 
