@@ -6,7 +6,7 @@ from airflow.utils import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.models import Connection as DB
-from airflow.hooks import ECSHook
+from airflow.contrib.hooks import ecs_hook
 
 import boto3
 
@@ -15,6 +15,8 @@ class ECSOperator(BaseOperator):
 
     ui_color = '#f0ede4'
 
+    client = None
+    arn = None
     @apply_defaults
     def __init__(
             self,
@@ -31,24 +33,29 @@ class ECSOperator(BaseOperator):
         self.overrides = overrides
 
     def execute(self, context):
-        client = self.hook.get_conn()
+        import time
+        
+        self.client = self.hook.get_conn()
         logging.info("Running ecs task - Task definition: " + self.taskDefinition+" - on cluster "+self.cluster);
         logging.info("Command: "+str(self.overrides))
-        response = client.run_task(taskDefinition=self.taskDefinition, cluster=self.cluster, overrides= self.overrides)
+        response = self.client.run_task(taskDefinition=self.taskDefinition, cluster=self.cluster, overrides= self.overrides)
         
         failures = response["failures"]
         if (len(failures) > 0):
             raise AirflowException(response)
         
         logging.info("Task started: "+str(response))
-        arn = response["tasks"][0]['taskArn']
+        self.arn = response["tasks"][0]['taskArn']
         #r = client.describe_tasks(cluster='default', tasks=[arn])
         #logging.info("Describe task: "+str(r))
-        
-        waiter = client.get_waiter('tasks_stopped')
-        waiter.wait(cluster=self.cluster, tasks=[arn])
-        
-        response = client.describe_tasks(cluster= self.cluster,tasks=[arn])
+        import sys
+        waiter = self.client.get_waiter('tasks_stopped')
+        waiter.config.max_attempts = sys.maxint
+        waiter.config.delay = 10
+        waiter.wait(cluster=self.cluster, tasks=[self.arn])
+        response = self.client.describe_tasks(cluster= self.cluster,tasks=[self.arn])
+       
+        #ECS.Client.describe_services() 
         
         failures = response["failures"]
         if (len(failures) > 0):
@@ -65,8 +72,12 @@ class ECSOperator(BaseOperator):
                 raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode))
  
     def get_hook(self):
-        return ECSHook(aws_conn_id=self.aws_conn_id)
+        return ecs_hook.ECSHook(aws_conn_id=self.aws_conn_id)
     
-    #def on_kill(self):
-    #    logging.info('Sending SIGTERM signal to bash subprocess')
-    #    self.sp.terminate()
+    def on_kill(self):
+        response = self.client.stop_task(
+                                         cluster= self.cluster,
+                                         task=self.arn,
+                                         reason='Task killed by the user'
+                                         )
+        logging.info(response)
