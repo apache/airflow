@@ -52,3 +52,4 @@ lxml
 pykerberos
 bcrypt
 flask-bcrypt
+mock

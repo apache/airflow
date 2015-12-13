@@ -152,5 +152,6 @@ class DockerOperator(BaseOperator):
                 raise AirflowException('docker container failed')
 
     def on_kill(self):
-        logging.info('Stopping docker container')
-        self.cli.stop(self.container['Id'])
+        if self.cli is not None:
+            logging.info('Stopping docker container')
+            self.cli.stop(self.container['Id'])
