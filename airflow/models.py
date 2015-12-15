@@ -532,7 +532,7 @@ class TaskInstance(Base):
     try_number = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
+    job_id = Column(Integer, ForeignKey("job.id"))
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
