@@ -73,5 +73,6 @@ Currently **officially** using Airflow:
 * [Airbnb Blog Post about Airflow](http://nerds.airbnb.com/airflow/)
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
 * [Docker Airflow (externally maintained)](https://github.com/puckel/docker-airflow)
+* [Airflow: Tips, Tricks, and Pitfalls @ Handy](https://medium.com/handy-tech/airflow-tips-tricks-and-pitfalls-9ba53fba14eb#.o2snqeoz7)
 * [Airflow at Agari Blog Post](http://agari.com/blog/airflow-agari)
 * Airflow Chef recipe (community contributed) [github] (https://github.com/bahchis/airflow-cookbook) [chef] (https://supermarket.chef.io/cookbooks/airflow)

@@ -221,7 +221,7 @@ will invariably lead to block tasks that depend on their past successes.
 SLAs
 ''''
 
-Service License Agreements, or time by which a task or DAG should have
+Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded

@@ -1889,6 +1889,10 @@ class DagRunModelView(ModelViewOnly):
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
                 count += 1
                 dr.state = target_state
+                if target_state == State.RUNNING:
+                    dr.start_date = datetime.now()
+                else:
+                    dr.end_date = datetime.now()
             session.commit()
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))

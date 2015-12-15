@@ -4,15 +4,13 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import str
 from configparser import ConfigParser
 import errno
 import logging
 import os
-import sys
-import textwrap
-
 
 try:
     from cryptography.fernet import Fernet
@@ -287,6 +285,7 @@ unit_test_mode = True
 load_examples = True
 donot_pickle = False
 dag_concurrency = 16
+fernet_key = {FERNET_KEY}
 
 [webserver]
 base_url = http://localhost:8080
@@ -396,24 +395,33 @@ if 'AIRFLOW_CONFIG' not in os.environ:
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
+
+def parameterized_config(template):
+    """
+    Generates a configuration from the provided template + variables defined in
+    current scope
+    :param template: a config content templated with {{variables}}
+    """
+    FERNET_KEY = generate_fernet_key()
+    all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
+    return template.format(**all_vars)
+
+TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+if not os.path.isfile(TEST_CONFIG_FILE):
+    logging.info("Creating new airflow config file for unit tests in: " +
+                 TEST_CONFIG_FILE)
+    with open(TEST_CONFIG_FILE, 'w') as f:
+        f.write(parameterized_config(TEST_CONFIG))
+
 if not os.path.isfile(AIRFLOW_CONFIG):
     """
     These configuration options are used to generate a default configuration
     when it is missing. The right way to change your configuration is to alter
     your configuration file, not this code.
     """
-    FERNET_KEY = generate_fernet_key()
-    logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
-    f = open(AIRFLOW_CONFIG, 'w')
-    f.write(DEFAULT_CONFIG.format(**locals()))
-    f.close()
-
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
-if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
-    f = open(TEST_CONFIG_FILE, 'w')
-    f.write(TEST_CONFIG.format(**locals()))
-    f.close()
+    logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
+    with open(AIRFLOW_CONFIG, 'w') as f:
+        f.write(parameterized_config(DEFAULT_CONFIG))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
@@ -437,9 +445,18 @@ def getboolean(section, key):
 def getfloat(section, key):
     return conf.getfloat(section, key)
 
+
 def getint(section, key):
     return conf.getint(section, key)
 
+
 def has_option(section, key):
     return conf.has_option(section, key)
+
+
+########################
+# convenience method to access config entries
+
+def get_dags_folder():
+    return os.path.expanduser(get('core', 'DAGS_FOLDER'))
 

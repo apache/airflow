@@ -59,6 +59,10 @@ Here's the list of the subpackages and what they enable:
 +-------------+------------------------------------+------------------------------------------------+
 |  async      | ``pip install airflow[async]``     | Async worker classes for gunicorn              |
 +-------------+------------------------------------+------------------------------------------------+
+|  ldap       | ``pip install airflow[ldap]``      | ldap authentication for users                  |
++-------------+------------------------------------+------------------------------------------------+
+|  kerberos   | ``pip install airflow[kerberos]``  | kerberos integration for kerberized hadoop     |
++-------------+------------------------------------+------------------------------------------------+
 |  password   | ``pip install airflow[password]``  | Password Authentication for users              |
 +-------------+------------------------------------+------------------------------------------------+
 
@@ -205,3 +209,15 @@ The logs for airflow tasks can be seen in airflow UI as usual.
 
 For more information about mesos, refer `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
 For any queries/bugs on MesosExecutor, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
+
+Integration with systemd
+''''''''''''''''''''''''
+Airflow can integrate with systemd based systems. This makes watching your daemons easy as systemd
+can take care restarting a daemon on failure. In the ``scripts/systemd`` directory you can find unit files that
+have been tested on Redhat based systems. You can copy those ``/usr/lib/systemd/system``. It is assumed that
+Airflow will run under ``airflow:airflow``. If not (or if you are running on a non Redhat based system) you
+probably need adjust the unit files.
+
+Environment configuration is picked up from ``/etc/sysconfig/airflow``. An example file is supplied
+ . Make sure to specify the ``SCHEDULER_RUNS`` variable in this file when you run the schduler. You
+ can also define here, for example, ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -39,6 +40,7 @@ from croniter import croniter
 
 from airflow import settings
 from airflow import configuration
+from airflow.settings import LOGGING_LEVEL
 
 
 class AirflowException(Exception):
@@ -230,6 +232,10 @@ def initdb():
         models.Connection(
             conn_id='webhdfs_default', conn_type='hdfs',
             host='localhost', port=50070))
+    merge_conn(
+        models.Connection(
+            conn_id='ssh_default', conn_type='ssh',
+            host='localhost'))
 
     # Known event types
     KET = models.KnownEventType
@@ -743,3 +749,18 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+class LoggingMixin(object):
+    """
+    Convenience super-class to have a logger configured with the class name
+    """
+
+    @property
+    def logger(self):
+        try:
+            return self._logger
+        except AttributeError:
+            self._logger = logging.root.getChild(self.__class__.__module__ + '.' +self.__class__.__name__)
+            return self._logger
+

@@ -1,0 +1,8 @@
+# This file is the environment file for Airflow. Put this file in /etc/sysconfig/airflow per default
+# configuration of the systemd unit files.
+#
+# AIRFLOW_CONFIG=
+# AIRFLOW_HOME=
+#
+# required setting, 0 sets it to unlimited. Scheduler will get restart after every X runs
+SCHEDULER_RUNS=5
