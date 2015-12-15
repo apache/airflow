@@ -1230,14 +1230,31 @@ class Airflow(BaseView):
             })
 
         def get_upstream(task):
-            for t in task.upstream_list:
+
+            triggers = task.triggers + task.triggers_from_the_past
+
+            for t in triggers:
+                past_executions = t.past_executions
+
+                if isinstance(past_executions, tuple) \
+                and len(past_executions) == 2 \
+                and past_executions[0] == past_executions[1]:
+                    # If no dependence on past task, label not displayed
+                    if past_executions[0] == 0:
+                        past_executions = ''
+                    else:
+                        past_executions = past_executions[0]
+
                 edge = {
-                    'u': t.task_id,
+                    'u': t.task.task_id,
                     'v': task.task_id,
+                    'value': {
+                        'label': str(past_executions)
+                    }
                 }
                 if edge not in edges:
                     edges.append(edge)
-                    get_upstream(t)
+                    get_upstream(t.task)
 
         for t in dag.roots:
             get_upstream(t)

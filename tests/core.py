@@ -27,7 +27,7 @@ from lxml import html
 from airflow.utils import AirflowException
 from airflow.configuration import AirflowConfigException
 
-NUM_EXAMPLE_DAGS = 12
+NUM_EXAMPLE_DAGS = 13
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -721,6 +721,15 @@ class WebUiTests(unittest.TestCase):
         assert 'The server is healthy!' in response.data.decode('utf-8')
 
     def test_dag_views(self):
+
+        # test that edge labels are well formed
+        response = self.app.get(
+            '/admin/airflow/graph?dag_id=example_range_operator')
+        assert '"label": "(-4, -2)"' in response.data.decode('utf-8')
+        assert '"label": "-1"' in response.data.decode('utf-8')
+        # test that a '0' trigger is not displayed on the edge
+        assert '"label": ""' in response.data.decode('utf-8')
+
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         assert "runme_0" in response.data.decode('utf-8')
