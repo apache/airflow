@@ -208,7 +208,7 @@ def run(args):
         executor.heartbeat()
         executor.end()
 
-    log_relative = os.path.relpath(log, configuration.get('core', 'BASE_LOG_FOLDER'))
+    log_relative = os.path.relpath(filename, configuration.get('core', 'BASE_LOG_FOLDER'))
     s3_log_folder = configuration.get('core', 'S3_LOG_FOLDER')
     if s3_log_folder.startswith('s3:'):
         s3_log_loc = os.path.join(s3_log_folder, log_relative)
