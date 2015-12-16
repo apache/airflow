@@ -208,10 +208,14 @@ def run(args):
         executor.heartbeat()
         executor.end()
 
-    if configuration.get('core', 'S3_LOG_FOLDER').startswith('s3:'):
+    log_relative = os.path.relpath(log, configuration.get('core', 'BASE_LOG_FOLDER'))
+    s3_log_folder = configuration.get('core', 'S3_LOG_FOLDER')
+    if s3_log_folder.startswith('s3:'):
+        s3_log_loc = os.path.join(s3_log_folder, log_relative)
+        s3_log_loc = s3_log_loc[3:].lstrip('/')
+        bucket, key = s3_log_loc.split('/', 1)
+
         import boto
-        s3_log = filename.replace(log, configuration.get('core', 'S3_LOG_FOLDER'))
-        bucket, key = s3_log.lstrip('s3:/').split('/', 1)
         if os.path.exists(filename):
 
             # get logs

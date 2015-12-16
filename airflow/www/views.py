@@ -748,14 +748,15 @@ class Airflow(BaseView):
             # try to load log backup from S3
             s3_log_folder = configuration.get('core', 'S3_LOG_FOLDER')
             if not log_loaded and s3_log_folder.startswith('s3:'):
+                s3_log_loc = os.path.join(s3_log_folder, log_relative)
+                s3_log_loc = s3_log_loc[3:].lstrip('/')
+                bucket, key = s3_log_loc.split('/', 1)
+
                 import boto
                 s3 = boto.connect_s3()
-                s3_log_loc = os.path.join(
-                    configuration.get('core', 'S3_LOG_FOLDER'), log_relative)
                 log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
                 log += ('*** Note: S3 logs are only available once '
                         'tasks have completed.\n')
-                bucket, key = s3_log_loc.lstrip('s3:/').split('/', 1)
                 s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
                 if s3_key.exists():
                     log += '\n' + s3_key.get_contents_as_string().decode()
