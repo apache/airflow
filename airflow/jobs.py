@@ -848,11 +848,14 @@ class LocalTaskJob(BaseJob):
             job_id=self.id,
             pool=self.pool,
         )
-        self.process = subprocess.Popen(['bash', '-c', command])
-        return_code = None
-        while return_code is None:
-            self.heartbeat()
-            return_code = self.process.poll()
+        with open(self.task_instance.log_filepath, 'a') as log_file_handle:
+            self.process = subprocess.Popen(['bash', '-c', command],
+                stdout=log_file_handle,
+                stderr=log_file_handle)
+            return_code = None
+            while return_code is None:
+                self.heartbeat()
+                return_code = self.process.poll()
 
     def on_kill(self):
         self.process.terminate()
