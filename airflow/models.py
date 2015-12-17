@@ -207,7 +207,8 @@ class DagBag(LoggingMixin):
 
             for dag in list(m.__dict__.values()):
                 if isinstance(dag, DAG):
-                    dag.full_filepath = filepath
+                    if dag.full_filepath is None or dag.full_filepath == '':
+                        dag.full_filepath = filepath
                     dag.is_subdag = False
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
 
@@ -586,7 +587,8 @@ class TaskInstance(Base):
         cmd += "--raw " if raw else ""
         if task_start_date:
             cmd += "-s " + task_start_date.isoformat() + ' '
-        if not pickle_id and self.task.dag and self.task.dag.full_filepath:
+        if not pickle_id and self.task.dag and \
+                self.task.dag.full_filepath and not os.path.isabs(self.task.dag.full_filepath):
             cmd += "-sd DAGS_FOLDER/{self.task.dag.filepath} "
         return cmd.format(**locals())
 
