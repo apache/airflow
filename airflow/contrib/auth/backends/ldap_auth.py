@@ -63,7 +63,7 @@ class LdapUser(models.User):
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=LEVEL)
+        res = conn.search(configuration.get("ldap", "basedn"), search_filter)
 
         # todo: use list or result?
         if not res:
