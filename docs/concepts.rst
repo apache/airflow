@@ -217,6 +217,17 @@ will invariably lead to block tasks that depend on their past successes.
 ``skipped`` states propagates where all directly upstream tasks are
 ``skipped``.
 
+If you want to skip some tasks, keep in mind that you can't have an empty
+path, if so make a dummy task.
+
+like this, the dummy task "branch_false" is skipped
+
+.. image:: img/branch_good.png
+
+Not like this, where the join task is skipped
+
+.. image:: img/branch_bad.png
+
 
 SLAs
 ''''
