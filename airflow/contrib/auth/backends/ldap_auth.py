@@ -16,6 +16,8 @@ from airflow import configuration
 
 import logging
 
+import traceback
+
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
@@ -24,6 +26,9 @@ LOG = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
+    pass
+
+class LdapException(Exception):
     pass
 
 
@@ -61,9 +66,12 @@ class LdapUser(models.User):
             username
         )
 
+        search_scope = configuration.get("ldap", "search_scope") \
+            if configuration.has_option("ldap", "search_scope") else "LEVEL"
+
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=LEVEL)
+        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=search_scope)
 
         # todo: use list or result?
         if not res:
@@ -73,7 +81,14 @@ class LdapUser(models.User):
         entry = conn.response[0]
 
         conn.unbind()
-        conn = get_ldap_connection(entry['dn'], password)
+        try:
+            conn = get_ldap_connection(entry['dn'], password)
+        except KeyError as e:
+            LOG.error("""
+            Unable to parse LDAP structure. If you're using Active Directory and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
+            %s
+            """ % traceback.format_exc())
+            raise LdapException("Could not parse LDAP structure. Try setting search_scope in airflow.cfg, or check logs")
 
         if not conn:
             LOG.info("Password incorrect for user %s", username)
@@ -157,8 +172,11 @@ def login(self, request):
         session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
-    except AuthenticationError:
-        flash("Incorrect login details")
+    except (LdapException, AuthenticationError) as e:
+        if e:
+            flash(e, "error")
+        else:
+            flash("Incorrect login details")
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)

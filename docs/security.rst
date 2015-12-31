@@ -55,6 +55,9 @@ To turn on LDAP authentication configure your ``airflow.cfg`` as follows. Please
 an encrypted connection to the ldap server as you probably do not want passwords be readable on the network level.
 It is however possible to configure without encryption if you really want to.
 
+Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
+you will need to change ``search_scope`` to "SUBTREE".
+
 .. code-block:: bash
 
     [webserver]
@@ -69,6 +72,7 @@ It is however possible to configure without encryption if you really want to.
     bind_password = insecure
     basedn = dc=example,dc=com
     cacert = /etc/ca/ldap_ca.crt
+    search_scope = LEVEL # Set this to SUBTREE if using Active Directory, and not specifying an Organizational Unit
 
 
 Roll your own
