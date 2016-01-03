@@ -37,3 +37,13 @@ div#svg_container {
  background-color: #EEE;
  cursor: move;
 }
+
+#slider .slider-selection {
+    background: #BABABA;
+}
+
+#slider {
+    top: 30px;
+    float:right;
+    right:30px;
+}
