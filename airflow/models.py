@@ -827,6 +827,19 @@ class TaskInstance(Base):
                     self.start_date = datetime.now()
                     self.end_date = datetime.now()
                     session.merge(self)
+                elif (task.trigger_rule == TR.ONE_FAILED and (failed == 0)
+                      and ((successes + skipped) >= len(task._upstream_list))):
+                    self.state = State.SKIPPED
+                    self.start_date = datetime.now()
+                    self.end_date = datetime.now()
+                    session.merge(self)
+                elif (task.trigger_rule == TR.ONE_SUCCESS and (success == 0) 
+                      and ((failed + upstream_failed + skipped)
+                           >= len(task._upstream_list))):
+                    self.state = State.SKIPPED
+                    self.start_date = datetime.now()
+                    self.end_date = datetime.now()
+                    session.merge(self)
 
             if task.trigger_rule == TR.ONE_SUCCESS and successes > 0:
                 return True
