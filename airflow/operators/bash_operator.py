@@ -1,6 +1,7 @@
 
 from builtins import bytes
 import logging
+import sys
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 
@@ -22,7 +23,7 @@ class BashOperator(BaseOperator):
         behavior.
     :type env: dict
     """
-    template_fields = ('bash_command',)
+    template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
     ui_color = '#f0ede4'
 
@@ -69,7 +70,8 @@ class BashOperator(BaseOperator):
                 logging.info("Output:")
                 line = ''
                 for line in iter(sp.stdout.readline, b''):
-                    logging.info(line.strip())
+                    line = line.decode().strip()
+                    logging.info(line)
                 sp.wait()
                 logging.info("Command exited with "
                              "return code {0}".format(sp.returncode))
@@ -78,7 +80,7 @@ class BashOperator(BaseOperator):
                     raise AirflowException("Bash command failed")
 
         if self.xcom_push:
-            return str(line.strip())
+            return line
 
     def on_kill(self):
         logging.info('Sending SIGTERM signal to bash subprocess')

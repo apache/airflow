@@ -51,10 +51,15 @@ Currently **officially** using Airflow:
 
 * Airbnb [@mistercrunch]
 * Agari [@r39132](https://github.com/r39132)
+* [Bellhops](https://github.com/bellhops)
 * BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 * Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 * [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
 * Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
+* [FreshBooks](https://github.com/freshbooks) [[@DinoCow](https://github.com/DinoCow)]
+* [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
+* [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
+* ING
 * [Jampp](https://github.com/jampp)
 * [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 * Lyft
@@ -72,5 +77,6 @@ Currently **officially** using Airflow:
 * [Airbnb Blog Post about Airflow](http://nerds.airbnb.com/airflow/)
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
 * [Docker Airflow (externally maintained)](https://github.com/puckel/docker-airflow)
+* [Airflow: Tips, Tricks, and Pitfalls @ Handy](https://medium.com/handy-tech/airflow-tips-tricks-and-pitfalls-9ba53fba14eb#.o2snqeoz7)
 * [Airflow at Agari Blog Post](http://agari.com/blog/airflow-agari)
 * Airflow Chef recipe (community contributed) [github] (https://github.com/bahchis/airflow-cookbook) [chef] (https://supermarket.chef.io/cookbooks/airflow)

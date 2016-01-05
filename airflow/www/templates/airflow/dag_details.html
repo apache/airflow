@@ -1,0 +1,55 @@
+{% extends "airflow/dag.html" %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block body %}
+    {{ super() }}
+    <h2>{{ title }}</h2>
+    <div>
+      {% for state, count in states %}
+      <a
+          class="btn"
+          style="border: none; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
+          href="/admin/taskinstance/?flt0_dag_id_equals={{ dag.dag_id }}&flt2_state_equals={{ state }}">
+        {{ state }} <span class="badge">{{ count }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <br>
+    <table class="table table-striped table-bordered">
+      <tr>
+        <th>schedule_interval</td>
+        <td>{{ dag.schedule_interval }}</td>
+      </tr>
+      <tr>
+        <th>max_active_runs</td>
+        <td>{{ dag.active_runs | length }} / {{ dag.max_active_runs }}</td>
+      </tr>
+      <tr>
+        <th>concurrency</td>
+        <td>{{ dag.concurrency }}</td>
+      </tr>
+      <tr>
+        <th>default_args</td>
+        <td><code>{{ dag.default_args }}</code></td>
+      </tr>
+      <tr>
+        <th>tasks count</td>
+        <td>{{ dag.tasks|length }}</td>
+      </tr>
+      <tr>
+        <th>task ids</td>
+        <td>{{ dag.task_ids }}</td>
+      </tr>
+      <tr>
+        <th>filepath</td>
+        <td>{{ dag.filepath }}</td>
+      </tr>
+      <tr>
+        <th>owner</td>
+        <td>{{ dag.owner }}</td>
+      </tr>
+    </table >
+{% endblock %}

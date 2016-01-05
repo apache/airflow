@@ -11,6 +11,43 @@ SSH tunnels.
 It is however possible to switch on authentication by either using one of the supplied
 backends or create your own.
 
+Password
+''''''''
+
+One of the simplest mechanisms for authentication is requiring users to specify a password before logging in.
+Password authentication requires the used of the ``password`` subpackage in your requirements file. Password hashing
+uses bcrypt before storing passwords.
+
+.. code-block:: bash
+
+    [webserver]
+    authenticate = True
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+When password auth is enabled, an initial user credential will need to be created before anyone can login. An initial
+user was not created in the migrations for this authenication backend to prevent default Airflow installations from
+attack. Creating a new user has to be done via a Python REPL on the same machine Airflow is installed.
+
+.. code-block:: bash
+
+    # navigate to the airflow installation directory
+    $ cd ~/airflow
+    $ python
+    Python 2.7.9 (default, Feb 10 2015, 03:28:08)
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import airflow
+    >>> from airflow import models, settings
+    >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
+    >>> user = PasswordUser(models.User())
+    >>> user.username = 'new_user_name'
+    >>> user.email = 'new_user_email@example.com'
+    >>> user.password = 'set_the_password'
+    >>> session = settings.Session()
+    >>> session.add(user)
+    >>> session.commit()
+    >>> session.close()
+    >>> exit()
+
 LDAP
 ''''
 

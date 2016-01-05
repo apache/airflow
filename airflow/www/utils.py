@@ -8,8 +8,10 @@ import functools
 import gzip
 import dateutil.parser as dateparser
 import json
+import os
 from flask import after_this_request, request, Response
 from flask.ext.login import current_user
+from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type
 
@@ -84,12 +86,12 @@ def action_logging(f):
             user = 'anonymous'
 
         log = models.Log(
-                event=f.__name__,
-                task_instance=None,
-                owner=user,
-                extra=str(request.args.items()),
-                task_id=request.args.get('task_id'),
-                dag_id=request.args.get('dag_id'))
+            event=f.__name__,
+            task_instance=None,
+            owner=user,
+            extra=str(request.args.items()),
+            task_id=request.args.get('task_id'),
+            dag_id=request.args.get('dag_id'))
 
         if 'execution_date' in request.args:
             log.execution_date = dateparser.parse(
@@ -99,7 +101,55 @@ def action_logging(f):
         session.commit()
 
         return f(*args, **kwargs)
-    
+
+    return wrapper
+
+
+def notify_owner(f):
+    '''
+    Decorator to notify owner of actions taken on their DAGs by others
+    '''
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        """
+        if request.args.get('confirmed') == "true":
+            dag_id = request.args.get('dag_id')
+            task_id = request.args.get('task_id')
+            dagbag = models.DagBag(
+                os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
+
+            dag = dagbag.get_dag(dag_id)
+            task = dag.get_task(task_id)
+
+            if current_user and hasattr(current_user, 'username'):
+                user = current_user.username
+            else:
+                user = 'anonymous'
+
+            if task.owner != user:
+                subject = (
+                    'Actions taken on DAG {0} by {1}'.format(
+                        dag_id, user))
+                items = request.args.items()
+                content = Template('''
+                    action: <i>{{ f.__name__ }}</i><br>
+                    <br>
+                    <b>Parameters</b>:<br>
+                    <table>
+                    {% for k, v in items %}
+                        {% if k != 'origin' %}
+                            <tr>
+                                <td>{{ k }}</td>
+                                <td>{{ v }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                    </table>
+                    ''').render(**locals())
+                if task.email:
+                    utils.send_email(task.email, subject, content)
+        """
+        return f(*args, **kwargs)
     return wrapper
 
 

@@ -1,22 +1,21 @@
 .. image:: img/pin_large.png
     :width: 70
 
-Airflow's Documentation
+Airflow Documentation
 ================================
 
-Airflow is a platform to programmatically author, schedule and monitor 
+Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
-When workflows are defined as code, they become more maintainable, 
-versionable, testable, and collaborative.
-
-
-Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks. 
-The airflow scheduler executes your tasks on an array of workers while 
-following the specified dependencies. Rich command line utilities make 
-performing complex surgeries on DAGs a snap. The rich user interface 
-makes it easy to visualize pipelines running in production, 
+Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
+The airflow scheduler executes your tasks on an array of workers while
+following the specified dependencies. Rich command line utilities make
+performing complex surgeries on DAGs a snap. The rich user interface
+makes it easy to visualize pipelines running in production,
 monitor progress, and troubleshoot issues when needed.
+
+When workflows are defined as code, they become more maintainable,
+versionable, testable, and collaborative.
 
 ------------
 
@@ -38,10 +37,10 @@ Beyond the Horizon
 
 Airflow **is not** a data streaming solution. Tasks do not move data from
 one to the other (though tasks can exchange metadata!). Airflow is not
-in the [Spark Streaming](http://spark.apache.org/streaming/) 
-or [Storm](https://storm.apache.org/) space, it is more comparable to
-[Oozie](http://oozie.apache.org/) or 
-[Azkaban](http://data.linkedin.com/opensource/azkaban).
+in the `Spark Streaming <http://spark.apache.org/streaming/>`_
+or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
+`Oozie <http://oozie.apache.org/>`_ or
+`Azkaban <http://data.linkedin.com/opensource/azkaban>`_.
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic

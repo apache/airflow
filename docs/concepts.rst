@@ -211,11 +211,28 @@ is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to be referencing a task
 directly downstream from the BranchPythonOperator task.
 
+Note that using tasks with ``depends_on_past=True`` downstream from
+``BranchPythonOperator`` is logically unsound as ``skipped`` status
+will invariably lead to block tasks that depend on their past successes.
+``skipped`` states propagates where all directly upstream tasks are
+``skipped``.
+
+If you want to skip some tasks, keep in mind that you can't have an empty
+path, if so make a dummy task.
+
+like this, the dummy task "branch_false" is skipped
+
+.. image:: img/branch_good.png
+
+Not like this, where the join task is skipped
+
+.. image:: img/branch_bad.png
+
 
 SLAs
 ''''
 
-Service License Agreements, or time by which a task or DAG should have
+Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded

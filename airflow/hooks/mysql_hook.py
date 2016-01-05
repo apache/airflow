@@ -47,6 +47,8 @@ class MySqlHook(DbApiHook):
             elif (conn.extra_dejson["cursor"]).lower() == 'ssdictcursor':
                 conn_config["cursorclass"] = MySQLdb.cursors.SSDictCursor
         local_infile = conn.extra_dejson.get('local_infile',False)
+        if conn.extra_dejson.get('ssl', False):
+            conn_config['ssl'] = conn.extra_dejson['ssl']
         if local_infile:
             conn_config["local_infile"] = 1
         conn = MySQLdb.connect(**conn_config)

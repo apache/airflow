@@ -251,8 +251,8 @@ you can define dependencies between them:
     t3.set_upstream(t1)
 
     # all of this is equivalent to
-    # dag.set_dependencies('print_date', 'sleep')
-    # dag.set_dependencies('print_date', 'templated')
+    # dag.set_dependency('print_date', 'sleep')
+    # dag.set_dependency('print_date', 'templated')
 
 Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more

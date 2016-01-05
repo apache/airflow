@@ -1,18 +1,29 @@
-from datetime import datetime, time, timedelta
+from __future__ import print_function
+
 import doctest
+import json
+import logging
 import os
-from time import sleep
-import unittest
 import re
+import unittest
+from datetime import datetime, time, timedelta
+from time import sleep
+
+from dateutil.relativedelta import relativedelta
 
 from airflow import configuration
+from airflow.executors import SequentialExecutor, LocalExecutor
+from airflow.models import Variable
+
 configuration.test_mode()
-from airflow import jobs, models, DAG, utils, operators, hooks, macros
+from airflow import jobs, models, DAG, utils, operators, hooks, macros, settings
 from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
+from airflow.utils import LoggingMixin, round_time
 from lxml import html
+from airflow.utils import AirflowException
 
 NUM_EXAMPLE_DAGS = 7
 DEV_NULL = '/dev/null'
@@ -29,9 +40,9 @@ except ImportError:
     import pickle
 
 
-def reset():
+def reset(dag_id=TEST_DAG_ID):
     session = Session()
-    tis = session.query(models.TaskInstance).filter_by(dag_id=TEST_DAG_ID)
+    tis = session.query(models.TaskInstance).filter_by(dag_id=dag_id)
     tis.delete()
     session.commit()
     session.close()
@@ -49,6 +60,73 @@ class CoreTest(unittest.TestCase):
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.run_after_loop = self.dag_bash.get_task('run_after_loop')
+        self.run_this_last = self.dag_bash.get_task('run_this_last')
+
+    def test_schedule_dag_no_previous_runs(self):
+        """
+        Tests scheduling a dag with no previous runs
+        """
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_no_previous_runs')
+        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0))]
+        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+        assert dag_run is not None
+        assert dag_run.dag_id == dag.dag_id
+        assert dag_run.run_id is not None
+        assert dag_run.run_id != ''
+        assert dag_run.execution_date == datetime(2015, 1, 2, 0, 0), (
+                'dag_run.execution_date did not match expectation: {0}'
+                .format(dag_run.execution_date))
+        assert dag_run.state == models.State.RUNNING
+        assert dag_run.external_trigger == False
+
+    def test_schedule_dag_fake_scheduled_previous(self):
+        """
+        Test scheduling a dag where there is a prior DagRun
+        which has the same run_id as the next run should have
+        """
+        delta = timedelta(hours=1)
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_fake_scheduled_previous',
+                schedule_interval=delta,
+                start_date=DEFAULT_DATE)
+        dag.tasks = [models.BaseOperator(task_id="faketastic",
+            owner='Also fake',
+            start_date=DEFAULT_DATE)]
+        scheduler = jobs.SchedulerJob(test_mode=True)
+        trigger = models.DagRun(
+                    dag_id=dag.dag_id,
+                    run_id=models.DagRun.id_for_date(DEFAULT_DATE),
+                    execution_date=DEFAULT_DATE,
+                    state=utils.State.SUCCESS,
+                    external_trigger=True)
+        settings.Session().add(trigger)
+        settings.Session().commit()
+        dag_run = scheduler.schedule_dag(dag)
+        assert dag_run is not None
+        assert dag_run.dag_id == dag.dag_id
+        assert dag_run.run_id is not None
+        assert dag_run.run_id != ''
+        assert dag_run.execution_date == DEFAULT_DATE+delta, (
+                'dag_run.execution_date did not match expectation: {0}'
+                .format(dag_run.execution_date))
+        assert dag_run.state == models.State.RUNNING
+        assert dag_run.external_trigger == False
+
+    def test_schedule_dag_once(self):
+        """
+        Tests scheduling a dag scheduled for @once - should be scheduled the first time
+        it is called, and not scheduled the second.
+        """
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_once')
+        dag.schedule_interval = '@once'
+        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0))]
+        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+        dag_run2 = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+
+        assert dag_run is not None
+        assert dag_run2 is None
 
     def test_confirm_unittest_mod(self):
         assert configuration.get('core', 'unit_test_mode')
@@ -289,6 +367,108 @@ class CoreTest(unittest.TestCase):
             if failed:
                 raise Exception("Failed a doctest")
 
+    def test_variable_set_get_round_trip(self):
+        Variable.set("tested_var_set_id", "Monday morning breakfast")
+        assert "Monday morning breakfast" == Variable.get("tested_var_set_id")
+
+    def test_variable_set_get_round_trip_json(self):
+        value = {"a": 17, "b": 47}
+        Variable.set("tested_var_set_id", value, serialize_json=True)
+        assert value == Variable.get("tested_var_set_id", deserialize_json=True)
+
+    def test_get_non_existing_var_should_return_default(self):
+        default_value = "some default val"
+        assert default_value == Variable.get("thisIdDoesNotExist",
+                                             default_var=default_value)
+
+    def test_get_non_existing_var_should_not_deserialize_json_default(self):
+        default_value = "}{ this is a non JSON default }{"
+        assert default_value == Variable.get("thisIdDoesNotExist",
+                                             default_var=default_value,
+                                             deserialize_json=True)
+
+    def test_parameterized_config_gen(self):
+
+        cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
+
+        # making sure some basic building blocks are present:
+        assert "[core]" in cfg
+        assert "dags_folder" in cfg
+        assert "sql_alchemy_conn" in cfg
+        assert "fernet_key" in cfg
+
+        # making sure replacement actually happened
+        assert "{AIRFLOW_HOME}" not in cfg
+        assert "{FERNET_KEY}" not in cfg
+
+    def test_class_with_logger_should_have_logger_with_correct_name(self):
+
+        # each class should automatically receive a logger with a correct name
+
+        class Blah(LoggingMixin):
+            pass
+
+        assert Blah().logger.name == "tests.core.Blah"
+        assert SequentialExecutor().logger.name == "airflow.executors.sequential_executor.SequentialExecutor"
+        assert LocalExecutor().logger.name == "airflow.executors.local_executor.LocalExecutor"
+
+    def test_round_time(self):
+
+        rt1 = round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
+        assert rt1 == datetime(2015, 1, 1, 0, 0)
+
+        rt2 = round_time(datetime(2015, 1, 2), relativedelta(months=1))
+        assert rt2 == datetime(2015, 1, 1, 0, 0)
+
+        rt3 = round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt3 == datetime(2015, 9, 16, 0, 0)
+
+        rt4 = round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt4 == datetime(2015, 9, 15, 0, 0)
+
+        rt5 = round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt5 == datetime(2015, 9, 14, 0, 0)
+
+        rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt6 == datetime(2015, 9, 14, 0, 0)
+
+    def test_duplicate_dependencies(self):
+
+        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
+                 "already registered"
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_downstream(self.run_after_loop)
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_upstream(self.runme_0)
+
+    def test_cyclic_dependencies_1(self):
+
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_upstream(self.run_after_loop)
+
+    def test_cyclic_dependencies_2(self):
+        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_downstream(self.runme_0)
+
+    def test_cyclic_dependencies_3(self):
+        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_this_last.set_downstream(self.runme_0)
+
+    def test_bad_trigger_rule(self):
+        with self.assertRaises(AirflowException):
+            operators.DummyOperator(
+            task_id='test_bad_trigger',
+            trigger_rule="non_existant",
+            dag=self.dag)
 
 class CliTests(unittest.TestCase):
 
@@ -382,13 +562,25 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
         assert "runme_0" in response.data.decode('utf-8')
-        chartkick_regexp = 'new Chartkick.LineChart\(document.getElementById\(\"chart-\d+\"\),\s+\[["\w\:\s,\{\}\[\]]*\],\s+\{["\w\:\s,\{\}]+\)\;'
+        # new Chartkick.LineChart(document.getElementById("chart-0"), [{"data": [["2015-11-17T16:53:08.652950", 9.866944444444444e-06]], "name": "run_after_loop"}, {"data": [["2015-11-17T16:53:08.652950", 0.0002858047222222222], ["2015-11-17T16:56:09.698921", 0.00028737944444444445]], "name": "runme_0"}, {"data": [["2015-11-17T16:53:08.652950", 0.0002863941666666666], ["2015-11-17T16:56:09.698921", 0.00029015249999999996]], "name": "runme_1"}, {"data": [["2015-11-17T16:53:08.652950", 0.0002860847222222222], ["2015-11-17T16:56:09.698921", 0.00029001583333333335]], "name": "runme_2"}, {"data": [["2015-11-17T16:53:08.652950", 8.166944444444444e-06], ["2015-11-17T16:56:09.698921", 1.2806944444444445e-05]], "name": "also_run_this"}], {"library": {"yAxis": {"title": {"text": "hours"}}}, "height": "700px"});
+
+        chartkick_regexp = 'new Chartkick.LineChart\(document.getElementById\("chart-\d+"\),(.+)\)\;'
         response = self.app.get(
             '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')
+
         chartkick_matched = re.search(chartkick_regexp,
                                       response.data.decode('utf-8'))
-        assert chartkick_matched is not None
+        assert chartkick_matched is not None, "chartkick_matched was none. Expected regex is: %s\nResponse was: %s" % (
+                chartkick_regexp,
+                response.data.decode('utf-8'))
+
+        # test that parameters to LineChart are well-formed json
+        try:
+            json.loads('[%s]' % chartkick_matched.group(1))
+        except e:
+            assert False, "Exception while json parsing LineChart parameters: %s" % e
+
         response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_bash_operator')
@@ -476,9 +668,81 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/chart_data'
             '?chart_id={}&iteration_no=1'.format(chart_id))
         assert "example" in response.data.decode('utf-8')
+        response = self.app.get(
+            '/admin/airflow/dag_details?dag_id=example_branch_operator')
+        assert "run_this_first" in response.data.decode('utf-8')
 
     def tearDown(self):
         pass
+
+
+class WebPasswordAuthTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.conf.set("webserver", "authenticate", "True")
+        configuration.conf.set("webserver", "auth_backend", "airflow.contrib.auth.backends.password_auth")
+
+        app = application.create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+        from airflow.contrib.auth.backends.password_auth import PasswordUser
+
+        session = Session()
+        user = models.User()
+        password_user = PasswordUser(user)
+        password_user.username = 'airflow_passwordauth'
+        password_user.password = 'password'
+        print(password_user._password)
+        session.add(password_user)
+        session.commit()
+        session.close()
+
+
+    def get_csrf(self, response):
+        tree = html.fromstring(response.data)
+        form = tree.find('.//form')
+
+        return form.find('.//input[@name="_csrf_token"]').value
+
+    def login(self, username, password):
+        response = self.app.get('/admin/airflow/login')
+        csrf_token = self.get_csrf(response)
+
+        return self.app.post('/admin/airflow/login', data=dict(
+            username=username,
+            password=password,
+            csrf_token=csrf_token
+        ), follow_redirects=True)
+
+    def logout(self):
+        return self.app.get('/admin/airflow/logout', follow_redirects=True)
+
+    def test_login_logout_password_auth(self):
+        assert configuration.getboolean('webserver', 'authenticate') is True
+
+        response = self.login('user1', 'whatever')
+        assert 'Incorrect login details' in response.data.decode('utf-8')
+
+        response = self.login('airflow_passwordauth', 'wrongpassword')
+        assert 'Incorrect login details' in response.data.decode('utf-8')
+
+        response = self.login('airflow_passwordauth', 'password')
+        assert 'Data Profiling' in response.data.decode('utf-8')
+
+        response = self.logout()
+        assert 'form-signin' in response.data.decode('utf-8')
+
+    def test_unauthorized_password_auth(self):
+        response = self.app.get("/admin/airflow/landing_times")
+        self.assertEqual(response.status_code, 302)
+
+    def tearDown(self):
+        configuration.test_mode()
+        session = Session()
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
+        configuration.conf.set("webserver", "authenticate", "False")
 
 
 class WebLdapAuthTest(unittest.TestCase):
@@ -542,6 +806,10 @@ class WebLdapAuthTest(unittest.TestCase):
 
     def tearDown(self):
         configuration.test_mode()
+        session = Session()
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
         configuration.conf.set("webserver", "authenticate", "False")
 
 
@@ -752,6 +1020,57 @@ class S3HookTest(unittest.TestCase):
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
+
+HELLO_SERVER_CMD = """
+import socket, sys
+listener = socket.socket()
+listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+listener.bind(('localhost', 2134))
+listener.listen(1)
+sys.stdout.write('ready')
+sys.stdout.flush()
+conn = listener.accept()[0]
+conn.sendall(b'hello')
+"""
+
+
+class SSHHookTest(unittest.TestCase):
+    def setUp(self):
+        configuration.test_mode()
+        from airflow.contrib.hooks.ssh_hook import SSHHook
+        self.hook = SSHHook()
+        self.hook.no_host_key_check = True
+
+    def test_remote_cmd(self):
+        output = self.hook.check_output(["echo", "-n", "airflow"])
+        self.assertEqual(output, b"airflow")
+
+    def test_tunnel(self):
+        print("Setting up remote listener")
+        import subprocess
+        import socket
+
+        self.handle = self.hook.Popen([
+            "python", "-c", '"{0}"'.format(HELLO_SERVER_CMD)
+        ], stdout=subprocess.PIPE)
+
+        print("Setting up tunnel")
+        with self.hook.tunnel(2135, 2134):
+            print("Tunnel up")
+            server_output = self.handle.stdout.read(5)
+            self.assertEqual(server_output, b"ready")
+            print("Connecting to server via tunnel")
+            s = socket.socket()
+            s.connect(("localhost", 2135))
+            print("Receiving...",)
+            response = s.recv(5)
+            self.assertEqual(response, b"hello")
+            print("Closing connection")
+            s.close()
+            print("Waiting for listener...")
+            output, _ = self.handle.communicate()
+            self.assertEqual(self.handle.returncode, 0)
+            print("Closing tunnel")
 
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:

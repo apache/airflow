@@ -107,6 +107,8 @@ class MetastorePartitionSensor(SqlSensor):
         Examples: ``ds=2016-01-01`` or
         ``ds=2016-01-01/sub=foo`` for a sub partitioned table
     :type partition_name: str
+    :param mysql_conn_id: a reference to the MySQL conn_id for the metastore
+    :type mysql_conn_id: str
     """
     template_fields = ('partition_name', 'table', 'schema')
 

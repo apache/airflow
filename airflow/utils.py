@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -57,6 +58,16 @@ class TriggerRule(object):
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
 
+    @classmethod
+    def is_valid(cls, trigger_rule):
+        return trigger_rule in cls.all_triggers()
+
+    @classmethod
+    def all_triggers(cls):
+        return [getattr(cls, attr)
+                for attr in dir(cls)
+                if not attr.startswith("__") and not callable(getattr(cls, attr))]
+
 
 class State(object):
     """
@@ -91,10 +102,18 @@ class State(object):
             return 'white'
 
     @classmethod
+    def color_fg(cls, state):
+        color = cls.color(state)
+        if color in ['green', 'red']:
+            return 'white'
+        else:
+            return 'black'
+
+    @classmethod
     def runnable(cls):
         return [
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
-            cls.SKIPPED]
+            cls.SKIPPED, cls.QUEUED]
 
 
 cron_presets = {
@@ -169,6 +188,9 @@ def initdb():
             schema='airflow'))
     merge_conn(
         models.Connection(
+            conn_id='bigquery_default', conn_type='bigquery'))
+    merge_conn(
+        models.Connection(
             conn_id='local_mysql', conn_type='mysql',
             host='localhost', login='airflow', password='airflow',
             schema='airflow'))
@@ -222,6 +244,10 @@ def initdb():
         models.Connection(
             conn_id='webhdfs_default', conn_type='hdfs',
             host='localhost', port=50070))
+    merge_conn(
+        models.Connection(
+            conn_id='ssh_default', conn_type='ssh',
+            host='localhost'))
 
     # Known event types
     KET = models.KnownEventType
@@ -366,9 +392,8 @@ def json_ser(obj):
     json serializer that deals with dates
     usage: json.dumps(object, default=utils.json_ser)
     """
-    if isinstance(obj, datetime):
-        obj = obj.isoformat()
-    return obj
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
 
 
 def alchemy_to_dict(obj):
@@ -448,6 +473,9 @@ def apply_defaults(func):
         return result
     return wrapper
 
+if 'BUILDING_AIRFLOW_DOCS' in os.environ:
+    # Monkey patch hook to get good function headers while building docs
+    apply_defaults = lambda x: x
 
 def ask_yesno(question):
     yes = set(['yes', 'y'])
@@ -732,3 +760,18 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+class LoggingMixin(object):
+    """
+    Convenience super-class to have a logger configured with the class name
+    """
+
+    @property
+    def logger(self):
+        try:
+            return self._logger
+        except AttributeError:
+            self._logger = logging.root.getChild(self.__class__.__module__ + '.' +self.__class__.__name__)
+            return self._logger
+

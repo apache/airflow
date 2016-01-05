@@ -3,9 +3,6 @@
 * Better task filtering int duration and landing time charts (operator toggle, task regex, uncheck all button)
 * Add templating to adhoc queries
 
-#### Command line
-* Backfill, better logging, prompt with details about what tasks are about to run
-
 #### Backend
 * Add a run_only_latest flag to BaseOperator, runs only most recent task instance where deps are met
 * Pickle all the THINGS!

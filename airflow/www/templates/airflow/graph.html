@@ -48,6 +48,8 @@
     <div style"background-color: blue;">
     <div class="legend_item state" style="border-color:white;">no status</div>
     <div class="legend_item state" style="border-color:grey;">queued</div>
+    <div class="legend_item state" style="border-color:gold;">retry</div>
+    <div class="legend_item state" style="border-color:pink;">skipped</div>
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
     <div class="legend_item state" style="border-color:green;">success</div>
@@ -101,11 +103,16 @@
         .attr("title", function(d) {
           // Tooltip
           task = tasks[task_id];
-          tt = "Operator: " + task.task_type + "<br>";
-          tt += "State: " + ti.state + "<br>";
-          tt += "Start: " + ti.start_date + "<br>";
-          tt += "End: " + ti.end_date + "<br>";
+          tt =  "Task_id: " + ti.task_id + "<br>";
+          tt += "Run: " + ti.execution_date + "<br>";
+          if(ti.run_id != undefined){
+            tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
+          }
+          tt += "Operator: " + task.task_type + "<br>";
+          tt += "Started: " + ti.start_date + "<br>";
+          tt += "Ended: " + ti.end_date + "<br>";
           tt += "Duration: " + ti.duration + "<br>";
+          tt += "State: " + ti.state + "<br>";
           return tt;
         });
     });

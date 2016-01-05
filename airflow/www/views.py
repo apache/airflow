@@ -599,6 +599,25 @@ class Airflow(BaseView):
             root=request.args.get('root'),
             demo_mode=configuration.getboolean('webserver', 'demo_mode'))
 
+    @expose('/dag_details')
+    @login_required
+    def dag_details(self):
+        dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+        title = "DAG details"
+
+        session = settings.Session()
+        TI = models.TaskInstance
+        states = (
+            session.query(TI.state, sqla.func.count(TI.dag_id))
+            .filter(TI.dag_id == dag_id)
+            .group_by(TI.state)
+            .all()
+        )
+        return self.render(
+            'airflow/dag_details.html',
+            dag=dag, title=title, states=states, State=utils.State)
+
     @current_app.errorhandler(404)
     def circles(self):
         return render_template(
@@ -824,6 +843,7 @@ class Airflow(BaseView):
     @expose('/run')
     @login_required
     @wwwutils.action_logging
+    @wwwutils.notify_owner
     def run(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -836,11 +856,17 @@ class Airflow(BaseView):
         force = request.args.get('force') == "true"
         deps = request.args.get('deps') == "true"
 
-        from airflow.executors import DEFAULT_EXECUTOR as executor
-        from airflow.executors import CeleryExecutor
-        if not isinstance(executor, CeleryExecutor):
+        try:
+            from airflow.executors import DEFAULT_EXECUTOR as executor
+            from airflow.executors import CeleryExecutor
+            if not isinstance(executor, CeleryExecutor):
+                flash("Only works with the CeleryExecutor, sorry", "error")
+                return redirect(origin)
+        except ImportError:
+            # in case CeleryExecutor cannot be imported it is not active either
             flash("Only works with the CeleryExecutor, sorry", "error")
             return redirect(origin)
+
         ti = models.TaskInstance(task=task, execution_date=execution_date)
         executor.start()
         executor.queue_task_instance(
@@ -854,6 +880,7 @@ class Airflow(BaseView):
     @expose('/clear')
     @login_required
     @wwwutils.action_logging
+    @wwwutils.notify_owner
     def clear(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -929,6 +956,7 @@ class Airflow(BaseView):
     @expose('/success')
     @login_required
     @wwwutils.action_logging
+    @wwwutils.notify_owner
     def success(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
@@ -969,7 +997,12 @@ class Airflow(BaseView):
                 t.task_id
                 for t in task.get_flat_relatives(upstream=True)]
         TI = models.TaskInstance
-        dates = dag.date_range(start_date, end_date=end_date)
+
+        if dag.schedule_interval == '@once':
+            dates = [start_date]
+        else:
+            dates = dag.date_range(start_date, end_date=end_date)
+
         tis = session.query(TI).filter(
             TI.dag_id == dag_id,
             TI.execution_date.in_(dates),
@@ -1836,16 +1869,34 @@ class DagRunModelView(ModelViewOnly):
         state=state_f,
         start_date=datetime_f,
         dag_id=dag_link)
-    @action(
-        'set_running', "Set state to 'running'", None)
+
+    @action('set_running', "Set state to 'running'", None)
+    def action_set_running(self, ids):
+        self.set_dagrun_state(ids, State.RUNNING)
+
+    @action('set_failed', "Set state to 'failed'", None)
+    def action_set_failed(self, ids):
+        self.set_dagrun_state(ids, State.FAILED)
+
+    @action('set_success', "Set state to 'success'", None)
+    def action_set_success(self, ids):
+        self.set_dagrun_state(ids, State.SUCCESS)
+
     @utils.provide_session
-    def action_set_running(self, ids, session=None):
+    def set_dagrun_state(self, ids, target_state, session=None):
         try:
             DR = models.DagRun
             count = 0
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
                 count += 1
-            flash("{} dag runs were set to 'running'".format(ids))
+                dr.state = target_state
+                if target_state == State.RUNNING:
+                    dr.start_date = datetime.now()
+                else:
+                    dr.end_date = datetime.now()
+            session.commit()
+            flash(
+                "{count} dag runs were set to '{target_state}'".format(**locals()))
         except Exception as ex:
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
@@ -1879,12 +1930,55 @@ class TaskInstanceModelView(ModelViewOnly):
         dag_id=dag_link, duration=duration_f)
     column_searchable_list = ('dag_id', 'task_id', 'state')
     column_default_sort = ('start_date', True)
+    form_choices = {
+        'state': [
+            ('success', 'success'),
+            ('running', 'running'),
+            ('failed', 'failed'),
+        ],
+    }
     column_list = (
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'pool', 'log')
     can_delete = True
     page_size = 500
+
+    @action('set_running', "Set state to 'running'", None)
+    def action_set_running(self, ids):
+        self.set_task_instance_state(ids, State.RUNNING)
+
+    @action('set_failed', "Set state to 'failed'", None)
+    def action_set_failed(self, ids):
+        self.set_task_instance_state(ids, State.FAILED)
+
+    @action('set_success', "Set state to 'success'", None)
+    def action_set_success(self, ids):
+        self.set_task_instance_state(ids, State.SUCCESS)
+
+    @action('set_retry', "Set state to 'up_for_retry'", None)
+    def action_set_retry(self, ids):
+        self.set_task_instance_state(ids, State.UP_FOR_RETRY)
+
+    @utils.provide_session
+    def set_task_instance_state(self, ids, target_state, session=None):
+        try:
+            TI = models.TaskInstance
+            for count, id in enumerate(ids):
+                task_id, dag_id, execution_date = id.split(',')
+                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                ti = session.query(TI).filter(TI.task_id == task_id,
+                                              TI.dag_id == dag_id,
+                                              TI.execution_date == execution_date).one()
+                ti.state = target_state
+            count += 1
+            session.commit()
+            flash(
+                "{count} task instances were set to '{target_state}'".format(**locals()))
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to set state', 'error')
 
 
 class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
@@ -1922,6 +2016,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
     form_choices = {
         'conn_type': [
+            ('bigquery', 'BigQuery',),
             ('ftp', 'FTP',),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),
