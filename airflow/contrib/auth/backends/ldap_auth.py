@@ -5,7 +5,7 @@ from wtforms import (
     Form, PasswordField, StringField)
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE
+from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE, BASE
 import ssl
 
 from flask import url_for, redirect
@@ -66,9 +66,14 @@ class LdapUser(models.User):
             username
         )
 
-        search_scope = LEVEL
-        if configuration.has_option("ldap", "search_scope"):
-            search_scope = SUBTREE if configuration.get("ldap", "search_scope") == "SUBTREE" else LEVEL
+        search_scopes = {
+            "LEVEL": LEVEL,
+            "SUBTREE": SUBTREE,
+            "BASE": BASE
+        }
+
+        search_scope = search_scopes.get(configuration.get("ldap", "search_scope").upper(), None) \
+            if configuration.has_option("ldap", "search_scope") else LEVEL
 
         LOG.info("Search scope is: %s " % search_scope)
 

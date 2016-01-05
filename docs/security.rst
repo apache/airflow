@@ -58,6 +58,8 @@ It is however possible to configure without encryption if you really want to.
 Additionally, if you are using Active Directory, and are not explicitly specifying an OU that your users are in,
 you will need to change ``search_scope`` to "SUBTREE".
 
+Valid search_scope options can be found in the `ldap3 Documentation <http://ldap3.readthedocs.org/searches.html?highlight=search_scope>`_
+
 .. code-block:: bash
 
     [webserver]
