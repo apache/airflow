@@ -66,7 +66,11 @@ class LdapUser(models.User):
             username
         )
 
-        search_scope = SUBTREE if configuration.has_option("ldap", "search_scope") == "SUBTREE" else LEVEL
+        search_scope = LEVEL
+        if configuration.has_option("ldap", "search_scope"):
+            search_scope = SUBTREE if configuration.get("ldap", "search_scope") == "SUBTREE" else LEVEL
+
+        LOG.info("Search scope is: %s " % search_scope)
 
         # todo: BASE or ONELEVEL?
 
