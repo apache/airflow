@@ -95,6 +95,7 @@ setup(
     scripts=['airflow/bin/airflow'],
     install_requires=[
         'alembic>=0.8.3, <0.9',
+        'babel>=1.3, <2.0',
         'chartkick>=0.4.2, < 0.5',
         'croniter>=0.3.8, <0.4',
         'dill>=0.2.2, <0.3',

@@ -10,11 +10,12 @@ dill
 filechunkio
 flake8
 flask
-flask-admin
+flask-admin==1.2.0
 flask-cache
 flask-login
 flower
 future
+google-api-python-client
 gunicorn
 hive-thrift-py
 ipython
@@ -26,6 +27,7 @@ pandas
 pygments
 pyhive
 pydruid
+PyOpenSSL
 PySmbClient
 psycopg2
 python-dateutil

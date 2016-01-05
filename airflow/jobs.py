@@ -566,8 +566,7 @@ class SchedulerJob(BaseJob):
                     overloaded_dags.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
-                    executor.queue_task_instance(
-                        ti, force=True, pickle_id=pickle_id)
+                    executor.queue_task_instance(ti, pickle_id=pickle_id)
                     open_slots -= 1
                 else:
                     session.delete(ti)
