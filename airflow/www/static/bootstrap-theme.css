@@ -4442,6 +4442,13 @@ fieldset[disabled] .navbar-default .btn-link:focus {
 .navbar-inverse {
   background-color: #007a87;
   border-color: #004c54;
+  background-image: none;
+}
+.navbar-inverse .navbar-nav>.active>a, .navbar-inverse .navbar-nav>.open>a {
+  background-image: none;
+}
+.dropdown-menu>.active>a, ee.dropdown-menu>.active>a:focus, .dropdown-menu>.active>a:hover {
+  background-image: none;
 }
 .navbar-inverse .navbar-brand {
   color: #dddddd;

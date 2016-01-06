@@ -2,6 +2,9 @@ body { padding-top: 70px; }
 a.navbar-brand span {
     color: white;
 }
+.modal-backdrop{
+    z-index: 10;
+}
 nav{
     -webkit-box-shadow: 0px 3px 3px #AAA;
     -moz-box-shadow:    0px 3px 3px #AAA;
