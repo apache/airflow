@@ -32,13 +32,13 @@ class DockerOperatorTestCase(unittest.TestCase):
 
         client_class_mock.return_value = client_mock
 
-        operator = DockerOperator(api_version=1.19, command='env', environment={'UNIT': 'TEST'},
+        operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'])
         operator.execute(None)
 
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
-                                             version=1.19)
+                                             version='1.19')
 
         client_mock.create_container.assert_called_with(command='env', cpu_shares=1024,
                                                         environment={

@@ -16,7 +16,7 @@ class DockerOperator(BaseOperator):
     :param image: Docker image from which to create the container.
     :type image: str
     :param api_version: Remote API version.
-    :type api_version: float
+    :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
     :param cpus: Number of CPUs to assign to the container.
