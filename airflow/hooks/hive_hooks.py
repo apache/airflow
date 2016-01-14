@@ -85,7 +85,7 @@ class HiveCliHook(BaseHook):
                             proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
 
                         jdbc_url += ";principal={template};{proxy_user}"
-                    elif self.auth:
+                    elif self.auth and self.auth != "none":
                         jdbc_url += ";auth=" + self.auth
 
                     jdbc_url = jdbc_url.format(**locals())
