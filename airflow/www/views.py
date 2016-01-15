@@ -730,7 +730,7 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dag = dagbag.get_dag(dag_id)
-        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
+        log_relative = "{dag_id}/{task_id}/{execution_date}.log".format(
             **locals())
         loc = os.path.join(BASE_LOG_FOLDER, log_relative)
         loc = loc.format(**locals())
@@ -754,8 +754,8 @@ class Airflow(BaseView):
                     log += "".join(f.readlines())
                     f.close()
                     log_loaded = True
-                except:
-                    log = "*** Log file isn't where expected.\n".format(loc)
+                except Exception as e:
+                    log = "*** Log file isn't where expected {0}\n {1}.\n".format(loc, str(e))
             else:
                 WORKER_LOG_SERVER_PORT = \
                     configuration.get('celery', 'WORKER_LOG_SERVER_PORT')
