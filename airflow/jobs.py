@@ -277,7 +277,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.email_sent == False)
+            .filter(SlaMiss.email_sent == False or SlaMiss.notification_sent == False)
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -309,6 +309,15 @@ class SchedulerJob(BaseJob):
             blocking_task_list = "\n".join([
                 ti.task_id + ' on ' + ti.execution_date.isoformat()
                 for ti in blocking_tis])
+            # Track whether email or any alert notification sent
+            # We consider email or the alert callback as notifications
+            email_sent = False
+            notification_sent = False
+            if dag.sla_miss_callback:
+                # Execute the alert callback
+                self.logger.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
+                notification_sent = True
             from airflow import ascii
             email_content = """\
             Here's a list of tasks thas missed their SLAs:
@@ -331,8 +340,14 @@ class SchedulerJob(BaseJob):
                     emails,
                     "[airflow] SLA miss on DAG=" + dag.dag_id,
                     email_content)
+                email_sent = True
+                notification_sent = True
+            # If we sent any notification, update the sla_miss table
+            if notification_sent:
                 for sla in slas:
-                    sla.email_sent = True
+                    if email_sent:
+                        sla.email_sent = True
+                    sla.notification_sent = True
                     session.merge(sla)
             session.commit()
             session.close()
