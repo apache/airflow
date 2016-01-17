@@ -947,14 +947,11 @@ class TaskInstance(Base):
             )
         elif force or self.state in State.runnable():
             HR = "\n" + ("-" * 80) + "\n"  # Line break
-            if self.state == State.UP_FOR_RETRY:
-                msg = (
-                    "Retry run {self.try_number} out of {task.retries} "
-                    "starting @{iso}")
-                self.try_number += 1
-            else:
-                msg = "New run starting @{iso}"
-                self.try_number = 1
+            attempts = task.retries + 1
+            msg = (
+                "Starting run {self.try_number} out of {attempts}, "
+                "starting @{iso}")
+            self.try_number += 1
             msg = msg.format(**locals())
             logging.info(HR + msg + HR)
             self.start_date = datetime.now()
