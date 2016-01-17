@@ -863,5 +863,5 @@ class LocalTaskJob(BaseJob):
             logging.warning(
                 "State of this instance has been externally set to "
                 "{self.task_instance.state}. "
-                "Taking the poison pill. So long.")
+                "Taking the poison pill. So long.".format(**locals()))
             self.process.terminate()
