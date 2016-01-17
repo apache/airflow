@@ -855,3 +855,13 @@ class LocalTaskJob(BaseJob):
 
     def on_kill(self):
         self.process.terminate()
+
+    def heartbeat_callback(self):
+        # Suicide pill
+        self.task_instance.refresh_from_db()
+        if self.task_instance.state != State.RUNNING:
+            logging.warning(
+                "State of this instance has been externally set to "
+                "{self.task_instance.state}. "
+                "Taking the poison pill. So long.")
+            self.process.terminate()

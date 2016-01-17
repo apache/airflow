@@ -683,6 +683,8 @@ class TaskInstance(Base):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+        else:
+            self.state = None
 
         if not main_session:
             session.commit()
