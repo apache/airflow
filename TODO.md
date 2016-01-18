@@ -11,6 +11,7 @@
 * Test and migrate to use beeline instead of the Hive CLI
 * Run Hive / Hadoop / HDFS tests in Travis-CI
 
+
 #### UI
 * Backfill form
 * Better task filtering int duration and landing time charts (operator toggle, task regex, uncheck all button)

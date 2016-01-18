@@ -855,3 +855,20 @@ class LocalTaskJob(BaseJob):
 
     def on_kill(self):
         self.process.terminate()
+
+    def heartbeat_callback(self):
+        # Suicide pill
+        TI = models.TaskInstance
+        ti = self.task_instance
+        session = settings.Session()
+        state = session.query(TI.state).filter(
+            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
+            TI.execution_date==ti.execution_date).scalar()
+        session.commit()
+        session.close()
+        if state != State.RUNNING:
+            logging.warning(
+                "State of this instance has been externally set to "
+                "{self.task_instance.state}. "
+                "Taking the poison pill. So long.".format(**locals()))
+            self.process.terminate()
