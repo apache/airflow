@@ -21,7 +21,7 @@ from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
-from airflow.utils import LoggingMixin, round_time
+from airflow.utils import LoggingMixin, round_time, censor_password_from_uri
 from lxml import html
 from airflow.utils import AirflowException
 
@@ -469,6 +469,17 @@ class CoreTest(unittest.TestCase):
             task_id='test_bad_trigger',
             trigger_rule="non_existant",
             dag=self.dag)
+
+    def test_censor_password_from_uri(self):
+
+        t1 = censor_password_from_uri("sqlite:////usr/local/unittests.db")
+        assert t1 == "sqlite:////usr/local/unittests.db"
+
+        t2 = censor_password_from_uri("mysql://airflow:airflow@127.0.0.1/test")
+        assert t2 == "mysql://airflow:****@127.0.0.1/test"
+
+        t3 = censor_password_from_uri("mysql://airflow:@irFl@w@localhost/test")
+        assert t3 == "mysql://airflow:****@localhost/test"
 
 class CliTests(unittest.TestCase):
 
