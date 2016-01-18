@@ -14,7 +14,7 @@ from airflow import jobs, settings, utils
 from airflow import configuration
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagBag, TaskInstance, DagPickle, DagRun
-from airflow.utils import AirflowException, State
+from airflow.utils import AirflowException, State, censor_password_from_uri
 
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 
@@ -382,13 +382,17 @@ def worker(args):
 
 
 def initdb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    censored_uri = censor_password_from_uri(
+        configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + censored_uri)
     utils.initdb()
     print("Done.")
 
 
 def resetdb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    censored_uri = censor_password_from_uri(
+        configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + censored_uri)
     if args.yes or input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
@@ -400,7 +404,9 @@ def resetdb(args):
 
 
 def upgradedb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    censored_uri = censor_password_from_uri(
+        configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + censored_uri)
     utils.upgradedb()
 
 

@@ -25,6 +25,7 @@ import signal
 import six
 import smtplib
 from tempfile import mkdtemp
+from urllib.parse import urlparse, urlunparse
 
 from alembic.config import Config
 from alembic import command
@@ -306,6 +307,19 @@ def resetdb():
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
     initdb()
+
+
+def censor_password_from_uri(uri):
+    '''
+    Given an uri, return the connection string with the password
+    replaced with ****
+    '''
+    parts = urlparse(uri)
+    if parts.password:
+        password = ":" + parts.password + "@"
+        new_netloc = parts.netloc.replace(password, ":****@")
+        return urlunparse(parts._replace(netloc=new_netloc))
+    return uri
 
 
 def validate_key(k, max_length=250):
