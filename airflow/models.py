@@ -602,8 +602,7 @@ class TaskInstance(Base):
             cmd += "-s " + task_start_date.isoformat() + ' '
         if (
                 not pickle_id and self.task.dag and
-                self.task.dag.full_filepath and
-                not os.path.isabs(self.task.dag.full_filepath)):
+                self.task.dag.full_filepath):
             cmd += "-sd DAGS_FOLDER/{self.task.dag.filepath} "
         return cmd.format(**locals())
 
