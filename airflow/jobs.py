@@ -133,6 +133,7 @@ class BaseJob(Base, LoggingMixin):
 
         if job.state == State.SHUTDOWN:
             self.kill()
+        self.heartbeat_callback()
 
         if job.latest_heartbeat:
             sleep_for = self.heartrate - (
@@ -146,7 +147,6 @@ class BaseJob(Base, LoggingMixin):
         session.commit()
         session.close()
 
-        self.heartbeat_callback()
         self.logger.debug('[heart] Boom.')
 
     def run(self):
