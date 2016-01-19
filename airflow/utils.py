@@ -317,8 +317,9 @@ def censor_password_from_uri(uri):
     parts = urlparse(uri)
     if parts.password:
         password = ":" + parts.password + "@"
-        new_netloc = parts.netloc.replace(password, ":****@") \
-            .encode('ascii', 'ignore')
+        new_netloc = parts.netloc.replace(password, ":****@")
+        if isinstance(new_netloc, unicode):  # deal with py2
+            new_netloc = new_netloc.encode('ascii', 'ignore')
         return urlunparse(parts._replace(netloc=new_netloc))
     return uri
 
