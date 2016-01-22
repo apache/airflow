@@ -180,11 +180,8 @@ def login(self, request):
         session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
-    except (LdapException, AuthenticationError) as e:
-        if e:
-            flash(e, "error")
-        else:
-            flash("Incorrect login details")
+    except AuthenticationError:
+        flash("Incorrect login details")
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
