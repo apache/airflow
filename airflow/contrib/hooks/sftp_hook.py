@@ -23,3 +23,9 @@ class SFTPHook(BaseHook):
         fileList.reverse()
         return fileList
     
+    def get_file(self, from_file, to_file):
+        self.conn.get(from_file, to_file)
+    
+    
+ 
+    
