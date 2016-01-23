@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 
 import logging
 import os
+import sys
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -28,7 +29,7 @@ DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 engine_args = {}
 if 'sqlite' not in SQL_ALCHEMY_CONN:
     # Engine args not supported by sqlite
-    engine_args['pool_size'] = 50
+    engine_args['pool_size'] = 5
     engine_args['pool_recycle'] = 3600
 
 engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
@@ -67,9 +68,15 @@ def policy(task_instance):
     """
     pass
 
+def configure_logging():
+    logging.root.handlers = []
+    logging.basicConfig(
+        format=LOG_FORMAT, stream=sys.stdout, level=LOGGING_LEVEL)
 
 try:
     from airflow_local_settings import *
     logging.info("Loaded airflow_local_settings.")
 except:
     pass
+
+configure_logging()

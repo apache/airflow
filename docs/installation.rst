@@ -65,7 +65,8 @@ Here's the list of the subpackages and what they enable:
 +-------------+------------------------------------+------------------------------------------------+
 |  password   | ``pip install airflow[password]``  | Password Authentication for users              |
 +-------------+------------------------------------+------------------------------------------------+
-
+|  qds        | ``pip install airflow[qds]``       | Enable QDS (qubole data services) support      |
++-------------+------------------------------------+------------------------------------------------+
 
 Configuration
 '''''''''''''

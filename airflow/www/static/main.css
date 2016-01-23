@@ -2,6 +2,9 @@ body { padding-top: 70px; }
 a.navbar-brand span {
     color: white;
 }
+.modal-backdrop{
+    z-index: 10;
+}
 nav{
     -webkit-box-shadow: 0px 3px 3px #AAA;
     -moz-box-shadow:    0px 3px 3px #AAA;
@@ -155,10 +158,10 @@ div.legend_item {
     -webkit-border-radius: 5px 5px;
     border-radius: 5px/5px;
     float:right;
-    margin: 0px 10px 0px 0px; 
-    padding:0px 5px;
+    margin: 0px 3px 0px 0px; 
+    padding:0px 3px;
     border:solid 2px grey;
-    font-size: 12px;
+    font-size: 11px;
 }
 div.legend_circle{
     -moz-border-radius: 10px/10px;

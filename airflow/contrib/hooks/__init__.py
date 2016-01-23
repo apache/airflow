@@ -7,6 +7,8 @@ _hooks = {
     'vertica_hook': ['VerticaHook'],
     'ecs_hook': ['ECSHook'],
     'ssh_hook': ['SSHHook'],
+    'bigquery_hook': ['BigQueryHook'],
+    'qubole_hook': ['QuboleHook']
 }
 
 _import_module_attrs(globals(), _hooks)

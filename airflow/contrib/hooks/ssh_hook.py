@@ -76,7 +76,7 @@ class SSHHook(BaseHook):
             connection_cmd += ["-o", "BatchMode=yes"] # no password prompts
 
         if self.conn.port:
-            connection_cmd.extend(["-p", self.conn.port])
+            connection_cmd += ["-p", self.conn.port]
 
         if self.connect_timeout:
             connection_cmd += ["-o", "ConnectionTimeout={}".format(self.connect_timeout)]
@@ -86,14 +86,15 @@ class SSHHook(BaseHook):
                                "-o", "StrictHostKeyChecking=no"]
 
         if self.key_file:
-            connection_cmd.extend("-i", self.key_file)
+            connection_cmd += ["-i", self.key_file]
 
         if self.tty:
-            connection_cmd.append("-t")
+            connection_cmd += ["-t"]
 
-        logging.debug("SSH cmd: {} ".format(connection_cmd + cmd))
+        connection_cmd += cmd
+        logging.debug("SSH cmd: {} ".format(connection_cmd))
 
-        return connection_cmd + cmd
+        return connection_cmd
 
     def Popen(self, cmd, **kwargs):
         """

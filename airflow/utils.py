@@ -40,7 +40,6 @@ from croniter import croniter
 
 from airflow import settings
 from airflow import configuration
-from airflow.settings import LOGGING_LEVEL
 
 
 class AirflowException(Exception):
@@ -58,6 +57,16 @@ class TriggerRule(object):
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
+
+    @classmethod
+    def is_valid(cls, trigger_rule):
+        return trigger_rule in cls.all_triggers()
+
+    @classmethod
+    def all_triggers(cls):
+        return [getattr(cls, attr)
+                for attr in dir(cls)
+                if not attr.startswith("__") and not callable(getattr(cls, attr))]
 
 
 class State(object):
@@ -104,7 +113,7 @@ class State(object):
     def runnable(cls):
         return [
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
-            cls.SKIPPED]
+            cls.SKIPPED, cls.QUEUED]
 
 
 cron_presets = {
@@ -177,6 +186,9 @@ def initdb():
             conn_id='beeline_default', conn_type='beeline',
             host='localhost',
             schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='bigquery_default', conn_type='bigquery'))
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -380,9 +392,8 @@ def json_ser(obj):
     json serializer that deals with dates
     usage: json.dumps(object, default=utils.json_ser)
     """
-    if isinstance(obj, datetime):
-        obj = obj.isoformat()
-    return obj
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
 
 
 def alchemy_to_dict(obj):
@@ -751,27 +762,6 @@ class AirflowJsonEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def log_to_stdout():
-
-    root_logger = logging.getLogger()
-
-    # default log level if not set externally (e.g. with --logging-level=DEBUG)
-    if root_logger.level == logging.NOTSET:
-        root_logger.setLevel(LOGGING_LEVEL)
-
-    for handler in root_logger.handlers:
-        if isinstance(handler, logging.StreamHandler):
-            root_logger.warn("not adding a stream handler: already present")
-            return
-
-    logformat = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setFormatter(logformat)
-    root_logger.addHandler(ch)
-
-
 class LoggingMixin(object):
     """
     Convenience super-class to have a logger configured with the class name
@@ -779,6 +769,9 @@ class LoggingMixin(object):
 
     @property
     def logger(self):
-        if not hasattr(self, "_logger"):
-            self._logger = logging.getLogger(self.__class__.__name__)
-        return self._logger
+        try:
+            return self._logger
+        except AttributeError:
+            self._logger = logging.root.getChild(self.__class__.__module__ + '.' +self.__class__.__name__)
+            return self._logger
+

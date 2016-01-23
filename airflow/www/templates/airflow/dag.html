@@ -1,9 +1,11 @@
 {% extends "airflow/master.html" %}
+{% import 'admin/lib.html' as lib with context %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
 
 {% block head_css %}
-{{ super() }}
+  {{ super() }}
+  {{ lib.form_css() }}
 {% endblock %}
 
 {% block body %}
@@ -177,6 +179,7 @@
 {% endblock %}
 {% block tail %}
   {{ super() }}
+  {{ lib.form_js() }}
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");

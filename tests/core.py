@@ -401,46 +401,6 @@ class CoreTest(unittest.TestCase):
         assert "{AIRFLOW_HOME}" not in cfg
         assert "{FERNET_KEY}" not in cfg
 
-    def test_calling_log_to_stdout_should_add_one_stream_handler(self):
-
-        # first resetting the logger
-        root_logger = logging.getLogger()
-        for handler in root_logger.handlers:
-            root_logger.removeHandler(handler)
-
-        root_logger.setLevel(logging.NOTSET)
-        assert root_logger.level == logging.NOTSET
-
-        utils.log_to_stdout()
-        stream_handlers = [h for h in root_logger.handlers
-                           if isinstance(h, logging.StreamHandler)]
-
-        assert len(stream_handlers) == 1
-        assert root_logger.level == utils.LOGGING_LEVEL
-
-    def test_calling_log_to_stdout_2X_should_add_only_one_stream_handler(self):
-
-        utils.log_to_stdout()
-        utils.log_to_stdout()
-        root_logger = logging.getLogger()
-
-        stream_handlers = [h for h in root_logger.handlers
-                           if isinstance(h, logging.StreamHandler)]
-
-        assert len(stream_handlers) == 1
-
-    def test_setting_log_level_then_calling_log_should_keep_the_old_value(self):
-
-        # if the log level is set externally, i.e. either through
-        # --logging-level or anything, then its value should not be overridden
-        # by the default "INFO" in log_to_stdout
-
-        root_logger = logging.getLogger()
-        root_logger.setLevel(logging.DEBUG)
-        utils.log_to_stdout()
-
-        assert root_logger.level == logging.DEBUG
-
     def test_class_with_logger_should_have_logger_with_correct_name(self):
 
         # each class should automatically receive a logger with a correct name
@@ -448,9 +408,9 @@ class CoreTest(unittest.TestCase):
         class Blah(LoggingMixin):
             pass
 
-        assert Blah().logger.name == "Blah"
-        assert SequentialExecutor().logger.name == "SequentialExecutor"
-        assert LocalExecutor().logger.name == "LocalExecutor"
+        assert Blah().logger.name == "tests.core.Blah"
+        assert SequentialExecutor().logger.name == "airflow.executors.sequential_executor.SequentialExecutor"
+        assert LocalExecutor().logger.name == "airflow.executors.local_executor.LocalExecutor"
 
     def test_round_time(self):
 
@@ -503,6 +463,12 @@ class CoreTest(unittest.TestCase):
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_this_last.set_downstream(self.runme_0)
 
+    def test_bad_trigger_rule(self):
+        with self.assertRaises(AirflowException):
+            operators.DummyOperator(
+            task_id='test_bad_trigger',
+            trigger_rule="non_existant",
+            dag=self.dag)
 
 class CliTests(unittest.TestCase):
 

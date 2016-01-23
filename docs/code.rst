@@ -88,6 +88,9 @@ Community-contributed Operators
 .. automodule:: airflow.contrib.operators
     :show-inheritance:
     :members:
+        BigQueryOperator,
+        BigQueryToCloudStorageOperator,
+        GoogleCloudStorageDownloadOperator,
         VerticaOperator,
         VerticaToHiveTransfer
 
@@ -109,7 +112,6 @@ Variable                            Description
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ yesterday_ds }}``              yesterday's date as  ``YYYY-MM-DD``
 ``{{ tomorrow_ds }}``               tomorrow's date as  ``YYYY-MM-DD``
-``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ts }}``                        same as ``execution_date.isoformat()``
 ``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
@@ -208,6 +210,8 @@ Community contributed hooks
 .. automodule:: airflow.contrib.hooks
     :show-inheritance:
     :members:
+        BigQueryHook,
+        GoogleCloudStorageHook,
         VerticaHook,
         FTPHook,
         SSHHook

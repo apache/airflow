@@ -37,7 +37,7 @@ A DAG Run is an object representing an instantiation of the DAG in time.
 Each DAG may or may not have a schedule, which informs how ``DAG Runs`` are
 created. ``schedule_interval`` is defined as a DAG arguments, and receives
 preferably a
-[cron expression](https://en.wikipedia.org/wiki/Cron#CRON_expression) as
+`cron expression <https://en.wikipedia.org/wiki/Cron#CRON_expression>`_ as
 a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
 use one of these cron "preset":
 

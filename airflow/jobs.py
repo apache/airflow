@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 from builtins import str
 from past.builtins import basestring
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import product
 import getpass
 import logging
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from time import sleep
 
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, and_, or_
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models, settings, utils
@@ -263,8 +263,8 @@ class SchedulerJob(BaseJob):
             dttm = ti.execution_date
             if task.sla:
                 dttm = dag.following_schedule(dttm)
-                following_schedule = dag.following_schedule(dttm)
                 while dttm < datetime.now():
+                    following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < datetime.now():
                         session.merge(models.SlaMiss(
                             task_id=ti.task_id,
@@ -355,14 +355,22 @@ class SchedulerJob(BaseJob):
         if dag.schedule_interval:
             DagRun = models.DagRun
             session = settings.Session()
-            qry = session.query(func.count()).filter(
+            qry = session.query(DagRun).filter(
                 DagRun.dag_id == dag.dag_id,
                 DagRun.external_trigger == False,
                 DagRun.state == State.RUNNING,
             )
-            active_runs = qry.scalar()
-            if active_runs >= dag.max_active_runs:
+            active_runs = qry.all()
+            if len(active_runs) >= dag.max_active_runs:
                 return
+            for dr in active_runs:
+                if (
+                        dr.start_date and dag.dagrun_timeout and
+                        dr.start_date < datetime.now() - dag.dagrun_timeout):
+                    dr.state = State.FAILED
+                    dr.end_date = datetime.now()
+            session.commit()
+
             qry = session.query(func.max(DagRun.execution_date)).filter_by(
                     dag_id = dag.dag_id).filter(
                         or_(DagRun.external_trigger == False,
@@ -558,8 +566,7 @@ class SchedulerJob(BaseJob):
                     overloaded_dags.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
-                    executor.queue_task_instance(
-                        ti, force=True, pickle_id=pickle_id)
+                    executor.queue_task_instance(ti, pickle_id=pickle_id)
                     open_slots -= 1
                 else:
                     session.delete(ti)
@@ -775,7 +782,9 @@ class BackfillJob(BaseJob):
                     self.logger.error(
                         "The airflow run command failed "
                         "at reporting an error. This should not occur "
-                        "in normal circustances. State is {}".format(ti.state))
+                        "in normal circumstances. Task state is '{}',"
+                        "reported state is '{}'. TI is {}"
+                        "".format(ti.state, state, ti))
 
             msg = (
                 "[backfill progress] "
@@ -846,3 +855,22 @@ class LocalTaskJob(BaseJob):
 
     def on_kill(self):
         self.process.terminate()
+
+    def heartbeat_callback(self):
+        if datetime.now() - self.start_date < timedelta(seconds=300):
+            return
+        # Suicide pill
+        TI = models.TaskInstance
+        ti = self.task_instance
+        session = settings.Session()
+        state = session.query(TI.state).filter(
+            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
+            TI.execution_date==ti.execution_date).scalar()
+        session.commit()
+        session.close()
+        if state != State.RUNNING:
+            logging.warning(
+                "State of this instance has been externally set to "
+                "{self.task_instance.state}. "
+                "Taking the poison pill. So long.".format(**locals()))
+            self.process.terminate()

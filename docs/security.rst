@@ -24,6 +24,29 @@ uses bcrypt before storing passwords.
     authenticate = True
     auth_backend = airflow.contrib.auth.backends.password_auth
 
+When password auth is enabled, an initial user credential will need to be created before anyone can login. An initial
+user was not created in the migrations for this authenication backend to prevent default Airflow installations from
+attack. Creating a new user has to be done via a Python REPL on the same machine Airflow is installed.
+
+.. code-block:: bash
+
+    # navigate to the airflow installation directory
+    $ cd ~/airflow
+    $ python
+    Python 2.7.9 (default, Feb 10 2015, 03:28:08)
+    Type "help", "copyright", "credits" or "license" for more information.
+    >>> import airflow
+    >>> from airflow import models, settings
+    >>> from airflow.contrib.auth.backends.password_auth import PasswordUser
+    >>> user = PasswordUser(models.User())
+    >>> user.username = 'new_user_name'
+    >>> user.email = 'new_user_email@example.com'
+    >>> user.password = 'set_the_password'
+    >>> session = settings.Session()
+    >>> session.add(user)
+    >>> session.commit()
+    >>> session.close()
+    >>> exit()
 
 LDAP
 ''''
@@ -42,11 +65,14 @@ It is however possible to configure without encryption if you really want to.
     uri = ldaps://<your.ldap.server>:<port>
     user_filter = objectClass=*
     user_name_attr = uid # in case of Active Directory you would use sAMAccountName
+    superuser_filter = memberOf=CN=airflow-super-users,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
+    data_profiler_filter = memberOf=CN=airflow-data-profilers,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     bind_user = cn=Manager,dc=example,dc=com
     bind_password = insecure
     basedn = dc=example,dc=com
     cacert = /etc/ca/ldap_ca.crt
 
+The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
 Roll your own
 '''''''''''''
@@ -178,3 +204,43 @@ and in your DAG, when initializing the HiveOperator, specify
 
     run_as_owner=True
 
+GitHub Enterprise (GHE) Authentication
+''''''''''''''''''''''''''''''''
+
+The GitHub Enterprise authentication backend can be used to authenticate users
+against an installation of GitHub Enterprise using OAuth2. You can optionally
+specify a team whitelist (composed of slug cased team names) to restrict login
+to only members of those teams.
+
+*NOTE* If you do not specify a team whitelist, anyone with a valid account on
+your GHE installation will be able to login to Airflow.
+
+.. code-block:: bash
+
+    [webserver]
+    authenticate = True
+    auth_backend = airflow.contrib.auth.backends.github_enterprise_auth
+
+    [github_enterprise]
+    host = github.example.com
+    client_id = oauth_key_from_github_enterprise
+    client_secret = oauth_secret_from_github_enterprise
+    oauth_callback_route = /example/ghe_oauth/callback
+    allowed_teams = example_team_1, example_team_2
+
+Setting up GHE Authentication
+'''''''''''''''''''''''''''''
+
+An application must be setup in GHE before you can use the GHE authentication
+backend. In order to setup an application:
+
+1. Navigate to your GHE profile
+2. Select 'Applications' from the left hand nav
+3. Select the 'Developer Applications' tab
+4. Click 'Register new application'
+5. Fill in the required information
+  * The 'Authorization callback URL' must be fully qualifed (e.g.
+    http://airflow.example.com/example/ghe_oauth/callback)
+6. Click 'Register application'
+7. Copy 'Client ID', 'Client Secret', and your callback route to your
+   airflow.cfg according to the above example
