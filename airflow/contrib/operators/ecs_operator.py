@@ -13,6 +13,19 @@ import boto3
 
 class ECSOperator(BaseOperator):
 
+
+    """
+    Execute a task on AWS EC2 Container Service
+
+    :param task_id: task identifier
+    :type: task_id:str
+    :param taskDefinition: the task definition name on EC2 Container Service
+    :type taskDefinition: str
+    :param cluster: the cluster name on EC2 Container Service
+    :type cluster: str
+    :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+    :type: overrides: dict
+    """
     ui_color = '#f0ede4'
 
     client = None
@@ -33,7 +46,6 @@ class ECSOperator(BaseOperator):
         self.overrides = overrides
 
     def execute(self, context):
-        import time
         
         self.client = self.hook.get_conn()
         logging.info("Running ecs task - Task definition: " + self.taskDefinition+" - on cluster "+self.cluster);
