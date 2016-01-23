@@ -13,14 +13,22 @@ class FTPToS3(BaseOperator):
     """
     Copy file from a FTP folder to a S3 folder
 
-    :param task_id: task identifier
-    :type: task_id:str
-    :param taskDefinition: the task definition name on EC2 Container Service
-    :type taskDefinition: str
-    :param cluster: the cluster name on EC2 Container Service
-    :type cluster: str
-    :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
-    :type: overrides: dict
+    :param s3_bucket: s3 destination bucket
+    :type: s3_bucket:str
+    :param s3_key: s3 destination key
+    :type s3_key: str
+    :param ftp_folder: ftp folder where the the source files are stored
+    :type ftp_folder: str
+    :param: sftp_conn_id: the configuration key defined in the ariflow panel
+    :type: sftp_conn_id: str
+    :param: s3_conn_id: the configuration key defined in the airflow panel
+    :type: s3_conn_id: str
+    :param: filter: a filter function that receiver file_name as parameters.
+    :type: filter: function
+    :param: replace: replace destination file
+    :type: replace: bool
+    :param: tmp_directory: just a temporary directory
+    :type: tmp_directory: str
     """
   
     def __init__(self, s3_bucket, s3_key, ftp_folder, sftp_conn_id='sftp_default', s3_conn_id='s3_default', filter= None, replace = False, tmp_directory = "tmp"): 
