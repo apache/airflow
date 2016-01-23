@@ -244,22 +244,7 @@ class CoreTest(unittest.TestCase):
             bash_command="echo success",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-        
-#     def test_ecs_operator(self):
-#         overrides1={
-#          'containerOverrides': [
-#              {
-#                  'name': 'RGB',
-#                  'command': [
-#                     "/bin/bash", "-c" , "sleep 5"
-#                  ]
-#              }
-#          ]
-#         } 
-#         
-#         t = operators.ECSOperator(task_id='ecs_test', taskDefinition='RGB',cluster="default", overrides=overrides1, dag=self.dag)
-#         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-    
+
     def test_trigger_dagrun(self):
         def trigga(context, obj):
             if True:
@@ -339,7 +324,7 @@ class CoreTest(unittest.TestCase):
             def __init__(self, some_templated_field, *args, **kwargs):
                 super(OperatorSubclass, self).__init__(*args, **kwargs)
                 self.some_templated_field = some_templated_field
-            def execute(self, *args, **kwargs):
+            def execute(*args, **kwargs):
                 pass
         def test_some_templated_field_template_render(context):
             self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
