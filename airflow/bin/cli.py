@@ -84,14 +84,15 @@ def trigger_dag(args):
     session = settings.Session()
     # TODO: verify dag_id
     execution_date = datetime.now()
+    run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
     dr = session.query(DagRun).filter(
-        DagRun.dag_id==args.dag_id, DagRun.run_id==args.run_id).first()
+        DagRun.dag_id==args.dag_id, DagRun.run_id==run_id).first()
     if dr:
         logging.error("This run_id already exists")
     else:
         trigger = DagRun(
             dag_id=args.dag_id,
-            run_id=args.run_id,
+            run_id=run_id,
             execution_date=execution_date,
             state=State.RUNNING,
             external_trigger=True)
@@ -126,6 +127,7 @@ def run(args):
         filename=filename,
         level=settings.LOGGING_LEVEL,
         format=settings.LOG_FORMAT)
+
     if not args.pickle:
         dagbag = DagBag(subdir)
         if args.dag_id not in dagbag.dags:
@@ -381,13 +383,13 @@ def worker(args):
 
 
 def initdb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + repr(settings.engine.url))
     utils.initdb()
     print("Done.")
 
 
 def resetdb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + repr(settings.engine.url))
     if args.yes or input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
@@ -399,7 +401,7 @@ def resetdb(args):
 
 
 def upgradedb(args):
-    print("DB: " + configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    print("DB: " + repr(settings.engine.url))
     utils.upgradedb()
 
 
@@ -427,7 +429,8 @@ def kerberos(args):
 
 def get_parser():
     parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers(help='sub-command help')
+    subparsers = parser.add_subparsers(help='sub-command help', dest='subcommand')
+    subparsers.required = True
 
     ht = "Run subsections of a DAG for a specified date range"
     parser_backfill = subparsers.add_parser('backfill', help=ht)
@@ -495,6 +498,7 @@ def get_parser():
     parser_clear.add_argument(
         "-sd", "--subdir", help=subdir_help,
         default=DAGS_FOLDER)
+    ht = "Do not request confirmation"
     parser_clear.add_argument(
         "-c", "--no_confirm", help=ht, action="store_true")
     parser_clear.set_defaults(func=clear)

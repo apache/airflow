@@ -5,6 +5,7 @@ from airflow.utils import import_module_attrs as _import_module_attrs
 _operators = {
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
+    'qubole_operator': ['QuboleOperator']
 }
 
 _import_module_attrs(globals(), _operators)

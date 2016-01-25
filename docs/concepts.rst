@@ -217,6 +217,17 @@ will invariably lead to block tasks that depend on their past successes.
 ``skipped`` states propagates where all directly upstream tasks are
 ``skipped``.
 
+If you want to skip some tasks, keep in mind that you can't have an empty
+path, if so make a dummy task.
+
+like this, the dummy task "branch_false" is skipped
+
+.. image:: img/branch_good.png
+
+Not like this, where the join task is skipped
+
+.. image:: img/branch_bad.png
+
 
 SLAs
 ''''
@@ -236,7 +247,7 @@ Though the normal workflow behavior is to trigger tasks when all their
 directly upstream tasks have succeeded, Airflow allows for more complex
 dependency settings.
 
-All operators have a ``trigger_rule`` argument which defines the rule by which 
+All operators have a ``trigger_rule`` argument which defines the rule by which
 the generated task get triggered. The default value for ``trigger_rule`` is
 ``all_success`` and can be defined as "trigger this task when all directly
 upstream tasks have succeeded". All other rules described here are based
@@ -251,5 +262,27 @@ while creating tasks:
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
-that, when set to ``True``, keeps a task from getting triggered if the 
+that, when set to ``True``, keeps a task from getting triggered if the
 previous schedule for the task hasn't succeeded.
+
+
+Zombies & Undeads
+'''''''''''''''''
+
+Task instances die all the time, usually as part of their normal life cycle,
+but sometimes unexpectedly.
+
+Zombie tasks are characterized by the absence
+of an heartbeat (emitted by the job periodically) and a ``running`` status
+in the database. They can occur when a worker node can't reach the database,
+when Airflow processes are killed externally, or when a node gets rebooted
+for instance. Zombie killing is performed periodically by the scheduler's
+process.
+
+Undead processes are characterized by the existence of a process and a matching
+heartbeat, but Airflow isn't aware of this task as ``running`` in the database.
+This mismatch typically occurs as the state of the database is altered,
+most likely by deleting rows in the "Task Instances" view in the UI.
+Tasks are instructed to verify their state as part of the heartbeat routine,
+and terminate themselves upon figuring out that they are in this "undead"
+state.

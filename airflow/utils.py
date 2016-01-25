@@ -40,7 +40,6 @@ from croniter import croniter
 
 from airflow import settings
 from airflow import configuration
-from airflow.settings import LOGGING_LEVEL
 
 
 class AirflowException(Exception):
@@ -58,6 +57,16 @@ class TriggerRule(object):
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
+
+    @classmethod
+    def is_valid(cls, trigger_rule):
+        return trigger_rule in cls.all_triggers()
+
+    @classmethod
+    def all_triggers(cls):
+        return [getattr(cls, attr)
+                for attr in dir(cls)
+                if not attr.startswith("__") and not callable(getattr(cls, attr))]
 
 
 class State(object):
@@ -104,7 +113,7 @@ class State(object):
     def runnable(cls):
         return [
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
-            cls.SKIPPED]
+            cls.SKIPPED, cls.QUEUED]
 
 
 cron_presets = {
@@ -177,6 +186,9 @@ def initdb():
             conn_id='beeline_default', conn_type='beeline',
             host='localhost',
             schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='bigquery_default', conn_type='bigquery'))
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -380,9 +392,8 @@ def json_ser(obj):
     json serializer that deals with dates
     usage: json.dumps(object, default=utils.json_ser)
     """
-    if isinstance(obj, datetime):
-        obj = obj.isoformat()
-    return obj
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
 
 
 def alchemy_to_dict(obj):

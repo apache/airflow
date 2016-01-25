@@ -251,7 +251,7 @@ class CoreTest(unittest.TestCase):
                 return obj
         t = operators.TriggerDagRunOperator(
             task_id='test_trigger_dagrun',
-            dag_id='example_bash_operator',
+            trigger_dag_id='example_bash_operator',
             python_callable=trigga,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
@@ -463,6 +463,12 @@ class CoreTest(unittest.TestCase):
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_this_last.set_downstream(self.runme_0)
 
+    def test_bad_trigger_rule(self):
+        with self.assertRaises(AirflowException):
+            operators.DummyOperator(
+            task_id='test_bad_trigger',
+            trigger_rule="non_existant",
+            dag=self.dag)
 
 class CliTests(unittest.TestCase):
 

@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 from builtins import str
 from past.builtins import basestring
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from itertools import product
 import getpass
 import logging
@@ -263,8 +263,8 @@ class SchedulerJob(BaseJob):
             dttm = ti.execution_date
             if task.sla:
                 dttm = dag.following_schedule(dttm)
-                following_schedule = dag.following_schedule(dttm)
                 while dttm < datetime.now():
+                    following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < datetime.now():
                         session.merge(models.SlaMiss(
                             task_id=ti.task_id,
@@ -566,8 +566,7 @@ class SchedulerJob(BaseJob):
                     overloaded_dags.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
-                    executor.queue_task_instance(
-                        ti, force=True, pickle_id=pickle_id)
+                    executor.queue_task_instance(ti, pickle_id=pickle_id)
                     open_slots -= 1
                 else:
                     session.delete(ti)
@@ -651,6 +650,8 @@ class SchedulerJob(BaseJob):
                     self.logger.error("Tachycardia!")
             except Exception as deep_e:
                 self.logger.exception(deep_e)
+            finally:
+                settings.Session.remove()
         executor.end()
 
     def heartbeat_callback(self):
@@ -856,3 +857,22 @@ class LocalTaskJob(BaseJob):
 
     def on_kill(self):
         self.process.terminate()
+
+    def heartbeat_callback(self):
+        if datetime.now() - self.start_date < timedelta(seconds=300):
+            return
+        # Suicide pill
+        TI = models.TaskInstance
+        ti = self.task_instance
+        session = settings.Session()
+        state = session.query(TI.state).filter(
+            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
+            TI.execution_date==ti.execution_date).scalar()
+        session.commit()
+        session.close()
+        if state != State.RUNNING:
+            logging.warning(
+                "State of this instance has been externally set to "
+                "{self.task_instance.state}. "
+                "Taking the poison pill. So long.".format(**locals()))
+            self.process.terminate()

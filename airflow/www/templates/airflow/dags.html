@@ -83,7 +83,7 @@
       <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}" title="Code View">
         <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
       </a>
-      <a href="/admin/log/?sort=1&desc=1&flt1_dag_id_equals={{ dag.dag_id }}">
+      <a href="/admin/log/?sort=1&desc=1&flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
          <i class="icon-list"></i>
          <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
       </a>
@@ -104,7 +104,6 @@
   {{ super() }}
   <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
   <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
       all_dags = $("[id^=toggle]");
