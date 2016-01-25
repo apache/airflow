@@ -15,8 +15,8 @@ class HiveOperator(BaseOperator):
     :param hive_cli_conn_id: reference to the Hive database
     :type hive_cli_conn_id: string
     :param hiveconf_jinja_translate: when True, hiveconf-type templating
-        ${var} gets translated into jina-type templating {{ var }}. Note that
-        you may want to use along this along with the
+        ${var} gets translated into jinja-type templating {{ var }}. Note that
+        you may want to use this along with the
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
     :type hiveconf_jinja_translate: boolean
@@ -36,6 +36,7 @@ class HiveOperator(BaseOperator):
             schema='default',
             hiveconf_jinja_translate=False,
             script_begin_tag=None,
+            run_as_owner=False,
             *args, **kwargs):
 
         super(HiveOperator, self).__init__(*args, **kwargs)
@@ -44,9 +45,12 @@ class HiveOperator(BaseOperator):
         self.schema = schema
         self.hive_cli_conn_id = hive_cli_conn_id
         self.script_begin_tag = script_begin_tag
+        self.run_as = None
+        if run_as_owner:
+            self.run_as = self.dag.owner
 
     def get_hook(self):
-        return HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
+        return HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, run_as=self.run_as)
 
     def prepare_template(self):
         if self.hiveconf_jinja_translate:
@@ -59,6 +63,10 @@ class HiveOperator(BaseOperator):
         logging.info('Executing: ' + self.hql)
         self.hook = self.get_hook()
         self.hook.run_cli(hql=self.hql, schema=self.schema)
+
+    def dry_run(self):
+        self.hook = self.get_hook()
+        self.hook.test_hql(hql=self.hql)
 
     def on_kill(self):
         self.hook.kill()

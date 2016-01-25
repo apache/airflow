@@ -3,12 +3,12 @@ from builtins import zip
 from past.builtins import basestring
 import csv
 import logging
+import re
 import subprocess
 from tempfile import NamedTemporaryFile
 
 
-from thrift.transport import TSocket
-from thrift.transport import TTransport
+from thrift.transport import TSocket, TTransport
 from thrift.protocol import TBinaryProtocol
 from hive_service import ThriftHive
 import pyhs2
@@ -16,7 +16,8 @@ import pyhs2
 from airflow.utils import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils import TemporaryDirectory
-
+from airflow import configuration
+import airflow.security.utils as utils
 
 class HiveCliHook(BaseHook):
     """
@@ -30,17 +31,24 @@ class HiveCliHook(BaseHook):
     Note that you can also set default hive CLI parameters using the
     ``hive_cli_params`` to be used in your connection as in
     ``{"hive_cli_params": "-hiveconf mapred.job.tracker=some.jobtracker:444"}``
+
+    The extra connection parameter ``auth`` gets passed as in the ``jdbc``
+    connection string as is.
+
     """
 
     def __init__(
             self,
-            hive_cli_conn_id="hive_cli_default"):
+            hive_cli_conn_id="hive_cli_default",
+            run_as=None):
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params = conn.extra_dejson.get('hive_cli_params', '')
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
+        self.auth = conn.extra_dejson.get('auth', 'noSasl')
         self.conn = conn
+        self.run_as = run_as
 
-    def run_cli(self, hql, schema=None):
+    def run_cli(self, hql, schema=None, verbose=True):
         """
         Run an hql statement using the hive cli
 
@@ -61,41 +69,100 @@ class HiveCliHook(BaseHook):
                 fname = f.name
                 hive_bin = 'hive'
                 cmd_extra = []
+
                 if self.use_beeline:
                     hive_bin = 'beeline'
-                    jdbc_url = (
-                        "jdbc:hive2://"
-                        "{0}:{1}/{2}"
-                        ";auth=noSasl"
-                    ).format(conn.host, conn.port, conn.schema)
+                    jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+                    if configuration.get('core', 'security') == 'kerberos':
+                        template = conn.extra_dejson.get('principal', "hive/_HOST@EXAMPLE.COM")
+                        if "_HOST" in template:
+                            template = utils.replace_hostname_pattern(utils.get_components(template))
+
+                        proxy_user = ""
+                        if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
+                            proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
+                        elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
+                            proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
+
+                        jdbc_url += ";principal={template};{proxy_user}"
+                    elif self.auth:
+                        jdbc_url += ";auth=" + self.auth
+
+                    jdbc_url = jdbc_url.format(**locals())
+
                     cmd_extra += ['-u', jdbc_url]
                     if conn.login:
                         cmd_extra += ['-n', conn.login]
                     if conn.password:
                         cmd_extra += ['-p', conn.password]
-                    cmd_extra += ['-p', conn.login]
+
                 hive_cmd = [hive_bin, '-f', fname] + cmd_extra
+
                 if self.hive_cli_params:
                     hive_params_list = self.hive_cli_params.split()
                     hive_cmd.extend(hive_params_list)
-                logging.info(" ".join(hive_cmd))
+                if verbose:
+                    logging.info(" ".join(hive_cmd))
                 sp = subprocess.Popen(
                     hive_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
                     cwd=tmp_dir)
-                all_err = ''
                 self.sp = sp
                 stdout = ''
                 for line in iter(sp.stdout.readline, ''):
                     stdout += line
-                    logging.info(line.strip())
+                    if verbose:
+                        logging.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:
-                    raise AirflowException(all_err)
+                    raise AirflowException(stdout)
 
                 return stdout
+
+    def test_hql(self, hql):
+        """
+        Test an hql statement using the hive cli and EXPLAIN
+
+        """
+        create, insert, other = [], [], []
+        for query in hql.split(';'):  # naive
+            query_original = query
+            query = query.lower().strip()
+
+            if query.startswith('create table'):
+                create.append(query_original)
+            elif query.startswith(('set ',
+                                   'add jar ',
+                                   'create temporary function')):
+                other.append(query_original)
+            elif query.startswith('insert'):
+                insert.append(query_original)
+        other = ';'.join(other)
+        for query_set in [create, insert]:
+            for query in query_set:
+
+                query_preview = ' '.join(query.split())[:50]
+                logging.info("Testing HQL [{0} (...)]".format(query_preview))
+                if query_set == insert:
+                    query = other + '; explain ' + query
+                else:
+                    query = 'explain ' + query
+                try:
+                    self.run_cli(query, verbose=False)
+                except AirflowException as e:
+                    message = e.args[0].split('\n')[-2]
+                    logging.info(message)
+                    error_loc = re.search('(\d+):(\d+)', message)
+                    if error_loc and error_loc.group(1).isdigit():
+                        l = int(error_loc.group(1))
+                        begin = max(l-2, 0)
+                        end = min(l+3, len(query.split('\n')))
+                        context = '\n'.join(query.split('\n')[begin:end])
+                        logging.info("Context :\n {0}".format(context))
+                else:
+                    logging.info("SUCCESS")
 
     def load_file(
             self,
@@ -310,6 +377,23 @@ class HiveMetastoreHook(BaseHook):
         return max([p[field] for p in parts])
 
 
+    def table_exists(self, table_name, db='default'):
+        '''
+        Check if table exists
+
+        >>> hh = HiveMetastoreHook()
+        >>> hh.table_exists(db='airflow', table_name='static_babynames')
+        True
+        >>> hh.table_exists(db='airflow', table_name='does_not_exist')
+        False
+        '''
+        try:
+            t = self.get_table(table_name, db)
+            return True
+        except Exception as e:
+            return False
+
+
 class HiveServer2Hook(BaseHook):
     '''
     Wrapper around the pyhs2 library
@@ -323,10 +407,14 @@ class HiveServer2Hook(BaseHook):
 
     def get_conn(self):
         db = self.get_connection(self.hiveserver2_conn_id)
+        auth_mechanism = db.extra_dejson.get('authMechanism', 'NOSASL')
+        if configuration.get('core', 'security') == 'kerberos':
+            auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
+
         return pyhs2.connect(
             host=db.host,
             port=db.port,
-            authMechanism=db.extra_dejson.get('authMechanism', 'NOSASL'),
+            authMechanism=auth_mechanism,
             user=db.login,
             database=db.schema or 'default')
 
@@ -349,7 +437,14 @@ class HiveServer2Hook(BaseHook):
                         }
             return results
 
-    def to_csv(self, hql, csv_filepath, schema='default'):
+    def to_csv(
+            self,
+            hql,
+            csv_filepath,
+            schema='default',
+            delimiter=',',
+            lineterminator='\r\n',
+            output_header=True):
         schema = schema or 'default'
         with self.get_conn() as conn:
             with conn.cursor() as cur:
@@ -357,8 +452,11 @@ class HiveServer2Hook(BaseHook):
                 cur.execute(hql)
                 schema = cur.getSchema()
                 with open(csv_filepath, 'w') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([c['columnName'] for c in cur.getSchema()])
+                    writer = csv.writer(f, delimiter=delimiter,
+                        lineterminator=lineterminator)
+                    if output_header:
+                        writer.writerow([c['columnName']
+                            for c in cur.getSchema()])
                     i = 0
                     while cur.hasMoreRows:
                         rows = [row for row in cur.fetchmany() if row]

@@ -9,6 +9,7 @@
   {{ super() }}
   <h4>
 <form method="get" id="daform">
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     <div class="form-inline">
             <span style='color:#AAA;'>Task Instance: </span>
             <span>

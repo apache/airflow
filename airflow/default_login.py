@@ -20,7 +20,9 @@ login_manager.login_view = 'airflow.login'  # Calls login() bellow
 login_manager.login_message = None
 
 
-class User(models.BaseUser):
+class DefaultUser(object):
+    def __init__(self, user):
+        self.user = user
 
     def is_active(self):
         '''Required by flask_login'''
@@ -42,8 +44,8 @@ class User(models.BaseUser):
         '''Access all the things'''
         return True
 
-models.User = User  # hack!
-del User
+#models.User = User  # hack!
+#del User
 
 
 @login_manager.user_loader
@@ -53,7 +55,7 @@ def load_user(userid):
     session.expunge_all()
     session.commit()
     session.close()
-    return user
+    return DefaultUser(user)
 
 
 def login(self, request):
@@ -66,7 +68,7 @@ def login(self, request):
             is_superuser=True)
     session.merge(user)
     session.commit()
-    flask_login.login_user(user)
+    flask_login.login_user(DefaultUser(user))
     session.commit()
     session.close()
     return redirect(request.args.get("next") or url_for("index"))

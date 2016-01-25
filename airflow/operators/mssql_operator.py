@@ -20,12 +20,15 @@ class MsSqlOperator(BaseOperator):
     ui_color = '#ededed'
 
     @apply_defaults
-    def __init__(self, sql, mssql_conn_id='mssql_default', *args, **kwargs):
+    def __init__(
+            self, sql, mssql_conn_id='mssql_default', parameters=None,
+            *args, **kwargs):
         super(MsSqlOperator, self).__init__(*args, **kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
+        self.parameters = parameters
 
     def execute(self, context):
         logging.info('Executing: ' + str(self.sql))
         hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
-        hook.run(self.sql)
+        hook.run(self.sql, parameters=self.parameters)

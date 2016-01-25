@@ -14,6 +14,7 @@ depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
 from airflow import settings
@@ -232,7 +233,7 @@ def upgrade():
             sa.Column(
                 'timestamp',
                 sa.DateTime(),
-                server_default=sa.text(u'CURRENT_TIMESTAMP'),
+                default=func.now(),
                 nullable=False),
             sa.Column('execution_date', sa.DateTime(), nullable=False),
             sa.Column('task_id', sa.String(length=250), nullable=False),

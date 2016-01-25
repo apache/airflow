@@ -82,7 +82,7 @@ Connections
 '''''''''''
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``).
+metadata database and managed in the UI (``Menu -> Admin -> Connections``)
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
@@ -93,6 +93,16 @@ is the case, and when the **hooks** uses the ``get_connection`` method
 from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
+
+Airflow also has the ability to reference connections via environment
+variables from the operating system. The environment variable needs to be
+prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
+referencing the connection in the Airflow pipeline, the ``conn_id`` should
+be the name of the variable without the prefix. For example, if the ``conn_id``
+is named ``POSTGRES_MASTER`` the environment variable should be named
+``AIRFLOW_CONN_POSTGRES_MASTER``. Airflow assumes the value returned
+from the environment variable to be in a URI format
+(e.g. ``postgres://user:password@localhost:5432/master``).
 
 Queues
 ''''''
@@ -149,13 +159,19 @@ passed, then a correpsonding list of XCom values is returned.
     def push_function():
         return value
 
-    # inside another PythonOperator
+    # inside another PythonOperator where provide_context=True
     def pull_function(**context):
-        value = context['ti'].xcom_pull(task_ids='pushing_task')
+        value = context['task_instance'].xcom_pull(task_ids='pushing_task')
 
+It is also possible to pull XCom directly in a template, here's an example
+of what this may look like:
 
-XComs are similar to Variables, but are specifically designed for inter-task
-communication rather than global settings.
+.. code:: sql
+    
+    SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
+
+Note that XComs are similar to `Variables`_, but are specifically designed 
+for inter-task communication rather than global settings.
 
 
 Variables
@@ -195,14 +211,45 @@ is followed, and all of the other paths are skipped.
 The task_id returned by the Python function has to be referencing a task
 directly downstream from the BranchPythonOperator task.
 
+Note that using tasks with ``depends_on_past=True`` downstream from
+``BranchPythonOperator`` is logically unsound as ``skipped`` status
+will invariably lead to block tasks that depend on their past successes.
+``skipped`` states propagates where all directly upstream tasks are
+``skipped``.
+
 
 SLAs
 ''''
 
-Service License Agreements, or time by which a task or DAG should have
+Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
 in the database and made available in the web UI under ``Browse->Missed SLAs``
 where events can be analyzed and documented.
 
+
+Trigger Rules
+'''''''''''''
+
+Though the normal workflow behavior is to trigger tasks when all their
+directly upstream tasks have succeeded, Airflow allows for more complex
+dependency settings.
+
+All operators have a ``trigger_rule`` argument which defines the rule by which 
+the generated task get triggered. The default value for ``trigger_rule`` is
+``all_success`` and can be defined as "trigger this task when all directly
+upstream tasks have succeeded". All other rules described here are based
+on direct parent tasks and are values that can be passed to any operator
+while creating tasks:
+
+* ``all_success``: (default) all parents have succeeded
+* ``all_failed``: all parents are in a ``failed`` or ``upstream_failed`` state
+* ``all_done``: all parents are done with their execution
+* ``one_failed``: fires as soon as at least one parent has failed, it does not wait for all parents to be done
+* ``one_success``: fires as soon as at least one parent succeeds, it does not wait for all parents to be done
+* ``dummy``: dependencies are just for show, trigger at will
+
+Note that these can be used in conjunction with ``depends_on_past`` (boolean)
+that, when set to ``True``, keeps a task from getting triggered if the 
+previous schedule for the task hasn't succeeded.

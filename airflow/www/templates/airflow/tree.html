@@ -14,10 +14,11 @@
     <form method="get" style="float:left;">
         Base date: {{ form.base_date(class_="form-control") }}
         Number of runs: {{ form.num_runs(class_="form-control") }}
-        <input type="hidden" name="root" value="{{ root }}">
+        <input type="hidden" name="root" value="{{ root if root else '' }}">
         <input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
         <input type="submit" value="Go" class="btn btn-default"
         action="" method="get">
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     </form>
 </div>
 <div style="clear: both;"></div>
@@ -61,7 +62,7 @@ $('span.status_square').tooltip({html: true});
 
 var data = {{ data|safe }};
 var barHeight = 20;
-var axisHeight = 20;
+var axisHeight = 40;
 var square_x = 500;
 var square_size = 10;
 var square_spacing = 2;
@@ -119,8 +120,11 @@ var svg = d3.select("svg")
     d3.svg.axis()
     .scale(xScale)
     .orient("top")
-    .ticks(num_square/5)
-  );
+    .ticks(2)
+  )
+  .selectAll("text")
+  .attr("transform", "rotate(-30)")
+  .style("text-anchor", "start");
 
   function node_class(d) {
         var sclass = "node";
@@ -174,13 +178,16 @@ function update(source) {
       .attr("class", "task")
       .attr("data-toggle", "tooltip")
       .attr("title", function(d){
-        tt = "operator: " + d.operator + "<br/>";
-        tt += "depends_on_past: " + d.depends_on_past + "<br/>";
-        tt += "upstream: " + d.num_dep + "<br/>";
-        tt += "retries: " + d.retries + "<br/>";
-        tt += "owner: " + d.owner + "<br/>";
-        tt += "start_date: " + d.start_date + "<br/>";
-        tt += "end_date: " + d.end_date + "<br/>";
+        var tt = "";
+        if (d.operator != undefined) {
+          tt += "operator: " + d.operator + "<br/>";
+          tt += "depends_on_past: " + d.depends_on_past + "<br/>";
+          tt += "upstream: " + d.num_dep + "<br/>";
+          tt += "retries: " + d.retries + "<br/>";
+          tt += "owner: " + d.owner + "<br/>";
+          tt += "start_date: " + d.start_date + "<br/>";
+          tt += "end_date: " + d.end_date + "<br/>";
+        }
         return tt;
       })
       .attr("height", barHeight)
@@ -205,15 +212,26 @@ function update(source) {
       .enter()
       .append('rect')
       .on("click", function(d){
-        if(nodeobj[d.task_id].operator=='SubDagOperator')
+        if(d.task_id === undefined){
+          window.location = '/admin/dagrun/edit/?id=' + d.id;
+        }
+        else if(nodeobj[d.task_id].operator=='SubDagOperator')
             call_modal(d.task_id, d.execution_date, true);
         else
             call_modal(d.task_id, d.execution_date);
       })
       .attr("class", function(d) {return "state " + d.state})
       .attr("data-toggle", "tooltip")
+      .attr("rx", function(d) {return (d.run_id != undefined)? "5": "0"})
+      .attr("ry", function(d) {return (d.run_id != undefined)? "5": "0"})
+      .style("shape-rendering", function(d) {return (d.run_id != undefined)? "auto": "crispEdges"})
+      .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
+      .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .attr("title", function(d){
         s =  "Run: " + d.execution_date + "<br>";
+        if(d.run_id != undefined){
+          s += "run_id: <nobr>" + d.run_id + "</nobr><br>";
+        }
         if(d.start_date != undefined){
           s += "Started: " + d.start_date + "<br>";
           s += "Ended: " + d.end_date + "<br>";
@@ -232,8 +250,7 @@ function update(source) {
        })
       .on('mouseout', function(d,i) {
         d3.select(this).transition()
-          .style('stroke', "black")
-          .style('stroke-width', 1)
+          .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
        }) ;
 
 

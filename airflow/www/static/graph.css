@@ -1,6 +1,6 @@
 g.node rect {
     stroke-width: 2;
-    stroke: #CCC;
+    stroke: white;
     cursor: pointer;
 }
 g.node text {
@@ -12,6 +12,11 @@ g.node.success rect {
 g.node.up_for_retry rect {
     stroke: gold;
 }
+
+g.node.queued rect {
+    stroke: grey;
+}
+
 g.node.running rect{
     stroke: lime;
 }

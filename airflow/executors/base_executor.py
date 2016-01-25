@@ -1,14 +1,12 @@
 from builtins import range
-from builtins import object
-import logging
 
-from airflow.utils import State
-from airflow.configuration import conf
+from airflow import configuration
+from airflow.utils import State, LoggingMixin
 
-PARALLELISM = conf.getint('core', 'PARALLELISM')
+PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
 
-class BaseExecutor(object):
+class BaseExecutor(LoggingMixin):
 
     def __init__(self, parallelism=PARALLELISM):
         """
@@ -33,18 +31,21 @@ class BaseExecutor(object):
 
     def queue_command(self, key, command, priority=1, queue=None):
         if key not in self.queued_tasks and key not in self.running:
-            logging.info("Adding to queue: " + command)
+            self.logger.info("Adding to queue: {}".format(command))
             self.queued_tasks[key] = (command, priority, queue)
 
     def queue_task_instance(
             self, task_instance, mark_success=False, pickle_id=None,
-            force=False, ignore_dependencies=False, task_start_date=None):
+            force=False, ignore_dependencies=False, task_start_date=None,
+            pool=None):
+        pool = pool or task_instance.pool
         command = task_instance.command(
             local=True,
             mark_success=mark_success,
             force=force,
             ignore_dependencies=ignore_dependencies,
             task_start_date=task_start_date,
+            pool=pool,
             pickle_id=pickle_id)
         self.queue_command(
             task_instance.key,
@@ -61,7 +62,7 @@ class BaseExecutor(object):
 
     def heartbeat(self):
         # Calling child class sync method
-        logging.debug("Calling the {} sync method".format(self.__class__))
+        self.logger.debug("Calling the {} sync method".format(self.__class__))
         self.sync()
 
         # Triggering new jobs
@@ -70,9 +71,9 @@ class BaseExecutor(object):
         else:
             open_slots = self.parallelism - len(self.running)
 
-        logging.debug("{} running task instances".format(len(self.running)))
-        logging.debug("{} in queue".format(len(self.queued_tasks)))
-        logging.debug("{} open slots".format(open_slots))
+        self.logger.debug("{} running task instances".format(len(self.running)))
+        self.logger.debug("{} in queue".format(len(self.queued_tasks)))
+        self.logger.debug("{} open slots".format(open_slots))
 
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
@@ -81,11 +82,11 @@ class BaseExecutor(object):
         for i in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, priority, queue) = sorted_queue.pop(0)
             self.running[key] = command
-            del self.queued_tasks[key]
+            self.queued_tasks.pop(key)
             self.execute_async(key, command=command, queue=queue)
 
     def change_state(self, key, state):
-        del self.running[key]
+        self.running.pop(key)
         self.event_buffer[key] = state
 
     def fail(self, key):

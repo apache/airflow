@@ -48,6 +48,7 @@ complicated, a line by line explanation follows below.
     t2 = BashOperator(
         task_id='sleep',
         bash_command='sleep 5',
+        retries=3,
         dag=dag)
 
     templated_command = """
@@ -66,6 +67,25 @@ complicated, a line by line explanation follows below.
 
     t2.set_upstream(t1)
     t3.set_upstream(t1)
+
+
+It's a DAG definition file
+--------------------------
+
+One thing to wrap your head around (it may not be very intuitive for everyone
+at first) is that this Airflow Python script is really
+just a configuration file specifying the DAG's structure as code.
+The actual tasks defined here will run in a different context from
+the context of this script. Different tasks run on different workers
+at different point it time, which means this script cannot be directly
+to cross communicate between tasks for instance. Note that for this
+purpose we have a more advanced feature called ``XCom``.
+
+People sometimes think of the DAG definition file as a place where they
+can do some actual data processing, that is not the case at all!
+The script's purpose is to define a DAG object. It needs to evaluate
+quickly (seconds, not minutes) since the scheduler will execute it
+periodically to reflect the changes if any.
 
 
 Importing Modules
@@ -145,13 +165,14 @@ instantiated from an operator is called a constructor. The first argument
     t2 = BashOperator(
         task_id='sleep',
         bash_command='sleep 5',
+        retries=3,
         dag=dag)
 
 Notice how we pass a mix of operator specific arguments (``bash_command``) and
-an argument common to all operators (``email_on_failure``) inherited
+an argument common to all operators (``retries``) inherited
 from BaseOperator to the operator's constructor. This is simpler than
 passing every argument for every constructor call. Also, notice that in
-the second task we override the ``email_on_failure`` parameter with ``False``.
+the second task we override the ``retries`` parameter with ``3``.
 
 The precedence rules for a task are as follows:
 
@@ -209,6 +230,9 @@ pipeline code, allowing for proper code highlighting in files composed in
 different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
+
+For more information on the variables and macros that can be referenced
+in templates, make sure to read through the :ref:`macros` section
 
 Setting up Dependencies
 -----------------------
@@ -277,6 +301,7 @@ something like this:
     t2 = BashOperator(
         task_id='sleep',
         bash_command='sleep 5',
+        retries=3,
         dag=dag)
 
     templated_command = """
@@ -402,4 +427,4 @@ Here's a few things you might want to do next:
     * Operators
     * Macros
 
-* Write you first pipeline!
+* Write your first pipeline!

@@ -14,13 +14,15 @@
   <h2>Ad Hoc Query</h2>
   <form method="get" id="query_form">
     <div class="form-inline">
-      {{ form.conn_id }}
-      <input type="submit" class="btn btn-default" value="Run!">
-      <input type="button" class="btn btn-default" value=".csv" id="csv">
-      <span id="results"></span><br>
-  <div id='ace_container'>
-  {{ form.sql(rows=10) }}
-  </div>
+        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+        {{ form.conn_id }}
+        <input type="submit" class="btn btn-default" value="Run!">
+        <input type="button" class="btn btn-default" value=".csv" id="csv">
+        <span id="results"></span><br>
+        <div id='ace_container'>
+            {{ form.sql(rows=10) }}
+        </div>
+    </div>
   </form>
   {{ results|safe }}
 {% endblock %}
@@ -49,6 +51,7 @@
         $('table.dataframe').dataTable({
             "scrollX": true,
             "iDisplayLength": 100,
+            "aaSorting": [],
         });
         $('select').addClass("form-control");
         sync();

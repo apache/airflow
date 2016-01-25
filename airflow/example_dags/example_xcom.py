@@ -1,11 +1,21 @@
 from __future__ import print_function
 import airflow
-import datetime
+from datetime import datetime, timedelta
+
+seven_days_ago = datetime.combine(
+    datetime.today() - timedelta(7),
+    datetime.min.time())
+args = {
+    'owner': 'airflow',
+    'start_date': seven_days_ago,
+    'provide_context': True
+}
 
 dag = airflow.DAG(
     'example_xcom',
-    start_date=datetime.datetime(2015, 1, 1),
-    default_args={'owner': 'airflow', 'provide_context': True})
+    start_date=datetime(2015, 1, 1),
+    schedule_interval="@once",
+    default_args=args)
 
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}

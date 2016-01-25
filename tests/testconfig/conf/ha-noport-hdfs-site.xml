@@ -1,0 +1,35 @@
+<?xml version="1.0"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+
+<configuration>
+    <property>
+        <name>dfs.nameservices</name>
+        <value>testha</value>
+    </property>
+
+    <property>
+        <name>dfs.ha.namenodes.testha</name>
+        <value>namenode1-mydomain,namenode2-mydomain</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.rpc-address.testha.namenode1-mydomain</name>
+        <value>namenode1.mydomain</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.rpc-address.testha.namenode2-mydomain</name>
+        <value>namenode2.mydomain</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.http-address.testha.namenode1-mydomain</name>
+        <value>namenode1.mydomain:50070</value>
+    </property>
+
+    <property>
+        <name>dfs.namenode.http-address.testha.namenode2-mydomain</name>
+        <value>namenode2.mydomain:50070</value>
+    </property>
+
+</configuration>

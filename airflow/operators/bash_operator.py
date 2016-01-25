@@ -1,6 +1,7 @@
 
 from builtins import bytes
 import logging
+import sys
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 
@@ -22,15 +23,25 @@ class BashOperator(BaseOperator):
         behavior.
     :type env: dict
     """
-    template_fields = ('bash_command',)
+    template_fields = ('bash_command', 'env')
     template_ext = ('.sh', '.bash',)
     ui_color = '#f0ede4'
 
     @apply_defaults
-    def __init__(self, bash_command, env=None, *args, **kwargs):
+    def __init__(
+            self,
+            bash_command,
+            xcom_push=False,
+            env=None,
+            *args, **kwargs):
+        """
+        If xcom_push is True, the last line written to stdout will also
+        be pushed to an XCom when the bash command completes.
+        """
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
+        self.xcom_push = xcom_push
 
     def execute(self, context):
         """
@@ -57,14 +68,19 @@ class BashOperator(BaseOperator):
                 self.sp = sp
 
                 logging.info("Output:")
-                for line in iter(sp.stdout.readline, ''):
-                    logging.info(line.strip())
+                line = ''
+                for line in iter(sp.stdout.readline, b''):
+                    line = line.decode().strip()
+                    logging.info(line)
                 sp.wait()
                 logging.info("Command exited with "
                              "return code {0}".format(sp.returncode))
 
                 if sp.returncode:
                     raise AirflowException("Bash command failed")
+
+        if self.xcom_push:
+            return line
 
     def on_kill(self):
         logging.info('Sending SIGTERM signal to bash subprocess')

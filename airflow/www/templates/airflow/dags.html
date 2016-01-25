@@ -18,6 +18,7 @@
                 <th></th>
                 <th width="12"><span id="pause_header"class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
+                <th>Schedule</th>
                 <th>Owner</th>
                 <th style="padding-left: 5px;">Statuses
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
@@ -54,11 +55,14 @@
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
                     {% endif %}
                 </td>
-                    <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
-                <td style="padding:0px; width:180px; height:10px;">
-                    <svg height="10" width="10" id='{{ dag.dag_id }}' style="display: block;"></svg>
+                <td>
+                  <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                      {{ dag.schedule_interval }}</a></td>
+                <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
+                <td style="padding:0px; width:200px; height:10px;">
+                    <svg height="10" width="10" id='{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
-                <td class="text-center" style="width:160px;">
+                <td class="text-center" style="width:160px;"><nobr>
                 {% if dag %}
     <a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
         <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
@@ -87,6 +91,7 @@
                     <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
                       <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
                     </a>
+                    </nobr>
                 </td>
             </tr>
         {% endfor %}
@@ -116,7 +121,7 @@
         });
       });
       $('#dags').dataTable({
-        "iDisplayLength": 100,
+        "iDisplayLength": 500,
         "bSort": false,
       });
       $("#main_content").show(250);
@@ -124,6 +129,16 @@
       circle_margin = 4;
       stroke_width = 2;
       stroke_width_hover = 6;
+      d3.json("{{ url_for('airflow.blocked') }}", function(error, json) {
+        $.each(json, function() {
+          if(this.active_dag_run >= this.max_active_runs) {
+            $('.label.schedule.' + this.dag_id)
+            .css('background-color', 'red')
+            .attr("title", "Number of active DAG runs (" + this.active_dag_run + ") has been reached")
+            .tooltip();
+          }
+        });
+      });
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];

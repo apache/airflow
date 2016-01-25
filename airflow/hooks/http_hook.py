@@ -24,6 +24,8 @@ class HttpHook(BaseHook):
         conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
         self.base_url = conn.host
+        if not self.base_url.startswith('http'):
+            self.base_url = 'http://' + self.base_url
 
         if conn.port:
             self.base_url = self.base_url + ":" + str(conn.port) + "/"

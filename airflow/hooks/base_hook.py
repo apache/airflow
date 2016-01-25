@@ -1,10 +1,18 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from builtins import object
 import logging
+import os
 import random
 
 from airflow import settings
 from airflow.models import Connection
 from airflow.utils import AirflowException
+
+CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
 class BaseHook(object):
@@ -35,7 +43,12 @@ class BaseHook(object):
 
     @classmethod
     def get_connection(cls, conn_id):
-        conn = random.choice(cls.get_connections(conn_id))
+        environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
+        conn = None
+        if environment_uri:
+            conn = Connection(conn_id=conn_id, uri=environment_uri)
+        else:
+            conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
             logging.info("Using connection to: " + conn.host)
         return conn
@@ -46,13 +59,13 @@ class BaseHook(object):
         return connection.get_hook()
 
     def get_conn(self):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_records(self, sql):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def get_pandas_df(self, sql):
-        raise NotImplemented()
+        raise NotImplementedError()
 
     def run(self, sql):
-        raise NotImplemented()
+        raise NotImplementedError()
