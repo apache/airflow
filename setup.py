@@ -51,6 +51,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
+docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
 hdfs = ['snakebite>=2.4.13']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -84,7 +85,7 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle
+devel = all_dbs + doc + samba + s3 + ['nose'] + slack + crypto + oracle + docker
 
 setup(
     name='airflow',
@@ -126,6 +127,7 @@ setup(
         'crypto': crypto,
         'devel': devel,
         'doc': doc,
+        'docker': docker,
         'druid': druid,
         'hdfs': hdfs,
         'hive': hive,
