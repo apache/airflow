@@ -695,17 +695,23 @@ class TaskInstance(Base):
         session.commit()
         session.close()
 
-    def refresh_from_db(self, main_session=None):
-        """
-        Refreshes the task instance from the database based on the primary key
-        """
-        session = main_session or settings.Session()
+    @provide_session
+    def get_orm(self, match_jobid=False, session=None):
         TI = TaskInstance
-        ti = session.query(TI).filter(
+        qry = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
             TI.execution_date == self.execution_date,
-        ).first()
+        )
+        if match_jobid:
+            qry = qry.filter(TI.job_id == self.job_id)
+        return qry.first()
+
+    def refresh_from_db(self, session=None):
+        """
+        Refreshes the task instance from the database based on the primary key
+        """
+        ti = self.get_orm(session=session)
         if ti:
             self.state = ti.state
             self.start_date = ti.start_date
@@ -713,10 +719,6 @@ class TaskInstance(Base):
             self.try_number = ti.try_number
         else:
             self.state = None
-
-        if not main_session:
-            session.commit()
-            session.close()
 
     @property
     def key(self):
@@ -1054,7 +1056,7 @@ class TaskInstance(Base):
                     task_copy.post_execute(context=context)
             except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
-                raise
+                raise AirflowException("Task {} failed".format(self))
 
             # Recording SUCCESS
             session = settings.Session()
@@ -1063,7 +1065,9 @@ class TaskInstance(Base):
             self.state = State.SUCCESS
             if not test_mode:
                 session.add(Log(State.SUCCESS, self))
-                session.merge(self)
+                if self.get_orm(match_jobid=True):
+                    # Making sure that the job_id are matching
+                    session.merge(self)
             session.commit()
 
             # Success callback
@@ -1119,7 +1123,7 @@ class TaskInstance(Base):
             logging.error("Failed at executing callback")
             logging.exception(e3)
 
-        if not test_mode:
+        if not test_mode and self.get_orm(match_jobid=True):
             session.merge(self)
         session.commit()
         logging.error(str(error))

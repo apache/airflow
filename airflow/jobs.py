@@ -886,7 +886,8 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
         session = settings.Session()
         state = session.query(TI.state).filter(
-            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
+            TI.dag_id==ti.dag_id,
+            TI.task_id==ti.task_id,
             TI.job_id==self.id,
             TI.execution_date==ti.execution_date).scalar()
         session.commit()
@@ -897,5 +898,3 @@ class LocalTaskJob(BaseJob):
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))
             self.process.terminate()
-            # Raising here keeps from recording a failure
-            raise AirflowException("Goodbye cruel world")
