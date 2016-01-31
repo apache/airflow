@@ -711,7 +711,7 @@ class TaskInstance(Base):
         """
         Refreshes the task instance from the database based on the primary key
         """
-        ti = self.get_orm(session=session)
+        ti = self.get_orm(session=session) if session else self.get_orm()
         if ti:
             self.state = ti.state
             self.start_date = ti.start_date
