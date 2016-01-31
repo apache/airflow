@@ -696,7 +696,7 @@ class TaskInstance(Base):
         session.close()
 
     @provide_session
-    def get_orm(self, match_jobid=False, session=None):
+    def get_orm(self, session, match_jobid=False):
         TI = TaskInstance
         qry = session.query(TI).filter(
             TI.dag_id == self.dag_id,
