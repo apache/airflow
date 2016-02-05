@@ -193,7 +193,7 @@ class DagBag(LoggingMixin):
         if safe_mode and os.path.isfile(filepath):
             # Skip file if no obvious references to airflow or DAG are found.
             with open(filepath, 'r') as f:
-                content = f.read()
+                content = f.read().decode('utf-8')
                 if not all([s in content for s in ('DAG', 'airflow')]):
                     return found_dags
 
