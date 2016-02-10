@@ -1,5 +1,5 @@
-
 import logging
+import boto3
 
 from airflow import settings
 from airflow.utils import AirflowException
@@ -7,8 +7,6 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.models import Connection as DB
 from airflow.contrib.hooks import ecs_hook
-
-import boto3
 
 
 class ECSOperator(BaseOperator):
@@ -26,10 +24,13 @@ class ECSOperator(BaseOperator):
     :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
     :type: overrides: dict
     """
+    
+    
     ui_color = '#f0ede4'
-
     client = None
     arn = None
+    template_fields = ('overrides',)
+    
     @apply_defaults
     def __init__(
             self,
@@ -44,6 +45,9 @@ class ECSOperator(BaseOperator):
         self.taskDefinition = taskDefinition
         self.cluster = cluster
         self.overrides = overrides
+        
+
+                                           
 
     def execute(self, context):
         
