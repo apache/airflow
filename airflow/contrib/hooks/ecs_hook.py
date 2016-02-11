@@ -23,6 +23,5 @@ class ECSHook(BaseHook):
         client = boto3.client('ecs', region_name=self._region_key, 
                                aws_access_key_id=self._a_key, 
                                aws_secret_access_key=self._s_key)
-#        client = boto3.client('ecs')
         return client
     
