@@ -1,0 +1,4 @@
+{
+  "dag_owner": "amin",
+  "schedule_interval": "*/1 * * * *"
+}
