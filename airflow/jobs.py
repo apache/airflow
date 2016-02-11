@@ -200,7 +200,7 @@ class SchedulerJob(BaseJob):
             dag_id=None,
             subdir=None,
             test_mode=False,
-            refresh_dags_every=10,
+            refresh_dags_every=100,
             num_runs=None,
             do_pickle=False,
             *args, **kwargs):
