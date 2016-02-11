@@ -45,9 +45,8 @@ class ECSOperator(BaseOperator):
         self.taskDefinition = taskDefinition
         self.cluster = cluster
         self.overrides = overrides
-        
-
-                                           
+        logging.info("overrides: {0}".format(self.overrides))
+          
 
     def execute(self, context):
         
