@@ -91,6 +91,19 @@ or by creating a corresponding environment variable:
 
     AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_string
 
+You can also derive the connection string at run time by appending ``_cmd`` to the key like this:
+
+.. code-block:: bash
+
+    [core]
+    sql_alchemy_conn_cmd = bash_command_to_run
+
+But only three such configutation elements namely sql_alchemy_conn, broker_url and celery_result_backend can be fetched as a command. The idea behind this is to not store passwords on boxes in plain text files. The order of precendence is as follows -
+
+1. environment variable
+2. configuration in airflow.cfg
+3. command in airflow.cfg
+4. default
 
 Setting up a Backend
 ''''''''''''''''''''

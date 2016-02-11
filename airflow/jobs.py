@@ -6,7 +6,7 @@ from __future__ import unicode_literals
 from builtins import str
 from past.builtins import basestring
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime
 from itertools import product
 import getpass
 import logging
@@ -20,21 +20,13 @@ from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models, settings, utils
-from airflow import configuration
+from airflow import configuration as conf
 from airflow.utils import AirflowException, State, LoggingMixin
 
 
 Base = models.Base
 ID_LEN = models.ID_LEN
-
-# Setting up a statsd client if needed
-statsd = None
-if configuration.getboolean('scheduler', 'statsd_on'):
-    from statsd import StatsClient
-    statsd = StatsClient(
-        host=configuration.get('scheduler', 'statsd_host'),
-        port=configuration.getint('scheduler', 'statsd_port'),
-        prefix=configuration.get('scheduler', 'statsd_prefix'))
+Stats = settings.Stats
 
 
 class BaseJob(Base, LoggingMixin):
@@ -70,7 +62,7 @@ class BaseJob(Base, LoggingMixin):
     def __init__(
             self,
             executor=executors.DEFAULT_EXECUTOR,
-            heartrate=configuration.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
+            heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
         self.hostname = socket.gethostname()
         self.executor = executor
@@ -84,7 +76,7 @@ class BaseJob(Base, LoggingMixin):
     def is_alive(self):
         return (
             (datetime.now() - self.latest_heartbeat).seconds <
-            (configuration.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1)
+            (conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1)
         )
 
     def kill(self):
@@ -150,8 +142,7 @@ class BaseJob(Base, LoggingMixin):
         self.logger.debug('[heart] Boom.')
 
     def run(self):
-        if statsd:
-            statsd.incr(self.__class__.__name__.lower()+'_start', 1, 1)
+        Stats.incr(self.__class__.__name__.lower()+'_start', 1, 1)
         # Adding an entry in the DB
         session = settings.Session()
         self.state = State.RUNNING
@@ -171,8 +162,7 @@ class BaseJob(Base, LoggingMixin):
         session.commit()
         session.close()
 
-        if statsd:
-            statsd.incr(self.__class__.__name__.lower()+'_end', 1, 1)
+        Stats.incr(self.__class__.__name__.lower()+'_end', 1, 1)
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")
@@ -227,7 +217,7 @@ class SchedulerJob(BaseJob):
         self.do_pickle = do_pickle
         super(SchedulerJob, self).__init__(*args, **kwargs)
 
-        self.heartrate = configuration.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
+        self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
     @utils.provide_session
     def manage_slas(self, dag, session=None):
@@ -277,7 +267,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.email_sent == False)
+            .filter(SlaMiss.email_sent == False or SlaMiss.notification_sent == False)
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -309,6 +299,15 @@ class SchedulerJob(BaseJob):
             blocking_task_list = "\n".join([
                 ti.task_id + ' on ' + ti.execution_date.isoformat()
                 for ti in blocking_tis])
+            # Track whether email or any alert notification sent
+            # We consider email or the alert callback as notifications
+            email_sent = False
+            notification_sent = False
+            if dag.sla_miss_callback:
+                # Execute the alert callback
+                self.logger.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
+                notification_sent = True
             from airflow import ascii
             email_content = """\
             Here's a list of tasks thas missed their SLAs:
@@ -331,8 +330,14 @@ class SchedulerJob(BaseJob):
                     emails,
                     "[airflow] SLA miss on DAG=" + dag.dag_id,
                     email_content)
+                email_sent = True
+                notification_sent = True
+            # If we sent any notification, update the sla_miss table
+            if notification_sent:
                 for sla in slas:
-                    sla.email_sent = True
+                    if email_sent:
+                        sla.email_sent = True
+                    sla.notification_sent = True
                     session.merge(sla)
             session.commit()
             session.close()
@@ -403,6 +408,9 @@ class SchedulerJob(BaseJob):
                 schedule_end = next_run_date
             elif next_run_date:
                 schedule_end = dag.following_schedule(next_run_date)
+
+            if next_run_date and dag.end_date and next_run_date > dag.end_date:
+                return
 
             if next_run_date and schedule_end and schedule_end <= datetime.now():
                 next_run = DagRun(
@@ -608,15 +616,15 @@ class SchedulerJob(BaseJob):
                         dagbag.collect_dags(only_if_updated=True)
                 except:
                     self.logger.error("Failed at reloading the dagbag")
-                    if statsd:
-                        statsd.incr('dag_refresh_error', 1, 1)
+                    Stats.incr('dag_refresh_error', 1, 1)
                     sleep(5)
 
                 if dag_id:
                     dags = [dagbag.dags[dag_id]]
                 else:
                     dags = [
-                        dag for dag in dagbag.dags.values() if not dag.parent_dag]
+                        dag for dag in dagbag.dags.values()
+                        if not dag.parent_dag]
                 paused_dag_ids = dagbag.paused_dags()
                 for dag in dags:
                     self.logger.debug("Scheduling {}".format(dag.dag_id))
@@ -650,11 +658,12 @@ class SchedulerJob(BaseJob):
                     self.logger.error("Tachycardia!")
             except Exception as deep_e:
                 self.logger.exception(deep_e)
+            finally:
+                settings.Session.remove()
         executor.end()
 
     def heartbeat_callback(self):
-        if statsd:
-            statsd.gauge('scheduler_heartbeat', 1, 1)
+        Stats.gauge('scheduler_heartbeat', 1, 1)
 
 
 class BackfillJob(BaseJob):
@@ -856,6 +865,7 @@ class LocalTaskJob(BaseJob):
     def on_kill(self):
         self.process.terminate()
 
+    """
     def heartbeat_callback(self):
         if datetime.now() - self.start_date < timedelta(seconds=300):
             return
@@ -874,3 +884,4 @@ class LocalTaskJob(BaseJob):
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))
             self.process.terminate()
+    """

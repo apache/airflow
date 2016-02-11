@@ -39,7 +39,7 @@ from pygments.formatters import HtmlFormatter
 import airflow
 from airflow import models
 from airflow.settings import Session
-from airflow import configuration
+from airflow import configuration as conf
 from airflow import utils
 from airflow.utils import AirflowException
 from airflow.www import utils as wwwutils
@@ -51,14 +51,14 @@ from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = models.DagBag(os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
+dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
 logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
-if configuration.getboolean('webserver', 'FILTER_BY_OWNER'):
+if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
 
@@ -595,7 +595,7 @@ class Airflow(BaseView):
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'))
+            demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
     @expose('/dag_details')
     @login_required
@@ -635,7 +635,7 @@ class Airflow(BaseView):
     def sandbox(self):
         from airflow import configuration
         title = "Sandbox Suggested Configuration"
-        cfg_loc = configuration.AIRFLOW_CONFIG + '.sandbox'
+        cfg_loc = conf.AIRFLOW_CONFIG + '.sandbox'
         f = open(cfg_loc, 'r')
         config = f.read()
         f.close()
@@ -725,7 +725,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def log(self):
         BASE_LOG_FOLDER = os.path.expanduser(
-            configuration.get('core', 'BASE_LOG_FOLDER'))
+            conf.get('core', 'BASE_LOG_FOLDER'))
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -758,7 +758,7 @@ class Airflow(BaseView):
                     log = "*** Log file isn't where expected.\n".format(loc)
             else:
                 WORKER_LOG_SERVER_PORT = \
-                    configuration.get('celery', 'WORKER_LOG_SERVER_PORT')
+                    conf.get('celery', 'WORKER_LOG_SERVER_PORT')
                 url = os.path.join(
                     "http://{host}:{WORKER_LOG_SERVER_PORT}/log", log_relative
                     ).format(**locals())
@@ -773,12 +773,12 @@ class Airflow(BaseView):
                         **locals())
 
             # try to load log backup from S3
-            s3_log_folder = configuration.get('core', 'S3_LOG_FOLDER')
+            s3_log_folder = conf.get('core', 'S3_LOG_FOLDER')
             if not log_loaded and s3_log_folder.startswith('s3:'):
                 import boto
                 s3 = boto.connect_s3()
                 s3_log_loc = os.path.join(
-                    configuration.get('core', 'S3_LOG_FOLDER'), log_relative)
+                    conf.get('core', 'S3_LOG_FOLDER'), log_relative)
                 log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
                 log += ('*** Note: S3 logs are only available once '
                         'tasks have completed.\n')
@@ -791,7 +791,9 @@ class Airflow(BaseView):
 
             session.commit()
             session.close()
-        log = log.decode('utf-8') if PY2 else log
+
+        if PY2 and not isinstance(log, unicode):
+            log = log.decode('utf-8')
 
         title = "Log"
 
@@ -1079,7 +1081,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def tree(self):
         dag_id = request.args.get('dag_id')
-        blur = configuration.getboolean('webserver', 'demo_mode')
+        blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         root = request.args.get('root')
         if root:
@@ -1198,7 +1200,7 @@ class Airflow(BaseView):
     def graph(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        blur = configuration.getboolean('webserver', 'demo_mode')
+        blur = conf.getboolean('webserver', 'demo_mode')
         arrange = request.args.get('arrange', "LR")
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
@@ -1354,7 +1356,7 @@ class Airflow(BaseView):
             data=json.dumps(all_data),
             chart_options={'yAxis': {'title': {'text': 'hours'}}},
             height="700px",
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'),
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
         )
@@ -1414,7 +1416,7 @@ class Airflow(BaseView):
             data=json.dumps(all_data),
             height="700px",
             chart_options={'yAxis': {'title': {'text': 'hours after 00:00'}}},
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'),
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
         )
@@ -1475,7 +1477,7 @@ class Airflow(BaseView):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        demo_mode = configuration.getboolean('webserver', 'demo_mode')
+        demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
         if root:
@@ -1862,10 +1864,15 @@ admin.add_view(mv)
 class VariableView(wwwutils.LoginMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
-    column_list = ('key',)
+    form_columns = (
+        'key',
+        'val',
+    )
+    column_list = ('key', 'is_encrypted',)
     column_filters = ('key', 'val')
     column_searchable_list = ('key', 'val')
     form_widget_args = {
+        'is_encrypted': {'disabled': True},
         'val': {
             'rows': 20,
         }
@@ -1982,7 +1989,8 @@ class TaskInstanceModelView(ModelViewOnly):
     column_list = (
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
-        'unixname', 'priority_weight', 'queue', 'queued_dttm', 'pool', 'log')
+        'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
+        'pool', 'log')
     can_delete = True
     page_size = 500
 
@@ -2042,9 +2050,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "Connection"
     verbose_name_plural = "Connections"
     column_default_sort = ('conn_id', False)
-    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted',)
+    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
     form_overrides = dict(_password=PasswordField)
     form_widget_args = {
+        'is_extra_encrypted': {'disabled': True},
         'is_encrypted': {'disabled': True},
     }
     # Used to customized the form, the forms elements get rendered
@@ -2090,18 +2099,18 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     @classmethod
     def alert_fernet_key(cls):
-        return not configuration.has_option('core', 'fernet_key')
+        return conf.get('core', 'fernet_key') is None
 
     @classmethod
     def is_secure(self):
         """
         Used to display a message in the Connection list view making it clear
-        that the passwords can't be encrypted.
+        that the passwords and `extra` field can't be encrypted.
         """
         is_secure = False
         try:
             import cryptography
-            configuration.get('core', 'fernet_key')
+            conf.get('core', 'fernet_key')
             is_secure = True
         except:
             pass
@@ -2132,9 +2141,9 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
         from airflow import configuration
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = configuration.AIRFLOW_CONFIG
-        if configuration.getboolean("webserver", "expose_config"):
-            with open(configuration.AIRFLOW_CONFIG, 'r') as f:
+        subtitle = conf.AIRFLOW_CONFIG
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
         else:
             config = (

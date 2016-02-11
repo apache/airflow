@@ -168,7 +168,7 @@ class DagBag(LoggingMixin):
             found_dags = self.process_file(
                 filepath=orm_dag.fileloc, only_if_updated=False)
 
-            if dag_id in [dag.dag_id for dag in found_dags]:
+            if found_dags and dag_id in [dag.dag_id for dag in found_dags]:
                 return self.dags[dag_id]
             elif dag_id in self.dags:
                 del self.dags[dag_id]
@@ -192,9 +192,9 @@ class DagBag(LoggingMixin):
 
         if safe_mode and os.path.isfile(filepath):
             # Skip file if no obvious references to airflow or DAG are found.
-            with open(filepath, 'r') as f:
+            with open(filepath, 'rb') as f:
                 content = f.read()
-                if not all([s in content for s in ('DAG', 'airflow')]):
+                if not all([s in content for s in (b'DAG', b'airflow')]):
                     return found_dags
 
         if (not only_if_updated or
@@ -389,7 +389,8 @@ class Connection(Base):
     _password = Column('password', String(5000))
     port = Column(Integer())
     is_encrypted = Column(Boolean, unique=False, default=False)
-    extra = Column(String(5000))
+    is_extra_encrypted = Column(Boolean, unique=False, default=False)
+    _extra = Column('extra', String(5000))
 
     def __init__(
             self, conn_id=None, conn_type=None,
@@ -445,6 +446,29 @@ class Connection(Base):
     def password(cls):
         return synonym('_password',
                        descriptor=property(cls.get_password, cls.set_password))
+
+    def get_extra(self):
+        if self._extra and self.is_extra_encrypted:
+            if not ENCRYPTION_ON:
+                raise AirflowException(
+                    "Can't decrypt `extra`, configuration is missing")
+            return FERNET.decrypt(bytes(self._extra, 'utf-8')).decode()
+        else:
+            return self._extra
+
+    def set_extra(self, value):
+        if value:
+            try:
+                self._extra = FERNET.encrypt(bytes(value, 'utf-8')).decode()
+                self.is_extra_encrypted = True
+            except NameError:
+                self._extra = value
+                self.is_extra_encrypted = False
+
+    @declared_attr
+    def extra(cls):
+        return synonym('_extra',
+                       descriptor=property(cls.get_extra, cls.set_extra))
 
     def get_hook(self):
         from airflow import hooks
@@ -542,7 +566,7 @@ class TaskInstance(Base):
     end_date = Column(DateTime)
     duration = Column(Float)
     state = Column(String(20))
-    try_number = Column(Integer, default=1)
+    try_number = Column(Integer, default=0)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
@@ -566,7 +590,7 @@ class TaskInstance(Base):
         self.queue = task.queue
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
-        self.try_number = 1
+        self.try_number = 0
         self.test_mode = False  # can be changed when calling 'run'
         self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
@@ -589,6 +613,7 @@ class TaskInstance(Base):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
+        dag = self.task.dag
         iso = self.execution_date.isoformat()
         cmd = "airflow run {self.dag_id} {self.task_id} {iso} "
         cmd += "--mark_success " if mark_success else ""
@@ -601,11 +626,8 @@ class TaskInstance(Base):
         cmd += "--raw " if raw else ""
         if task_start_date:
             cmd += "-s " + task_start_date.isoformat() + ' '
-        if (
-                not pickle_id and self.task.dag and
-                self.task.dag.full_filepath and
-                not os.path.isabs(self.task.dag.full_filepath)):
-            cmd += "-sd DAGS_FOLDER/{self.task.dag.filepath} "
+        if not pickle_id and dag and dag.full_filepath:
+            cmd += "-sd DAGS_FOLDER/{dag.filepath} "
         return cmd.format(**locals())
 
     @property
@@ -775,7 +797,8 @@ class TaskInstance(Base):
         return count == len(task._downstream_list)
 
     def are_dependencies_met(
-            self, main_session=None, flag_upstream_failed=False):
+            self, main_session=None, flag_upstream_failed=False,
+            verbose=False):
         """
         Returns a boolean on whether the upstream tasks are in a SUCCESS state
         and considers depends_on_past and the previous run's state.
@@ -785,6 +808,11 @@ class TaskInstance(Base):
             whether the task instance is runnable. It was the shortest
             path to add the feature
         :type flag_upstream_failed: boolean
+        :param verbose: verbose provides more logging in the case where the
+            task instance is evaluated as a check right before being executed.
+            In the case of the scheduler evaluating the dependencies, this
+            logging would be way too verbose.
+        :type verbose: boolean
         """
         TI = TaskInstance
         TR = TriggerRule
@@ -804,12 +832,16 @@ class TaskInstance(Base):
                 TI.state == State.SUCCESS,
             ).first()
             if not previous_ti:
+                if verbose:
+                    logging.warning("depends_on_past not satisfied")
                 return False
 
             # Applying wait_for_downstream
             previous_ti.task = self.task
             if task.wait_for_downstream and not \
                     previous_ti.are_dependents_done(session):
+                if verbose:
+                    logging.warning("wait_for_downstream not satisfied")
                 return False
 
         # Checking that all upstream dependencies have succeeded
@@ -873,6 +905,8 @@ class TaskInstance(Base):
         if not main_session:
             session.commit()
             session.close()
+        if verbose:
+            logging.warning("Trigger rule `{}` not satisfied".format(tr))
         return False
 
     def __repr__(self):
@@ -944,7 +978,7 @@ class TaskInstance(Base):
                 " on {self.end_date}".format(**locals())
             )
         elif not ignore_dependencies and \
-                not self.are_dependencies_met(session):
+                not self.are_dependencies_met(session, verbose=True):
             logging.warning("Dependencies not met yet")
         elif self.state == State.UP_FOR_RETRY and \
                 not self.ready_for_retry():
@@ -955,20 +989,27 @@ class TaskInstance(Base):
             )
         elif force or self.state in State.runnable():
             HR = "\n" + ("-" * 80) + "\n"  # Line break
-            attempts = task.retries + 1
-            msg = (
-                "Starting run {self.try_number} out of {attempts}, "
-                "starting @{iso}")
+            tot_tries = task.retries + 1
+            # For reporting purposes, we report based on 1-indexed,
+            # not 0-indexed lists (i.e. Attempt 1 instead of
+            # Attempt 0 for the first attempt)
+            msg = "Attempt {} out of {}".format(self.try_number+1,
+                                                tot_tries)
             self.try_number += 1
             msg = msg.format(**locals())
             logging.info(HR + msg + HR)
             self.start_date = datetime.now()
 
-            if self.state != State.QUEUED and (
+            if not mark_success and self.state != State.QUEUED and (
                     self.pool or self.task.dag.concurrency_reached):
                 # If a pool is set for this task, marking the task instance
                 # as QUEUED
                 self.state = State.QUEUED
+                # Since we are just getting enqueued, we need to undo
+                # the try_number increment above and update the message as well
+                self.try_number -= 1
+                msg = "Queuing attempt {} out of {}".format(self.try_number+1,
+                                                            tot_tries)
                 self.queued_dttm = datetime.now()
                 session.merge(self)
                 session.commit()
@@ -1173,7 +1214,7 @@ class TaskInstance(Base):
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                rendered_content = self.task.render_template(content, jinja_context)
+                rendered_content = rt(content, jinja_context)
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception, is_retry=False):
@@ -1637,6 +1678,9 @@ class BaseOperator(object):
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
                 setattr(result, k, copy.deepcopy(v, memo))
+        result.params = self.params
+        if hasattr(self, 'user_defined_macros'):
+            result.user_defined_macros = self.user_defined_macros
         return result
 
     def render_template_from_field(self, content, context, jinja_env):
@@ -1909,7 +1953,9 @@ class DagModel(Base):
     """
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
-    is_paused = Column(Boolean, default=False)
+    # Set this default value of is_paused based on a configuration value!
+    is_paused_at_creation = configuration.getboolean('core', 'dags_are_paused_at_creation')
+    is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
     # Whether that DAG was seen on the last DagBag load
@@ -2002,6 +2048,9 @@ class DAG(LoggingMixin):
     :param dagrun_timeout: specify how long a DagRun should be up before
         timing out / failing, so that new DagRuns can be created
     :type dagrun_timeout: datetime.timedelta
+    :param sla_miss_callback: specify a function to call when reporting SLA
+        timeouts.
+    :type sla_miss_callback: types.FunctionType
     """
 
     def __init__(
@@ -2016,16 +2065,23 @@ class DAG(LoggingMixin):
             max_active_runs=configuration.getint(
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
+            sla_miss_callback=None,
             params=None):
 
         self.user_defined_macros = user_defined_macros
         self.default_args = default_args or {}
-        self.params = params
+        self.params = params or {}
+
+        # merging potentially conflicting default_args['params'] into params
+        if 'params' in self.default_args:
+            self.params.update(self.default_args['params'])
+            del self.default_args['params']
+
         utils.validate_key(dag_id)
         self.tasks = []
         self.dag_id = dag_id
         self.start_date = start_date
-        self.end_date = end_date or datetime.now()
+        self.end_date = end_date
         self.schedule_interval = schedule_interval
         if schedule_interval in utils.cron_presets:
             self._schedule_interval = utils.cron_presets.get(schedule_interval)
@@ -2043,6 +2099,7 @@ class DAG(LoggingMixin):
         self.concurrency = concurrency
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
+        self.sla_miss_callback = sla_miss_callback
 
         self._comps = {
             'dag_id',
@@ -2107,6 +2164,14 @@ class DAG(LoggingMixin):
         return [t.task_id for t in self.tasks]
 
     @property
+    def active_task_ids(self):
+        return [t.task_id for t in self.tasks if not t.adhoc]
+
+    @property
+    def active_tasks(self):
+        return [t for t in self.tasks if not t.adhoc]
+
+    @property
     def filepath(self):
         """
         File location of where the dag object is instantiated
@@ -2140,6 +2205,16 @@ class DAG(LoggingMixin):
             TI.state == State.RUNNING,
         )
         return qry.scalar() >= self.concurrency
+
+    @property
+    @provide_session
+    def is_paused(self, session=None):
+        """
+        Returns a boolean as to whether this DAG is paused
+        """
+        qry = session.query(DagModel).filter(
+            DagModel.dag_id == self.dag_id)
+        return qry.value('is_paused')
 
     @property
     def latest_execution_date(self):
@@ -2188,10 +2263,10 @@ class DAG(LoggingMixin):
             self.logger.info("Checking state for {}".format(run))
             task_instances = session.query(TI).filter(
                 TI.dag_id == run.dag_id,
-                TI.task_id.in_(self.task_ids),
+                TI.task_id.in_(self.active_task_ids),
                 TI.execution_date == run.execution_date,
             ).all()
-            if len(task_instances) == len(self.tasks):
+            if len(task_instances) == len(self.active_tasks):
                 task_states = [ti.state for ti in task_instances]
                 if State.FAILED in task_states:
                     self.logger.info('Marking run {} failed'.format(run))
@@ -2536,7 +2611,7 @@ class Chart(Base):
         "User", cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
-    last_modified = Column(DateTime, default=datetime.now())
+    last_modified = Column(DateTime, default=func.now())
 
     def __repr__(self):
         return self.label
@@ -2578,11 +2653,35 @@ class Variable(Base):
 
     id = Column(Integer, primary_key=True)
     key = Column(String(ID_LEN), unique=True)
-    val = Column(Text)
+    _val = Column('val', Text)
+    is_encrypted = Column(Boolean, unique=False, default=False)
 
     def __repr__(self):
-        return '{} : {}'.format(self.key, self.val)
+        # Hiding the value
+        return '{} : {}'.format(self.key, self._val)
 
+    def get_val(self):
+        if self._val and self.is_encrypted:
+            if not ENCRYPTION_ON:
+                raise AirflowException(
+                    "Can't decrypt _val, configuration is missing")
+            return FERNET.decrypt(bytes(self._val, 'utf-8')).decode()
+        else:
+            return self._val
+
+    def set_val(self, value):
+        if value:
+            try:
+                self._val = FERNET.encrypt(bytes(value, 'utf-8')).decode()
+                self.is_encrypted = True
+            except NameError:
+                self._val = value
+                self.is_encrypted = False
+
+    @declared_attr
+    def val(cls):
+        return synonym('_val',
+                       descriptor=property(cls.get_val, cls.set_val))
     @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
@@ -2762,8 +2861,8 @@ class DagRun(Base):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(DateTime, default=datetime.now())
-    start_date = Column(DateTime, default=datetime.now())
+    execution_date = Column(DateTime, default=func.now())
+    start_date = Column(DateTime, default=func.now())
     end_date = Column(DateTime)
     state = Column(String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
@@ -2849,6 +2948,7 @@ class SlaMiss(Base):
     email_sent = Column(Boolean, default=False)
     timestamp = Column(DateTime)
     description = Column(Text)
+    notification_sent = Column(Boolean, default=False)
 
     def __repr__(self):
         return str((

@@ -49,6 +49,7 @@ Operator API
         BashOperator,
         BranchPythonOperator,
         TriggerDagRunOperator,
+        DockerOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -91,6 +92,7 @@ Community-contributed Operators
         BigQueryOperator,
         BigQueryToCloudStorageOperator,
         GoogleCloudStorageDownloadOperator,
+        SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
 

@@ -40,6 +40,8 @@ class HttpHook(BaseHook):
         """
         Performs the request
         """
+        extra_options = extra_options or {}
+
         session = self.get_conn(headers)
 
         url = self.base_url + endpoint
@@ -66,20 +68,16 @@ class HttpHook(BaseHook):
         Grabs extra options like timeout and actually runs the request,
         checking for the result
         """
-        stream = extra_options.get("stream", False)
-        verify = extra_options.get("verify", False)
-        proxies = extra_options.get("proxies", {})
-        cert = extra_options.get("cert", None)
-        timeout = extra_options.get("timeout", None)
-        allow_redirects = extra_options.get("allow_redirects", True)
+        extra_options = extra_options or {}
 
-        response = session.send(prepped_request,
-                                stream=stream,
-                                verify=verify,
-                                proxies=proxies,
-                                cert=cert,
-                                timeout=timeout,
-                                allow_redirects=allow_redirects)
+        response = session.send(
+            prepped_request,
+            stream=extra_options.get("stream", False),
+            verify=extra_options.get("verify", False),
+            proxies=extra_options.get("proxies", {}),
+            cert=extra_options.get("cert"),
+            timeout=extra_options.get("timeout"),
+            allow_redirects=extra_options.get("allow_redirects", True))
 
         try:
             response.raise_for_status()

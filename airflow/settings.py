@@ -10,7 +10,33 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
-from airflow import configuration
+from airflow import configuration as conf
+
+
+class DummyStatsLogger(object):
+    @classmethod
+    def incr(cls, stat, count=1, rate=1):
+        pass
+    @classmethod
+    def decr(cls, stat, count=1, rate=1):
+        pass
+    @classmethod
+    def gauge(cls, stat, value, rate=1, delta=False):
+        pass
+
+Stats = DummyStatsLogger
+
+if conf.getboolean('scheduler', 'statsd_on'):
+    from statsd import StatsClient
+    statsd = StatsClient(
+        host=conf.get('scheduler', 'statsd_host'),
+        port=conf.getint('scheduler', 'statsd_port'),
+        prefix=conf.get('scheduler', 'statsd_prefix'))
+    Stats = statsd
+else:
+    Stats = DummyStatsLogger
+
+
 
 HEADER = """\
   ____________       _____________
@@ -21,10 +47,10 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  """
 
 BASE_LOG_URL = '/admin/airflow/log'
-AIRFLOW_HOME = os.path.expanduser(configuration.get('core', 'AIRFLOW_HOME'))
-SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
+AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
+SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 LOGGING_LEVEL = logging.INFO
-DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
+DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 engine_args = {}
 if 'sqlite' not in SQL_ALCHEMY_CONN:
@@ -36,7 +62,7 @@ engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
 Session = scoped_session(
     sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
-# can't move this to configuration due to ConfigParser interpolation
+# can't move this to conf due to ConfigParser interpolation
 LOG_FORMAT = (
     '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
 SIMPLE_LOG_FORMAT = '%(asctime)s %(levelname)s - %(message)s'

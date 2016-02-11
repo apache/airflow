@@ -127,7 +127,7 @@
                 {% endfor %}
             {% endblock %}
             <td style="padding:0px; width:90px; height:10px;">
-                <svg height="10" width="10" id='{{ row.dag_id }}' style="display: block;"></svg>
+                <svg height="10" width="10" id='dag-{{ row.dag_id }}' style="display: block;"></svg>
             </td>
             <td>
               <a href="{{ url_for("airflow.tree", dag_id=row.dag_id, num_runs=25) }}" title="Tree View">
@@ -211,7 +211,7 @@
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#' + dag_id)
+            g = d3.select('svg#dag-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '90px')
               .selectAll("g")

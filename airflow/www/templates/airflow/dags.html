@@ -60,7 +60,7 @@
                       {{ dag.schedule_interval }}</a></td>
                 <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
                 <td style="padding:0px; width:200px; height:10px;">
-                    <svg height="10" width="10" id='{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                    <svg height="10" width="10" id='dag-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
                 <td class="text-center" style="width:160px;"><nobr>
                 {% if dag %}
@@ -141,7 +141,7 @@
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#' + dag_id)
+            g = d3.select('svg#dag-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '180px')
               .selectAll("g")

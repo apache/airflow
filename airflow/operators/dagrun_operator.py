@@ -16,8 +16,8 @@ class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id`` if a criteria is met
 
-    :param dag_id: the dag_id to trigger
-    :type dag_id: str
+    :param trigger_dag_id: the dag_id to trigger
+    :type trigger_dag_id: str
     :param python_callable: a reference to a python function that will be
         called while passing it the ``context`` object and a placeholder
         object ``obj`` for your callable to fill and return if you want
@@ -35,12 +35,12 @@ class TriggerDagRunOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            dag_id,
+            trigger_dag_id,
             python_callable,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
-        self.dag_id = dag_id
+        self.trigger_dag_id = trigger_dag_id
 
     def execute(self, context):
         dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
@@ -48,7 +48,7 @@ class TriggerDagRunOperator(BaseOperator):
         if dro:
             session = settings.Session()
             dr = DagRun(
-                dag_id=self.dag_id,
+                dag_id=self.trigger_dag_id,
                 run_id=dro.run_id,
                 conf=dro.payload,
                 external_trigger=True)
