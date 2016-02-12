@@ -405,9 +405,11 @@ class DagBag(LoggingMixin):
             for d in self.dep_files[filepath]:
                 del self.file_last_changed[d]
             del self.dep_files[filepath]
-        for f in dep_files + [filepath]:
+        for f in dep_files:
             self.file_last_changed[f] = datetime.fromtimestamp(
                 os.path.getmtime(f))
+        self.file_last_changed[filepath] = datetime.fromtimestamp(
+            os.path.getmtime(filepath))
         self.dep_files[filepath] = dep_files
         logging.info('Dep files for filepath ' + str(filepath))
         logging.info(dep_files)
