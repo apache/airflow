@@ -1,13 +1,16 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import str
 from configparser import ConfigParser
 import errno
 import logging
 import os
-import sys
-import textwrap
-
 
 try:
     from cryptography.fernet import Fernet
@@ -29,6 +32,8 @@ def expand_env_var(env_var):
     `expandvars` and `expanduser` until interpolation stops having
     any effect.
     """
+    if not env_var:
+        return env_var
     while True:
         interpolated = os.path.expanduser(os.path.expandvars(str(env_var)))
         if interpolated == env_var:
@@ -46,6 +51,11 @@ defaults = {
         'parallelism': 32,
         'load_examples': True,
         'plugins_folder': None,
+        'security': None,
+        'donot_pickle': False,
+        's3_log_folder': '',
+        'dag_concurrency': 16,
+        'max_active_runs_per_dag': 16,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -56,7 +66,8 @@ defaults = {
         'demo_mode': False,
         'secret_key': 'airflowified',
         'expose_config': False,
-        'threads': 4,
+        'workers': 4,
+        'worker_class': 'sync',
     },
     'scheduler': {
         'statsd_on': False,
@@ -74,6 +85,13 @@ defaults = {
     'smtp': {
         'smtp_starttls': True,
     },
+    'kerberos': {
+        'ccache': '/tmp/airflow_krb5_ccache',
+        'principal': 'airflow',                 # gets augmented with fqdn
+        'reinit_frequency': '3600',
+        'kinit_path': 'kinit',
+        'keytab': 'airflow.keytab',
+    }
 }
 
 DEFAULT_CONFIG = """\
@@ -85,8 +103,11 @@ airflow_home = {AIRFLOW_HOME}
 # subfolder in a code repository
 dags_folder = {AIRFLOW_HOME}/dags
 
-# The folder where airflow should store its log files
+# The folder where airflow should store its log files. This location
 base_log_folder = {AIRFLOW_HOME}/logs
+# An S3 location can be provided for log backups
+# For S3, use the full URL to the base folder (starting with "s3://...")
+s3_log_folder = None
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -102,6 +123,12 @@ sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/airflow.db
 # on this airflow installation
 parallelism = 32
 
+# The number of task instances allowed to run concurrently by the scheduler
+dag_concurrency = 16
+
+# The maximum number of active DAG runs per DAG
+max_active_runs_per_dag = 16
+
 # Whether to load the examples that ship with Airflow. It's good to
 # get started, but you probably want to set this to False in a production
 # environment
@@ -112,6 +139,9 @@ plugins_folder = {AIRFLOW_HOME}/plugins
 
 # Secret key to save connection passwords in the db
 fernet_key = {FERNET_KEY}
+
+# Whether to disable pickling dags
+donot_pickle = False
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
@@ -128,8 +158,12 @@ web_server_port = 8080
 # Secret key used to run your flask app
 secret_key = temporary_key
 
-# number of threads to run the Gunicorn web server
-thread = 4
+# Number of workers to run the Gunicorn web server
+workers = 4
+
+# The worker class gunicorn should use. Choices include
+# sync (default), eventlet, gevent
+worker_class = sync
 
 # Expose the configuration file in the web server
 expose_config = true
@@ -224,6 +258,12 @@ task_memory = 256
 # See http://mesos.apache.org/documentation/latest/slave-recovery/
 checkpoint = False
 
+# Failover timeout in milliseconds.
+# When checkpointing is enabled and this option is set, Mesos waits until the configured timeout for
+# the MesosExecutor framework to re-register after a failover. Mesos shuts down running tasks if the
+# MesosExecutor framework fails to re-register within this timeframe.
+# failover_timeout = 604800
+
 # Enable framework authentication for mesos
 # See http://mesos.apache.org/documentation/latest/configuration/
 authenticate = False
@@ -243,6 +283,9 @@ executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 unit_test_mode = True
 load_examples = True
+donot_pickle = False
+dag_concurrency = 16
+fernet_key = {FERNET_KEY}
 
 [webserver]
 base_url = http://localhost:8080
@@ -278,26 +321,29 @@ class ConfigParserWithDefaults(ConfigParser):
         self.defaults = defaults
         ConfigParser.__init__(self, *args, **kwargs)
 
-    def get(self, section, key):
+    def get(self, section, key, **kwargs):
         section = str(section).lower()
         key = str(key).lower()
         d = self.defaults
 
         # environment variables get precedence
-        # must have format AIRFLOW__{SESTION}__{KEY} (note double underscore)
+        # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
         env_var = 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
 
         # ...then the config file
         elif self.has_option(section, key):
-            return expand_env_var(ConfigParser.get(self, section, key))
+            return expand_env_var(ConfigParser.get(self, section, key, **kwargs))
 
         # ...then the defaults
         elif section in d and key in d[section]:
             return expand_env_var(d[section][key])
 
         else:
+            logging.warn("section/key [{section}/{key}] not found "
+                         "in config".format(**locals()))
+
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
                 "in config".format(**locals()))
@@ -315,6 +361,9 @@ class ConfigParserWithDefaults(ConfigParser):
 
     def getint(self, section, key):
         return int(self.get(section, key))
+
+    def getfloat(self, section, key):
+        return float(self.get(section, key))
 
 
 def mkdir_p(path):
@@ -346,24 +395,33 @@ if 'AIRFLOW_CONFIG' not in os.environ:
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
+
+def parameterized_config(template):
+    """
+    Generates a configuration from the provided template + variables defined in
+    current scope
+    :param template: a config content templated with {{variables}}
+    """
+    FERNET_KEY = generate_fernet_key()
+    all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
+    return template.format(**all_vars)
+
+TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
+if not os.path.isfile(TEST_CONFIG_FILE):
+    logging.info("Creating new airflow config file for unit tests in: " +
+                 TEST_CONFIG_FILE)
+    with open(AIRFLOW_CONFIG, 'w') as f:
+        f.write(parameterized_config(TEST_CONFIG))
+
 if not os.path.isfile(AIRFLOW_CONFIG):
     """
     These configuration options are used to generate a default configuration
     when it is missing. The right way to change your configuration is to alter
     your configuration file, not this code.
     """
-    FERNET_KEY = generate_fernet_key()
-    logging.info("Creating new config file in: " + AIRFLOW_CONFIG)
-    f = open(AIRFLOW_CONFIG, 'w')
-    f.write(DEFAULT_CONFIG.format(**locals()))
-    f.close()
-
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
-if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new config file in: " + TEST_CONFIG_FILE)
-    f = open(TEST_CONFIG_FILE, 'w')
-    f.write(TEST_CONFIG.format(**locals()))
-    f.close()
+    logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
+    with open(AIRFLOW_CONFIG, 'w') as f:
+        f.write(parameterized_config(DEFAULT_CONFIG))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
@@ -374,21 +432,31 @@ def test_mode():
 
 conf = ConfigParserWithDefaults(defaults)
 conf.read(AIRFLOW_CONFIG)
-if 'cryptography' in sys.modules and not conf.has_option('core', 'fernet_key'):
-    logging.warning(textwrap.dedent("""
 
-        Your system supports encrypted passwords for Airflow connections but is
-        currently storing them in plaintext! To turn on encryption, add a
-        "fernet_key" option to the "core" section of your airflow.cfg file,
-        like this:
 
-            [core]
-            fernet_key = <YOUR FERNET KEY>
+def get(section, key, **kwargs):
+    return conf.get(section, key, **kwargs)
 
-        Your airflow.cfg file is located at: {cfg}.
-        If you need to generate a fernet key, you can run this code:
 
-            from airflow.configuration import generate_fernet_key
-            generate_fernet_key()
+def getboolean(section, key):
+    return conf.getboolean(section, key)
 
-        """.format(cfg=AIRFLOW_CONFIG)))
+
+def getfloat(section, key):
+    return conf.getfloat(section, key)
+
+
+def getint(section, key):
+    return conf.getint(section, key)
+
+
+def has_option(section, key):
+    return conf.has_option(section, key)
+
+
+########################
+# convenience method to access config entries
+
+def get_dags_folder():
+    return os.path.expanduser(get('core', 'DAGS_FOLDER'))
+

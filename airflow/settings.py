@@ -1,3 +1,8 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
 import logging
 import os
 import sys
@@ -5,7 +10,7 @@ import sys
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import create_engine
 
-from airflow.configuration import conf
+from airflow import configuration
 
 HEADER = """\
   ____________       _____________
@@ -16,10 +21,10 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  """
 
 BASE_LOG_URL = '/admin/airflow/log'
-AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
-SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
+AIRFLOW_HOME = os.path.expanduser(configuration.get('core', 'AIRFLOW_HOME'))
+SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
 LOGGING_LEVEL = logging.INFO
-DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 
 engine_args = {}
 if 'sqlite' not in SQL_ALCHEMY_CONN:

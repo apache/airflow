@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 import logging
+import os
+from airflow import configuration
 from airflow.bin.cli import get_parser
 
 if __name__ == '__main__':
 
     logging.root.handlers = []
+
+    if configuration.get("core", "security") == 'kerberos':
+        os.environ['KRB5CCNAME'] = configuration.get('kerberos', 'ccache')
+        os.environ['KRB5_KTNAME'] = configuration.get('kerberos', 'keytab')
+
     parser = get_parser()
     args = parser.parse_args()
     args.func(args)

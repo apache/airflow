@@ -1,11 +1,13 @@
 from future import standard_library
 standard_library.install_aliases()
 import logging
-import json
 import re
 import fnmatch
 import configparser
+import math
+import os
 from urllib.parse import urlparse
+import warnings
 
 import boto
 from boto.s3.connection import S3Connection
@@ -31,13 +33,13 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
     :type profile: str
     """
     Config = configparser.ConfigParser()
-    if Config.read(config_file_name):
+    if Config.read(config_file_name):  # pragma: no cover
         sections = Config.sections()
     else:
         raise AirflowException("Couldn't read {0}".format(config_file_name))
     # Setting option names depending on file format
     conf_format = config_format.lower()
-    if conf_format == 'boto':
+    if conf_format == 'boto':  # pragma: no cover
         if profile is not None and 'profile ' + profile in sections:
             cred_section = 'profile ' + profile
         else:
@@ -47,7 +49,7 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
     else:
         cred_section = 'default'
     # Option names
-    if conf_format in ('boto', 'aws'):
+    if conf_format in ('boto', 'aws'):  # pragma: no cover
         key_id_option = 'aws_access_key_id'
         secret_key_option = 'aws_secret_access_key'
         # security_token_option = 'aws_security_token'
@@ -76,32 +78,29 @@ class S3Hook(BaseHook):
             s3_conn_id='s3_default'):
         self.s3_conn_id = s3_conn_id
         self.s3_conn = self.get_connection(s3_conn_id)
-        self.profile = None
-        self._sts_conn_required = False
-        self._creds_in_config_file = False
-        try:
-            self.extra_params = json.loads(self.s3_conn.extra)
-            if 'aws_secret_access_key' in self.extra_params:
-                self._a_key = self.extra_params['aws_access_key_id']
-                self._s_key = self.extra_params['aws_secret_access_key']
-            else:
-                self._creds_in_config_file = True
-                self.s3_config_format = self.extra_params['s3_config_format']
-                self.s3_config_file = self.extra_params['s3_config_file']
-            if 'profile' in self.extra_params:
-                self.profile = self.extra_params['profile']
-            self._sts_conn_required = 'aws_account_id' in self.extra_params
-            if self._sts_conn_required:
-                self.aws_account_id = self.extra_params['aws_account_id']
-                self.aws_iam_role = self.extra_params['aws_iam_role']
-                self.role_arn = "arn:aws:iam::" + self.aws_account_id
-                self.role_arn += ":role/" + self.aws_iam_role
-        except TypeError as e:
-            raise AirflowException("S3 connection needs to set configuration"
-                            " parameters in extra")
-        except KeyError as e:
-            raise AirflowException("S3 connection definition needs to include"
-                            " {p} in extra".format(p=e.message))
+        self.extra_params = self.s3_conn.extra_dejson
+        self.profile = self.extra_params.get('profile')
+        self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
+        self._creds_in_config_file = 's3_config_file' in self.extra_params
+        self._default_to_boto = False
+        if self._creds_in_conn:
+            self._a_key = self.extra_params['aws_access_key_id']
+            self._s_key = self.extra_params['aws_secret_access_key']
+        elif self._creds_in_config_file:
+            self.s3_config_file = self.extra_params['s3_config_file']
+            # The format can be None and will default to boto in the parser
+            self.s3_config_format = self.extra_params.get('s3_config_format')
+        else:
+            self._default_to_boto = True
+        # STS support for cross account resource access
+        self._sts_conn_required = ('aws_account_id' in self.extra_params or
+                                   'role_arn' in self.extra_params)
+        if self._sts_conn_required:
+            self.role_arn = (self.extra_params.get('role_arn') or
+                             "arn:aws:iam::" +
+                             self.extra_params['aws_account_id'] +
+                             ":role/" +
+                             self.extra_params['aws_iam_role'])
         self.connection = self.get_conn()
 
     def __getstate__(self):
@@ -114,6 +113,14 @@ class S3Hook(BaseHook):
         self.__dict__['connection'] = self.get_conn()
 
     def _parse_s3_url(self, s3url):
+        warnings.warn(
+            'Please note: S3Hook._parse_s3_url() is now '
+            'S3Hook.parse_s3_url() (no leading underscore).',
+            DeprecationWarning)
+        return self.parse_s3_url(s3url)
+
+    @staticmethod
+    def parse_s3_url(s3url):
         parsed_url = urlparse(s3url)
         if not parsed_url.netloc:
             raise AirflowException('Please provide a bucket_name')
@@ -129,11 +136,14 @@ class S3Hook(BaseHook):
         """
         Returns the boto S3Connection object.
         """
+        if self._default_to_boto:
+            return S3Connection(profile_name=self.profile)
+        a_key = s_key = None
         if self._creds_in_config_file:
             a_key, s_key = _parse_s3_config(self.s3_config_file,
                                             self.s3_config_format,
                                             self.profile)
-        else:
+        elif self._creds_in_conn:
             a_key = self._a_key
             s_key = self._s_key
         if self._sts_conn_required:
@@ -152,7 +162,8 @@ class S3Hook(BaseHook):
                 )
         else:
             connection = S3Connection(aws_access_key_id=a_key,
-                                      aws_secret_access_key=s_key)
+                                      aws_secret_access_key=s_key,
+                                      profile_name=self.profile)
         return connection
 
     def check_for_bucket(self, bucket_name):
@@ -210,7 +221,7 @@ class S3Hook(BaseHook):
         Checks that a key exists in a bucket
         """
         if not bucket_name:
-            (bucket_name, key) = self._parse_s3_url(key)
+            (bucket_name, key) = self.parse_s3_url(key)
         bucket = self.get_bucket(bucket_name)
         return bucket.get_key(key) is not None
 
@@ -224,7 +235,7 @@ class S3Hook(BaseHook):
         :type bucket_name: str
         """
         if not bucket_name:
-            (bucket_name, key) = self._parse_s3_url(key)
+            (bucket_name, key) = self.parse_s3_url(key)
         bucket = self.get_bucket(bucket_name)
         return bucket.get_key(key)
 
@@ -247,7 +258,7 @@ class S3Hook(BaseHook):
         :type bucket_name: str
         """
         if not bucket_name:
-            (bucket_name, wildcard_key) = self._parse_s3_url(wildcard_key)
+            (bucket_name, wildcard_key) = self.parse_s3_url(wildcard_key)
         bucket = self.get_bucket(bucket_name)
         prefix = re.split(r'[*]', wildcard_key, 1)[0]
         klist = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
@@ -266,15 +277,15 @@ class S3Hook(BaseHook):
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return False if plist is None else prefix in plist
 
-    def load_file(self, filename,
-                  key, bucket_name=None,
-                  replace=False):
+    def load_file(
+            self,
+            filename,
+            key,
+            bucket_name=None,
+            replace=False,
+            multipart_bytes=None):
         """
         Loads a local file to S3
-
-        This is provided as a convenience to drop a file in S3. It uses the
-        boto infrastructure to ship a file to s3. It is currently using only
-        a single part download, and should not be used to move large files.
 
         :param filename: name of the file to load.
         :type filename: str
@@ -283,17 +294,44 @@ class S3Hook(BaseHook):
         :param bucket_name: Name of the bucket in which to store the file
         :type bucket_name: str
         :param replace: A flag to decide whether or not to overwrite the key
-            if it already exists
+            if it already exists. If replace is False and the key exists, an
+            error will be raised.
         :type replace: bool
+        :param multipart_bytes: If provided, the file is uploaded in parts of
+            this size (minimum 5242880). If None, the whole file is uploaded at
+            once.
+        :type multipart_bytes: int
         """
         if not bucket_name:
-            (bucket_name, key) = self._parse_s3_url(key)
+            (bucket_name, key) = self.parse_s3_url(key)
         bucket = self.get_bucket(bucket_name)
-        if not self.check_for_key(key, bucket_name):
-            key_obj = bucket.new_key(key_name=key)
+        key_obj = bucket.get_key(key)
+        if not replace and key_obj:
+            raise ValueError("The key {key} already exists.".format(
+                **locals()))
+        if multipart_bytes:
+            from filechunkio import FileChunkIO
+            key_size = os.path.getsize(filename)
+            mp = bucket.initiate_multipart_upload(key_name=key)
+            total_chunks = int(math.ceil(key_size / multipart_bytes))
+            sent_bytes = 0
+            try:
+                for chunk in range(total_chunks):
+                    offset = chunk * multipart_bytes
+                    bytes = min(multipart_bytes, key_size - offset)
+                    with FileChunkIO(
+                            filename, 'r', offset=offset, bytes=bytes) as fp:
+                        logging.info('Sending chunk {c} of {tc}...'.format(
+                            c=chunk + 1, tc=total_chunks))
+                        mp.upload_part_from_file(fp, part_num=chunk + 1)
+            except:
+                mp.cancel_upload()
+                raise
+            mp.complete_upload()
         else:
-            key_obj = bucket.get_key(key)
-        key_size = key_obj.set_contents_from_filename(filename,
+            if not key_obj:
+                key_obj = bucket.new_key(key_name=key)
+            key_size = key_obj.set_contents_from_filename(filename,
                                                       replace=replace)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
@@ -319,14 +357,15 @@ class S3Hook(BaseHook):
         :type replace: bool
         """
         if not bucket_name:
-            (bucket_name, key) = self._parse_s3_url(key)
+            (bucket_name, key) = self.parse_s3_url(key)
         bucket = self.get_bucket(bucket_name)
-        if not self.check_for_key(key, bucket_name):
+        key_obj = bucket.get_key(key)
+        if not replace and key_obj:
+            raise ValueError("The key {key} already exists.".format(
+                **locals()))
+        if not key_obj:
             key_obj = bucket.new_key(key_name=key)
-        else:
-            key_obj = bucket.get_key(key)
         key_size = key_obj.set_contents_from_string(string_data,
-                                                      replace=replace)
+                                                    replace=replace)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
-

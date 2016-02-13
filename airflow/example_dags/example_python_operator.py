@@ -7,15 +7,17 @@ from datetime import datetime, timedelta
 import time
 from pprint import pprint
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
-                                  datetime.min.time())
+seven_days_ago = datetime.combine(
+        datetime.today() - timedelta(7), datetime.min.time())
 
 args = {
     'owner': 'airflow',
     'start_date': seven_days_ago,
 }
 
-dag = DAG(dag_id='example_python_operator', default_args=args)
+dag = DAG(
+    dag_id='example_python_operator', default_args=args,
+    schedule_interval=None)
 
 
 def my_sleeping_function(random_base):
@@ -42,7 +44,7 @@ for i in range(10):
     task = PythonOperator(
         task_id='sleep_for_'+str(i),
         python_callable=my_sleeping_function,
-        op_kwargs={'random_base': i},
+        op_kwargs={'random_base': float(i)/10},
         dag=dag)
 
     task.set_upstream(run_this)

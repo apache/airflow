@@ -1,5 +1,5 @@
-Code / API
-==========
+API Reference
+=============
 
 Operators
 ---------
@@ -31,6 +31,15 @@ DAGs.
 .. autoclass:: airflow.models.BaseOperator
 
 
+BaseSensorOperator
+'''''''''''''''''''
+All sensors are derived from ``BaseSensorOperator``. All sensors inherit
+the ``timeout`` and ``poke_interval`` on top of the ``BaseOperator``
+attributes.
+
+.. autoclass:: airflow.operators.sensors.BaseSensorOperator
+
+
 Operator API
 ''''''''''''
 
@@ -39,6 +48,7 @@ Operator API
     :members:
         BashOperator,
         BranchPythonOperator,
+        TriggerDagRunOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -51,6 +61,7 @@ Operator API
         HiveToMySqlTransfer,
         SimpleHttpOperator,
         HttpSensor,
+        MetastorePartitionSensor,
         MsSqlOperator,
         MsSqlToHiveTransfer,
         MySqlOperator,
@@ -62,14 +73,16 @@ Operator API
         PythonOperator,
         S3KeySensor,
         S3ToHiveTransfer,
+        ShortCircuitOperator,
         SlackAPIOperator,
         SlackAPIPostOperator,
         SqlSensor,
         SubDagOperator,
-        TimeSensor
+        TimeSensor,
+        WebHdfsSensor
 
 
-Community Contributed Operators
+Community-contributed Operators
 '''''''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.operators
@@ -97,22 +110,28 @@ Variable                            Description
 ``{{ yesterday_ds }}``              yesterday's date as  ``YYYY-MM-DD``
 ``{{ tomorrow_ds }}``               tomorrow's date as  ``YYYY-MM-DD``
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
-``{{ execution_date }}``            the execution_date, (datateime.datetime)
+``{{ ts }}``                        same as ``execution_date.isoformat()``
+``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
+``{{ execution_date }}``            the execution_date, (datetime.datetime)
 ``{{ dag }}``                       the DAG object
 ``{{ task }}``                      the Task object
-``{{ macros }}``                    a reference to the macros package, described bellow
+``{{ macros }}``                    a reference to the macros package, described below
 ``{{ task_instance }}``             the task_instance object
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ end_date }}``                  same as ``{{ ds }}``
-``{{ lastest_date }}``              same as ``{{ ds }}``
+``{{ latest_date }}``               same as ``{{ ds }}``
 ``{{ ti }}``                        same as ``{{ task_instance }}``
-``{{ params }}``                    a reference to the user defined params dictionary
-``{{ task_instance_key_str }}``     a unique, human readable key to the task instance
+``{{ params }}``                    a reference to the user-defined params dictionary
+``{{ task_instance_key_str }}``     a unique, human-readable key to the task instance
                                     formatted ``{dag_id}_{task_id}_{ds}``
 ``conf``                            the full configuration object located at
                                     ``airflow.configuration.conf`` which
                                     represents the content of your
                                     ``airflow.cfg``
+``run_id``                          the ``run_id`` of the current DAG run
+``dag_run``                         a reference to the DAG run object
+``test_mode``                       whether the task instance was called using
+                                    the CLI's test subcommand
 =================================   ====================================
 
 Note that you can access the object's attributes and methods with simple
@@ -123,7 +142,25 @@ attributes and methods.
 
 Macros
 ''''''
-These macros live under the ``macros`` namespace in your templates.
+Macros are a way to expose objects to your templates and live under the 
+``macros`` namespace in your templates.
+
+A few commonly used libraries and methods are made available.
+
+
+=================================   ====================================
+Variable                            Description
+=================================   ====================================
+``macros.datetime``                 The standard lib's ``datetime.datetime``
+``macros.timedelta``                 The standard lib's ``datetime.timedelta``
+``macros.dateutil``                 A reference to the ``dateutil`` package
+``macros.time``                     The standard lib's ``time``
+``macros.uuid``                     The standard lib's ``uuid``
+``macros.random``                   The standard lib's ``random``
+=================================   ====================================
+
+
+Some airflow specific macros are also defined:
 
 .. automodule:: airflow.macros
     :show-inheritance:
@@ -138,7 +175,7 @@ These macros live under the ``macros`` namespace in your templates.
 Models
 ------
 
-Models are built on top of th SQLAlchemy ORM Base class, and instances are
+Models are built on top of the SQLAlchemy ORM Base class, and instances are
 persisted in the database.
 
 
@@ -151,6 +188,7 @@ Hooks
 .. automodule:: airflow.hooks
     :show-inheritance:
     :members:
+        DbApiHook,
         HiveCliHook,
         HiveMetastoreHook,
         HiveServer2Hook,
@@ -161,16 +199,18 @@ Hooks
         PostgresHook,
         PrestoHook,
         S3Hook,
-        SqliteHook
+        SqliteHook,
+        WebHDFSHook
 
-Community Contributed Hooks
+Community contributed hooks
 '''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.hooks
     :show-inheritance:
     :members:
         VerticaHook,
-        FTPHook
+        FTPHook,
+        SSHHook
 
 Executors
 ---------
@@ -178,4 +218,12 @@ Executors are the mechanism by which task instances get run.
 
 .. automodule:: airflow.executors
     :show-inheritance:
-    :members: LocalExecutor, CeleryExecutor, SequentialExecutor, MesosExecutor
+    :members: LocalExecutor, CeleryExecutor, SequentialExecutor
+
+Community-contributed executors
+'''''''''''''''''''''''''''''''
+
+.. automodule:: airflow.contrib.executors
+    :show-inheritance:
+    :members:
+        MesosExecutor

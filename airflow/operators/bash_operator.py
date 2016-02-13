@@ -69,7 +69,7 @@ class BashOperator(BaseOperator):
                 logging.info("Output:")
                 line = ''
                 for line in iter(sp.stdout.readline, b''):
-                    logging.info(line.strip())
+                    logging.info("{}".format(line.strip()))
                 sp.wait()
                 logging.info("Command exited with "
                              "return code {0}".format(sp.returncode))

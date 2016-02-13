@@ -1,5 +1,9 @@
 # Airflow
 
+[![Build Status](https://travis-ci.org/airbnb/airflow.svg)](https://travis-ci.org/airbnb/airflow)
+[![Coverage Status](https://coveralls.io/repos/airbnb/airflow/badge.svg?service=github)](https://coveralls.io/github/airbnb/airflow)
+[![pypi downloads](https://img.shields.io/pypi/dm/airflow.svg)](https://pypi.python.org/pypi/airflow/)
+
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
@@ -47,15 +51,20 @@ Currently **officially** using Airflow:
 
 * Airbnb [@mistercrunch]
 * Agari [@r39132](https://github.com/r39132)
+* BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
+* Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 * [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
+* Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
+* [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
+* [Jampp](https://github.com/jampp)
+* [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 * Lyft
+* [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 * Stripe [@jbalogh]
+* [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
 * Wooga
 * Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 * Yahoo!
-* [Jampp](https://github.com/jampp)
-* Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
-* BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 
 ## Links
 
@@ -65,3 +74,4 @@ Currently **officially** using Airflow:
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
 * [Docker Airflow (externally maintained)](https://github.com/puckel/docker-airflow)
 * [Airflow at Agari Blog Post](http://agari.com/blog/airflow-agari)
+* Airflow Chef recipe (community contributed) [github] (https://github.com/bahchis/airflow-cookbook) [chef] (https://supermarket.chef.io/cookbooks/airflow)

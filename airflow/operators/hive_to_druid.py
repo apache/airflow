@@ -28,6 +28,9 @@ class HiveToDruidTransfer(BaseOperator):
     :param hadoop_dependency_coordinates: list of coordinates to squeeze
         int the ingest json
     :type hadoop_dependency_coordinates: list of str
+    :param intervals: list of time intervals that defines segments, this
+        is passed as is to the json object
+    :type intervals: list
     """
 
     template_fields = ('sql', 'intervals')
@@ -41,7 +44,7 @@ class HiveToDruidTransfer(BaseOperator):
             druid_datasource,
             ts_dim,
             metric_spec=None,
-            hive_cli_conn_id='hiveserver2_default',
+            hive_cli_conn_id='hive_cli_default',
             druid_ingest_conn_id='druid_ingest_default',
             metastore_conn_id='metastore_default',
             hadoop_dependency_coordinates=None,
@@ -60,8 +63,6 @@ class HiveToDruidTransfer(BaseOperator):
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
 
-
-
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         logging.info("Extracting data from Hive")
@@ -78,13 +79,8 @@ class HiveToDruidTransfer(BaseOperator):
         AS
         {sql}
         """.format(**locals())
+        logging.info("Running command:\n {}".format(hql))
         hive.run_cli(hql)
-        #hqls = hql.split(';')
-        #logging.info(str(hqls))
-        #from airflow.hooks import HiveServer2Hook
-        #hive = HiveServer2Hook(hiveserver2_conn_id="hiveserver2_silver")
-        #hive.get_results(hqls)
-
 
         m = HiveMetastoreHook(self.metastore_conn_id)
         t = m.get_table(hive_table)

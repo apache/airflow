@@ -3,9 +3,9 @@ from builtins import object
 import logging
 
 from airflow.utils import State
-from airflow.configuration import conf
+from airflow import configuration
 
-PARALLELISM = conf.getint('core', 'PARALLELISM')
+PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(object):
@@ -38,13 +38,16 @@ class BaseExecutor(object):
 
     def queue_task_instance(
             self, task_instance, mark_success=False, pickle_id=None,
-            force=False, ignore_dependencies=False, task_start_date=None):
+            force=False, ignore_dependencies=False, task_start_date=None,
+            pool=None):
+        pool = pool or task_instance.pool
         command = task_instance.command(
             local=True,
             mark_success=mark_success,
             force=force,
             ignore_dependencies=ignore_dependencies,
             task_start_date=task_start_date,
+            pool=pool,
             pickle_id=pickle_id)
         self.queue_command(
             task_instance.key,
@@ -81,11 +84,11 @@ class BaseExecutor(object):
         for i in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, priority, queue) = sorted_queue.pop(0)
             self.running[key] = command
-            del self.queued_tasks[key]
+            self.queued_tasks.pop(key)
             self.execute_async(key, command=command, queue=queue)
 
     def change_state(self, key, state):
-        del self.running[key]
+        self.running.pop(key)
         self.event_buffer[key] = state
 
     def fail(self, key):

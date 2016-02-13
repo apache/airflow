@@ -1,4 +1,6 @@
 from airflow.hooks.base_hook import BaseHook
+from airflow import configuration
+
 try:
     snakebite_imported = True
     from snakebite.client import Client, HAClient, Namenode
@@ -29,13 +31,17 @@ class HDFSHook(BaseHook):
         '''
         Returns a snakebite HDFSClient object.
         '''
+        use_sasl = False
+        if configuration.get('core', 'security') == 'kerberos':
+            use_sasl = True
+
         connections = self.get_connections(self.hdfs_conn_id)
         client = None
         if len(connections) == 1:
-            client = Client(connections[0].host, connections[0].port)
+            client = Client(connections[0].host, connections[0].port,use_sasl=use_sasl)
         elif len(connections) > 1:
             nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn)
+            client = HAClient(nn, use_sasl=use_sasl)
         else:
             raise HDFSHookException("conn_id doesn't exist in the repository")
         return client

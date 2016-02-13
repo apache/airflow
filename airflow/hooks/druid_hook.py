@@ -3,7 +3,7 @@ import logging
 import json
 import time
 
-import pydruid
+from pydruid.client import PyDruid
 import requests
 
 from airflow.hooks.base_hook import BaseHook
@@ -34,10 +34,9 @@ class DruidHook(BaseHook):
         Returns a druid connection object for query
         """
         conn = self.get_connection(self.druid_query_conn_id)
-        client = pydruid.client.PyDruid(
+        return PyDruid(
             "http://{conn.host}:{conn.port}".format(**locals()),
             conn.extra_dejson.get('endpoint', ''))
-        return client
 
     @property
     def ingest_post_url(self):
@@ -96,8 +95,8 @@ class DruidHook(BaseHook):
                     "type": "hadoop",
                     "jobProperties": {
                         "mapreduce.job.user.classpath.first": "false",
-                        "mapreduce.map.output.compress" : "false",
-                        "mapreduce.output.fileoutputformat.compress" : "false",
+                        "mapreduce.map.output.compress": "false",
+                        "mapreduce.output.fileoutputformat.compress": "false",
                     },
                 },
                 "ioConfig": {

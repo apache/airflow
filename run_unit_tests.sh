@@ -1,21 +1,32 @@
+#!/bin/sh
+
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~/airflow}
 export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
+
+# any argument received is overriding the default nose execution arguments: 
+
+nose_args=$@
+if [ -z "$nose_args" ]; then
+  nose_args="--with-coverage \
+--cover-erase \
+--cover-html \
+--cover-package=airflow \
+--cover-html-dir=airflow/www/static/coverage \
+-s \
+-v \
+--logging-level=DEBUG "
+fi
+
+#--with-doctest
 
 # Generate the `airflow` executable if needed
 which airflow > /dev/null || python setup.py develop
 
-# initialize the test db
-AIRFLOW_DB=$AIRFLOW_HOME/unittests.db
-ls -s $AIRFLOW_DB > /dev/null 2>&1 || airflow initdb # if it's missing
-ls -s $AIRFLOW_DB | egrep '^0 ' > /dev/null && airflow initdb # if it's blank
+echo "Initializing the DB"
+airflow initdb
 
-nosetests --with-doctest \
-          --with-coverage \
-          --cover-erase \
-          --cover-html \
-          --cover-package=airflow \
-          --cover-html-dir=airflow/www/static/coverage \
-          -v \
-          --logging-level=DEBUG
+echo "Starting the unit tests with the following nose arguments: "$nose_args
+nosetests $nose_args
+
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job

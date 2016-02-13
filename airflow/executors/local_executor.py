@@ -5,11 +5,11 @@ import multiprocessing
 import subprocess
 import time
 
-from airflow.configuration import conf
+from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils import State
 
-PARALLELISM = conf.get('core', 'PARALLELISM')
+PARALLELISM = configuration.get('core', 'PARALLELISM')
 
 
 class LocalWorker(multiprocessing.Process):

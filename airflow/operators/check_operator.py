@@ -3,7 +3,7 @@ from builtins import str
 import logging
 
 from airflow.utils import AirflowException
-from airflow.hooks import PrestoHook
+from airflow.hooks import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 
@@ -50,9 +50,10 @@ class CheckOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql,
+            conn_id=None,
             *args, **kwargs):
         super(CheckOperator, self).__init__(*args, **kwargs)
-
+        self.conn_id = conn_id
         self.sql = sql
 
     def execute(self, context=None):
@@ -67,11 +68,7 @@ class CheckOperator(BaseOperator):
         logging.info("Success.")
 
     def get_db_hook(self):
-        """
-        Requires that the hook has a ``get_first`` method receiving sql
-        and returning a tuple.
-        """
-        raise NotImplemented()
+        return BaseHook.get_hook(conn_id=self.conn_id)
 
 
 def _convert_to_float_if_possible(s):
@@ -111,9 +108,11 @@ class ValueCheckOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, pass_value, tolerance=None,
+            conn_id=None,
             *args, **kwargs):
         super(ValueCheckOperator, self).__init__(*args, **kwargs)
         self.sql = sql
+        self.conn_id = conn_id
         self.pass_value = _convert_to_float_if_possible(pass_value)
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
@@ -122,7 +121,7 @@ class ValueCheckOperator(BaseOperator):
 
     def execute(self, context=None):
         logging.info('Executing SQL check: ' + self.sql)
-        records = self.get_db_hook().get_first(hql=self.sql)
+        records = self.get_db_hook().get_first(self.sql)
         if not records:
             raise AirflowException("The query returned None")
         test_results = []
@@ -146,7 +145,7 @@ class ValueCheckOperator(BaseOperator):
             raise AirflowException(except_temp.format(**locals()))
 
     def get_db_hook(self):
-        raise NotImplemented()
+        return BaseHook.get_hook(conn_id=self.conn_id)
 
 
 class IntervalCheckOperator(BaseOperator):
@@ -178,6 +177,7 @@ class IntervalCheckOperator(BaseOperator):
     def __init__(
             self, table, metrics_thresholds,
             date_filter_column='ds', days_back=-7,
+            conn_id=None,
             *args, **kwargs):
         super(IntervalCheckOperator, self).__init__(*args, **kwargs)
         self.table = table
@@ -185,6 +185,7 @@ class IntervalCheckOperator(BaseOperator):
         self.metrics_sorted = sorted(metrics_thresholds.keys())
         self.date_filter_column = date_filter_column
         self.days_back = -abs(days_back)
+        self.conn_id = conn_id
         sqlexp = ', '.join(self.metrics_sorted)
         sqlt = ("SELECT {sqlexp} FROM {table}"
                 " WHERE {date_filter_column}=").format(**locals())
@@ -194,9 +195,9 @@ class IntervalCheckOperator(BaseOperator):
     def execute(self, context=None):
         hook = self.get_db_hook()
         logging.info('Executing SQL check: ' + self.sql2)
-        row2 = hook.get_first(hql=self.sql2)
+        row2 = hook.get_first(self.sql2)
         logging.info('Executing SQL check: ' + self.sql1)
-        row1 = hook.get_first(hql=self.sql1)
+        row1 = hook.get_first(self.sql1)
         if not row2:
             raise AirflowException("The query {q} returned None").format(q=self.sql2)
         if not row1:
@@ -230,4 +231,4 @@ class IntervalCheckOperator(BaseOperator):
         logging.info("All tests have passed")
 
     def get_db_hook(self):
-        raise NotImplemented()
+        return BaseHook.get_hook(conn_id=self.conn_id)

@@ -1,5 +1,6 @@
 from slackclient import SlackClient
 from airflow.models import BaseOperator
+from airflow.utils import apply_defaults
 
 
 class SlackAPIOperator(BaseOperator):
@@ -8,13 +9,15 @@ class SlackAPIOperator(BaseOperator):
     The SlackAPIPostOperator is derived from this operator.
     In the future additional Slack API Operators will be derived from this class as well
 
-    :param token: Slack api token
-    :type token: String
+    :param token: Slack API token (https://api.slack.com/web)
+    :type token: string
     :param method: The Slack API Method to Call (https://api.slack.com/methods)
-    :type method: String
-    :param param: API Method call parameters (https://api.slack.com/methods)
-    :type param: dict
+    :type method: string
+    :param params: API Method call parameters (https://api.slack.com/methods)
+    :type params: dict
     """
+
+    @apply_defaults
     def __init__(self,
                  token='unset',
                  method='unset',
@@ -25,7 +28,24 @@ class SlackAPIOperator(BaseOperator):
         self.method = method
         self.params = params
 
+    def construct_api_call_params(self):
+        """
+        Used by the execute function. Allows templating on the source fields of the api_call_params dict before construction
+
+        Override in child classes.
+        Each SlackAPIOperator child class is responsible for having a construct_api_call_params function
+        which sets self.api_call_params with a dict of API call parameters (https://api.slack.com/methods)
+        """
+
+        pass
+
     def execute(self, **kwargs):
+        """
+        SlackAPIOperator calls will not fail even if the call is not unsuccessful.
+        It should not prevent a DAG from completing in success
+        """
+        if not self.params:
+            self.construct_api_call_params()
         sc = SlackClient(self.token)
         sc.api_call(self.method, **self.params)
 
@@ -43,9 +63,11 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :param icon_url: url to icon used for this message
     :type icon_url: string
     """
+
     template_fields = ('username', 'text')
     ui_color = '#FFBA40'
 
+    @apply_defaults
     def __init__(self,
                  channel='#general',
                  username='Airflow',
@@ -59,13 +81,13 @@ class SlackAPIPostOperator(SlackAPIOperator):
         self.username = username
         self.text = text
         self.icon_url = icon_url
+        super(SlackAPIPostOperator, self).__init__(method=self.method,
+                                                   *args, **kwargs)
+
+    def construct_api_call_params(self):
         self.params = {
             'channel': self.channel,
             'username': self.username,
             'text': self.text,
             'icon_url': self.icon_url,
         }
-        super(SlackAPIPostOperator, self).__init__(method=self.method,
-                                                   params=self.params,
-                                                   *args, **kwargs)
-

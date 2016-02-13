@@ -13,13 +13,18 @@ _import_module_attrs(globals(), {
 
 _operators = {
     'bash_operator': ['BashOperator'],
-    'python_operator': ['PythonOperator', 'BranchPythonOperator'],
+    'python_operator': [
+        'PythonOperator',
+        'BranchPythonOperator',
+        'ShortCircuitOperator',
+    ],
     'hive_operator': ['HiveOperator'],
     'presto_check_operator': [
         'PrestoCheckOperator',
         'PrestoValueCheckOperator',
         'PrestoIntervalCheckOperator',
     ],
+    'dagrun_operator': ['TriggerDagRunOperator'],
     'dummy_operator': ['DummyOperator'],
     'email_operator': ['EmailOperator'],
     'hive_to_samba_operator': ['Hive2SambaOperator'],
@@ -28,15 +33,18 @@ _operators = {
     'mysql_to_hive': ['MySqlToHiveTransfer'],
     'postgres_operator': ['PostgresOperator'],
     'sensors': [
-        'SqlSensor',
+        'BaseSensorOperator',
         'ExternalTaskSensor',
+        'HdfsSensor',
         'HivePartitionSensor',
+        'HttpSensor',
+        'MetastorePartitionSensor',
         'S3KeySensor',
         'S3PrefixSensor',
-        'HdfsSensor',
-        'TimeSensor',
+        'SqlSensor',
         'TimeDeltaSensor',
-        'HttpSensor'
+        'TimeSensor',
+        'WebHdfsSensor',
     ],
     'subdag_operator': ['SubDagOperator'],
     'hive_stats_operator': ['HiveStatsCollectionOperator'],
@@ -48,7 +56,7 @@ _operators = {
     'jdbc_operator': ['JdbcOperator'],
     'mssql_operator': ['MsSqlOperator'],
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
-    'slack_operator': ['SlackAPIPostOperator', 'SlackAPIOperator'],
+    'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
 }
 

@@ -67,10 +67,9 @@ t4 = SimpleHttpOperator(
 sensor = HttpSensor(
     task_id='http_sensor_check',
     conn_id='http_default',
-    endpoint='api/v1.0/apps',
+    endpoint='',
     params={},
-    headers={"Content-Type": "application/json"},
-    response_check=lambda response: True if "collation" in response.content else False,
+    response_check=lambda response: True if "Google" in response.content else False,
     poke_interval=5,
     dag=dag)
 
