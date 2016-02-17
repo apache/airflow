@@ -12,9 +12,8 @@ import airflow.security.utils as utils
 
 from flask import url_for, redirect
 
-from airflow import settings
-from airflow import models
-from airflow import configuration
+import airflow
+from airflow import settings, models, configuration
 
 import logging
 
@@ -77,7 +76,7 @@ def load_user(userid):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
+    session = airflow.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
     session.expunge_all()
     session.commit()

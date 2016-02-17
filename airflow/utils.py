@@ -640,8 +640,10 @@ class timeout(object):
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.alarm(self.seconds)
         except ValueError as e:
-            logging.warning("timeout can't be used in the current context")
-            logging.exception(e)
+            logging.warning(
+                "timeout could not be activated, it doens't work within "
+                "threads. Most likely you are using a LocalExecutor. "
+                "Timeouts aren't compatible with LocalExecutor")
 
     def __exit__(self, type, value, traceback):
         try:

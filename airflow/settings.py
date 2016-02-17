@@ -106,3 +106,4 @@ except:
     pass
 
 configure_logging()
+

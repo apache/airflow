@@ -27,6 +27,7 @@ import os
 import sys
 
 from airflow import configuration as conf
+from airflow import settings
 
 from airflow.models import DAG  # noqa
 from flask_admin import BaseView
@@ -45,6 +46,8 @@ engine = get_sqla_engine(
 
 Session = scoped_session(
     sessionmaker(autocommit=False, autoflush=False, bind=engine))
+settings.Session = Session
+settings.engine = engine
 
 
 def load_login():

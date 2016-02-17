@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 from sys import version_info
 
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import current_user
 from flask import flash
 from wtforms import (
     Form, PasswordField, StringField)
@@ -16,9 +16,8 @@ from sqlalchemy import (
     Column, String, DateTime)
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from airflow import settings
-from airflow import models
-from airflow import configuration
+import airflow
+from airflow import settings, models
 
 import logging
 
@@ -83,7 +82,7 @@ def load_user(userid):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
+    session = airflow.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
     session.expunge_all()
     session.commit()
@@ -111,7 +110,7 @@ def login(self, request):
                            form=form)
 
     try:
-        session = settings.Session()
+        session = airflow.Session()
         user = session.query(PasswordUser).filter(
             PasswordUser.username == username).first()
 

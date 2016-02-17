@@ -1,5 +1,5 @@
 import flask_login
-from flask_login import login_required, current_user, logout_user
+from flask_login import current_user
 from flask import flash
 from wtforms import (
     Form, PasswordField, StringField)
@@ -10,9 +10,8 @@ import ssl
 
 from flask import url_for, redirect
 
-from airflow import settings
-from airflow import models
-from airflow import configuration
+import airflow
+from airflow import settings, models, configuration
 from airflow.configuration import AirflowConfigException
 
 import logging
@@ -172,7 +171,7 @@ def load_user(userid):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
+    session = airflow.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
     session.expunge_all()
     session.commit()
@@ -203,7 +202,7 @@ def login(self, request):
         LdapUser.try_login(username, password)
         LOG.info("User %s successfully authenticated", username)
 
-        session = settings.Session()
+        session = airflow.Session()
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
