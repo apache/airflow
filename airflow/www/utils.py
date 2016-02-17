@@ -15,6 +15,7 @@ from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type
 
+import airflow
 from airflow import configuration, models, settings, utils
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
@@ -78,7 +79,7 @@ def action_logging(f):
     '''
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        session = settings.Session()
+        session = airflow.Session()
 
         if current_user and hasattr(current_user, 'username'):
             user = current_user.username

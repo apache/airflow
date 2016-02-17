@@ -50,9 +50,9 @@ from sqlalchemy.orm import relationship, synonym
 from croniter import croniter
 import six
 
-from airflow import settings, utils
+import airflow
+from airflow import configuration, settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
-from airflow import configuration
 from airflow.utils import (
     AirflowException, State, apply_defaults, provide_session,
     is_container, as_tuple, TriggerRule, LoggingMixin)
@@ -287,7 +287,7 @@ class DagBag(LoggingMixin):
             settings.policy(task)
 
         if self.sync_to_db:
-            session = settings.Session()
+            session = airflow.Session()
             orm_dag = session.query(
                 DagModel).filter(DagModel.dag_id == dag.dag_id).first()
             if not orm_dag:
@@ -350,7 +350,7 @@ class DagBag(LoggingMixin):
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
-        session = settings.Session()
+        session = airflow.Session()
         for dag in session.query(
                 DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
             dag.is_active = False
@@ -359,7 +359,7 @@ class DagBag(LoggingMixin):
         session.close()
 
     def paused_dags(self):
-        session = settings.Session()
+        session = airflow.Session()
         dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
             DagModel.is_paused == True)]
         session.commit()
@@ -976,7 +976,8 @@ class TaskInstance(Base):
         self.pool = pool or task.pool
         self.test_mode = test_mode
         self.force = force
-        self.refresh_from_db()
+        self.refresh_from_db(session)
+        session.commit()
         self.clear_xcom_data()
         self.job_id = job_id
         iso = datetime.now().isoformat()
@@ -1038,7 +1039,7 @@ class TaskInstance(Base):
 
             # Closing all pooled connections to prevent
             # "max number of connections reached"
-            settings.engine.dispose()
+            airflow.engine.dispose()
             if verbose:
                 if mark_success:
                     msg = "Marking success for "
@@ -1115,7 +1116,7 @@ class TaskInstance(Base):
     def handle_failure(self, error, test_mode=False, context=None):
         logging.exception(error)
         task = self.task
-        session = settings.Session()
+        session = airflow.Session()
         self.end_date = datetime.now()
         self.set_duration()
         if not test_mode:
@@ -1782,7 +1783,7 @@ class BaseOperator(object):
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        session = settings.Session()
+        session = airflow.Session()
 
         TI = TaskInstance
         qry = session.query(TI).filter(TI.dag_id == self.dag_id)
@@ -2000,7 +2001,7 @@ class DagModel(Base):
 
     @classmethod
     def get_current(cls, dag_id):
-        session = settings.Session()
+        session = airflow.Session()
         obj = session.query(cls).filter(cls.dag_id == dag_id).first()
         session.expunge_all()
         session.commit()
@@ -2241,7 +2242,7 @@ class DAG(LoggingMixin):
         Returns the latest date for which at least one task instance exists
         """
         TI = TaskInstance
-        session = settings.Session()
+        session = airflow.Session()
         execution_date = session.query(func.max(TI.execution_date)).filter(
             TI.dag_id == self.dag_id,
             TI.task_id.in_(self.task_ids)
@@ -2269,7 +2270,7 @@ class DAG(LoggingMixin):
         Maintains and returns the currently active runs as a list of dates
         """
         TI = TaskInstance
-        session = settings.Session()
+        session = airflow.Session()
         active_dates = []
         active_runs = (
             session.query(DagRun)
@@ -2388,7 +2389,7 @@ class DAG(LoggingMixin):
             include_subdags=True,
             reset_dag_runs=True,
             dry_run=False):
-        session = settings.Session()
+        session = airflow.Session()
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
@@ -2579,7 +2580,7 @@ class DAG(LoggingMixin):
 
     def db_merge(self):
         BO = BaseOperator
-        session = settings.Session()
+        session = airflow.Session()
         tasks = session.query(BO).filter(BO.dag_id == self.dag_id).all()
         for t in tasks:
             session.delete(t)

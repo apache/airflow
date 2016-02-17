@@ -28,16 +28,23 @@ import sys
 
 from airflow import configuration as conf
 
-from airflow.models import DAG
+from airflow.models import DAG  # noqa
 from flask_admin import BaseView
 from importlib import import_module
-from airflow.utils import AirflowException
+from airflow.utils import AirflowException, get_sqla_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 if DAGS_FOLDER not in sys.path:
     sys.path.append(DAGS_FOLDER)
 
 login = None
+engine = get_sqla_engine(
+    pool_size=conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE'),
+    pool_recycle=conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE'))
+
+Session = scoped_session(
+    sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 
 def load_login():

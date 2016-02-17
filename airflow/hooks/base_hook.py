@@ -8,7 +8,7 @@ import logging
 import os
 import random
 
-from airflow import settings
+import airflow
 from airflow.models import Connection
 from airflow.utils import AirflowException
 
@@ -28,7 +28,7 @@ class BaseHook(object):
 
     @classmethod
     def get_connections(cls, conn_id):
-        session = settings.Session()
+        session = airflow.Session()
         db = (
             session.query(Connection)
             .filter(Connection.conn_id == conn_id)

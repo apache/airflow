@@ -33,14 +33,16 @@ from alembic.migration import MigrationContext
 
 from contextlib import contextmanager
 
-from sqlalchemy import event, exc
-from sqlalchemy.pool import Pool
+from sqlalchemy import event, exc, create_engine
+from sqlalchemy.pool import Pool, NullPool, QueuePool
+from sqlalchemy.orm import scoped_session, sessionmaker
 
 import numpy as np
 from croniter import croniter
 
-from airflow import settings
-from airflow import configuration
+import airflow
+from airflow import configuration, settings
+
 
 
 class AirflowException(Exception):
@@ -137,7 +139,7 @@ def provide_session(func):
         needs_session = False
         if 'session' not in kwargs:
             needs_session = True
-            session = settings.Session()
+            session = airflow.Session()
             kwargs['session'] = session
         result = func(*args, **kwargs)
         if needs_session:
@@ -172,7 +174,7 @@ def merge_conn(conn, session=None):
 
 
 def initdb():
-    session = settings.Session()
+    session = airflow.Session()
 
     from airflow import models
     upgradedb()
@@ -307,10 +309,10 @@ def resetdb():
     from airflow import models
 
     logging.info("Dropping tables that exist")
-    models.Base.metadata.drop_all(settings.engine)
-    mc = MigrationContext.configure(settings.engine)
-    if mc._version.exists(settings.engine):
-        mc._version.drop(settings.engine)
+    models.Base.metadata.drop_all(airflow.engine)
+    mc = MigrationContext.configure(airflow.engine)
+    if mc._version.exists(airflow.engine):
+        mc._version.drop(airflow.engine)
     initdb()
 
 
@@ -974,3 +976,34 @@ class GCSLog(object):
 
         # raise/return error if we get here
         logging.error('Could not write logs to {}'.format(remote_log_location))
+
+
+def get_sqla_engine(pool_size=5, pool_recycle=3600):
+    """
+    Get a sqlalchemy engine object, pass pool_size=0 to get an engine
+    without a connection pool.
+    """
+    CONN = settings.SQL_ALCHEMY_CONN
+    engine_args = {}
+    if 'sqlite' not in CONN and pool_size:
+        # Engine args not supported by sqlite
+        engine_args['pool_size'] = pool_size
+        engine_args['pool_recycle'] = pool_recycle
+        engine_args['poolclass'] = QueuePool
+    else:
+        engine_args['poolclass'] = NullPool
+
+    engine = create_engine(CONN, **engine_args)
+    return engine
+
+
+def set_sqla_nopool():
+    """
+    Switcharoo to set a SqlAlchemy engine that does not have pool.
+    This is used to limit the number of concurrent connections in
+    in the metadata database when running thousands of task instances.
+    """
+    np_engine = get_sqla_engine(pool_size=0)
+    airflow.engine = np_engine
+    airflow.Session = scoped_session(
+        sessionmaker(autocommit=False, autoflush=False, bind=np_engine))
