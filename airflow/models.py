@@ -1381,10 +1381,12 @@ class OperatorPointer(object):
     :type task: task
     """
     def __init__(self, task):
-        if task.dag:
-            self.dag = task.dag
-            self._task_id = task.task_id
+        self.dag = task.dag
+        if self.dag is not None:
+            self.task_id = task.task_id
+            self._task = None
         else:
+            self.task_id = task.task_id
             self._task = task
 
     @property
@@ -1392,14 +1394,7 @@ class OperatorPointer(object):
         if self._task:
             return(self._task)
         else:
-            return(self.dag.get_task(self._task_id))
-
-    @property
-    def task_id(self):
-        if self._task:
-            return(self._task.task_id)
-        else:
-            return(self._task_id)
+            return(self.dag.get_task(self.task_id))
 
 @functools.total_ordering
 class BaseOperator(object):
