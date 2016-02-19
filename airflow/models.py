@@ -1370,6 +1370,32 @@ class Log(Base):
         self.owner = owner or task_owner
 
 
+class OperatorPointer(object):
+    """
+    An object of this class points to a task using their dag and task_id.
+    It thus avoids the recursive structure of the upstream and downstream
+    list that leads to recursion depth overflows on operations like deepcopy
+    and pickle
+
+    :param task: the task the pointer should point to
+    :type task: task
+    """
+    def __init__(self, task):
+        self.dag = task.dag
+        self.task_id = task.task_id
+
+        if self.dag is not None:
+            self._task = None
+        else:
+            self._task = task
+
+    @property
+    def task(self):
+        if self._task is not None:
+            return(self._task)
+        else:
+            return(self.dag.get_task(self.task_id))
+
 @functools.total_ordering
 class BaseOperator(object):
     """
@@ -1757,12 +1783,12 @@ class BaseOperator(object):
     @property
     def upstream_list(self):
         """@property: list of tasks directly upstream"""
-        return self._upstream_list
+        return [t.task for t in self._upstream_list]
 
     @property
     def downstream_list(self):
         """@property: list of tasks directly downstream"""
-        return self._downstream_list
+        return [t.task for t in self._downstream_list]
 
     def clear(
             self, start_date=None, end_date=None,
@@ -1884,12 +1910,12 @@ class BaseOperator(object):
         return self.__class__.__name__
 
     def append_only_new(self, l, item):
-        if any([item is t for t in l]):
+        if any([item is t.task for t in l]):
             raise AirflowException(
                 'Dependency {self}, {item} already registered'
                 ''.format(**locals()))
         else:
-            l.append(item)
+            l.append(OperatorPointer(item))
 
     def _set_relatives(self, task_or_task_list, upstream=False):
         try:
@@ -2474,9 +2500,9 @@ class DAG(LoggingMixin):
             # Removing upstream/downstream references to tasks that did not
             # made the cut
             t._upstream_list = [
-                ut for ut in t._upstream_list if utils.is_in(ut, tasks)]
+                ut for ut in t._upstream_list if utils.is_in(ut.task, tasks)]
             t._downstream_list = [
-                ut for ut in t._downstream_list if utils.is_in(ut, tasks)]
+                ut for ut in t._downstream_list if utils.is_in(ut.task, tasks)]
 
         return dag
 
