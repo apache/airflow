@@ -2495,14 +2495,14 @@ class DAG(LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=True)
         # Compiling the unique list of tasks that made the cut
         tasks = list(set(regex_match + also_include))
-        dag.tasks = tasks
-        for t in dag.tasks:
+        for t in tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
             t._upstream_list = [
                 ut for ut in t._upstream_list if utils.is_in(ut.task, tasks)]
             t._downstream_list = [
                 ut for ut in t._downstream_list if utils.is_in(ut.task, tasks)]
+        dag.tasks = tasks
 
         return dag
 
