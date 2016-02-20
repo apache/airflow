@@ -19,11 +19,13 @@ future
 google-api-python-client
 gunicorn
 hive-thrift-py
+httplib2
 ipython
 jinja2
 markdown
 nose
 nose-exclude
+oauth2client
 pandas
 pygments
 pyhive

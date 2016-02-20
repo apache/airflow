@@ -1149,11 +1149,17 @@ class TaskInstance(Base):
         tables = None
         if 'tables' in task.params:
             tables = task.params['tables']
+
         ds = self.execution_date.isoformat()[:10]
+        ts = self.execution_date.isoformat()
         yesterday_ds = (self.execution_date - timedelta(1)).isoformat()[:10]
         tomorrow_ds = (self.execution_date + timedelta(1)).isoformat()[:10]
+
         ds_nodash = ds.replace('-', '')
-        iso = self.execution_date.isoformat()
+        ts_nodash = ts.replace('-', '').replace(':', '')
+        yesterday_ds_nodash = yesterday_ds.replace('-', '')
+        tomorrow_ds_nodash = tomorrow_ds.replace('-', '')
+
         ti_key_str = "{task.dag_id}__{task.task_id}__{ds_nodash}"
         ti_key_str = ti_key_str.format(**locals())
 
@@ -1180,12 +1186,14 @@ class TaskInstance(Base):
         return {
             'dag': task.dag,
             'ds': ds,
-            'ts': iso,
-            'ts_nodash': iso.replace('-', '').replace(':', ''),
-            'yesterday_ds': yesterday_ds,
-            'tomorrow_ds': tomorrow_ds,
-            'END_DATE': ds,
             'ds_nodash': ds_nodash,
+            'ts': ts,
+            'ts_nodash': ts_nodash,
+            'yesterday_ds': yesterday_ds,
+            'yesterday_ds_nodash': yesterday_ds_nodash,
+            'tomorrow_ds': tomorrow_ds,
+            'tomorrow_ds_nodash': tomorrow_ds_nodash,
+            'END_DATE': ds,
             'end_date': ds,
             'dag_run': dag_run,
             'run_id': run_id,

@@ -48,24 +48,19 @@ def get_ldap_connection(dn=None, password=None):
 
     if not conn.bind():
         LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
-        raise AuthenticationError("Username or password incorrect")
+        raise AuthenticationError("Cannot bind to ldap server")
 
     return conn
 
+
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
-    if not search_base or not group_filter:
-        LOG.debug("Skipping group check for %s %s", search_base, group_filter)
-        # Normally, would return false here. Return true to maintain backwards compatibility with legacy
-        # behavior, which always returned true for superuser and data profiler.
-        return True
+    search_filter = '(&({0}))'.format(group_filter)
+    if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
+        LOG.warn("Unable to find group for %s %s", search_base, search_filter)
     else:
-        search_filter = '(&({0}))'.format(group_filter)
-        if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
-            LOG.warn("Unable to find group for %s %s", search_base, search_filter)
-        else:
-            for resp in conn.response:
-                if resp.has_key('attributes') and resp['attributes'].get(user_name_attr)[0] == username:
-                    return True
+        for resp in conn.response:
+            if 'attributes' in resp and resp['attributes'].get(user_name_attr)[0] == username:
+                return True
     return False
 
 
@@ -76,10 +71,24 @@ class LdapUser(models.User):
         # Load and cache superuser and data_profiler settings.
         conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
         try:
-            self.superuser = group_contains_user(conn, configuration.get("ldap", "basedn"), configuration.get("ldap", "superuser_filter"), configuration.get("ldap", "user_name_attr"), user.username)
-            self.data_profiler = group_contains_user(conn, configuration.get("ldap", "basedn"), configuration.get("ldap", "data_profiler_filter"), configuration.get("ldap", "user_name_attr"), user.username)
+            self.superuser = group_contains_user(conn,
+                                                 configuration.get("ldap", "basedn"),
+                                                 configuration.get("ldap", "superuser_filter"),
+                                                 configuration.get("ldap", "user_name_attr"),
+                                                 user.username)
         except AirflowConfigException:
-            LOG.debug("Missing configuration for superuser/data profiler settings. Skipping.")
+            self.superuser = True
+            LOG.debug("Missing configuration for superuser settings.  Skipping.")
+
+        try:
+            self.data_profiler = group_contains_user(conn,
+                                                     configuration.get("ldap", "basedn"),
+                                                     configuration.get("ldap", "data_profiler_filter"),
+                                                     configuration.get("ldap", "user_name_attr"),
+                                                     user.username)
+        except AirflowConfigException:
+            self.data_profiler = True
+            LOG.debug("Missing configuration for dataprofiler settings. Skipping")
 
     @staticmethod
     def try_login(username, password):
@@ -113,6 +122,12 @@ class LdapUser(models.User):
         entry = conn.response[0]
 
         conn.unbind()
+
+        if not 'dn' in entry:
+            # The search fitler for the user did not return any values, so an
+            # invalid user was used for credentials.
+            raise AuthenticationError("Invalid username or password")
+
         try:
             conn = get_ldap_connection(entry['dn'], password)
         except KeyError as e:

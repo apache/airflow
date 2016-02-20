@@ -34,7 +34,6 @@
               <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
             </div><!-- /input-group -->
         <div style="clear: both;">
-
     </div>
 <hr/>
 <div>
@@ -55,14 +54,23 @@
     </div>
     <div style="clear:both;"></div>
 </div>
+<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+        <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+        <span id="error_msg">Oops.</span>
+</div>
 <hr style="margin-bottom: 0px;"/>
+<button class="btn btn-default pull-right" id="refresh_button">
+    <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+</button>
 <div id="svg_container">
+
     <svg width="{{ width }}" height="{{ height }}">
-      <g id='dig' transform="translate(20,20)"/>
-      <filter id="blur-effect-1">
+        <g id='dig' transform="translate(20,20)"/>
+        <filter id="blur-effect-1">
         <feGaussianBlur stdDeviation="3" />
-      </filter>
-  </svg>
+        </filter>
+    </svg>
+    <img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}">
 </div>
 <hr>
 {% endblock %}
@@ -82,37 +90,15 @@
     var g = dagreD3.json.decode(nodes, edges);
     var duration = 500;
     var stateFocusMap = {
-        'no status':false, 'failed':false, 'running':false, 
+        'no status':false, 'failed':false, 'running':false,
         'queued': false, 'success': false};
 
 
     var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);
     var renderer = new dagreD3.Renderer();
     renderer.layout(layout).run(g, d3.select("#dig"));
+    update_nodes_states(task_instances);
 
-    // Assigning css classes based on state to nodes for border coloring
-    $.each(task_instances, function(task_id, ti) {
-      $('tspan').filter(function(index) { return $(this).text() === task_id; })
-        .parent().parent().parent()
-        .attr("class", "node enter " + ti.state)
-        .attr("data-toggle", "tooltip")
-        .attr("title", function(d) {
-          // Tooltip
-          task = tasks[task_id];
-          tt =  "Task_id: " + ti.task_id + "<br>";
-          tt += "Run: " + ti.execution_date + "<br>";
-          if(ti.run_id != undefined){
-            tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
-          }
-          tt += "Operator: " + task.task_type + "<br>";
-          tt += "Started: " + ti.start_date + "<br>";
-          tt += "Ended: " + ti.end_date + "<br>";
-          tt += "Duration: " + ti.duration + "<br>";
-          tt += "State: " + ti.state + "<br>";
-          return tt;
-        });
-    });
-    
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
         if (task.task_type == "SubDagOperator")
@@ -180,7 +166,7 @@
                     .selectAll("rect")
                     .style("stroke-width", "2px");
             }
-            else{ 
+            else{
                 d3.select("g.edgePaths")
                     .transition().duration(duration)
                     .style("opacity", 0.2);
@@ -205,11 +191,11 @@
         if(match) {
             var transform = d3.transform(d3.select(match).attr("transform"));
             transform.translate = [
-                -transform.translate[0] + 520, 
+                -transform.translate[0] + 520,
                 -(transform.translate[1] - 400)
             ];
             transform.scale = [1, 1];
-            
+
             d3.select("g.zoom")
                 .transition()
                 .attr("transform", transform.toString());
@@ -217,6 +203,31 @@
             renderer.zoom_obj.scale(1);
         }
     });
+
+    // Assigning css classes based on state to nodes
+    function update_nodes_states(task_instances) {
+        $.each(task_instances, function(task_id, ti) {
+          $('tspan').filter(function(index) { return $(this).text() === task_id; })
+            .parent().parent().parent()
+            .attr("class", "node enter " + ti.state)
+            .attr("data-toggle", "tooltip")
+            .attr("data-original-title", function(d) {
+              // Tooltip
+              task = tasks[task_id];
+              tt =  "Task_id: " + ti.task_id + "<br>";
+              tt += "Run: " + ti.execution_date + "<br>";
+              if(ti.run_id != undefined){
+                tt += "run_id: <nobr>" + ti.run_id + "</nobr><br>";
+              }
+              tt += "Operator: " + task.task_type + "<br>";
+              tt += "Started: " + ti.start_date + "<br>";
+              tt += "Ended: " + ti.end_date + "<br>";
+              tt += "Duration: " + ti.duration + "<br>";
+              tt += "State: " + ti.state + "<br>";
+              return tt;
+            });
+        });
+    }
 
     function clearFocus(){
         d3.selectAll("g.node")
@@ -268,5 +279,35 @@
         return false
     }
 
+    function error(msg){
+      $('#error_msg').html(msg);
+      $('#error').show();
+      $('#loading').hide();
+      $('#chart_section').hide(1000);
+      $('#datatable_section').hide(1000);
+    }
+
+    d3.select("#refresh_button").on("click",
+        function() {
+            $("#loading").css("display", "block");
+            $("div#svg_container").css("opacity", "0.2");
+            $.get(
+                "/admin/airflow/object/task_instances",
+                {dag_id : "{{ dag.dag_id }}", execution_date : "{{ execution_date }}"})
+            .done(
+                function(task_instances) {
+                    update_nodes_states(JSON.parse(task_instances));
+                    $("#loading").hide();
+                    $("div#svg_container").css("opacity", "1");
+                    $('#error').hide();
+                }
+            ).fail(function(jqxhr, textStatus, err) {
+                error(textStatus + ': ' + err);
+            });
+        }
+    );
+
     </script>
+
+
 {% endblock %}

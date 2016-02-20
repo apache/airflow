@@ -104,6 +104,7 @@ defaults = {
     },
     'smtp': {
         'smtp_starttls': True,
+        'smtp_ssl': False,
         'smtp_user': '',
         'smtp_password': '',
     },
@@ -208,6 +209,7 @@ filter_by_owner = False
 # server here
 smtp_host = localhost
 smtp_starttls = True
+smtp_ssl = False
 smtp_user = airflow
 smtp_port = 25
 smtp_password = airflow

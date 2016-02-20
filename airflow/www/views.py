@@ -683,6 +683,7 @@ class Airflow(BaseView):
     @expose('/logout')
     def logout(self):
         logout_user()
+        flash('You have been logged out.')
         return redirect(url_for('admin.index'))
 
     @expose('/rendered')
@@ -1549,6 +1550,26 @@ class Airflow(BaseView):
             demo_mode=demo_mode,
             root=root,
         )
+
+    @expose('/object/task_instances')
+    @login_required
+    @wwwutils.action_logging
+    def task_instances(self):
+        session = settings.Session()
+        dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+
+        dttm = request.args.get('execution_date')
+        if dttm:
+            dttm = dateutil.parser.parse(dttm)
+        else:
+            return ("Error: Invalid execution_date")
+
+        task_instances = {
+            ti.task_id: utils.alchemy_to_dict(ti)
+            for ti in dag.get_task_instances(session, dttm, dttm)}
+
+        return json.dumps(task_instances)
 
     @expose('/variables/<form>', methods=["GET", "POST"])
     @login_required

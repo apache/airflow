@@ -534,9 +534,10 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     SMTP_USER = configuration.get('smtp', 'SMTP_USER')
     SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
     SMTP_STARTTLS = configuration.getboolean('smtp', 'SMTP_STARTTLS')
+    SMTP_SSL = configuration.getboolean('smtp', 'SMTP_SSL')
 
     if not dryrun:
-        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         if SMTP_STARTTLS:
             s.starttls()
         if SMTP_USER and SMTP_PASSWORD:

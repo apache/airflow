@@ -41,7 +41,7 @@ class BashOperator(BaseOperator):
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
-        self.xcom_push = xcom_push
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         """
@@ -79,7 +79,7 @@ class BashOperator(BaseOperator):
                 if sp.returncode:
                     raise AirflowException("Bash command failed")
 
-        if self.xcom_push:
+        if self.xcom_push_flag:
             return line
 
     def on_kill(self):

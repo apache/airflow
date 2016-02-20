@@ -110,6 +110,7 @@ setup(
         'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',
+        'oauth2client>=1.5.2, <2.0.0',
         'pandas>=0.15.2, <1.0.0',
         'pygments>=2.0.1, <3.0',
         'python-dateutil>=2.3, <3',

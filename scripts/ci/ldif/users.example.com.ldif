@@ -1,0 +1,21 @@
+# create all users
+
+dn: uid=user1,dc=example,dc=com
+objectClass: account
+objectClass: simpleSecurityObject
+uid: user1
+userPassword: user1
+
+dn: uid=dataprofiler,dc=example,dc=com
+objectClass: account
+objectClass: simpleSecurityObject
+uid: dataprofiler
+userPassword: dataprofiler
+description: dataprofiler
+
+dn: uid=superuser,dc=example,dc=com
+objectClass: account
+objectClass: simpleSecurityObject
+uid: superuser
+userPassword: superuser
+description: superuser

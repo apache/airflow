@@ -68,7 +68,7 @@ class HiveToDruidTransfer(BaseOperator):
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         logging.info("Extracting data from Hive")
-        hive_table = 'druid.' + context['task_instance_key_str']
+        hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
         hql = """\
         set mapred.output.compress=false;
@@ -111,4 +111,4 @@ class HiveToDruidTransfer(BaseOperator):
             "Cleaning up by dropping the temp "
             "Hive table {}".format(hive_table))
         hql = "DROP TABLE IF EXISTS {}".format(hive_table)
-        #hive.run_cli(hql)
+        hive.run_cli(hql)

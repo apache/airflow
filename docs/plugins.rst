@@ -79,7 +79,7 @@ looks like:
 Example
 -------
 
-The code bellow defines a plugin that injects a set of dummy object
+The code below defines a plugin that injects a set of dummy object
 definitions in Airflow.
 
 .. code:: python

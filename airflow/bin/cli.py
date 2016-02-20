@@ -222,7 +222,8 @@ def run(args):
             mark_success=args.mark_success,
             pickle_id=pickle_id,
             ignore_dependencies=args.ignore_dependencies,
-            force=args.force)
+            force=args.force,
+            pool=args.pool)
         executor.heartbeat()
         executor.end()
 

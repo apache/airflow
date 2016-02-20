@@ -27,7 +27,7 @@ from lxml import html
 from airflow.utils import AirflowException
 from airflow.configuration import AirflowConfigException
 
-NUM_EXAMPLE_DAGS = 7
+NUM_EXAMPLE_DAGS = 9
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -731,6 +731,11 @@ class WebUiTests(unittest.TestCase):
         app.config['TESTING'] = True
         self.app = app.test_client()
 
+        self.dagbag = models.DagBag(
+            dag_folder=DEV_NULL, include_examples=True)
+        self.dag_bash = self.dagbag.dags['example_bash_operator']
+        self.runme_0 = self.dag_bash.get_task('runme_0')
+
     def test_index(self):
         response = self.app.get('/', follow_redirects=True)
         assert "DAGs" in response.data.decode('utf-8')
@@ -866,8 +871,25 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/dag_details?dag_id=example_branch_operator')
         assert "run_this_first" in response.data.decode('utf-8')
 
+    def test_fetch_task_instance(self):
+        url = (
+            "/admin/airflow/object/task_instances?"
+            "dag_id=example_bash_operator&"
+            "execution_date={}".format(DEFAULT_DATE_DS))
+        response = self.app.get(url)
+        assert "{}" in response.data.decode('utf-8')
+
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        job = jobs.LocalTaskJob(task_instance=ti, force=True)
+        job.run()
+
+        response = self.app.get(url)
+        assert "runme_0" in response.data.decode('utf-8')
+
     def tearDown(self):
-        pass
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
 
 
 class WebPasswordAuthTest(unittest.TestCase):
@@ -997,6 +1019,23 @@ class WebLdapAuthTest(unittest.TestCase):
     def test_unauthorized(self):
         response = self.app.get("/admin/airflow/landing_times")
         self.assertEqual(response.status_code, 302)
+
+    def test_no_filter(self):
+        response = self.login('user1', 'user1')
+        assert 'Data Profiling' in response.data.decode('utf-8')
+        assert 'Connections' in response.data.decode('utf-8')
+
+    def test_with_filters(self):
+        configuration.conf.set('ldap', 'superuser_filter',
+                               'description=superuser')
+        configuration.conf.set('ldap', 'data_profiler_filter',
+                               'description=dataprofiler')
+
+        response = self.login('dataprofiler', 'dataprofiler')
+        assert 'Data Profiling' in response.data.decode('utf-8')
+
+        response = self.login('superuser', 'superuser')
+        assert 'Connections' in response.data.decode('utf-8')
 
     def tearDown(self):
         configuration.test_mode()

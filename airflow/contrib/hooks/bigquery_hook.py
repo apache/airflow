@@ -225,8 +225,67 @@ class BigQueryBaseCursor(object):
                 'compression': compression,
                 'destinationUris': destination_cloud_storage_uris,
                 'destinationFormat': export_format,
-                'fieldDelimiter': field_delimiter,
-                'printHeader': print_header,
+            }
+        }
+
+        if export_format == 'CSV':
+            # Only set fieldDelimiter and printHeader fields if using CSV.
+            # Google does not like it if you set these fields for other export
+            # formats.
+            configuration['extract']['fieldDelimiter'] = field_delimiter
+            configuration['extract']['printHeader'] = print_header
+
+        return self.run_with_configuration(configuration)
+
+    def run_copy(self, source_dataset_tables, destination_project_dataset_table, write_disposition='WRITE_EMPTY', create_disposition='CREATE_IF_NEEDED'):
+        """
+        Executes a BigQuery copy command to copy data from one BigQuery table
+        to another. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.copy
+
+        For more details about these parameters.
+
+        :param source_dataset_tables: One or more dotted <dataset>.<table>
+            BigQuery tables to use as the source data. Use a list if there are
+            multiple source tables.
+        :type source_dataset_tables: list|string
+        :param destination_project_dataset_table: The destination BigQuery
+            table. Format is: <project>.<dataset>.<table>
+        :type destination_project_dataset_table: string
+        :param write_disposition: The write disposition if the table already exists.
+        :type write_disposition: string
+        :param create_disposition: The create disposition if the table doesn't exist.
+        :type create_disposition: string
+        """
+        source_dataset_tables = [source_dataset_tables] if not isinstance(source_dataset_tables, list) else source_dataset_tables
+        source_project_dataset_tables = []
+
+        for source_dataset_table in source_dataset_tables:
+            assert '.' in source_dataset_table, \
+                'Expected source_dataset_table in the format of <dataset>.<table>. Got: {}'.format(source_dataset_table)
+
+            source_dataset, source_table = source_dataset_table.split('.', 1)
+            source_project_dataset_tables.append({
+                'projectId': self.project_id,
+                'datasetId': source_dataset,
+                'tableId': source_table
+            })
+
+        assert 3 == len(destination_project_dataset_table.split('.')), \
+            'Expected destination_project_dataset_table in the format of <project>.<dataset>.<table>. Got: {}'.format(destination_project_dataset_table)
+
+        destination_project, destination_dataset, destination_table = destination_project_dataset_table.split('.', 2)
+        configuration = {
+            'copy': {
+                'createDisposition': create_disposition,
+                'writeDisposition': write_disposition,
+                'sourceTables': source_project_dataset_tables,
+                'destinationTable': {
+                    'projectId': destination_project,
+                    'datasetId': destination_dataset,
+                    'tableId': destination_table
+                }
             }
         }
 

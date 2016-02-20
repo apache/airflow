@@ -211,7 +211,7 @@ and in your DAG, when initializing the HiveOperator, specify
     run_as_owner=True
 
 GitHub Enterprise (GHE) Authentication
-''''''''''''''''''''''''''''''''
+''''''''''''''''''''''''''''''''''''''
 
 The GitHub Enterprise authentication backend can be used to authenticate users
 against an installation of GitHub Enterprise using OAuth2. You can optionally
@@ -244,9 +244,6 @@ backend. In order to setup an application:
 2. Select 'Applications' from the left hand nav
 3. Select the 'Developer Applications' tab
 4. Click 'Register new application'
-5. Fill in the required information
-  * The 'Authorization callback URL' must be fully qualifed (e.g.
-    http://airflow.example.com/example/ghe_oauth/callback)
+5. Fill in the required information (the 'Authorization callback URL' must be fully qualifed e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
-7. Copy 'Client ID', 'Client Secret', and your callback route to your
-   airflow.cfg according to the above example
+7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example

@@ -190,48 +190,46 @@ In addition, users can supply an S3 location for storing log backups. If logs ar
 Scaling Out on Mesos (community contributed)
 ''''''''''''''''''''''''''''''''''''''''''''
 MesosExecutor allows you to schedule airflow tasks on a Mesos cluster.
-For this to work, you need a running mesos cluster and perform following
+For this to work, you need a running mesos cluster and you must perform the following
 steps -
 
 1. Install airflow on a machine where webserver and scheduler will run,
-   let's refer this as Airflow server.
-2. On Airflow server, install mesos python eggs from `mesos downloads <http://open.mesosphere.com/downloads/mesos/>`_.
-3. On Airflow server, use a database which can be accessed from mesos
-   slave machines, for example mysql, and configure in ``airflow.cfg``.
+   let's refer to this as the "Airflow server".
+2. On the Airflow server, install mesos python eggs from `mesos downloads <http://open.mesosphere.com/downloads/mesos/>`_.
+3. On the Airflow server, use a database (such as mysql) which can be accessed from mesos
+   slave machines and add configuration in ``airflow.cfg``.
 4. Change your ``airflow.cfg`` to point executor parameter to
-   MesosExecutor and provide related Mesos settings.
+   `MesosExecutor` and provide related Mesos settings.
 5. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
    Airflow server (so that it uses same sql alchemy connection).
-6. On all mesos slaves, run
+6. On all mesos slaves, run the following for serving logs:
 
 .. code-block:: bash
 
     airflow serve_logs
 
-for serving logs.
-
-7. On Airflow server, run
+7. On Airflow server, to start processing/scheduling DAGs on mesos, run:
 
 .. code-block:: bash
 
     airflow scheduler -p
 
-to start processing DAGs and scheduling them on mesos. We need -p parameter to pickle the DAGs.
+Note: We need -p parameter to pickle the DAGs.
 
 You can now see the airflow framework and corresponding tasks in mesos UI.
 The logs for airflow tasks can be seen in airflow UI as usual.
 
-For more information about mesos, refer `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
-For any queries/bugs on MesosExecutor, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
+For more information about mesos, refer to `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
+For any queries/bugs on `MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
 
 Integration with systemd
 ''''''''''''''''''''''''
 Airflow can integrate with systemd based systems. This makes watching your daemons easy as systemd
-can take care restarting a daemon on failure. In the ``scripts/systemd`` directory you can find unit files that
-have been tested on Redhat based systems. You can copy those ``/usr/lib/systemd/system``. It is assumed that
+can take care of restarting a daemon on failure. In the ``scripts/systemd`` directory you can find unit files that
+have been tested on Redhat based systems. You can copy those to ``/usr/lib/systemd/system``. It is assumed that
 Airflow will run under ``airflow:airflow``. If not (or if you are running on a non Redhat based system) you
-probably need adjust the unit files.
+probably need to adjust the unit files.
 
-Environment configuration is picked up from ``/etc/sysconfig/airflow``. An example file is supplied
- . Make sure to specify the ``SCHEDULER_RUNS`` variable in this file when you run the schduler. You
+Environment configuration is picked up from ``/etc/sysconfig/airflow``. An example file is supplied.
+Make sure to specify the ``SCHEDULER_RUNS`` variable in this file when you run the schduler. You
  can also define here, for example, ``AIRFLOW_HOME`` or ``AIRFLOW_CONFIG``.
