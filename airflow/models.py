@@ -2719,7 +2719,6 @@ class Variable(Base):
         session.flush()
 
 
-
 class XCom(Base):
     """
     Base class for XCom objects.
@@ -2894,6 +2893,7 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
 
 class Pool(Base):
     __tablename__ = "slot_pool"
