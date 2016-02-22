@@ -64,6 +64,7 @@ Currently **officially** using Airflow:
 * [Hootsuite](https://github.com/hootsuite)
 * ING
 * [Jampp](https://github.com/jampp)
+* [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
 * [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 * Lyft
 * [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
