@@ -43,15 +43,17 @@
       }
       $('#uncheck').click(function(){
           chart = Highcharts.charts[0];
-          for(i=0; i < chart.series.length; i++) {
-            chart.series[i].hide();
-          }
+          $(chart.series).each(function(){
+              this.setVisible(false, false);
+          });
+          chart.redraw();
       });
       $('#check').click(function(){
           chart = Highcharts.charts[0];
-          for(i=0; i < chart.series.length; i++) {
-            chart.series[i].show();
-          }
+          $(chart.series).each(function(){
+              this.setVisible(true, false);
+          });
+          chart.redraw();
       });
     });
     </script>
