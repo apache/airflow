@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -482,8 +481,8 @@ if 'BUILDING_AIRFLOW_DOCS' in os.environ:
 
 
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -793,6 +792,7 @@ class utcnow(expression.FunctionElement):
     key = 'utcnow'
     type = DateTime(timezone=True)
 
+
 @compiles(utcnow)
 def _default_utcnow(element, compiler, **kw):
     """
@@ -804,15 +804,18 @@ def _default_utcnow(element, compiler, **kw):
     """
     return "utcnow()"
 
+
 @compiles(utcnow, 'postgresql')
 def _pg_utcnow(element, compiler, **kw):
     """Postgresql-specific compilation handler."""
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
+
 @compiles(utcnow, 'mssql')
 def _ms_utcnow(element, compiler, **kw):
     """MySQL-specific compilation handler."""
     return "GETUTCDATE()"
+
 
 @compiles(utcnow, 'sqlite')
 def _sl_utcnow(element, compiler, **kw):
