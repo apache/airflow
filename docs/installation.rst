@@ -112,7 +112,8 @@ setting up a real database backend and switching to the LocalExecutor.
 
 As Airflow was built to interact with its metadata using the great SqlAlchemy
 library, you should be able to use any database backend supported as a
-SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
+SqlAlchemy backend. We recommend using **MySQL** or **Postgres**. Also make sure
+the database timezone is set to GMT.
 
 .. note:: If you decide to use **Postgres**, we recommend using the ``psycopg2``
    driver and specifying it in your SqlAlchemy connection string.
