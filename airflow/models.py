@@ -42,7 +42,7 @@ from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
 from airflow.utils import (
     AirflowException, State, apply_defaults, provide_session,
-    is_container, as_tuple, TriggerRule, LoggingMixin)
+    is_container, as_tuple, TriggerRule, LoggingMixin, utcnow)
 
 Base = declarative_base()
 ID_LEN = 250
@@ -530,7 +530,7 @@ class DagPickle(Base):
     """
     id = Column(Integer, primary_key=True)
     pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(DateTime, default=func.now())
+    created_dttm = Column(DateTime, server_default=utcnow())
     pickle_hash = Column(Text)
 
     __tablename__ = "dag_pickle"
@@ -2619,7 +2619,7 @@ class Chart(Base):
         "User", cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
-    last_modified = Column(DateTime, default=func.now())
+    last_modified = Column(DateTime, server_default=utcnow())
 
     def __repr__(self):
         return self.label
@@ -2719,7 +2719,6 @@ class Variable(Base):
         session.flush()
 
 
-
 class XCom(Base):
     """
     Base class for XCom objects.
@@ -2730,7 +2729,7 @@ class XCom(Base):
     key = Column(String(512))
     value = Column(PickleType(pickler=dill))
     timestamp = Column(
-        DateTime, default=func.now(), nullable=False)
+        DateTime, server_default=utcnow(), nullable=False)
     execution_date = Column(DateTime, nullable=False)
 
     # source information
@@ -2869,8 +2868,8 @@ class DagRun(Base):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(DateTime, default=func.now())
-    start_date = Column(DateTime, default=func.now())
+    execution_date = Column(DateTime, server_default=utcnow())
+    start_date = Column(DateTime, server_default=utcnow())
     end_date = Column(DateTime)
     state = Column(String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
@@ -2894,6 +2893,7 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
 
 class Pool(Base):
     __tablename__ = "slot_pool"

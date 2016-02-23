@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -34,6 +33,9 @@ from contextlib import contextmanager
 
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
+from sqlalchemy.sql import expression
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.types import DateTime
 
 import numpy as np
 from croniter import croniter
@@ -477,9 +479,10 @@ if 'BUILDING_AIRFLOW_DOCS' in os.environ:
     # Monkey patch hook to get good function headers while building docs
     apply_defaults = lambda x: x
 
+
 def ask_yesno(question):
-    yes = set(['yes', 'y'])
-    no = set(['no', 'n'])
+    yes = {'yes', 'y'}
+    no = {'no', 'n'}
 
     done = False
     print(question)
@@ -784,3 +787,37 @@ class LoggingMixin(object):
             self._logger = logging.root.getChild(self.__class__.__module__ + '.' +self.__class__.__name__)
             return self._logger
 
+
+class utcnow(expression.FunctionElement):
+    key = 'utcnow'
+    type = DateTime()
+
+
+@compiles(utcnow)
+def _default_utcnow(element, compiler, **kw):
+    """
+    Default compilation handler.
+
+    Note that there is no SQL "utcnow()" function; this is a
+    "fake" string so that we can produce SQL strings that are dialect-agnostic,
+    such as within tests.
+    """
+    return "utcnow()"
+
+
+@compiles(utcnow, 'postgresql')
+def _pg_utcnow(element, compiler, **kw):
+    """Postgresql-specific compilation handler."""
+    return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
+
+
+@compiles(utcnow, 'mssql')
+def _ms_utcnow(element, compiler, **kw):
+    """MySQL-specific compilation handler."""
+    return "GETUTCDATE()"
+
+
+@compiles(utcnow, 'sqlite')
+def _sl_utcnow(element, compiler, **kw):
+    """Sqlite-specific compilation handler."""
+    return "DATETIME('now')"
