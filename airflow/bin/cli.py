@@ -85,7 +85,10 @@ def trigger_dag(args):
 
     session = settings.Session()
     # TODO: verify dag_id
-    execution_date = datetime.now()
+    if args.execution_date:
+        execution_date = dateutil.parser.parse(args.execution_date)
+    else:
+        execution_date = datetime.now()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
     dr = session.query(DagRun).filter(
         DagRun.dag_id==args.dag_id, DagRun.run_id==run_id).first()
@@ -556,6 +559,8 @@ def get_parser():
     ht = "Trigger a DAG"
     parser_trigger_dag = subparsers.add_parser('trigger_dag', help=ht)
     parser_trigger_dag.add_argument("dag_id", help="The id of the dag to run")
+    parser_trigger_dag.add_argument(
+        "execution_date", help="The execution date to trigger")
     parser_trigger_dag.add_argument(
         "-r", "--run_id",
         help="Helps to indentify this run")
