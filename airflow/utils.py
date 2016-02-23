@@ -790,7 +790,7 @@ class LoggingMixin(object):
 
 class utcnow(expression.FunctionElement):
     key = 'utcnow'
-    type = DateTime(timezone=True)
+    type = DateTime()
 
 
 @compiles(utcnow)
