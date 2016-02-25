@@ -51,6 +51,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_id=self.trigger_dag_id,
                 run_id=dro.run_id,
                 conf=dro.payload,
+                execution_date = datetime.now(),
                 external_trigger=True)
             logging.info("Creating DagRun {}".format(dr))
             session.add(dr)
