@@ -17,6 +17,7 @@ class BigQueryOperator(BaseOperator):
                  bql,
                  destination_dataset_table = False,
                  write_disposition = 'WRITE_EMPTY',
+                 allow_large_results=False,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  *args,
@@ -41,6 +42,7 @@ class BigQueryOperator(BaseOperator):
         self.bql = bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
+        self.allow_large_results = allow_large_results
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
 
@@ -49,4 +51,4 @@ class BigQueryOperator(BaseOperator):
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition)
+        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition, self.allow_large_results)

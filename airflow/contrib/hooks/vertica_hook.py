@@ -18,7 +18,7 @@ class VerticaHook(DbApiHook):
         conn = self.get_connection(self.vertica_conn_id)
         conn_config = {
             "user": conn.login,
-            "password": conn.password,
+            "password": conn.password or '',
             "database": conn.schema,
         }
 

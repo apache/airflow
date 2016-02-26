@@ -135,7 +135,7 @@ Variable                            Description
                                     represents the content of your
                                     ``airflow.cfg``
 ``run_id``                          the ``run_id`` of the current DAG run
-``dag_run``                         a reference to the DAG run object
+``dag_run``                         a reference to the DagRun object
 ``test_mode``                       whether the task instance was called using
                                     the CLI's test subcommand
 =================================   ====================================

@@ -149,7 +149,7 @@ class BigQueryBaseCursor(object):
         self.service = service
         self.project_id = project_id
 
-    def run_query(self, bql, destination_dataset_table = False, write_disposition = 'WRITE_EMPTY'):
+    def run_query(self, bql, destination_dataset_table = False, write_disposition = 'WRITE_EMPTY', allow_large_results=False):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -164,10 +164,12 @@ class BigQueryBaseCursor(object):
             BigQuery table to save the query results.
         :param write_disposition: What to do if the table already exists in
             BigQuery.
+        :param allow_large_results: Whether to allow large results.
+        :type allow_large_results: boolean
         """
         configuration = {
             'query': {
-                'query': bql
+                'query': bql,
             }
         }
 
@@ -176,6 +178,7 @@ class BigQueryBaseCursor(object):
                 'Expected destination_dataset_table in the format of <dataset>.<table>. Got: {}'.format(destination_dataset_table)
             destination_dataset, destination_table = destination_dataset_table.split('.', 1)
             configuration['query'].update({
+                'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
                 'destinationTable': {
                     'projectId': self.project_id,
@@ -205,7 +208,7 @@ class BigQueryBaseCursor(object):
         :param compression: Type of compression to use.
         :type compression: string
         :param export_format: File format to export.
-        :type field_delimiter: string
+        :type export_format: string
         :param field_delimiter: The delimiter to use when extracting to a CSV.
         :type field_delimiter: string
         :param print_header: Whether to print a header for a CSV file extract.
@@ -291,6 +294,63 @@ class BigQueryBaseCursor(object):
 
         return self.run_with_configuration(configuration)
 
+    def run_load(self, destination_dataset_table, schema_fields, source_uris, source_format='CSV', create_disposition='CREATE_IF_NEEDED', skip_leading_rows=0, write_disposition='WRITE_EMPTY', field_delimiter=','):
+        """
+        Executes a BigQuery load command to load data from Google Cloud Storage
+        to BigQuery. See here:
+
+        https://cloud.google.com/bigquery/docs/reference/v2/jobs
+
+        For more details about these parameters.
+
+        :param destination_dataset_table: The dotted <dataset>.<table> BigQuery table to load data into.
+        :type destination_dataset_table: string
+        :param schema_fields: The schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+        :type schema_fields: list
+        :param source_uris: The source Google Cloud 
+            Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
+            per-object name can be used.
+        :type source_uris: list
+        :param source_format: File format to export.
+        :type source_format: string
+        :param create_disposition: The create disposition if the table doesn't exist.
+        :type create_disposition: string
+        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
+        :type skip_leading_rows: int
+        :param write_disposition: The write disposition if the table already exists.
+        :type write_disposition: string
+        :param field_delimiter: The delimiter to use when loading from a CSV.
+        :type field_delimiter: string
+        """
+        assert '.' in destination_dataset_table, \
+            'Expected destination_dataset_table in the format of <dataset>.<table>. Got: {}'.format(destination_dataset_table)
+
+        destination_dataset, destination_table = destination_dataset_table.split('.', 1)
+
+        configuration = {
+            'load': {
+                'createDisposition': create_disposition,
+                'destinationTable': {
+                    'projectId': self.project_id,
+                    'datasetId': destination_dataset,
+                    'tableId': destination_table,
+                },
+                'schema': {
+                    'fields': schema_fields
+                },
+                'sourceFormat': source_format,
+                'sourceUris': source_uris,
+                'writeDisposition': write_disposition,
+            }
+        }
+
+        if source_format == 'CSV':
+            configuration['load']['skipLeadingRows'] = skip_leading_rows
+            configuration['load']['fieldDelimiter'] = field_delimiter
+
+        return self.run_with_configuration(configuration)
+
     def run_with_configuration(self, configuration):
         """
         Executes a BigQuery SQL query. See here:
@@ -327,6 +387,45 @@ class BigQueryBaseCursor(object):
             raise Exception('BigQuery job failed. Final error was: %s', job['status']['errorResult'])
 
         return job_id
+
+    def get_schema(self, dataset_id, table_id):
+        """
+        Get the schema for a given datset.table.
+        see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+        
+        :param dataset_id: the dataset ID of the requested table
+        :param table_id: the table ID of the requested table
+        :return: a table schema
+        """
+        tables_resource = self.service.tables() \
+            .get(projectId=self.project_id, datasetId=dataset_id, tableId=table_id) \
+            .execute()
+        return tables_resource['schema']
+
+    def get_tabledata(self, dataset_id, table_id,
+                      max_results=None, page_token=None, start_index=None):
+        """
+        Get the data of a given dataset.table.
+        see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
+
+        :param dataset_id: the dataset ID of the requested table.
+        :param table_id: the table ID of the requested table.
+        :param max_results: the maximum results to return.
+        :param page_token: page token, returned from a previous call, identifying the result set.
+        :param start_index: zero based index of the starting row to read.
+        :return: map containing the requested rows.
+        """
+        optional_params = {}
+        if max_results:
+            optional_params['maxResults'] = max_results
+        if page_token:
+            optional_params['pageToken'] = page_token
+        if start_index:
+            optional_params['startIndex'] = start_index
+        return self.service.tabledata() \
+            .list(projectId=self.project_id, datasetId=dataset_id, tableId=table_id, **optional_params) \
+            .execute()
+
 
 class BigQueryCursor(BigQueryBaseCursor):
     """
@@ -499,7 +598,9 @@ def _bq_cast(string_field, bq_type):
     Helper method that casts a BigQuery row to the appropriate data types.
     This is useful because BigQuery returns all fields as strings.
     """
-    if bq_type == 'INTEGER' or bq_type == 'TIMESTAMP':
+    if string_field is None:
+        return None
+    elif bq_type == 'INTEGER' or bq_type == 'TIMESTAMP':
         return int(string_field)
     elif bq_type == 'FLOAT':
         return float(string_field)

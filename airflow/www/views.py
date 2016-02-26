@@ -20,10 +20,10 @@ from sqlalchemy import or_
 
 
 from flask import redirect, url_for, request, Markup, Response, current_app, render_template
-from flask.ext.admin import BaseView, expose, AdminIndexView
-from flask.ext.admin.contrib.sqla import ModelView
-from flask.ext.admin.actions import action
-from flask.ext.login import flash
+from flask_admin import BaseView, expose, AdminIndexView
+from flask_admin.contrib.sqla import ModelView
+from flask_admin.actions import action
+from flask_login import flash
 from flask._compat import PY2
 
 import jinja2
@@ -2089,6 +2089,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     form_choices = {
         'conn_type': [
             ('bigquery', 'BigQuery',),
+            ('datastore', 'Google Datastore'),
             ('ftp', 'FTP',),
             ('google_cloud_storage', 'Google Cloud Storage'),
             ('hdfs', 'HDFS',),

@@ -4,6 +4,7 @@ from airflow.utils import import_module_attrs as _import_module_attrs
 
 _hooks = {
     'ftp_hook': ['FTPHook'],
+    'ftps_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
     'ecs_hook': ['ECSHook'],
     'ssh_hook': ['SSHHook'],

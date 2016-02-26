@@ -9,6 +9,7 @@ from datetime import datetime
 from builtins import input
 import argparse
 import dateutil.parser
+import json
 
 import airflow
 from airflow import jobs, settings, utils
@@ -88,6 +89,10 @@ def trigger_dag(args):
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
     dr = session.query(DagRun).filter(
         DagRun.dag_id==args.dag_id, DagRun.run_id==run_id).first()
+
+    conf = {}
+    if args.conf:
+        conf = json.loads(args.conf)
     if dr:
         logging.error("This run_id already exists")
     else:
@@ -96,6 +101,7 @@ def trigger_dag(args):
             run_id=run_id,
             execution_date=execution_date,
             state=State.RUNNING,
+            conf=conf,
             external_trigger=True)
         session.add(trigger)
         logging.info("Created {}".format(trigger))
@@ -553,6 +559,8 @@ def get_parser():
     parser_trigger_dag.add_argument(
         "-r", "--run_id",
         help="Helps to indentify this run")
+    ht = "json string that gets pickled into the DagRun's conf attribute"
+    parser_trigger_dag.add_argument('-c', '--conf', help=ht)
     parser_trigger_dag.set_defaults(func=trigger_dag)
 
     ht = "Pause a DAG"

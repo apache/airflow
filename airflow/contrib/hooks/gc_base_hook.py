@@ -19,7 +19,7 @@ class GoogleCloudBaseHook(BaseHook):
     def __init__(self, scope, conn_id, delegate_to=None):
         """
         :param scope: The scope of the hook.
-        :type scope: string
+        :type scope: string or an iterable of strings.
         :param conn_id: The connection ID to use when fetching connection info.
         :type conn_id: string
         :param delegate_to: The account to impersonate, if any.

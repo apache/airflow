@@ -14,7 +14,7 @@ import sys
 from airflow import configuration as conf
 
 from airflow.models import DAG
-from flask.ext.admin import BaseView
+from flask_admin import BaseView
 from importlib import import_module
 from airflow.utils import AirflowException
 

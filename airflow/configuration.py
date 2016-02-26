@@ -309,7 +309,7 @@ TEST_CONFIG = """\
 airflow_home = {AIRFLOW_HOME}
 dags_folder = {AIRFLOW_HOME}/dags
 base_log_folder = {AIRFLOW_HOME}/logs
-executor = SequentialExecutor
+executor = LocalExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
 unit_test_mode = True
 load_examples = True
@@ -386,7 +386,7 @@ class ConfigParserWithDefaults(ConfigParser):
         elif self.has_option(section, key):
             return expand_env_var(ConfigParser.get(self, section, key, **kwargs))
 
-        elif ((section, key) in ConfigParserWithDefaults.as_command_stdout 
+        elif ((section, key) in ConfigParserWithDefaults.as_command_stdout
             and self.has_option(section, fallback_key)):
             command = self.get(section, fallback_key)
             return run_command(command)

@@ -102,10 +102,10 @@ class QuboleOperator(BaseOperator):
         self.args = args
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
+        self.hook = QuboleHook(*self.args, **self.kwargs)
         super(QuboleOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
-        self.hook = QuboleHook(*self.args, **self.kwargs)
         return self.hook.execute(context)
 
     def on_kill(self, ti):

@@ -10,7 +10,7 @@ from wtforms import (
 from wtforms.validators import InputRequired
 
 from flask import url_for, redirect
-from flask.ext.bcrypt import generate_password_hash, check_password_hash
+from flask_bcrypt import generate_password_hash, check_password_hash
 
 from sqlalchemy import (
     Column, String, DateTime)

@@ -618,11 +618,19 @@ class timeout(object):
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
+        try:
+            signal.signal(signal.SIGALRM, self.handle_timeout)
+            signal.alarm(self.seconds)
+        except ValueError as e:
+            logging.warning("timeout can't be used in the current context")
+            logging.exception(e)
 
     def __exit__(self, type, value, traceback):
-        signal.alarm(0)
+        try:
+            signal.alarm(0)
+        except ValueError as e:
+            logging.warning("timeout can't be used in the current context")
+            logging.exception(e)
 
 
 def is_container(obj):

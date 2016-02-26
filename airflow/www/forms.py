@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from datetime import datetime
-from flask.ext.admin.form import DateTimePickerWidget
+from flask_admin.form import DateTimePickerWidget
 from wtforms import DateTimeField, SelectField
 from flask_wtf import Form
 

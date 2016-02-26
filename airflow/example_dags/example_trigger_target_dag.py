@@ -1,6 +1,6 @@
-from airflow.operators import *
+from airflow.operators import BashOperator, PythonOperator
 from airflow.models import DAG
-from datetime import date, datetime, time, timedelta
+from datetime import datetime
 
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
@@ -40,4 +40,10 @@ run_this = PythonOperator(
     task_id='run_this',
     provide_context=True,
     python_callable=run_this_func,
+    dag=dag)
+
+# You can also access the DagRun object in templates
+bash_task = BashOperator(
+    task_id="bash_task",
+    bash_command='echo "Here is the message: {{ dag_run.conf["message"] if dag_run else "" }}" ',
     dag=dag)

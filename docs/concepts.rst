@@ -286,3 +286,58 @@ most likely by deleting rows in the "Task Instances" view in the UI.
 Tasks are instructed to verify their state as part of the heartbeat routine,
 and terminate themselves upon figuring out that they are in this "undead"
 state.
+
+
+Cluster Policy
+''''''''''''''
+
+Your local airflow settings file can define a ``policy`` function that
+has the ability to mutate task attributes based on other task or DAG
+attributes. It receives a single argument as a reference to task objects,
+and is expected to alter its attributes.
+
+For example, this function could apply a specific queue property when
+using a specific operator, or enforce a task timeout policy, making sure
+that no tasks run for more than 48 hours. Here's an example of what this
+may look like inside your ``airflow_settings.py``:
+
+
+.. code:: python
+
+    def policy(task):
+        if task.__class__.__name__ == 'HivePartitionSensor':
+            task.queue = "sensor_queue"
+        if task.timeout > timedelta(hours=48):
+            task.timeout = timedelta(hours=48)
+
+
+Task Documentation & Notes
+''''''''''''''''''''''''''
+It's possible to add documentation or notes to your task objects that become
+visible in the "Task Details" view in the web interface. There are a set
+of special task attributes that get rendered as rich content if defined:
+
+==========  ================
+attribute   rendered to
+==========  ================
+doc         monospace
+doc_json    json
+doc_yaml    yaml
+doc_md      markdown
+doc_rst     reStructuredText
+==========  ================
+
+This is especially useful if your tasks are built dynamically from
+configuration files, it allows you to expose the configuration that led
+to the related tasks in Airflow.
+
+.. code:: python
+    
+    t = BashOperator("foo", dag=dag)
+    t.doc_md = """\
+    #Title"
+    Here's a [url](www.airbnb.com)
+    """
+
+This content will get rendered as markdown in the "Task Details" page.
+

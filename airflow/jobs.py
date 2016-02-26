@@ -528,7 +528,7 @@ class SchedulerJob(BaseJob):
             else:
                 d[ti.pool].append(ti)
 
-        overloaded_dags = set()
+        dag_blacklist = set(dagbag.paused_dags())
         for pool, tis in list(d.items()):
             if not pool:
                 # Arbitrary:
@@ -570,8 +570,10 @@ class SchedulerJob(BaseJob):
                     self.logger.info("Pickling DAG {}".format(dag))
                     pickle_id = dag.pickle(session).id
 
-                if dag.dag_id in overloaded_dags or dag.concurrency_reached:
-                    overloaded_dags.add(dag.dag_id)
+                if dag.dag_id in dag_blacklist:
+                    continue
+                if dag.concurrency_reached:
+                    dag_blacklist.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
                     executor.queue_task_instance(ti, pickle_id=pickle_id)
