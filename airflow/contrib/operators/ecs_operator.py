@@ -7,7 +7,7 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.models import Connection as DB
 from airflow.contrib.hooks import ecs_hook
-
+import subprocess
 
 class ECSOperator(BaseOperator):
 
@@ -38,6 +38,8 @@ class ECSOperator(BaseOperator):
             cluster,
             overrides,
             aws_conn_id ="ecs_default",
+            python_callable = None,
+            local_execution=False,
             *args, **kwargs):
         super(ECSOperator, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
@@ -45,46 +47,58 @@ class ECSOperator(BaseOperator):
         self.taskDefinition = taskDefinition
         self.cluster = cluster
         self.overrides = overrides
+        self.python_callable =  python_callable
+        self.local_execution = local_execution
         logging.info("overrides: {0}".format(self.overrides))
           
 
+    def execute_local(self):
+        from subprocess import Popen, PIPE
+        process = Popen(['docker', 'zxventures/airflow'], stdout=PIPE, stderr=PIPE)
+        stdout, stderr = process.communicate()
+
+
+    
     def execute(self, context):
-        
-        self.client = self.hook.get_conn()
+        if (self.python_callable):
+            self.overrides = self.python_callable(**context)
         logging.info("Running ecs task - Task definition: " + self.taskDefinition+" - on cluster "+self.cluster);
         logging.info("Command: "+str(self.overrides))
-        response = self.client.run_task(taskDefinition=self.taskDefinition, cluster=self.cluster, overrides= self.overrides)
-        
-        failures = response["failures"]
-        if (len(failures) > 0):
-            raise AirflowException(response)
-        
-        logging.info("Task started: "+str(response))
-        self.arn = response["tasks"][0]['taskArn']
-        #r = client.describe_tasks(cluster='default', tasks=[arn])
-        #logging.info("Describe task: "+str(r))
-        import sys
-        waiter = self.client.get_waiter('tasks_stopped')
-        waiter.config.max_attempts = sys.maxint
-        waiter.config.delay = 10
-        waiter.wait(cluster=self.cluster, tasks=[self.arn])
-        response = self.client.describe_tasks(cluster= self.cluster,tasks=[self.arn])
-       
-        #ECS.Client.describe_services() 
-        
-        failures = response["failures"]
-        if (len(failures) > 0):
-            raise AirflowException(response)
-        
-        logging.info("Task stopped: "+str(response))
-        container = response["tasks"][0]['containers'][0]
-        exitCode = container['exitCode']
-        if exitCode:
-            if 'reason' in container:
-                reason = container['reason']
-                raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode)+ "and Reason ["+str(reason)+"]")
-            else:
-                raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode))
+
+        if (self.local_execution):
+            self.execute_local()
+        else:
+            self.client = self.hook.get_conn()
+            response = self.client.run_task(taskDefinition=self.taskDefinition, cluster=self.cluster, overrides= self.overrides)
+            
+            failures = response["failures"]
+            if (len(failures) > 0):
+                raise AirflowException(response)
+            
+            logging.info("Task started: "+str(response))
+            self.arn = response["tasks"][0]['taskArn']
+            import sys
+            waiter = self.client.get_waiter('tasks_stopped')
+            waiter.config.max_attempts = sys.maxint
+            waiter.config.delay = 10
+            waiter.wait(cluster=self.cluster, tasks=[self.arn])
+            response = self.client.describe_tasks(cluster= self.cluster,tasks=[self.arn])
+           
+            #ECS.Client.describe_services() 
+            
+            failures = response["failures"]
+            if (len(failures) > 0):
+                raise AirflowException(response)
+            
+            logging.info("Task stopped: "+str(response))
+            container = response["tasks"][0]['containers'][0]
+            exitCode = container['exitCode']
+            if exitCode:
+                if 'reason' in container:
+                    reason = container['reason']
+                    raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode)+ "and Reason ["+str(reason)+"]")
+                else:
+                    raise AirflowException("ECS task failed  with Exit Code:"+str(exitCode))
  
     def get_hook(self):
         return ecs_hook.ECSHook(aws_conn_id=self.aws_conn_id)
