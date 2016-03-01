@@ -43,7 +43,7 @@ from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
-from airflow.utils.dates import cron_presets
+from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
@@ -2156,7 +2156,7 @@ class DAG(LoggingMixin):
     def date_range(self, start_date, num=None, end_date=datetime.now()):
         if num:
             end_date = None
-        return utils.date_range(
+        return utils_date_range(
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
@@ -2371,7 +2371,7 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self, start_date, end_date, state=State.RUNNING, session=None):
-        dates = utils.dates.date_range(start_date, end_date)
+        dates = utils_date_range(start_date, end_date)
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
         for dr in drs:
             dr.state = State.RUNNING
