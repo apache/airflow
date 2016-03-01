@@ -23,7 +23,7 @@ from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.utils.state import State
-from airflow.utils.db import provide_session
+from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
@@ -597,7 +597,7 @@ class SchedulerJob(BaseJob):
             sys.exit(1)
         signal.signal(signal.SIGINT, signal_handler)
 
-        db_utils.pessimistic_connection_handling()
+        pessimistic_connection_handling()
 
         logging.basicConfig(level=logging.DEBUG)
         self.logger.info("Starting the scheduler")
