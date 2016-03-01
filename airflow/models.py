@@ -41,9 +41,11 @@ from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.classes import State, TriggerRule
+from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.email import send_email
 from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key,)
 from airflow.utils.logging import LoggingMixin
 
@@ -208,7 +210,7 @@ class DagBag(LoggingMixin):
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
-                with utils.classes.timeout(30):
+                with utils.timeout.timeout(30):
                     m = imp.load_source(mod_name, filepath)
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
@@ -1062,7 +1064,7 @@ class TaskInstance(Base):
                     # if it goes beyond
                     result = None
                     if task_copy.execution_timeout:
-                        with utils.classes.timeout(int(
+                        with utils.timeout.timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
                             result = task_copy.execute(context=context)
 
@@ -1242,7 +1244,7 @@ class TaskInstance(Base):
             "Log file: {self.log_filepath}<br>"
             "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(**locals())
-        utils.email.send_email(task.email, title, body)
+        send_email(task.email, title, body)
 
     def set_duration(self):
         if self.end_date and self.start_date:

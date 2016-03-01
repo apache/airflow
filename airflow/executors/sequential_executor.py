@@ -2,7 +2,7 @@ from builtins import str
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.classes import State
+from airflow.utils.state import State
 
 
 class SequentialExecutor(BaseExecutor):

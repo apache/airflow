@@ -22,11 +22,11 @@ from sqlalchemy.orm.session import make_transient
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.utils.classes import State
+from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
-
+from airflow.utils import asciiart
 
 
 Base = models.Base
@@ -313,7 +313,6 @@ class SchedulerJob(BaseJob):
                 self.logger.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
                 dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                 notification_sent = True
-            from airflow.utils import asciiart
             email_content = """\
             Here's a list of tasks thas missed their SLAs:
             <pre><code>{task_list}\n<code></pre>

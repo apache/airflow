@@ -17,7 +17,7 @@ from airflow import configuration
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun
 from airflow.utils import db as db_utils
-from airflow.utils.classes import State
+from airflow.utils.state import State
 from airflow.exceptions import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))

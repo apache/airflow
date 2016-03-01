@@ -44,7 +44,7 @@ from airflow.exceptions import AirflowException
 from airflow.settings import Session
 
 from airflow import utils
-from airflow.utils.classes import State
+from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.www import utils as wwwutils
