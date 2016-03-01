@@ -41,14 +41,15 @@ from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.state import State
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key,)
 from airflow.utils.logging import LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.timeout import timeout
+from airflow.utils.trigger_rule import TriggerRule
 
 
 Base = declarative_base()
@@ -211,7 +212,7 @@ class DagBag(LoggingMixin):
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
-                with utils.timeout.timeout(30):
+                with timeout(30):
                     m = imp.load_source(mod_name, filepath)
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
@@ -1065,7 +1066,7 @@ class TaskInstance(Base):
                     # if it goes beyond
                     result = None
                     if task_copy.execution_timeout:
-                        with utils.timeout.timeout(int(
+                        with timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
                             result = task_copy.execute(context=context)
 

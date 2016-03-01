@@ -21,7 +21,7 @@ from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
-from airflow.utils.classes import State
+from airflow.utils.state import State
 from airflow.utils.dates import round_time
 from airflow.utils.logging import LoggingMixin
 from lxml import html
