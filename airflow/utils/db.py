@@ -14,8 +14,8 @@ from alembic.migration import MigrationContext
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
 
-from ..airflow import settings
-from ..airflow import configuration
+from airflow import settings
+from airflow import configuration
 
 
 def provide_session(func):
@@ -68,7 +68,7 @@ def merge_conn(conn, session=None):
 def initdb():
     session = settings.Session()
 
-    from ..airflow import models
+    from airflow import models
     upgradedb()
 
     merge_conn(
@@ -194,7 +194,7 @@ def resetdb():
     '''
     Clear out the database
     '''
-    from ..airflow import models
+    from airflow import models
 
     logging.info("Dropping tables that exist")
     models.Base.metadata.drop_all(settings.engine)
