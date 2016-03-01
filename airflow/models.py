@@ -43,6 +43,7 @@ from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
+from airflow.utils.dates import cron_presets
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
@@ -2097,8 +2098,8 @@ class DAG(LoggingMixin):
         self.start_date = start_date
         self.end_date = end_date
         self.schedule_interval = schedule_interval
-        if schedule_interval in utils.dates.cron_presets:
-            self._schedule_interval = utils.dates.cron_presets.get(schedule_interval)
+        if schedule_interval in cron_presets:
+            self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
         else:
