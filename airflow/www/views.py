@@ -43,7 +43,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 
-from airflow import utils
+from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
@@ -1180,7 +1180,7 @@ class Airflow(BaseView):
                 for d in dates],
         }
 
-        data = json.dumps(data, indent=4, default=utils.json.json_ser)
+        data = json.dumps(data, indent=4, default=json_ser)
         session.commit()
         session.close()
 
