@@ -4,7 +4,7 @@ import logging
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks import MySqlHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from collections import OrderedDict
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile

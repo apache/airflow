@@ -13,11 +13,12 @@ from thrift.protocol import TBinaryProtocol
 from hive_service import ThriftHive
 import pyhs2
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import TemporaryDirectory
+from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
+
 
 class HiveCliHook(BaseHook):
     """

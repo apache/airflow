@@ -4,7 +4,7 @@ import logging
 import requests
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class HttpHook(BaseHook):

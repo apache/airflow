@@ -8,6 +8,7 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import str
 from configparser import ConfigParser
+from airflow.exceptions import AirflowException
 import errno
 import logging
 import os
@@ -42,6 +43,7 @@ def expand_env_var(env_var):
         else:
             env_var = interpolated
 
+
 def run_command(command):
     """
     Runs command and returns stdout
@@ -53,7 +55,7 @@ def run_command(command):
     if process.returncode != 0:
         raise AirflowException(
             "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}"
-            .format(cmd, process.returncode, output, stderr)
+            .format(command, process.returncode, output, stderr)
         )
 
     return output
@@ -435,6 +437,7 @@ class ConfigParserWithDefaults(ConfigParser):
         ConfigParser.read(self, filenames)
         self._validate()
 
+
 def mkdir_p(path):
     try:
         os.makedirs(path)
@@ -506,6 +509,7 @@ conf.read(AIRFLOW_CONFIG)
 def get(section, key, **kwargs):
     return conf.get(section, key, **kwargs)
 
+
 def getboolean(section, key):
     return conf.getboolean(section, key)
 
@@ -521,14 +525,17 @@ def getint(section, key):
 def has_option(section, key):
     return conf.has_option(section, key)
 
+
 def remove_option(section, option):
     return conf.remove_option(section, option)
+
 
 def set(section, option, value):
     return conf.set(section, option, value)
 
 ########################
 # convenience method to access config entries
+
 
 def get_dags_folder():
     return os.path.expanduser(get('core', 'DAGS_FOLDER'))

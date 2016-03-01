@@ -147,7 +147,7 @@ def notify_owner(f):
                     </table>
                     ''').render(**locals())
                 if task.email:
-                    utils.send_email(task.email, subject, content)
+                    utils.email.send_email(task.email, subject, content)
         """
         return f(*args, **kwargs)
     return wrapper
@@ -159,7 +159,7 @@ def json_response(obj):
     """
     return Response(
         response=json.dumps(
-            obj, indent=4, cls=utils.AirflowJsonEncoder),
+            obj, indent=4, cls=utils.json.AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
 

@@ -1,6 +1,6 @@
 # Imports operators dynamically while keeping the package API clean,
 # abstracting the underlying modules
-from airflow.utils import import_module_attrs as _import_module_attrs
+from airflow.utils.helpers import import_module_attrs as _import_module_attrs
 
 # These need to be integrated first as other operators depend on them
 _import_module_attrs(globals(), {

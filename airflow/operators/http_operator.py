@@ -1,8 +1,9 @@
 import logging
 
+from airflow.exceptions import AirflowException
 from airflow.hooks import HttpHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults, AirflowException
+from airflow.utils.decorators import apply_defaults
 
 
 class SimpleHttpOperator(BaseOperator):

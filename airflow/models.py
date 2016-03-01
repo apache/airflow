@@ -40,9 +40,13 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.utils import (
-    AirflowException, State, apply_defaults, provide_session,
-    is_container, as_tuple, TriggerRule, LoggingMixin)
+from airflow.exceptions import AirflowException
+from airflow.utils.classes import State, TriggerRule
+from airflow.utils.db import provide_session
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key,)
+from airflow.utils.logging import LoggingMixin
+
 
 Base = declarative_base()
 ID_LEN = 250
@@ -204,7 +208,7 @@ class DagBag(LoggingMixin):
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
-                with utils.timeout(30):
+                with utils.classes.timeout(30):
                     m = imp.load_source(mod_name, filepath)
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
@@ -1058,7 +1062,7 @@ class TaskInstance(Base):
                     # if it goes beyond
                     result = None
                     if task_copy.execution_timeout:
-                        with utils.timeout(int(
+                        with utils.classes.timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
                             result = task_copy.execute(context=context)
 
@@ -1238,7 +1242,7 @@ class TaskInstance(Base):
             "Log file: {self.log_filepath}<br>"
             "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(**locals())
-        utils.send_email(task.email, title, body)
+        utils.email.send_email(task.email, title, body)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -1522,7 +1526,7 @@ class BaseOperator(object):
             *args,
             **kwargs):
 
-        utils.validate_key(task_id)
+        validate_key(task_id)
         self.dag_id = dag.dag_id if dag else 'adhoc_' + owner
         self.task_id = task_id
         self.owner = owner
@@ -1821,7 +1825,7 @@ class BaseOperator(object):
         if not l:
             l = []
         for t in self.get_direct_relatives(upstream):
-            if not utils.is_in(t, l):
+            if not is_in(t, l):
                 l.append(t)
                 t.get_flat_relatives(upstream, l)
         return l
@@ -2085,14 +2089,14 @@ class DAG(LoggingMixin):
             self.params.update(self.default_args['params'])
             del self.default_args['params']
 
-        utils.validate_key(dag_id)
+        validate_key(dag_id)
         self.tasks = []
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.schedule_interval = schedule_interval
-        if schedule_interval in utils.cron_presets:
-            self._schedule_interval = utils.cron_presets.get(schedule_interval)
+        if schedule_interval in utils.dates.cron_presets:
+            self._schedule_interval = utils.dates.cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
         else:
@@ -2364,7 +2368,7 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self, start_date, end_date, state=State.RUNNING, session=None):
-        dates = utils.date_range(start_date, end_date)
+        dates = utils.dates.date_range(start_date, end_date)
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
         for dr in drs:
             dr.state = State.RUNNING
@@ -2421,7 +2425,7 @@ class DAG(LoggingMixin):
                 "You are about to delete these {count} tasks:\n"
                 "{ti_list}\n\n"
                 "Are you sure? (yes/no): ").format(**locals())
-            do_it = utils.ask_yesno(question)
+            do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
             clear_task_instances(tis, session)
@@ -2474,9 +2478,9 @@ class DAG(LoggingMixin):
             # Removing upstream/downstream references to tasks that did not
             # made the cut
             t._upstream_list = [
-                ut for ut in t._upstream_list if utils.is_in(ut, tasks)]
+                ut for ut in t._upstream_list if is_in(ut, tasks)]
             t._downstream_list = [
-                ut for ut in t._downstream_list if utils.is_in(ut, tasks)]
+                ut for ut in t._downstream_list if is_in(ut, tasks)]
 
         return dag
 
@@ -2894,6 +2898,7 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
 
 class Pool(Base):
     __tablename__ = "slot_pool"

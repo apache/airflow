@@ -1,6 +1,6 @@
-from airflow import DAG, utils
-from airflow.operators import *
-from datetime import date, datetime, time, timedelta
+from airflow import DAG
+from airflow.operators import TriggerDagRunOperator
+from datetime import datetime
 
 import pprint
 
@@ -22,20 +22,21 @@ pp = pprint.PrettyPrinter(indent=4)
 #      state is then made available to the TargetDag
 # 2. A Target DAG : c.f. example_trigger_target_dag.py
 
+
 # This function decides whether or not to Trigger the remote DAG
 def conditionally_trigger(context, dag_run_obj):
-    c_p =context['params']['condition_param']
+    c_p = context['params']['condition_param']
     print("Controller DAG : conditionally_trigger = {}".format(c_p))
     if context['params']['condition_param']:
-        dag_run_obj.payload = {'message' :context['params']['message'] }
+        dag_run_obj.payload = {'message': context['params']['message']}
         pp.pprint(dag_run_obj.payload)
         return dag_run_obj
 
 
 # Define the DAG
 dag = DAG(dag_id='example_trigger_controller_dag',
-          default_args={"owner" : "me",
-          "start_date":datetime.now()},
+          default_args={"owner": "me",
+                        "start_date": datetime.now()},
           schedule_interval='@once')
 
 
@@ -43,6 +44,6 @@ dag = DAG(dag_id='example_trigger_controller_dag',
 trigger = TriggerDagRunOperator(task_id='test_trigger_dagrun',
                                 trigger_dag_id="example_trigger_target_dag",
                                 python_callable=conditionally_trigger,
-                                params={'condition_param':True,
-                                        'message':'Hello World'},
+                                params={'condition_param': True,
+                                        'message': 'Hello World'},
                                 dag=dag)
