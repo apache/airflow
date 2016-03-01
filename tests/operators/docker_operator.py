@@ -3,7 +3,7 @@ import unittest
 from airflow.operators.docker_operator import DockerOperator
 from docker.client import Client
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock
