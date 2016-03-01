@@ -68,7 +68,7 @@ var svg = d3.select("svg")
     .attr("transform", "translate(" + m[3] + "," + m[0] + ")");
 
 // Load the data and visualization
-//d3.csv("/admin/airflow/chart_data?chart_id={{ chart.chart_id }}&iteration_no={{ chart.iteration_no }}", function(raw_data) {
+//d3.csv("/orchestrator/airflow/chart_data?chart_id={{ chart.chart_id }}&iteration_no={{ chart.iteration_no }}", function(raw_data) {
 url = window.location.pathname + location.search
 url = url.replace("/chart?", "/chart_data?");
 d3.csv(url, function(raw_data) {

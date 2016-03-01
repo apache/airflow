@@ -647,7 +647,7 @@ class TaskInstance(Base):
         iso = self.execution_date.isoformat()
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
-            "/admin/airflow/log"
+            "/orchestrator/airflow/log"
             "?dag_id={self.dag_id}"
             "&task_id={self.task_id}"
             "&execution_date={iso}"
@@ -658,7 +658,7 @@ class TaskInstance(Base):
         iso = self.execution_date.isoformat()
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
-            "/admin/airflow/action"
+            "/orchestrator/airflow/action"
             "?action=success"
             "&task_id={self.task_id}"
             "&dag_id={self.dag_id}"

@@ -40,8 +40,8 @@ def create_app(config=None):
 
         admin = Admin(
             app, name='Airflow',
-            static_url_path='/admin',
-            index_view=views.HomeView(endpoint='', url='/admin', name="DAGs"),
+            static_url_path='/orchestrator',
+            index_view=views.HomeView(endpoint='', url='/orchestrator', name="DAGs"),
             template_mode='bootstrap3',
         )
         av = admin.add_view

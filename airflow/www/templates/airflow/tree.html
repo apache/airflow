@@ -216,7 +216,7 @@ function update(source) {
       .append('rect')
       .on("click", function(d){
         if(d.task_id === undefined){
-          window.location = '/admin/dagrun/edit/?id=' + d.id;
+          window.location = '/orchestrator/dagrun/edit/?id=' + d.id;
         }
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
             call_modal(d.task_id, d.execution_date, true);

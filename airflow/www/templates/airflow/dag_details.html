@@ -12,7 +12,7 @@
       <a
           class="btn"
           style="border: none; background-color:{{ State.color(state)}}; color: {{ State.color_fg(state) }};"
-          href="/admin/taskinstance/?flt0_dag_id_equals={{ dag.dag_id }}&flt2_state_equals={{ state }}">
+          href="/orchestrator/taskinstance/?flt0_dag_id_equals={{ dag.dag_id }}&flt2_state_equals={{ state }}">
         {{ state }} <span class="badge">{{ count }}</span>
       </a>
       {% endfor %}

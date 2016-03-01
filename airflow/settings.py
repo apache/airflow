@@ -17,7 +17,7 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
  """
 
-BASE_LOG_URL = '/admin/airflow/log'
+BASE_LOG_URL = '/orchestrator/airflow/log'
 LOGGING_LEVEL = logging.INFO
 
 # can't move this to conf due to ConfigParser interpolation
