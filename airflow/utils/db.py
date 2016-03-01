@@ -58,7 +58,7 @@ def pessimistic_connection_handling():
 
 @provide_session
 def merge_conn(conn, session=None):
-    from ..airflow import models
+    from airflow import models
     C = models.Connection
     if not session.query(C).filter(C.conn_id == conn.conn_id).first():
         session.add(conn)
