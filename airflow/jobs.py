@@ -23,7 +23,6 @@ from airflow import executors, models, settings, utils
 from airflow import configuration as conf
 from airflow.utils import AirflowException, State, LoggingMixin
 
-
 Base = models.Base
 ID_LEN = models.ID_LEN
 Stats = settings.Stats
@@ -863,6 +862,41 @@ class LocalTaskJob(BaseJob):
         while return_code is None:
             self.heartbeat()
             return_code = self.process.poll()
+        return return_code
+
+    def run(self, session=None):
+        Stats.incr(self.__class__.__name__.lower()+'_start', 1, 1)
+        # Adding an entry in the DB
+        session = settings.Session()
+        self.state = State.RUNNING
+        session.add(self)
+        session.commit()
+        id_ = self.id
+        make_transient(self)
+        self.id = id_
+
+        # Run
+        return_code = self._execute()
+        if return_code != 0:
+            msg = ("LocalTaskJob process exited with non zero status "
+                   "{return_code}".format(**locals()))
+            logging.error(msg)
+            self.state = State.FAILED
+
+            # Only handle the failure if the state is not already set to failed
+            self.task_instance.refresh_from_db()
+            if self.task_instance.state not in State.failed():
+                self.task_instance.handle_failure(AirflowException(msg))
+
+        else:
+            # Marking the success in the DB
+            self.state = State.SUCCESS
+
+        self.end_date = datetime.now()
+        session.merge(self)
+        session.commit()
+
+        Stats.incr(self.__class__.__name__.lower()+'_end', 1, 1)
 
     def on_kill(self):
         self.process.terminate()

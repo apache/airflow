@@ -115,6 +115,12 @@ class State(object):
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
             cls.SKIPPED, cls.QUEUED]
 
+    @classmethod
+    def failed(cls):
+        return [
+            cls.FAILED,
+            cls.UP_FOR_RETRY]
+
 
 cron_presets = {
     '@hourly': '0 * * * *',
