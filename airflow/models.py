@@ -1001,7 +1001,7 @@ class TaskInstance(Base):
             self.start_date = datetime.now()
 
             if not mark_success and self.state != State.QUEUED and (
-                    self.pool or self.task.dag.concurrency_reached):
+                    self.pool):
                 # If a pool is set for this task, marking the task instance
                 # as QUEUED
                 self.state = State.QUEUED
@@ -2198,21 +2198,6 @@ class DAG(LoggingMixin):
     @property
     def owner(self):
         return ", ".join(list(set([t.owner for t in self.tasks])))
-
-    @property
-    @provide_session
-    def concurrency_reached(self, session=None):
-        """
-        Returns a boolean as to whether the concurrency limit for this DAG
-        has been reached
-        """
-        TI = TaskInstance
-        qry = session.query(func.count(TI.task_id)).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id.in_(self.task_ids),
-            TI.state == State.RUNNING,
-        )
-        return qry.scalar() >= self.concurrency
 
     @property
     @provide_session

@@ -576,8 +576,9 @@ class SchedulerJob(BaseJob):
                     dag_blacklist.add(dag.dag_id)
                     continue
                 if ti.are_dependencies_met():
-                    executor.queue_task_instance(ti, pickle_id=pickle_id)
-                    open_slots -= 1
+                    # don't waste open slots if this task does not queue into executor
+                    if executor.queue_task_instance(ti, pickle_id=pickle_id):
+                        open_slots -= 1
                 else:
                     session.delete(ti)
                     continue
