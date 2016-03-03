@@ -1622,7 +1622,8 @@ class TaskFail(Base):
         self.execution_date = execution_date
         self.start_date = start_date
         self.end_date = end_date
-        self.duration = (self.end_date - self.start_date).total_seconds()
+        if self.end_date and self.start_date:
+            self.duration = (self.end_date - self.start_date).total_seconds()
 
 
 class Log(Base):
