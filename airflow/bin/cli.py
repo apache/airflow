@@ -248,7 +248,7 @@ def run(args):
         store_s3_logs(log_filename=filename, old_log=old_log)
     elif remote_log_base.startswith('gs:/'):
         store_gcs_logs(log_filename=filename, old_log=old_log)
-    else:
+    elif remote_log_base:
         raise ValueError(
             'Unsupported remote log location: {}'.format(remote_log_base))
 
