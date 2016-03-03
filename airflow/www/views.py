@@ -773,22 +773,41 @@ class Airflow(BaseView):
                     log += "*** Failed to fetch log file from worker.\n".format(
                         **locals())
 
-            # try to load log backup from S3
-            s3_log_folder = conf.get('core', 'S3_LOG_FOLDER')
-            if not log_loaded and s3_log_folder.startswith('s3:'):
+            # load remote logs
+            remote_log_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
+            remote_log_location = os.path.join(remote_log_base, log_relative)
+
+            # S3
+            if not log_loaded and remote_log_location.startswith('s3:/'):
                 import boto
                 s3 = boto.connect_s3()
-                s3_log_loc = os.path.join(
-                    conf.get('core', 'S3_LOG_FOLDER'), log_relative)
-                log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
-                log += ('*** Note: S3 logs are only available once '
+                log += '*** Fetching log from S3: {}\n'.format(
+                    remote_log_location)
+                log += ('*** Note: remote logs are only available once '
                         'tasks have completed.\n')
-                bucket, key = s3_log_loc.lstrip('s3:/').split('/', 1)
+                bucket, key = remote_log_location.lstrip('s3:/').split('/', 1)
                 s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
                 if s3_key.exists():
                     log += '\n' + s3_key.get_contents_as_string().decode()
                 else:
                     log += '*** No log found on S3.\n'
+            # GCS
+            elif not log_loaded and remote_log_location.startswith('gs:/'):
+                import gcloud.storage as gcs
+                log += '*** Fetching log from GCS: {}\n'.format(
+                    remote_log_location)
+                log += ('*** Note: remote logs are only available once '
+                        'tasks have completed.\n')
+                bucket, blob = remote_log_location.lstrip('gs:/').split('/', 1)
+                client = gcs.Client(
+                    project=conf.get('core', 'GCS_LOG_PROJECT'))
+                gcs_blob = client.bucket(bucket).blob(blob)
+
+                if gcs_blob.exists():
+                    gcs_blob.reload()
+                    log += '\n' + gcs_blob.download_as_string().decode()
+                else:
+                    log += '*** No log found on GCS.\n'
 
             session.commit()
             session.close()
