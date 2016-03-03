@@ -71,7 +71,7 @@ defaults = {
         'security': None,
         'donot_pickle': False,
         's3_log_folder': '',
-        'remote_log_location': '',
+        'remote_base_log_folder': '',
         'gcs_log_project': None,
         'encrypt_s3_logs': False,
         'dag_concurrency': 16,
