@@ -53,6 +53,10 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
+gcp_api = [
+    'oauth2client>=1.5.2, <2.0.0',
+    'httplib2',
+]
 hdfs = ['snakebite>=2.4.13']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 hive = [
@@ -110,7 +114,6 @@ setup(
         'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',
-        'oauth2client>=1.5.2, <2.0.0',
         'pandas>=0.15.2, <1.0.0',
         'pygments>=2.0.1, <3.0',
         'python-dateutil>=2.3, <3',
@@ -130,6 +133,7 @@ setup(
         'doc': doc,
         'docker': docker,
         'druid': druid,
+        'gcp_api': gcp_api,
         'hdfs': hdfs,
         'hive': hive,
         'jdbc': jdbc,
