@@ -16,14 +16,14 @@ import inspect
 import traceback
 
 import sqlalchemy as sqla
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 
 
 from flask import redirect, url_for, request, Markup, Response, current_app, render_template
-from flask.ext.admin import BaseView, expose, AdminIndexView
-from flask.ext.admin.contrib.sqla import ModelView
-from flask.ext.admin.actions import action
-from flask.ext.login import current_user, flash, logout_user, login_required
+from flask_admin import BaseView, expose, AdminIndexView
+from flask_admin.contrib.sqla import ModelView
+from flask_admin.actions import action
+from flask_login import flash
 from flask._compat import PY2
 
 import jinja2
@@ -31,7 +31,6 @@ import markdown
 import json
 
 from wtforms import (
-    widgets,
     Form, SelectField, TextAreaField, PasswordField, StringField)
 
 from pygments import highlight, lexers
@@ -40,27 +39,26 @@ from pygments.formatters import HtmlFormatter
 import airflow
 from airflow import models
 from airflow.settings import Session
-from airflow import configuration
-from airflow import login
+from airflow import configuration as conf
 from airflow import utils
 from airflow.utils import AirflowException
 from airflow.www import utils as wwwutils
 from airflow import settings
 from airflow.models import State
 
-from airflow.www.forms import DateTimeForm, TreeForm
+from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = models.DagBag(os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
+dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
 logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
-if configuration.getboolean('webserver', 'FILTER_BY_OWNER'):
+if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
 
@@ -597,7 +595,7 @@ class Airflow(BaseView):
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'))
+            demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
     @expose('/dag_details')
     @login_required
@@ -637,7 +635,7 @@ class Airflow(BaseView):
     def sandbox(self):
         from airflow import configuration
         title = "Sandbox Suggested Configuration"
-        cfg_loc = configuration.AIRFLOW_CONFIG + '.sandbox'
+        cfg_loc = conf.AIRFLOW_CONFIG + '.sandbox'
         f = open(cfg_loc, 'r')
         config = f.read()
         f.close()
@@ -668,6 +666,16 @@ class Airflow(BaseView):
             d['username'] = current_user.username
         return wwwutils.json_response(d)
 
+    @expose('/pickle_info')
+    def pickle_info(self):
+        d = {}
+        dag_id = request.args.get('dag_id')
+        dags = [dagbag.dags.get(dag_id)] if dag_id else dagbag.dags.values()
+        for dag in dags:
+            if not dag.is_subdag:
+                d[dag.dag_id] = dag.pickle_info()
+        return wwwutils.json_response(d)
+
     @expose('/login', methods=['GET', 'POST'])
     def login(self):
         return airflow.login.login(self, request)
@@ -675,6 +683,7 @@ class Airflow(BaseView):
     @expose('/logout')
     def logout(self):
         logout_user()
+        flash('You have been logged out.')
         return redirect(url_for('admin.index'))
 
     @expose('/rendered')
@@ -717,7 +726,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def log(self):
         BASE_LOG_FOLDER = os.path.expanduser(
-            configuration.get('core', 'BASE_LOG_FOLDER'))
+            conf.get('core', 'BASE_LOG_FOLDER'))
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -750,7 +759,7 @@ class Airflow(BaseView):
                     log = "*** Log file isn't where expected.\n".format(loc)
             else:
                 WORKER_LOG_SERVER_PORT = \
-                    configuration.get('celery', 'WORKER_LOG_SERVER_PORT')
+                    conf.get('celery', 'WORKER_LOG_SERVER_PORT')
                 url = os.path.join(
                     "http://{host}:{WORKER_LOG_SERVER_PORT}/log", log_relative
                     ).format(**locals())
@@ -765,12 +774,12 @@ class Airflow(BaseView):
                         **locals())
 
             # try to load log backup from S3
-            s3_log_folder = configuration.get('core', 'S3_LOG_FOLDER')
+            s3_log_folder = conf.get('core', 'S3_LOG_FOLDER')
             if not log_loaded and s3_log_folder.startswith('s3:'):
                 import boto
                 s3 = boto.connect_s3()
                 s3_log_loc = os.path.join(
-                    configuration.get('core', 'S3_LOG_FOLDER'), log_relative)
+                    conf.get('core', 'S3_LOG_FOLDER'), log_relative)
                 log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
                 log += ('*** Note: S3 logs are only available once '
                         'tasks have completed.\n')
@@ -783,7 +792,9 @@ class Airflow(BaseView):
 
             session.commit()
             session.close()
-        log = log.decode('utf-8') if PY2 else log
+
+        if PY2 and not isinstance(log, unicode):
+            log = log.decode('utf-8')
 
         title = "Log"
 
@@ -1071,7 +1082,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def tree(self):
         dag_id = request.args.get('dag_id')
-        blur = configuration.getboolean('webserver', 'demo_mode')
+        blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
         root = request.args.get('root')
         if root:
@@ -1171,7 +1182,8 @@ class Airflow(BaseView):
         session.commit()
         session.close()
 
-        form = TreeForm(data={'base_date': max_date, 'num_runs': num_runs})
+        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+                                             'num_runs': num_runs})
         return self.render(
             'airflow/tree.html',
             operators=sorted(
@@ -1189,7 +1201,7 @@ class Airflow(BaseView):
     def graph(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        blur = configuration.getboolean('webserver', 'demo_mode')
+        blur = conf.getboolean('webserver', 'demo_mode')
         arrange = request.args.get('arrange', "LR")
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
@@ -1235,7 +1247,11 @@ class Airflow(BaseView):
             dttm = dag.latest_execution_date or datetime.now().date()
 
         DR = models.DagRun
-        drs = session.query(DR).filter_by(dag_id=dag_id).all()
+        drs = (
+            session.query(DR)
+            .filter_by(dag_id=dag_id)
+            .order_by(desc(DR.execution_date)).all()
+        )
         dr_choices = []
         dr_state = None
         for dr in drs:
@@ -1296,10 +1312,18 @@ class Airflow(BaseView):
     def duration(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        days = int(request.args.get('days', 30))
         dag = dagbag.get_dag(dag_id)
-        from_date = (datetime.today()-timedelta(days)).date()
-        from_date = datetime.combine(from_date, datetime.min.time())
+        base_date = request.args.get('base_date')
+        num_runs = request.args.get('num_runs')
+        num_runs = int(num_runs) if num_runs else 25
+
+        if base_date:
+            base_date = dateutil.parser.parse(base_date)
+        else:
+            base_date = dag.latest_execution_date or datetime.now()
+
+        dates = dag.date_range(base_date, num=-abs(num_runs))
+        min_date = dates[0] if dates else datetime(2000, 1, 1)
 
         root = request.args.get('root')
         if root:
@@ -1311,7 +1335,8 @@ class Airflow(BaseView):
         all_data = []
         for task in dag.tasks:
             data = []
-            for ti in task.get_task_instances(session, from_date):
+            for ti in task.get_task_instances(session, start_date=min_date,
+                                              end_date=base_date):
                 if ti.duration:
                     data.append([
                         ti.execution_date.isoformat(),
@@ -1320,17 +1345,25 @@ class Airflow(BaseView):
             if data:
                 all_data.append({'data': data, 'name': task.task_id})
 
+        tis = dag.get_task_instances(
+                session, start_date=min_date, end_date=base_date)
+        dates = sorted(list({ti.execution_date for ti in tis}))
+        max_date = max([ti.execution_date for ti in tis]) if dates else None
+
         session.commit()
         session.close()
 
+        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+                                             'num_runs': num_runs})
         return self.render(
             'airflow/chart.html',
             dag=dag,
             data=json.dumps(all_data),
             chart_options={'yAxis': {'title': {'text': 'hours'}}},
             height="700px",
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'),
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
+            form=form,
         )
 
     @expose('/landing_times')
@@ -1339,10 +1372,18 @@ class Airflow(BaseView):
     def landing_times(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        days = int(request.args.get('days', 30))
         dag = dagbag.get_dag(dag_id)
-        from_date = (datetime.today()-timedelta(days)).date()
-        from_date = datetime.combine(from_date, datetime.min.time())
+        base_date = request.args.get('base_date')
+        num_runs = request.args.get('num_runs')
+        num_runs = int(num_runs) if num_runs else 25
+
+        if base_date:
+            base_date = dateutil.parser.parse(base_date)
+        else:
+            base_date = dag.latest_execution_date or datetime.now()
+
+        dates = dag.date_range(base_date, num=-abs(num_runs))
+        min_date = dates[0] if dates else datetime(2000, 1, 1)
 
         root = request.args.get('root')
         if root:
@@ -1354,7 +1395,8 @@ class Airflow(BaseView):
         all_data = []
         for task in dag.tasks:
             data = []
-            for ti in task.get_task_instances(session, from_date):
+            for ti in task.get_task_instances(session, start_date=min_date,
+                                              end_date=base_date):
                 if ti.end_date:
                     ts = ti.execution_date
                     if dag.schedule_interval:
@@ -1363,17 +1405,25 @@ class Airflow(BaseView):
                     data.append([ti.execution_date.isoformat(), secs])
             all_data.append({'data': data, 'name': task.task_id})
 
+        tis = dag.get_task_instances(
+                session, start_date=min_date, end_date=base_date)
+        dates = sorted(list({ti.execution_date for ti in tis}))
+        max_date = max([ti.execution_date for ti in tis]) if dates else None
+
         session.commit()
         session.close()
 
+        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+                                             'num_runs': num_runs})
         return self.render(
             'airflow/chart.html',
             dag=dag,
             data=json.dumps(all_data),
             height="700px",
             chart_options={'yAxis': {'title': {'text': 'hours after 00:00'}}},
-            demo_mode=configuration.getboolean('webserver', 'demo_mode'),
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
+            form=form,
         )
 
     @expose('/paused')
@@ -1432,7 +1482,7 @@ class Airflow(BaseView):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        demo_mode = configuration.getboolean('webserver', 'demo_mode')
+        demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
         if root:
@@ -1476,7 +1526,7 @@ class Airflow(BaseView):
                 'inverted': True,
                 'height': height,
             },
-            'xAxis': {'categories': tasks},
+            'xAxis': {'categories': tasks, 'alternateGridColor': '#FAFAFA'},
             'yAxis': {'type': 'datetime'},
             'title': {
                 'text': None
@@ -1504,6 +1554,26 @@ class Airflow(BaseView):
             demo_mode=demo_mode,
             root=root,
         )
+
+    @expose('/object/task_instances')
+    @login_required
+    @wwwutils.action_logging
+    def task_instances(self):
+        session = settings.Session()
+        dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+
+        dttm = request.args.get('execution_date')
+        if dttm:
+            dttm = dateutil.parser.parse(dttm)
+        else:
+            return ("Error: Invalid execution_date")
+
+        task_instances = {
+            ti.task_id: utils.alchemy_to_dict(ti)
+            for ti in dag.get_task_instances(session, dttm, dttm)}
+
+        return json.dumps(task_instances)
 
     @expose('/variables/<form>', methods=["GET", "POST"])
     @login_required
@@ -1819,10 +1889,15 @@ admin.add_view(mv)
 class VariableView(wwwutils.LoginMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
-    column_list = ('key',)
+    form_columns = (
+        'key',
+        'val',
+    )
+    column_list = ('key', 'is_encrypted',)
     column_filters = ('key', 'val')
     column_searchable_list = ('key', 'val')
     form_widget_args = {
+        'is_encrypted': {'disabled': True},
         'val': {
             'rows': 20,
         }
@@ -1889,6 +1964,10 @@ class DagRunModelView(ModelViewOnly):
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
                 count += 1
                 dr.state = target_state
+                if target_state == State.RUNNING:
+                    dr.start_date = datetime.now()
+                else:
+                    dr.end_date = datetime.now()
             session.commit()
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))
@@ -1935,7 +2014,8 @@ class TaskInstanceModelView(ModelViewOnly):
     column_list = (
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
-        'unixname', 'priority_weight', 'queue', 'queued_dttm', 'pool', 'log')
+        'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
+        'pool', 'log')
     can_delete = True
     page_size = 500
 
@@ -1995,9 +2075,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "Connection"
     verbose_name_plural = "Connections"
     column_default_sort = ('conn_id', False)
-    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted',)
+    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
     form_overrides = dict(_password=PasswordField)
     form_widget_args = {
+        'is_extra_encrypted': {'disabled': True},
         'is_encrypted': {'disabled': True},
     }
     # Used to customized the form, the forms elements get rendered
@@ -2011,7 +2092,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
     form_choices = {
         'conn_type': [
+            ('bigquery', 'BigQuery',),
+            ('datastore', 'Google Datastore'),
             ('ftp', 'FTP',),
+            ('google_cloud_storage', 'Google Cloud Storage'),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),
             ('hive_cli', 'Hive Client Wrapper',),
@@ -2041,18 +2125,18 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     @classmethod
     def alert_fernet_key(cls):
-        return not configuration.has_option('core', 'fernet_key')
+        return conf.get('core', 'fernet_key') is None
 
     @classmethod
     def is_secure(self):
         """
         Used to display a message in the Connection list view making it clear
-        that the passwords can't be encrypted.
+        that the passwords and `extra` field can't be encrypted.
         """
         is_secure = False
         try:
             import cryptography
-            configuration.get('core', 'fernet_key')
+            conf.get('core', 'fernet_key')
             is_secure = True
         except:
             pass
@@ -2083,9 +2167,9 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
         from airflow import configuration
         raw = request.args.get('raw') == "true"
         title = "Airflow Configuration"
-        subtitle = configuration.AIRFLOW_CONFIG
-        if configuration.getboolean("webserver", "expose_config"):
-            with open(configuration.AIRFLOW_CONFIG, 'r') as f:
+        subtitle = conf.AIRFLOW_CONFIG
+        if conf.getboolean("webserver", "expose_config"):
+            with open(conf.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
         else:
             config = (

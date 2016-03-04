@@ -1,14 +1,19 @@
 from __future__ import print_function
 
-from datetime import datetime, time, timedelta
 import doctest
 import json
+import logging
 import os
 import re
-from time import sleep
 import unittest
+import mock
+from datetime import datetime, time, timedelta
+from time import sleep
+
+from dateutil.relativedelta import relativedelta
 
 from airflow import configuration
+from airflow.executors import SequentialExecutor, LocalExecutor
 from airflow.models import Variable
 
 configuration.test_mode()
@@ -17,9 +22,12 @@ from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
+from airflow.utils import LoggingMixin, round_time
 from lxml import html
+from airflow.utils import AirflowException
+from airflow.configuration import AirflowConfigException
 
-NUM_EXAMPLE_DAGS = 7
+NUM_EXAMPLE_DAGS = 12
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -33,6 +41,10 @@ except ImportError:
     # Python 3
     import pickle
 
+class FakeDatetime(datetime):
+    "A fake replacement for datetime that can be mocked for testing."
+    def __new__(cls, *args, **kwargs):
+        return date.__new__(datetime, *args, **kwargs)
 
 def reset(dag_id=TEST_DAG_ID):
     session = Session()
@@ -54,6 +66,8 @@ class CoreTest(unittest.TestCase):
         self.dag = dag
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.run_after_loop = self.dag_bash.get_task('run_after_loop')
+        self.run_this_last = self.dag_bash.get_task('run_this_last')
 
     def test_schedule_dag_no_previous_runs(self):
         """
@@ -119,6 +133,86 @@ class CoreTest(unittest.TestCase):
 
         assert dag_run is not None
         assert dag_run2 is None
+
+    def test_schedule_dag_start_end_dates(self):
+        """
+        Tests that an attempt to schedule a task after the Dag's end_date
+        does not succeed.
+        """
+        delta = timedelta(hours=1)
+        runs = 3
+        start_date = DEFAULT_DATE
+        end_date = start_date + (runs - 1) * delta
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_start_end_dates',
+                  start_date=start_date,
+                  end_date=end_date,
+                  schedule_interval=delta)
+
+        # Create and schedule the dag runs
+        dag_runs = []
+        scheduler = jobs.SchedulerJob(test_mode=True)
+        for i in range(runs):
+            date = dag.start_date + i * delta
+            task = models.BaseOperator(task_id='faketastic__%s' % i,
+                                       owner='Also fake',
+                                       start_date=date)
+            dag.tasks.append(task)
+            dag_runs.append(scheduler.schedule_dag(dag))
+
+        additional_dag_run = scheduler.schedule_dag(dag)
+
+        for dag_run in dag_runs:
+            assert dag_run is not None
+
+        assert additional_dag_run is None
+
+    @mock.patch('airflow.jobs.datetime', FakeDatetime)
+    def test_schedule_dag_no_end_date_up_to_today_only(self):
+        """
+        Tests that a Dag created without an end_date can only be scheduled up
+        to and including the current datetime.
+
+        For example, if today is 2016-01-01 and we are scheduling from a
+        start_date of 2015-01-01, only jobs up to, but not including
+        2016-01-01 should be scheduled.
+        """
+        from datetime import datetime
+        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+
+        session = settings.Session()
+        delta = timedelta(days=1)
+        start_date = DEFAULT_DATE
+        runs = 365
+        dag = DAG(TEST_DAG_ID+'test_schedule_dag_no_end_date_up_to_today_only',
+                  start_date=start_date,
+                  schedule_interval=delta)
+
+        dag_runs = []
+        scheduler = jobs.SchedulerJob(test_mode=True)
+        for i in range(runs):
+            # Create the DagRun
+            date = dag.start_date + i * delta
+            task = models.BaseOperator(task_id='faketastic__%s' % i,
+                                       owner='Also fake',
+                                       start_date=date)
+            dag.tasks.append(task)
+
+            # Schedule the DagRun
+            dag_run = scheduler.schedule_dag(dag)
+            dag_runs.append(dag_run)
+
+            # Mark the DagRun as complete
+            dag_run.state = utils.State.SUCCESS
+            session.merge(dag_run)
+            session.commit()
+
+        # Attempt to schedule an additional dag run (for 2016-01-01)
+        additional_dag_run = scheduler.schedule_dag(dag)
+
+        for dag_run in dag_runs:
+            assert dag_run is not None
+
+        assert additional_dag_run is None
 
     def test_confirm_unittest_mod(self):
         assert configuration.get('core', 'unit_test_mode')
@@ -237,13 +331,21 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    def test_bash_operator_multi_byte_output(self):
+        t = operators.BashOperator(
+                task_id='test_multi_byte_bash_operator',
+                bash_command=u"echo \u2600",
+                dag=self.dag,
+                output_encoding='utf-8')
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
     def test_trigger_dagrun(self):
         def trigga(context, obj):
             if True:
                 return obj
         t = operators.TriggerDagRunOperator(
             task_id='test_trigger_dagrun',
-            dag_id='example_bash_operator',
+            trigger_dag_id='example_bash_operator',
             python_callable=trigga,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
@@ -393,6 +495,110 @@ class CoreTest(unittest.TestCase):
         assert "{AIRFLOW_HOME}" not in cfg
         assert "{FERNET_KEY}" not in cfg
 
+    def test_config_use_original_when_original_and_fallback_are_present(self):
+        assert configuration.has_option("core", "FERNET_KEY")
+        assert not configuration.has_option("core", "FERNET_KEY_CMD")
+
+        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+
+        configuration.set("core", "FERNET_KEY_CMD", "printf HELLO")
+
+        FALLBACK_FERNET_KEY = configuration.get(
+            "core",
+            "FERNET_KEY"
+        )
+
+        assert FALLBACK_FERNET_KEY == FERNET_KEY
+
+        # restore the conf back to the original state
+        configuration.remove_option("core", "FERNET_KEY_CMD")
+
+    def test_config_throw_error_when_original_and_fallback_is_absent(self):
+        assert configuration.has_option("core", "FERNET_KEY")
+        assert not configuration.has_option("core", "FERNET_KEY_CMD")
+
+        FERNET_KEY = configuration.get("core", "FERNET_KEY")
+        configuration.remove_option("core", "FERNET_KEY")
+
+        with self.assertRaises(AirflowConfigException) as cm:
+            configuration.get("core", "FERNET_KEY")
+
+        exception = str(cm.exception)
+        message = "section/key [core/fernet_key] not found in config"
+        assert exception == message
+
+        # restore the conf back to the original state
+        configuration.set("core", "FERNET_KEY", FERNET_KEY)
+        assert configuration.has_option("core", "FERNET_KEY")
+
+    def test_class_with_logger_should_have_logger_with_correct_name(self):
+
+        # each class should automatically receive a logger with a correct name
+
+        class Blah(LoggingMixin):
+            pass
+
+        assert Blah().logger.name == "tests.core.Blah"
+        assert SequentialExecutor().logger.name == "airflow.executors.sequential_executor.SequentialExecutor"
+        assert LocalExecutor().logger.name == "airflow.executors.local_executor.LocalExecutor"
+
+    def test_round_time(self):
+
+        rt1 = round_time(datetime(2015, 1, 1, 6), timedelta(days=1))
+        assert rt1 == datetime(2015, 1, 1, 0, 0)
+
+        rt2 = round_time(datetime(2015, 1, 2), relativedelta(months=1))
+        assert rt2 == datetime(2015, 1, 1, 0, 0)
+
+        rt3 = round_time(datetime(2015, 9, 16, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt3 == datetime(2015, 9, 16, 0, 0)
+
+        rt4 = round_time(datetime(2015, 9, 15, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt4 == datetime(2015, 9, 15, 0, 0)
+
+        rt5 = round_time(datetime(2015, 9, 14, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt5 == datetime(2015, 9, 14, 0, 0)
+
+        rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(
+            2015, 9, 14, 0, 0))
+        assert rt6 == datetime(2015, 9, 14, 0, 0)
+
+    def test_duplicate_dependencies(self):
+
+        regexp = "Dependency (.*)runme_0(.*)run_after_loop(.*) " \
+                 "already registered"
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_downstream(self.run_after_loop)
+
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_upstream(self.runme_0)
+
+    def test_cyclic_dependencies_1(self):
+
+        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.runme_0.set_upstream(self.run_after_loop)
+
+    def test_cyclic_dependencies_2(self):
+        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_after_loop.set_downstream(self.runme_0)
+
+    def test_cyclic_dependencies_3(self):
+        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
+        with self.assertRaisesRegexp(AirflowException, regexp):
+            self.run_this_last.set_downstream(self.runme_0)
+
+    def test_bad_trigger_rule(self):
+        with self.assertRaises(AirflowException):
+            operators.DummyOperator(
+            task_id='test_bad_trigger',
+            trigger_rule="non_existant",
+            dag=self.dag)
 
 class CliTests(unittest.TestCase):
 
@@ -438,9 +644,24 @@ class CliTests(unittest.TestCase):
             'task_state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
+    def test_pause(self):
+        args = self.parser.parse_args([
+            'pause', 'example_bash_operator'])
+        cli.pause(args)
+        assert self.dagbag.dags['example_bash_operator'].is_paused in [True, 1]
+
+        args = self.parser.parse_args([
+            'unpause', 'example_bash_operator'])
+        cli.unpause(args)
+        assert self.dagbag.dags['example_bash_operator'].is_paused in [False, 0]
+
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
+            '-s', DEFAULT_DATE.isoformat()]))
+
+        cli.backfill(self.parser.parse_args([
+            'backfill', 'example_bash_operator','-t', 'runme_0', '--dry_run',
             '-s', DEFAULT_DATE.isoformat()]))
 
         cli.backfill(self.parser.parse_args([
@@ -451,6 +672,21 @@ class CliTests(unittest.TestCase):
             'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]))
 
+    def test_process_subdir_path_with_placeholder(self):
+        assert cli.process_subdir('DAGS_FOLDER/abc') == os.path.join(configuration.get_dags_folder(), 'abc')
+
+    def test_trigger_dag(self):
+        cli.trigger_dag(self.parser.parse_args([
+            'trigger_dag', 'example_bash_operator',
+            '-c', '{"foo": "bar"}']))
+        self.assertRaises(
+            ValueError,
+            cli.trigger_dag,
+            self.parser.parse_args([
+                'trigger_dag', 'example_bash_operator',
+                '-c', 'NOT JSON'])
+        )
+
 
 class WebUiTests(unittest.TestCase):
 
@@ -460,6 +696,11 @@ class WebUiTests(unittest.TestCase):
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
+
+        self.dagbag = models.DagBag(
+            dag_folder=DEV_NULL, include_examples=True)
+        self.dag_bash = self.dagbag.dags['example_bash_operator']
+        self.runme_0 = self.dag_bash.get_task('runme_0')
 
     def test_index(self):
         response = self.app.get('/', follow_redirects=True)
@@ -596,8 +837,25 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/dag_details?dag_id=example_branch_operator')
         assert "run_this_first" in response.data.decode('utf-8')
 
+    def test_fetch_task_instance(self):
+        url = (
+            "/admin/airflow/object/task_instances?"
+            "dag_id=example_bash_operator&"
+            "execution_date={}".format(DEFAULT_DATE_DS))
+        response = self.app.get(url)
+        assert "{}" in response.data.decode('utf-8')
+
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        job = jobs.LocalTaskJob(task_instance=ti, force=True)
+        job.run()
+
+        response = self.app.get(url)
+        assert "runme_0" in response.data.decode('utf-8')
+
     def tearDown(self):
-        pass
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
 
 
 class WebPasswordAuthTest(unittest.TestCase):
@@ -727,6 +985,23 @@ class WebLdapAuthTest(unittest.TestCase):
     def test_unauthorized(self):
         response = self.app.get("/admin/airflow/landing_times")
         self.assertEqual(response.status_code, 302)
+
+    def test_no_filter(self):
+        response = self.login('user1', 'user1')
+        assert 'Data Profiling' in response.data.decode('utf-8')
+        assert 'Connections' in response.data.decode('utf-8')
+
+    def test_with_filters(self):
+        configuration.conf.set('ldap', 'superuser_filter',
+                               'description=superuser')
+        configuration.conf.set('ldap', 'data_profiler_filter',
+                               'description=dataprofiler')
+
+        response = self.login('dataprofiler', 'dataprofiler')
+        assert 'Data Profiling' in response.data.decode('utf-8')
+
+        response = self.login('superuser', 'superuser')
+        assert 'Connections' in response.data.decode('utf-8')
 
     def tearDown(self):
         configuration.test_mode()
@@ -931,6 +1206,21 @@ class ConnectionTest(unittest.TestCase):
         del os.environ['AIRFLOW_CONN_AIRFLOW_DB']
 
 
+class WebHDFSHookTest(unittest.TestCase):
+    def setUp(self):
+        configuration.test_mode()
+
+    def test_simple_init(self):
+        from airflow.hooks.webhdfs_hook import WebHDFSHook
+        c = WebHDFSHook()
+        assert c.proxy_user == None
+
+    def test_init_proxy_user(self):
+        from airflow.hooks.webhdfs_hook import WebHDFSHook
+        c = WebHDFSHook(proxy_user='someone')
+        assert c.proxy_user == 'someone'
+
+
 @unittest.skipUnless("S3Hook" in dir(hooks),
                      "Skipping test because S3Hook is not installed")
 class S3HookTest(unittest.TestCase):
@@ -1080,6 +1370,33 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t = operators.PrestoCheckOperator(
                 task_id='presto_check', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_presto_to_mysql(self):
+        t = operators.PrestoToMySqlTransfer(
+            task_id='presto_to_mysql_check',
+            sql="""
+            SELECT name, count(*) as ccount
+            FROM airflow.static_babynames
+            GROUP BY name
+            """,
+            mysql_table='test_static_babynames',
+            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_presto_to_mysql(self):
+        t = operators.PrestoToMySqlTransfer(
+            task_id='presto_to_mysql_check',
+            sql="""
+            SELECT name, count(*) as ccount
+            FROM airflow.static_babynames
+            GROUP BY name
+            """,
+            mysql_table='test_static_babynames',
+            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
 
         def test_hdfs_sensor(self):
             t = operators.HdfsSensor(

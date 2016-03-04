@@ -44,6 +44,9 @@ Here are some of the common causes:
   how many ``running`` task instances a DAG is allowed to have, beyond which
   point things get queued. 
 
+- Is the ``max_active_runs`` parameter of your DAG reached? ``max_active_runs`` defines
+  how many ``running`` concurrent instances of a DAG there are allowed to be.
+
 You may also want to read the Scheduler section of the docs and make
 sure you fully understand how it proceeds.
 
@@ -53,3 +56,7 @@ sure you fully understand how it proceeds.
 Check out the ``Trigger Rule`` section in the Concepts section of the
 documentation
 
+**Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]**?
+
+- Verify that the ``fernet_key`` defined in ``$AIRFLOW_HOME/airflow.cfg`` is a valid Fernet key. It must be a base64-encoded 32-byte key. You need to restart the webserver after you update the key
+- For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it

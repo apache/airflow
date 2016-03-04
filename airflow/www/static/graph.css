@@ -37,3 +37,17 @@ div#svg_container {
  background-color: #EEE;
  cursor: move;
 }
+
+#refresh_button {
+    top: 15px;
+    right: 15px;
+    position: relative;
+}
+
+#loading {
+    margin: auto;
+    display: none;
+    position: relative;
+    width: 100px;
+    top: -550px;
+}

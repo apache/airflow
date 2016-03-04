@@ -1,8 +1,8 @@
 import socket
 
 from flask import Flask
-from flask.ext.admin import Admin, base
-from flask.ext.cache import Cache
+from flask_admin import Admin, base
+from flask_cache import Cache
 from flask_wtf.csrf import CsrfProtect
 
 import airflow

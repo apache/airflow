@@ -72,14 +72,14 @@ looks like:
         admin_views = []
         # A list of Blueprint object created from flask.Blueprint
         flask_blueprints = []
-        # A list of menu links (flask.ext.admin.base.MenuLink)
+        # A list of menu links (flask_admin.base.MenuLink)
         menu_links = []
 
 
 Example
 -------
 
-The code bellow defines a plugin that injects a set of dummy object
+The code below defines a plugin that injects a set of dummy object
 definitions in Airflow.
 
 .. code:: python
@@ -88,8 +88,8 @@ definitions in Airflow.
     from airflow.plugins_manager import AirflowPlugin
 
     from flask import Blueprint
-    from flask.ext.admin import BaseView, expose
-    from flask.ext.admin.base import MenuLink
+    from flask_admin import BaseView, expose
+    from flask_admin.base import MenuLink
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook

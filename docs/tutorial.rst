@@ -77,12 +77,12 @@ at first) is that this Airflow Python script is really
 just a configuration file specifying the DAG's structure as code.
 The actual tasks defined here will run in a different context from
 the context of this script. Different tasks run on different workers
-at different point it time, which means this script cannot be directly
-to cross communicate between tasks for instance. Note that for this
+at different points in time, which means that this script cannot be used
+to cross communicate between tasks. Note that for this
 purpose we have a more advanced feature called ``XCom``.
 
 People sometimes think of the DAG definition file as a place where they
-can do some actual data processing, that is not the case at all!
+can do some actual data processing - that is not the case at all!
 The script's purpose is to define a DAG object. It needs to evaluate
 quickly (seconds, not minutes) since the scheduler will execute it
 periodically to reflect the changes if any.
@@ -100,7 +100,7 @@ Airflow DAG object. Let's start by importing the libraries we will need.
     from airflow import DAG
 
     # Operators; we need this to operate!
-    from airflow.operators import BashOperator, MySqlOperator
+    from airflow.operators import BashOperator
 
 Default Arguments
 -----------------
@@ -111,7 +111,7 @@ of default parameters that we can use when creating tasks.
 
 .. code:: python
 
-    from datetime import datetime
+    from datetime import datetime, timedelta
 
     default_args = {
         'owner': 'airflow',
@@ -251,8 +251,8 @@ you can define dependencies between them:
     t3.set_upstream(t1)
 
     # all of this is equivalent to
-    # dag.set_dependencies('print_date', 'sleep')
-    # dag.set_dependencies('print_date', 'templated')
+    # dag.set_dependency('print_date', 'sleep')
+    # dag.set_dependency('print_date', 'templated')
 
 Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
@@ -420,7 +420,7 @@ running against it should get it to get triggered and run every day.
 
 Here's a few things you might want to do next:
 
-* Take an in-depth tour of the UI, click all the things!
+* Take an in-depth tour of the UI - click all the things!
 * Keep reading the docs! Especially the sections on:
 
     * Command line interface

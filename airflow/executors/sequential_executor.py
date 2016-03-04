@@ -24,7 +24,7 @@ class SequentialExecutor(BaseExecutor):
 
     def sync(self):
         for key, command in self.commands_to_run:
-            logging.info("command" + str(command))
+            self.logger.info("Executing command: {}".format(command))
             try:
                 sp = subprocess.Popen(command, shell=True)
                 sp.wait()

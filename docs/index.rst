@@ -37,10 +37,10 @@ Beyond the Horizon
 
 Airflow **is not** a data streaming solution. Tasks do not move data from
 one to the other (though tasks can exchange metadata!). Airflow is not
-in the [Spark Streaming](http://spark.apache.org/streaming/) 
-or [Storm](https://storm.apache.org/) space, it is more comparable to
-[Oozie](http://oozie.apache.org/) or 
-[Azkaban](http://data.linkedin.com/opensource/azkaban).
+in the `Spark Streaming <http://spark.apache.org/streaming/>`_
+or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
+`Oozie <http://oozie.apache.org/>`_ or
+`Azkaban <http://data.linkedin.com/opensource/azkaban>`_.
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic

@@ -2,7 +2,7 @@ from datetime import datetime
 import json
 
 from flask import Blueprint, request
-from flask.ext.admin import BaseView, expose
+from flask_admin import BaseView, expose
 import pandas as pd
 
 from airflow.hooks import HiveMetastoreHook, MySqlHook, PrestoHook, HiveCliHook

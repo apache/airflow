@@ -23,6 +23,7 @@ fi
 which airflow > /dev/null || python setup.py develop
 
 echo "Initializing the DB"
+yes | airflow resetdb
 airflow initdb
 
 echo "Starting the unit tests with the following nose arguments: "$nose_args

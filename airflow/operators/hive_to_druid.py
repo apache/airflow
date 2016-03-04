@@ -49,12 +49,14 @@ class HiveToDruidTransfer(BaseOperator):
             metastore_conn_id='metastore_default',
             hadoop_dependency_coordinates=None,
             intervals=None,
+            num_shards=1,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
         self.druid_datasource = druid_datasource
         self.ts_dim = ts_dim
         self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
+        self.num_shards = num_shards
         self.metric_spec = metric_spec or [{
             "name": "count",
             "type": "count"}]
@@ -66,7 +68,7 @@ class HiveToDruidTransfer(BaseOperator):
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         logging.info("Extracting data from Hive")
-        hive_table = 'druid.' + context['task_instance_key_str']
+        hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
         hql = """\
         set mapred.output.compress=false;
@@ -101,7 +103,7 @@ class HiveToDruidTransfer(BaseOperator):
             datasource=self.druid_datasource,
             intervals=self.intervals,
             static_path=static_path, ts_dim=self.ts_dim,
-            columns=columns, metric_spec=self.metric_spec,
+            columns=columns, num_shards=self.num_shards, metric_spec=self.metric_spec,
             hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
         logging.info("Load seems to have succeeded!")
 
@@ -109,4 +111,4 @@ class HiveToDruidTransfer(BaseOperator):
             "Cleaning up by dropping the temp "
             "Hive table {}".format(hive_table))
         hql = "DROP TABLE IF EXISTS {}".format(hive_table)
-        #hive.run_cli(hql)
+        hive.run_cli(hql)

@@ -47,8 +47,14 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_records(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            obj = eval(str(e))
-            raise PrestoException(obj['message'])
+            if (hasattr(e, 'message') and
+                'errorName' in e.message and
+                'message' in e.message):
+                # Use the structured error data in the raised exception
+                raise PrestoException('{name}: {message}'.format(
+                    name=e.message['errorName'], message=e.message['message']))
+            else:
+                raise PrestoException(str(e))
 
     def get_first(self, hql, parameters=None):
         """

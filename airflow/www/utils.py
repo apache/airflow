@@ -10,7 +10,7 @@ import dateutil.parser as dateparser
 import json
 import os
 from flask import after_this_request, request, Response
-from flask.ext.login import current_user
+from flask_login import current_user
 from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type

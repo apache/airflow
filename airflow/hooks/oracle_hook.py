@@ -28,8 +28,12 @@ class OracleHook(DbApiHook):
         """
         conn = self.get_connection(self.oracle_conn_id)
         dsn = conn.extra_dejson.get('dsn', None)
+        sid = conn.extra_dejson.get('sid', None)
         service_name = conn.extra_dejson.get('service_name', None)
-        if dsn and service_name:            
+        if dsn and sid and not service_name:
+            dsn = cx_Oracle.makedsn(dsn, conn.port, sid)
+            conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
+        elif dsn and service_name and not sid:
             dsn = cx_Oracle.makedsn(dsn, conn.port, service_name=service_name)
             conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
         else:

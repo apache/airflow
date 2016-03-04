@@ -5,7 +5,7 @@ from wtforms import (
     Form, PasswordField, StringField)
 from wtforms.validators import InputRequired
 
-from ldap3 import Server, Connection, Tls, LEVEL
+from ldap3 import Server, Connection, Tls, LEVEL, SUBTREE, BASE
 import ssl
 
 from flask import url_for, redirect
@@ -13,8 +13,11 @@ from flask import url_for, redirect
 from airflow import settings
 from airflow import models
 from airflow import configuration
+from airflow.configuration import AirflowConfigException
 
 import logging
+
+import traceback
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() bellow
@@ -24,6 +27,9 @@ LOG = logging.getLogger(__name__)
 
 
 class AuthenticationError(Exception):
+    pass
+
+class LdapException(Exception):
     pass
 
 
@@ -42,14 +48,47 @@ def get_ldap_connection(dn=None, password=None):
 
     if not conn.bind():
         LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
-        raise AuthenticationError("Username or password incorrect")
+        raise AuthenticationError("Cannot bind to ldap server")
 
     return conn
+
+
+def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
+    search_filter = '(&({0}))'.format(group_filter)
+    if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
+        LOG.warn("Unable to find group for %s %s", search_base, search_filter)
+    else:
+        for resp in conn.response:
+            if 'attributes' in resp and resp['attributes'].get(user_name_attr)[0] == username:
+                return True
+    return False
 
 
 class LdapUser(models.User):
     def __init__(self, user):
         self.user = user
+
+        # Load and cache superuser and data_profiler settings.
+        conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
+        try:
+            self.superuser = group_contains_user(conn,
+                                                 configuration.get("ldap", "basedn"),
+                                                 configuration.get("ldap", "superuser_filter"),
+                                                 configuration.get("ldap", "user_name_attr"),
+                                                 user.username)
+        except AirflowConfigException:
+            self.superuser = True
+            LOG.debug("Missing configuration for superuser settings.  Skipping.")
+
+        try:
+            self.data_profiler = group_contains_user(conn,
+                                                     configuration.get("ldap", "basedn"),
+                                                     configuration.get("ldap", "data_profiler_filter"),
+                                                     configuration.get("ldap", "user_name_attr"),
+                                                     user.username)
+        except AirflowConfigException:
+            self.data_profiler = True
+            LOG.debug("Missing configuration for dataprofiler settings. Skipping")
 
     @staticmethod
     def try_login(username, password):
@@ -61,9 +100,19 @@ class LdapUser(models.User):
             username
         )
 
+        search_scopes = {
+            "LEVEL": LEVEL,
+            "SUBTREE": SUBTREE,
+            "BASE": BASE
+        }
+
+        search_scope = LEVEL
+        if configuration.has_option("ldap", "search_scope"):
+            search_scope = SUBTREE if configuration.get("ldap", "search_scope") == "SUBTREE" else LEVEL
+
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=LEVEL)
+        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=search_scope)
 
         # todo: use list or result?
         if not res:
@@ -73,7 +122,20 @@ class LdapUser(models.User):
         entry = conn.response[0]
 
         conn.unbind()
-        conn = get_ldap_connection(entry['dn'], password)
+
+        if not 'dn' in entry:
+            # The search fitler for the user did not return any values, so an
+            # invalid user was used for credentials.
+            raise AuthenticationError("Invalid username or password")
+
+        try:
+            conn = get_ldap_connection(entry['dn'], password)
+        except KeyError as e:
+            LOG.error("""
+            Unable to parse LDAP structure. If you're using Active Directory and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
+            %s
+            """ % traceback.format_exc())
+            raise LdapException("Could not parse LDAP structure. Try setting search_scope in airflow.cfg, or check logs")
 
         if not conn:
             LOG.info("Password incorrect for user %s", username)
@@ -97,11 +159,11 @@ class LdapUser(models.User):
 
     def data_profiling(self):
         '''Provides access to data profiling tools'''
-        return True
+        return self.data_profiler
 
     def is_superuser(self):
         '''Access all the things'''
-        return True
+        return self.superuser
 
 
 @login_manager.user_loader
@@ -157,8 +219,11 @@ def login(self, request):
         session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
-    except AuthenticationError:
-        flash("Incorrect login details")
+    except (LdapException, AuthenticationError) as e:
+        if type(e) == LdapException:
+            flash(e, "error")
+        else:
+            flash("Incorrect login details")
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)

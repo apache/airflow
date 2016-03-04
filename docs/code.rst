@@ -49,6 +49,7 @@ Operator API
         BashOperator,
         BranchPythonOperator,
         TriggerDagRunOperator,
+        DockerOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -88,6 +89,10 @@ Community-contributed Operators
 .. automodule:: airflow.contrib.operators
     :show-inheritance:
     :members:
+        BigQueryOperator,
+        BigQueryToCloudStorageOperator,
+        GoogleCloudStorageDownloadOperator,
+        SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
 
@@ -107,9 +112,11 @@ in all templates
 Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
-``{{ yesterday_ds }}``              yesterday's date as  ``YYYY-MM-DD``
-``{{ tomorrow_ds }}``               tomorrow's date as  ``YYYY-MM-DD``
-``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
+``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
+``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
+``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
+``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``
+``{{ tomorrow_ds_nodash }}``        tomorrow's date as ``YYYYMMDD``
 ``{{ ts }}``                        same as ``execution_date.isoformat()``
 ``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
@@ -117,7 +124,6 @@ Variable                            Description
 ``{{ task }}``                      the Task object
 ``{{ macros }}``                    a reference to the macros package, described below
 ``{{ task_instance }}``             the task_instance object
-``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ end_date }}``                  same as ``{{ ds }}``
 ``{{ latest_date }}``               same as ``{{ ds }}``
 ``{{ ti }}``                        same as ``{{ task_instance }}``
@@ -129,7 +135,7 @@ Variable                            Description
                                     represents the content of your
                                     ``airflow.cfg``
 ``run_id``                          the ``run_id`` of the current DAG run
-``dag_run``                         a reference to the DAG run object
+``dag_run``                         a reference to the DagRun object
 ``test_mode``                       whether the task instance was called using
                                     the CLI's test subcommand
 =================================   ====================================
@@ -208,6 +214,8 @@ Community contributed hooks
 .. automodule:: airflow.contrib.hooks
     :show-inheritance:
     :members:
+        BigQueryHook,
+        GoogleCloudStorageHook,
         VerticaHook,
         FTPHook,
         SSHHook

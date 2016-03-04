@@ -11,6 +11,7 @@ _hooks = {
     ],
     'hdfs_hook': ['HDFSHook'],
     'webhdfs_hook': ['WebHDFSHook'],
+    'pig_hook': ['PigCliHook'],
     'mysql_hook': ['MySqlHook'],
     'postgres_hook': ['PostgresHook'],
     'presto_hook': ['PrestoHook'],

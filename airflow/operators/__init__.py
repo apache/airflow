@@ -19,6 +19,7 @@ _operators = {
         'ShortCircuitOperator',
     ],
     'hive_operator': ['HiveOperator'],
+    'pig_operator': ['PigOperator'],
     'presto_check_operator': [
         'PrestoCheckOperator',
         'PrestoValueCheckOperator',
@@ -50,6 +51,7 @@ _operators = {
     'hive_stats_operator': ['HiveStatsCollectionOperator'],
     's3_to_hive_operator': ['S3ToHiveTransfer'],
     'hive_to_mysql': ['HiveToMySqlTransfer'],
+    'presto_to_mysql': ['PrestoToMySqlTransfer'],
     's3_file_transform_operator': ['S3FileTransformOperator'],
     'http_operator': ['SimpleHttpOperator'],
     'hive_to_druid': ['HiveToDruidTransfer'],

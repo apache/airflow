@@ -1,6 +1,7 @@
 from slackclient import SlackClient
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
+import json
 
 
 class SlackAPIOperator(BaseOperator):
@@ -13,20 +14,20 @@ class SlackAPIOperator(BaseOperator):
     :type token: string
     :param method: The Slack API Method to Call (https://api.slack.com/methods)
     :type method: string
-    :param params: API Method call parameters (https://api.slack.com/methods)
-    :type params: dict
+    :param api_params: API Method call parameters (https://api.slack.com/methods)
+    :type api_params: dict
     """
 
     @apply_defaults
     def __init__(self,
                  token='unset',
                  method='unset',
-                 params=None,
+                 api_params=None,
                  *args, **kwargs):
         super(SlackAPIOperator, self).__init__(*args, **kwargs)
         self.token = token
         self.method = method
-        self.params = params
+        self.api_params = api_params
 
     def construct_api_call_params(self):
         """
@@ -44,10 +45,10 @@ class SlackAPIOperator(BaseOperator):
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
-        if not self.params:
+        if not self.api_params:
             self.construct_api_call_params()
         sc = SlackClient(self.token)
-        sc.api_call(self.method, **self.params)
+        sc.api_call(self.method, **self.api_params)
 
 
 class SlackAPIPostOperator(SlackAPIOperator):
@@ -62,9 +63,11 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type text: string
     :param icon_url: url to icon used for this message
     :type icon_url: string
+    :param attachments: extra formatting details - see https://api.slack.com/docs/attachments
+    :type attachments: array of hashes
     """
 
-    template_fields = ('username', 'text')
+    template_fields = ('username', 'text', 'attachments')
     ui_color = '#FFBA40'
 
     @apply_defaults
@@ -75,19 +78,22 @@ class SlackAPIPostOperator(SlackAPIOperator):
                       'Here is a cat video instead\n'
                       'https://www.youtube.com/watch?v=J---aiyznGQ',
                  icon_url='https://raw.githubusercontent.com/airbnb/airflow/master/airflow/www/static/pin_100.png',
+                 attachments=None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
         self.channel = channel
         self.username = username
         self.text = text
         self.icon_url = icon_url
+        self.attachments = attachments
         super(SlackAPIPostOperator, self).__init__(method=self.method,
                                                    *args, **kwargs)
 
     def construct_api_call_params(self):
-        self.params = {
+        self.api_params = {
             'channel': self.channel,
             'username': self.username,
             'text': self.text,
             'icon_url': self.icon_url,
+            'attachments': json.dumps(self.attachments),
         }

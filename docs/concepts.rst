@@ -217,11 +217,121 @@ will invariably lead to block tasks that depend on their past successes.
 ``skipped`` states propagates where all directly upstream tasks are
 ``skipped``.
 
+If you want to skip some tasks, keep in mind that you can't have an empty
+path, if so make a dummy task.
+
+like this, the dummy task "branch_false" is skipped
+
+.. image:: img/branch_good.png
+
+Not like this, where the join task is skipped
+
+.. image:: img/branch_bad.png
+
+SubDAGs
+'''''''
+
+SubDAGs are perfect for repeating patterns. Defining a function that returns a
+DAG object is a nice design pattern when using Airflow.
+
+Airbnb uses the *stage-check-exchange* pattern when loading data. Data is staged
+in a temporary table, after which data quality checks are performed against
+that table. Once the checks all pass the partition is moved into the production
+table.
+
+As another example, consider the following DAG:
+
+.. image:: img/subdag_before.png
+
+We can combine all of the parallel ``task-*`` operators into a single SubDAG,
+so that the resulting DAG resembles the following:
+
+.. image:: img/subdag_after.png
+
+Note that SubDAG operators should contain a factory method that returns a DAG
+object. This will prevent the SubDAG from being treated like a separate DAG in
+the main UI. For example:
+
+.. code:: python
+
+  #dags/subdag.py
+  from airflow.models import DAG
+  from airflow.operators import DummyOperator
+
+
+  # Dag is returned by a factory method
+  def sub_dag(parent_dag_name, child_dag_name, start_date, schedule_interval):
+    dag = DAG(
+      '%s.%s' % (parent_dag_name, child_dag_name),
+      schedule_interval=schedule_interval,
+      start_date=start_date,
+    )
+
+    dummy_operator = DummyOperator(
+      task_id='dummy_task',
+      dag=dag,
+    )
+
+    return dag
+
+This SubDAG can then be referenced in your main DAG file:
+
+.. code:: python
+
+  # main_dag.py
+  from datetime import datetime, timedelta
+  from airflow.models import DAG
+  from airflow.operators import SubDagOperator
+  from dags.subdag import sub_dag
+
+
+  PARENT_DAG_NAME = 'parent_dag'
+  CHILD_DAG_NAME = 'child_dag'
+
+  main_dag = DAG(
+    dag_id=PARENT_DAG_NAME,
+    schedule_interval=timedelta(hours=1),
+    start_date=datetime(2016, 1, 1)
+  )
+
+  sub_dag = SubDagOperator(
+    subdag=sub_dag(PARENT_DAG_NAME, CHILD_DAG_NAME, main_dag.start_date,
+                   main_dag.schedule_interval),
+    task_id=CHILD_DAG_NAME,
+    dag=main_dag,
+  )
+
+You can zoom into a SubDagOperator from the graph view of the main DAG to show
+the tasks contained within the SubDAG:
+
+.. image:: img/subdag_zoom.png
+
+Some other tips when using SubDAGs:
+
+-  by convention, a SubDAG's ``dag_id`` should be prefixed by its parent and
+   a dot. As in ``parent.child``
+-  share arguments between the main DAG and the SubDAG by passing arguments to
+   the SubDAG operator (as demonstrated above)
+-  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is
+   set to ``None`` or ``@once``, the SubDAG will succeed without having done
+   anything
+-  clearing a SubDagOperator also clears the state of the tasks within
+-  marking success on a SubDagOperator does not affect the state of the tasks
+   within
+-  refrain from using ``depends_on_past=True`` in tasks within the SubDAG as
+   this can be confusing
+-  it is possible to specify an executor for the SubDAG. It is common to use
+   the SequentialExecutor if you want to run the SubDAG in-process and
+   effectively limit its parallelism to one. Using LocalExecutor can be
+   problematic as it may over-subscribe your worker, running multiple tasks in
+   a single slot
+
+See ``airflow/example_dags`` for a demonstration.
 
 SLAs
 ''''
 
-Service License Agreements, or time by which a task or DAG should have
+Service Level Agreements, or time by which a task or DAG should have
 succeeded, can be set at a task level as a ``timedelta``. If
 one or many instances have not succeeded by that time, an alert email is sent
 detailing the list of tasks that missed their SLA. The event is also recorded
@@ -236,7 +346,7 @@ Though the normal workflow behavior is to trigger tasks when all their
 directly upstream tasks have succeeded, Airflow allows for more complex
 dependency settings.
 
-All operators have a ``trigger_rule`` argument which defines the rule by which 
+All operators have a ``trigger_rule`` argument which defines the rule by which
 the generated task get triggered. The default value for ``trigger_rule`` is
 ``all_success`` and can be defined as "trigger this task when all directly
 upstream tasks have succeeded". All other rules described here are based
@@ -251,5 +361,82 @@ while creating tasks:
 * ``dummy``: dependencies are just for show, trigger at will
 
 Note that these can be used in conjunction with ``depends_on_past`` (boolean)
-that, when set to ``True``, keeps a task from getting triggered if the 
+that, when set to ``True``, keeps a task from getting triggered if the
 previous schedule for the task hasn't succeeded.
+
+
+Zombies & Undeads
+'''''''''''''''''
+
+Task instances die all the time, usually as part of their normal life cycle,
+but sometimes unexpectedly.
+
+Zombie tasks are characterized by the absence
+of an heartbeat (emitted by the job periodically) and a ``running`` status
+in the database. They can occur when a worker node can't reach the database,
+when Airflow processes are killed externally, or when a node gets rebooted
+for instance. Zombie killing is performed periodically by the scheduler's
+process.
+
+Undead processes are characterized by the existence of a process and a matching
+heartbeat, but Airflow isn't aware of this task as ``running`` in the database.
+This mismatch typically occurs as the state of the database is altered,
+most likely by deleting rows in the "Task Instances" view in the UI.
+Tasks are instructed to verify their state as part of the heartbeat routine,
+and terminate themselves upon figuring out that they are in this "undead"
+state.
+
+
+Cluster Policy
+''''''''''''''
+
+Your local airflow settings file can define a ``policy`` function that
+has the ability to mutate task attributes based on other task or DAG
+attributes. It receives a single argument as a reference to task objects,
+and is expected to alter its attributes.
+
+For example, this function could apply a specific queue property when
+using a specific operator, or enforce a task timeout policy, making sure
+that no tasks run for more than 48 hours. Here's an example of what this
+may look like inside your ``airflow_settings.py``:
+
+
+.. code:: python
+
+    def policy(task):
+        if task.__class__.__name__ == 'HivePartitionSensor':
+            task.queue = "sensor_queue"
+        if task.timeout > timedelta(hours=48):
+            task.timeout = timedelta(hours=48)
+
+
+Task Documentation & Notes
+''''''''''''''''''''''''''
+It's possible to add documentation or notes to your task objects that become
+visible in the "Task Details" view in the web interface. There are a set
+of special task attributes that get rendered as rich content if defined:
+
+==========  ================
+attribute   rendered to
+==========  ================
+doc         monospace
+doc_json    json
+doc_yaml    yaml
+doc_md      markdown
+doc_rst     reStructuredText
+==========  ================
+
+This is especially useful if your tasks are built dynamically from
+configuration files, it allows you to expose the configuration that led
+to the related tasks in Airflow.
+
+.. code:: python
+    
+    t = BashOperator("foo", dag=dag)
+    t.doc_md = """\
+    #Title"
+    Here's a [url](www.airbnb.com)
+    """
+
+This content will get rendered as markdown in the "Task Details" page.
+

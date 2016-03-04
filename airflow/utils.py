@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import sys
 from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
@@ -57,6 +58,16 @@ class TriggerRule(object):
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
 
+    @classmethod
+    def is_valid(cls, trigger_rule):
+        return trigger_rule in cls.all_triggers()
+
+    @classmethod
+    def all_triggers(cls):
+        return [getattr(cls, attr)
+                for attr in dir(cls)
+                if not attr.startswith("__") and not callable(getattr(cls, attr))]
+
 
 class State(object):
     """
@@ -102,7 +113,7 @@ class State(object):
     def runnable(cls):
         return [
             None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
-            cls.SKIPPED]
+            cls.SKIPPED, cls.QUEUED]
 
 
 cron_presets = {
@@ -175,6 +186,9 @@ def initdb():
             conn_id='beeline_default', conn_type='beeline',
             host='localhost',
             schema='airflow'))
+    merge_conn(
+        models.Connection(
+            conn_id='bigquery_default', conn_type='bigquery'))
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
@@ -378,9 +392,8 @@ def json_ser(obj):
     json serializer that deals with dates
     usage: json.dumps(object, default=utils.json_ser)
     """
-    if isinstance(obj, datetime):
-        obj = obj.isoformat()
-    return obj
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
 
 
 def alchemy_to_dict(obj):
@@ -521,9 +534,10 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     SMTP_USER = configuration.get('smtp', 'SMTP_USER')
     SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
     SMTP_STARTTLS = configuration.getboolean('smtp', 'SMTP_STARTTLS')
+    SMTP_SSL = configuration.getboolean('smtp', 'SMTP_SSL')
 
     if not dryrun:
-        s = smtplib.SMTP(SMTP_HOST, SMTP_PORT)
+        s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)
         if SMTP_STARTTLS:
             s.starttls()
         if SMTP_USER and SMTP_PASSWORD:
@@ -604,11 +618,19 @@ class timeout(object):
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
+        try:
+            signal.signal(signal.SIGALRM, self.handle_timeout)
+            signal.alarm(self.seconds)
+        except ValueError as e:
+            logging.warning("timeout can't be used in the current context")
+            logging.exception(e)
 
     def __exit__(self, type, value, traceback):
-        signal.alarm(0)
+        try:
+            signal.alarm(0)
+        except ValueError as e:
+            logging.warning("timeout can't be used in the current context")
+            logging.exception(e)
 
 
 def is_container(obj):
@@ -747,3 +769,18 @@ class AirflowJsonEncoder(json.JSONEncoder):
 
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
+
+
+class LoggingMixin(object):
+    """
+    Convenience super-class to have a logger configured with the class name
+    """
+
+    @property
+    def logger(self):
+        try:
+            return self._logger
+        except AttributeError:
+            self._logger = logging.root.getChild(self.__class__.__module__ + '.' +self.__class__.__name__)
+            return self._logger
+

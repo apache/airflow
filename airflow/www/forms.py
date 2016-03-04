@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from datetime import datetime
-from flask.ext.admin.form import DateTimePickerWidget
+from flask_admin.form import DateTimePickerWidget
 from wtforms import DateTimeField, SelectField
 from flask_wtf import Form
 
@@ -15,7 +15,9 @@ class DateTimeForm(Form):
         "Execution date", widget=DateTimePickerWidget())
 
 
-class TreeForm(Form):
+class DateTimeWithNumRunsForm(Form):
+    # Date time and number of runs form for tree view, task duration
+    # and landing times
     base_date = DateTimeField(
         "Anchor date", widget=DateTimePickerWidget(), default=datetime.now())
     num_runs = SelectField("Number of runs", default=25, choices=(
