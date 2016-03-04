@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import textwrap
+import warnings
 from datetime import datetime
 
 from builtins import input
@@ -145,7 +146,7 @@ def run(args):
     iso = args.execution_date.isoformat()
     filename = "{directory}/{iso}".format(**locals())
 
-    # store old log (to help with S3 appends)
+    # store old log (to help with remote storage appends)
     if os.path.exists(filename):
         with open(filename, 'r') as logfile:
             old_log = logfile.read()
@@ -233,35 +234,96 @@ def run(args):
         executor.heartbeat()
         executor.end()
 
-    if configuration.get('core', 'S3_LOG_FOLDER').startswith('s3:'):
-        import boto
-        s3_log = filename.replace(log, configuration.get('core', 'S3_LOG_FOLDER'))
-        bucket, key = s3_log.lstrip('s3:/').split('/', 1)
-        if os.path.exists(filename):
+    # check for deprecated configuration
+    remote_log_base = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
+    if not remote_log_base and configuration.get('core', 'S3_LOG_FOLDER'):
+        warnings.warn(
+            'The S3_LOG_FOLDER configuration key has been replaced by '
+            'REMOTE_BASE_LOG_FOLDER. Your configuration still works but please '
+            'update airflow.cfg to ensure future compatibility.',
+            DeprecationWarning)
+        remote_log_base = configuration.get('core', 'S3_LOG_FOLDER')
 
-            # get logs
-            with open(filename, 'r') as logfile:
-                new_log = logfile.read()
+    if remote_log_base.startswith('s3:/'):
+        store_s3_logs(log_filename=filename, old_log=old_log)
+    elif remote_log_base.startswith('gs:/'):
+        store_gcs_logs(log_filename=filename, old_log=old_log)
+    elif remote_log_base:
+        raise ValueError(
+            'Unsupported remote log location: {}'.format(remote_log_base))
 
-            # remove old logs (since they are already in S3)
-            if old_log:
-                new_log.replace(old_log, '')
+def store_s3_logs(log_filename, old_log):
+    """
+    Store logs in S3
+    """
+    import boto
+    remote_log_base = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
+    log_location = os.path.expanduser(
+        configuration.get('core', 'BASE_LOG_FOLDER'))
+    remote_log = log_filename.replace(log_location, remote_log_base)
+    bucket, key = remote_log.lstrip('s3:/').split('/', 1)
+    if os.path.exists(log_filename):
 
-            try:
-                s3 = boto.connect_s3()
-                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
+        # get logs
+        with open(log_filename, 'r') as logfile:
+            new_log = logfile.read()
 
-                # append new logs to old S3 logs, if available
-                if s3_key.exists():
-                    old_s3_log = s3_key.get_contents_as_string().decode()
-                    new_log = old_s3_log + '\n' + new_log
+        # remove old logs (since they are already in the remote location)
+        if old_log:
+            new_log.replace(old_log, '')
 
-                # send log to S3
-                encrypt = configuration.get('core', 'ENCRYPT_S3_LOGS')
-                s3_key.set_contents_from_string(new_log, encrypt_key=encrypt)
-            except:
-                print('Could not send logs to S3.')
+        try:
+            s3 = boto.connect_s3()
+            s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
 
+            # append new logs to old S3 logs, if available
+            if s3_key.exists():
+                old_s3_log = s3_key.get_contents_as_string().decode()
+                new_log = old_s3_log + '\n' + new_log
+
+            # send log to S3
+            encrypt = configuration.get('core', 'ENCRYPT_S3_LOGS')
+            s3_key.set_contents_from_string(new_log, encrypt_key=encrypt)
+        except:
+            print('Could not send logs to S3.')
+
+def store_gcs_logs(log_filename, old_log):
+    """
+    Store logs in Google Cloud Storage
+    """
+    import gcloud.storage as gcs
+    remote_log_base = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
+    log_location = os.path.expanduser(
+        configuration.get('core', 'BASE_LOG_FOLDER'))
+    remote_log = log_filename.replace(log_location, remote_log_base)
+    bucket, blob = remote_log.lstrip('gs:/').split('/', 1)
+
+    if os.path.exists(log_filename):
+
+        # get logs
+        with open(log_filename, 'r') as logfile:
+            new_log = logfile.read()
+
+        # remove old logs (since they are already in the remote location)
+        if old_log:
+            new_log.replace(old_log, '')
+
+        try:
+            client = gcs.Client(
+                project=configuration.get('core', 'GCS_LOG_PROJECT'))
+            gcs_blob = client.bucket(bucket).blob(blob)
+
+            # append new logs to old logs, if available
+            if gcs_blob.exists():
+                gcs_blob.reload() # make sure properties are loaded
+                old_gcs_log = gcs_blob.download_as_string().decode()
+                new_log = old_gcs_log + '\n' + new_log
+
+            # send log to GCS
+            gcs_blob.upload_from_string(new_log)
+        except:
+            raise
+            print('Could not send logs to Google Cloud Storage.')
 
 def task_state(args):
     """

@@ -199,16 +199,18 @@ Logs
 Users can specify a logs folder in ``airflow.cfg``. By default, it is in
 the ``AIRFLOW_HOME`` directory.
 
-In addition, users can supply an S3 location for storing log backups. If
+In addition, users can supply a remote location for storing log backups. If
 logs are not found in the local filesystem (for example, if a worker is
-lost or reset), the S3 logs will be displayed in the Airflow UI. Note that
-logs are only sent to S3 once a task completes (including failure).
+lost or reset), the remote logs will be displayed in the Airflow UI. Note that
+remote logs are only available once a task completes (including failure).
+
+Remote log storage supports Amazon S3 and Google Cloud Storage.
 
 .. code-block:: bash
 
     [core]
     base_log_folder = {AIRFLOW_HOME}/logs
-    s3_log_folder = s3://{YOUR S3 LOG PATH}
+    remote_base_log_folder = s3://{YOUR S3 LOG PATH} | gs://{YOUR GCS LOG PATH}
 
 Scaling Out on Mesos (community contributed)
 ''''''''''''''''''''''''''''''''''''''''''''
