@@ -4,8 +4,8 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future import standard_library
-
 standard_library.install_aliases()
+
 from builtins import str
 from configparser import ConfigParser
 import errno
@@ -70,8 +70,10 @@ defaults = {
         'plugins_folder': None,
         'security': None,
         'donot_pickle': False,
-        's3_log_folder': '',
+        'remote_base_log_folder': '',
+        'remote_log_conn_id': '',
         'encrypt_s3_logs': False,
+        's3_log_folder': '', # deprecated!
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
@@ -134,9 +136,17 @@ dags_folder = {AIRFLOW_HOME}/dags
 
 # The folder where airflow should store its log files. This location
 base_log_folder = {AIRFLOW_HOME}/logs
-# An S3 location can be provided for log backups
-# For S3, use the full URL to the base folder (starting with "s3://...")
-s3_log_folder = None
+
+# Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
+# must supply a remote location URL (starting with either 's3://...' or
+# 'gs://...') and an Airflow connection id that provides access to the storage
+# location.
+remote_base_log_folder = None
+remote_log_conn_id = None
+# options for configuring remote log storage
+encrypt_s3_logs = False
+# deprecated option for remote log storage, use remote_base_log_folder instead!
+# s3_log_folder = None
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
