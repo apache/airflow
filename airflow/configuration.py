@@ -143,7 +143,7 @@ base_log_folder = {AIRFLOW_HOME}/logs
 # location.
 remote_base_log_folder = None
 remote_log_conn_id = None
-# options for configuring remote log storage
+# Use server-side encryption for logs stored in S3
 encrypt_s3_logs = False
 # deprecated option for remote log storage, use remote_base_log_folder instead!
 # s3_log_folder = None
