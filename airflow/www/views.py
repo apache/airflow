@@ -810,7 +810,7 @@ class Airflow(BaseView):
             execution_date=execution_date, form=form)
 
     def read_s3_log(self, log, remote_log_location):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks import S3Hook
             s3_hook = S3Hook(remote_conn_id)
@@ -833,7 +833,7 @@ class Airflow(BaseView):
         return log
 
     def read_gcs_log(self, log, remote_log_location):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.contrib.hooks import GCSHook
             gcs_hook = GCSHook(remote_conn_id)
