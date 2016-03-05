@@ -782,13 +782,15 @@ class Airflow(BaseView):
                 try:
                     log = self.read_s3_log(log, remote_log_location)
                 except:
-                    log += '*** Could not read logs from S3.\n'
+                    log += '*** Could not read logs from S3 at {}.\n'.format(
+                        remote_log_location)
             # GCS
             elif not log_loaded and remote_log_location.startswith('gs:/'):
                 try:
                     log = self.read_gcs_log(log, remote_log_location)
                 except:
-                    log += '*** Could not read logs from GCS.\n'
+                    log += '*** Could not read logs from GCS at {}.\n'.format(
+                        remote_log_location)
 
             elif not log_loaded and remote_log_location:
                 log += '*** Unsupported remote log location: {}'.format(
