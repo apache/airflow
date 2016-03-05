@@ -151,7 +151,7 @@ def run(args):
         with open(filename, 'r') as logfile:
             old_log = logfile.read()
     else:
-        old_log = None
+        old_log = ''
 
     subdir = process_subdir(args.subdir)
     logging.root.handlers = []
