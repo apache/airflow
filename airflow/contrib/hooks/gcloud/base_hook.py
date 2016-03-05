@@ -5,24 +5,26 @@ class GCPBaseHook(BaseHook):
     """
     A hook for working wth Google Cloud Platform via the gcloud library.
 
-    A GCP connection ID can be provided. If it is provided, its "extra" values
-    will OVERRIDE any argments passed to GCSHook. The following precendance is
+    A GCP connection ID can be provided. If it is provided, its values
+    will OVERRIDE any argments passed to the hook. The following precendance is
     observed:
-        GCP connection "extra"
+        GCP connection fields
         GCPBaseHook initialization arguments
         host environment
 
-    Extras should be JSON and take the form:
+    Google Cloud Platform connections can be created from the Airflow UI. If
+    created manually, the relevant (but optional) fields should be added to
+    the connection's "extra" field as JSON:
     {
         "project": "<google cloud project id>",
         "key_path": "<path to service account keyfile, either JSON or P12>"
         "service_account": "<google service account email, required for P12>"
-        "scope": "<google service scopes>"
+        "scope": "<google service scopes, comma seperated>"
     }
 
     service_account is only required if the key_path points to a P12 file.
 
-    scope is only used if key_path is provided. Scopes can include:
+    scope is only used if key_path is provided. Scopes can include, for example:
         https://www.googleapis.com/auth/devstorage.full_control
         https://www.googleapis.com/auth/devstorage.read_only
         https://www.googleapis.com/auth/devstorage.read_write
@@ -72,11 +74,26 @@ class GCPBaseHook(BaseHook):
             extras = self.get_connection(self.gcp_conn_id).extra_dejson
         else:
             extras = {}
-        project = extras.get('project', self.project)
-        key_path = extras.get('key_path', self.key_path)
-        service_account = extras.get('service_account', self.service_account)
-        scope = extras.get('scope', self.scope)
 
+        def load_field(f, fallback=None):
+            # long_f: the format for UI-created fields
+            long_f = 'extra__google_cloud_platform__{}'.format(f)
+            if long_f in extras:
+                return extras[long_f]
+            elif f in extras:
+                return extras[f]
+            else:
+                return getattr(self, fallback or f)
+
+        project = load_field('project')
+        key_path = load_field('key_path')
+        service_account = load_field('service_account')
+        scope = load_field('scope')
+        if scope:
+            scope = scope.split(',')
+
+        import ipdb; ipdb.set_trace()
+        
         # guess project, if possible
         if not project:
             project = gcloud._helpers._determine_default_project()

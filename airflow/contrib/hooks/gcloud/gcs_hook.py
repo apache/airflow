@@ -25,42 +25,7 @@ def parse_gcs_url(gsurl):
         return (bucket, blob)
 
 class GCSHook(GCPBaseHook):
-    """
-    A hook for working wth Google Cloud Storage via the gcloud library.
-
-    A GCP connection ID can be provided. If it is provided, its "extra" values
-    will OVERRIDE any argments passed to GCSHook. The following precendance is
-    observed:
-        GCP connection "extra"
-        GCSHook initialization arguments
-        host environment
-
-    Extras should be JSON and take the form:
-    {
-        "project": "<google cloud project id>",
-        "key_path": "<path to service account keyfile, either JSON or P12>"
-        "service_account": "<google service account email, required for P12>"
-        "scope": "<google service scopes>"
-    }
-
-    service_account is only required if the key_path points to a P12 file.
-
-    scope is only used if key_path is provided. Scopes can include:
-        https://www.googleapis.com/auth/devstorage.full_control
-        https://www.googleapis.com/auth/devstorage.read_only
-        https://www.googleapis.com/auth/devstorage.read_write
-
-    If fields are not provided, either as arguments or extras, they can be set
-    in the host environment.
-
-    To set a default project, use:
-        gcloud config set project <project-id>
-
-    To log in:
-        gcloud auth
-
-    """
-
+    
     client_class = gcloud.storage.Client
 
     def bucket_exists(self, bucket):

@@ -2140,6 +2140,10 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra',
         'extra__jdbc__drv_path',
         'extra__jdbc__drv_clsname',
+        'extra__google_cloud_platform__project',
+        'extra__google_cloud_platform__key_path',
+        'extra__google_cloud_platform__service_account',
+        'extra__google_cloud_platform__scope',
     )
     verbose_name = "Connection"
     verbose_name_plural = "Connections"
@@ -2158,6 +2162,11 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     form_extra_fields = {
         'extra__jdbc__drv_path' : StringField('Driver Path'),
         'extra__jdbc__drv_clsname': StringField('Driver Class'),
+        'extra__google_cloud_platform__project': StringField('Project'),
+        'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
+        'extra__google_cloud_platform__service_account': StringField('Service Account'),
+        'extra__google_cloud_platform__scope': StringField('Scopes (comma seperated)'),
+
     }
     form_choices = {
         'conn_type': [
@@ -2165,7 +2174,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('datastore', 'Google Datastore'),
             ('ftp', 'FTP',),
             ('google_cloud_storage', 'Google Cloud Storage'),
-            ('gcp', 'Google Cloud Platform'),
+            ('google_cloud_platform', 'Google Cloud Platform'),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),
             ('hive_cli', 'Hive Client Wrapper',),
@@ -2187,7 +2196,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     def on_model_change(self, form, model, is_created):
         formdata = form.data
-        if formdata['conn_type'] in ['jdbc']:
+        if formdata['conn_type'] in ['jdbc', 'google_cloud_platform']:
             extra = {
                 key:formdata[key]
                 for key in self.form_extra_fields.keys() if key in formdata}

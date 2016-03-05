@@ -7,7 +7,12 @@
         jdbc: {
             hidden_fields: ['port', 'schema', 'extra'],
             relabeling: {'host': 'Connection URL'},
+        },
+        google_cloud_platform: {
+            hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
+            relabeling: {},
         }
+
       }
       function connTypeChange(connectionType) {
         $("div.form_group").removeClass("hide");
