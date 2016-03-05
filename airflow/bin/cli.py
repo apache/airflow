@@ -332,7 +332,7 @@ def store_gcs_log(log, remote_log_location):
             old_log = gcs_blob.download_as_string().decode()
             log = old_log + '\n' + log
         # upload to gcs
-        gcs_hook.upload_from_string(log, remote_log_location)
+        gcs_hook.upload_from_string(log, remote_log_location, replace=True)
 
     # use airflow[gcp_api]
     else:
