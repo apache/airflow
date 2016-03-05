@@ -14,6 +14,7 @@ import dill
 import functools
 import getpass
 import imp
+import inspect
 import jinja2
 import json
 import logging
@@ -130,6 +131,7 @@ class DagBag(LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+        self.dep_files = {}
         if include_examples:
             example_dag_folder = os.path.join(
                 os.path.dirname(__file__),
@@ -197,15 +199,13 @@ class DagBag(LoggingMixin):
                 if not all([s in content for s in (b'DAG', b'airflow')]):
                     return found_dags
 
-        if (not only_if_updated or
-                    filepath not in self.file_last_changed or
-                    dttm != self.file_last_changed[filepath]):
+        if (not only_if_updated or self.source_files_changed(filepath)):
             try:
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
                 with utils.timeout(30):
-                    m = imp.load_source(mod_name, filepath)
+                    m = self.load_source(mod_name, filepath)
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
                 self.import_errors[filepath] = str(e)
@@ -351,6 +351,69 @@ class DagBag(LoggingMixin):
         session.commit()
         session.close()
         return dag_ids
+
+    def dependency_source_files(self, _m):
+        abs_dags_folder = os.path.abspath(self.dag_folder)
+        dags_root_folder = abs_dags_folder.split('/')[-1]
+
+        deps = {}
+
+        def get_source_file(m):
+            try:
+                return inspect.getsourcefile(m)
+            except Exception:
+                return None
+
+        def get_dep_files_recurse(m):
+            for i in inspect.getmembers(m):
+                sf = get_source_file(i[1])
+                if sf is not None and (sf.find(abs_dags_folder) == 0 or
+                                       sf.find(dags_root_folder) == 0 or
+                                       sf.find('airflow/example_dags') > -1):
+                    if sf in deps.keys():
+                        continue
+                    deps[sf] = i[1]
+                    get_dep_files_recurse(i[1])
+        get_dep_files_recurse(_m)
+        return deps
+
+    def source_files_changed(self, filepath):
+        dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
+        if (filepath not in self.dep_files or
+                filepath not in self.file_last_changed or
+                dttm != self.file_last_changed[filepath]):
+            logging.info('New or changed source detected {filepath} LMT: {dttm}'
+                         .format(**locals()))
+            return True
+        deps = self.dep_files[filepath]
+        for d in deps:
+            dttm = datetime.fromtimestamp(os.path.getmtime(d))
+            if (d not in self.file_last_changed or
+                    dttm != self.file_last_changed[d]):
+                logging.info(
+                    'Dependency source file change detected {d} LMT: {dttm}'
+                    .format(**locals()))
+                return True
+        return False
+
+    def load_source(self, mod_name, filepath):
+        if mod_name in sys.modules:
+            del sys.modules[mod_name]
+        m = imp.load_source(mod_name, filepath)
+        dep_files = self.dependency_source_files(m).keys()
+        if filepath in self.dep_files:
+            for d in self.dep_files[filepath]:
+                del self.file_last_changed[d]
+            del self.dep_files[filepath]
+        for f in dep_files:
+            self.file_last_changed[f] = datetime.fromtimestamp(
+                os.path.getmtime(f))
+        self.file_last_changed[filepath] = datetime.fromtimestamp(
+            os.path.getmtime(filepath))
+        self.dep_files[filepath] = dep_files
+        logging.info('Dep files for filepath ' + str(filepath))
+        logging.info(dep_files)
+        return m
 
 
 class User(Base):
