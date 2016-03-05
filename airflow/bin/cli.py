@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import textwrap
+import warnings
 from datetime import datetime
 
 from builtins import input
@@ -145,7 +146,7 @@ def run(args):
     iso = args.execution_date.isoformat()
     filename = "{directory}/{iso}".format(**locals())
 
-    # store old log (to help with S3 appends)
+    # store old log (to help with remote storage appends)
     if os.path.exists(filename):
         with open(filename, 'r') as logfile:
             old_log = logfile.read()
@@ -233,34 +234,120 @@ def run(args):
         executor.heartbeat()
         executor.end()
 
-    if configuration.get('core', 'S3_LOG_FOLDER').startswith('s3:'):
-        import boto
-        s3_log = filename.replace(log, configuration.get('core', 'S3_LOG_FOLDER'))
-        bucket, key = s3_log.lstrip('s3:/').split('/', 1)
-        if os.path.exists(filename):
+    # store logs remotely
+    remote_base = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
-            # get logs
-            with open(filename, 'r') as logfile:
-                new_log = logfile.read()
+    # deprecated as of March 2016
+    if not remote_base and configuration.get('core', 'S3_LOG_FOLDER'):
+        warnings.warn(
+            'The S3_LOG_FOLDER configuration key has been replaced by '
+            'REMOTE_BASE_LOG_FOLDER. Your configuration still works but please '
+            'update airflow.cfg to ensure future compatibility.',
+            DeprecationWarning)
+        remote_base = configuration.get('core', 'S3_LOG_FOLDER')
 
-            # remove old logs (since they are already in S3)
-            if old_log:
-                new_log.replace(old_log, '')
+    if os.path.exists(filename):
+        # read log and remove old logs to get just the latest additions
+        with open(filename, 'r') as logfile:
+            log = logfile.read().replace(old_log, '')
 
+        remote_log_location = filename.replace(log_location, remote_base)
+        # S3
+        if remote_base.startswith('s3:/'):
             try:
-                s3 = boto.connect_s3()
-                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
-
-                # append new logs to old S3 logs, if available
-                if s3_key.exists():
-                    old_s3_log = s3_key.get_contents_as_string().decode()
-                    new_log = old_s3_log + '\n' + new_log
-
-                # send log to S3
-                encrypt = configuration.get('core', 'ENCRYPT_S3_LOGS')
-                s3_key.set_contents_from_string(new_log, encrypt_key=encrypt)
+                store_s3_log(log, remote_log_location)
             except:
                 print('Could not send logs to S3.')
+
+        # GCS
+        elif remote_base.startswith('gs:/'):
+            try:
+                store_gcs_log(log, remote_log_location)
+            except:
+                print('Could not send logs to GCS.')
+
+        # Other
+        elif remote_base:
+            print(
+                'Unsupported remote log location: {}'.format(remote_base))
+
+
+def store_s3_log(log, remote_log_location):
+    """
+    Store logs in S3
+    """
+
+    remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+    try:
+        from airflow.hooks import S3Hook
+        s3_hook = S3Hook(remote_conn_id)
+    except:
+        print(
+            'Could not create an S3Hook with connection id "{}". '
+            'Please make sure that airflow[s3] is installed and '
+            'the S3 connection exists.'.format(remote_conn_id))
+        return
+
+    # if logs already exist, prepend them to the new logs
+    s3_key = s3_hook.get_key(remote_log_location)
+    if s3_key:
+        old_log = s3_key.get_contents_as_string().decode()
+        log = old_log + '\n' + log
+
+    # store log in S3
+    encrypt = configuration.get('core', 'ENCRYPT_S3_LOGS')
+    s3_hook.load_string(
+        log, key=remote_log_location, replace=True, encrypt=encrypt)
+
+
+def store_gcs_log(log, remote_log_location):
+    """
+    Store logs in Google Cloud Storage.
+
+    Tries to use either airflow[gcloud] or airflow[gcp_api].
+    """
+    remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+    try:
+        from airflow.contrib.hooks import GCSHook
+        gcs_hook = GCSHook(remote_conn_id)
+        GCLOUD_PACKAGE = True
+    except:
+        try:
+            from airflow.contrib.hooks import GoogleCloudStorageHook
+            gcs_hook = GoogleCLoudStorageHook(remote_conn_id)
+            GCLOUD_PACKAGE = False
+        except:
+            print(
+                'Could not create a GCSHook with connection id "{}". '
+                'Please make sure that either airflow[gcloud] or '
+                'airflow[gcp_api] is installed and the GCS connection '
+                'exists.'.format(remote_conn_id))
+            return
+
+    # use airflow[gcloud]
+    if GCLOUD_PACKAGE:
+        gcs_blob = gcs_hook.get_blob(remote_log_location)
+        # if logs already exist, prepend them to the new logs
+        if gcs_blob:
+            old_log = gcs_blob.download_as_string().decode()
+            log = old_log + '\n' + log
+        # upload to gcs
+        gcs_hook.upload_from_string(log, remote_log_location)
+
+    # use airflow[gcp_api]
+    else:
+        bucket, blob = remote_log_location.lstrip('gs:/').split('/', 1)
+        try:
+            # if logs already exist, prepend them to the new logs
+            old_log = gcs_hook.download(bucket, blob).decode()
+            log = old_log + '\n' + log
+        except:
+            pass
+        # upload to gcs
+        from tempfile import NamedTemporaryFile
+        with NamedTemporaryFile(mode='w+') as tmpfile:
+            tmpfile.write(log)
+            gcs_hook.upload(bucket, blob, tmpfile.name)
 
 
 def task_state(args):
