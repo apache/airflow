@@ -826,7 +826,7 @@ class Airflow(BaseView):
         log += ('*** Note: remote logs are only available once '
                 'tasks have completed.\n')
         s3_key = s3_hook.get_key(remote_log_location)
-        if s3_key.exists():
+        if s3_key:
             log += '\n' + s3_key.get_contents_as_string().decode()
         else:
             log += '*** No log found on S3.\n'
@@ -859,7 +859,7 @@ class Airflow(BaseView):
         # use airflow[gcloud]
         if GCLOUD_PACKAGE:
             gcs_blob = gcs_hook.get_blob(remote_log_location)
-            if gcs_blob.exists():
+            if gcs_blob:
                 log += '\n' + gcs_blob.download_as_string().decode()
             else:
                 log += '*** No log found on GCS.\n'
