@@ -338,7 +338,8 @@ class S3Hook(BaseHook):
 
     def load_string(self, string_data,
                     key, bucket_name=None,
-                    replace=False):
+                    replace=False,
+                    encrypt=False):
         """
         Loads a local file to S3
 
@@ -366,6 +367,7 @@ class S3Hook(BaseHook):
         if not key_obj:
             key_obj = bucket.new_key(key_name=key)
         key_size = key_obj.set_contents_from_string(string_data,
-                                                    replace=replace)
+                                                    replace=replace,
+                                                    encrypt_key=encrypt)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
