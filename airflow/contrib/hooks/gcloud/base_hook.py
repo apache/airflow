@@ -91,9 +91,7 @@ class GCPBaseHook(BaseHook):
         scope = load_field('scope')
         if scope:
             scope = scope.split(',')
-
-        import ipdb; ipdb.set_trace()
-        
+            
         # guess project, if possible
         if not project:
             project = gcloud._helpers._determine_default_project()
