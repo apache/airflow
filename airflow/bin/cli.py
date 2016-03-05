@@ -138,8 +138,8 @@ def run(args):
     utils.pessimistic_connection_handling()
 
     # Setting up logging
-    log = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
-    directory = log + "/{args.dag_id}/{args.task_id}".format(args=args)
+    log_base = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
+    directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
     if not os.path.exists(directory):
         os.makedirs(directory)
     args.execution_date = dateutil.parser.parse(args.execution_date)
@@ -251,7 +251,7 @@ def run(args):
         with open(filename, 'r') as logfile:
             log = logfile.read().replace(old_log, '')
 
-        remote_log_location = filename.replace(log_location, remote_base)
+        remote_log_location = filename.replace(log_base, remote_base)
         # S3
         if remote_base.startswith('s3:/'):
             try:
