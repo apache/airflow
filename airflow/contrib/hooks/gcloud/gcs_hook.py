@@ -1,11 +1,12 @@
 from future.standard_library import install_aliases
 install_aliases()
 
+from airflow.contrib.hooks.gcloud.base_hook import GCPBaseHook
+
 from urllib.parse import urlparse
-from airflow.hooks import BaseHook
 from airflow.utils import AirflowException
 
-import gcloud.storage as gcs
+import gcloud.storage
 
 def parse_gcs_url(gsurl):
     """
@@ -23,56 +24,50 @@ def parse_gcs_url(gsurl):
             blob = parsed_url.path
         return (bucket, blob)
 
-class GCSHook(BaseHook):
+class GCSHook(GCPBaseHook):
     """
     A hook for working wth Google Cloud Storage via the gcloud library.
 
-    GCS Connections can contain two optional fields in "extras":
+    A GCP connection ID can be provided. If it is provided, its "extra" values
+    will OVERRIDE any argments passed to GCSHook. The following precendance is
+    observed:
+        GCP connection "extra"
+        GCSHook initialization arguments
+        host environment
+
+    Extras should be JSON and take the form:
     {
         "project": "<google cloud project id>",
-        "keyfile_path": "<path to service account JSON keyfile>"
+        "key_path": "<path to service account keyfile, either JSON or P12>"
+        "service_account": "<google service account email, required for P12>"
+        "scope": "<google service scopes>"
     }
 
-    If the project field is missing, the project will be inferred from the host
-    environment (if possible). To set a default project, use:
+    service_account is only required if the key_path points to a P12 file.
+
+    scope is only used if key_path is provided. Scopes can include:
+        https://www.googleapis.com/auth/devstorage.full_control
+        https://www.googleapis.com/auth/devstorage.read_only
+        https://www.googleapis.com/auth/devstorage.read_write
+
+    If fields are not provided, either as arguments or extras, they can be set
+    in the host environment.
+
+    To set a default project, use:
         gcloud config set project <project-id>
 
-    If the keyfile_path is missing, the host authorization credentials will be
-    used (if possible). To log in, use:
+    To log in:
         gcloud auth
+
     """
-    def __init__(self, gcs_conn_id=None):
-        self.gcs_conn_id = gcs_conn_id
-        self.gcs_conn = self.get_conn()
 
-    def get_conn(self):
-        project, keyfile_path = None, None
-        if self.gcs_conn_id:
-            conn = self.get_connection(self.gcs_conn_id)
-            extras = conn.extra_dejson
-            project = extras.get('project', None)
-            keyfile_path = extras.get('keyfile_path', None)
-
-        if not project:
-            project = gcloud._helpers._determine_default_project()
-            # workaround for
-            # https://github.com/GoogleCloudPlatform/gcloud-python/issues/1470
-            if isinstance(project, bytes):
-                project = project.decode()
-
-        if keyfile_path:
-            client = gcs.Client.from_service_account_json(
-                keyfile_path, project=project)
-        else:
-            client = gcs.Client(project=project)
-
-        return client
+    client_class = gcloud.storage.Client
 
     def bucket_exists(self, bucket):
-        return self.get_conn().bucket(bucket).exists()
+        return self.client.bucket(bucket).exists()
 
     def get_bucket(self, bucket):
-        return self.get_conn().get_bucket(bucket)
+        return self.client.get_bucket(bucket)
 
     def list_blobs(
             self,
@@ -81,7 +76,7 @@ class GCSHook(BaseHook):
             page_token=None,
             prefix=None,
             delimiter=None):
-        return self.get_conn().bucket(bucket).list_blobs(
+        return self.client.bucket(bucket).list_blobs(
             max_results=max_results,
             page_token=page_token,
             prefix=prefix,
@@ -93,12 +88,12 @@ class GCSHook(BaseHook):
         """
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        return self.get_conn().bucket(bucket).get_blob(blob)
+        return self.client.bucket(bucket).get_blob(blob)
 
     def blob_exists(self, blob, bucket=None):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        return self.get_conn().bucket(bucket).blob(blob).exists()
+        return self.client.bucket(bucket).blob(blob).exists()
 
     def upload_from_file(
             self,
@@ -108,7 +103,7 @@ class GCSHook(BaseHook):
             replace=False):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).blob(blob)
+        gcs_blob = self.client.bucket(bucket).blob(blob)
         if gcs_blob.exists() and not replace:
             raise ValueError(
                 'The blob {bucket}/{blob} already exists.'.format(**locals()))
@@ -122,7 +117,7 @@ class GCSHook(BaseHook):
             replace=False):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).blob(blob)
+        gcs_blob = self.client.bucket(bucket).blob(blob)
         if gcs_blob.exists() and not replace:
             raise ValueError(
                 'The blob {bucket}/{blob} already exists.'.format(**locals()))
@@ -136,7 +131,7 @@ class GCSHook(BaseHook):
             replace=False):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).blob(blob)
+        gcs_blob = self.client.bucket(bucket).blob(blob)
         if gcs_blob.exists() and not replace:
             raise ValueError(
                 'The blob {bucket}/{blob} already exists.'.format(**locals()))
@@ -148,7 +143,7 @@ class GCSHook(BaseHook):
             bucket=None):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).get_blob(blob)
+        gcs_blob = self.client.bucket(bucket).get_blob(blob)
         if not gcs_blob:
             raise ValueError(
                 'Blob does not exist: {bucket}/{blob}'.format(**locals()))
@@ -161,7 +156,7 @@ class GCSHook(BaseHook):
             bucket=None):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).get_blob(blob)
+        gcs_blob = self.client.bucket(bucket).get_blob(blob)
         if not gcs_blob:
             raise ValueError(
                 'Blob does not exist: {bucket}/{blob}'.format(**locals()))
@@ -174,8 +169,40 @@ class GCSHook(BaseHook):
             bucket=None):
         if not bucket:
             bucket, blob = parse_gcs_url(blob)
-        gcs_blob = self.get_conn().bucket(bucket).get_blob(blob)
+        gcs_blob = self.client.bucket(bucket).get_blob(blob)
         if not gcs_blob:
             raise ValueError(
                 'Blob does not exist: {bucket}/{blob}'.format(**locals()))
         return gcs_blob.download_to_filename(filename)
+
+    # Compatibility methods
+
+    def download(
+            self,
+            bucket,
+            object,
+            filename=False):
+        """
+        This method is provided for compatibility with
+        contrib/GoogleCloudStorageHook.
+        """
+        if filename:
+            return self.download_to_filename(
+                filename=filename, blob=object, bucket=bucket)
+        else:
+            return self.download_as_string(blob=object, bucket=bucket)
+
+    def upload(
+            self,
+            bucket,
+            object,
+            filename,
+            mime_type='application/octet-stream'):
+        """
+        This method is provided for compatibility with
+        contrib/GoogleCloudStorageHook.
+
+        Warning: acts as if replace == True!
+        """
+        self.upload_from_filename(
+                filename=filename, blob=object, bucket=bucket, replace=True)
