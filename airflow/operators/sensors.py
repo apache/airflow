@@ -8,11 +8,11 @@ from urllib.parse import urlparse
 from time import sleep
 
 from airflow import hooks, settings
+from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
 from airflow.hooks import BaseHook
-from airflow.utils import State
-from airflow.utils import (
-    apply_defaults, AirflowException, AirflowSensorTimeout)
+from airflow.utils.state import State
+from airflow.utils.decorators import apply_defaults
 
 
 class BaseSensorOperator(BaseOperator):

@@ -12,11 +12,13 @@ import dateutil.parser
 import json
 
 import airflow
-from airflow import jobs, settings, utils
+from airflow import jobs, settings
 from airflow import configuration
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun
-from airflow.utils import AirflowException, State
+from airflow.utils import db as db_utils
+from airflow.utils.state import State
+from airflow.exceptions import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 
@@ -134,7 +136,7 @@ def set_is_paused(is_paused, args):
 
 def run(args):
 
-    utils.pessimistic_connection_handling()
+    db_utils.pessimistic_connection_handling()
 
     # Setting up logging
     log = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
@@ -434,7 +436,7 @@ def worker(args):
 
 def initdb(args):
     print("DB: " + repr(settings.engine.url))
-    utils.initdb()
+    db_utils.initdb()
     print("Done.")
 
 
@@ -445,14 +447,14 @@ def resetdb(args):
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
                             format=settings.SIMPLE_LOG_FORMAT)
-        utils.resetdb()
+        db_utils.resetdb()
     else:
         print("Bail.")
 
 
 def upgradedb(args):
     print("DB: " + repr(settings.engine.url))
-    utils.upgradedb()
+    db_utils.upgradedb()
 
 
 def version(args):

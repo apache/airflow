@@ -1,9 +1,8 @@
 from builtins import str
-import logging
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils import State
+from airflow.utils.state import State
 
 
 class SequentialExecutor(BaseExecutor):

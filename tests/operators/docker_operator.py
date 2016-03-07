@@ -3,7 +3,7 @@ import unittest
 from airflow.operators.docker_operator import DockerOperator
 from docker.client import Client
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 try:
     from unittest import mock
@@ -16,7 +16,7 @@ except ImportError:
 
 class DockerOperatorTestCase(unittest.TestCase):
     @unittest.skipIf(mock is None, 'mock package not present')
-    @mock.patch('airflow.utils.mkdtemp')
+    @mock.patch('airflow.utils.file.mkdtemp')
     @mock.patch('airflow.operators.docker_operator.Client')
     def test_execute(self, client_class_mock, mkdtemp_mock):
         host_config = mock.Mock()

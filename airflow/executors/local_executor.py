@@ -6,7 +6,8 @@ from builtins import range
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils import State, LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.logging import LoggingMixin
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 

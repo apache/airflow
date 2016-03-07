@@ -6,7 +6,7 @@ import time
 from celery import Celery
 from celery import states as celery_states
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 

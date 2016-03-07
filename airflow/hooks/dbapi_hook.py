@@ -6,7 +6,7 @@ import numpy
 import logging
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class DbApiHook(BaseHook):
