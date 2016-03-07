@@ -33,7 +33,7 @@ class FusionOperator(BaseOperator):
             aws_conn_id ="ecs_default",
             *args, **kwargs):
         super(FusionOperator, self).__init__(*args, **kwargs)
-        
+        self.aws_conn_id = aws_conn_id
         self.hook = self.get_hook()
         self.repository = repository
         self.function_name = function_name  
