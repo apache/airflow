@@ -57,6 +57,7 @@ defaults = {
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
+        'dagbag_import_timeout': 30,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -148,6 +149,9 @@ fernet_key = {FERNET_KEY}
 
 # Whether to disable pickling dags
 donot_pickle = False
+
+# How long before timing out a python file import while filing the DagBag
+dagbag_import_timeout = 30
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or

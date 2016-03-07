@@ -204,7 +204,8 @@ class DagBag(LoggingMixin):
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
-                with utils.timeout(30):
+                with utils.timeout(
+                        configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
                     m = imp.load_source(mod_name, filepath)
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
