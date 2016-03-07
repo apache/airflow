@@ -41,10 +41,10 @@ class FusionOperator(BaseOperator):
         if ('cluster' in kwargs):
             self.cluster = kwargs['cluster']
         self.task_definition = 'worker'
-        if ('task_defintion' in kwargs):
+        if ('task_definition' in kwargs):
             self.task_definition = kwargs['task_definition']
     
-        #if ()
+
     def execute(self, context):
         import json, os, base64
         json_data = json.dumps(self.params)
