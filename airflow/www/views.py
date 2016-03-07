@@ -773,22 +773,28 @@ class Airflow(BaseView):
                     log += "*** Failed to fetch log file from worker.\n".format(
                         **locals())
 
-            # try to load log backup from S3
-            s3_log_folder = conf.get('core', 'S3_LOG_FOLDER')
-            if not log_loaded and s3_log_folder.startswith('s3:'):
-                import boto
-                s3 = boto.connect_s3()
-                s3_log_loc = os.path.join(
-                    conf.get('core', 'S3_LOG_FOLDER'), log_relative)
-                log += '*** Fetching log from S3: {}\n'.format(s3_log_loc)
-                log += ('*** Note: S3 logs are only available once '
-                        'tasks have completed.\n')
-                bucket, key = s3_log_loc.lstrip('s3:/').split('/', 1)
-                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
-                if s3_key.exists():
-                    log += '\n' + s3_key.get_contents_as_string().decode()
-                else:
-                    log += '*** No log found on S3.\n'
+            # load remote logs
+            remote_log_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
+            remote_log_location = os.path.join(remote_log_base, log_relative)
+
+            # S3
+            if not log_loaded and remote_log_location.startswith('s3:/'):
+                try:
+                    log = self.read_s3_log(log, remote_log_location)
+                except:
+                    log += '*** Could not read logs from S3 at {}.\n'.format(
+                        remote_log_location)
+            # GCS
+            elif not log_loaded and remote_log_location.startswith('gs:/'):
+                try:
+                    log = self.read_gcs_log(log, remote_log_location)
+                except:
+                    log += '*** Could not read logs from GCS at {}.\n'.format(
+                        remote_log_location)
+
+            elif not log_loaded and remote_log_location:
+                log += '*** Unsupported remote log location: {}'.format(
+                    remote_log_location)
 
             session.commit()
             session.close()
@@ -802,6 +808,71 @@ class Airflow(BaseView):
             'airflow/ti_code.html',
             code=log, dag=dag, title=title, task_id=task_id,
             execution_date=execution_date, form=form)
+
+    def read_s3_log(self, log, remote_log_location):
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        try:
+            from airflow.hooks import S3Hook
+            s3_hook = S3Hook(remote_conn_id)
+        except:
+            log += (
+                '*** Could not retrieve logs: '
+                'Could not create an S3Hook with connection id "{}". '
+                'Please make sure that airflow[s3] is installed and '
+                'the S3 connection exists.\n'.format(remote_conn_id))
+            return log
+
+        log += '*** Fetching log from S3: {}\n'.format(remote_log_location)
+        log += ('*** Note: remote logs are only available once '
+                'tasks have completed.\n')
+        s3_key = s3_hook.get_key(remote_log_location)
+        if s3_key:
+            log += '\n' + s3_key.get_contents_as_string().decode()
+        else:
+            log += '*** No log found on S3.\n'
+        return log
+
+    def read_gcs_log(self, log, remote_log_location):
+        remote_conn_id = conf.get('core', 'REMOTE_LOG_CONN_ID')
+        try:
+            from airflow.contrib.hooks import GCSHook
+            gcs_hook = GCSHook(remote_conn_id)
+            GCLOUD_PACKAGE = True
+        except:
+            try:
+                from airflow.contrib.hooks import GoogleCloudStorageHook
+                gcs_hook = GoogleCLoudStorageHook(remote_conn_id)
+                GCLOUD_PACKAGE = False
+            except:
+                log += (
+                    '*** Could not retrieve logs: '
+                    'Could not create a GCSHook with connection id "{}". '
+                    'Please make sure that either airflow[gcloud] or '
+                    'airflow[gcp_api] is installed and the GCS connection '
+                    'exists.'.format(remote_conn_id))
+                return log
+
+        log += '*** Fetching log from GCS: {}\n'.format(remote_log_location)
+        log += ('*** Note: remote logs are only available once '
+                'tasks have completed.\n')
+
+        # use airflow[gcloud]
+        if GCLOUD_PACKAGE:
+            gcs_blob = gcs_hook.get_blob(remote_log_location)
+            if gcs_blob:
+                log += '\n' + gcs_blob.download_as_string().decode()
+            else:
+                log += '*** No log found on GCS.\n'
+            return log
+        # use airflow[gcp_api]
+        else:
+            bucket, blob = remote_log_location.lstrip('gs:/').split('/', 1)
+            try:
+                log += '\n' + gcs_hook.download(bucket, blob).decode()
+            except:
+                log += '*** No log found on GCS'
+            return log
+
 
     @expose('/task')
     @login_required
