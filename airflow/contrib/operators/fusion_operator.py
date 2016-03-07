@@ -28,14 +28,15 @@ class FusionOperator(BaseOperator):
             self,
             repository,
             function_name,
-            params,
+            params = {},
+            python_callable = None,
             aws_conn_id ="ecs_default",
             *args, **kwargs):
         super(FusionOperator, self).__init__(*args, **kwargs)
-        self.aws_conn_id = aws_conn_id
+        
         self.hook = self.get_hook()
         self.repository = repository
-        self.function_name = function_name
+        self.function_name = function_name  
         self.params = params
         self.cluster = 'default' 
         if ('cluster' in kwargs):
@@ -43,13 +44,19 @@ class FusionOperator(BaseOperator):
         self.task_definition = 'worker'
         if ('task_definition' in kwargs):
             self.task_definition = kwargs['task_definition']
-    
+        self.params = params
+        self.python_callable = python_callable
 
     def execute(self, context):
-        import json, os, base64
+        if (self.python_callable):
+            self.params = self.python_callable(**context)
+        
+        import json, base64
         json_data = json.dumps(self.params)
         param_encoded64 = base64.b64encode(json_data.encode('utf-8'))
         params = [self.repository, self.function_name, param_encoded64]
+        
+
         overrides={'containerOverrides': [{'name': 'worker', 'command' : params}]} 
 
         self.client = self.hook.get_conn()
