@@ -17,6 +17,7 @@ from airflow import configuration
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun
 from airflow.utils import AirflowException, State
+from airflow.hooks import BaseHook
 
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
 
@@ -248,7 +249,12 @@ def run(args):
                 new_log.replace(old_log, '')
 
             try:
-                s3 = boto.connect_s3()
+                if args.s3_conn_id:
+                    conn = BaseHook.get_connection(args.s3_conn_id)
+                    s3 = boto.connect_s3(conn.login, conn.password, calling_format=boto.s3.connection.OrdinaryCallingFormat())
+                else:
+                    s3 = boto.connect_s3(calling_format=boto.s3.connection.OrdinaryCallingFormat())
+
                 s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
 
                 # append new logs to old S3 logs, if available
@@ -618,6 +624,9 @@ def get_parser():
     parser_run.add_argument(
         "-p", "--pickle",
         help="Serialized pickle object of the entire dag (used internally)")
+    parser_run.add_argument(
+        "-s3", "--s3_conn_id",
+        help="Pickup s3 keys from the connection, instead of env vars")
     parser_run.add_argument(
         "-j", "--job_id", help=argparse.SUPPRESS)
     parser_run.set_defaults(func=run)
