@@ -162,6 +162,7 @@ class BaseJob(Base, LoggingMixin):
             self._execute()
             self.state = State.SUCCESS
         except Exception as e:
+            self.state = State.FAILED
             self.on_failure(e)
 
         # Marking the success in the DB
@@ -874,14 +875,12 @@ class LocalTaskJob(BaseJob):
         if return_code != 0:
             msg = ("LocalTaskJob process exited with non zero status "
                    "{return_code}".format(**locals()))
-            logging.error(msg)
+            raise AirflowException(msg)
 
     def on_kill(self):
         self.process.terminate()
 
     def on_failure(self, e):
-        self.state = State.FAILED
-
         # Only handle the failure if the state is not already set to failed
         self.task_instance.refresh_from_db()
         if self.task_instance.state not in State.failed():
