@@ -163,6 +163,7 @@ class BaseJob(Base, LoggingMixin):
             self.state = State.SUCCESS
         except Exception as e:
             self.state = State.FAILED
+            logging.exception(e)
             self.on_failure(e)
 
         # Marking the success in the DB
