@@ -55,3 +55,4 @@ bcrypt
 flask-bcrypt
 mock
 hdfs
+pymssql
