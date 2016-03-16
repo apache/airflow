@@ -2228,18 +2228,28 @@ class DAG(LoggingMixin):
         return qry.value('is_paused')
 
     @property
-    def latest_execution_date(self):
+    @provide_session
+    def latest_execution_date(self, session=None):
         """
         Returns the latest date for which at least one task instance exists
         """
         TI = TaskInstance
-        session = settings.Session()
         execution_date = session.query(func.max(TI.execution_date)).filter(
             TI.dag_id == self.dag_id,
             TI.task_id.in_(self.task_ids)
         ).scalar()
-        session.commit()
-        session.close()
+        return execution_date
+
+    @property
+    @provide_session
+    def latest_dagrun(self, session=None):
+        """
+        Returns the latest date for which at least one task instance exists
+        """
+        DR = DagRun
+        execution_date = session.query(func.max(DR.execution_date)).filter(
+            DR.dag_id == self.dag_id,
+        ).scalar()
         return execution_date
 
     @property

@@ -1123,7 +1123,10 @@ class Airflow(BaseView):
         if base_date:
             base_date = dateutil.parser.parse(base_date)
         else:
-            base_date = dag.latest_execution_date or datetime.now()
+            base_date = (
+                max([dag.latest_execution_date, dag.latest_dagrun]) or
+                datetime.now()
+            )
 
         dates = dag.date_range(base_date, num=-abs(num_runs))
         min_date = dates[0] if dates else datetime(2000, 1, 1)
