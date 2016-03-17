@@ -830,7 +830,7 @@ class TaskInstance(Base):
                 TI.task_id == task.task_id,
                 TI.execution_date ==
                     self.task.dag.previous_schedule(self.execution_date),
-                TI.state == State.SUCCESS,
+                TI.state.in_(State.SUCCESS, State.SKIPPED),
             ).first()
             if not previous_ti:
                 if verbose:
