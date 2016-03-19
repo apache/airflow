@@ -66,7 +66,7 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
-    'pyhs2>=0.6.0',
+    'impyla>=0.13.3',
 ]
 jdbc = ['jaydebeapi>=0.2.0']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']

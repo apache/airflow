@@ -31,7 +31,6 @@ PyOpenSSL
 PySmbClient
 psycopg2
 python-dateutil
-# pyhs2 -> not compatible with Python 3 because of sasl
 redis
 requests
 setproctitle
@@ -55,3 +54,4 @@ bcrypt
 flask-bcrypt
 mock
 hdfs
+impyla

@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import print_function
 from builtins import zip
 from past.builtins import basestring
@@ -11,13 +26,14 @@ from tempfile import NamedTemporaryFile
 from thrift.transport import TSocket, TTransport
 from thrift.protocol import TBinaryProtocol
 from hive_service import ThriftHive
-import pyhs2
+import impala
 
 from airflow.utils import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
+
 
 class HiveCliHook(BaseHook):
     """
@@ -396,11 +412,11 @@ class HiveMetastoreHook(BaseHook):
 
 class HiveServer2Hook(BaseHook):
     '''
-    Wrapper around the pyhs2 library
+    Wrapper around the impala library
 
     Note that the default authMechanism is NOSASL, to override it you
     can specify it in the ``extra`` of your connection in the UI as in
-    ``{"authMechanism": "PLAIN"}``. Refer to the pyhs2 for more details.
+    ``{"authMechanism": "PLAIN"}``. Refer to impyla for more details.
     '''
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
@@ -409,12 +425,20 @@ class HiveServer2Hook(BaseHook):
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'NOSASL')
         if configuration.get('core', 'security') == 'kerberos':
-            auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
+            auth_mechanism = db.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 
-        return pyhs2.connect(
+        # impyla uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
+        if auth_mechanism == 'KERBEROS':
+            logging.warning("Detected deprecated 'KERBEROS' for authMechanism for %s. Please use 'GSSAPI' instead",
+                            self.hiveserver2_conn_id)
+            auth_mechanism = 'GSSAPI'
+
+        return impala.dbapi.connect(
             host=db.host,
             port=db.port,
-            authMechanism=auth_mechanism,
+            auth_mechanism=auth_mechanism,
+            kerberos_service_name=kerberos_service_name,
             user=db.login,
             database=db.schema or 'default')
 
