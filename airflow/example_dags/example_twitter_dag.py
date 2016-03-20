@@ -23,10 +23,10 @@ from datetime import date, timedelta
 # Import Scripts for Python callable
 #-------------------------------------------------------------------------------------------------------------------------------------
 
-sys.path.append("./python_scripts/example_twitter/analyze_scripts")
-sys.path.append("./python_scripts/example_twitter/broker_scripts")
-sys.path.append("./python_scripts/example_twitter/clean_scripts")
-sys.path.append("./python_scripts/example_twitter/twitter_api")
+sys.path.append("python_scripts/example_twitter/analyze_scripts/")
+sys.path.append("python_scripts/example_twitter/broker_scripts/")
+sys.path.append("python_scripts/example_twitter/clean_scripts/")
+sys.path.append("python_scripts/example_twitter/twitter_api/")
 
 from twitterapi import fetchtweet
 from cleanapi import cleantweet
@@ -63,7 +63,7 @@ fetch_tweet = PythonOperator(
 
 clean_tweet = PythonOperator(
         task_id = 'clean_tweet',
-        python_callable = translatetweet,
+        python_callable = cleantweet,
         dag = dag)
 
 clean_tweet.set_upstream(fetch_tweet)
@@ -76,27 +76,20 @@ analyze_tweet = PythonOperator(
 analyze_tweet.set_upstream(clean_tweet)
 
 hive_to_mysql = PythonOperator(
-        task_id ='hive_to_mysql',
-        python_callable = hivetomysql_tweets,
-        dag = dag)
-
-hive_to_mysql_hr = PythonOperator(
         task_id ='hive_to_mysql_hr',
-        python_callable = run_hivetomysql_tweets_hr,
+        python_callable = hivetomysql_tweet,
 	dag = dag)
-
-hive_to_mysql_hr.set_upstream(hive_to_mysql)
 
 #-------------------------------------------------------------------------------------------------------------------------------------
 #the following tasks 
 #-------------------------------------------------------------------------------------------------------------------------------------
 
-from_channels = ['fromingnl','fromabnamro','fromsnsbank','fromrabobank']
-to_channels = ['toingnl','toabnamro','tosnsbank','torabobank']
+from_channels = ['fromTwitter_A','fromTwitter_B','fromTwitter_C','fromTwitter_D']
+to_channels = ['toTwitter_A','toTwitter_B','toTwitter_C','toTwitter_D']
 
 for channel in to_channels:
 	yesterday = date.today()-timedelta(days=1)
-	file_name = 'senti_en_'+channel+'_'+yesterday.strftime("%Y-%m-%d")+'.csv'
+	file_name = 'to_'+channel+'_'+yesterday.strftime("%Y-%m-%d")+'.csv'
 	dt = yesterday.strftime("%Y-%m-%d")
 	load_to_hdfs = BashOperator(
 		task_id = 'put_'+channel+'_to_hdfs',
@@ -117,7 +110,7 @@ for channel in to_channels:
 
 for channel in from_channels:
 	yesterday = date.today()-timedelta(days=1)
-	file_name = channel+'_'+yesterday.strftime("%Y-%m-%d")+'.csv'
+	file_name = 'from_'+channel+'_'+yesterday.strftime("%Y-%m-%d")+'.csv'
 	dt = yesterday.strftime("%Y-%m-%d")
 	load_to_hdfs = BashOperator(
 		task_id = 'put_'+channel+'_to_hdfs',
@@ -135,10 +128,3 @@ for channel in from_channels:
 		dag = dag)
 	load_to_hive.set_upstream(load_to_hdfs)
 	load_to_hive.set_downstream(hive_to_mysql)
-
-save_follower_mysql = PythonOperator(
-			task_id = 'save_follower_mysql',
-			python_callable = runstorefetchfollower,
-			dag = dag)
-
-save_follower_mysql.set_upstream(hive_to_mysql)
