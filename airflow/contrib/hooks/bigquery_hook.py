@@ -3,9 +3,7 @@ This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
 
-import httplib2
 import logging
-import pandas
 import time
 
 from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
@@ -16,9 +14,10 @@ from pandas.tools.merge import concat
 
 logging.getLogger("bigquery").setLevel(logging.INFO)
 
+
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
-    Interact with BigQuery. Connections must be defined with an extras JSON 
+    Interact with BigQuery. Connections must be defined with an extras JSON
     field containing:
 
     {
@@ -27,8 +26,8 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         "key_path": "<p12 key path>"
     }
 
-    If you have used ``gcloud auth`` to authenticate on the machine that's 
-    running Airflow, you can exclude the service_account and key_path 
+    If you have used ``gcloud auth`` to authenticate on the machine that's
+    running Airflow, you can exclude the service_account and key_path
     parameters.
     """
     conn_name_attr = 'bigquery_conn_id'
@@ -136,7 +135,8 @@ class BigQueryConnection(object):
         return BigQueryCursor(*self._args, **self._kwargs)
 
     def rollback(self):
-        raise NotSupportedError("BigQueryConnection does not have transactions")
+        raise NotImplemented("BigQueryConnection does not have transactions")
+
 
 class BigQueryBaseCursor(object):
     """
@@ -149,7 +149,11 @@ class BigQueryBaseCursor(object):
         self.service = service
         self.project_id = project_id
 
-    def run_query(self, bql, destination_dataset_table = False, write_disposition = 'WRITE_EMPTY', allow_large_results=False, udf_config = False):
+    def run_query(
+            self, bql, destination_dataset_table = False,
+            write_disposition = 'WRITE_EMPTY',
+            allow_large_results=False,
+            udf_config = False):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -177,9 +181,11 @@ class BigQueryBaseCursor(object):
         }
 
         if destination_dataset_table:
-            assert '.' in destination_dataset_table, \
-                'Expected destination_dataset_table in the format of <dataset>.<table>. Got: {}'.format(destination_dataset_table)
-            destination_dataset, destination_table = destination_dataset_table.split('.', 1)
+            assert '.' in destination_dataset_table, (
+                'Expected destination_dataset_table in the format of '
+                '<dataset>.<table>. Got: {}'.format(destination_dataset_table)
+            destination_dataset, destination_table = \
+                destination_dataset_table.split('.', 1)
             configuration['query'].update({
                 'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
@@ -197,9 +203,12 @@ class BigQueryBaseCursor(object):
 
         return self.run_with_configuration(configuration)
 
-    def run_extract(self, source_project_dataset_table, destination_cloud_storage_uris, compression='NONE', export_format='CSV', field_delimiter=',', print_header=True):
+    def run_extract(
+            self, source_project_dataset_table, destination_cloud_storage_uris,
+            compression='NONE', export_format='CSV', field_delimiter=',',
+            print_header=True):
         """
-        Executes a BigQuery extract command to copy data from BigQuery to 
+        Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -208,9 +217,9 @@ class BigQueryBaseCursor(object):
 
         :param source_project_dataset_table: The dotted <dataset>.<table> BigQuery table to use as the source data.
         :type source_project_dataset_table: string
-        :param destination_cloud_storage_uris: The destination Google Cloud 
-            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows 
-            convention defined here: 
+        :param destination_cloud_storage_uris: The destination Google Cloud
+            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
+            convention defined here:
             https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
         :type destination_cloud_storage_uris: list
         :param compression: Type of compression to use.
@@ -323,7 +332,7 @@ class BigQueryBaseCursor(object):
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         :type schema_fields: list
-        :param source_uris: The source Google Cloud 
+        :param source_uris: The source Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
             per-object name can be used.
         :type source_uris: list
@@ -425,7 +434,7 @@ class BigQueryBaseCursor(object):
         """
         Get the schema for a given datset.table.
         see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
-        
+
         :param dataset_id: the dataset ID of the requested table
         :param table_id: the table ID of the requested table
         :return: a table schema
@@ -475,6 +484,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         self.page_token = None
         self.job_id = None
         self.buffer = []
+        self.all_pages_loaded = False
 
     @property
     def description(self):
@@ -529,23 +539,30 @@ class BigQueryCursor(BigQueryBaseCursor):
             return None
 
         if len(self.buffer) == 0:
+            if self.all_pages_loaded:
+                return None
+
             query_results = self.service.jobs().getQueryResults(projectId=self.project_id, jobId=self.job_id, pageToken=self.page_token).execute()
 
-            if len(query_results['rows']) == 0:
-                # Reset all state since we've exhausted the results.
-                self.page_token = None
-                self.job_id = None
-                self.page_token = None
-                return None
-            else:
+            if 'rows' in query_results and query_results['rows']:
                 self.page_token = query_results.get('pageToken')
                 fields = query_results['schema']['fields']
                 col_types = [field['type'] for field in fields]
                 rows = query_results['rows']
 
-                for idx, dict_row in enumerate(rows):
-                    typed_row = [_bq_cast(vs['v'], col_types[idx]) for vs in dict_row['f']]
+                for dict_row in rows:
+                    typed_row = [_bq_cast(vs['v'], col_types[idx]) for idx, vs in enumerate(dict_row['f'])]
                     self.buffer.append(typed_row)
+
+                if not self.page_token:
+                    self.all_pages_loaded = True
+
+            else:
+                # Reset all state since we've exhausted the results.
+                self.page_token = None
+                self.job_id = None
+                self.page_token = None
+                return None
 
         return self.buffer.pop(0)
 

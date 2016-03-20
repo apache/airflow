@@ -4,14 +4,18 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future import standard_library
-
 standard_library.install_aliases()
+
 from builtins import str
 from configparser import ConfigParser
 import errno
 import logging
 import os
 import subprocess
+
+
+class AirflowConfigException(Exception):
+    pass
 
 try:
     from cryptography.fernet import Fernet
@@ -42,6 +46,7 @@ def expand_env_var(env_var):
         else:
             env_var = interpolated
 
+
 def run_command(command):
     """
     Runs command and returns stdout
@@ -51,16 +56,13 @@ def run_command(command):
     output, stderr = process.communicate()
 
     if process.returncode != 0:
-        raise AirflowException(
+        raise AirflowConfigException(
             "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}"
-            .format(cmd, process.returncode, output, stderr)
+            .format(command, process.returncode, output, stderr)
         )
 
     return output
 
-
-class AirflowConfigException(Exception):
-    pass
 
 defaults = {
     'core': {
@@ -70,8 +72,10 @@ defaults = {
         'plugins_folder': None,
         'security': None,
         'donot_pickle': False,
-        's3_log_folder': '',
+        'remote_base_log_folder': '',
+        'remote_log_conn_id': '',
         'encrypt_s3_logs': False,
+        's3_log_folder': '', # deprecated!
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
@@ -137,9 +141,17 @@ dags_folder = {AIRFLOW_HOME}/dags
 
 # The folder where airflow should store its log files. This location
 base_log_folder = {AIRFLOW_HOME}/logs
-# An S3 location can be provided for log backups
-# For S3, use the full URL to the base folder (starting with "s3://...")
-s3_log_folder = None
+
+# Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
+# must supply a remote location URL (starting with either 's3://...' or
+# 'gs://...') and an Airflow connection id that provides access to the storage
+# location.
+remote_base_log_folder = None
+remote_log_conn_id = None
+# Use server-side encryption for logs stored in S3
+encrypt_s3_logs = False
+# deprecated option for remote log storage, use remote_base_log_folder instead!
+# s3_log_folder = None
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor

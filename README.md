@@ -1,18 +1,18 @@
 # Airflow
 
-[![Join the chat at https://gitter.im/airbnb/airflow](https://badges.gitter.im/airbnb/airflow.svg)](https://gitter.im/airbnb/airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![PyPI version](https://badge.fury.io/py/airflow.svg)](https://badge.fury.io/py/airflow)
 [![Build Status](https://travis-ci.org/airbnb/airflow.svg)](https://travis-ci.org/airbnb/airflow)
 [![Coverage Status](https://coveralls.io/repos/airbnb/airflow/badge.svg?service=github)](https://coveralls.io/github/airbnb/airflow)
 [![Code Health](https://landscape.io/github/airbnb/airflow/master/landscape.svg?style=flat)](https://landscape.io/github/airbnb/airflow/master)
+[![Requirements Status](https://requires.io/github/airbnb/airflow/requirements.svg?branch=master)](https://requires.io/github/airbnb/airflow/requirements/?branch=master)
 [![pypi downloads](https://img.shields.io/pypi/dm/airflow.svg)](https://pypi.python.org/pypi/airflow/)
+[![Join the chat at https://gitter.im/airbnb/airflow](https://badges.gitter.im/airbnb/airflow.svg)](https://gitter.im/airbnb/airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
 
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
-
-![img] (http://i.imgur.com/6Gs4hxT.gif)
 
 Use airflow to author workflows as directed acyclic graphs (DAGs) of tasks.
 The airflow scheduler executes your tasks on an array of workers while
@@ -42,6 +42,26 @@ unit of work and continuity.
 - **Extensible**:  Easily define your own operators, executors and extend the library so that it fits the level of abstraction that suits your environment.
 - **Elegant**:  Airflow pipelines are lean and explicit. Parameterizing your scripts is built into the core of Airflow using the powerful **Jinja** templating engine.
 - **Scalable**:  Airflow has a modular architecture and uses a message queue to orchestrate an arbitrary number of workers. Airflow is ready to scale to infinity.
+
+## User Interface
+
+- **DAGs**: Overview of all DAGs in your environment.
+![](/docs/img/dags.png)
+
+- **Tree View**: Tree representation of a DAG that spans across time.
+![](/docs/img/tree.png)
+
+- **Graph View**: Visualization of a DAG's dependencies and their current status for a specific run.
+![](/docs/img/graph.png)
+
+- **Task Duration**: Total time spent on different tasks over time.
+![](/docs/img/duration.png)
+
+- **Gantt View**: Duration and overlap of a DAG.
+![](/docs/img/gantt.png)
+
+- **Code View**:  Quick way to view source code of a DAG.
+![](/docs/img/code.png)
 
 ## Who uses Airflow?
 

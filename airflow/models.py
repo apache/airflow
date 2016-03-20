@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -496,7 +509,7 @@ class Connection(Base):
             elif self.conn_type == 'oracle':
                 return hooks.OracleHook(oracle_conn_id=self.conn_id)
             elif self.conn_type == 'vertica':
-                return hooks.VerticaHook(vertica_conn_id=self.conn_id)
+                return contrib_hooks.VerticaHook(vertica_conn_id=self.conn_id)
         except:
             return None
 
@@ -830,7 +843,7 @@ class TaskInstance(Base):
                 TI.task_id == task.task_id,
                 TI.execution_date ==
                     self.task.dag.previous_schedule(self.execution_date),
-                TI.state == State.SUCCESS,
+                TI.state.in_({State.SUCCESS, State.SKIPPED}),
             ).first()
             if not previous_ti:
                 if verbose:

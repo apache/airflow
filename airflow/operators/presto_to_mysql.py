@@ -51,7 +51,7 @@ class PrestoToMySqlTransfer(BaseOperator):
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         logging.info("Extracting data from Presto")
         logging.info(self.sql)
-        results = hive.get_records(self.sql)
+        results = presto.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:

@@ -283,7 +283,7 @@ class S3Hook(BaseHook):
             key,
             bucket_name=None,
             replace=False,
-            multipart_bytes=None):
+            multipart_bytes=5 * (1024 ** 3)):
         """
         Loads a local file to S3
 
@@ -298,8 +298,10 @@ class S3Hook(BaseHook):
             error will be raised.
         :type replace: bool
         :param multipart_bytes: If provided, the file is uploaded in parts of
-            this size (minimum 5242880). If None, the whole file is uploaded at
-            once.
+            this size (minimum 5242880). The default value is 5GB, since S3
+            cannot accept non-multipart uploads for files larger than 5GB. If
+            the file is smaller than the specified limit, the option will be
+            ignored.
         :type multipart_bytes: int
         """
         if not bucket_name:
@@ -309,9 +311,11 @@ class S3Hook(BaseHook):
         if not replace and key_obj:
             raise ValueError("The key {key} already exists.".format(
                 **locals()))
-        if multipart_bytes:
+
+        key_size = os.path.getsize(filename)
+        if multipart_bytes and key_size >= multipart_bytes:
+            # multipart upload
             from filechunkio import FileChunkIO
-            key_size = os.path.getsize(filename)
             mp = bucket.initiate_multipart_upload(key_name=key)
             total_chunks = int(math.ceil(key_size / multipart_bytes))
             sent_bytes = 0
@@ -329,6 +333,7 @@ class S3Hook(BaseHook):
                 raise
             mp.complete_upload()
         else:
+            # regular upload
             if not key_obj:
                 key_obj = bucket.new_key(key_name=key)
             key_size = key_obj.set_contents_from_filename(filename,
@@ -338,7 +343,8 @@ class S3Hook(BaseHook):
 
     def load_string(self, string_data,
                     key, bucket_name=None,
-                    replace=False):
+                    replace=False,
+                    encrypt=False):
         """
         Loads a local file to S3
 
@@ -366,6 +372,7 @@ class S3Hook(BaseHook):
         if not key_obj:
             key_obj = bucket.new_key(key_name=key)
         key_size = key_obj.set_contents_from_string(string_data,
-                                                    replace=replace)
+                                                    replace=replace,
+                                                    encrypt_key=encrypt)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))

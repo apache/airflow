@@ -47,11 +47,15 @@ class HDFSHook(BaseHook):
             if autoconfig:
                 client = AutoConfigClient(effective_user=effective_user, use_sasl=use_sasl)
             else:
+                hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
                 client = Client(connections[0].host, connections[0].port,
-                                effective_user=effective_user, use_sasl=use_sasl)
+                                effective_user=effective_user, use_sasl=use_sasl,
+                                hdfs_namenode_principal=hdfs_namenode_principal)
         elif len(connections) > 1:
+            hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
             nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn, effective_user=effective_user, use_sasl=use_sasl)
+            client = HAClient(nn, effective_user=effective_user, use_sasl=use_sasl,
+                              hdfs_namenode_principal=hdfs_namenode_principal)
         else:
             raise HDFSHookException("conn_id doesn't exist in the repository")
         

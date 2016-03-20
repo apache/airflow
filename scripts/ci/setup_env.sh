@@ -8,6 +8,10 @@ HADOOP_DISTRO=${HADOOP_DISTRO:-"hdp"}
 ONLY_DOWNLOAD=${ONLY_DOWNLOAD:-false}
 ONLY_EXTRACT=${ONLY_EXTRACT:-false}
 
+MINICLUSTER_URL=https://github.com/bolkedebruin/minicluster/releases/download/1.1/minicluster-1.1-SNAPSHOT-bin.zip
+
+HIVE_HOME=/tmp/hive
+
 while test $# -gt 0; do
     case "$1" in
         -h|--help)
@@ -46,6 +50,7 @@ while test $# -gt 0; do
 done
 
 HADOOP_HOME=/tmp/hadoop-${HADOOP_DISTRO}
+MINICLUSTER_HOME=/tmp/minicluster
 
 if $ONLY_DOWNLOAD && $ONLY_EXTRACT; then
     echo "Both only-download and only-extract specified - abort" >&2
@@ -54,9 +59,15 @@ fi
 
 mkdir -p ${HADOOP_HOME}
 mkdir -p ${TRAVIS_CACHE}/${HADOOP_DISTRO}
+mkdir -p ${TRAVIS_CACHE}/minicluster
+mkdir -p ${TRAVIS_CACHE}/hive
+mkdir -p ${HIVE_HOME}
+chmod -R 777 ${HIVE_HOME}
+mkdir -p /user/hive/warehouse
 
 if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
+    HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
     URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.0.6.0/tars/hadoop-2.2.0.2.0.6.0-76.tar.gz"
 else
@@ -86,4 +97,16 @@ if [ $? != 0 ]; then
     exit 1
 fi
 
+echo "Downloading and unpacking hive"
+curl -z ${TRAVIS_CACHE}/hive/hive.tar.gz -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
+tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
+
+echo "Downloading and unpacking minicluster"
+rm -rf ${TRAVIS_CACHE}/minicluster/minicluster.zip
+curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+
+echo "Path = ${PATH}"
+
+java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster &

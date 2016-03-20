@@ -8,6 +8,7 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from collections import OrderedDict
 from datetime import date, datetime
+from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 
@@ -112,8 +113,8 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         tmp_file_handles = { self.filename.format(file_no): tmp_file_handle }
 
         for row in cursor:
-            # Convert datetime objects to utc seconds
-            row = map(lambda v: time.mktime(v.timetuple()) if type(v) in (datetime, date) else v, row)
+            # Convert datetime objects to utc seconds, and decimals to floats
+            row = map(self.convert_types, row)
             row_dict = dict(zip(schema, row))
 
             # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
@@ -171,6 +172,20 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
 
     @classmethod
+    def convert_types(cls, value):
+        """
+        Takes a value from MySQLdb, and converts it to a value that's safe for
+        JSON/Google cloud storage/BigQuery. Dates are converted to UTC seconds.
+        Decimals are converted to floats.
+        """
+        if type(value) in (datetime, date):
+            return time.mktime(value.timetuple())
+        elif isinstance(value, Decimal):
+            return float(value)
+        else:
+            return value
+
+    @classmethod
     def type_map(cls, mysql_type):
         """
         Helper function that maps from MySQL fields to BigQuery fields. Used
@@ -182,6 +197,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             FIELD_TYPE.BIT: 'INTEGER',
             FIELD_TYPE.DATETIME: 'TIMESTAMP',
             FIELD_TYPE.DECIMAL: 'FLOAT',
+            FIELD_TYPE.NEWDECIMAL: 'FLOAT',
             FIELD_TYPE.DOUBLE: 'FLOAT',
             FIELD_TYPE.FLOAT: 'FLOAT',
             FIELD_TYPE.INT24: 'INTEGER',

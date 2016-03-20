@@ -96,8 +96,8 @@ class MySqlToHiveTransfer(BaseOperator):
         conn = mysql.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
-        with NamedTemporaryFile("w") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter)
+        with NamedTemporaryFile("wb") as f:
+            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding="utf-8")
             field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])

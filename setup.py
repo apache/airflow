@@ -58,18 +58,19 @@ gcloud = [
 ]
 gcp_api = [
     'httplib2',
-    'google-api-python-client',
+    'google-api-python-client<=1.4.2',
     'oauth2client>=1.5.2, <2.0.0',
 ]
-hdfs = ['snakebite>=2.4.13']
+hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
-    'pyhs2>=0.6.0',
+    'impyla>=0.13.3',
+    'unicodecsv>=0.14.1'
 ]
 jdbc = ['jaydebeapi>=0.2.0']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']
+mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
 optional = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
@@ -83,7 +84,10 @@ slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = ['pykerberos>=1.1.8']
+kerberos = [
+    'pykerberos>=1.1.8',
+    'snakebite[kerberos]>=2.7.8'
+]
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',

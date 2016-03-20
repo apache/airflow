@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import textwrap
+import warnings
 from datetime import datetime
 
 from builtins import input
@@ -32,10 +33,11 @@ def process_subdir(subdir):
         if "DAGS_FOLDER" in subdir:
             subdir = subdir.replace("DAGS_FOLDER", dags_folder)
         subdir = os.path.abspath(os.path.expanduser(subdir))
-        if dags_folder not in subdir:
+        if dags_folder.rstrip('/') not in subdir.rstrip('/'):
             raise AirflowException(
                 "subdir has to be part of your DAGS_FOLDER as defined in your "
-                "airflow.cfg")
+                "airflow.cfg. DAGS_FOLDER is {df} and subdir is {sd}".format(
+                    df=dags_folder, sd=subdir))
         return subdir
 
 
@@ -137,20 +139,13 @@ def run(args):
     utils.pessimistic_connection_handling()
 
     # Setting up logging
-    log = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
-    directory = log + "/{args.dag_id}/{args.task_id}".format(args=args)
+    log_base = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
+    directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
     if not os.path.exists(directory):
         os.makedirs(directory)
     args.execution_date = dateutil.parser.parse(args.execution_date)
     iso = args.execution_date.isoformat()
     filename = "{directory}/{iso}".format(**locals())
-
-    # store old log (to help with S3 appends)
-    if os.path.exists(filename):
-        with open(filename, 'r') as logfile:
-            old_log = logfile.read()
-    else:
-        old_log = None
 
     subdir = process_subdir(args.subdir)
     logging.root.handlers = []
@@ -233,34 +228,39 @@ def run(args):
         executor.heartbeat()
         executor.end()
 
-    if configuration.get('core', 'S3_LOG_FOLDER').startswith('s3:'):
-        import boto
-        s3_log = filename.replace(log, configuration.get('core', 'S3_LOG_FOLDER'))
-        bucket, key = s3_log.lstrip('s3:/').split('/', 1)
-        if os.path.exists(filename):
+    # store logs remotely
+    remote_base = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
-            # get logs
-            with open(filename, 'r') as logfile:
-                new_log = logfile.read()
+    # deprecated as of March 2016
+    if not remote_base and configuration.get('core', 'S3_LOG_FOLDER'):
+        warnings.warn(
+            'The S3_LOG_FOLDER configuration key has been replaced by '
+            'REMOTE_BASE_LOG_FOLDER. Your configuration still works but please '
+            'update airflow.cfg to ensure future compatibility.',
+            DeprecationWarning)
+        remote_base = configuration.get('core', 'S3_LOG_FOLDER')
 
-            # remove old logs (since they are already in S3)
-            if old_log:
-                new_log.replace(old_log, '')
+    if os.path.exists(filename):
+        # read log and remove old logs to get just the latest additions
 
-            try:
-                s3 = boto.connect_s3()
-                s3_key = boto.s3.key.Key(s3.get_bucket(bucket), key)
+        with open(filename, 'r') as logfile:
+            log = logfile.read()
 
-                # append new logs to old S3 logs, if available
-                if s3_key.exists():
-                    old_s3_log = s3_key.get_contents_as_string().decode()
-                    new_log = old_s3_log + '\n' + new_log
+        remote_log_location = filename.replace(log_base, remote_base)
+        # S3
 
-                # send log to S3
-                encrypt = configuration.get('core', 'ENCRYPT_S3_LOGS')
-                s3_key.set_contents_from_string(new_log, encrypt_key=encrypt)
-            except:
-                print('Could not send logs to S3.')
+        if remote_base.startswith('s3:/'):
+            utils.S3Log().write(log, remote_log_location)
+        # GCS
+        elif remote_base.startswith('gs:/'):
+            utils.GCSLog().write(
+                log,
+                remote_log_location,
+                append=True)
+        # Other
+        elif remote_base:
+            logging.error(
+                'Unsupported remote log location: {}'.format(remote_base))
 
 
 def task_state(args):

@@ -1,17 +1,26 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from __future__ import print_function
 from builtins import zip
 from past.builtins import basestring
-import csv
+import unicodecsv as csv
 import logging
 import re
 import subprocess
 from tempfile import NamedTemporaryFile
-
-
-from thrift.transport import TSocket, TTransport
-from thrift.protocol import TBinaryProtocol
-from hive_service import ThriftHive
-import pyhs2
 
 from airflow.utils import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -19,9 +28,10 @@ from airflow.utils import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
 
+
 class HiveCliHook(BaseHook):
-    """
-    Simple wrapper around the hive CLI.
+
+    """Simple wrapper around the hive CLI.
 
     It also supports the ``beeline``
     a lighter CLI that runs JDBC and is replacing the heavier
@@ -34,7 +44,6 @@ class HiveCliHook(BaseHook):
 
     The extra connection parameter ``auth`` gets passed as in the ``jdbc``
     connection string as is.
-
     """
 
     def __init__(
@@ -64,7 +73,7 @@ class HiveCliHook(BaseHook):
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
-                f.write(hql)
+                f.write(hql.encode('UTF-8'))
                 f.flush()
                 fname = f.name
                 hive_bin = 'hive'
@@ -74,11 +83,13 @@ class HiveCliHook(BaseHook):
                     hive_bin = 'beeline'
                     jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
                     if configuration.get('core', 'security') == 'kerberos':
-                        template = conn.extra_dejson.get('principal', "hive/_HOST@EXAMPLE.COM")
+                        template = conn.extra_dejson.get(
+                            'principal', "hive/_HOST@EXAMPLE.COM")
                         if "_HOST" in template:
-                            template = utils.replace_hostname_pattern(utils.get_components(template))
+                            template = utils.replace_hostname_pattern(
+                                utils.get_components(template))
 
-                        proxy_user = ""
+                        proxy_user = ""  # noqa
                         if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
                             proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
                         elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
@@ -110,10 +121,13 @@ class HiveCliHook(BaseHook):
                     cwd=tmp_dir)
                 self.sp = sp
                 stdout = ''
-                for line in iter(sp.stdout.readline, ''):
-                    stdout += line
+                while True:
+                    line = sp.stdout.readline()
+                    if not line:
+                        break
+                    stdout += line.decode('UTF-8')
                     if verbose:
-                        logging.info(line.strip())
+                        logging.info(line.decode('UTF-8').strip())
                 sp.wait()
 
                 if sp.returncode:
@@ -235,9 +249,9 @@ class HiveCliHook(BaseHook):
 
 
 class HiveMetastoreHook(BaseHook):
-    '''
-    Wrapper to interact with the Hive Metastore
-    '''
+
+    """ Wrapper to interact with the Hive Metastore"""
+
     def __init__(self, metastore_conn_id='metastore_default'):
         self.metastore_conn = self.get_connection(metastore_conn_id)
         self.metastore = self.get_metastore_client()
@@ -254,27 +268,30 @@ class HiveMetastoreHook(BaseHook):
         self.__dict__['metastore'] = self.get_metastore_client()
 
     def get_metastore_client(self):
-        '''
+        from thrift.transport import TSocket, TTransport
+        from thrift.protocol import TBinaryProtocol
+        from hive_service import ThriftHive
+        """
         Returns a Hive thrift client.
-        '''
+        """
         ms = self.metastore_conn
         transport = TSocket.TSocket(ms.host, ms.port)
         transport = TTransport.TBufferedTransport(transport)
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
+
         return ThriftHive.Client(protocol)
 
     def get_conn(self):
         return self.metastore
 
     def check_for_partition(self, schema, table, partition):
-        '''
-        Checks whether a partition exists
+        """Checks whether a partition exists
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
         >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
         True
-        '''
+        """
         self.metastore._oprot.trans.open()
         partitions = self.metastore.get_partitions_by_filter(
             schema, table, partition, 1)
@@ -285,8 +302,7 @@ class HiveMetastoreHook(BaseHook):
             return False
 
     def get_table(self, table_name, db='default'):
-        '''
-        Get a metastore table object
+        """Get a metastore table object
 
         >>> hh = HiveMetastoreHook()
         >>> t = hh.get_table(db='airflow', table_name='static_babynames')
@@ -294,7 +310,7 @@ class HiveMetastoreHook(BaseHook):
         'static_babynames'
         >>> [col.name for col in t.sd.cols]
         ['state', 'year', 'name', 'gender', 'num']
-        '''
+        """
         self.metastore._oprot.trans.open()
         if db == 'default' and '.' in table_name:
             db, table_name = table_name.split('.')[:2]
@@ -303,9 +319,9 @@ class HiveMetastoreHook(BaseHook):
         return table
 
     def get_tables(self, db, pattern='*'):
-        '''
+        """
         Get a metastore table object
-        '''
+        """
         self.metastore._oprot.trans.open()
         tables = self.metastore.get_tables(db_name=db, pattern=pattern)
         objs = self.metastore.get_table_objects_by_name(db, tables)
@@ -313,9 +329,9 @@ class HiveMetastoreHook(BaseHook):
         return objs
 
     def get_databases(self, pattern='*'):
-        '''
+        """
         Get a metastore table object
-        '''
+        """
         self.metastore._oprot.trans.open()
         dbs = self.metastore.get_databases(pattern)
         self.metastore._oprot.trans.close()
@@ -323,7 +339,7 @@ class HiveMetastoreHook(BaseHook):
 
     def get_partitions(
             self, schema, table_name, filter=None):
-        '''
+        """
         Returns a list of all partitions in a table. Works only
         for tables with less than 32767 (java short max val).
         For subpartitioned table, the number might easily exceed this.
@@ -335,7 +351,7 @@ class HiveMetastoreHook(BaseHook):
         1
         >>> parts
         [{'ds': '2015-01-01'}]
-        '''
+        """
         self.metastore._oprot.trans.open()
         table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
         if len(table.partitionKeys) == 0:
@@ -354,7 +370,7 @@ class HiveMetastoreHook(BaseHook):
             return [dict(zip(pnames, p.values)) for p in parts]
 
     def max_partition(self, schema, table_name, field=None, filter=None):
-        '''
+        """
         Returns the maximum value for all partitions in a table. Works only
         for tables that have a single partition key. For subpartitioned
         table, we recommend using signal tables.
@@ -363,7 +379,7 @@ class HiveMetastoreHook(BaseHook):
         >>> t = 'static_babynames_partitioned'
         >>> hh.max_partition(schema='airflow', table_name=t)
         '2015-01-01'
-        '''
+        """
         parts = self.get_partitions(schema, table_name, filter)
         if not parts:
             return None
@@ -376,9 +392,8 @@ class HiveMetastoreHook(BaseHook):
 
         return max([p[field] for p in parts])
 
-
     def table_exists(self, table_name, db='default'):
-        '''
+        """
         Check if table exists
 
         >>> hh = HiveMetastoreHook()
@@ -386,7 +401,7 @@ class HiveMetastoreHook(BaseHook):
         True
         >>> hh.table_exists(db='airflow', table_name='does_not_exist')
         False
-        '''
+        """
         try:
             t = self.get_table(table_name, db)
             return True
@@ -395,26 +410,35 @@ class HiveMetastoreHook(BaseHook):
 
 
 class HiveServer2Hook(BaseHook):
-    '''
-    Wrapper around the pyhs2 library
+    """
+    Wrapper around the impala library
 
-    Note that the default authMechanism is NOSASL, to override it you
+    Note that the default authMechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI as in
-    ``{"authMechanism": "PLAIN"}``. Refer to the pyhs2 for more details.
-    '''
+    """
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
     def get_conn(self):
         db = self.get_connection(self.hiveserver2_conn_id)
-        auth_mechanism = db.extra_dejson.get('authMechanism', 'NOSASL')
+        auth_mechanism = db.extra_dejson.get('authMechanism', 'PLAIN')
+        kerberos_service_name = None
         if configuration.get('core', 'security') == 'kerberos':
-            auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
+            auth_mechanism = db.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 
-        return pyhs2.connect(
+        # impyla uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
+        if auth_mechanism == 'KERBEROS':
+            logging.warning("Detected deprecated 'KERBEROS' for authMechanism for %s. Please use 'GSSAPI' instead",
+                            self.hiveserver2_conn_id)
+            auth_mechanism = 'GSSAPI'
+
+        from impala.dbapi import connect
+        return connect(
             host=db.host,
             port=db.port,
-            authMechanism=auth_mechanism,
+            auth_mechanism=auth_mechanism,
+            kerberos_service_name=kerberos_service_name,
             user=db.login,
             database=db.schema or 'default')
 
@@ -433,7 +457,7 @@ class HiveServer2Hook(BaseHook):
                     if records:
                         results = {
                             'data': records,
-                            'header': cur.getSchema(),
+                            'header': cur.description,
                         }
             return results
 
@@ -450,34 +474,37 @@ class HiveServer2Hook(BaseHook):
             with conn.cursor() as cur:
                 logging.info("Running query: " + hql)
                 cur.execute(hql)
-                schema = cur.getSchema()
-                with open(csv_filepath, 'w') as f:
+                schema = cur.description
+                with open(csv_filepath, 'wb') as f:
                     writer = csv.writer(f, delimiter=delimiter,
-                        lineterminator=lineterminator)
+                        lineterminator=lineterminator, encoding='utf-8')
                     if output_header:
-                        writer.writerow([c['columnName']
-                            for c in cur.getSchema()])
+                        writer.writerow([c[0]
+                            for c in cur.description])
                     i = 0
-                    while cur.hasMoreRows:
+                    while True:
                         rows = [row for row in cur.fetchmany() if row]
+                        if not rows:
+                            break
+
                         writer.writerows(rows)
                         i += len(rows)
                         logging.info("Written {0} rows so far.".format(i))
                     logging.info("Done. Loaded a total of {0} rows.".format(i))
 
     def get_records(self, hql, schema='default'):
-        '''
+        """
         Get a set of records from a Hive query.
 
         >>> hh = HiveServer2Hook()
         >>> sql = "SELECT * FROM airflow.static_babynames LIMIT 100"
         >>> len(hh.get_records(sql))
         100
-        '''
+        """
         return self.get_results(hql, schema=schema)['data']
 
     def get_pandas_df(self, hql, schema='default'):
-        '''
+        """
         Get a pandas dataframe from a Hive query
 
         >>> hh = HiveServer2Hook()
@@ -485,9 +512,9 @@ class HiveServer2Hook(BaseHook):
         >>> df = hh.get_pandas_df(sql)
         >>> len(df.index)
         100
-        '''
+        """
         import pandas as pd
         res = self.get_results(hql, schema=schema)
         df = pd.DataFrame(res['data'])
-        df.columns = [c['columnName'] for c in res['header']]
+        df.columns = [c[0] for c in res['header']]
         return df
