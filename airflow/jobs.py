@@ -882,8 +882,12 @@ class LocalTaskJob(BaseJob):
     def on_kill(self):
         self.process.terminate()
 
-    """
     def heartbeat_callback(self):
+        """
+        This method checks that the job is still running as far as Airflow
+        is concerned. If the status isn't running in the database, it means
+        someone has deleted the task instance entry.
+        """
         if datetime.now() - self.start_date < timedelta(seconds=300):
             return
         # Suicide pill
@@ -891,7 +895,9 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
         session = settings.Session()
         state = session.query(TI.state).filter(
-            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
+            TI.dag_id==ti.dag_id,
+            TI.task_id==ti.task_id,
+            TI.job_id==self.id,
             TI.execution_date==ti.execution_date).scalar()
         session.commit()
         session.close()
@@ -901,4 +907,3 @@ class LocalTaskJob(BaseJob):
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))
             self.process.terminate()
-    """
