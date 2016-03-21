@@ -37,13 +37,13 @@ example_dags
 <p>The python scripts here are just placeholders, ensuring the DAG loads and doesn't break the start up process of Airflow server. In case you are interested to actually make this DAG fully functional, first start with filling out the scripts in chronological order. My approach was to store the retrieved data in memory using Pandas dataframe first, and then use the built in method to save the CSV file on hard-disk.</p>
 <p>The eight different CSV files are then put into eight different folders within HDFS. Each of the newly inserted files are then loaded into eight different external hive tables. Hive tables can be external or internal. In this case, we are inserting the data right into the table, and so we are making our tables internal. Each file is inserted into the respected Hive table named after the twitter channel, i.e. toTwitter_A or fromTwitter_A. It is also important to note that when we created the tables, we facilitated for partitioning by date using the variable dt and declared comma as the row deliminator. The partitioning is very handy and ensures our query execution time remains constant even with growing volume of data.</p>
 <p>As most probably these folders and hive tables doesn't exist in your system, you will get an error for these tasks within the DAG. If you rebuild a function DAG from this example, make sure those folders and hive tables exists. When you create the table, keep the consideration of table partitioning and declaring comma as the row deliminator in your mind. Furthermore, you may also need to skip headers on each read and ensure that the user under which you have Airflow running has the right permission access. Below is a sample HQL snippet on creating such table:</p>
-<p><code>
+```
 CREATE TABLE toTwitter_A(id BIGINT, id_str STRING<br/>
 			 created_at STRING, text STRING) <br/>
                         PARTITIONED BY (dt STRING) <br/>
 			ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' <br/>
 			STORED AS TEXTFILE; <br/>
 			alter table toTwitter_A SET serdeproperties ('skip.header.line.count' = '1');
-</code></p>
+```
 <p>When you review the code for the DAG, you will notice that these tasks are generated using for loop. These two for loops could be combined into one loop. However, in most cases, you will be running different analysis on your incoming incoming and outgoing tweets, and hence they are kept seperated in this example.</p>
 <p>Final step is a running the broker script, brokerapi.py, which will run queries in Hive and store the summarized data to MySQL in our case. To connect to Hive, pyhs2 library is extremely useful and easy to use. To insert data into MySQL from Python, sqlalchemy is also a good one to use.</p>
