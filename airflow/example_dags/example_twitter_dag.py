@@ -147,3 +147,6 @@ for channel in from_channels:
 		
 	load_to_hive.set_upstream(load_to_hdfs)
 	load_to_hive.set_downstream(hive_to_mysql)
+
+#Ekhtiar Syed
+#Last Update: 21-March-2016
