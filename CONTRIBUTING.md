@@ -62,7 +62,7 @@ Assuming you are working in a virtualenv. Install development requirements:
     cd $AIRFLOW_HOME
     virtualenv env
     source env/bin/activate
-    pip install -r requirements.txt
+    pip install -r scripts/ci/requirements.txt
     python setup.py develop
 
 Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
