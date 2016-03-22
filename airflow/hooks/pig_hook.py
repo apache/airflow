@@ -31,10 +31,12 @@ class PigCliHook(BaseHook):
     def __init__(
             self,
             pig_cli_conn_id="pig_cli_default",
-            env={}):
+            env=None):
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
-        self.env = dict(conn.extra_dejson.get('env', {}), **env)
+        self.env = conn.extra_dejson.get('env', {})
+        if env is not None:
+            self.env = dict(self.env, **env)
         self.conn = conn
 
     def run_cli(self, pig, verbose=True):

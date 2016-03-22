@@ -33,13 +33,13 @@ class PigOperator(BaseOperator):
             self, pig,
             pig_cli_conn_id='pig_cli_default',
             pigparams_jinja_translate=False,
-            env={},
+            env=None,
             *args, **kwargs):
 
         super(PigOperator, self).__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
-        self.env = env
+        self.env = env or {}
         self.pig_cli_conn_id = pig_cli_conn_id
 
     def get_hook(self):
