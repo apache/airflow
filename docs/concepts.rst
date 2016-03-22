@@ -1,6 +1,15 @@
 Concepts
 ========
 
+Commonly-Used Terms
+'''''''''''''''''''
+
+-  A **Task** typically calls an Operator and is a definition of unit of work.
+-  A **TaskInstance** is a Task with an Execution Date.
+-  A **DAG** (a.k.a. Directed Acyclic Graph) is a collection of Tasks that
+   are executed in a pre-defined dependency order.
+-  A **DAGRun** is a DAG with an Execution Date.
+
 Operators
 '''''''''
 
