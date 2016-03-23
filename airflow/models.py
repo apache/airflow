@@ -18,7 +18,6 @@ from __future__ import unicode_literals
 
 from future.standard_library import install_aliases
 
-install_aliases()
 from builtins import str
 from builtins import object, bytes
 import copy
@@ -56,6 +55,8 @@ from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow.utils import (
     AirflowException, State, apply_defaults, provide_session,
     is_container, as_tuple, TriggerRule, LoggingMixin)
+
+install_aliases()
 
 Base = declarative_base()
 ID_LEN = 250
@@ -976,7 +977,7 @@ class TaskInstance(Base):
         self.pool = pool or task.pool
         self.test_mode = test_mode
         self.force = force
-        self.refresh_from_db(session)
+        self.refresh_from_db()
         session.commit()
         self.clear_xcom_data()
         self.job_id = job_id

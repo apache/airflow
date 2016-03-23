@@ -12,12 +12,11 @@ from wtforms.validators import InputRequired
 from flask import url_for, redirect
 from flask_bcrypt import generate_password_hash, check_password_hash
 
-from sqlalchemy import (
-    Column, String, DateTime)
+from sqlalchemy import Column, String
 from sqlalchemy.ext.hybrid import hybrid_property
 
 import airflow
-from airflow import settings, models
+from airflow import models
 
 import logging
 

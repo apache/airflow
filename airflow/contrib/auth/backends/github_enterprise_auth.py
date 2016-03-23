@@ -21,7 +21,7 @@ from flask import url_for, redirect, request
 from flask_oauthlib.client import OAuth
 
 import airflow
-from airflow import models, configuration, settings
+from airflow import models, configuration
 from airflow.configuration import AirflowConfigException
 
 _log = logging.getLogger(__name__)

@@ -20,7 +20,6 @@ in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
 from builtins import object
-__version__ = "1.6.2"
 
 import logging
 import os
@@ -34,6 +33,8 @@ from flask_admin import BaseView
 from importlib import import_module
 from airflow.utils import AirflowException, get_sqla_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+
+__version__ = "1.6.2"
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 if DAGS_FOLDER not in sys.path:

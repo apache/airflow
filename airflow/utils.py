@@ -8,7 +8,7 @@ from builtins import str, input, object
 from past.builtins import basestring
 from copy import copy
 from datetime import datetime, date, timedelta
-from dateutil.relativedelta import relativedelta  # for doctest
+from dateutil.relativedelta import relativedelta  # noqa for doctest
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
@@ -42,7 +42,6 @@ from croniter import croniter
 
 import airflow
 from airflow import configuration, settings
-
 
 
 class AirflowException(Exception):
@@ -639,7 +638,7 @@ class timeout(object):
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.alarm(self.seconds)
-        except ValueError as e:
+        except ValueError:
             logging.warning(
                 "timeout could not be activated, it doens't work within "
                 "threads. Most likely you are using a LocalExecutor. "

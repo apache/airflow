@@ -11,7 +11,7 @@ import ssl
 from flask import url_for, redirect
 
 import airflow
-from airflow import settings, models, configuration
+from airflow import models, configuration
 from airflow.configuration import AirflowConfigException
 
 import logging
