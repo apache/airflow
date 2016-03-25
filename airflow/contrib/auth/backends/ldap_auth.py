@@ -44,7 +44,8 @@ def get_ldap_connection(dn=None, password=None):
         pass
 
     server = Server(configuration.get("ldap", "uri"), use_ssl, tls_configuration)
-    conn = Connection(server, dn, password)
+    conn_auto_bind = configuration.get("ldap", "connection_auto_bind")
+    conn = Connection(server, dn, password, conn_auto_bind)
 
     if not conn.bind():
         LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
