@@ -77,6 +77,7 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     basedn = dc=example,dc=com
     cacert = /etc/ca/ldap_ca.crt
     search_scope = LEVEL # Set this to SUBTREE if using Active Directory, and not specifying an Organizational Unit
+	connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND | TLS_BEFORE_BIND | NO_TLS
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
