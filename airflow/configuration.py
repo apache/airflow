@@ -338,6 +338,36 @@ authenticate = False
 # default_principal = admin
 # default_secret = admin
 
+[ldap]
+# ldap authentication server url
+uri = ldaps://<your.ldap.server>:<port>
+
+# what are you searching 
+#See http://ldap3.readthedocs.org/tutorial.html#performing-searches
+#consist of two parts:
+# search_filter = "(&({0})({1}={2}))".format(configuration.get("ldap", "user_filter"),configuration.get("ldap", "user_name_attr"), username)
+user_filter = objectClass=*
+user_name_attr = uid # in case of Active Directory you would use sAMAccountName
+
+# the user name for simple authentication 
+#See http://ldap3.readthedocs.org/tutorial.html#logging-into-the-server
+bind_user = cn=Manager,dc=example,dc=com
+
+# the password for simple authentication 
+#See http://ldap3.readthedocs.org/tutorial.html#logging-into-the-server
+bind_password = insecure
+
+# search base 
+#See http://ldap3.readthedocs.org/tutorial.html#performing-searches
+basedn = dc=example,dc=com
+
+# tls sertificate file path
+cacert = /etc/ca/ldap_ca.crt
+
+# specify if the bind will be performed automatically when defining the Connection object
+# See http://ldap3.readthedocs.org/bind.html#the-bind-operation
+connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND | TLS_BEFORE_BIND | NO_TLS
+
 """
 
 TEST_CONFIG = """\
