@@ -1979,18 +1979,27 @@ class DagRunModelView(ModelViewOnly):
     def action_set_success(self, ids):
         self.set_dagrun_state(ids, State.SUCCESS)
 
+    @action('set_shutdown', "Set state to 'shutdown'", None)
+    def action_set_success(self, ids):
+        self.set_dagrun_state(ids, State.SHUTDOWN)
+
     @utils.provide_session
     def set_dagrun_state(self, ids, target_state, session=None):
         try:
             DR = models.DagRun
             count = 0
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
-                count += 1
-                dr.state = target_state
-                if target_state == State.RUNNING:
-                    dr.start_date = datetime.now()
+                if target_state == State.SHUTDOWN:
+                    if self.state == State.RUNNING:
+                        dr.state = target_state
+                        count += 1
                 else:
-                    dr.end_date = datetime.now()
+                    dr.state = target_state
+                    count += 1
+                    if target_state == State.RUNNING:
+                        dr.start_date = datetime.now()
+                    else:
+                        dr.end_date = datetime.now()
             session.commit()
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))
