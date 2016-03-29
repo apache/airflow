@@ -587,7 +587,7 @@ class SchedulerJob(BaseJob):
                         executors.LocalExecutor,
                         executors.SequentialExecutor):
                     self.logger.info("Pickling DAG {}".format(dag))
-                    pickle_id = dag.pickle(session).id
+                    pickle_id = dag.pickle(session=session).id
 
                 if dag.dag_id in dag_blacklist:
                     continue
