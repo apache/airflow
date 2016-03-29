@@ -17,11 +17,11 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
-from airflow import settings
+import airflow
 
 
 def upgrade():
-    inspector = Inspector.from_engine(settings.engine)
+    inspector = Inspector.from_engine(airflow.engine)
     tables = inspector.get_table_names()
     if 'connection' not in tables:
         op.create_table(

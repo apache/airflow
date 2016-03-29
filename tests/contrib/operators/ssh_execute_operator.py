@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime
 
 from airflow import configuration
-from airflow.settings import Session
+from airflow import Session
 from airflow import models, DAG
 from airflow.contrib.operators.ssh_execute_operator import SSHExecuteOperator
 

@@ -85,7 +85,7 @@ def backfill(args, dag=None):
 
 def trigger_dag(args):
 
-    session = settings.Session()
+    session = airflow.Session()
     # TODO: verify dag_id
     execution_date = datetime.now()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
@@ -121,7 +121,7 @@ def unpause(args, dag=None):
 def set_is_paused(is_paused, args, dag=None):
     dag = dag or get_dag(args)
 
-    session = settings.Session()
+    session = airflow.Session()
     dm = session.query(DagModel).filter(
         DagModel.dag_id == dag.dag_id).first()
     dm.is_paused = is_paused
@@ -132,7 +132,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
-
+    utils.set_sqla_nopool()
     utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
@@ -154,7 +154,7 @@ def run(args, dag=None):
     if not args.pickle and not dag:
         dag = get_dag(args)
     elif not dag:
-        session = settings.Session()
+        session = airflow.Session()
         logging.info('Loading pickle id {args.pickle}'.format(**locals()))
         dag_pickle = session.query(
             DagPickle).filter(DagPickle.id == args.pickle).first()
@@ -189,7 +189,7 @@ def run(args, dag=None):
         if args.ship_dag:
             try:
                 # Running remotely, so pickling the DAG
-                session = settings.Session()
+                session = airflow.Session()
                 pickle = DagPickle(dag)
                 session.add(pickle)
                 session.commit()
@@ -400,13 +400,13 @@ def worker(args):
 
 
 def initdb(args):  # noqa
-    print("DB: " + repr(settings.engine.url))
+    print("DB: " + repr(airflow.engine.url))
     utils.initdb()
     print("Done.")
 
 
 def resetdb(args):
-    print("DB: " + repr(settings.engine.url))
+    print("DB: " + repr(airflow.engine.url))
     if args.yes or input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
@@ -418,8 +418,7 @@ def resetdb(args):
 
 
 def upgradedb(args):  # noqa
-    print("DB: " + repr(settings.engine.url))
-    utils.upgradedb()
+    print("DB: " + repr(airflow.engine.url))
 
 
 def version(args):  # noqa

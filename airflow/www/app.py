@@ -7,7 +7,7 @@ from flask_wtf.csrf import CsrfProtect
 
 import airflow
 from airflow import models
-from airflow.settings import Session
+from airflow import Session
 
 from airflow.www.blueprints import ck, routes
 from airflow import jobs
@@ -108,7 +108,7 @@ def create_app(config=None):
 
         @app.teardown_appcontext
         def shutdown_session(exception=None):
-            settings.Session.remove()
+            airflow.Session.remove()
 
         return app
 

@@ -7,6 +7,7 @@ import logging
 from urllib.parse import urlparse
 from time import sleep
 
+import airflow
 from airflow import hooks, settings
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
 from airflow.hooks import BaseHook
@@ -188,7 +189,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             '{dttm} ... '.format(**locals()))
         TI = TaskInstance
 
-        session = settings.Session()
+        session = airflow.Session()
         count = session.query(TI).filter(
             TI.dag_id == self.external_dag_id,
             TI.task_id == self.external_task_id,
@@ -326,7 +327,7 @@ class S3KeySensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3KeySensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
+        session = airflow.Session()
         db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
         if not db:
             raise AirflowException("conn_id doesn't exist in the repository")
@@ -385,7 +386,7 @@ class S3PrefixSensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3PrefixSensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
+        session = airflow.Session()
         db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
         if not db:
             raise AirflowException("conn_id doesn't exist in the repository")

@@ -20,7 +20,8 @@ from flask import url_for, redirect, request
 
 from flask_oauthlib.client import OAuth
 
-from airflow import models, configuration, settings
+import airflow
+from airflow import models, configuration
 from airflow.configuration import AirflowConfigException
 
 _log = logging.getLogger(__name__)
@@ -161,7 +162,7 @@ class GHEAuthBackend(object):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
+        session = airflow.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
         session.expunge_all()
@@ -193,7 +194,7 @@ class GHEAuthBackend(object):
             _log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
-        session = settings.Session()
+        session = airflow.Session()
 
         user = session.query(models.User).filter(
             models.User.username == username).first()

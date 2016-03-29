@@ -1,9 +1,9 @@
 from datetime import datetime
 import logging
 
+import airflow
 from airflow.models import BaseOperator, DagRun
-from airflow.utils import apply_defaults, State
-from airflow import settings
+from airflow.utils import apply_defaults
 
 
 class DagRunOrder(object):
@@ -46,7 +46,7 @@ class TriggerDagRunOperator(BaseOperator):
         dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
         dro = self.python_callable(context, dro)
         if dro:
-            session = settings.Session()
+            session = airflow.Session()
             dr = DagRun(
                 dag_id=self.trigger_dag_id,
                 run_id=dro.run_id,

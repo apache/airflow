@@ -15,7 +15,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
-from airflow import settings
+import airflow
 
 
 connectionhelper = sa.Table(
@@ -30,7 +30,7 @@ def upgrade():
     # first check if the user already has this done. This should only be
     # true for users who are upgrading from a previous version of Airflow
     # that predates Alembic integration
-    inspector = Inspector.from_engine(settings.engine)
+    inspector = Inspector.from_engine(airflow.engine)
 
     # this will only be true if 'connection' already exists in the db,
     # but not if alembic created it in a previous migration

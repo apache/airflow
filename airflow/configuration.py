@@ -157,7 +157,7 @@ encrypt_s3_logs = False
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
-executor = SequentialExecutor
+executor = LocalExecutor
 
 # The SqlAlchemy connection string to the metadata database.
 # SqlAlchemy supports many different database engine, more information
