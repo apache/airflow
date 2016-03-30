@@ -370,11 +370,7 @@ cacert = /etc/ca/ldap_ca.crt
 
 # specify if the bind will be performed automatically when defining the Connection object
 # See http://ldap3.readthedocs.org/bind.html#the-bind-operation
-<<<<<<< HEAD
-connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND | 
-=======
 connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND |
->>>>>>> master
                                                 TLS_BEFORE_BIND | NO_TLS
 
 """
