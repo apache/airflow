@@ -338,10 +338,16 @@ def webserver(args):
                 args.port, args.hostname))
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
-        print(
+        secure_params = True if args.ssl_certfile and args.ssl_keyfile else False
+        print(            
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
-            '{args.port}...'.format(**locals()))
+            '{args.port}, secure={secure_params}'.format(**locals()))
+        if secure_params:
+            sec_params = '--certfile={0} --keyfile={1}'.format(
+                args.ssl_certfile, args.ssl_keyfile)
+        else:
+            secure_params = ''
         sp = subprocess.Popen([
             'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
             '-t', '120', '-b', args.hostname + ':' + str(args.port),
@@ -565,6 +571,12 @@ class CLIFactory(object):
             ("-d", "--debug"),
             "Use the server that ships with Flask in debug mode",
             "store_true"),
+        'ssl_certfile': Arg(
+            ("--ssl_certfile"),
+            help="ssl certificate file"),
+        'ssl_keyfile': Arg(
+            ("--ssl_keyfile"),
+            help="ssl key file"),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -679,7 +691,7 @@ class CLIFactory(object):
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
-            'args': ('port', 'workers', 'workerclass', 'hostname', 'debug'),
+            'args': ('port', 'workers', 'workerclass', 'hostname', 'ssl_certfile', 'ssl_keyfile', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
