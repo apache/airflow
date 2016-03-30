@@ -109,6 +109,7 @@ def policy(task_instance):
     """
     pass
 
+
 def configure_logging():
     logging.root.handlers = []
     logging.basicConfig(

@@ -22,9 +22,9 @@ import re
 import subprocess
 from tempfile import NamedTemporaryFile
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import TemporaryDirectory
+from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
 
@@ -268,15 +268,36 @@ class HiveMetastoreHook(BaseHook):
         self.__dict__['metastore'] = self.get_metastore_client()
 
     def get_metastore_client(self):
-        from thrift.transport import TSocket, TTransport
-        from thrift.protocol import TBinaryProtocol
-        from hive_service import ThriftHive
         """
         Returns a Hive thrift client.
         """
+        from thrift.transport import TSocket, TTransport
+        from thrift.protocol import TBinaryProtocol
+        from hive_service import ThriftHive
         ms = self.metastore_conn
-        transport = TSocket.TSocket(ms.host, ms.port)
-        transport = TTransport.TBufferedTransport(transport)
+        auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
+        if configuration.get('core', 'security') == 'kerberos':
+            auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
+            kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
+
+        socket = TSocket.TSocket(ms.host, ms.port)
+        if configuration.get('core', 'security') == 'kerberos' and auth_mechanism == 'GSSAPI':
+            try:
+                import saslwrapper as sasl
+            except ImportError:
+                import sasl
+
+            def sasl_factory():
+                sasl_client = sasl.Client()
+                sasl_client.setAttr("host", ms.host)
+                sasl_client("service", kerberos_service_name)
+                sasl_client.init()
+
+            from thrift_sasl import TSaslClientTransport
+            transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
+        else:
+            transport = TTransport.TBufferedTransport(socket)
+
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
         return ThriftHive.Client(protocol)
@@ -411,7 +432,7 @@ class HiveMetastoreHook(BaseHook):
 
 class HiveServer2Hook(BaseHook):
     """
-    Wrapper around the impala library
+    Wrapper around the impyla library
 
     Note that the default authMechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI as in

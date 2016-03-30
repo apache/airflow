@@ -20,7 +20,7 @@ import subprocess
 from contextlib import contextmanager
 
 from airflow.hooks.base_hook import BaseHook
-from airflow import AirflowException
+from airflow.exceptions import AirflowException
 
 import logging
 

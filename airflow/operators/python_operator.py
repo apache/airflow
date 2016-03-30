@@ -3,7 +3,8 @@ from datetime import datetime
 import logging
 
 from airflow.models import BaseOperator, TaskInstance
-from airflow.utils import apply_defaults, State
+from airflow.utils.state import State
+from airflow.utils.decorators import apply_defaults
 from airflow import settings
 
 

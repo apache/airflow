@@ -1,3 +1,4 @@
+
 """This example illustrates the use of the TriggerDagRunOperator. There are 2
 entities at work in this scenario:
 1. The Controller DAG - the DAG that conditionally executes the trigger
@@ -14,6 +15,7 @@ This example illustrates the following features :
      state is then made available to the TargetDag
 2. A Target DAG : c.f. example_trigger_target_dag.py
 """
+
 from airflow import DAG
 from airflow.operators import TriggerDagRunOperator
 from datetime import datetime
@@ -35,8 +37,8 @@ def conditionally_trigger(context, dag_run_obj):
 
 # Define the DAG
 dag = DAG(dag_id='example_trigger_controller_dag',
-          default_args={"owner" : "me",
-          "start_date":datetime.now()},
+          default_args={"owner": "me",
+                        "start_date": datetime.now()},
           schedule_interval='@once')
 
 

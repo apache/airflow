@@ -11,7 +11,7 @@ if _kerberos_security_mode:
   except ImportError:
     logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
     raise
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class AirflowWebHDFSHookException(AirflowException):

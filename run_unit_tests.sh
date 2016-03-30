@@ -1,9 +1,13 @@
 #!/bin/sh
 
+# environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~/airflow}
 export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
 
-# any argument received is overriding the default nose execution arguments: 
+# configuration test
+export AIRFLOW__TESTSECTION__TESTKEY=testvalue
+
+# any argument received is overriding the default nose execution arguments:
 
 nose_args=$@
 if [ -z "$nose_args" ]; then

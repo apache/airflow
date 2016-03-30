@@ -11,8 +11,8 @@ import mesos.native
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
 from airflow.settings import Session
-from airflow.utils import State
-from airflow.utils import AirflowException
+from airflow.utils.state import State
+from airflow.exceptions import AirflowException
 
 
 DEFAULT_FRAMEWORK_NAME = 'Airflow'

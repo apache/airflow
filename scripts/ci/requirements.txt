@@ -54,4 +54,5 @@ bcrypt
 flask-bcrypt
 mock
 hdfs
+thrift_sasl
 impyla

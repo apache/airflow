@@ -1,0 +1,28 @@
+AIRFLOW 1.7.0, 2016-03-28
+-------------------------
+
+- Add MySQL->GCS, GCS->BQ operators
+- Support pause/unpause DAGs in CLI
+- SLA_miss_callbacks
+- Pause newly minted DAGs by default if configured to do so
+- Fixes related to solving the "infinite retry problem"
+- Handle SKIPPED tasks as SUCCESS when depends_on_past=True
+- Pass JSON task params via the airflow testCLI command
+- Extend FERNET key encryption to VARIABLES and to the connections's OTHER field
+- Add GCSHook for Google Cloud Storage
+- Parameterize DagBag import timeouts
+- Add startup scripts for upstart based systems
+- Add template support in QBol operator
+- Add SudDag documentation and examples
+- Improve kerberos integration for hdfs hook
+- Add SSL support for SMTP
+- Add BigQuery and Google Cloud Storage operators
+- Set effective user of (web)hdfs hook
+- Add support for three-legged OAuth for Google connections
+- Add Docker operator
+- Add "search_scope" as a configuration variable for LDAP
+- Add super user and profiler to ldap
+- Disable concurrent executors for sqllite backend
+- Implement GitHub Enterprise Authentication
+- Fix invalid syntax in SSHHook
+- Upgrade flask admin

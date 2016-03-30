@@ -3,15 +3,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from future import standard_library
-standard_library.install_aliases()
-
-from builtins import str
-from configparser import ConfigParser
+import copy
 import errno
 import logging
 import os
 import subprocess
+
+from future import standard_library
+standard_library.install_aliases()
+
+from builtins import str
+from collections import OrderedDict
+from configparser import ConfigParser
 
 
 class AirflowConfigException(Exception):
@@ -345,7 +348,7 @@ uri = ldaps://<your.ldap.server>:<port>
 # what are you searching
 #See http://ldap3.readthedocs.org/tutorial.html#performing-searches
 #consist of two parts:
-# search_filter = "(&({0})({1}={2}))".format(configuration.get("ldap", "user_filter"), 
+# search_filter = "(&({0})({1}={2}))".format(configuration.get("ldap", "user_filter"),
 #                   configuration.get("ldap", "user_name_attr"), username)
 user_filter = objectClass=*
 user_name_attr = uid # in case of Active Directory you would use sAMAccountName
@@ -367,7 +370,11 @@ cacert = /etc/ca/ldap_ca.crt
 
 # specify if the bind will be performed automatically when defining the Connection object
 # See http://ldap3.readthedocs.org/bind.html#the-bind-operation
+<<<<<<< HEAD
 connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND | 
+=======
+connection_auto_bind = NONE # available options: NONE | TLS_AFTER_BIND |
+>>>>>>> master
                                                 TLS_BEFORE_BIND | NO_TLS
 
 """
@@ -443,29 +450,43 @@ class ConfigParserWithDefaults(ConfigParser):
 
         self.is_validated = True
 
-    def get(self, section, key, **kwargs):
-        section = str(section).lower()
-        key = str(key).lower()
-        fallback_key = key + '_cmd'
-        d = self.defaults
-
-        # environment variables get precedence
+    def _get_env_var_option(self, section, key):
         # must have format AIRFLOW__{SECTION}__{KEY} (note double underscore)
         env_var = 'AIRFLOW__{S}__{K}'.format(S=section.upper(), K=key.upper())
         if env_var in os.environ:
             return expand_env_var(os.environ[env_var])
 
-        # ...then the config file
-        elif self.has_option(section, key):
-            return expand_env_var(ConfigParser.get(self, section, key, **kwargs))
-
-        elif ((section, key) in ConfigParserWithDefaults.as_command_stdout
-            and self.has_option(section, fallback_key)):
+    def _get_cmd_option(self, section, key):
+        fallback_key = key + '_cmd'
+        if (
+                (section, key) in ConfigParserWithDefaults.as_command_stdout and
+                self.has_option(section, fallback_key)):
             command = self.get(section, fallback_key)
             return run_command(command)
 
+    def get(self, section, key, **kwargs):
+        section = str(section).lower()
+        key = str(key).lower()
+
+        d = self.defaults
+
+        # first check environment variables
+        option = self._get_env_var_option(section, key)
+        if option:
+            return option
+
+        # ...then the config file
+        if self.has_option(section, key):
+            return expand_env_var(
+                ConfigParser.get(self, section, key, **kwargs))
+
+        # ...then commands
+        option = self._get_cmd_option(section, key)
+        if option:
+            return option
+
         # ...then the defaults
-        elif section in d and key in d[section]:
+        if section in d and key in d[section]:
             return expand_env_var(d[section][key])
 
         else:
@@ -496,6 +517,68 @@ class ConfigParserWithDefaults(ConfigParser):
     def read(self, filenames):
         ConfigParser.read(self, filenames)
         self._validate()
+
+    def as_dict(self, display_source=False, display_sensitive=False):
+        """
+        Returns the current configuration as an OrderedDict of OrderedDicts.
+        :param display_source: If False, the option value is returned. If True,
+            a tuple of (option_value, source) is returned. Source is either
+            'airflow.cfg' or 'default'.
+        :type display_source: bool
+        :param display_sensitive: If True, the values of options set by env
+            vars and bash commands will be displayed. If False, those options
+            are shown as '< hidden >'
+        :type display_sensitive: bool
+        """
+        cfg = copy.deepcopy(self._sections)
+
+        # remove __name__ (affects Python 2 only)
+        for options in cfg.values():
+            options.pop('__name__', None)
+
+        # add source
+        if display_source:
+            for section in cfg:
+                for k, v in cfg[section].items():
+                    cfg[section][k] = (v, 'airflow.cfg')
+
+        # add env vars and overwrite because they have priority
+        for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
+            try:
+                _, section, key = ev.split('__')
+                opt = self._get_env_var_option(section, key)
+            except ValueError:
+                opt = None
+            if opt:
+                if not display_sensitive:
+                    opt = '< hidden >'
+                if display_source:
+                    opt = (opt, 'env var')
+                cfg.setdefault(section.lower(), OrderedDict()).update(
+                    {key.lower(): opt})
+
+        # add bash commands
+        for (section, key) in ConfigParserWithDefaults.as_command_stdout:
+            opt = self._get_cmd_option(section, key)
+            if opt:
+                if not display_sensitive:
+                    opt = '< hidden >'
+                if display_source:
+                    opt = (opt, 'bash cmd')
+                cfg.setdefault(section, OrderedDict()).update({key: opt})
+
+        # add defaults
+        for section in sorted(self.defaults):
+            for key in sorted(self.defaults[section].keys()):
+                if key not in cfg.setdefault(section, OrderedDict()):
+                    opt = str(self.defaults[section][key])
+                    if display_source:
+                        cfg[section][key] = (opt, 'default')
+                    else:
+                        cfg[section][key] = opt
+
+        return cfg
+
 
 def mkdir_p(path):
     try:
@@ -566,6 +649,7 @@ conf.read(AIRFLOW_CONFIG)
 def get(section, key, **kwargs):
     return conf.get(section, key, **kwargs)
 
+
 def getboolean(section, key):
     return conf.getboolean(section, key)
 
@@ -581,14 +665,23 @@ def getint(section, key):
 def has_option(section, key):
     return conf.has_option(section, key)
 
+
 def remove_option(section, option):
     return conf.remove_option(section, option)
+
+
+def as_dict(display_source=False, display_sensitive=False):
+    return conf.as_dict(
+        display_source=display_source, display_sensitive=display_sensitive)
+as_dict.__doc__ = conf.as_dict.__doc__
+
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
 
 ########################
 # convenience method to access config entries
+
 
 def get_dags_folder():
     return os.path.expanduser(get('core', 'DAGS_FOLDER'))

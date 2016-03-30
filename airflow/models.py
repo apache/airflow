@@ -53,9 +53,17 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.utils import (
-    AirflowException, State, apply_defaults, provide_session,
-    is_container, as_tuple, TriggerRule, LoggingMixin)
+from airflow.exceptions import AirflowException
+from airflow.utils.dates import cron_presets, date_range as utils_date_range
+from airflow.utils.db import provide_session
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.email import send_email
+from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
+from airflow.utils.logging import LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.timeout import timeout
+from airflow.utils.trigger_rule import TriggerRule
+
 
 Base = declarative_base()
 ID_LEN = 250
@@ -211,13 +219,13 @@ class DagBag(LoggingMixin):
                     return found_dags
 
         if (not only_if_updated or
-                    filepath not in self.file_last_changed or
-                    dttm != self.file_last_changed[filepath]):
+                filepath not in self.file_last_changed or
+                dttm != self.file_last_changed[filepath]):
             try:
                 self.logger.info("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
-                with utils.timeout(
+                with timeout(
                         configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
                     m = imp.load_source(mod_name, filepath)
             except Exception as e:
@@ -798,18 +806,17 @@ class TaskInstance(Base):
         """
         task = self.task
 
-        if not task._downstream_list:
+        if not task.downstream_task_ids:
             return True
 
-        downstream_task_ids = [t.task_id for t in task._downstream_list]
         ti = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == self.dag_id,
-            TaskInstance.task_id.in_(downstream_task_ids),
+            TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.execution_date == self.execution_date,
             TaskInstance.state == State.SUCCESS,
         )
         count = ti[0][0]
-        return count == len(task._downstream_list)
+        return count == len(task.downstream_task_ids)
 
     @provide_session
     def are_dependencies_met(
@@ -859,10 +866,9 @@ class TaskInstance(Base):
                 return False
 
         # Checking that all upstream dependencies have succeeded
-        if not task._upstream_list or task.trigger_rule == TR.DUMMY:
+        if not task.upstream_list or task.trigger_rule == TR.DUMMY:
             return True
 
-        upstream_task_ids = [t.task_id for t in task._upstream_list]
         qry = (
             session
             .query(
@@ -878,7 +884,7 @@ class TaskInstance(Base):
             )
             .filter(
                 TI.dag_id == self.dag_id,
-                TI.task_id.in_(upstream_task_ids),
+                TI.task_id.in_(task.upstream_task_ids),
                 TI.execution_date == self.execution_date,
                 TI.state.in_([
                     State.SUCCESS, State.FAILED,
@@ -886,7 +892,7 @@ class TaskInstance(Base):
             )
         )
         successes, skipped, failed, upstream_failed, done = qry.first()
-        upstream = len(task._upstream_list)
+        upstream = len(task.upstream_task_ids)
         tr = task.trigger_rule
         upstream_done = done >= upstream
 
@@ -1002,15 +1008,13 @@ class TaskInstance(Base):
             )
         elif force or self.state in State.runnable():
             HR = "\n" + ("-" * 80) + "\n"  # Line break
-            tot_tries = task.retries + 1
+
             # For reporting purposes, we report based on 1-indexed,
             # not 0-indexed lists (i.e. Attempt 1 instead of
-            # Attempt 0 for the first attempt)
-            msg = "Attempt {} out of {}".format(self.try_number+1,
-                                                tot_tries)
-            self.try_number += 1
-            msg = msg.format(**locals())
-            logging.info(HR + msg + HR)
+            # Attempt 0 for the first attempt).
+            msg = "Starting attempt {attempt} of {total}".format(
+                attempt=self.try_number % (task.retries + 1) + 1,
+                total=task.retries + 1)
             self.start_date = datetime.now()
 
             if not mark_success and self.state != State.QUEUED and (
@@ -1018,16 +1022,21 @@ class TaskInstance(Base):
                 # If a pool is set for this task, marking the task instance
                 # as QUEUED
                 self.state = State.QUEUED
-                # Since we are just getting enqueued, we need to undo
-                # the try_number increment above and update the message as well
-                self.try_number -= 1
-                msg = "Queuing attempt {} out of {}".format(self.try_number+1,
-                                                            tot_tries)
+                msg = "Queuing attempt {attempt} of {total}".format(
+                    attempt=self.try_number % (task.retries + 1) + 1,
+                    total=task.retries + 1)
+                logging.info(HR + msg + HR)
+
                 self.queued_dttm = datetime.now()
                 session.merge(self)
                 session.commit()
                 logging.info("Queuing into pool {}".format(self.pool))
                 return
+
+            # print status message
+            logging.info(HR + msg + HR)
+            self.try_number += 1
+
             if not test_mode:
                 session.add(Log(State.RUNNING, self))
             self.state = State.RUNNING
@@ -1069,7 +1078,7 @@ class TaskInstance(Base):
                     # if it goes beyond
                     result = None
                     if task_copy.execution_timeout:
-                        with utils.timeout(int(
+                        with timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
                             result = task_copy.execute(context=context)
 
@@ -1123,12 +1132,17 @@ class TaskInstance(Base):
 
         # Let's go deeper
         try:
-            if self.try_number <= task.retries:
+            if task.retries and self.try_number % (task.retries + 1) != 0:
                 self.state = State.UP_FOR_RETRY
+                logging.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
                     self.email_alert(error, is_retry=True)
             else:
                 self.state = State.FAILED
+                if task.retries:
+                    logging.info('All retries failed; marking task as FAILED')
+                else:
+                    logging.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
                     self.email_alert(error, is_retry=False)
         except Exception as e2:
@@ -1247,7 +1261,7 @@ class TaskInstance(Base):
             "Log file: {self.log_filepath}<br>"
             "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
         ).format(**locals())
-        utils.send_email(task.email, title, body)
+        send_email(task.email, title, body)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -1533,7 +1547,7 @@ class BaseOperator(object):
             *args,
             **kwargs):
 
-        utils.validate_key(task_id)
+        validate_key(task_id)
         self.dag_id = dag.dag_id if dag else 'adhoc_' + owner
         self.task_id = task_id
         self.owner = owner
@@ -1585,8 +1599,8 @@ class BaseOperator(object):
             self.dag = dag
 
         # Private attributes
-        self._upstream_list = []
-        self._downstream_list = []
+        self._upstream_task_ids = []
+        self._downstream_task_ids = []
 
         self._comps = {
             'task_id',
@@ -1692,8 +1706,6 @@ class BaseOperator(object):
         result = cls.__new__(cls)
         memo[id(self)] = result
 
-        self._upstream_list = sorted(self._upstream_list, key=lambda x: x.task_id)
-        self._downstream_list = sorted(self._downstream_list, key=lambda x: x.task_id)
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
                 setattr(result, k, copy.deepcopy(v, memo))
@@ -1768,12 +1780,20 @@ class BaseOperator(object):
     @property
     def upstream_list(self):
         """@property: list of tasks directly upstream"""
-        return self._upstream_list
+        return [self.dag.get_task(tid) for tid in self._upstream_task_ids]
+
+    @property
+    def upstream_task_ids(self):
+        return self._upstream_task_ids
 
     @property
     def downstream_list(self):
         """@property: list of tasks directly downstream"""
-        return self._downstream_list
+        return [self.dag.get_task(tid) for tid in self._downstream_task_ids]
+
+    @property
+    def downstream_task_ids(self):
+        return self._downstream_task_ids
 
     def clear(
             self, start_date=None, end_date=None,
@@ -1795,12 +1815,12 @@ class BaseOperator(object):
         tasks = [self.task_id]
 
         if upstream:
-            tasks += \
-                [t.task_id for t in self.get_flat_relatives(upstream=True)]
+            tasks += [
+                t.task_id for t in self.get_flat_relatives(upstream=True)]
 
         if downstream:
-            tasks += \
-                [t.task_id for t in self.get_flat_relatives(upstream=False)]
+            tasks += [
+                t.task_id for t in self.get_flat_relatives(upstream=False)]
 
         qry = qry.filter(TI.task_id.in_(tasks))
 
@@ -1832,7 +1852,7 @@ class BaseOperator(object):
         if not l:
             l = []
         for t in self.get_direct_relatives(upstream):
-            if not utils.is_in(t, l):
+            if not is_in(t, l):
                 l.append(t)
                 t.get_flat_relatives(upstream, l)
         return l
@@ -1911,11 +1931,11 @@ class BaseOperator(object):
             if not isinstance(task, BaseOperator):
                 raise AirflowException('Expecting a task')
             if upstream:
-                task.append_only_new(task._downstream_list, self)
-                self.append_only_new(self._upstream_list, task)
+                task.append_only_new(task._downstream_task_ids, self.task_id)
+                self.append_only_new(self._upstream_task_ids, task.task_id)
             else:
-                self.append_only_new(self._downstream_list, task)
-                task.append_only_new(task._upstream_list, self)
+                self.append_only_new(self._downstream_task_ids, task.task_id)
+                task.append_only_new(task._upstream_task_ids, self.task_id)
 
         self.detect_downstream_cycle()
 
@@ -2096,14 +2116,14 @@ class DAG(LoggingMixin):
             self.params.update(self.default_args['params'])
             del self.default_args['params']
 
-        utils.validate_key(dag_id)
+        validate_key(dag_id)
         self.tasks = []
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.schedule_interval = schedule_interval
-        if schedule_interval in utils.cron_presets:
-            self._schedule_interval = utils.cron_presets.get(schedule_interval)
+        if schedule_interval in cron_presets:
+            self._schedule_interval = cron_presets.get(schedule_interval)
         elif schedule_interval == '@once':
             self._schedule_interval = None
         else:
@@ -2160,7 +2180,7 @@ class DAG(LoggingMixin):
     def date_range(self, start_date, num=None, end_date=datetime.now()):
         if num:
             end_date = None
-        return utils.date_range(
+        return utils_date_range(
             start_date=start_date, end_date=end_date,
             num=num, delta=self._schedule_interval)
 
@@ -2375,7 +2395,7 @@ class DAG(LoggingMixin):
     @provide_session
     def set_dag_runs_state(
             self, start_date, end_date, state=State.RUNNING, session=None):
-        dates = utils.date_range(start_date, end_date)
+        dates = utils_date_range(start_date, end_date)
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
         for dr in drs:
             dr.state = State.RUNNING
@@ -2432,7 +2452,7 @@ class DAG(LoggingMixin):
                 "You are about to delete these {count} tasks:\n"
                 "{ti_list}\n\n"
                 "Are you sure? (yes/no): ").format(**locals())
-            do_it = utils.ask_yesno(question)
+            do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
             clear_task_instances(tis, session)
@@ -2478,17 +2498,16 @@ class DAG(LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=False)
             if include_upstream:
                 also_include += t.get_flat_relatives(upstream=True)
+
         # Compiling the unique list of tasks that made the cut
-        tasks = list(set(regex_match + also_include))
-        dag.tasks = tasks
+        dag.tasks = list(set(regex_match + also_include))
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
-            t._upstream_list = [
-                ut for ut in t._upstream_list if utils.is_in(ut, tasks)]
-            t._downstream_list = [
-                ut for ut in t._downstream_list if utils.is_in(ut, tasks)]
-
+            t._upstream_task_ids = [
+                tid for tid in t._upstream_task_ids if tid in dag.task_ids]
+            t._downstream_task_ids = [
+                tid for tid in t._downstream_task_ids if tid in dag.task_ids]
         return dag
 
     def has_task(self, task_id):
@@ -2914,6 +2933,7 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
 
 class Pool(Base):
     __tablename__ = "slot_pool"

@@ -10,7 +10,7 @@ try:
 except:
     pass
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 _EXECUTOR = configuration.get('core', 'EXECUTOR')
 

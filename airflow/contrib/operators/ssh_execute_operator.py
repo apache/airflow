@@ -4,8 +4,8 @@ import subprocess
 from subprocess import STDOUT
 
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
-from airflow.utils import AirflowException
+from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowException
 
 
 class SSHTempFileContent():

@@ -37,15 +37,18 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 import airflow
-from airflow import models
-from airflow.settings import Session
 from airflow import configuration as conf
-from airflow import utils
-from airflow.utils import AirflowException
-from airflow.www import utils as wwwutils
+from airflow import models
 from airflow import settings
-from airflow.models import State
+from airflow.exceptions import AirflowException
+from airflow.settings import Session
 
+from airflow.utils.json import json_ser
+from airflow.utils.state import State
+from airflow.utils.db import provide_session
+from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils import logging as log_utils
+from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 
 QUERY_LIMIT = 100000
@@ -637,7 +640,7 @@ class Airflow(BaseView):
         )
         return self.render(
             'airflow/dag_details.html',
-            dag=dag, title=title, states=states, State=utils.State)
+            dag=dag, title=title, states=states, State=State)
 
     @current_app.errorhandler(404)
     def circles(self):
@@ -646,7 +649,7 @@ class Airflow(BaseView):
 
     @current_app.errorhandler(500)
     def show_traceback(self):
-        from airflow import ascii as ascii_
+        from airflow.utils import asciiart as ascii_
         return render_template(
             'airflow/traceback.html',
             hostname=socket.gethostname(),
@@ -803,11 +806,11 @@ class Airflow(BaseView):
 
                 # S3
                 if remote_log.startswith('s3:/'):
-                    log += utils.S3Log().read(remote_log, return_error=True)
+                    log += log_utils.S3Log().read(remote_log, return_error=True)
 
                 # GCS
                 elif remote_log.startswith('gs:/'):
-                    log += utils.GCSLog().read(remote_log, return_error=True)
+                    log += log_utils.GCSLog().read(remote_log, return_error=True)
 
                 # unsupported
                 elif remote_log:
@@ -1138,7 +1141,7 @@ class Airflow(BaseView):
             .all()
         )
         dag_runs = {
-            dr.execution_date: utils.alchemy_to_dict(dr) for dr in dag_runs}
+            dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
@@ -1146,7 +1149,7 @@ class Airflow(BaseView):
         max_date = max([ti.execution_date for ti in tis]) if dates else None
         task_instances = {}
         for ti in tis:
-            tid = utils.alchemy_to_dict(ti)
+            tid = alchemy_to_dict(ti)
             dr = dag_runs.get(ti.execution_date)
             tid['external_trigger'] = dr['external_trigger'] if dr else False
             task_instances[(ti.task_id, ti.execution_date)] = tid
@@ -1201,7 +1204,7 @@ class Airflow(BaseView):
                 for d in dates],
         }
 
-        data = json.dumps(data, indent=4, default=utils.json_ser)
+        data = json.dumps(data, indent=4, default=json_ser)
         session.commit()
         session.close()
 
@@ -1294,7 +1297,7 @@ class Airflow(BaseView):
             data={'execution_date': dttm.isoformat(), 'arrange': arrange})
 
         task_instances = {
-            ti.task_id: utils.alchemy_to_dict(ti)
+            ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(session, dttm, dttm)}
         tasks = {
             t.task_id: {
@@ -1593,7 +1596,7 @@ class Airflow(BaseView):
             return ("Error: Invalid execution_date")
 
         task_instances = {
-            ti.task_id: utils.alchemy_to_dict(ti)
+            ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(session, dttm, dttm)}
 
         return json.dumps(task_instances)
@@ -1979,7 +1982,7 @@ class DagRunModelView(ModelViewOnly):
     def action_set_success(self, ids):
         self.set_dagrun_state(ids, State.SUCCESS)
 
-    @utils.provide_session
+    @provide_session
     def set_dagrun_state(self, ids, target_state, session=None):
         try:
             DR = models.DagRun
@@ -2058,7 +2061,7 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
-    @utils.provide_session
+    @provide_session
     def set_task_instance_state(self, ids, target_state, session=None):
         try:
             TI = models.TaskInstance
