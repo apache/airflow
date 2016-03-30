@@ -292,7 +292,7 @@
             $("#loading").css("display", "block");
             $("div#svg_container").css("opacity", "0.2");
             $.get(
-                "/admin/airflow/object/task_instances",
+                "/orchestrator/airflow/object/task_instances",
                 {dag_id : "{{ dag.dag_id }}", execution_date : "{{ execution_date }}"})
             .done(
                 function(task_instances) {
