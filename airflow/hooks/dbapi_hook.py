@@ -19,6 +19,8 @@ import numpy
 import logging
 import sys
 
+from sqlalchemy import create_engine
+
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
@@ -55,6 +57,22 @@ class DbApiHook(BaseHook):
             port=db.port,
             username=db.login,
             schema=db.schema)
+
+    def get_uri(self):
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        login = ''
+        if conn.login:
+            login = '{conn.login}:{conn.password}@'.format(conn=conn)
+        host = conn.host
+        if conn.port is not None:
+            host += ':{port}'.format(port=conn.port)
+        return '{conn.conn_type}://{login}{host}/{conn.schema}'.format(
+            conn=conn, login=login, host=host)
+
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        return create_engine(self.get_uri(), **engine_kwargs)
 
     def get_pandas_df(self, sql, parameters=None):
         """
