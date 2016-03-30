@@ -1,6 +1,6 @@
 from airflow.hooks import PrestoHook
 from airflow.operators import CheckOperator, ValueCheckOperator, IntervalCheckOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class PrestoCheckOperator(CheckOperator):

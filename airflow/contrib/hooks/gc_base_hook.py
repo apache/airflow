@@ -2,7 +2,7 @@ import httplib2
 import logging
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from oauth2client.client import SignedJwtAssertionCredentials, GoogleCredentials
 
 class GoogleCloudBaseHook(BaseHook):

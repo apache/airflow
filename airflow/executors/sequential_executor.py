@@ -1,9 +1,8 @@
 from builtins import str
-import logging
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils import State
+from airflow.utils.state import State
 
 
 class SequentialExecutor(BaseExecutor):
@@ -25,13 +24,14 @@ class SequentialExecutor(BaseExecutor):
     def sync(self):
         for key, command in self.commands_to_run:
             self.logger.info("Executing command: {}".format(command))
+
             try:
-                sp = subprocess.Popen(command, shell=True)
-                sp.wait()
-            except Exception as e:
+                subprocess.check_call(command, shell=True)
+                self.change_state(key, State.SUCCESS)
+            except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)
-                raise e
-            self.change_state(key, State.SUCCESS)
+                self.logger.error("Failed to execute task {}:".format(str(e)))
+
         self.commands_to_run = []
 
     def end(self):

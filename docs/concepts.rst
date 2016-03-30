@@ -60,6 +60,16 @@ it a number of worker slots. Tasks can then be associated with
 one of the existing pools by using the ``pool`` parameter when
 creating tasks (i.e., instantiating operators).
 
+.. code:: python
+
+    aggregate_db_message_job = BashOperator(
+        task_id='aggregate_db_message_job',
+        execution_timeout=timedelta(hours=3),
+        pool='ep_data_pipeline_db_msg_agg',
+        bash_command=aggregate_db_message_job_cmd,
+        dag=dag)
+    aggregate_db_message_job.set_upstream(wait_for_empty_queue)
+
 The ``pool`` parameter can
 be used in conjunction with ``priority_weight`` to define priorities
 in the queue, and which tasks get executed first as slots open up in the

@@ -54,7 +54,7 @@ doc = [
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
 gcloud = [
-    'gcloud>=1.1.0',
+    'gcloud>=0.11.0',
 ]
 gcp_api = [
     'httplib2',
@@ -84,10 +84,9 @@ slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = [
-    'pykerberos>=1.1.8',
-    'snakebite[kerberos]>=2.7.8'
-]
+kerberos = ['pykerberos>=1.1.8',
+            'thrift_sasl>=0.2.0',
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',

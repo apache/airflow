@@ -1,8 +1,7 @@
 Quick Start
-'''''''''''
-The installation is quick and straightforward. Note that Airflow is only
-tested under Python 2.7.* as many of our dependencies don't support
-python3 (as of 2015-06).
+-----------
+
+The installation is quick and straightforward.
 
 .. code-block:: bash
 
@@ -43,6 +42,6 @@ run the commands below.
     # run a backfill over 2 days
     airflow backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
 
-From this point, you can move on to the :doc:`tutorial` section, and come back
-if/when you are ready to make your Airflow sandbox more of a serious
-environment.
+What's Next?
+''''''''''''
+From this point, you can head to the :doc:`tutorial` section for further examples or the :doc:`configuation` section if you're ready to get your hands dirty.

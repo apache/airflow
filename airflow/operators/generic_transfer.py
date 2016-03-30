@@ -1,7 +1,7 @@
 import logging
 
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook
 
 

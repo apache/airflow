@@ -14,11 +14,14 @@ from dateutil.parser import parse as parsedate
 import json
 
 import airflow
-from airflow import jobs, settings, utils
+from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun
-from airflow.utils import AirflowException, State
+from airflow.utils import db as db_utils
+from airflow.utils import logging as logging_utils
+from airflow.utils.state import State
+from airflow.exceptions import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -78,7 +81,8 @@ def backfill(args, dag=None):
             mark_success=args.mark_success,
             include_adhoc=args.include_adhoc,
             local=args.local,
-            donot_pickle=(args.donot_pickle or conf.getboolean('core', 'donot_pickle')),
+            donot_pickle=(args.donot_pickle or
+                          conf.getboolean('core', 'donot_pickle')),
             ignore_dependencies=args.ignore_dependencies,
             pool=args.pool)
 
@@ -133,7 +137,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 def run(args, dag=None):
 
-    utils.pessimistic_connection_handling()
+    db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
 
@@ -236,10 +240,10 @@ def run(args, dag=None):
         remote_log_location = filename.replace(log_base, remote_base)
         # S3
         if remote_base.startswith('s3:/'):
-            utils.S3Log().write(log, remote_log_location)
+            logging_utils.S3Log().write(log, remote_log_location)
         # GCS
         elif remote_base.startswith('gs:/'):
-            utils.GCSLog().write(
+            logging_utils.GCSLog().write(
                 log,
                 remote_log_location,
                 append=True)
@@ -401,7 +405,7 @@ def worker(args):
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    utils.initdb()
+    db_utils.initdb()
     print("Done.")
 
 
@@ -412,14 +416,14 @@ def resetdb(args):
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
                             format=settings.SIMPLE_LOG_FORMAT)
-        utils.resetdb()
+        db_utils.resetdb()
     else:
         print("Bail.")
 
 
 def upgradedb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    utils.upgradedb()
+    db_utils.upgradedb()
 
 
 def version(args):  # noqa

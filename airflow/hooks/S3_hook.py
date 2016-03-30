@@ -15,7 +15,7 @@ from boto.sts import STSConnection
 boto.set_stream_logger('boto')
 logging.getLogger("boto").setLevel(logging.INFO)
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 

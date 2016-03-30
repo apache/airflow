@@ -3,7 +3,7 @@ import time
 import datetime
 import logging
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 

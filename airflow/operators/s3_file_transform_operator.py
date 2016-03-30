@@ -2,10 +2,10 @@ import logging
 from tempfile import NamedTemporaryFile
 import subprocess
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks import S3Hook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class S3FileTransformOperator(BaseOperator):

@@ -1,6 +1,6 @@
 from airflow.models import BaseOperator
-from airflow.utils import send_email
-from airflow.utils import apply_defaults
+from airflow.utils.email import send_email
+from airflow.utils.decorators import apply_defaults
 
 
 class EmailOperator(BaseOperator):

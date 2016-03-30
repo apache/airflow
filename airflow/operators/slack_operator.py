@@ -1,6 +1,7 @@
 from slackclient import SlackClient
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults, AirflowException
+from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowException
 import json
 import logging
 

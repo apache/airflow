@@ -7,7 +7,7 @@ try:
 except ImportError:
     snakebite_imported = False
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class HDFSHookException(AirflowException):

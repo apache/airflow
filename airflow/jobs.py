@@ -19,7 +19,7 @@ from __future__ import unicode_literals
 
 from builtins import str
 from past.builtins import basestring
-from collections import defaultdict
+from collections import defaultdict, Counter
 from datetime import datetime
 from itertools import product
 import getpass
@@ -33,9 +33,14 @@ from time import sleep
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.orm.session import make_transient
 
-from airflow import executors, models, settings, utils
+from airflow import executors, models, settings
 from airflow import configuration as conf
-from airflow.utils import AirflowException, State, LoggingMixin
+from airflow.exceptions import AirflowException
+from airflow.utils.state import State
+from airflow.utils.db import provide_session, pessimistic_connection_handling
+from airflow.utils.email import send_email
+from airflow.utils.logging import LoggingMixin
+from airflow.utils import asciiart
 
 
 Base = models.Base
@@ -233,7 +238,7 @@ class SchedulerJob(BaseJob):
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
 
-    @utils.provide_session
+    @provide_session
     def manage_slas(self, dag, session=None):
         """
         Finding all tasks that have SLAs defined, and sending alert emails
@@ -322,12 +327,11 @@ class SchedulerJob(BaseJob):
                 self.logger.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
                 dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
                 notification_sent = True
-            from airflow import ascii
             email_content = """\
             Here's a list of tasks thas missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
-            <pre><code>{blocking_task_list}\n{ascii.bug}<code></pre>
+            <pre><code>{blocking_task_list}\n{asciiart.bug}<code></pre>
             """.format(**locals())
             emails = []
             for t in dag.tasks:
@@ -340,7 +344,7 @@ class SchedulerJob(BaseJob):
                         if email not in emails:
                             emails.append(email)
             if emails and len(slas):
-                utils.send_email(
+                send_email(
                     emails,
                     "[airflow] SLA miss on DAG=" + dag.dag_id,
                     email_content)
@@ -516,7 +520,7 @@ class SchedulerJob(BaseJob):
 
         session.close()
 
-    @utils.provide_session
+    @provide_session
     def prioritize_queued(self, session, executor, dagbag):
         # Prioritizing queued task instances
 
@@ -608,7 +612,7 @@ class SchedulerJob(BaseJob):
             sys.exit(1)
         signal.signal(signal.SIGINT, signal_handler)
 
-        utils.pessimistic_connection_handling()
+        pessimistic_connection_handling()
 
         logging.basicConfig(level=logging.DEBUG)
         self.logger.info("Starting the scheduler")
@@ -734,6 +738,7 @@ class BackfillJob(BaseJob):
 
         executor = self.executor
         executor.start()
+        executor_fails = Counter()
 
         # Build a list of all instances to run
         tasks_to_run = {}
@@ -785,12 +790,21 @@ class BackfillJob(BaseJob):
                 if (
                         ti.state in (State.FAILED, State.SKIPPED) or
                         state == State.FAILED):
-                    if ti.state == State.FAILED or state == State.FAILED:
+                    # executor reports failure; task reports running
+                    if ti.state == State.RUNNING and state == State.FAILED:
+                        msg = (
+                            'Executor reports that task instance {} failed '
+                            'although the task says it is running.'.format(key))
+                        self.logger.error(msg)
+                        ti.handle_failure(msg)
+                    # executor and task report failure
+                    elif ti.state == State.FAILED or state == State.FAILED:
                         failed.append(key)
-                        self.logger.error("Task instance " + str(key) + " failed")
+                        self.logger.error("Task instance {} failed".format(key))
+                    # task reports skipped
                     elif ti.state == State.SKIPPED:
                         wont_run.append(key)
-                        self.logger.error("Skipping " + str(key) + " failed")
+                        self.logger.error("Skipping {} ".format(key))
                     tasks_to_run.pop(key)
                     # Removing downstream tasks that also shouldn't run
                     for t in self.dag.get_task(task_id).get_flat_relatives(
@@ -799,9 +813,11 @@ class BackfillJob(BaseJob):
                         if key in tasks_to_run:
                             wont_run.append(key)
                             tasks_to_run.pop(key)
+                # executor and task report success
                 elif ti.state == State.SUCCESS and state == State.SUCCESS:
                     succeeded.append(key)
                     tasks_to_run.pop(key)
+                # executor reports success but task does not -- this is weird
                 elif (
                         ti.state not in (State.SUCCESS, State.QUEUED) and
                         state == State.SUCCESS):
@@ -811,6 +827,20 @@ class BackfillJob(BaseJob):
                         "in normal circumstances. Task state is '{}',"
                         "reported state is '{}'. TI is {}"
                         "".format(ti.state, state, ti))
+
+                    # if the executor fails 3 or more times, stop trying to
+                    # run the task
+                    executor_fails[key] += 1
+                    if executor_fails[key] >= 3:
+                        msg = (
+                            'The airflow run command failed to report an '
+                            'error for task {} three or more times. The task '
+                            'is being marked as failed. This is very unusual '
+                            'and probably means that an error is taking place '
+                            'before the task even starts.'.format(key))
+                        self.logger.error(msg)
+                        ti.handle_failure(msg)
+                        tasks_to_run.pop(key)
 
             msg = (
                 "[backfill progress] "

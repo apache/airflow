@@ -3,9 +3,9 @@ import logging
 import subprocess
 from tempfile import NamedTemporaryFile
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import TemporaryDirectory
+from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 
 

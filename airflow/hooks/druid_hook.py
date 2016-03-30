@@ -7,7 +7,7 @@ from pydruid.client import PyDruid
 import requests
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 LOAD_CHECK_INTERVAL = 5
 
@@ -61,7 +61,7 @@ class DruidHook(BaseHook):
         """
         metric_names = [
             m['fieldName'] for m in metric_spec if m['type'] != 'count']
-        dimensions = [c for c in columns if c not in metric_names]
+        dimensions = [c for c in columns if c not in metric_names and c != ts_dim]
         ingest_query_dict = {
             "type": "index_hadoop",
             "spec": {

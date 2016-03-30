@@ -8,14 +8,15 @@ import functools
 import gzip
 import dateutil.parser as dateparser
 import json
-import os
 from flask import after_this_request, request, Response
 from flask_login import current_user
 from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type
 
-from airflow import configuration, models, settings, utils
+from airflow import configuration, models, settings
+from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.email import send_email
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 
@@ -147,7 +148,7 @@ def notify_owner(f):
                     </table>
                     ''').render(**locals())
                 if task.email:
-                    utils.send_email(task.email, subject, content)
+                    send_email(task.email, subject, content)
         """
         return f(*args, **kwargs)
     return wrapper
@@ -159,7 +160,7 @@ def json_response(obj):
     """
     return Response(
         response=json.dumps(
-            obj, indent=4, cls=utils.AirflowJsonEncoder),
+            obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
 
