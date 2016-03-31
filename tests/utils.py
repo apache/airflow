@@ -51,3 +51,29 @@ class LogUtilsTest(unittest.TestCase):
         self.assertEqual(
             glog.parse_gcs_url('gs://bucket/'),
             ('bucket', ''))
+
+    def test_s3_url_parse(self):
+        logging.info(
+            'About to create a S3Log object without a connection. This will '
+            'log an error but testing will proceed.')
+        s3log = airflow.utils.logging.S3Log()
+
+        self.assertEqual(
+            s3log.parse_s3_url('s3://bucket/path/to/blob'),
+            ('bucket', 'path/to/blob'))
+
+        # invalid URI
+        self.assertRaises(
+            AirflowException,
+            s3log.parse_s3_url,
+            's3:/bucket/path/to/blob')
+
+        # trailing slash
+        self.assertEqual(
+            s3log.parse_s3_url('s3://bucket/path/to/blob/'),
+            ('bucket', 'path/to/blob'))
+
+        # bucket only
+        self.assertEqual(
+            s3log.parse_s3_url('s3://bucket/'),
+            ('bucket', ''))
