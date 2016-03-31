@@ -14,6 +14,8 @@ from airflow import jobs
 from airflow import settings
 from airflow import configuration
 
+from airflow.security import flask_kerberos
+
 csrf = CsrfProtect()
 
 
@@ -21,12 +23,15 @@ def create_app(config=None):
     app = Flask(__name__)
     app.secret_key = configuration.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
+    app.config['KERBEROS_DISABLED'] = not configuration.getboolean('webserver', 'kerberos_service')
 
     csrf.init_app(app)
 
     #app.config = config
     airflow.load_login()
     airflow.login.login_manager.init_app(app)
+
+    flask_kerberos.init_kerberos(app)
 
     cache = Cache(
         app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
