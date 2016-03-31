@@ -121,6 +121,16 @@ defaults = {
         'smtp_user': '',
         'smtp_password': '',
     },
+	'ldap': {
+		'uri': 'ldaps://<your.ldap.server>:<port>',
+		'user_filter': 'objectClass=*',
+		'user_name_attr': 'uid',
+		'bind_user': 'cn=Manager,dc=example,dc=com',
+		'bind_password': 'insecure',
+		'basedn': 'dc=example,dc=com',
+		'cacert': '/etc/ca/ldap_ca.crt',
+		'connection_auto_bind': 'NONE',
+	},
     'kerberos': {
         'ccache': '/tmp/airflow_krb5_ccache',
         'principal': 'airflow',                 # gets augmented with fqdn

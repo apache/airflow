@@ -1016,6 +1016,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("ldap", "bind_password", "insecure")
         configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
         configuration.conf.set("ldap", "cacert", "")
+	    configuration.conf.set("ldap", "connection_auto_bind", "NONE")
 
         app = application.create_app()
         app.config['TESTING'] = True
