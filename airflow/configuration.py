@@ -91,6 +91,7 @@ defaults = {
         'base_url': 'http://localhost:8080',
         'web_server_host': '0.0.0.0',
         'web_server_port': '8080',
+        'web_server_worker_timeout': 120,
         'authenticate': False,
         'filter_by_owner': False,
         'demo_mode': False,
@@ -226,6 +227,9 @@ web_server_host = 0.0.0.0
 
 # The port on which to run the web server
 web_server_port = 8080
+
+# The time the gunicorn webserver waits before timing out on a worker
+web_server_worker_timeout = 120
 
 # Secret key used to run your flask app
 secret_key = temporary_key

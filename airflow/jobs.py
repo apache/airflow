@@ -401,7 +401,9 @@ class SchedulerJob(BaseJob):
                             DagRun.run_id.like(DagRun.ID_PREFIX+'%')))
             last_scheduled_run = qry.scalar()
             next_run_date = None
-            if not last_scheduled_run:
+            if dag.schedule_interval == '@once' and not last_scheduled_run:
+                next_run_date = datetime.now()
+            elif not last_scheduled_run:
                 # First run
                 TI = models.TaskInstance
                 latest_run = (
@@ -417,8 +419,6 @@ class SchedulerJob(BaseJob):
                     next_run_date = min([t.start_date for t in dag.tasks])
             elif dag.schedule_interval != '@once':
                 next_run_date = dag.following_schedule(last_scheduled_run)
-            elif dag.schedule_interval == '@once' and not last_scheduled_run:
-                next_run_date = datetime.now()
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType

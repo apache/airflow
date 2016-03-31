@@ -336,6 +336,8 @@ def webserver(args):
     from airflow.www.app import cached_app
     app = cached_app(conf)
     workers = args.workers or conf.get('webserver', 'workers')
+    worker_timeout = (args.worker_timeout or
+                      conf.get('webserver', 'webserver_worker_timeout'))
     if args.debug:
         print(
             "Starting the web server on port {0} and host {1}.".format(
@@ -345,10 +347,10 @@ def webserver(args):
         print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
-            '{args.port}...'.format(**locals()))
+            '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
         sp = subprocess.Popen([
             'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
-            '-t', '120', '-b', args.hostname + ':' + str(args.port),
+            '-t', str(args.worker_timeout), '-b', args.hostname + ':' + str(args.port),
             'airflow.www.app:cached_app()'])
         sp.wait()
 
@@ -561,6 +563,11 @@ class CLIFactory(object):
             default=conf.get('webserver', 'WORKER_CLASS'),
             choices=['sync', 'eventlet', 'gevent', 'tornado'],
             help="The worker class to use for gunicorn"),
+        'worker_timeout': Arg(
+            ("-t", "--worker_timeout"),
+            default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
+            type=int,
+            help="The timeout for waiting on webserver workers"),
         'hostname': Arg(
             ("-hn", "--hostname"),
             default=conf.get('webserver', 'WEB_SERVER_HOST'),
@@ -683,7 +690,8 @@ class CLIFactory(object):
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
-            'args': ('port', 'workers', 'workerclass', 'hostname', 'debug'),
+            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+                     'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
