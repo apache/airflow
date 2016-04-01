@@ -559,12 +559,12 @@ class SchedulerJob(BaseJob):
             queue_size = len(tis)
             self.logger.info("Pool {pool} has {open_slots} slots, {queue_size} "
                           "task instances in queue".format(**locals()))
-            if not open_slots:
+            if open_slots <= 0:
                 continue
             tis = sorted(
                 tis, key=lambda ti: (-ti.priority_weight, ti.start_date))
             for ti in tis:
-                if not open_slots:
+                if open_slots <= 0:
                     continue
                 task = None
                 try:
