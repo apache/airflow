@@ -361,9 +361,7 @@ uri = ldaps://<your.ldap.server>:<port>
 
 # what are you searching
 #See http://ldap3.readthedocs.org/tutorial.html#performing-searches
-#consist of two parts:
-# search_filter = "(&({0})({1}={2}))".format(configuration.get("ldap", "user_filter"),
-#                   configuration.get("ldap", "user_name_attr"), username)
+#consist of two parts: user_filter and user_name_attr
 user_filter = objectClass=*
 user_name_attr = uid # in case of Active Directory you would use sAMAccountName
 
