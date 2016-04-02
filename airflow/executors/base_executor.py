@@ -34,11 +34,24 @@ class BaseExecutor(LoggingMixin):
         if key not in self.queued_tasks and key not in self.running:
             self.logger.info("Adding to queue: {}".format(command))
             self.queued_tasks[key] = (command, priority, queue)
+            return True
+        return False
+
+    def concurrency_reached(self, task_instance):
+        def count_pipeline(task_queue):
+            return len(list(filter(lambda key: key[0] == task_instance.dag_id, task_queue.keys())))
+        running_count = count_pipeline(self.running) + count_pipeline(self.queued_tasks)
+        return running_count >= task_instance.task.dag.concurrency
 
     def queue_task_instance(
             self, task_instance, mark_success=False, pickle_id=None,
             force=False, ignore_dependencies=False, task_start_date=None,
             pool=None):
+        if self.concurrency_reached(task_instance):
+            self.logger.debug("Not executing because concurrency "
+                              "reached for task instance {}".format(task_instance.key))
+            return False
+
         pool = pool or task_instance.pool
         command = task_instance.command(
             local=True,
@@ -48,7 +61,7 @@ class BaseExecutor(LoggingMixin):
             task_start_date=task_start_date,
             pool=pool,
             pickle_id=pickle_id)
-        self.queue_command(
+        return self.queue_command(
             task_instance.key,
             command,
             priority=task_instance.task.priority_weight_total,
