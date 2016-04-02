@@ -48,7 +48,9 @@ class BashOperatorOnce(EndToEndSchedulerJobTest, unittest.TestCase):
         return {"num_runs": 1}
 
     def post_check(self, working_dir):
-        validate_file_content(working_dir, "out.2015-01-01.txt", "success\n")
+        formatted_date = datetime.now().strftime("%Y-%m-%d")
+        filename = "out.{}.txt".format(formatted_date)
+        validate_file_content(working_dir, filename, "success\n")
 
 
 class BashOperatorSingle3Days(EndToEndBackfillJobTest,
