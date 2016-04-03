@@ -37,6 +37,7 @@ import signal
 import socket
 import sys
 import traceback
+import warnings
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -1596,6 +1597,17 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             *args,
             **kwargs):
+
+        if args or kwargs:
+            # TODO remove *args and **kwargs in Airflow 2.0
+            warnings.warn(
+                'Invalid arguments were passed to {c}. Support for '
+                'passing such arguments will be dropped in Airflow 2.0.'
+                'Invalid arguments were:'
+                '\n*args: {a}\n**kwargs: {k}'.format(
+                    c=self.__class__.__name__, a=args, k=kwargs),
+                category=PendingDeprecationWarning
+            )
 
         validate_key(task_id)
         self.dag_id = dag.dag_id if dag else 'adhoc_' + owner

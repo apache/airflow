@@ -122,6 +122,7 @@ setup(
         'flask-cache>=0.13.1, <0.14',
         'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
+        'funcsigs>=0.4, <1'
         'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',

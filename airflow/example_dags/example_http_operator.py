@@ -66,7 +66,7 @@ t4 = SimpleHttpOperator(
 
 sensor = HttpSensor(
     task_id='http_sensor_check',
-    conn_id='http_default',
+    http_conn_id='http_default',
     endpoint='',
     params={},
     response_check=lambda response: True if "Google" in response.content else False,

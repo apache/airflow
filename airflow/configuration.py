@@ -8,6 +8,7 @@ import errno
 import logging
 import os
 import subprocess
+import warnings
 
 from future import standard_library
 standard_library.install_aliases()
@@ -16,6 +17,9 @@ from builtins import str
 from collections import OrderedDict
 from configparser import ConfigParser
 
+# show DeprecationWarning and PendingDeprecationWarning
+warnings.simplefilter('default', DeprecationWarning)
+warnings.simplefilter('default', PendingDeprecationWarning)
 
 class AirflowConfigException(Exception):
     pass
