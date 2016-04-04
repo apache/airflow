@@ -54,7 +54,7 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -857,6 +857,62 @@ class TaskInstance(Base):
         return count == len(task.downstream_task_ids)
 
     @provide_session
+    def evaluate_trigger_rule(self, successes, skipped, failed,
+                              upstream_failed, done,
+                              flag_upstream_failed, session=None):
+        """
+        Returns a boolean on whether the current task can be scheduled
+        for execution based on its trigger_rule.
+
+        :param flag_upstream_failed: This is a hack to generate
+            the upstream_failed state creation while checking to see
+            whether the task instance is runnable. It was the shortest
+            path to add the feature
+        :type flag_upstream_failed: boolean
+        :param successes: Number of successful upstream tasks
+        :type successes: boolean
+        :param skipped: Number of skipped upstream tasks
+        :type skipped: boolean
+        :param failed: Number of failed upstream tasks
+        :type failed: boolean
+        :param upstream_failed: Number of upstream_failed upstream tasks
+        :type upstream_failed: boolean
+        :param done: Number of completed upstream tasks
+        :type done: boolean
+        """
+        TR = TriggerRule
+
+        task = self.task
+        upstream = len(task.upstream_task_ids)
+        tr = task.trigger_rule
+        upstream_done = done >= upstream
+
+        # handling instant state assignment based on trigger rules
+        if flag_upstream_failed:
+            if tr == TR.ALL_SUCCESS:
+                if upstream_failed or failed:
+                    self.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ALL_FAILED:
+                if successes or skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_SUCCESS:
+                if upstream_done and not successes:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_FAILED:
+                if upstream_done and not (failed or upstream_failed):
+                    self.set_state(State.SKIPPED, session)
+
+        return (
+             (tr == TR.ONE_SUCCESS and successes > 0) or
+             (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
+             (tr == TR.ALL_SUCCESS and successes >= upstream) or
+             (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
+             (tr == TR.ALL_DONE and upstream_done)
+        )
+
+    @provide_session
     def are_dependencies_met(
             self,
             session=None,
@@ -935,41 +991,16 @@ class TaskInstance(Base):
                     State.UPSTREAM_FAILED, State.SKIPPED]),
             )
         )
+
         successes, skipped, failed, upstream_failed, done = qry.first()
-        upstream = len(task.upstream_task_ids)
-        tr = task.trigger_rule
-        upstream_done = done >= upstream
-
-        # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
-            if tr == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    self.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ALL_FAILED:
-                if successes or skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_FAILED:
-                if upstream_done and not(failed or upstream_failed):
-                    self.set_state(State.SKIPPED, session)
-
-        if (
-            (tr == TR.ONE_SUCCESS and successes) or
-            (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-            (tr == TR.ALL_SUCCESS and successes >= upstream) or
-            (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-            (tr == TR.ALL_DONE and upstream_done)
-        ):
-            return True
-
+        satisfied = self.evaluate_trigger_rule(
+            session=session, successes=successes, skipped=skipped,
+            failed=failed, upstream_failed=upstream_failed, done=done,
+            flag_upstream_failed=flag_upstream_failed)
         session.commit()
-        if verbose:
-            logging.warning("Trigger rule `{}` not satisfied".format(tr))
-        return False
+        if verbose and not satisfied:
+            logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
+        return satisfied
 
     def __repr__(self):
         return (
@@ -1141,6 +1172,9 @@ class TaskInstance(Base):
                         self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                     task_copy.post_execute(context=context)
+                self.state = State.SUCCESS
+            except AirflowSkipException:
+                self.state = State.SKIPPED
             except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
                 raise
@@ -1148,9 +1182,8 @@ class TaskInstance(Base):
             # Recording SUCCESS
             self.end_date = datetime.now()
             self.set_duration()
-            self.state = State.SUCCESS
             if not test_mode:
-                session.add(Log(State.SUCCESS, self))
+                session.add(Log(self.state, self))
                 session.merge(self)
             session.commit()
 
