@@ -619,7 +619,16 @@ class TaskInstance(Base):
         if state:
             self.state = state
 
-    def command(
+    def _key(self):
+        return (self.task_id, self.dag_id, self.execution_date)
+
+    def __eq__(self, other):
+        return self._key() == other._key()
+
+    def __hash__(self):
+        return hash(self.__key())
+
+   def command(
             self,
             mark_success=False,
             ignore_dependencies=False,
