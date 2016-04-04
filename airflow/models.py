@@ -623,7 +623,7 @@ class TaskInstance(Base):
         return (self.task_id, self.dag_id, self.execution_date)
 
     def __eq__(self, other):
-        return  self.__key() == other.__key()
+        return self.__key() == other.__key()
 
     def __hash__(self):
         return hash(self.__key())
