@@ -33,11 +33,6 @@ def process_subdir(subdir):
         if "DAGS_FOLDER" in subdir:
             subdir = subdir.replace("DAGS_FOLDER", dags_folder)
         subdir = os.path.abspath(os.path.expanduser(subdir))
-        if dags_folder.rstrip('/') not in subdir.rstrip('/'):
-            raise AirflowException(
-                "subdir has to be part of your DAGS_FOLDER as defined in your "
-                "airflow.cfg. DAGS_FOLDER is {df} and subdir is {sd}".format(
-                    df=dags_folder, sd=subdir))
         return subdir
 
 
@@ -84,6 +79,7 @@ def backfill(args, dag=None):
             donot_pickle=(args.donot_pickle or
                           conf.getboolean('core', 'donot_pickle')),
             ignore_dependencies=args.ignore_dependencies,
+            ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             pool=args.pool)
 
 
@@ -176,8 +172,8 @@ def run(args, dag=None):
             mark_success=args.mark_success,
             force=args.force,
             pickle_id=args.pickle,
-            task_start_date=args.task_start_date,
             ignore_dependencies=args.ignore_dependencies,
+            ignore_depends_on_past=args.ignore_depends_on_past,
             pool=args.pool)
         run_job.run()
     elif args.raw:
@@ -185,6 +181,7 @@ def run(args, dag=None):
             mark_success=args.mark_success,
             force=args.force,
             ignore_dependencies=args.ignore_dependencies,
+            ignore_depends_on_past=args.ignore_depends_on_past,
             job_id=args.job_id,
             pool=args.pool,
         )
@@ -214,6 +211,7 @@ def run(args, dag=None):
             mark_success=args.mark_success,
             pickle_id=pickle_id,
             ignore_dependencies=args.ignore_dependencies,
+            ignore_depends_on_past=args.ignore_depends_on_past,
             force=args.force,
             pool=args.pool)
         executor.heartbeat()
@@ -248,7 +246,7 @@ def run(args, dag=None):
                 remote_log_location,
                 append=True)
         # Other
-        elif remote_base:
+        elif remote_base and remote_base != 'None':
             logging.error(
                 'Unsupported remote log location: {}'.format(remote_base))
 
@@ -500,6 +498,13 @@ class CLIFactory(object):
                 "matching the regexp. Only works in conjunction "
                 "with task_regex"),
             "store_true"),
+        'bf_ignore_first_depends_on_past': Arg(
+            ("-I", "--ignore_first_depends_on_past"),
+            (
+                "Ignores depends_on_past dependencies for the first "
+                "set of tasks only (subsequent executions in the backfill "
+                "DO respect depends_on_past)."),
+            "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
         # list_dags
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
@@ -528,10 +533,6 @@ class CLIFactory(object):
             ("-kt", "--keytab"), "keytab",
             nargs='?', default=conf.get('kerberos', 'keytab')),
         # run
-        'task_start_date': Arg(
-            ("-s", "--task_start_date"),
-            "Override the tasks's start_date (used internally)",
-            type=parsedate),
         'force': Arg(
             ("-f", "--force"),
             "Force a run regardless or previous success", "store_true"),
@@ -539,6 +540,11 @@ class CLIFactory(object):
         'ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
             "Ignore upstream and depends_on_past dependencies", "store_true"),
+        'ignore_depends_on_past': Arg(
+            ("-I", "--ignore_depends_on_past"),
+            "Ignore depends_on_past dependencies (but respect "
+            "upstream dependencies)",
+            "store_true"),
         'ship_dag': Arg(
             ("--ship_dag",),
             "Pickles (serializes) the DAG and ships it to the worker",
@@ -624,7 +630,8 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle', 'include_adhoc',
-                'bf_ignore_dependencies', 'subdir', 'pool', 'dry_run')
+                'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
+                'subdir', 'pool', 'dry_run')
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",
@@ -661,8 +668,8 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
                 'mark_success', 'force', 'pool',
-                'task_start_date', 'local', 'raw', 'ignore_dependencies',
-                'ship_dag', 'pickle', 'job_id'),
+                'local', 'raw', 'ignore_dependencies',
+                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",

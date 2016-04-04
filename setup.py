@@ -5,7 +5,7 @@ import os
 import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.6.2'
+version = '1.7.0'
 
 
 class Tox(TestCommand):
@@ -104,6 +104,7 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 setup(
     name='airflow',
     description='Programmatically author, schedule and monitor data pipelines',
+    license='Apache License 2.0',
     version=version,
     packages=find_packages(),
     package_data={'': ['airflow/alembic.ini']},
@@ -165,6 +166,17 @@ setup(
         'password': password,
         'github_enterprise': github_enterprise,
         'qds': qds
+    },
+    classifiers={
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Console',
+        'Environment :: Web Environment',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Topic :: System :: Monitoring',
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',

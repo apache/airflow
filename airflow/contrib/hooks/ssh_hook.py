@@ -76,7 +76,7 @@ class SSHHook(BaseHook):
             connection_cmd += ["-o", "BatchMode=yes"] # no password prompts
 
         if self.conn.port:
-            connection_cmd += ["-p", self.conn.port]
+            connection_cmd += ["-p", str(self.conn.port)]
 
         if self.connect_timeout:
             connection_cmd += ["-o", "ConnectionTimeout={}".format(self.connect_timeout)]

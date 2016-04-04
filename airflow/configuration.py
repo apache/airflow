@@ -82,7 +82,7 @@ defaults = {
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
-        'dags_are_paused_at_creation': False,
+        'dags_are_paused_at_creation': True,
         'sql_alchemy_pool_size': 5,
         'sql_alchemy_pool_recycle': 3600,
         'dagbag_import_timeout': 30,
@@ -160,12 +160,12 @@ base_log_folder = {AIRFLOW_HOME}/logs
 # must supply a remote location URL (starting with either 's3://...' or
 # 'gs://...') and an Airflow connection id that provides access to the storage
 # location.
-remote_base_log_folder = None
-remote_log_conn_id = None
+remote_base_log_folder =
+remote_log_conn_id =
 # Use server-side encryption for logs stored in S3
 encrypt_s3_logs = False
 # deprecated option for remote log storage, use remote_base_log_folder instead!
-# s3_log_folder = None
+# s3_log_folder =
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -194,7 +194,7 @@ parallelism = 32
 dag_concurrency = 16
 
 # Are DAGs paused by default at creation
-dags_are_paused_at_creation = False
+dags_are_paused_at_creation = True
 
 # The maximum number of active DAG runs per DAG
 max_active_runs_per_dag = 16

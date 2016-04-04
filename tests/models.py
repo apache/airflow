@@ -18,13 +18,19 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import os
 import unittest
 import time
 
 from airflow import models, AirflowException
+from airflow.models import TaskInstance as TI
 from airflow.operators import DummyOperator, BashOperator
 from airflow.utils.state import State
+from airflow.utils.tests import get_dag
 
+DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+TEST_DAGS_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'dags')
 
 class DagTest(unittest.TestCase):
 
@@ -117,7 +123,7 @@ class TaskInstanceTest(unittest.TestCase):
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                              pool='test_run_pooling_task_pool', owner='airflow',
                              start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
-        ti = models.TaskInstance(
+        ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run()
         assert ti.state == models.State.QUEUED
@@ -134,7 +140,7 @@ class TaskInstanceTest(unittest.TestCase):
             pool='test_run_pooling_task_with_mark_success_pool',
             owner='airflow',
             start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
-        ti = models.TaskInstance(
+        ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run(mark_success=True)
         assert ti.state == models.State.SUCCESS
@@ -159,7 +165,7 @@ class TaskInstanceTest(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti = models.TaskInstance(
+        ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
         # first run -- up for retry
@@ -196,7 +202,7 @@ class TaskInstanceTest(unittest.TestCase):
             except AirflowException:
                 pass
 
-        ti = models.TaskInstance(
+        ti = TI(
             task=task, execution_date=datetime.datetime.now())
 
         # first run -- up for retry
@@ -218,3 +224,22 @@ class TaskInstanceTest(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
         self.assertEqual(ti.try_number, 4)
+
+    def test_depends_on_past(self):
+        dag = get_dag('test_depends_on_past', TEST_DAGS_FOLDER)
+        task = dag.tasks[0]
+        run_date = task.start_date + datetime.timedelta(days=5)
+        ti = TI(task, run_date)
+
+        # depends_on_past prevents the run
+        task.run(start_date=run_date, end_date=run_date)
+        ti.refresh_from_db()
+        self.assertIs(ti.state, None)
+
+        # ignore first depends_on_past to allow the run
+        task.run(
+            start_date=run_date,
+            end_date=run_date,
+            ignore_first_depends_on_past=True)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)

@@ -28,6 +28,7 @@ class CeleryConfig(object):
     CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
+    CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
@@ -37,9 +38,10 @@ app = Celery(
 @app.task
 def execute_command(command):
     logging.info("Executing command in Celery " + command)
-    rc = subprocess.Popen(command, shell=True).wait()
-    if rc:
-        logging.error(rc)
+    try:
+        subprocess.check_call(command, shell=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(e)
         raise AirflowException('Celery command failed')
 
 
@@ -65,6 +67,7 @@ class CeleryExecutor(BaseExecutor):
         self.last_state[key] = celery_states.PENDING
 
     def sync(self):
+
         self.logger.debug(
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
         for key, async in list(self.tasks.items()):
