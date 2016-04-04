@@ -114,7 +114,7 @@ defaults = {
         'flower_port': '5555'
     },
     'email': {
-        'email_backend': 'airflow.utils.send_email_smtp',
+        'email_backend': 'airflow.utils.email.send_email_smtp',
     },
     'smtp': {
         'smtp_starttls': True,
@@ -242,11 +242,11 @@ authenticate = False
 filter_by_owner = False
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
 # If you want airflow to send emails on retries, failure, and you want to
-# the airflow.utils.send_email function, you have to configure an smtp
+# the airflow.utils.email.send_email_smtp function, you have to configure an smtp
 # server here
 smtp_host = localhost
 smtp_starttls = True
@@ -367,7 +367,7 @@ web_server_host = 0.0.0.0
 web_server_port = 8080
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
 smtp_host = localhost
