@@ -626,7 +626,7 @@ class TaskInstance(Base):
         return self._key() == other._key()
 
     def __hash__(self):
-        return hash(self.__key())
+        return hash(self._key())
 
    def command(
             self,
