@@ -12,6 +12,11 @@ from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 
+import json
+import requests
+
+base_url = "http://localhost:8080/api/v1"
+
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
@@ -23,23 +28,34 @@ class BaseHook(object):
     instances of these systems, and expose consistent methods to interact
     with them.
     """
+
     def __init__(self, source):
         pass
 
     @classmethod
     def get_connections(cls, conn_id):
-        session = settings.Session()
-        db = (
-            session.query(Connection)
-            .filter(Connection.conn_id == conn_id)
-            .all()
-        )
-        if not db:
+        resp = requests.get(base_url + "/get_connections/" + conn_id)
+        if not resp.ok:
             raise AirflowException(
                 "The conn_id `{0}` isn't defined".format(conn_id))
-        session.expunge_all()
-        session.close()
-        return db
+
+        json_data = json.loads(resp.content)
+        logging.info("json data len {}".format(len(json_data['data'])))
+        data = random.choice(json_data['data'])
+
+        dbs = []
+        for db in json_data['data']:
+            conn = Connection(conn_id=conn_id,
+                            conn_type=data['conn_type'],
+                            host=data['host'],
+                            port=data['port'],
+                            schema=data['schema'],
+                            password=data['password'],
+                            extra=data['extra'],
+                            )
+            dbs.append(conn)
+
+        return dbs
 
     @classmethod
     def get_connection(cls, conn_id):
