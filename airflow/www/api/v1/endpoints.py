@@ -14,6 +14,7 @@
 #
 from airflow import settings
 from airflow.models import Connection
+from airflow.security.flask_kerberos import requires_authentication
 
 import logging
 import random
@@ -27,6 +28,7 @@ apiv1 = Blueprint('apiv1', __name__)
 
 # todo: use DAG id and signature to verify access
 # todo: use roles
+@requires_authentication
 @apiv1.route('/get_connections/<string:conn_id>')
 def get_connections(conn_id):
     logging.info("Looking up conn_id: " + conn_id)
