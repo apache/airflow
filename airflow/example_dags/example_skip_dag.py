@@ -33,7 +33,7 @@ class DummySkipOperator(DummyOperator):
         raise AirflowSkipException
 
 
-dag = DAG(dag_id='short_circuit', default_args=args)
+dag = DAG(dag_id='example_skip_dag', default_args=args)
 
 
 def create_test_pipeline(suffix, trigger_rule, dag):
@@ -43,6 +43,12 @@ def create_test_pipeline(suffix, trigger_rule, dag):
     always_true = DummyOperator(task_id='always_true_{}'.format(suffix), dag=dag)
 
     join = DummyOperator(task_id=trigger_rule, dag=dag, trigger_rule=trigger_rule)
+
+
+    op = MyEmrOperator(task_id='my_task_id', dag=dag,
+                       template='my_jinja_template.conf',
+                       params={ 'param1': '{{ ti.xcom_pull(...) }}' }
+    )
 
     join.set_upstream(skip_operator)
     join.set_upstream(always_true)
