@@ -22,6 +22,7 @@ ipython
 jinja2
 markdown
 nose
+nose-parameterized
 nose-exclude
 pandas
 pygments

@@ -22,7 +22,8 @@ import os
 import unittest
 import time
 
-from airflow import models, AirflowException, AirflowSkipException
+from airflow import models, AirflowException
+from airflow.exceptions import AirflowSkipException
 from airflow.models import TaskInstance as TI
 from airflow.models import State as ST
 from airflow.operators import DummyOperator, BashOperator, PythonOperator
@@ -269,7 +270,12 @@ class TaskInstanceTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
+    # Parameterized tests to check for the correct firing
+    # of the trigger_rule under various circumstances
+    # Numeric fields are in order:
+    #   successes, skipped, failed, upstream_failed, done
     @parameterized.expand([
+
         #
         # Tests for all_success
         #

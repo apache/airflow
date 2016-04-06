@@ -1,12 +1,8 @@
 
-
-class AirflowBaseException(Exception):
-    pass
-
 #
 # Any AirflowException raised is expected to cause the TaskInstance to be marked in an ERROR state
 #
-class AirflowException(AirflowBaseException):
+class AirflowException(Exception):
     pass
 
 
@@ -21,6 +17,6 @@ class AirflowTaskTimeout(AirflowException):
 #
 # Any AirflowSkipException raised is expected to cause the TaskInstance to be marked in an SKIPPED state
 #
-class AirflowSkipException(AirflowBaseException):
+class AirflowSkipException(AirflowException):
     pass
 
