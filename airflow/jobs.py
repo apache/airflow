@@ -308,7 +308,7 @@ class SchedulerJob(BaseJob):
                     session.commit()
 
             blocking_tis = ([ti for ti in blocking_tis
-                            if ti.are_dependencies_met(main_session=session)])
+                            if ti.are_dependencies_met(session=session)])
             task_list = "\n".join([
                 sla.task_id + ' on ' + sla.execution_date.isoformat()
                 for sla in slas])
