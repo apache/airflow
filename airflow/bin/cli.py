@@ -513,7 +513,7 @@ def version(args):  # noqa
 
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
-    args.port = args.port or conf.get('celery', 'FLOWER_PORT')
+    args.port = args.port
     port = '--port=' + args.port
     api = ''
     if args.broker_api:
@@ -749,7 +749,7 @@ class CLIFactory(object):
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_port': Arg(
             ("-p", "--port"),
-            default=conf.get('webserver', 'WEB_SERVER_PORT'),
+            default=conf.get('celery', 'FLOWER_PORT'),
             type=int,
             help="The port on which to run the server"),
         'task_params': Arg(
