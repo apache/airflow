@@ -328,8 +328,8 @@ class SchedulerJob(BaseJob):
             Here's a list of tasks thas missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
             Blocking tasks:
-            <pre><code>{blocking_task_list}\n{asciiart.bug}<code></pre>
-            """.format(**locals())
+            <pre><code>{blocking_task_list}\n{bug}<code></pre>
+            """.format(bug=asciiart.bug, **locals())
             emails = []
             for t in dag.tasks:
                 if t.email:
