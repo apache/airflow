@@ -1754,6 +1754,7 @@ class AirflowModelView(ModelView):
     list_template = 'airflow/model_list.html'
     edit_template = 'airflow/model_edit.html'
     create_template = 'airflow/model_create.html'
+    column_display_actions = True
     page_size = 500
 
 
