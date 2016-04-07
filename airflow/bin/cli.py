@@ -514,7 +514,7 @@ def version(args):  # noqa
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
     args.port = args.port or conf.get('celery', 'FLOWER_PORT')
-    port = '--port=' + args.port
+    port = '--port=' + str(args.port)
     api = ''
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
