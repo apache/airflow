@@ -37,7 +37,7 @@ from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
-
+from airflow.utils import asciiart
 
 Base = models.Base
 ID_LEN = models.ID_LEN
