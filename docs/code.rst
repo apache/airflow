@@ -92,6 +92,8 @@ Community-contributed Operators
         BigQueryOperator,
         BigQueryToCloudStorageOperator,
         GoogleCloudStorageDownloadOperator,
+        HipChatAPIOperator,
+        HipChatAPISendRoomNotificationOperator,
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
