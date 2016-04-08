@@ -35,7 +35,7 @@ from airflow.configuration import AirflowConfigException
 
 import six
 
-NUM_EXAMPLE_DAGS = 15
+NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')

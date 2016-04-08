@@ -48,6 +48,7 @@ class BackfillJobTest(unittest.TestCase):
         # some DAGs really are just examples... but try to make them work!
         skip_dags = [
             'example_http_operator',
+            'example_twitter_dag',
         ]
 
         logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
