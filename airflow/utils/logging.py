@@ -105,7 +105,7 @@ class S3Log(object):
                     log,
                     key=remote_log_location,
                     replace=True,
-                    encrypt=configuration.get_bool('core', 'ENCRYPT_S3_LOGS'))
+                    encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'))
                 return
             except:
                 pass
