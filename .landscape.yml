@@ -9,5 +9,6 @@ pylint:
     - cyclic-import
     - invalid-name
     - super-on-old-class
+    - logging-format-interpolation
   options:
     docstring-min-length: 10
