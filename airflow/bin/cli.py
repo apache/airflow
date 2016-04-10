@@ -12,6 +12,7 @@ from builtins import input
 from collections import namedtuple
 from dateutil.parser import parse as parsedate
 import json
+import requests
 
 import airflow
 from airflow import jobs, settings
@@ -430,6 +431,18 @@ def version(args):  # noqa
     print(settings.HEADER + "  v" + airflow.__version__)
 
 
+def submit(args):
+    base_url = "http://localhost:8080/api/v1/submit"
+
+    files = {'file': open(args.filename, 'rb')}
+    resp = requests.post(base_url, files=files)
+
+    if not resp.ok:
+        raise AirflowException("Could not submit {}, status: {}".format(args.filename, resp.status_code))
+
+    print("OK")
+
+
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
     args.port = args.port or conf.get('celery', 'FLOWER_PORT')
@@ -622,6 +635,8 @@ class CLIFactory(object):
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
+        # submit
+        'filename': Arg(("-f", "--filename"), help="DAG .py or zip"),
     }
     subparsers = (
         {
@@ -723,7 +738,11 @@ class CLIFactory(object):
             'func': version,
             'help': "Show the version",
             'args': tuple(),
-        },
+        }, {
+            'func': submit,
+            'help': "Submit a DAG artifact (.py or .zip) to the central repository",
+            'args': ('filename',),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

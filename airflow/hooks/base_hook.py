@@ -32,28 +32,34 @@ class BaseHook(object):
     """
 
     def __init__(self, dag=None):
+        if not dag:
+            logging.warning("Hook initialized without a DAG context.")
+
         self.dag = dag
 
     def get_connections(self, conn_id):
-        resp = requests.get(base_url + "/get_connections/{}/{}".format(self.dag, conn_id))
+        if not self.dag:
+            dag_id = "none"
+        else:
+            dag_id = self.dag.dag_id
+
+        resp = requests.get(base_url + "/get_connections/{}/{}".format(dag_id, conn_id))
         if not resp.ok:
             raise AirflowException(
-                "The conn_id `{0}` isn't defined".format(conn_id))
+                "The conn_id `{0}` isn't defined for dag_id `{1}`".format(conn_id, dag_id))
 
         json_data = json.loads(resp.content)
-        logging.info("json data len {}".format(len(json_data['data'])))
-        data = random.choice(json_data['data'])
 
         dbs = []
-        for db in json_data['data']:
+        for data in json_data['data']:
             conn = Connection(conn_id=conn_id,
-                            conn_type=data['conn_type'],
-                            host=data['host'],
-                            port=data['port'],
-                            schema=data['schema'],
-                            password=data['password'],
-                            extra=data['extra'],
-                            )
+                              conn_type=data['conn_type'],
+                              host=data['host'],
+                              port=data['port'],
+                              schema=data['schema'],
+                              password=data['password'],
+                              extra=data['extra'],
+                              )
             dbs.append(conn)
 
         return dbs

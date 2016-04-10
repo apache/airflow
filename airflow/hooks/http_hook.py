@@ -26,7 +26,8 @@ class HttpHook(BaseHook):
     Interact with HTTP servers.
     """
 
-    def __init__(self, method='POST', http_conn_id='http_default'):
+    def __init__(self, method='POST', http_conn_id='http_default', *args, **kwargs):
+        super(HttpHook, self).__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
 

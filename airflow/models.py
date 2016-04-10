@@ -38,6 +38,8 @@ import socket
 import sys
 import traceback
 import warnings
+import zipfile
+import zipimport
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -206,18 +208,39 @@ class DagBag(LoggingMixin):
             # This failed before in what may have been a git sync
             # race condition
             dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
-            mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = 'unusual_prefix_' + mod_name
+            org_mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
+            mod_name = 'unusual_prefix_' + org_mod_name
         except Exception as e:
             logging.exception(e)
+            return found_dags
+
+        if only_if_updated \
+                and filepath in self.file_last_changed \
+                and dttm == self.file_last_changed[filepath]:
             return found_dags
 
         if safe_mode and os.path.isfile(filepath):
             # Skip file if no obvious references to airflow or DAG are found.
             with open(filepath, 'rb') as f:
-                content = f.read()
-                if not all([s in content for s in (b'DAG', b'airflow')]):
-                    return found_dags
+                if not zipfile.is_zipfile(f):
+                    # go back to beginning to file is_zipfile moves the pointer
+                    f.seek(0)
+                    content = f.read()
+                    if not all([s in content for s in (b'DAG', b'airflow')]):
+                        return found_dags
+                else:
+                    zip_file = zipfile.ZipFile(f)
+                    for z in zip_file.infolist():
+                        head, tail = os.path.split(z.filename)
+                        root, ext = os.path.splitext(z.filename)
+                        if not head and ext == '.py':
+                            with zip_file.open(z.filename) as zf:
+                                logging.info("Reading {} from zip {}".format(z.filename, filepath))
+                                content = zf.read()
+                                if not all([s in content for s in (b'DAG', b'airflow')]):
+                                    return found_dags
+                                # todo: of course this won't work for zips that have multiple py files in the root
+                                org_mod_name = root
 
         if (not only_if_updated or
                 filepath not in self.file_last_changed or
@@ -228,7 +251,15 @@ class DagBag(LoggingMixin):
                     del sys.modules[mod_name]
                 with timeout(
                         configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
-                    m = imp.load_source(mod_name, filepath)
+                    if not zipfile.is_zipfile(filepath):
+                        m = imp.load_source(mod_name, filepath)
+                    else:
+                        handler = zipimport.zipimporter(filepath)
+                        # this is potentially namespace polluting and might be considered a security
+                        # issue. Unfortunately the zipimport does not allow to set the name and
+                        # will require a implementation of a loader/finder
+                        m = handler.load_module(org_mod_name)
+
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
                 self.import_errors[filepath] = str(e)
@@ -240,6 +271,7 @@ class DagBag(LoggingMixin):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
                     dag.is_subdag = False
+                    dag.module_name = m
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                     found_dags.append(dag)
                     found_dags += dag.subdags
@@ -348,7 +380,7 @@ class DagBag(LoggingMixin):
                             continue
                         mod_name, file_ext = os.path.splitext(
                             os.path.split(filepath)[-1])
-                        if file_ext != '.py':
+                        if file_ext != '.py' and file_ext != '.zip':
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
@@ -2174,7 +2206,8 @@ class DAG(LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
-            params=None):
+            params=None,
+            module_name=None):
 
         self.user_defined_macros = user_defined_macros
         self.default_args = default_args or {}
@@ -2208,6 +2241,7 @@ class DAG(LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
+        self.module_name = module_name
 
         self._comps = {
             'dag_id',

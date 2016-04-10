@@ -54,7 +54,7 @@ class SimpleHttpOperator(BaseOperator):
         self.extra_options = extra_options or {}
 
     def execute(self, context):
-        http = HttpHook(self.method, http_conn_id=self.http_conn_id)
+        http = HttpHook(self.method, http_conn_id=self.http_conn_id, dag=self.dag)
         logging.info("Calling HTTP method")
         response = http.run(self.endpoint,
                             self.data,
