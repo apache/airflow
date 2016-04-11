@@ -37,6 +37,7 @@ import signal
 import socket
 import sys
 import traceback
+import warnings
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -53,7 +54,7 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -222,7 +223,7 @@ class DagBag(LoggingMixin):
                 filepath not in self.file_last_changed or
                 dttm != self.file_last_changed[filepath]):
             try:
-                self.logger.info("Importing " + filepath)
+                self.logger.debug("Importing " + filepath)
                 if mod_name in sys.modules:
                     del sys.modules[mod_name]
                 with timeout(
@@ -314,7 +315,7 @@ class DagBag(LoggingMixin):
             subdag.fileloc = root_dag.full_filepath
             subdag.is_subdag = True
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
-        self.logger.info('Loaded DAG {dag}'.format(**locals()))
+        self.logger.debug('Loaded DAG {dag}'.format(**locals()))
 
     def collect_dags(
             self,
@@ -376,7 +377,7 @@ class DagBag(LoggingMixin):
 
 
 class User(Base):
-    __tablename__ = "user"
+    __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
     username = Column(String(ID_LEN), unique=True)
@@ -623,11 +624,11 @@ class TaskInstance(Base):
             self,
             mark_success=False,
             ignore_dependencies=False,
+            ignore_depends_on_past=False,
             force=False,
             local=False,
             pickle_id=None,
             raw=False,
-            task_start_date=None,
             job_id=None,
             pool=None):
         """
@@ -642,14 +643,16 @@ class TaskInstance(Base):
         cmd += "--pickle {pickle_id} " if pickle_id else ""
         cmd += "--job_id {job_id} " if job_id else ""
         cmd += "-i " if ignore_dependencies else ""
+        cmd += "-I " if ignore_depends_on_past else ""
         cmd += "--force " if force else ""
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
-        if task_start_date:
-            cmd += "-s " + task_start_date.isoformat() + ' '
-        if not pickle_id and dag and dag.full_filepath:
-            cmd += "-sd DAGS_FOLDER/{dag.filepath} "
+        if not pickle_id and dag:
+            if dag.full_filepath != dag.filepath:
+                cmd += "-sd DAGS_FOLDER/{dag.filepath} "
+            elif dag.full_filepath:
+                cmd += "-sd {dag.full_filepath}"
         return cmd.format(**locals())
 
     @property
@@ -757,7 +760,11 @@ class TaskInstance(Base):
         self.end_date = datetime.now()
         session.merge(self)
 
-    def is_queueable(self, flag_upstream_failed=False):
+    def is_queueable(
+            self,
+            include_queued=False,
+            ignore_depends_on_past=False,
+            flag_upstream_failed=False):
         """
         Returns a boolean on whether the task instance has met all dependencies
         and is ready to run. It considers the task's state, the state
@@ -765,34 +772,65 @@ class TaskInstance(Base):
         isn't in the future. It doesn't take into
         account whether the pool has a slot for it to run.
 
+        :param include_queued: If True, tasks that have already been queued
+            are included. Defaults to False.
+        :type include_queued: boolean
+        :param ignore_depends_on_past: if True, ignores depends_on_past
+            dependencies. Defaults to False.
+        :type ignore_depends_on_past: boolean
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
         :type flag_upstream_failed: boolean
         """
+        # is the execution date in the future?
         if self.execution_date > datetime.now():
             return False
+        # is the task still in the retry waiting period?
         elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
             return False
+        # does the task have an end_date prior to the execution date?
         elif self.task.end_date and self.execution_date > self.task.end_date:
             return False
-        elif self.state in (State.SKIPPED, State.QUEUED):
+        # has the task been skipped?
+        elif self.state == State.SKIPPED:
             return False
+        # has the task already been queued (and are we excluding queued tasks)?
+        elif self.state == State.QUEUED and not include_queued:
+            return False
+        # is the task runnable and have its dependencies been met?
         elif (
                 self.state in State.runnable() and
                 self.are_dependencies_met(
+                    ignore_depends_on_past=ignore_depends_on_past,
                     flag_upstream_failed=flag_upstream_failed)):
             return True
+        # anything else
         else:
             return False
 
-    def is_runnable(self, flag_upstream_failed=False):
+    def is_runnable(
+            self,
+            include_queued=False,
+            ignore_depends_on_past=False,
+            flag_upstream_failed=False):
         """
         Returns whether a task is ready to run AND there's room in the
         queue.
+
+        :param include_queued: If True, tasks that are already QUEUED are
+            considered "runnable". Defaults to False.
+        :type include_queued: boolean
+        :param ignore_depends_on_past: if True, ignores depends_on_past
+            dependencies. Defaults to False.
+        :type ignore_depends_on_past: boolean
         """
-        return self.is_queueable(flag_upstream_failed) and not self.pool_full()
+        queueable = self.is_queueable(
+            include_queued=include_queued,
+            ignore_depends_on_past=ignore_depends_on_past,
+            flag_upstream_failed=flag_upstream_failed)
+        return queueable and not self.pool_full()
 
     @provide_session
     def are_dependents_done(self, session=None):
@@ -819,8 +857,67 @@ class TaskInstance(Base):
         return count == len(task.downstream_task_ids)
 
     @provide_session
+    def evaluate_trigger_rule(self, successes, skipped, failed,
+                              upstream_failed, done,
+                              flag_upstream_failed, session=None):
+        """
+        Returns a boolean on whether the current task can be scheduled
+        for execution based on its trigger_rule.
+
+        :param flag_upstream_failed: This is a hack to generate
+            the upstream_failed state creation while checking to see
+            whether the task instance is runnable. It was the shortest
+            path to add the feature
+        :type flag_upstream_failed: boolean
+        :param successes: Number of successful upstream tasks
+        :type successes: boolean
+        :param skipped: Number of skipped upstream tasks
+        :type skipped: boolean
+        :param failed: Number of failed upstream tasks
+        :type failed: boolean
+        :param upstream_failed: Number of upstream_failed upstream tasks
+        :type upstream_failed: boolean
+        :param done: Number of completed upstream tasks
+        :type done: boolean
+        """
+        TR = TriggerRule
+
+        task = self.task
+        upstream = len(task.upstream_task_ids)
+        tr = task.trigger_rule
+        upstream_done = done >= upstream
+
+        # handling instant state assignment based on trigger rules
+        if flag_upstream_failed:
+            if tr == TR.ALL_SUCCESS:
+                if upstream_failed or failed:
+                    self.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ALL_FAILED:
+                if successes or skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_SUCCESS:
+                if upstream_done and not successes:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_FAILED:
+                if upstream_done and not (failed or upstream_failed):
+                    self.set_state(State.SKIPPED, session)
+
+        return (
+             (tr == TR.ONE_SUCCESS and successes > 0) or
+             (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
+             (tr == TR.ALL_SUCCESS and successes >= upstream) or
+             (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
+             (tr == TR.ALL_DONE and upstream_done)
+        )
+
+    @provide_session
     def are_dependencies_met(
-            self, session=None, flag_upstream_failed=False,
+            self,
+            session=None,
+            flag_upstream_failed=False,
+            ignore_depends_on_past=False,
             verbose=False):
         """
         Returns a boolean on whether the upstream tasks are in a SUCCESS state
@@ -831,6 +928,9 @@ class TaskInstance(Base):
             whether the task instance is runnable. It was the shortest
             path to add the feature
         :type flag_upstream_failed: boolean
+        :param ignore_depends_on_past: if True, ignores depends_on_past
+            dependencies. Defaults to False.
+        :type ignore_depends_on_past: boolean
         :param verbose: verbose provides more logging in the case where the
             task instance is evaluated as a check right before being executed.
             In the case of the scheduler evaluating the dependencies, this
@@ -843,7 +943,7 @@ class TaskInstance(Base):
         task = self.task
 
         # Checking that the depends_on_past is fulfilled
-        if (task.depends_on_past and
+        if (task.depends_on_past and not ignore_depends_on_past and
                 not self.execution_date == task.start_date):
             previous_ti = session.query(TI).filter(
                 TI.dag_id == self.dag_id,
@@ -891,41 +991,16 @@ class TaskInstance(Base):
                     State.UPSTREAM_FAILED, State.SKIPPED]),
             )
         )
+
         successes, skipped, failed, upstream_failed, done = qry.first()
-        upstream = len(task.upstream_task_ids)
-        tr = task.trigger_rule
-        upstream_done = done >= upstream
-
-        # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
-            if tr == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    self.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ALL_FAILED:
-                if successes or skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_FAILED:
-                if upstream_done and not(failed or upstream_failed):
-                    self.set_state(State.SKIPPED, session)
-
-        if (
-            (tr == TR.ONE_SUCCESS and successes) or
-            (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-            (tr == TR.ALL_SUCCESS and successes >= upstream) or
-            (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-            (tr == TR.ALL_DONE and upstream_done)
-        ):
-            return True
-
+        satisfied = self.evaluate_trigger_rule(
+            session=session, successes=successes, skipped=skipped,
+            failed=failed, upstream_failed=upstream_failed, done=done,
+            flag_upstream_failed=flag_upstream_failed)
         session.commit()
-        if verbose:
-            logging.warning("Trigger rule `{}` not satisfied".format(tr))
-        return False
+        if verbose and not satisfied:
+            logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
+        return satisfied
 
     def __repr__(self):
         return (
@@ -969,6 +1044,8 @@ class TaskInstance(Base):
             self,
             verbose=True,
             ignore_dependencies=False,  # Doesn't check for deps, just runs
+            ignore_depends_on_past=False,   # Ignore depends_on_past but respect
+                                            # other deps
             force=False,  # Disregards previous successes
             mark_success=False,  # Don't run the task, act as if it succeeded
             test_mode=False,  # Doesn't record success or failure in the DB
@@ -996,11 +1073,16 @@ class TaskInstance(Base):
                 "Task {self} previously succeeded"
                 " on {self.end_date}".format(**locals())
             )
-        elif not ignore_dependencies and \
-                not self.are_dependencies_met(session=session, verbose=True):
+        elif (
+                not ignore_dependencies and
+                not self.are_dependencies_met(
+                    session=session,
+                    ignore_depends_on_past=ignore_depends_on_past,
+                    verbose=True)):
             logging.warning("Dependencies not met yet")
-        elif self.state == State.UP_FOR_RETRY and \
-                not self.ready_for_retry():
+        elif (
+                self.state == State.UP_FOR_RETRY and
+                not self.ready_for_retry()):
             next_run = (self.end_date + task.retry_delay).isoformat()
             logging.info(
                 "Not ready for retry yet. " +
@@ -1090,6 +1172,9 @@ class TaskInstance(Base):
                         self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                     task_copy.post_execute(context=context)
+                self.state = State.SUCCESS
+            except AirflowSkipException:
+                self.state = State.SKIPPED
             except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
                 raise
@@ -1097,9 +1182,8 @@ class TaskInstance(Base):
             # Recording SUCCESS
             self.end_date = datetime.now()
             self.set_duration()
-            self.state = State.SUCCESS
             if not test_mode:
-                session.add(Log(State.SUCCESS, self))
+                session.add(Log(self.state, self))
                 session.merge(self)
             session.commit()
 
@@ -1547,6 +1631,17 @@ class BaseOperator(object):
             *args,
             **kwargs):
 
+        if args or kwargs:
+            # TODO remove *args and **kwargs in Airflow 2.0
+            warnings.warn(
+                'Invalid arguments were passed to {c}. Support for '
+                'passing such arguments will be dropped in Airflow 2.0. '
+                'Invalid arguments were:'
+                '\n*args: {a}\n**kwargs: {k}'.format(
+                    c=self.__class__.__name__, a=args, k=kwargs),
+                category=PendingDeprecationWarning
+            )
+
         validate_key(task_id)
         self.dag_id = dag.dag_id if dag else 'adhoc_' + owner
         self.task_id = task_id
@@ -1874,8 +1969,13 @@ class BaseOperator(object):
         return False
 
     def run(
-            self, start_date=None, end_date=None, ignore_dependencies=False,
-            force=False, mark_success=False):
+            self,
+            start_date=None,
+            end_date=None,
+            ignore_dependencies=False,
+            ignore_first_depends_on_past=False,
+            force=False,
+            mark_success=False):
         """
         Run a set of task instances for a date range.
         """
@@ -1886,6 +1986,8 @@ class BaseOperator(object):
             TaskInstance(self, dt).run(
                 mark_success=mark_success,
                 ignore_dependencies=ignore_dependencies,
+                ignore_depends_on_past=(
+                    dt == start_date and ignore_first_depends_on_past),
                 force=force,)
 
     def dry_run(self):
@@ -2234,7 +2336,7 @@ class DAG(LoggingMixin):
     @provide_session
     def concurrency_reached(self, session=None):
         """
-        Returns a boolean as to whether the concurrency limit for this DAG
+        Returns a boolean indicating whether the concurrency limit for this DAG
         has been reached
         """
         TI = TaskInstance
@@ -2249,7 +2351,7 @@ class DAG(LoggingMixin):
     @provide_session
     def is_paused(self, session=None):
         """
-        Returns a boolean as to whether this DAG is paused
+        Returns a boolean indicating whether this DAG is paused
         """
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
@@ -2275,18 +2377,26 @@ class DAG(LoggingMixin):
         """
         Returns a list of the subdag objects associated to this DAG
         """
-        # Late import to prevent circular imports
-        from airflow.operators import SubDagOperator
+        # Check SubDag for class but don't check class directly, see
+        # https://github.com/airbnb/airflow/issues/1168
         l = []
         for task in self.tasks:
-            if isinstance(task, SubDagOperator):
+            if (
+                    task.__class__.__name__ == 'SubDagOperator' and
+                    hasattr(task, 'subdag')):
                 l.append(task.subdag)
                 l += task.subdag.subdags
         return l
 
     def get_active_runs(self):
         """
-        Maintains and returns the currently active runs as a list of dates
+        Maintains and returns the currently active runs as a list of dates.
+
+        A run is considered a SUCCESS if all of its root tasks either succeeded
+        or were skipped.
+
+        A run is considered a FAILURE if any of its root tasks failed OR if
+        it is deadlocked, meaning no tasks can run.
         """
         TI = TaskInstance
         session = settings.Session()
@@ -2296,26 +2406,82 @@ class DAG(LoggingMixin):
             .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.state == State.RUNNING)
-            .all()
-        )
+            .order_by(DagRun.execution_date)
+            .all())
+
+        task_instances = (
+            session
+            .query(TI)
+            .filter(
+                TI.dag_id == self.dag_id,
+                TI.task_id.in_(self.active_task_ids),
+                TI.execution_date.in_(r.execution_date for r in active_runs)
+            )
+            .all())
+
+        for ti in task_instances:
+            ti.task = self.get_task(ti.task_id)
+
+        # Runs are considered deadlocked if there are unfinished tasks but
+        # none of them can run. First we check across *all* dagruns in case
+        # there are depends_on_past relationships which could make individual
+        # dags look deadlocked incorrectly. Later we will check individual
+        # dagruns, as long as they don't have depends_on_past=True
+        all_deadlocked = (
+            # AND there are unfinished tasks...
+            any(ti.state in State.unfinished() for ti in task_instances) and
+            # AND none of them have dependencies met...
+            all(not ti.are_dependencies_met(session=session)
+                for ti in task_instances
+                if ti.state in State.unfinished()))
+
         for run in active_runs:
             self.logger.info("Checking state for {}".format(run))
-            task_instances = session.query(TI).filter(
-                TI.dag_id == run.dag_id,
-                TI.task_id.in_(self.active_task_ids),
-                TI.execution_date == run.execution_date,
-            ).all()
-            if len(task_instances) == len(self.active_tasks):
-                task_states = [ti.state for ti in task_instances]
-                if State.FAILED in task_states:
+
+            tis = [
+                t for t in task_instances
+                if t.execution_date == run.execution_date
+            ]
+
+            if len(tis) == len(self.active_tasks):
+
+                # if any roots failed, the run failed
+                root_ids = [t.task_id for t in self.roots]
+                roots = [t for t in tis if t.task_id in root_ids]
+                if any(
+                        r.state in (State.FAILED,  State.UPSTREAM_FAILED)
+                        for r in roots):
                     self.logger.info('Marking run {} failed'.format(run))
                     run.state = State.FAILED
-                elif len(
-                    set(task_states) |
-                    set([State.SUCCESS, State.SKIPPED])
-                ) == 2:
+
+                # if all roots succeeded, the run succeeded
+                elif all(
+                        r.state in (State.SUCCESS, State.SKIPPED)
+                        for r in roots):
                     self.logger.info('Marking run {} successful'.format(run))
                     run.state = State.SUCCESS
+
+                # if *the individual dagrun* is deadlocked, the run failed
+                elif (
+                        # there are unfinished tasks
+                        any(t.state in State.unfinished() for t in tis) and
+                        # AND none of them depend on past
+                        all(not t.task.depends_on_past for t in tis
+                            if t.state in State.unfinished()) and
+                        # AND none of their dependencies are met
+                        all(not t.are_dependencies_met() for t in tis
+                            if t.state in State.unfinished())):
+                    self.logger.info(
+                        'Deadlock; marking run {} failed'.format(run))
+                    run.state = State.FAILED
+
+                # if *ALL* dagruns are deadlocked, the run failed
+                elif all_deadlocked:
+                    self.logger.info(
+                        'Deadlock; marking run {} failed'.format(run))
+                    run.state = State.FAILED
+
+                # finally, if the roots aren't done, the dag is still running
                 else:
                     active_dates.append(run.execution_date)
             else:
@@ -2334,15 +2500,6 @@ class DAG(LoggingMixin):
         dag explicitly.
         """
         raise NotImplementedError("")
-
-    def override_start_date(self, start_date):
-        """
-        Sets start_date of all tasks and of the DAG itself to a certain date.
-        This is used by BackfillJob.
-        """
-        for t in self.tasks:
-            t.start_date = start_date
-        self.start_date = start_date
 
     def get_template_env(self):
         '''
@@ -2607,11 +2764,20 @@ class DAG(LoggingMixin):
         session.commit()
 
     def run(
-            self, start_date=None, end_date=None, mark_success=False,
-            include_adhoc=False, local=False, executor=None,
+            self,
+            start_date=None,
+            end_date=None,
+            mark_success=False,
+            include_adhoc=False,
+            local=False,
+            executor=None,
             donot_pickle=configuration.getboolean('core', 'donot_pickle'),
             ignore_dependencies=False,
+            ignore_first_depends_on_past=False,
             pool=None):
+        """
+        Runs the DAG.
+        """
         from airflow.jobs import BackfillJob
         if not executor and local:
             executor = LocalExecutor()
@@ -2626,6 +2792,7 @@ class DAG(LoggingMixin):
             executor=executor,
             donot_pickle=donot_pickle,
             ignore_dependencies=ignore_dependencies,
+            ignore_first_depends_on_past=ignore_first_depends_on_past,
             pool=pool)
         job.run()
 
@@ -2645,7 +2812,7 @@ class Chart(Base):
     id = Column(Integer, primary_key=True)
     label = Column(String(200))
     conn_id = Column(String(ID_LEN), nullable=False)
-    user_id = Column(Integer(), ForeignKey('user.id'), nullable=True)
+    user_id = Column(Integer(), ForeignKey('users.id'), nullable=True)
     chart_type = Column(String(100), default="line")
     sql_layout = Column(String(50), default="series")
     sql = Column(Text, default="SELECT series, x, y FROM table")
@@ -2681,7 +2848,7 @@ class KnownEvent(Base):
     label = Column(String(200))
     start_date = Column(DateTime)
     end_date = Column(DateTime)
-    user_id = Column(Integer(), ForeignKey('user.id'),)
+    user_id = Column(Integer(), ForeignKey('users.id'),)
     known_event_type_id = Column(Integer(), ForeignKey('known_event_type.id'),)
     reported_by = relationship(
         "User", cascade=False, cascade_backrefs=False, backref='known_events')

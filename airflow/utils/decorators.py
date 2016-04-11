@@ -12,8 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import inspect
 import os
+
+# inspect.signature is only available in Python 3. funcsigs.signature is
+# a backport.
+try:
+    import inspect
+    signature = inspect.signature
+except AttributeError:
+    import funcsigs
+    signature = funcsigs.signature
 
 from copy import copy
 from functools import wraps
@@ -57,12 +65,14 @@ def apply_defaults(func):
 
         dag_args.update(default_args)
         default_args = dag_args
-        arg_spec = inspect.getargspec(func)
-        num_defaults = len(arg_spec.defaults) if arg_spec.defaults else 0
-        non_optional_args = arg_spec.args[:-num_defaults]
-        if 'self' in non_optional_args:
-            non_optional_args.remove('self')
-        for arg in func.__code__.co_varnames:
+
+        sig = signature(func)
+        non_optional_args = [
+            name for (name, param) in sig.parameters.items()
+            if param.default == param.empty and
+            param.name != 'self' and
+            param.kind not in (param.VAR_POSITIONAL, param.VAR_KEYWORD)]
+        for arg in sig.parameters:
             if arg in default_args and arg not in kwargs:
                 kwargs[arg] = default_args[arg]
         missing_args = list(set(non_optional_args) - set(kwargs))

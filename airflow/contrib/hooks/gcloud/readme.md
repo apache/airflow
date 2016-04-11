@@ -13,8 +13,8 @@ The second set is based on the [`gcloud` Python library](https://googlecloudplat
 To use this set, install `airflow[gcloud]`.
 
 ##### Which should I use?
-New users should probably build on the `gcloud` set because the `gcloud` library is the recommended way for Python apps to interact with the Google Cloud Platform. The interface is easier to extend than the API approach.  
+New users should probably build on the `gcloud` set because the `gcloud` library is the recommended way for Python apps to interact with the Google Cloud Platform. The interface is easier to extend than the API approach.
 
-More pragmatically, if your existing code (hooks/operators/DAGs) depends on EITHER `gcloud >= 0.10` OR `google-api-python-client >= 1.5` (which both require `oauth2client >= 2.0`), then you won't be able to use `airflow[gcp_api]` due to compatibility issues. 
+More pragmatically, if your existing code (hooks/operators/DAGs) depends on EITHER `gcloud >= 0.10` OR `google-api-python-client >= 1.5` (which both require `oauth2client >= 2.0`), then you won't be able to use `airflow[gcp_api]` due to compatibility issues.
 
 However, if the hooks/operators in the `gcp_api` set meet your needs and you do not have other dependencies, then by all means use them!

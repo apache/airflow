@@ -7,6 +7,7 @@ coverage
 coveralls
 croniter
 dill
+python-daemon
 docker-py
 filechunkio
 flake8
@@ -22,6 +23,7 @@ ipython
 jinja2
 markdown
 nose
+nose-parameterized
 nose-exclude
 pandas
 pygments

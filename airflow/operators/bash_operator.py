@@ -20,7 +20,7 @@ class BashOperator(BaseOperator):
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
-        behavior.
+        behavior. (templated)
     :type env: dict
     :type output_encoding: output encoding of bash command
     """

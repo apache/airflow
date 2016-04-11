@@ -199,6 +199,7 @@ def initdb():
                 "GROUP BY state"),
         )
         session.add(chart)
+        session.commit()
 
 
 def upgradedb():

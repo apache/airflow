@@ -8,6 +8,7 @@ import errno
 import logging
 import os
 import subprocess
+import warnings
 
 from future import standard_library
 standard_library.install_aliases()
@@ -16,6 +17,11 @@ from builtins import str
 from collections import OrderedDict
 from configparser import ConfigParser
 
+# show Airflow's deprecation warnings
+warnings.filterwarnings(
+    action='default', category=DeprecationWarning, module='airflow')
+warnings.filterwarnings(
+    action='default', category=PendingDeprecationWarning, module='airflow')
 
 class AirflowConfigException(Exception):
     pass
@@ -82,10 +88,11 @@ defaults = {
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
-        'dags_are_paused_at_creation': False,
+        'dags_are_paused_at_creation': True,
         'sql_alchemy_pool_size': 5,
         'sql_alchemy_pool_recycle': 3600,
         'dagbag_import_timeout': 30,
+        'non_pooled_task_slot_count': 128,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -114,7 +121,7 @@ defaults = {
         'flower_port': '5555'
     },
     'email': {
-        'email_backend': 'airflow.utils.send_email_smtp',
+        'email_backend': 'airflow.utils.email.send_email_smtp',
     },
     'smtp': {
         'smtp_starttls': True,
@@ -150,12 +157,12 @@ base_log_folder = {AIRFLOW_HOME}/logs
 # must supply a remote location URL (starting with either 's3://...' or
 # 'gs://...') and an Airflow connection id that provides access to the storage
 # location.
-remote_base_log_folder = None
-remote_log_conn_id = None
+remote_base_log_folder =
+remote_log_conn_id =
 # Use server-side encryption for logs stored in S3
 encrypt_s3_logs = False
 # deprecated option for remote log storage, use remote_base_log_folder instead!
-# s3_log_folder = None
+# s3_log_folder =
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -184,7 +191,11 @@ parallelism = 32
 dag_concurrency = 16
 
 # Are DAGs paused by default at creation
-dags_are_paused_at_creation = False
+dags_are_paused_at_creation = True
+
+# When not using pools, tasks are run in the "default pool",
+# whose size is guided by this config element
+non_pooled_task_slot_count = 128
 
 # The maximum number of active DAG runs per DAG
 max_active_runs_per_dag = 16
@@ -242,11 +253,11 @@ authenticate = False
 filter_by_owner = False
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
 # If you want airflow to send emails on retries, failure, and you want to
-# the airflow.utils.send_email function, you have to configure an smtp
+# the airflow.utils.email.send_email_smtp function, you have to configure an smtp
 # server here
 smtp_host = localhost
 smtp_starttls = True
@@ -350,7 +361,7 @@ authenticate = False
 TEST_CONFIG = """\
 [core]
 airflow_home = {AIRFLOW_HOME}
-dags_folder = {AIRFLOW_HOME}/dags
+dags_folder = {TEST_DAGS_FOLDER}
 base_log_folder = {AIRFLOW_HOME}/logs
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
@@ -360,6 +371,7 @@ donot_pickle = False
 dag_concurrency = 16
 dags_are_paused_at_creation = False
 fernet_key = {FERNET_KEY}
+non_pooled_task_slot_count = 128
 
 [webserver]
 base_url = http://localhost:8080
@@ -367,7 +379,7 @@ web_server_host = 0.0.0.0
 web_server_port = 8080
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
 smtp_host = localhost
@@ -576,6 +588,17 @@ if 'AIRFLOW_CONFIG' not in os.environ:
         AIRFLOW_CONFIG = AIRFLOW_HOME + '/airflow.cfg'
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
+
+# Set up dags folder for unit tests
+# this directory won't exist if users install via pip
+_TEST_DAGS_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+    'tests',
+    'dags')
+if os.path.exists(_TEST_DAGS_FOLDER):
+    TEST_DAGS_FOLDER = _TEST_DAGS_FOLDER
+else:
+    TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, 'dags')
 
 
 def parameterized_config(template):

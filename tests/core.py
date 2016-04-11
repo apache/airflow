@@ -12,6 +12,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
 from time import sleep
+import warnings
 
 from dateutil.relativedelta import relativedelta
 
@@ -34,7 +35,7 @@ from airflow.configuration import AirflowConfigException
 
 import six
 
-NUM_EXAMPLE_DAGS = 14
+NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -42,36 +43,13 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
-configuration.test_mode()
+
 
 try:
     import cPickle as pickle
 except ImportError:
     # Python 3
     import pickle
-
-
-class timeout:
-    """
-    A context manager used to limit execution time.
-
-    Note -- won't work on Windows (based on signal, like Airflow timeouts)
-
-    Based on: http://stackoverflow.com/a/22348885
-    """
-    def __init__(self, seconds=1, error_message='Timeout'):
-        self.seconds = seconds
-        self.error_message = error_message
-
-    def handle_timeout(self, signum, frame):
-        raise ValueError(self.error_message)
-
-    def __enter__(self):
-        signal.signal(signal.SIGALRM, self.handle_timeout)
-        signal.alarm(self.seconds)
-
-    def __exit__(self, type, value, traceback):
-        signal.alarm(0)
 
 
 class FakeDatetime(datetime):
@@ -253,50 +231,6 @@ class CoreTest(unittest.TestCase):
     def test_confirm_unittest_mod(self):
         assert configuration.get('core', 'unit_test_mode')
 
-    def test_backfill_examples(self):
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in ('example_bash_operator',)]
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-        for dag in dags:
-            job = jobs.BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-            job.run()
-
-    def test_trap_executor_error(self):
-        """
-        Test for https://github.com/airbnb/airflow/pull/1220
-
-        Test that errors setting up tasks (before tasks run) are properly
-        caught
-        """
-        self.dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in ('test_raise_executor_error',)]
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-        for dag in dags:
-            job = jobs.BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-            # run with timeout because this creates an infinite loop if not
-            # caught
-            def run_with_timeout():
-                with timeout(seconds=15):
-                    job.run()
-            self.assertRaises(AirflowException, run_with_timeout)
-
     def test_pickling(self):
         dp = self.dag.pickle()
         assert self.dag.dag_id == dp.pickle.dag_id
@@ -386,6 +320,22 @@ class CoreTest(unittest.TestCase):
             upstream=True, downstream=True)
         ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
+
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        with warnings.catch_warnings(record=True) as w:
+            t = operators.BashOperator(
+                task_id='test_illegal_args',
+                bash_command='echo success',
+                dag=self.dag,
+                illegal_argument_1234='hello?')
+            self.assertTrue(
+                issubclass(w[0].category, PendingDeprecationWarning))
+            self.assertIn(
+                'Invalid arguments were passed to BashOperator.',
+                w[0].message.args[0])
 
     def test_bash_operator(self):
         t = operators.BashOperator(
@@ -668,7 +618,6 @@ class CoreTest(unittest.TestCase):
                 task_id='test_bad_trigger',
                 trigger_rule="non_existant",
                 dag=self.dag)
-
 
 class CliTests(unittest.TestCase):
     def setUp(self):

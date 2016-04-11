@@ -22,6 +22,7 @@ class State(object):
     Static class with task instance states constants and color method to
     avoid hardcoding.
     """
+    NONE = None
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
@@ -60,5 +61,37 @@ class State(object):
     @classmethod
     def runnable(cls):
         return [
-            None, cls.FAILED, cls.UP_FOR_RETRY, cls.UPSTREAM_FAILED,
-            cls.SKIPPED, cls.QUEUED]
+            cls.NONE,
+            cls.FAILED,
+            cls.UP_FOR_RETRY,
+            cls.UPSTREAM_FAILED,
+            cls.SKIPPED,
+            cls.QUEUED
+        ]
+
+    @classmethod
+    def finished(cls):
+        """
+        A list of states indicating that a task started and completed a
+        run attempt. Note that the attempt could have resulted in failure or
+        have been interrupted; in any case, it is no longer running.
+        """
+        return [
+            cls.SUCCESS,
+            cls.SHUTDOWN,
+            cls.FAILED,
+            cls.SKIPPED,
+        ]
+
+    @classmethod
+    def unfinished(cls):
+        """
+        A list of states indicating that a task either has not completed
+        a run or has not even started.
+        """
+        return [
+            cls.NONE,
+            cls.QUEUED,
+            cls.RUNNING,
+            cls.UP_FOR_RETRY
+        ]
