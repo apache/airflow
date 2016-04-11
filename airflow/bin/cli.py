@@ -332,12 +332,12 @@ def clear(args):
 def webserver(args):
     print(settings.HEADER)
 
-    from airflow.www.app import cached_app
-    app = cached_app(conf)
     workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
     if args.debug:
+        from airflow.www.app import cached_app
+        app = cached_app(conf)
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))

@@ -687,7 +687,7 @@ class SchedulerJob(BaseJob):
                             new = False
 
                     if not my_dag or new:
-                        # time handling is off
+                        # time handling is off hence the parsing above
                         logging.info("Getting file for dag_id {} my_dag: {} last_changed here: {} there: {}".format(dag_data['dag_id'], my_dag, dagbag.file_last_changed[my_dag.full_filepath], dag_data['last_changed']))
                         r = requests.get(base_url + "get_dag_file/" + dag_data['dag_id'], stream=True)
                         if r.status_code == 200:

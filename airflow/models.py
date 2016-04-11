@@ -41,6 +41,7 @@ import warnings
 import zipfile
 import zipimport
 from urllib.parse import urlparse
+import importlib
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
@@ -233,7 +234,7 @@ class DagBag(LoggingMixin):
                     for z in zip_file.infolist():
                         head, tail = os.path.split(z.filename)
                         root, ext = os.path.splitext(z.filename)
-                        if not head and ext == '.py':
+                        if not head and ext == '.py' and not root == '__init__':
                             with zip_file.open(z.filename) as zf:
                                 logging.info("Reading {} from zip {}".format(z.filename, filepath))
                                 content = zf.read()
@@ -241,6 +242,7 @@ class DagBag(LoggingMixin):
                                     return found_dags
                                 # todo: of course this won't work for zips that have multiple py files in the root
                                 org_mod_name = root
+                                org_file_name = os.path.join(filepath, z.filename)
 
         if (not only_if_updated or
                 filepath not in self.file_last_changed or
@@ -254,11 +256,15 @@ class DagBag(LoggingMixin):
                     if not zipfile.is_zipfile(filepath):
                         m = imp.load_source(mod_name, filepath)
                     else:
-                        handler = zipimport.zipimporter(filepath)
+                        sys.path.insert(0, filepath)
+                        #f, path, descr = imp.find_module(org_mod_name)
+                        #handler = zipimport.zipimporter(filepath)
                         # this is potentially namespace polluting and might be considered a security
                         # issue. Unfortunately the zipimport does not allow to set the name and
                         # will require a implementation of a loader/finder
-                        m = handler.load_module(org_mod_name)
+
+                        #m = imp.load_module(mod_name, f, path, descr)
+                        m = importlib.import_module(org_mod_name)
 
             except Exception as e:
                 self.logger.exception("Failed to import: " + filepath)
