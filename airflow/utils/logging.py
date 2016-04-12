@@ -136,7 +136,9 @@ class GCSLog(object):
         except:
             try:
                 from airflow.contrib.hooks import GoogleCloudStorageHook
-                self.hook = GoogleCloudStorageHook(remote_conn_id)
+                self.hook = GoogleCloudStorageHook(
+                    scope='https://www.googleapis.com/auth/devstorage.read_write',
+                    google_cloud_storage_conn_id=remote_conn_id)
             except:
                 self.hook = None
                 logging.error(
@@ -204,6 +206,10 @@ class GCSLog(object):
                     from tempfile import NamedTemporaryFile
                     with NamedTemporaryFile(mode='w+') as tmpfile:
                         tmpfile.write(log)
+                        # Force the file to be flushed, since we're doing the
+                        # upload from within the file context (it hasn't been
+                        # closed).
+                        tmpfile.flush()
                         self.hook.upload(bkt, blob, tmpfile.name)
                     return
             except:
