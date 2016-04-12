@@ -18,85 +18,108 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import logging
 import os
 import unittest
 
 from airflow import AirflowException, settings
 from airflow.bin import cli
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.operators import DummyOperator
 from airflow.utils.state import State
-from airflow.utils.tests import get_dag
 from airflow.utils.timeout import timeout
 from airflow.utils.db import provide_session
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
-TEST_DAGS_FOLDER = os.path.join(
-    os.path.dirname(os.path.realpath(__file__)), 'dags')
-
 
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
         self.parser = cli.CLIFactory.get_parser()
+        self.dagbag = DagBag(include_examples=True)
 
     def test_backfill_examples(self):
-        dagbag = DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
+        """
+        Test backfilling example dags
+        """
+
+        # some DAGs really are just examples... but try to make them work!
+        skip_dags = [
+            'example_http_operator',
+            'example_twitter_dag',
+        ]
+
+        logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
         dags = [
-            dag for dag in dagbag.dags.values()
-            if dag.dag_id in ('example_bash_operator',)]
+            dag for dag in self.dagbag.dags.values()
+            if 'example_dags' in dag.full_filepath
+            and dag.dag_id not in skip_dags
+            ]
+
         for dag in dags:
             dag.clear(
                 start_date=DEFAULT_DATE,
                 end_date=DEFAULT_DATE)
-        for dag in dags:
+
+        for i, dag in enumerate(sorted(dags, key=lambda d: d.dag_id)):
+            logger.info('*** Running example DAG #{}: {}'.format(i, dag.dag_id))
             job = BackfillJob(
                 dag=dag,
                 start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
+                end_date=DEFAULT_DATE,
+                ignore_first_depends_on_past=True)
             job.run()
 
     def test_trap_executor_error(self):
         """
+        Test that errors setting up tasks (before tasks run) are caught.
+
+        Executors run tasks with the `airflow run` command. If a task runs,
+        its state (success, failure, or other) is stored in the database and
+        `airflow run` exits without error. However, if an error is raised
+        before the task runs, then the task won't be able to update its status.
+        This can put the executor into an infinite loop of trying to run the
+        task.
+
+        To counteract that, the executor traps errors coming from
+        `airflow run` (essentially looking for returncode != 0).
+        This unit test creates such an error by trying
+        to run a subdag whose dag_id has changed and therefore can't be
+        found. If the trap is working properly, the error will be caught
+        and the Backfill will report failures. If the trap is not working,
+        the job will run infinitely (the unit test uses a timeout to protect
+        against that case).
+
         Test for https://github.com/airbnb/airflow/pull/1220
-
-        Test that errors setting up tasks (before tasks run) are properly
-        caught
         """
-        dagbag = DagBag(dag_folder=TEST_DAGS_FOLDER)
-        dags = [
-            dag for dag in dagbag.dags.values()
-            if dag.dag_id in ('test_raise_executor_error',)]
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-        for dag in dags:
-            job = BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-            # run with timeout because this creates an infinite loop if not
-            # caught
-            def run_with_timeout():
-                with timeout(seconds=30):
-                    job.run()
-            self.assertRaises(AirflowException, run_with_timeout)
+        dag = self.dagbag.get_dag('test_raise_executor_error')
+        dag.clear()
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE)
+        # run with timeout because this creates an infinite loop if not
+        # caught
+        def run_with_timeout():
+            with timeout(seconds=30):
+                job.run()
+        self.assertRaises(AirflowException, run_with_timeout)
 
-    def test_backfill_pooled_task(self):
+    def test_backfill_pooled_tasks(self):
         """
-        Test for https://github.com/airbnb/airflow/pull/1225
-
         Test that queued tasks are executed by BackfillJob
+
+        Test for https://github.com/airbnb/airflow/pull/1225
         """
         session = settings.Session()
         pool = Pool(pool='test_backfill_pooled_task_pool', slots=1)
         session.add(pool)
         session.commit()
 
-        dag = get_dag('test_backfill_pooled_task_dag', TEST_DAGS_FOLDER)
+        dag = self.dagbag.get_dag('test_backfill_pooled_task_dag')
+        dag.clear()
 
         job = BackfillJob(
             dag=dag,
@@ -115,15 +138,18 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
 
     def test_backfill_depends_on_past(self):
-        dag = get_dag('test_depends_on_past', TEST_DAGS_FOLDER)
-        run_date = dag.start_date + datetime.timedelta(days=5)
-        # import ipdb; ipdb.set_trace()
-        BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run()
+        """
+        Test that backfill resects ignore_depends_on_past
+        """
+        dag = self.dagbag.get_dag('test_depends_on_past')
+        dag.clear()
+        run_date = DEFAULT_DATE + datetime.timedelta(days=5)
 
-        # ti should not have run
-        ti = TI(dag.tasks[0], run_date)
-        ti.refresh_from_db()
-        self.assertIs(ti.state, None)
+        # backfill should deadlock
+        self.assertRaisesRegexp(
+            AirflowException,
+            'BackfillJob is deadlocked',
+            BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run)
 
         BackfillJob(
             dag=dag,
@@ -131,30 +157,32 @@ class BackfillJobTest(unittest.TestCase):
             end_date=run_date,
             ignore_first_depends_on_past=True).run()
 
-        # ti should have run
+        # ti should have succeeded
         ti = TI(dag.tasks[0], run_date)
         ti.refresh_from_db()
         self.assertEquals(ti.state, State.SUCCESS)
 
     def test_cli_backfill_depends_on_past(self):
+        """
+        Test that CLI respects -I argument
+        """
         dag_id = 'test_dagrun_states_deadlock'
         run_date = DEFAULT_DATE + datetime.timedelta(days=1)
         args = [
             'backfill',
             dag_id,
             '-l',
-            '-sd',
-            TEST_DAGS_FOLDER,
             '-s',
             run_date.isoformat(),
         ]
-        dag = get_dag(dag_id, TEST_DAGS_FOLDER)
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
 
-        cli.backfill(self.parser.parse_args(args))
-        ti = TI(dag.get_task('test_depends_on_past'), run_date)
-        ti.refresh_from_db()
-        # task did not run
-        self.assertEqual(ti.state, State.NONE)
+        self.assertRaisesRegexp(
+            AirflowException,
+            'BackfillJob is deadlocked',
+            cli.backfill,
+            self.parser.parse_args(args))
 
         cli.backfill(self.parser.parse_args(args + ['-I']))
         ti = TI(dag.get_task('test_depends_on_past'), run_date)
@@ -164,6 +192,10 @@ class BackfillJobTest(unittest.TestCase):
 
 
 class SchedulerJobTest(unittest.TestCase):
+
+    def setUp(self):
+        self.dagbag = DagBag()
+
     @provide_session
     def evaluate_dagrun(
             self,
@@ -181,15 +213,13 @@ class SchedulerJobTest(unittest.TestCase):
             run_kwargs = {}
 
         scheduler = SchedulerJob()
-        dag = get_dag(dag_id, TEST_DAGS_FOLDER)
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
         dr = scheduler.schedule_dag(dag)
         if advance_execution_date:
             # run a second time to schedule a dagrun after the start_date
             dr = scheduler.schedule_dag(dag)
         ex_date = dr.execution_date
-
-        # if 'test_dagrun_states_deadlock' in dag_id and run_kwargs:
-        #     import ipdb; ipdb.set_trace()
 
         try:
             dag.run(start_date=ex_date, end_date=ex_date, **run_kwargs)
@@ -214,8 +244,6 @@ class SchedulerJobTest(unittest.TestCase):
         # dagrun is running
         self.assertEqual(dr.state, State.RUNNING)
 
-        # import ipdb; ipdb.set_trace()
-
         dag.get_active_runs()
 
         # dagrun failed
@@ -223,8 +251,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_fail(self):
         """
-        Test that a DagRun with one failed task and one incomplete root task
-        is marked a failure
+        DagRuns with one failed and one incomplete root task -> FAILED
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_fail',
@@ -234,8 +261,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_success(self):
         """
-        Test that a DagRun with one failed task and one successful root task
-        is marked a success
+        DagRuns with one failed and one successful root task -> SUCCESS
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_success',
@@ -245,8 +271,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_root_fail(self):
         """
-        Test that a DagRun with one successful root task and one failed root
-        task is marked a failure
+        DagRuns with one successful and one failed root task -> FAILED
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_root_fail',
@@ -256,6 +281,8 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_deadlock(self):
         """
+        Deadlocked DagRun is marked a failure
+
         Test that a deadlocked dagrun is marked as a failure by having
         depends_on_past and an execution_date after the start_date
         """
@@ -266,8 +293,39 @@ class SchedulerJobTest(unittest.TestCase):
             dagrun_state=State.FAILED,
             advance_execution_date=True)
 
+    def test_scheduler_pooled_tasks(self):
+        """
+        Test that the scheduler handles queued tasks correctly
+        See issue #1299
+        """
+        session = settings.Session()
+        if not (
+                session.query(Pool)
+                .filter(Pool.pool == 'test_queued_pool')
+                .first()):
+            pool = Pool(pool='test_queued_pool', slots=5)
+            session.merge(pool)
+            session.commit()
+        session.close()
+
+        dag_id = 'test_scheduled_queued_tasks'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+
+        scheduler = SchedulerJob(dag_id, num_runs=10)
+        scheduler.run()
+
+        task_1 = dag.tasks[0]
+        ti = TI(task_1, dag.start_date)
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.FAILED)
+
+        dag.clear()
+
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):
         """
+        DagRun is marked a success if ignore_first_depends_on_past=True
+
         Test that an otherwise-deadlocked dagrun is marked as a success
         if ignore_first_depends_on_past=True and the dagrun execution_date
         is after the start_date.
@@ -293,3 +351,44 @@ class SchedulerJobTest(unittest.TestCase):
             second_task_state=State.SUCCESS,
             dagrun_state=State.SUCCESS,
             run_kwargs=dict(ignore_first_depends_on_past=True))
+
+    def test_scheduler_start_date(self):
+        """
+        Test that the scheduler respects start_dates, even when DAGS have run
+        """
+
+        dag_id = 'test_start_date_scheduling'
+        dag = self.dagbag.get_dag(dag_id)
+        dag.clear()
+        self.assertTrue(dag.start_date > DEFAULT_DATE)
+
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        scheduler.run()
+
+        # zero tasks ran
+        session = settings.Session()
+        self.assertEqual(
+            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+
+        # previously, running this backfill would kick off the Scheduler
+        # because it would take the most recent run and start from there
+        # That behavior still exists, but now it will only do so if after the
+        # start date
+        backfill = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE)
+        backfill.run()
+
+        # one task ran
+        session = settings.Session()
+        self.assertEqual(
+            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+        scheduler = SchedulerJob(dag_id, num_runs=2)
+        scheduler.run()
+
+        # still one task
+        session = settings.Session()
+        self.assertEqual(
+            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)

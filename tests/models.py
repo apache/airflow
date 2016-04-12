@@ -23,10 +23,12 @@ import unittest
 import time
 
 from airflow import models, AirflowException
+from airflow.exceptions import AirflowSkipException
 from airflow.models import TaskInstance as TI
-from airflow.operators import DummyOperator, BashOperator
+from airflow.models import State as ST
+from airflow.operators import DummyOperator, BashOperator, PythonOperator
 from airflow.utils.state import State
-from airflow.utils.tests import get_dag
+from nose_parameterized import parameterized
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -126,7 +128,7 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run()
-        assert ti.state == models.State.QUEUED
+        self.assertEqual(ti.state, models.State.QUEUED)
 
     def test_run_pooling_task_with_mark_success(self):
         """
@@ -143,7 +145,29 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run(mark_success=True)
-        assert ti.state == models.State.SUCCESS
+        self.assertEqual(ti.state, models.State.SUCCESS)
+
+    def test_run_pooling_task_with_skip(self):
+        """
+        test that running task which returns AirflowSkipOperator will end
+        up in a SKIPPED state.
+        """
+
+        def raise_skip_exception():
+            raise AirflowSkipException
+
+        dag = models.DAG(dag_id='test_run_pooling_task_with_skip')
+        task = PythonOperator(
+            task_id='test_run_pooling_task_with_skip',
+            dag=dag,
+            python_callable=raise_skip_exception,
+            owner='airflow',
+            start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(
+            task=task, execution_date=datetime.datetime.now())
+        ti.run()
+        self.assertTrue(ti.state == models.State.SKIPPED)
+
 
     def test_retry_delay(self):
         """
@@ -226,7 +250,9 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(ti.try_number, 4)
 
     def test_depends_on_past(self):
-        dag = get_dag('test_depends_on_past', TEST_DAGS_FOLDER)
+        dagbag = models.DagBag()
+        dag = dagbag.get_dag('test_depends_on_past')
+        dag.clear()
         task = dag.tasks[0]
         run_date = task.start_date + datetime.timedelta(days=5)
         ti = TI(task, run_date)
@@ -243,3 +269,72 @@ class TaskInstanceTest(unittest.TestCase):
             ignore_first_depends_on_past=True)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
+
+    # Parameterized tests to check for the correct firing
+    # of the trigger_rule under various circumstances
+    # Numeric fields are in order:
+    #   successes, skipped, failed, upstream_failed, done
+    @parameterized.expand([
+
+        #
+        # Tests for all_success
+        #
+        ['all_success', 5, 0, 0, 0, 0, True, None, True],
+        ['all_success', 2, 0, 0, 0, 0, True, None, False],
+        ['all_success', 2, 0, 1, 0, 0, True, ST.UPSTREAM_FAILED, False],
+        ['all_success', 2, 1, 0, 0, 0, True, ST.SKIPPED, False],
+        #
+        # Tests for one_success
+        #
+        ['one_success', 5, 0, 0, 0, 5, True, None, True],
+        ['one_success', 2, 0, 0, 0, 2, True, None, True],
+        ['one_success', 2, 0, 1, 0, 3, True, None, True],
+        ['one_success', 2, 1, 0, 0, 3, True, None, True],
+        #
+        # Tests for all_failed
+        #
+        ['all_failed', 5, 0, 0, 0, 5, True, ST.SKIPPED, False],
+        ['all_failed', 0, 0, 5, 0, 5, True, None, True],
+        ['all_failed', 2, 0, 0, 0, 2, True, ST.SKIPPED, False],
+        ['all_failed', 2, 0, 1, 0, 3, True, ST.SKIPPED, False],
+        ['all_failed', 2, 1, 0, 0, 3, True, ST.SKIPPED, False],
+        #
+        # Tests for one_failed
+        #
+        ['one_failed', 5, 0, 0, 0, 0, True, None, False],
+        ['one_failed', 2, 0, 0, 0, 0, True, None, False],
+        ['one_failed', 2, 0, 1, 0, 0, True, None, True],
+        ['one_failed', 2, 1, 0, 0, 3, True, None, False],
+        ['one_failed', 2, 3, 0, 0, 5, True, ST.SKIPPED, False],
+        #
+        # Tests for done
+        #
+        ['all_done', 5, 0, 0, 0, 5, True, None, True],
+        ['all_done', 2, 0, 0, 0, 2, True, None, False],
+        ['all_done', 2, 0, 1, 0, 3, True, None, False],
+        ['all_done', 2, 1, 0, 0, 3, True, None, False]
+    ])
+    def test_check_task_dependencies(self, trigger_rule, successes, skipped,
+                                     failed, upstream_failed, done,
+                                     flag_upstream_failed,
+                                     expect_state, expect_completed):
+        start_date = datetime.datetime(2016, 2, 1, 0, 0, 0)
+        dag = models.DAG('test-dag', start_date=start_date)
+        downstream = DummyOperator(task_id='downstream',
+                                   dag=dag, owner='airflow',
+                                   trigger_rule=trigger_rule)
+        for i in range(5):
+            task = DummyOperator(task_id='runme_{}'.format(i),
+                                 dag=dag, owner='airflow')
+            task.set_downstream(downstream)
+        run_date = task.start_date + datetime.timedelta(days=5)
+
+        ti = TI(downstream, run_date)
+        completed = ti.evaluate_trigger_rule(
+            successes=successes, skipped=skipped, failed=failed,
+            upstream_failed=upstream_failed, done=done,
+            flag_upstream_failed=flag_upstream_failed)
+
+        self.assertEqual(completed, expect_completed)
+        self.assertEqual(ti.state, expect_state)
+

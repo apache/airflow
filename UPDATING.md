@@ -17,6 +17,13 @@ Previously, new DAGs would be scheduled immediately. To retain the old behavior,
 dags_are_paused_at_creation = False
 ```
 
+### Worker, Scheduler, Webserver, Kerberos, Flower now detach by default
+
+The different daemons have been reworked to behave like traditional Unix daemons. This allows
+you to set PID file locations, log file locations including stdin and stderr.
+
+If you want to retain the old behavior specify ```-f``` or ```--foreground``` on the command line.
+
 ### Deprecated Features
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer supported and will be removed entirely in Airflow 2.0
 

@@ -12,18 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
+import os
 import unittest
-from datetime import datetime
 
 import airflow
-from airflow import DAG
-from airflow.operators import DummyOperator
-from airflow.operators.subdag_operator import SubDagOperator
+from airflow.models import DAG, DagBag
+from airflow.operators import BashOperator, DummyOperator, SubDagOperator
+from airflow.jobs import BackfillJob
 from airflow.exceptions import AirflowException
+
+DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 
 default_args = dict(
     owner='airflow',
-    start_date=datetime(2016, 1, 1),
+    start_date=DEFAULT_DATE,
 )
 
 class SubDagOperatorTests(unittest.TestCase):
@@ -54,7 +57,7 @@ class SubDagOperatorTests(unittest.TestCase):
         Subdags and subdag tasks can't both have a pool with 1 slot
         """
         dag = DAG('parent', default_args=default_args)
-        subdag = DAG('parent.test', default_args=default_args)
+        subdag = DAG('parent.child', default_args=default_args)
 
         session = airflow.settings.Session()
         pool_1 = airflow.models.Pool(pool='test_pool_1', slots=1)
@@ -68,17 +71,27 @@ class SubDagOperatorTests(unittest.TestCase):
         self.assertRaises(
             AirflowException,
             SubDagOperator,
-            task_id='test', dag=dag, subdag=subdag, pool='test_pool_1')
+            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1')
 
         # recreate dag because failed subdagoperator was already added
         dag = DAG('parent', default_args=default_args)
         SubDagOperator(
-            task_id='test', dag=dag, subdag=subdag, pool='test_pool_10')
+            task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
 
         session.delete(pool_1)
         session.delete(pool_10)
         session.commit()
 
+    def test_subdag_deadlock(self):
+        dagbag = DagBag()
+        dag = dagbag.get_dag('test_subdag_deadlock')
+        dag.clear()
+        subdag = dagbag.get_dag('test_subdag_deadlock.subdag')
+        subdag.clear()
 
-if __name__ == "__main__":
-    unittest.main()
+        # first make sure subdag is deadlocked
+        self.assertRaisesRegexp(AirflowException, 'deadlocked', subdag.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+        # now make sure dag picks up the subdag error
+        subdag.clear()
+        self.assertRaises(AirflowException, dag.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

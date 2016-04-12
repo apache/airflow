@@ -22,7 +22,9 @@ The installation is quick and straightforward.
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
 inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
-the ``Admin->Configuration`` menu.
+the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
+in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
+if started by systemd.
 
 Out of the box, Airflow uses a sqlite database, which you should outgrow
 fairly quickly since no parallelization is possible using this database

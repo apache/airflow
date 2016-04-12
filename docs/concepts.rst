@@ -177,10 +177,10 @@ It is also possible to pull XCom directly in a template, here's an example
 of what this may look like:
 
 .. code:: sql
-    
+
     SELECT * FROM {{ task_instance.xcom_pull(task_ids='foo', key='table_name') }}
 
-Note that XComs are similar to `Variables`_, but are specifically designed 
+Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
 
@@ -441,7 +441,7 @@ configuration files, it allows you to expose the configuration that led
 to the related tasks in Airflow.
 
 .. code:: python
-    
+
     t = BashOperator("foo", dag=dag)
     t.doc_md = """\
     #Title"
@@ -450,3 +450,28 @@ to the related tasks in Airflow.
 
 This content will get rendered as markdown in the "Task Details" page.
 
+Jinja Templating
+''''''''''''''''
+Airflow leverages the power of
+`Jinja Templating <http://jinja.pocoo.org/docs/dev/>`_ and this can be a
+powerful tool to use in combination with macros (see the :ref:`macros` section).
+
+For example, say you want to pass the execution date as an environment variable
+to a Bash script using the ``BashOperator``.
+
+.. code:: python
+
+  # The execution date as YYYY-MM-DD
+  date = "{{ ds }}"
+  t = BashOperator(
+      task_id='test_env',
+      bash_command='/tmp/test.sh ',
+      dag=dag,
+      env={'EXECUTION_DATE': date})
+
+Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the
+``BashOperator`` is templated with Jinja, the execution date will be available
+as an environment variable named ``EXECUTION_DATE`` in your Bash script.
+
+You can use Jinja templating with every parameter that is marked as "templated"
+in the documentation.

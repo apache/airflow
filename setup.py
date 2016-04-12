@@ -95,7 +95,7 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = ['lxml>=3.3.4', 'nose', 'mock']
+devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
@@ -117,6 +117,7 @@ setup(
         'chartkick>=0.4.2, < 0.5',
         'croniter>=0.3.8, <0.4',
         'dill>=0.2.2, <0.3',
+        'python-daemon>=2.1.1, <2.2',
         'flask>=0.10.1, <0.11',
         'flask-admin>=1.4.0, <2.0.0',
         'flask-cache>=0.13.1, <0.14',
