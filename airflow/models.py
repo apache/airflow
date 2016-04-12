@@ -68,7 +68,6 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 
-
 Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
@@ -78,6 +77,7 @@ XCOM_RETURN_KEY = 'return_value'
 ENCRYPTION_ON = False
 try:
     from cryptography.fernet import Fernet
+
     FERNET = Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
     ENCRYPTION_ON = True
 except:
@@ -140,6 +140,7 @@ class DagBag(LoggingMixin):
         by the scheduler job only
     :type sync_to_db: bool
     """
+
     def __init__(
             self,
             dag_folder=None,
@@ -184,11 +185,11 @@ class DagBag(LoggingMixin):
         # If the root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
         if orm_dag and (
-                root_dag_id not in self.dags or (
-                    dag.last_loaded < (
-                    orm_dag.last_expired or datetime(2100, 1, 1)
-                )
-        )):
+                        root_dag_id not in self.dags or (
+                            dag.last_loaded < (
+                                    orm_dag.last_expired or datetime(2100, 1, 1)
+                        )
+                )):
             # Reprocessing source file
             found_dags = self.process_file(
                 filepath=orm_dag.fileloc, only_if_updated=False)
@@ -201,77 +202,82 @@ class DagBag(LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
-        Given a path to a python module, this method imports the module and
-        look for dag objects within it.
+        Given a path to a python module or zip file, this method imports
+        the module and look for dag objects within it.
         """
         found_dags = []
+
+        # todo: raise exception?
+        if not os.path.isfile(filepath):
+            return found_dags
+
         try:
             # This failed before in what may have been a git sync
             # race condition
             dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
-            org_mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = 'unusual_prefix_' + org_mod_name
+            if only_if_updated \
+                    and filepath in self.file_last_changed \
+                    and dttm == self.file_last_changed[filepath]:
+                return found_dags
+
         except Exception as e:
             logging.exception(e)
             return found_dags
 
-        if only_if_updated \
-                and filepath in self.file_last_changed \
-                and dttm == self.file_last_changed[filepath]:
-            return found_dags
-
-        if safe_mode and os.path.isfile(filepath):
-            # Skip file if no obvious references to airflow or DAG are found.
-            with open(filepath, 'rb') as f:
-                if not zipfile.is_zipfile(f):
-                    # go back to beginning to file is_zipfile moves the pointer
-                    f.seek(0)
+        mods = []
+        if not zipfile.is_zipfile(filepath):
+            if safe_mode and os.path.isfile(filepath):
+                with open(filepath, 'rb') as f:
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
                         return found_dags
-                else:
-                    zip_file = zipfile.ZipFile(f)
-                    for z in zip_file.infolist():
-                        head, tail = os.path.split(z.filename)
-                        root, ext = os.path.splitext(z.filename)
-                        if not head and ext == '.py' and not root == '__init__':
-                            with zip_file.open(z.filename) as zf:
-                                logging.info("Reading {} from zip {}".format(z.filename, filepath))
-                                content = zf.read()
-                                if not all([s in content for s in (b'DAG', b'airflow')]):
-                                    return found_dags
-                                # todo: of course this won't work for zips that have multiple py files in the root
-                                org_mod_name = root
-                                org_file_name = os.path.join(filepath, z.filename)
 
-        if (not only_if_updated or
-                filepath not in self.file_last_changed or
-                dttm != self.file_last_changed[filepath]):
-            try:
-                self.logger.info("Importing " + filepath)
-                if mod_name in sys.modules:
-                    del sys.modules[mod_name]
-                with timeout(
-                        configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
-                    if not zipfile.is_zipfile(filepath):
-                        m = imp.load_source(mod_name, filepath)
-                    else:
+            self.logger.debug("Importing {}".format(filepath))
+            org_mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
+            mod_name = 'unusual_prefix_' + org_mod_name
+
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
+
+            with timeout(configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
+                try:
+                    m = imp.load_source(mod_name, filepath)
+                    mods.append(m)
+                except Exception as e:
+                    self.logger.exception("Failed to import: " + filepath)
+                    self.import_errors[filepath] = str(e)
+                    self.file_last_changed[filepath] = dttm
+
+        else:
+            zip_file = zipfile.ZipFile(filepath)
+            for mod in zip_file.infolist():
+                head, tail = os.path.split(mod.filename)
+                mod_name, ext = os.path.splitext(mod.filename)
+                if not head and (ext == '.py' or ext == '.pyc'):
+                    if mod_name == '__init__':
+                        self.logger.warning("Found __init_.py at root of ".format(filepath))
+
+                    if safe_mode:
+                        with zip_file.open(mod.filename) as zf:
+                            self.logger.debug("Reading {} from {}".format(mod.filename, filepath))
+                            content = zf.read()
+                            if not all([s in content for s in (b'DAG', b'airflow')]):
+                                # todo: create ignore list
+                                return found_dags
+
+                    if mod_name in sys.modules:
+                        del sys.modules[mod_name]
+
+                    try:
                         sys.path.insert(0, filepath)
-                        #f, path, descr = imp.find_module(org_mod_name)
-                        #handler = zipimport.zipimporter(filepath)
-                        # this is potentially namespace polluting and might be considered a security
-                        # issue. Unfortunately the zipimport does not allow to set the name and
-                        # will require a implementation of a loader/finder
+                        m = importlib.import_module(mod_name)
+                        mods.append(m)
+                    except Exception as e:
+                        self.logger.exception("Failed to import: " + filepath)
+                        self.import_errors[filepath] = str(e)
+                        self.file_last_changed[filepath] = dttm
 
-                        #m = imp.load_module(mod_name, f, path, descr)
-                        m = importlib.import_module(org_mod_name)
-
-            except Exception as e:
-                self.logger.exception("Failed to import: " + filepath)
-                self.import_errors[filepath] = str(e)
-                self.file_last_changed[filepath] = dttm
-                return
-
+        for m in mods:
             for dag in list(m.__dict__.values()):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
@@ -282,7 +288,7 @@ class DagBag(LoggingMixin):
                     found_dags.append(dag)
                     found_dags += dag.subdags
 
-            self.file_last_changed[filepath] = dttm
+        self.file_last_changed[filepath] = dttm
         return found_dags
 
     @provide_session
@@ -294,21 +300,21 @@ class DagBag(LoggingMixin):
         self.logger.info("Finding 'running' jobs without a recent heartbeat")
         TI = TaskInstance
         secs = (
-            configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+                   configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
         limit_dttm = datetime.now() - timedelta(seconds=secs)
         self.logger.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
 
         tis = (
             session.query(TI)
-            .join(LJ, TI.job_id == LJ.id)
-            .filter(TI.state == State.RUNNING)
-            .filter(
+                .join(LJ, TI.job_id == LJ.id)
+                .filter(TI.state == State.RUNNING)
+                .filter(
                 or_(
                     LJ.state != State.RUNNING,
                     LJ.latest_heartbeat < limit_dttm,
                 ))
-            .all()
+                .all()
         )
 
         for ti in tis:
@@ -839,10 +845,10 @@ class TaskInstance(Base):
             return False
         # is the task runnable and have its dependencies been met?
         elif (
-                self.state in State.runnable() and
-                self.are_dependencies_met(
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    flag_upstream_failed=flag_upstream_failed)):
+                        self.state in State.runnable() and
+                    self.are_dependencies_met(
+                        ignore_depends_on_past=ignore_depends_on_past,
+                        flag_upstream_failed=flag_upstream_failed)):
             return True
         # anything else
         else:
@@ -931,7 +937,7 @@ class TaskInstance(Base):
                 TI.dag_id == self.dag_id,
                 TI.task_id == task.task_id,
                 TI.execution_date ==
-                    self.task.dag.previous_schedule(self.execution_date),
+                self.task.dag.previous_schedule(self.execution_date),
                 TI.state.in_({State.SUCCESS, State.SKIPPED}),
             ).first()
             if not previous_ti:
@@ -953,7 +959,7 @@ class TaskInstance(Base):
 
         qry = (
             session
-            .query(
+                .query(
                 func.coalesce(func.sum(
                     case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
                 func.coalesce(func.sum(
@@ -964,7 +970,7 @@ class TaskInstance(Base):
                     case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
                 func.count(TI.task_id),
             )
-            .filter(
+                .filter(
                 TI.dag_id == self.dag_id,
                 TI.task_id.in_(task.upstream_task_ids),
                 TI.execution_date == self.execution_date,
@@ -992,15 +998,15 @@ class TaskInstance(Base):
                 if upstream_done and not successes:
                     self.set_state(State.SKIPPED, session)
             elif tr == TR.ONE_FAILED:
-                if upstream_done and not(failed or upstream_failed):
+                if upstream_done and not (failed or upstream_failed):
                     self.set_state(State.SKIPPED, session)
 
         if (
-            (tr == TR.ONE_SUCCESS and successes) or
-            (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-            (tr == TR.ALL_SUCCESS and successes >= upstream) or
-            (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-            (tr == TR.ALL_DONE and upstream_done)
+                                (tr == TR.ONE_SUCCESS and successes) or
+                                (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
+                            (tr == TR.ALL_SUCCESS and successes >= upstream) or
+                        (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
+                    (tr == TR.ALL_DONE and upstream_done)
         ):
             return True
 
@@ -1021,7 +1027,7 @@ class TaskInstance(Base):
         to be retried.
         """
         return self.state == State.UP_FOR_RETRY and \
-            self.end_date + self.task.retry_delay < datetime.now()
+               self.end_date + self.task.retry_delay < datetime.now()
 
     @provide_session
     def pool_full(self, session):
@@ -1034,9 +1040,9 @@ class TaskInstance(Base):
 
         pool = (
             session
-            .query(Pool)
-            .filter(Pool.pool == self.task.pool)
-            .first()
+                .query(Pool)
+                .filter(Pool.pool == self.task.pool)
+                .first()
         )
         if not pool:
             raise ValueError(
@@ -1051,8 +1057,8 @@ class TaskInstance(Base):
             self,
             verbose=True,
             ignore_dependencies=False,  # Doesn't check for deps, just runs
-            ignore_depends_on_past=False,   # Ignore depends_on_past but respect
-                                            # other deps
+            ignore_depends_on_past=False,  # Ignore depends_on_past but respect
+            # other deps
             force=False,  # Disregards previous successes
             mark_success=False,  # Don't run the task, act as if it succeeded
             test_mode=False,  # Doesn't record success or failure in the DB
@@ -1081,15 +1087,15 @@ class TaskInstance(Base):
                 " on {self.end_date}".format(**locals())
             )
         elif (
-                not ignore_dependencies and
-                not self.are_dependencies_met(
-                    session=session,
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    verbose=True)):
+                    not ignore_dependencies and
+                    not self.are_dependencies_met(
+                        session=session,
+                        ignore_depends_on_past=ignore_depends_on_past,
+                        verbose=True)):
             logging.warning("Dependencies not met yet")
         elif (
-                self.state == State.UP_FOR_RETRY and
-                not self.ready_for_retry()):
+                        self.state == State.UP_FOR_RETRY and
+                    not self.ready_for_retry()):
             next_run = (self.end_date + task.retry_delay).isoformat()
             logging.info(
                 "Not ready for retry yet. " +
@@ -1107,7 +1113,7 @@ class TaskInstance(Base):
             self.start_date = datetime.now()
 
             if not mark_success and self.state != State.QUEUED and (
-                    self.pool or self.task.dag.concurrency_reached):
+                        self.pool or self.task.dag.concurrency_reached):
                 # If a pool is set for this task, marking the task instance
                 # as QUEUED
                 self.state = State.QUEUED
@@ -1158,6 +1164,7 @@ class TaskInstance(Base):
                         logging.error("Killing subprocess")
                         task_copy.on_kill()
                         raise AirflowException("Task received SIGTERM signal")
+
                     signal.signal(signal.SIGTERM, signal_handler)
 
                     self.render_templates()
@@ -1283,10 +1290,10 @@ class TaskInstance(Base):
                 params.update(task.dag.params)
             dag_run = (
                 session.query(DagRun)
-                .filter_by(
+                    .filter_by(
                     dag_id=task.dag.dag_id,
                     execution_date=self.execution_date)
-                .first()
+                    .first()
             )
             run_id = dag_run.run_id if dag_run else None
             session.expunge_all()
@@ -1663,8 +1670,8 @@ class BaseOperator(object):
             raise AirflowException(
                 "The trigger_rule must be one of {all_triggers},"
                 "'{d}.{t}'; received '{tr}'."
-                .format(all_triggers=TriggerRule.all_triggers,
-                        d=dag.dag_id, t=task_id, tr = trigger_rule))
+                    .format(all_triggers=TriggerRule.all_triggers,
+                            d=dag.dag_id, t=task_id, tr=trigger_rule))
 
         self.trigger_rule = trigger_rule
         self.depends_on_past = depends_on_past
@@ -1760,9 +1767,9 @@ class BaseOperator(object):
     @property
     def priority_weight_total(self):
         return sum([
-            t.priority_weight
-            for t in self.get_flat_relatives(upstream=False)
-        ]) + self.priority_weight
+                       t.priority_weight
+                       for t in self.get_flat_relatives(upstream=False)
+                       ]) + self.priority_weight
 
     def pre_execute(self, context):
         """
@@ -1849,8 +1856,8 @@ class BaseOperator(object):
 
         exts = self.__class__.template_ext
         if (
-                isinstance(content, six.string_types) and
-                any([content.endswith(ext) for ext in exts])):
+                    isinstance(content, six.string_types) and
+                    any([content.endswith(ext) for ext in exts])):
             return jinja_env.get_template(content).render(**context)
         else:
             return self.render_template_from_field(content, context, jinja_env)
@@ -1993,7 +2000,7 @@ class BaseOperator(object):
                 ignore_dependencies=ignore_dependencies,
                 ignore_depends_on_past=(
                     dt == start_date and ignore_first_depends_on_past),
-                force=force,)
+                force=force, )
 
     def dry_run(self):
         logging.info('Dry run')
@@ -2002,7 +2009,6 @@ class BaseOperator(object):
             if content and isinstance(content, six.string_types):
                 logging.info('Rendering template for {0}'.format(attr))
                 logging.info(content)
-
 
     def get_direct_relatives(self, upstream=False):
         """
@@ -2092,7 +2098,6 @@ class BaseOperator(object):
 
 
 class DagModel(Base):
-
     __tablename__ = "dag"
     """
     These items are stored in the database for state related information
@@ -2389,8 +2394,8 @@ class DAG(LoggingMixin):
         l = []
         for task in self.tasks:
             if (
-                    task.__class__.__name__ == 'SubDagOperator' and
-                    hasattr(task, 'subdag')):
+                            task.__class__.__name__ == 'SubDagOperator' and
+                        hasattr(task, 'subdag')):
                 l.append(task.subdag)
                 l += task.subdag.subdags
         return l
@@ -2410,21 +2415,21 @@ class DAG(LoggingMixin):
         active_dates = []
         active_runs = (
             session.query(DagRun)
-            .filter(
+                .filter(
                 DagRun.dag_id == self.dag_id,
                 DagRun.state == State.RUNNING)
-            .order_by(DagRun.execution_date)
-            .all())
+                .order_by(DagRun.execution_date)
+                .all())
 
         task_instances = (
             session
-            .query(TI)
-            .filter(
+                .query(TI)
+                .filter(
                 TI.dag_id == self.dag_id,
                 TI.task_id.in_(self.active_task_ids),
                 TI.execution_date.in_(r.execution_date for r in active_runs)
             )
-            .all())
+                .all())
 
         for ti in task_instances:
             ti.task = self.get_task(ti.task_id)
@@ -2447,7 +2452,7 @@ class DAG(LoggingMixin):
             tis = [
                 t for t in task_instances
                 if t.execution_date == run.execution_date
-            ]
+                ]
 
             if len(tis) == len(self.active_tasks):
 
@@ -2455,28 +2460,28 @@ class DAG(LoggingMixin):
                 root_ids = [t.task_id for t in self.roots]
                 roots = [t for t in tis if t.task_id in root_ids]
                 if any(
-                        r.state in (State.FAILED,  State.UPSTREAM_FAILED)
-                        for r in roots):
+                                r.state in (State.FAILED, State.UPSTREAM_FAILED)
+                                for r in roots):
                     self.logger.info('Marking run {} failed'.format(run))
                     run.state = State.FAILED
 
                 # if all roots succeeded, the run succeeded
                 elif all(
-                        r.state in (State.SUCCESS, State.SKIPPED)
-                        for r in roots):
+                                r.state in (State.SUCCESS, State.SKIPPED)
+                                for r in roots):
                     self.logger.info('Marking run {} successful'.format(run))
                     run.state = State.SUCCESS
 
                 # if *the individual dagrun* is deadlocked, the run failed
                 elif (
                         # there are unfinished tasks
-                        any(t.state in State.unfinished() for t in tis) and
-                        # AND none of them depend on past
-                        all(not t.task.depends_on_past for t in tis
-                            if t.state in State.unfinished()) and
+                                any(t.state in State.unfinished() for t in tis) and
+                            # AND none of them depend on past
+                                all(not t.task.depends_on_past for t in tis
+                                    if t.state in State.unfinished()) and
                         # AND none of their dependencies are met
-                        all(not t.are_dependencies_met() for t in tis
-                            if t.state in State.unfinished())):
+                            all(not t.are_dependencies_met() for t in tis
+                                if t.state in State.unfinished())):
                     self.logger.info(
                         'Deadlock; marking run {} failed'.format(run))
                     run.state = State.FAILED
@@ -2537,7 +2542,7 @@ class DAG(LoggingMixin):
             self, session, start_date=None, end_date=None, state=None):
         TI = TaskInstance
         if not start_date:
-            start_date = (datetime.today()-timedelta(30)).date()
+            start_date = (datetime.today() - timedelta(30)).date()
             start_date = datetime.combine(start_date, datetime.min.time())
         end_date = end_date or datetime.now()
         tis = session.query(TI).filter(
@@ -2718,6 +2723,7 @@ class DAG(LoggingMixin):
         """
         Shows an ascii tree representation of the DAG
         """
+
         def get_downstream(task, level=0):
             print((" " * level * 4) + str(task))
             level += 1
@@ -2854,8 +2860,8 @@ class KnownEvent(Base):
     label = Column(String(200))
     start_date = Column(DateTime)
     end_date = Column(DateTime)
-    user_id = Column(Integer(), ForeignKey('users.id'),)
-    known_event_type_id = Column(Integer(), ForeignKey('known_event_type.id'),)
+    user_id = Column(Integer(), ForeignKey('users.id'), )
+    known_event_type_id = Column(Integer(), ForeignKey('known_event_type.id'), )
     reported_by = relationship(
         "User", cascade=False, cascade_backrefs=False, backref='known_events')
     event_type = relationship(
@@ -2902,6 +2908,7 @@ class Variable(Base):
     def val(cls):
         return synonym('_val',
                        descriptor=property(cls.get_val, cls.set_val))
+
     @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
@@ -2929,7 +2936,6 @@ class Variable(Base):
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
-
 
 
 class XCom(Base):
@@ -3014,9 +3020,9 @@ class XCom(Base):
 
         query = (
             session.query(cls.value)
-            .filter(and_(*filters))
-            .order_by(cls.execution_date.desc(), cls.timestamp.desc())
-            .limit(1))
+                .filter(and_(*filters))
+                .order_by(cls.execution_date.desc(), cls.timestamp.desc())
+                .limit(1))
 
         result = query.first()
         if result:
@@ -3050,9 +3056,9 @@ class XCom(Base):
 
         query = (
             session.query(cls)
-            .filter(and_(*filters))
-            .order_by(cls.execution_date.desc(), cls.timestamp.desc())
-            .limit(limit))
+                .filter(and_(*filters))
+                .order_by(cls.execution_date.desc(), cls.timestamp.desc())
+                .limit(limit))
 
         return query.all()
 
@@ -3126,10 +3132,10 @@ class Pool(Base):
         """
         running = (
             session
-            .query(TaskInstance)
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.RUNNING)
-            .count()
+                .query(TaskInstance)
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == State.RUNNING)
+                .count()
         )
         return running
 
@@ -3140,10 +3146,10 @@ class Pool(Base):
         """
         return (
             session
-            .query(TaskInstance)
-            .filter(TaskInstance.pool == self.pool)
-            .filter(TaskInstance.state == State.QUEUED)
-            .count()
+                .query(TaskInstance)
+                .filter(TaskInstance.pool == self.pool)
+                .filter(TaskInstance.state == State.QUEUED)
+                .count()
         )
 
     @provide_session

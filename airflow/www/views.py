@@ -628,10 +628,14 @@ class Airflow(BaseView):
     def code(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        code = inspect.getsource(dag.module_name)
         title = dag_id
-        html_code = highlight(
-            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        try:
+            code = inspect.getsource(dag.module_name)
+            html_code = highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        except IOError as e:
+            html_code = str(e)
+
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
