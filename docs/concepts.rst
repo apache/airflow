@@ -475,3 +475,53 @@ as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated"
 in the documentation.
+
+Packaged dags
+'''''''''''''
+While often you will specify dags in a single ``.py`` file it might sometimes
+be required to combine dag and its dependencies. For example, you might want
+to combine several dags together to version them together or you might want
+to manage them together or you might need an extra module that is not available
+by default on the system you are running airflow on. To allow this you can create
+a zip file that contains the dag(s) in the root of the zip file and have the extra
+modules unpacked in directories.
+
+For instance you can create a zip file that looks like this:
+
+.. code-block:: bash
+
+    my_dag1.py
+    my_dag2.py
+    package1/__init__.py
+    package1/functions.py
+
+Airflow will scan the zip file and try to load ``my_dag1.py`` and ``my_dag2.py``.
+It will not go into subdirectories as these are considered to be potential
+packages.
+
+In case you would like to add module dependencies to your DAG you basically would
+do the same, but then it is more to use a virtualenv and pip.
+
+.. code-block:: bash
+
+    virtualenv zip_dag
+    source zip_dag/bin/activate
+
+    mkdir zip_dag_contents
+    cd zip_dag_contents
+
+    pip install --install-option="--install-lib=$PWD" my_useful_package
+    cp ~/my_dag.py .
+
+    zip -r zip_dag.zip *
+
+.. note:: the zip file will be inserted at the beginning of module search list
+   (sys.path) and as such it will be available to any other code that resides
+   within the same interpreter.
+
+.. note:: packaged dags cannot be used with pickling turned on.
+
+.. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
+   to be available on the system if a module needs those. In other words only
+   pure python modules can be packaged.
+

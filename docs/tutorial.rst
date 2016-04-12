@@ -411,7 +411,6 @@ which are used to populate the run schedule with task instances from this dag.
     # start your backfill on a date range
     airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
 
-
 What's Next?
 -------------
 That's it, you've written, tested and backfilled your very first Airflow

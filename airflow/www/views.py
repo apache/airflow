@@ -16,6 +16,7 @@ import sys
 
 import os
 import socket
+import importlib
 
 from functools import wraps
 from datetime import datetime, timedelta
@@ -628,10 +629,15 @@ class Airflow(BaseView):
     def code(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        code = "".join(open(dag.full_filepath, 'r').readlines())
-        title = dag.filepath
-        html_code = highlight(
-            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        title = dag_id
+        try:
+            m = importlib.import_module(dag.module_name)
+            code = inspect.getsource(m)
+            html_code = highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        except IOError as e:
+            html_code = str(e)
+
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),

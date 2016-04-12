@@ -113,6 +113,14 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(include_examples=True)
         assert dagbag.process_file(f.name) == []
 
+    def test_zip(self):
+        """
+        test the loading of a DAG within a zip file that includes dependencies
+        """
+        dagbag = models.DagBag()
+        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
+        assert dagbag.get_dag("test_zip_dag")
+
 
 class TaskInstanceTest(unittest.TestCase):
 
