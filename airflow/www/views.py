@@ -1483,7 +1483,7 @@ class Airflow(BaseView):
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
-        return redirect('/')
+        return redirect('/orchestrator/')
 
     @expose('/refresh_all')
     @login_required
@@ -1491,7 +1491,7 @@ class Airflow(BaseView):
     def refresh_all(self):
         dagbag.collect_dags(only_if_updated=False)
         flash("All DAGs are now up to date")
-        return redirect('/')
+        return redirect('/orchestrator/')
 
     @expose('/gantt')
     @login_required
