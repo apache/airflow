@@ -266,7 +266,7 @@ filter_by_owner = False
 email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
-# If you want airflow to send emails on retries, failure, and you want to
+# If you want airflow to send emails on retries, failure, and you want to use
 # the airflow.utils.email.send_email_smtp function, you have to configure an smtp
 # server here
 smtp_host = localhost
