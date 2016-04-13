@@ -12,7 +12,8 @@ _hooks = {
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],
     'datastore_hook': ['DatastoreHook'],
-    'cloudant_hook': ['CloudantHook']
+    'cloudant_hook': ['CloudantHook'],
+    'hdfs_cli_hook': ['HDFSCliHook']
 }
 
 _import_module_attrs(globals(), _hooks)

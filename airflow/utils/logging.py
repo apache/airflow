@@ -20,6 +20,7 @@ from __future__ import unicode_literals
 from builtins import object
 
 import logging
+import re
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -237,3 +238,116 @@ class GCSLog(object):
             bucket = parsed_url.netloc
             blob = parsed_url.path.strip('/')
             return (bucket, blob)
+
+
+class HDFSLog(object):
+    """
+    Utility class for reading and writing logs in HDFS.
+    Requires airflow[hdfs] and setting the REMOTE_BASE_LOG_FOLDER and
+    REMOTE_LOG_CONN_ID configuration options in airflow.cfg.
+    """
+    def __init__(self):
+        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        try:
+            from airflow.contrib.hooks.hdfs_cli_hook import HDFSCliHook
+            from airflow.hooks.hdfs_hook import HDFSHook
+            self.hook = HDFSCliHook(remote_conn_id)
+            self.fallback_hook = HDFSHook(self.hook.fallback_conn_id).get_conn()
+        except Exception:
+            self.hook = None
+            logging.error(
+                'Could not create an HDFSCliHook with connection id "%s". '
+                'Please make sure that the HDFS Cli connection '
+                'exists.', remote_conn_id)
+
+    def escape_hdfs_path(self, hdfs_path):
+        from os.path import dirname, basename
+        directory = dirname(hdfs_path)
+        filename = basename(hdfs_path)
+        if ':' in filename:
+            filename = filename.replace(':', '_')
+        return directory, filename
+
+    def remove_hdfs_prefix(self, hdfs_path):
+        matches = re.match(
+            '^hdfs://[a-zA-Z\.0-9-]+(?::[0-9]+)?(/[\S\s]*)$', hdfs_path)
+        if matches:
+            return matches.group(1)
+        else:
+            return hdfs_path
+
+    def read(self, remote_log_location, return_error=False):
+        """
+        Returns the log found at the remote_log_location. Returns '' if no
+        logs are found or there is an error.
+
+        :param remote_log_location: the log's location in remote storage
+        :type remote_log_location: string (path)
+        :param return_error: if True, returns a string error message if an
+            error occurs. Otherwise returns '' when an error occurs.
+        :type return_error: bool
+        """
+        if self.hook or self.fallback_hook:
+            directory, filename = self.escape_hdfs_path(remote_log_location)
+            escaped_log_location = '{0}/{1}'.format(directory, filename)
+
+            try:
+                return ''.join(self.hook.text(escaped_log_location))
+            except AirflowException as e:
+                err_msg = ('HDFSCLiHook could not read logs from {}, '
+                           'details: {}').format(remote_log_location, e[1])
+            except OSError as e:
+                err_msg = ('HDFSCLiHook could not read logs from {}, '
+                           'details: {}').format(remote_log_location, e.message)
+                logging.exception(e)
+
+            # try fallback hook
+            try:
+                remote_log_location_no_prefix = \
+                    self.remove_hdfs_prefix(escaped_log_location)
+                return ''.join(self.fallback_hook.text([remote_log_location_no_prefix]))
+            except BaseException as e:
+                err_msg = 'HDFSHook could not read logs from {}'.format(
+                    remote_log_location)
+                logging.exception(e)
+        else:
+            err_msg = ('Could read logs from logs from {}, '
+                       'no hdfs hook available').format(remote_log_location)
+
+        logging.error(err_msg)
+        return err_msg if return_error else ''
+
+    def write(self, log, remote_log_location, append=False):
+        """
+        Writes the log to the remote_log_location. Fails silently if no hook
+        was created.
+
+        :param log: the log to write to the remote_log_location
+        :type log: string
+        :param remote_log_location: the log's location in remote storage
+        :type remote_log_location: string (path)
+        :param append: if False, any existing log file is overwritten. If True,
+            the new log is appended to any existing logs.
+        :type append: bool
+
+        """
+        if self.hook:
+            directory, filename = self.escape_hdfs_path(remote_log_location)
+            escaped_log_location = '{0}/{1}'.format(directory, filename)
+            try:
+                self.hook.mkdir(directory, create_intermediate=True)
+                if append:
+                    return self.hook.append_text(log, escaped_log_location, True)
+                else:
+                    return self.hook.write_text(log, escaped_log_location, True)
+            except AirflowException as e:
+                err_msg = 'Could not write logs to {}, details: {}'.format(
+                    remote_log_location, e.args[1])
+                logging.exception(e)
+            except BaseException as e:
+                err_msg = 'Could not write logs to {}'.format(
+                    remote_log_location)
+                logging.exception(e)
+
+        # raise/return error if we get here
+        logging.error(err_msg)

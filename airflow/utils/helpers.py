@@ -24,6 +24,7 @@ import imp
 import logging
 import os
 import re
+import subprocess
 
 from airflow.exceptions import AirflowException
 
@@ -145,3 +146,65 @@ def chain(*tasks):
     """
     for up_task, down_task in zip(tasks[:-1], tasks[1:]):
         up_task.set_downstream(down_task)
+
+
+def popen_and_tail(cmd, shell=False, bufsize=512, env=None, verbose=True):
+    '''
+    Run a command in subprocess, being able to tail stdout and stderr at the
+    same time.
+
+    Return constructed Popen instance, and a tail function, which helps to
+    interactive with output from stdout and stderr.
+
+    tail is a generator function, and each element is a pair (tag, chunk),
+    where integer tag can be assigned to 0, 1, 2, which gives the meaning
+    of coresponding chunk.
+    0: None for heartbeat, and integer for return code
+    1: None or a chunk of text from stdout
+    2: None or a chunk of text from stderr
+    '''
+    if verbose:
+        logging.info('Command in subprocess: "%s"', ' '.join(cmd))
+
+    sp = subprocess.Popen(
+        cmd,
+        shell=shell,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=env)
+
+    def tail():
+        from fcntl import fcntl, F_GETFL, F_SETFL
+
+        stdout_line = ''
+        stderr_line = ''
+        return_code = None
+
+        def set_nonblock(fd):
+            flags = fcntl(fd, F_GETFL)
+            fcntl(fd, F_SETFL, flags | os.O_NONBLOCK)
+
+        def readline(fileno, bufsize):
+            try:
+                line = os.read(fileno, bufsize)
+            except OSError:
+                # readline might be invoked before fd initialized, which
+                # cause to raise OSError: Resource temporarily unavailable
+                line = None
+            return line
+
+        # set stdout and stderr to be non_blocking when reading text from them
+        set_nonblock(sp.stdout)
+        set_nonblock(sp.stderr)
+
+        while return_code is None or stdout_line or stderr_line:
+            return_code = sp.poll()
+            stdout_line = readline(sp.stdout.fileno(), bufsize)
+            yield 1, stdout_line
+            stderr_line = readline(sp.stderr.fileno(), bufsize)
+            yield 2, stderr_line
+            yield 0, None
+
+        yield 0, return_code
+
+    return sp, tail

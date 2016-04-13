@@ -838,6 +838,10 @@ class Airflow(BaseView):
                 elif remote_log.startswith('gs:/'):
                     log += log_utils.GCSLog().read(remote_log, return_error=True)
 
+                # HDFS
+                elif remote_log.startswith('hdfs:/'):
+                    log += log_utils.HDFSLog().read(remote_log, return_error=True)
+
                 # unsupported
                 elif remote_log:
                     log += '*** Unsupported remote log location.'

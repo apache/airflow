@@ -303,6 +303,11 @@ def run(args, dag=None):
                 log,
                 remote_log_location,
                 append=True)
+        elif remote_base.startswith('hdfs:/'):
+            logging_utils.HDFSLog().write(
+                log,
+                remote_log_location,
+                append=True)
         # Other
         elif remote_base and remote_base != 'None':
             logging.error(
@@ -540,7 +545,7 @@ def version(args):  # noqa
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
     args.port = args.port
-    port = '--port=' + args.port
+    port = '--port=%d' % args.port
     api = ''
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
