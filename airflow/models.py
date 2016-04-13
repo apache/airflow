@@ -2339,6 +2339,7 @@ class DAG(LoggingMixin):
 
         validate_key(dag_id)
         self.tasks = []
+        self.task_map = dict()
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
@@ -2804,9 +2805,8 @@ class DAG(LoggingMixin):
         return task_id in (t.task_id for t in self.tasks)
 
     def get_task(self, task_id):
-        for task in self.tasks:
-            if task.task_id == task_id:
-                return task
+        if task_id in self.task_map:
+            return self.task_map[task_id]
         raise AirflowException("Task {task_id} not found".format(**locals()))
 
     @provide_session
@@ -2872,6 +2872,8 @@ class DAG(LoggingMixin):
                 "to the DAG ".format(task.task_id))
         else:
             self.tasks.append(task)
+            self.task_map[task.task_id] = task
+            task.dag_id = self.dag_id
             task.dag = self
 
         self.task_count = len(self.tasks)
