@@ -19,14 +19,12 @@ from __future__ import unicode_literals
 
 import datetime
 import logging
-import os
 import unittest
 
 from airflow import AirflowException, settings
 from airflow.bin import cli
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
-from airflow.operators import DummyOperator
+from airflow.models import DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.db import provide_session
@@ -165,8 +163,7 @@ class SchedulerJobTest(unittest.TestCase):
     def evaluate_dagrun(
             self,
             dag_id,
-            first_task_state,
-            second_task_state,
+            expected_task_states,  # dict of task_id: state
             dagrun_state,
             run_kwargs=None,
             advance_execution_date=False,
@@ -192,13 +189,11 @@ class SchedulerJobTest(unittest.TestCase):
             pass
 
         # test tasks
-        task_1, task_2 = dag.tasks
-        ti = TI(task_1, ex_date)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, first_task_state)
-        ti = TI(task_2, ex_date)
-        ti.refresh_from_db()
-        self.assertEqual(ti.state, second_task_state)
+        for task_id, expected_state in expected_task_states.items():
+            task = dag.get_task(task_id)
+            ti = TI(task, ex_date)
+            ti.refresh_from_db()
+            self.assertEqual(ti.state, expected_state)
 
         # load dagrun
         dr = session.query(DagRun).filter(
@@ -220,8 +215,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_fail',
-            first_task_state=State.FAILED,
-            second_task_state=State.UPSTREAM_FAILED,
+            expected_task_states={
+                'test_dagrun_fail': State.FAILED,
+                'test_dagrun_succeed': State.UPSTREAM_FAILED,
+            },
             dagrun_state=State.FAILED)
 
     def test_dagrun_success(self):
@@ -230,8 +227,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_success',
-            first_task_state=State.FAILED,
-            second_task_state=State.SUCCESS,
+            expected_task_states={
+                'test_dagrun_fail': State.FAILED,
+                'test_dagrun_succeed': State.SUCCESS,
+            },
             dagrun_state=State.SUCCESS)
 
     def test_dagrun_root_fail(self):
@@ -240,8 +239,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_root_fail',
-            first_task_state=State.SUCCESS,
-            second_task_state=State.FAILED,
+            expected_task_states={
+                'test_dagrun_succeed': State.SUCCESS,
+                'test_dagrun_fail': State.FAILED,
+            },
             dagrun_state=State.FAILED)
 
     def test_dagrun_deadlock(self):
@@ -253,8 +254,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_deadlock',
-            first_task_state=None,
-            second_task_state=None,
+            expected_task_states={
+                'test_depends_on_past': None,
+                'test_depends_on_past_2': None,
+            },
             dagrun_state=State.FAILED,
             advance_execution_date=True)
 
@@ -297,8 +300,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_deadlock',
-            first_task_state=State.SUCCESS,
-            second_task_state=State.SUCCESS,
+            expected_task_states={
+                'test_depends_on_past': State.SUCCESS,
+                'test_depends_on_past_2': State.SUCCESS,
+            },
             dagrun_state=State.SUCCESS,
             advance_execution_date=True,
             run_kwargs=dict(ignore_first_depends_on_past=True))
@@ -312,8 +317,10 @@ class SchedulerJobTest(unittest.TestCase):
         """
         self.evaluate_dagrun(
             dag_id='test_dagrun_states_deadlock',
-            first_task_state=State.SUCCESS,
-            second_task_state=State.SUCCESS,
+            expected_task_states={
+                'test_depends_on_past': State.SUCCESS,
+                'test_depends_on_past_2': State.SUCCESS,
+            },
             dagrun_state=State.SUCCESS,
             run_kwargs=dict(ignore_first_depends_on_past=True))
 
