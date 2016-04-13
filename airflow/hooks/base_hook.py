@@ -12,6 +12,13 @@ from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 
+import airflow.configuration as conf
+
+import json
+import requests
+
+base_url = "http://localhost:8080/api/v1/"
+
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
@@ -23,39 +30,53 @@ class BaseHook(object):
     instances of these systems, and expose consistent methods to interact
     with them.
     """
-    def __init__(self, source):
-        pass
 
-    @classmethod
-    def get_connections(cls, conn_id):
-        session = settings.Session()
-        db = (
-            session.query(Connection)
-            .filter(Connection.conn_id == conn_id)
-            .all()
-        )
-        if not db:
+    def __init__(self, dag=None):
+        if not dag:
+            logging.warning("Hook initialized without a DAG context.")
+
+        self.dag = dag
+
+    def get_connections(self, conn_id):
+        if not self.dag:
+            dag_id = "none"
+        else:
+            dag_id = self.dag.dag_id
+
+        resp = requests.get(base_url + "/get_connections/{}/{}".format(dag_id, conn_id))
+        if not resp.ok:
             raise AirflowException(
-                "The conn_id `{0}` isn't defined".format(conn_id))
-        session.expunge_all()
-        session.close()
-        return db
+                "The conn_id `{0}` isn't defined for dag_id `{1}`".format(conn_id, dag_id))
 
-    @classmethod
-    def get_connection(cls, conn_id):
+        json_data = json.loads(resp.content)
+
+        dbs = []
+        for data in json_data['data']:
+            conn = Connection(conn_id=conn_id,
+                              conn_type=data['conn_type'],
+                              host=data['host'],
+                              port=data['port'],
+                              schema=data['schema'],
+                              password=data['password'],
+                              extra=data['extra'],
+                              )
+            dbs.append(conn)
+
+        return dbs
+
+    def get_connection(self, conn_id):
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         conn = None
         if environment_uri:
             conn = Connection(conn_id=conn_id, uri=environment_uri)
         else:
-            conn = random.choice(cls.get_connections(conn_id))
+            conn = random.choice(self.get_connections(conn_id))
         if conn.host:
             logging.info("Using connection to: " + conn.host)
         return conn
 
-    @classmethod
-    def get_hook(cls, conn_id):
-        connection = cls.get_connection(conn_id)
+    def get_hook(self, conn_id):
+        connection = self.get_connection(conn_id)
         return connection.get_hook()
 
     def get_conn(self):

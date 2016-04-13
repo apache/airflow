@@ -12,6 +12,7 @@ from builtins import input
 from collections import namedtuple
 from dateutil.parser import parse as parsedate
 import json
+import requests
 
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
@@ -370,12 +371,12 @@ def clear(args):
 def webserver(args):
     print(settings.HEADER)
 
-    from airflow.www.app import cached_app
-    app = cached_app(conf)
     workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
     if args.debug:
+        from airflow.www.app import cached_app
+        app = cached_app(conf)
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
@@ -516,6 +517,18 @@ def upgradedb(args):  # noqa
 
 def version(args):  # noqa
     print(settings.HEADER + "  v" + airflow.__version__)
+
+
+def submit(args):
+    base_url = "http://localhost:8080/api/v1/submit"
+
+    files = {'file': open(args.filename, 'rb')}
+    resp = requests.post(base_url, files=files)
+
+    if not resp.ok:
+        raise AirflowException("Could not submit {}, status: {}".format(args.filename, resp.status_code))
+
+    print("OK")
 
 
 def flower(args):
@@ -762,6 +775,8 @@ class CLIFactory(object):
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
+        # submit
+        'filename': Arg(("-f", "--filename"), help="DAG .py or zip"),
     }
     subparsers = (
         {
@@ -868,7 +883,11 @@ class CLIFactory(object):
             'func': version,
             'help': "Show the version",
             'args': tuple(),
-        },
+        }, {
+            'func': submit,
+            'help': "Submit a DAG artifact (.py or .zip) to the central repository",
+            'args': ('filename',),
+        }
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (

@@ -25,6 +25,12 @@ import getpass
 import logging
 import socket
 import subprocess
+
+import requests
+import json
+import os
+import re
+
 from time import sleep
 
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
@@ -659,6 +665,7 @@ class SchedulerJob(BaseJob):
 
     def _execute(self):
         dag_id = self.dag_id
+        base_url = "http://localhost:8080/api/v1/"
 
         pessimistic_connection_handling()
 
@@ -678,16 +685,42 @@ class SchedulerJob(BaseJob):
                 except Exception as e:
                     self.logger.exception(e)
 
-                i += 1
-                try:
-                    if i % self.refresh_dags_every == 0:
-                        dagbag = models.DagBag(self.subdir, sync_to_db=True)
-                    else:
-                        dagbag.collect_dags(only_if_updated=True)
-                except:
-                    self.logger.error("Failed at reloading the dagbag")
-                    Stats.incr('dag_refresh_error', 1, 1)
-                    sleep(5)
+                resp = requests.get(base_url + "get_dags")
+                json_data = json.loads(resp.content)
+                for dag_data in json_data['data']:
+                    my_dag = dagbag.get_dag(dag_data['dag_id'])
+                    new = True
+                    if my_dag:
+                        from dateutil import parser
+                        import pytz
+                        utc = pytz.UTC
+                        there = parser.parse(dag_data['last_changed'])
+                        if utc.localize(dagbag.file_last_changed[my_dag.full_filepath]) == there:
+                            new = False
+
+                    if not my_dag or new:
+                        # time handling is off hence the parsing above
+                        logging.info("Getting file for dag_id {} my_dag: {} last_changed here: {} there: {}".format(dag_data['dag_id'], my_dag, dagbag.file_last_changed[my_dag.full_filepath], dag_data['last_changed']))
+                        r = requests.get(base_url + "get_dag_file/" + dag_data['dag_id'], stream=True)
+                        if r.status_code == 200:
+                            d = r.headers['content-disposition']
+                            filename = re.findall("filename=(.+)", d)
+                            with open(os.path.join(self.subdir, filename), 'wb') as f:
+                                for chunk in r.iter_content(1024):
+                                    f.write(chunk)
+
+                            dagbag.process_file(os.path.join(self.subdir, filename))
+
+                #i += 1
+                #try:
+                #    if i % self.refresh_dags_every == 0:
+                #        dagbag = models.DagBag(self.subdir, sync_to_db=True)
+                #    else:
+                #        dagbag.collect_dags(only_if_updated=True)
+                #except:
+                #    self.logger.error("Failed at reloading the dagbag")
+                #    Stats.incr('dag_refresh_error', 1, 1)
+                #    sleep(5)
 
                 if dag_id:
                     dags = [dagbag.dags[dag_id]]

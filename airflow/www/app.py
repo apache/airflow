@@ -1,4 +1,5 @@
 import socket
+import os
 
 from flask import Flask
 from flask_admin import Admin, base
@@ -10,17 +11,42 @@ from airflow import models
 from airflow.settings import Session
 
 from airflow.www.blueprints import ck, routes
+
 from airflow import jobs
 from airflow import settings
 from airflow import configuration
 
+from airflow.security import flask_kerberos
+from threading import Thread, Event
+
 csrf = CsrfProtect()
+
+dagbag = models.DagBag(os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
+
+from airflow.www.api.v1.endpoints import apiv1
+
+
+class RefreshDagBag(Thread):
+    def __init__(self, event):
+        Thread.__init__(self)
+        self.stopped = event
+        self.daemon = True
+
+    def run(self):
+        while not self.stopped.wait(30):
+            dagbag.collect_dags(only_if_updated=True)
 
 
 def create_app(config=None):
+    stop = Event()
+    refresh_thread = RefreshDagBag(stop)
+    refresh_thread.start()
+
     app = Flask(__name__)
     app.secret_key = configuration.get('webserver', 'SECRET_KEY')
     app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
+    app.config['KERBEROS_DISABLED'] = not configuration.getboolean('webserver', 'kerberos_service')
+    app.config['UPLOAD_FOLDER'] = "/tmp"
 
     csrf.init_app(app)
 
@@ -28,11 +54,17 @@ def create_app(config=None):
     airflow.load_login()
     airflow.login.login_manager.init_app(app)
 
+    flask_kerberos.init_kerberos(app)
+
     cache = Cache(
         app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
     app.register_blueprint(ck, url_prefix='/ck')
     app.register_blueprint(routes)
+
+    app.register_blueprint(apiv1, url_prefix='/api/v1')
+
+
     app.jinja_env.add_extension("chartkick.ext.charts")
 
     with app.app_context():

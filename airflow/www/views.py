@@ -16,6 +16,7 @@ import sys
 
 import os
 import socket
+import inspect
 
 from functools import wraps
 from datetime import datetime, timedelta
@@ -64,11 +65,10 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils import logging as log_utils
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.www.app import dagbag
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
-
-dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -628,10 +628,14 @@ class Airflow(BaseView):
     def code(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        code = "".join(open(dag.full_filepath, 'r').readlines())
-        title = dag.filepath
-        html_code = highlight(
-            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        title = dag_id
+        try:
+            code = inspect.getsource(dag.module_name)
+            html_code = highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        except IOError as e:
+            html_code = str(e)
+
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
