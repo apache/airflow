@@ -26,8 +26,10 @@ from airflow import models, AirflowException
 from airflow.exceptions import AirflowSkipException
 from airflow.models import TaskInstance as TI
 from airflow.models import State as ST
+from airflow.models import DagModel
 from airflow.operators import DummyOperator, BashOperator, PythonOperator
 from airflow.utils.state import State
+from mock import patch
 from nose_parameterized import parameterized
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
@@ -113,6 +115,32 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(include_examples=True)
         assert dagbag.process_file(f.name) == []
 
+    @patch.object(DagModel,'get_current')
+    def test_get_dag_without_refresh(self, mock_dagmodel):
+        """
+        Test that, once a DAG is loaded, it doesn't get refreshed again if it
+        hasn't been expired.
+        """
+        dag_id = 'example_bash_operator'
+
+        mock_dagmodel.return_value = DagModel()
+        mock_dagmodel.return_value.last_expired = None
+        mock_dagmodel.return_value.fileloc = 'foo'
+
+        class TestDagBag(models.DagBag):
+            process_file_calls = 0
+            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+                if 'example_bash_operator.py' in filepath:
+                    TestDagBag.process_file_calls += 1
+                super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
+
+        dagbag = TestDagBag(include_examples=True)
+        processed_files = dagbag.process_file_calls
+
+        # Should not call process_file agani, since it's already loaded during init.
+        assert dagbag.process_file_calls == 1
+        assert dagbag.get_dag(dag_id) != None
+        assert dagbag.process_file_calls == 1
 
 class TaskInstanceTest(unittest.TestCase):
 
