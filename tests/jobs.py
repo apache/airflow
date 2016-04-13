@@ -23,11 +23,13 @@ import unittest
 
 from airflow import AirflowException, settings
 from airflow.bin import cli
+from airflow.executors import DEFAULT_EXECUTOR
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.operators import DummyOperator
+from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from airflow.utils.db import provide_session
 
 from airflow import configuration
 configuration.test_mode()
@@ -283,15 +285,25 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        scheduler = SchedulerJob(dag_id, num_runs=10)
+        scheduler = SchedulerJob(dag_id, num_runs=1)
         scheduler.run()
 
         task_1 = dag.tasks[0]
         logging.info("Trying to find task {}".format(task_1))
         ti = TI(task_1, dag.start_date)
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.FAILED)
+        self.assertEqual(ti.state, State.QUEUED)
 
+        # now we use a DIFFERENT scheduler and executor
+        # to simulate the num-runs CLI arg
+        scheduler2 = SchedulerJob(
+            dag_id,
+            num_runs=5,
+            executor=DEFAULT_EXECUTOR.__class__())
+        scheduler2.run()
+
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.FAILED)
         dag.clear()
 
     def test_dagrun_deadlock_ignore_depends_on_past_advance_ex_date(self):

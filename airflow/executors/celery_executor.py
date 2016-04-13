@@ -95,3 +95,4 @@ class CeleryExecutor(BaseExecutor):
                     async.state not in celery_states.READY_STATES
                     for async in self.tasks.values()]):
                 time.sleep(5)
+        self.sync()

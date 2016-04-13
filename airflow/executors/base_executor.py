@@ -30,10 +30,11 @@ class BaseExecutor(LoggingMixin):
         """
         pass
 
-    def queue_command(self, key, command, priority=1, queue=None):
+    def queue_command(self, task_instance, command, priority=1, queue=None):
+        key = task_instance.key
         if key not in self.queued_tasks and key not in self.running:
             self.logger.info("Adding to queue: {}".format(command))
-            self.queued_tasks[key] = (command, priority, queue)
+            self.queued_tasks[key] = (command, priority, queue, task_instance)
 
     def queue_task_instance(
             self,
@@ -54,7 +55,7 @@ class BaseExecutor(LoggingMixin):
             pool=pool,
             pickle_id=pickle_id)
         self.queue_command(
-            task_instance.key,
+            task_instance,
             command,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
@@ -67,9 +68,6 @@ class BaseExecutor(LoggingMixin):
         pass
 
     def heartbeat(self):
-        # Calling child class sync method
-        self.logger.debug("Calling the {} sync method".format(self.__class__))
-        self.sync()
 
         # Triggering new jobs
         if not self.parallelism:
@@ -86,10 +84,27 @@ class BaseExecutor(LoggingMixin):
             key=lambda x: x[1][1],
             reverse=True)
         for i in range(min((open_slots, len(self.queued_tasks)))):
-            key, (command, priority, queue) = sorted_queue.pop(0)
-            self.running[key] = command
+            key, (command, _, queue, ti) = sorted_queue.pop(0)
+            # TODO(jlowin) without a way to know what Job ran which tasks,
+            # there is a danger that another Job started running a task
+            # that was also queued to this executor. This is the last chance
+            # to check if that hapened. The most probable way is that a
+            # Scheduler tried to run a task that was originally queued by a
+            # Backfill. This fix reduces the probability of a collision but
+            # does NOT eliminate it.
             self.queued_tasks.pop(key)
-            self.execute_async(key, command=command, queue=queue)
+            ti.refresh_from_db()
+            if ti.state != State.RUNNING:
+                self.running[key] = command
+                self.execute_async(key, command=command, queue=queue)
+            else:
+                self.logger.debug(
+                    'Task is already running, not sending to '
+                    'executor: {}'.format(key))
+
+        # Calling child class sync method
+        self.logger.debug("Calling the {} sync method".format(self.__class__))
+        self.sync()
 
     def change_state(self, key, state):
         self.running.pop(key)
