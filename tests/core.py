@@ -170,7 +170,7 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+            dag.task_map[task.task_id] = task
             dag_runs.append(scheduler.schedule_dag(dag))
 
         additional_dag_run = scheduler.schedule_dag(dag)
@@ -209,7 +209,8 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+
+            dag.task_map[task.task_id] = task
 
             # Schedule the DagRun
             dag_run = scheduler.schedule_dag(dag)
