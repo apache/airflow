@@ -2338,7 +2338,7 @@ class DAG(LoggingMixin):
             del self.default_args['params']
 
         validate_key(dag_id)
-        self.tasks = []
+        self.task_dict = dict()
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
@@ -2434,12 +2434,21 @@ class DAG(LoggingMixin):
             return dttm - self._schedule_interval
 
     @property
+    def tasks(self):
+        return list(self.task_dict.values())
+
+    @tasks.setter
+    def tasks(self, val):
+        raise AttributeError(
+            'DAG.tasks can not be modified. Use dag.add_task() instead.')
+
+    @property
     def task_ids(self):
-        return [t.task_id for t in self.tasks]
+        return list(self.task_dict.keys())
 
     @property
     def active_task_ids(self):
-        return [t.task_id for t in self.tasks if not t.adhoc]
+        return list(k for k, v in self.task_dict.items() if not v.adhoc)
 
     @property
     def active_tasks(self):
@@ -2790,7 +2799,7 @@ class DAG(LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=True)
 
         # Compiling the unique list of tasks that made the cut
-        dag.tasks = list(set(regex_match + also_include))
+        dag.task_dict = {t.task_id: t for t in regex_match + also_include}
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
@@ -2804,9 +2813,8 @@ class DAG(LoggingMixin):
         return task_id in (t.task_id for t in self.tasks)
 
     def get_task(self, task_id):
-        for task in self.tasks:
-            if task.task_id == task_id:
-                return task
+        if task_id in self.task_dict:
+            return self.task_dict[task_id]
         raise AirflowException("Task {task_id} not found".format(**locals()))
 
     @provide_session
@@ -2872,6 +2880,7 @@ class DAG(LoggingMixin):
                 "to the DAG ".format(task.task_id))
         else:
             self.tasks.append(task)
+            self.task_dict[task.task_id] = task
             task.dag = self
 
         self.task_count = len(self.tasks)
