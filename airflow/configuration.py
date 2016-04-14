@@ -441,10 +441,11 @@ class ConfigParserWithDefaults(ConfigParser):
         Ensure the executor matches the database engine used by the airflow,
         raise AirflowConfigException if not.
         """
-        executor_type = self.get("core", "executor")
+        executor_type = get_executor_type()
         sqlalchemy_conn = self.get('core', 'sql_alchemy_conn')
 
-        if executor_type != 'SequentialExecutor' and 'sqlite' in sqlalchemy_conn:
+        if executor_type != 'sequentialexecutor' and 'sqlite' in sqlalchemy_conn:
+            executor_type = get_executor_type(case_sensitive=False)
             raise AirflowConfigException(
                 "error: sqlite should be used with 'SequentialExecutor', "
                 "{} found instead."
