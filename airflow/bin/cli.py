@@ -143,6 +143,14 @@ def trigger_dag(args):
     session.commit()
 
 
+def delete_dag(args, dag=None):
+    dag = dag or get_dag(args)
+    if args.yes:
+        dag.delete(confirm_prompt=False)
+    else:
+        dag.delete()
+
+
 def pause(args, dag=None):
     set_is_paused(True, args, dag)
 
@@ -489,7 +497,7 @@ def worker(args):
 
         worker.run(**options)
         sp.kill()
-        
+
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
@@ -614,6 +622,11 @@ class CLIFactory(object):
             ("--stdout", ), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
+        'yes': Arg(
+            ("-y", "--yes"),
+            "Do not prompt to confirm. Use with care!",
+            "store_true",
+            default=False),
 
         # backfill
         'mark_success': Arg(
@@ -723,11 +736,6 @@ class CLIFactory(object):
             "Use the server that ships with Flask in debug mode",
             "store_true"),
         # resetdb
-        'yes': Arg(
-            ("-y", "--yes"),
-            "Do not prompt to confirm reset. Use with care!",
-            "store_true",
-            default=False),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'num_runs': Arg(
@@ -778,10 +786,15 @@ class CLIFactory(object):
             'args': ('dag_id', 'tree', 'subdir'),
         }, {
             'func': clear,
-            'help': "Clear a set of task instance, as if they never ran",
+            'help': "Clear a set of task instances, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm'),
+        }, {
+            'func': delete_dag,
+            'help': "Delete a DAG and all associated data from the database",
+            'args': (
+                'dag_id', 'subdir', 'yes'),
         }, {
             'func': pause,
             'help': "Pause a DAG",

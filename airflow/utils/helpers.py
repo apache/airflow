@@ -63,14 +63,19 @@ def ask_yesno(question):
 
     done = False
     print(question)
-    while not done:
+    tries = 0
+    while not done and tries < 3:
+        tries += 1
         choice = input().lower()
         if choice in yes:
             return True
         elif choice in no:
             return False
+        elif tries == 3:
+            print('Received 3 invalid responses.')
+            return False
         else:
-            print("Please respond by yes or no.")
+            print("Please respond with yes/y or no/n.")
 
 
 def import_module_attrs(parent_module_globals, module_attrs_dict):

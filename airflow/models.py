@@ -2993,6 +2993,32 @@ class DAG(LoggingMixin):
         args = parser.parse_args()
         args.func(args, self)
 
+    @provide_session
+    def delete(self, confirm_prompt=True, session=None):
+        """
+        Deletes the DAG and all related information from the database
+        """
+        if confirm_prompt:
+            question = (
+                'This will completely delete DAG {} and all associated '
+                'tasks/data from the database, but it will NOT delete the file '
+                'that defines the DAG. Are you sure you want to '
+                'proceed? (y/n)'.format(self.dag_id))
+            if not utils.helpers.ask_yesno(question):
+                print('Delete canceled.')
+                return
+
+        from airflow.jobs import BaseJob
+        session.query(XCom).filter(XCom.dag_id == self.dag_id).delete()
+        session.query(SlaMiss).filter(SlaMiss.dag_id == self.dag_id).delete()
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.dag_id).delete()
+        session.query(Log).filter(Log.dag_id == self.dag_id).delete()
+        session.query(BaseJob).filter(BaseJob.dag_id == self.dag_id).delete()
+        session.query(DagRun).filter(DagRun.dag_id == self.dag_id).delete()
+        session.query(DagModel).filter(DagModel.dag_id == self.dag_id).delete()
+        session.commit()
+
 
 class Chart(Base):
     __tablename__ = "chart"
