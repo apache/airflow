@@ -72,41 +72,6 @@ class BackfillJobTest(unittest.TestCase):
                 ignore_first_depends_on_past=True)
             job.run()
 
-    def test_trap_executor_error(self):
-        """
-        Test that errors setting up tasks (before tasks run) are caught.
-
-        Executors run tasks with the `airflow run` command. If a task runs,
-        its state (success, failure, or other) is stored in the database and
-        `airflow run` exits without error. However, if an error is raised
-        before the task runs, then the task won't be able to update its status.
-        This can put the executor into an infinite loop of trying to run the
-        task.
-
-        To counteract that, the executor traps errors coming from
-        `airflow run` (essentially looking for returncode != 0).
-        This unit test creates such an error by trying
-        to run a subdag whose dag_id has changed and therefore can't be
-        found. If the trap is working properly, the error will be caught
-        and the Backfill will report failures. If the trap is not working,
-        the job will run infinitely (the unit test uses a timeout to protect
-        against that case).
-
-        Test for https://github.com/airbnb/airflow/pull/1220
-        """
-        dag = self.dagbag.get_dag('test_raise_executor_error')
-        dag.clear()
-        job = BackfillJob(
-            dag=dag,
-            start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE)
-        # run with timeout because this creates an infinite loop if not
-        # caught
-        def run_with_timeout():
-            with timeout(seconds=30):
-                job.run()
-        self.assertRaises(AirflowException, run_with_timeout)
-
     def test_backfill_pooled_tasks(self):
         """
         Test that queued tasks are executed by BackfillJob

@@ -46,8 +46,9 @@ def apply_defaults(func):
                 "Use keyword arguments when initializing operators")
         dag_args = {}
         dag_params = {}
-        if 'dag' in kwargs and kwargs['dag']:
-            dag = kwargs['dag']
+        import airflow.models
+        if kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG:
+            dag = kwargs.get('dag', None) or airflow.models._CONTEXT_MANAGER_DAG
             dag_args = copy(dag.default_args) or {}
             dag_params = copy(dag.params) or {}
 

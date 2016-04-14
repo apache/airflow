@@ -60,6 +60,7 @@ gcp_api = [
     'httplib2',
     'google-api-python-client<=1.4.2',
     'oauth2client>=1.5.2, <2.0.0',
+    'PyOpenSSL',
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']

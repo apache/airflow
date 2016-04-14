@@ -249,6 +249,13 @@ def run(args, dag=None):
         executor.heartbeat()
         executor.end()
 
+    # Force the log to flush, and set the handler to go back to normal so we
+    # don't continue logging to the task's log file. The flush is important
+    # because we subsequently read from the log to insert into S3 or Google
+    # cloud storage.
+    logging.root.handlers[0].flush()
+    logging.root.handlers = []
+
     # store logs remotely
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 

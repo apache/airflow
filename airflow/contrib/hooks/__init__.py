@@ -9,7 +9,9 @@ _hooks = {
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
     'bigquery_hook': ['BigQueryHook'],
-    'qubole_hook': ['QuboleHook']
+    'qubole_hook': ['QuboleHook'],
+    'gcs_hook': ['GoogleCloudStorageHook'],
+    'datastore_hook': ['DatastoreHook'],
 }
 
 _import_module_attrs(globals(), _hooks)

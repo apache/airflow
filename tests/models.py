@@ -24,15 +24,18 @@ import time
 
 from airflow import models, AirflowException
 from airflow.exceptions import AirflowSkipException
-from airflow.models import TaskInstance as TI
+from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
+from airflow.models import DagModel
 from airflow.operators import DummyOperator, BashOperator, PythonOperator
 from airflow.utils.state import State
+from mock import patch
 from nose_parameterized import parameterized
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
+
 
 class DagTest(unittest.TestCase):
 
@@ -64,6 +67,52 @@ class DagTest(unittest.TestCase):
         params_combined.update(params2)
         assert dag.params == params_combined
 
+    def test_dag_as_context_manager(self):
+        """
+        Test DAG as a context manager.
+
+        When used as a context manager, Operators are automatically added to
+        the DAG (unless they specifiy a different DAG)
+        """
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+        dag2 = DAG(
+            'dag2',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner2'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+            op2 = DummyOperator(task_id='op2', dag=dag2)
+
+        self.assertIs(op1.dag, dag)
+        self.assertEqual(op1.owner, 'owner1')
+        self.assertIs(op2.dag, dag2)
+        self.assertEqual(op2.owner, 'owner2')
+
+        with dag2:
+            op3 = DummyOperator(task_id='op3')
+
+        self.assertIs(op3.dag, dag2)
+        self.assertEqual(op3.owner, 'owner2')
+
+        with dag:
+            with dag2:
+                op4 = DummyOperator(task_id='op4')
+            op5 = DummyOperator(task_id='op5')
+
+        self.assertIs(op4.dag, dag2)
+        self.assertIs(op5.dag, dag)
+        self.assertEqual(op4.owner, 'owner2')
+        self.assertEqual(op5.owner, 'owner1')
+
+        with DAG('creating_dag_in_cm', start_date=DEFAULT_DATE) as dag:
+            DummyOperator(task_id='op6')
+
+        self.assertEqual(dag.dag_id, 'creating_dag_in_cm')
+        self.assertEqual(dag.tasks[0].task_id, 'op6')
 
 class DagRunTest(unittest.TestCase):
     def test_id_for_date(self):
@@ -121,8 +170,121 @@ class DagBagTest(unittest.TestCase):
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         assert dagbag.get_dag("test_zip_dag")
 
+    @patch.object(DagModel,'get_current')
+    def test_get_dag_without_refresh(self, mock_dagmodel):
+        """
+        Test that, once a DAG is loaded, it doesn't get refreshed again if it
+        hasn't been expired.
+        """
+        dag_id = 'example_bash_operator'
+
+        mock_dagmodel.return_value = DagModel()
+        mock_dagmodel.return_value.last_expired = None
+        mock_dagmodel.return_value.fileloc = 'foo'
+
+        class TestDagBag(models.DagBag):
+            process_file_calls = 0
+            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+                if 'example_bash_operator.py' in filepath:
+                    TestDagBag.process_file_calls += 1
+                super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
+
+        dagbag = TestDagBag(include_examples=True)
+        processed_files = dagbag.process_file_calls
+
+        # Should not call process_file agani, since it's already loaded during init.
+        assert dagbag.process_file_calls == 1
+        assert dagbag.get_dag(dag_id) != None
+        assert dagbag.process_file_calls == 1
+
 
 class TaskInstanceTest(unittest.TestCase):
+
+    def test_set_dag(self):
+        """
+        Test assigning Operators to Dags, including deferred assignment
+        """
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        dag2 = DAG('dag2', start_date=DEFAULT_DATE)
+        op = DummyOperator(task_id='op_1', owner='test')
+
+        # no dag assigned
+        self.assertFalse(op.has_dag())
+        self.assertRaises(AirflowException, getattr, op, 'dag')
+
+        # no improper assignment
+        with self.assertRaises(TypeError):
+            op.dag = 1
+
+        op.dag = dag
+
+        # no reassignment
+        with self.assertRaises(AirflowException):
+            op.dag = dag2
+
+        # but assigning the same dag is ok
+        op.dag = dag
+
+        self.assertIs(op.dag, dag)
+        self.assertIn(op, dag.tasks)
+
+    def test_infer_dag(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        dag2 = DAG('dag2', start_date=DEFAULT_DATE)
+
+        op1 = DummyOperator(task_id='test_op_1', owner='test')
+        op2 = DummyOperator(task_id='test_op_2', owner='test')
+        op3 = DummyOperator(task_id='test_op_3', owner='test', dag=dag)
+        op4 = DummyOperator(task_id='test_op_4', owner='test', dag=dag2)
+
+        # double check dags
+        self.assertEqual(
+            [i.has_dag() for i in [op1, op2, op3, op4]],
+            [False, False, True, True])
+
+        # can't combine operators with no dags
+        self.assertRaises(AirflowException, op1.set_downstream, op2)
+
+        # op2 should infer dag from op1
+        op1.dag = dag
+        op1.set_downstream(op2)
+        self.assertIs(op2.dag, dag)
+
+        # can't assign across multiple DAGs
+        self.assertRaises(AirflowException, op1.set_downstream, op4)
+        self.assertRaises(AirflowException, op1.set_downstream, [op3, op4])
+
+    def test_bitshift_compose_operators(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='test_op_1', owner='test')
+        op2 = DummyOperator(task_id='test_op_2', owner='test')
+        op3 = DummyOperator(task_id='test_op_3', owner='test')
+        op4 = DummyOperator(task_id='test_op_4', owner='test')
+        op5 = DummyOperator(task_id='test_op_5', owner='test')
+
+        # can't compose operators without dags
+        with self.assertRaises(AirflowException):
+            op1 >> op2
+
+        dag >> op1 >> op2 << op3
+
+        # make sure dag assignment carries through
+        # using __rrshift__
+        self.assertIs(op1.dag, dag)
+        self.assertIs(op2.dag, dag)
+        self.assertIs(op3.dag, dag)
+
+        # op2 should be downstream of both
+        self.assertIn(op2, op1.downstream_list)
+        self.assertIn(op2, op3.downstream_list)
+
+        # test dag assignment with __rlshift__
+        dag << op4
+        self.assertIs(op4.dag, dag)
+
+        # dag assignment with __rrshift__
+        dag >> op5
+        self.assertIs(op5.dag, dag)
 
     def test_run_pooling_task(self):
         """
@@ -345,4 +507,3 @@ class TaskInstanceTest(unittest.TestCase):
 
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
-
