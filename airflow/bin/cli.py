@@ -453,9 +453,14 @@ def worker(args):
     """
 
     # only applied when using the CeleryExecutor
-    executor_type = conf.get('core', 'executor')
-    if executor_type != 'CeleryExecutor':
-        raise AirflowException('The `worker` is only for the CeleryExecutor')
+    executor_type = conf.get_executor_type()
+    if executor_type != 'celeryexecutor':
+        # reassign with the original one
+        executor_type = conf.get_executor_type(case_sensitive=False)
+        raise AirflowException(
+            'The `worker` is only for the CeleryExecutor, '
+            'got {0} instead'
+            .format(executor_type))
 
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
