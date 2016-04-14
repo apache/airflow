@@ -2355,7 +2355,7 @@ class DAG(LoggingMixin):
 
     @property
     def roots(self):
-        return [t for t in self.tasks if not t.downstream_list]
+        return [t for t in self.tasks if not [downstream for downstream in t.downstream_list if not downstream == t]]
 
     @provide_session
     def set_dag_runs_state(
