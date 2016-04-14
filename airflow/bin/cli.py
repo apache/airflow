@@ -228,8 +228,8 @@ def run(args, dag=None):
                 session.commit()
                 pickle_id = pickle.id
                 print((
-                    'Pickled dag {dag} '
-                    'as pickle_id:{pickle_id}').format(**locals()))
+                          'Pickled dag {dag} '
+                          'as pickle_id:{pickle_id}').format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -440,6 +440,7 @@ def serve_logs(args):
             filename,
             mimetype="application/json",
             as_attachment=False)
+
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(
@@ -447,6 +448,15 @@ def serve_logs(args):
 
 
 def worker(args):
+    """
+    Spawn Celery workers for using the CeleryExecutor
+    """
+
+    # only applied when using the CeleryExecutor
+    executor_type = conf.get('core', 'executor')
+    if executor_type != 'CeleryExecutor':
+        raise AirflowException('The `worker` is only for the CeleryExecutor')
+
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
@@ -489,7 +499,7 @@ def worker(args):
 
         worker.run(**options)
         sp.kill()
-        
+
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
@@ -604,14 +614,14 @@ class CLIFactory(object):
         'dry_run': Arg(
             ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
         'pid': Arg(
-            ("--pid", ), "PID file location",
+            ("--pid",), "PID file location",
             nargs='?'),
         'foreground': Arg(
             ("-f", "--foreground"), "Do not detach. Run in foreground", "store_true"),
         'stderr': Arg(
-            ("--stderr", ), "Redirect stderr to this file"),
+            ("--stderr",), "Redirect stderr to this file"),
         'stdout': Arg(
-            ("--stdout", ), "Redirect stdout to this file"),
+            ("--stdout",), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
 
