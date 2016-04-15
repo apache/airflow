@@ -62,7 +62,7 @@ class HiveCliHook(BaseHook):
             self,
             hive_cli_conn_id="hive_cli_default",
             run_as=None,
-            mapred_queue,
+            mapred_queue=None,
             mapred_queue_priority=None,
             mapred_job_name=None):
         conn = self.get_connection(hive_cli_conn_id)
