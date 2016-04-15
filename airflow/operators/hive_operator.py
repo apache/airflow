@@ -60,9 +60,9 @@ class HiveOperator(BaseOperator):
         if run_as_owner:
             self.run_as = self.dag.owner
 
-        self.mapred_queue = hive_queue
-        self.mapred_queue_priority = hive_queue_priority
-        self.mapred_job_name = hive_job_name
+        self.mapred_queue = mapred_queue
+        self.mapred_queue_priority = mapred_queue_priority
+        self.mapred_job_name = mapred_job_name
 
     def get_hook(self):
         return HiveCliHook(

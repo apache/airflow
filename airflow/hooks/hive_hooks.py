@@ -29,7 +29,8 @@ from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
 
-HIVE_QUEUE_PRIORITIES = ['VERY_HIGH','HIGH','NORMAL','LOW','VERY_LOW']
+HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
+
 
 class HiveCliHook(BaseHook):
 
@@ -60,7 +61,10 @@ class HiveCliHook(BaseHook):
     def __init__(
             self,
             hive_cli_conn_id="hive_cli_default",
-            run_as=None):
+            run_as=None,
+            mapred_queue,
+            mapred_queue_priority=None,
+            mapred_job_name=None):
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params = conn.extra_dejson.get('hive_cli_params', '')
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
@@ -75,9 +79,9 @@ class HiveCliHook(BaseHook):
                     "Invalid Mapred Queue Priority.  Valid values are: "
                     "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
 
-        self.mapred_queue = hive_queue
-        self.mapred_queue_priority = hive_queue_priority
-        self.mapred_job_name = hive_job_name
+        self.mapred_queue = mapred_queue
+        self.mapred_queue_priority = mapred_queue_priority
+        self.mapred_job_name = mapred_job_name
 
     def run_cli(self, hql, schema=None, verbose=True):
         """
