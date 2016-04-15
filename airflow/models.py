@@ -829,12 +829,18 @@ class TaskInstance(Base):
 
             if tt == TriggerType.ALL and any(skipped):
                 self.set_state(State.SKIPPED, session)
+                logging.error("Recording the task instance as SKIPPED because an upstream task was skipped")
+                session.commit()
 
             elif tt == TriggerType.ALL and any(failed):
                 self.set_state(State.UPSTREAM_FAILED, session)
+                logging.error("Recording the task instance as UPSTREAM_FAILED because an upstream task has failed")
+                session.commit()
 
             elif tt == TriggerType.ANY and all(done) and not any(triggered):
                 self.set_state(State.SKIPPED, session)
+                logging.error("Recording the task instance as SKIPPED")
+                session.commit()
 
         if self.task.trigger_type == TriggerType.ALL and all(triggered):
             return True
