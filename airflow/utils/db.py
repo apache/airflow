@@ -83,89 +83,90 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb():
+def initdb(load_examples=False):
     session = settings.Session()
 
     from airflow import models
     upgradedb()
 
-    merge_conn(
-        models.Connection(
-            conn_id='airflow_db', conn_type='mysql',
-            host='localhost', login='root', password='',
-            schema='airflow'))
-    merge_conn(
-        models.Connection(
-            conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root',
-            schema='airflow_ci'))
-    merge_conn(
-        models.Connection(
-            conn_id='beeline_default', conn_type='beeline', port="10000",
-            host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
-            schema='default'))
-    merge_conn(
-        models.Connection(
-            conn_id='bigquery_default', conn_type='bigquery'))
-    merge_conn(
-        models.Connection(
-            conn_id='local_mysql', conn_type='mysql',
-            host='localhost', login='airflow', password='airflow',
-            schema='airflow'))
-    merge_conn(
-        models.Connection(
-            conn_id='presto_default', conn_type='presto',
-            host='localhost',
-            schema='hive', port=3400))
-    merge_conn(
-        models.Connection(
-            conn_id='hive_cli_default', conn_type='hive_cli',
-            schema='default',))
-    merge_conn(
-        models.Connection(
-            conn_id='hiveserver2_default', conn_type='hiveserver2',
-            host='localhost',
-            schema='default', port=10000))
-    merge_conn(
-        models.Connection(
-            conn_id='metastore_default', conn_type='hive_metastore',
-            host='localhost', extra="{\"authMechanism\": \"PLAIN\"}",
-            port=9083))
-    merge_conn(
-        models.Connection(
-            conn_id='mysql_default', conn_type='mysql',
-            login='root',
-            host='localhost'))
-    merge_conn(
-        models.Connection(
-            conn_id='postgres_default', conn_type='postgres',
-            login='postgres',
-            schema='airflow',
-            host='localhost'))
-    merge_conn(
-        models.Connection(
-            conn_id='sqlite_default', conn_type='sqlite',
-            host='/tmp/sqlite_default.db'))
-    merge_conn(
-        models.Connection(
-            conn_id='http_default', conn_type='http',
-            host='https://www.google.com/'))
-    merge_conn(
-        models.Connection(
-            conn_id='mssql_default', conn_type='mssql',
-            host='localhost', port=1433))
-    merge_conn(
-        models.Connection(
-            conn_id='vertica_default', conn_type='vertica',
-            host='localhost', port=5433))
-    merge_conn(
-        models.Connection(
-            conn_id='webhdfs_default', conn_type='hdfs',
-            host='localhost', port=50070))
-    merge_conn(
-        models.Connection(
-            conn_id='ssh_default', conn_type='ssh',
-            host='localhost'))
+    if load_examples:
+        merge_conn(
+            models.Connection(
+                conn_id='airflow_db', conn_type='mysql',
+                host='localhost', login='root', password='',
+                schema='airflow'))
+        merge_conn(
+            models.Connection(
+                conn_id='airflow_ci', conn_type='mysql',
+                host='localhost', login='root',
+                schema='airflow_ci'))
+        merge_conn(
+            models.Connection(
+                conn_id='beeline_default', conn_type='beeline', port="10000",
+                host='localhost', extra="{\"use_beeline\": true, \"auth\": \"\"}",
+                schema='default'))
+        merge_conn(
+            models.Connection(
+                conn_id='bigquery_default', conn_type='bigquery'))
+        merge_conn(
+            models.Connection(
+                conn_id='local_mysql', conn_type='mysql',
+                host='localhost', login='airflow', password='airflow',
+                schema='airflow'))
+        merge_conn(
+            models.Connection(
+                conn_id='presto_default', conn_type='presto',
+                host='localhost',
+                schema='hive', port=3400))
+        merge_conn(
+            models.Connection(
+                conn_id='hive_cli_default', conn_type='hive_cli',
+                schema='default',))
+        merge_conn(
+            models.Connection(
+                conn_id='hiveserver2_default', conn_type='hiveserver2',
+                host='localhost',
+                schema='default', port=10000))
+        merge_conn(
+            models.Connection(
+                conn_id='metastore_default', conn_type='hive_metastore',
+                host='localhost', extra="{\"authMechanism\": \"PLAIN\"}",
+                port=9083))
+        merge_conn(
+            models.Connection(
+                conn_id='mysql_default', conn_type='mysql',
+                login='root',
+                host='localhost'))
+        merge_conn(
+            models.Connection(
+                conn_id='postgres_default', conn_type='postgres',
+                login='postgres',
+                schema='airflow',
+                host='localhost'))
+        merge_conn(
+            models.Connection(
+                conn_id='sqlite_default', conn_type='sqlite',
+                host='/tmp/sqlite_default.db'))
+        merge_conn(
+            models.Connection(
+                conn_id='http_default', conn_type='http',
+                host='https://www.google.com/'))
+        merge_conn(
+            models.Connection(
+                conn_id='mssql_default', conn_type='mssql',
+                host='localhost', port=1433))
+        merge_conn(
+            models.Connection(
+                conn_id='vertica_default', conn_type='vertica',
+                host='localhost', port=5433))
+        merge_conn(
+            models.Connection(
+                conn_id='webhdfs_default', conn_type='hdfs',
+                host='localhost', port=50070))
+        merge_conn(
+            models.Connection(
+                conn_id='ssh_default', conn_type='ssh',
+                host='localhost'))
 
     # Known event types
     KET = models.KnownEventType
@@ -214,7 +215,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb():
+def resetdb(load_examples):
     '''
     Clear out the database
     '''
@@ -225,4 +226,4 @@ def resetdb():
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
-    initdb()
+    initdb(load_examples)
