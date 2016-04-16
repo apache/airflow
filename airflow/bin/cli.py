@@ -512,7 +512,7 @@ def worker(args):
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb()
+    db_utils.initdb(args.load_examples)
     print("Done.")
 
 
@@ -523,7 +523,7 @@ def resetdb(args):
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
                             format=settings.SIMPLE_LOG_FORMAT)
-        db_utils.resetdb()
+        db_utils.resetdb(args.load_examples)
     else:
         print("Bail.")
 
@@ -760,6 +760,12 @@ class CLIFactory(object):
             ("-d", "--debug"),
             "Use the server that ships with Flask in debug mode",
             "store_true"),
+        # initdb
+        'load_examples': Arg(
+            ("-l", "--load-examples"),
+            "Load examples when initializing metadata database",
+            "store_true",
+            default=False),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -856,7 +862,7 @@ class CLIFactory(object):
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",
-            'args': tuple(),
+            'args': ('load_examples',),
         }, {
             'func': list_dags,
             'help': "List all the DAGs",
@@ -886,7 +892,7 @@ class CLIFactory(object):
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
-            'args': ('yes',),
+            'args': ('load_examples', 'yes',),
         }, {
             'func': upgradedb,
             'help': "Upgrade metadata database to latest version",
