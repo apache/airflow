@@ -29,9 +29,11 @@ from airflow.utils.state import State
 from airflow.exceptions import AirflowException
 
 # make this configurable
-from airflow.common.client.local_client import LocalClient
-client = LocalClient()
+from airflow.api.client.local_client import LocalClient
+from airflow.api.client.api_client import ApiClient
 
+#client = LocalClient()
+client = ApiClient("http://localhost:8080")
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 

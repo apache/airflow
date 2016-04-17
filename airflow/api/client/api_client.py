@@ -13,12 +13,13 @@
 # limitations under the License.
 #
 import requests
-import json
+
+import airflow.api.common.proto.variable_pb2 as variable_pb2
+import airflow.models as models
 
 from urlparse import urljoin
 
 from airflow.common.client.client import Client
-from airflow.models import Variable
 
 
 class ApiClient(Client):
@@ -27,21 +28,28 @@ class ApiClient(Client):
         pass
 
     def get_var(self, key, default_var=None, deserialize_json=False):
-        url = urljoin(self.api_base_url, "/api/v1/variables/get/{}/{}/{}".format(key, default_var, deserialize_json))
+        url = urljoin(self.api_base_url, "/api/v1/variables/get/{}".format(key))
         resp = requests.get(url)
 
         if not resp.ok:
             raise ValueError()
 
-        j_variable = resp.json('variable')
+        var = variable_pb2.Variable()
+        var.ParseFromString(resp.content)
 
-        return Variable(j_variable['key'], j_variable['value'])
+        m_var = models.Variable()
+        m_var.key = var.key
+        m_var.set_val(var.value)
+
+        return m_var
 
     def set_var(self, key, value, serialize_json=False):
         url = urljoin(self.api_base_url, "/api/v1/variables/set")
-        resp = requests.post(url, data = json.dumps({'key': key,
-                                                     'value': value,
-                                                     'serialize_json': serialize_json}))
+        var = variable_pb2.Variable()
+        var.key = key
+        var.value = value
+
+        resp = requests.post(url, data=var.SerializeToString())
 
         assert resp.ok
 
@@ -52,6 +60,15 @@ class ApiClient(Client):
         if not resp.ok:
             raise IOError()
 
-        # todo: return correct deserialized data
-        return resp.json('variables')
+        var_list = variable_pb2.VariableList()
+        var_list.ParseFromString(resp.content)
+
+        v = []
+        for pb_var in var_list.variables:
+            m_var = models.Variable()
+            m_var.key = pb_var.key
+            m_var.set_val(pb_var.value)
+            v.append(m_var)
+
+        return v
 

@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import airflow.common.variables as variables
+import logging
+
+import airflow.api.common.variables as variables
+import airflow.api.common.proto.variable_pb2 as variable_pb2
 
 from flask import (
     url_for, Markup, Blueprint, redirect, jsonify, abort, request, app, send_file
@@ -21,27 +24,38 @@ from flask import (
 apiv1 = Blueprint('apiv1', __name__)
 
 
-@apiv1.route('/variables/get/<string:key>/<string:default_var>/<string:deserialize_json>')
-def get_var(key, default_var=None, deserialize_json=None):
+@apiv1.route('/variables/get/<string:key>')
+def get_var(key):
     try:
-        my_var = variables.get_var(key, default_var, deserialize_json)
+        my_var = variables.get_var(key)
     except ValueError as e:
+        logging.log(logging.WARN, e)
         abort(404)
 
-    return jsonify({'variable':
-                        {'key' : key,
-                         'value': my_var,
-                         }
-                    })
+    var = variable_pb2.Variable()
+    var.key = key
+    var.value = my_var
+    return var.SerializeToString()
 
 
 @apiv1.route('/variables/set', methods=['POST'])
 def set_var():
-    variables.set_var(request.json['key'], request.json['value'], request.json['serialize_json'])
+    var = variable_pb2.Variable(request.content)
+    serialize_json = False
+    if var.serialize_json:
+        serialize_json = var.serialize_json
+
+    variables.set_var(var.key, var.value, serialize_json)
 
 
 @apiv1.route('/variables/list', methods=['GET'])
 def list_var():
-    my_vars = variables.list_var()
-    return jsonify({'variables': my_vars})
+    vars_list = variables.list_var()
+    pb2_vars = variable_pb2.VariableList()
+    for var in vars_list:
+        pb2_var = pb2_vars.variables.add()
+        pb2_var.key = var.key
+        pb2_var.value = var.get_val()
+
+    return pb2_vars.SerializeToString()
 
