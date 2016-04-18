@@ -28,6 +28,12 @@ from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
 from airflow.exceptions import AirflowException
 
+# make this configurable
+from airflow.api.client.local_client import LocalClient
+from airflow.api.client.api_client import ApiClient
+
+#client = LocalClient()
+client = ApiClient("http://localhost:8080")
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 
@@ -146,19 +152,19 @@ def trigger_dag(args):
 def variables(args):
     if args.get:
         try:
-            var = Variable.get(args.get,
-                               deserialize_json=args.json,
-                               default_var=args.default)
+            var = client.get_var(args.get,
+                                 deserialize_json=args.json,
+                                 default_var=args.default)
             print(var)
         except ValueError as e:
             print(e)
     if args.set:
-        Variable.set(args.set[0], args.set[1])
+        # and serialize_json as an option?
+        client.set_var(args.set[0], args.set[1])
     if not args.set and not args.get:
         # list all variables
-        session = settings.Session()
-        vars = session.query(Variable)
-        msg = "\n".join(var.key for var in vars)
+        variables = client.list_var()
+        msg = "\n".join(var.key for var in variables)
         print(msg)
 
 

@@ -1,0 +1,14 @@
+syntax = "proto2";
+
+package airflow;
+
+message Variable {
+    optional string key = 1;
+    optional string value = 2;
+
+    optional bool serialize_json = 3;
+}
+
+message VariableList {
+    repeated Variable variables = 1;
+}
