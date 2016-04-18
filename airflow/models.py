@@ -1937,20 +1937,20 @@ class BaseOperator(object):
 
     def __deepcopy__(self, memo):
         """
-        Hack sorting double chained task lists by task_id to avoid hitting
-        max_depth on deepcopy operations.
+        Deep copying object except for the attrs in DONT_DEEPCOPY_ATTRS
         """
-        sys.setrecursionlimit(5000)  # TODO fix this in a better way
+        DONT_DEEPCOPY_ATTRS = ('user_defined_macros', 'params')
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
 
         for k, v in list(self.__dict__.items()):
-            if k not in ('user_defined_macros', 'params'):
+            if k not in DONT_DEEPCOPY_ATTRS:
                 setattr(result, k, copy.deepcopy(v, memo))
-        result.params = self.params
-        if hasattr(self, 'user_defined_macros'):
-            result.user_defined_macros = self.user_defined_macros
+
+        for attr in DONT_DEEPCOPY_ATTRS:
+            if hasattr(self, attr):
+                setattr(result, attr, getattr(self, attr))
         return result
 
     def render_template_from_field(self, attr, content, context, jinja_env):
@@ -2588,8 +2588,11 @@ class DAG(LoggingMixin):
         except Exception as e:
             logging.error("DAG won't deepcopy, attempting task-per-task")
             for t in self.tasks:
-                logging.debug("Trying task {}".format(t))
-                copy.deepcopy(t)
+                try:
+                    copy.deepcopy(t)
+                except Exception as e:
+                    logging.error("{t} is not deepcopyable".format(t))
+                    raise e
             logging.info(
                 "It doesn't appear to be a specific task, raising the "
                 "original exception")
