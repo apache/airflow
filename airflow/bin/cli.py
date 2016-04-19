@@ -22,7 +22,8 @@ import airflow
 from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
+from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable, \
+    Connection
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
@@ -160,6 +161,37 @@ def variables(args):
         vars = session.query(Variable)
         msg = "\n".join(var.key for var in vars)
         print(msg)
+
+
+def connections(args):
+    session = airflow.settings.Session()
+    if args.add:
+        if not args.conn_id or not args.conn_type:
+            raise AirflowException("Conn_id and conn_type are required to create a new"
+                                   "connection!")
+        c = Connection(
+            conn_id=args.conn_id,
+            conn_type=args.conn_type,
+            host=args.conn_hostname,
+            port=args.conn_port,
+            login=args.login,
+            schema=args.schema)
+        c.set_password(args.password)
+        c.set_extra(args.extra)
+        session.add(c)
+        session.commit()
+        print("Created connection with conn_id: {}, conn_type: {}, "
+              "host: {}, port: {}".format(c.conn_id, c.conn_type,
+                                          c.host, c.port))
+    else:
+        # list connection info
+        cs = session.query(Connection).order_by(Connection.conn_id).all()
+        headings = ["CONN_ID", "CONN_TYPE", "HOST", "PORT"]
+        rows = [[str(c.conn_id), str(c.conn_type), str(c.host), str(c.port)] for c in cs]
+        col_width = max(len(col) for row in rows for col in row) + 2
+        print("".join(c.ljust(col_width) for c in headings))
+        for row in rows:
+            print("".join(col.ljust(col_width) for col in row))
 
 
 def pause(args, dag=None):
@@ -703,6 +735,30 @@ class CLIFactory(object):
             ("-j", "--json"),
             help="Deserialize JSON variable",
             action="store_true"),
+        # connections
+        'add': Arg(
+            ("-a", "--add"), "Add a new connection", "store_true"),
+        'conn_id': Arg(
+            ("-c", "--conn_id"), "Id of the database connection"),
+        'conn_type': Arg(
+            ("-t", "--conn_type"),
+            choices=['bigquery', 'postgres', 'hive_cli', 'presto', 'hiveserver2',
+                     'sqlite', 'jdbc', 'mssql', 'oracle', 'vertica'],
+            help="Type of the database connection"),
+        'conn_hostname': Arg(
+            ("-hn", "--conn_hostname"), "Hostname of the database connection"),
+        'conn_port': Arg(
+            ("-p", "--conn_port"),
+            type=int,
+            help="Port of the database connection"),
+        'login': Arg(
+            ("-l", "--login"), "Username to access the database"),
+        'password': Arg(
+            ("-pw", "--password"), "Password to access the database"),
+        'schema': Arg(
+            ("-m", "--schema"), "Schema of the database"),
+        'extra': Arg(
+            ("-e", "--extra"), "Extra json value which will be encrypted"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal",
@@ -835,7 +891,12 @@ class CLIFactory(object):
         }, {
             'func': variables,
             'help': "List all variables",
-            "args": ('set', 'get', 'json', 'default'),
+            'args': ('set', 'get', 'json', 'default'),
+        }, {
+            'func': connections,
+            'help': 'Set all airflow connections',
+            'args': ('add', 'conn_id', 'conn_type', 'conn_hostname', 'conn_port',
+                     'login', 'password', 'schema', 'extra'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
