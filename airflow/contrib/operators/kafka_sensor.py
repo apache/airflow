@@ -31,9 +31,9 @@ class KafkaSensor(BaseSensorOperator):
             'Poking topic: %s, using hook: %s',
             self.topic, self.hook)
 
-        message = self.hook.get_message()
+        messages = self.hook.get_messages()
 
         logging.info(
-            'Got message during poking: %s', message)
+            'Got messages during poking: %s', messages)
 
-        return message or False
+        return messages or False

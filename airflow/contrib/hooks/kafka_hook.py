@@ -28,8 +28,35 @@ class KafkaConsumerHook(BaseHook):
         return self.consumer
 
     def get_message(self):
+        """
+        Get one single message, blocks for a period
+        of timeout set by`consumer_timeout_ms`, then commit
+        the offset.
+
+        :return:
+            The message
+        """
         consumer = self.get_conn()
-        return next(consumer)
+        message = next(consumer)
+
+        # Commit the message, so that it won't be reprocessed.
+        consumer.commit()
+
+        return message
+
+    def get_messages(self):
+        """
+        Get all the messages haven't been consumed, it doesn't
+        block by default, then commit the offset.
+
+        :return:
+            A list of messages
+        """
+        consumer = self.get_conn()
+        messages = consumer.poll()
+
+        consumer.commit()
+        return messages
 
     def __repr__(self):
         """
