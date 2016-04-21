@@ -20,29 +20,16 @@ class KafkaConsumerHook(BaseHook):
             host = self.conn.host or self.default_host
             port = self.conn.port or self.default_port
 
+            # Disable auto commit as the hook will commit right
+            # after polling.
+            conf['enable_auto_commit'] = False
+
             self.server = '{host}:{port}'.format(**locals())
             self.consumer = KafkaConsumer(
                 self.topic,
                 bootstrap_servers=self.server, **conf)
 
         return self.consumer
-
-    def get_message(self):
-        """
-        Get one single message, blocks for a period
-        of timeout set by`consumer_timeout_ms`, then commit
-        the offset.
-
-        :return:
-            The message
-        """
-        consumer = self.get_conn()
-        message = next(consumer)
-
-        # Commit the message, so that it won't be reprocessed.
-        consumer.commit()
-
-        return message
 
     def get_messages(self):
         """
@@ -53,6 +40,9 @@ class KafkaConsumerHook(BaseHook):
             A list of messages
         """
         consumer = self.get_conn()
+
+        # `poll` returns a dict where keys are the partitions
+        # and values are the corresponding messages.
         messages = consumer.poll()
 
         consumer.commit()
