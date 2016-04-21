@@ -118,6 +118,7 @@ defaults = {
         'job_heartbeat_sec': 5,
         'scheduler_heartbeat_sec': 60,
         'authenticate': False,
+        'max_threads': 2,
     },
     'celery': {
         'default_queue': 'default',
@@ -329,6 +330,11 @@ scheduler_heartbeat_sec = 5
 # statsd_port =  8125
 # statsd_prefix = airflow
 
+# The scheduler can run multiple threads in parallel to schedule dags.
+# This defines how many threads will run. However airflow will never
+# use more threads than the amount of cpu cores available.
+max_threads = 2
+
 [mesos]
 # Mesos master address which MesosExecutor will connect to.
 master = localhost:5050
@@ -414,6 +420,7 @@ default_queue = default
 job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
+max_threads = 2
 """
 
 

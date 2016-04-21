@@ -29,6 +29,9 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.db import provide_session
 
+from airflow import configuration
+configuration.test_mode()
+
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 
@@ -284,6 +287,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.run()
 
         task_1 = dag.tasks[0]
+        logging.info("Trying to find task {}".format(task_1))
         ti = TI(task_1, dag.start_date)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.FAILED)
@@ -364,3 +368,21 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+    def test_scheduler_multiprocessing(self):
+        """
+        Test that the scheduler can successfully queue multiple dags in parallel
+        """
+        dag_ids = ['test_start_date_scheduling', 'test_dagrun_states_success']
+        for dag_id in dag_ids:
+            dag = self.dagbag.get_dag(dag_id)
+            dag.clear()
+
+        scheduler = SchedulerJob(dag_ids=dag_ids, num_runs=2)
+        scheduler.run()
+
+        # zero tasks ran
+        dag_id = 'test_start_date_scheduling'
+        session = settings.Session()
+        self.assertEqual(
+            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)

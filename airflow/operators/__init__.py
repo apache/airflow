@@ -60,6 +60,7 @@ _operators = {
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
     'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
+    'oracle_operator': ['OracleOperator']
 }
 
 _import_module_attrs(globals(), _operators)

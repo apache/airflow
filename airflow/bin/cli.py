@@ -819,7 +819,8 @@ class CLIFactory(object):
             'help': "Clear a set of task instance, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm'),
+                'upstream', 'downstream', 'no_confirm', 'only_failed',
+                'only_running'),
         }, {
             'func': pause,
             'help': "Pause a DAG",

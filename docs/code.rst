@@ -220,7 +220,8 @@ Community contributed hooks
         GoogleCloudStorageHook,
         VerticaHook,
         FTPHook,
-        SSHHook
+        SSHHook,
+        CloudantHook
 
 Executors
 ---------

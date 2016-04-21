@@ -90,3 +90,5 @@ Here's the list of the subpackages and what they enable:
 |  vertica      | ``pip install airflow[vertica]``    | Vertica hook                                    |
 |               |                                     | support as an Airflow backend                   |
 +---------------+-------------------------------------+-------------------------------------------------+
+|  cloudant     | ``pip install airflow[cloudant]``   | Cloudant hook                                   |
++---------------+-------------------------------------+-------------------------------------------------+
