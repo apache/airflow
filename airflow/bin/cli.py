@@ -405,14 +405,23 @@ def webserver(args):
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
             '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
-        sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
-            '-t', str(args.worker_timeout), '-b', args.hostname + ':' + str(args.port),
-            '-n', 'airflow-webserver', '--pid', pid,
-            'airflow.www.app:cached_app()']
+
+        run_args = ['gunicorn',
+                    '-w ' + str(args.workers),
+                    '-k ' + str(args.workerclass),
+                    '-t ' + str(args.worker_timeout),
+                    '-b ' + args.hostname + ':' + str(args.port),
+                    '-n ' + 'airflow-webserver',
+                    '-p ' + str(pid)]
+
+        if not args.foreground:
+            run_args.append("-D")
+
+        module = "airflow.www.app:cached_app()".encode()
+        run_args.append(module)
+        os.execvp(
+            'gunicorn', run_args
         )
-        if args.daemon:
-            sp.wait()
 
 
 def scheduler(args):
@@ -623,7 +632,9 @@ class CLIFactory(object):
             ("--pid", ), "PID file location",
             nargs='?'),
         'daemon': Arg(
-            ("-D", "--daemon"), "Daemonize instead of running on the foreground", "store_true"),
+            ("-D", "--daemon"), "Daemonize instead of running "
+                                "on the foreground",
+            "store_true"),
         'stderr': Arg(
             ("--stderr", ), "Redirect stderr to this file"),
         'stdout': Arg(
