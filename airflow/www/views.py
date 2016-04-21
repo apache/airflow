@@ -196,6 +196,21 @@ def wrapped_markdown(s):
     return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
 
 
+def pretty_json(v, c, m, p):
+    """
+    Prettify the property of the model as JSON
+    if it's not none, return None otherwise.
+    """
+    indent = 4
+    value = getattr(m, p)
+    formatted = json.dumps(value, indent=indent)
+    if value:
+        return Markup(
+            '<pre>{}</pre>'.format(formatted))
+    else:
+        return None
+
+
 attr_renderer = {
     'bash_command': lambda x: render(x, lexers.BashLexer),
     'hql': lambda x: render(x, lexers.SqlLexer),
@@ -2176,6 +2191,12 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'is_extra_encrypted': {'disabled': True},
         'is_encrypted': {'disabled': True},
     }
+
+    column_formatters = {
+        # shows in the toggle area in JSON format
+        'extra_dejson': pretty_json
+    }
+
     # Used to customized the form, the forms elements get rendered
     # and results are stored in the extra field as json. All of these
     # need to be prefixed with extra__ and then the conn_type ___ as in
