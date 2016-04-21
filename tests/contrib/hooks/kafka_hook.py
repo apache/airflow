@@ -21,7 +21,8 @@ class KafkaConsumerHookTest(unittest.TestCase):
     @patch('airflow.contrib.hooks.kafka_hook.KafkaConsumer')
     def test_initialize_consumer(self, ConsumerMock):
         hook = KafkaConsumerHook(self.conn_id, 'test-topic')
-        consumer = hook.get_conn()
+        # triggers the consumer initialization
+        hook.get_conn()
 
         ConsumerMock.assert_called_with(
             'test-topic',
