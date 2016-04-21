@@ -17,8 +17,7 @@ import flask_login
 
 # Need to expose these downstream
 # pylint: disable=unused-import
-from flask_login import (login_user,
-                         current_user,
+from flask_login import (current_user,
                          logout_user,
                          login_required)
 # pylint: enable=unused-import
