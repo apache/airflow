@@ -9,7 +9,7 @@ Before I tell you about my issue, let me describe my environment:
 * Airflow components: *(e.g. "webserver and scheduler with a postgres database and LocalExecutor")*
 * Python Version: *(`python --version`)*
 * Operating System: *(Windows version or `uname -a`)*
-* Python packages: *`pip freeze` or `conda list`*
+* Python packages: *(`pip freeze` or `conda list`)*
 
 
 ### Description of Issue
