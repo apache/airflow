@@ -2532,9 +2532,14 @@ class DAG(LoggingMixin):
     def date_range(self, start_date, num=None, end_date=datetime.now()):
         if num:
             end_date = None
+
+        schedule_interval = self._schedule_interval
+        if schedule_interval.startswith('@continuous'):
+            schedule_interval = cron_presets.get('@daily')
+
         return utils_date_range(
             start_date=start_date, end_date=end_date,
-            num=num, delta=self._schedule_interval)
+            num=num, delta=schedule_interval)
 
     def following_schedule(self, dttm):
         if isinstance(self._schedule_interval, six.string_types):
