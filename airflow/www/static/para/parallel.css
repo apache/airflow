@@ -4,7 +4,7 @@ html, body {
   height: 100%;
   padding: 0;
 }
-body { 
+body {
   font-family: Ubuntu, Tahoma, Helvetica, sans-serif;
   font-size: 12px;
   line-height: 1.4em;
@@ -223,12 +223,12 @@ button#exclude-data:hover {
   width: 10px;
   height: 10px;
 }
- 
+
 ::-webkit-scrollbar-track {
   background: #ddd;
   border-radius: 12px;
 }
- 
+
 ::-webkit-scrollbar-thumb {
   background: #b5b5b5;
   border-radius: 12px;

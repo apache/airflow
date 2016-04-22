@@ -12,11 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import airflow
+from datetime import datetime
 
-def get_dag(dag_id, test_dag_folder=None):
-    """ retrieve DAG from the test dag folder """
-    dagbag = airflow.models.DagBag(dag_folder=test_dag_folder)
-    dag = dagbag.dags[dag_id]
-    dag.clear()
-    return dag
+from airflow.models import DAG
+from airflow.operators import DummyOperator
+DEFAULT_DATE = datetime(2100, 1, 1)
+
+# DAG tests backfill with pooled tasks
+# Previously backfill would queue the task but never run it
+dag1 = DAG(
+    dag_id='test_start_date_scheduling',
+    start_date=DEFAULT_DATE)
+dag1_task1 = DummyOperator(
+    task_id='dummy',
+    dag=dag1,
+    owner='airflow')

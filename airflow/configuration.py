@@ -8,6 +8,7 @@ import errno
 import logging
 import os
 import subprocess
+import warnings
 
 from future import standard_library
 standard_library.install_aliases()
@@ -16,6 +17,11 @@ from builtins import str
 from collections import OrderedDict
 from configparser import ConfigParser
 
+# show Airflow's deprecation warnings
+warnings.filterwarnings(
+    action='default', category=DeprecationWarning, module='airflow')
+warnings.filterwarnings(
+    action='default', category=PendingDeprecationWarning, module='airflow')
 
 class AirflowConfigException(Exception):
     pass
@@ -86,6 +92,10 @@ defaults = {
         'sql_alchemy_pool_size': 5,
         'sql_alchemy_pool_recycle': 3600,
         'dagbag_import_timeout': 30,
+        'non_pooled_task_slot_count': 128,
+    },
+    'operators': {
+        'default_owner': 'airflow'
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -108,13 +118,14 @@ defaults = {
         'job_heartbeat_sec': 5,
         'scheduler_heartbeat_sec': 60,
         'authenticate': False,
+        'max_threads': 2,
     },
     'celery': {
         'default_queue': 'default',
         'flower_port': '5555'
     },
     'email': {
-        'email_backend': 'airflow.utils.send_email_smtp',
+        'email_backend': 'airflow.utils.email.send_email_smtp',
     },
     'smtp': {
         'smtp_starttls': True,
@@ -196,6 +207,10 @@ dag_concurrency = 16
 # Are DAGs paused by default at creation
 dags_are_paused_at_creation = True
 
+# When not using pools, tasks are run in the "default pool",
+# whose size is guided by this config element
+non_pooled_task_slot_count = 128
+
 # The maximum number of active DAG runs per DAG
 max_active_runs_per_dag = 16
 
@@ -215,6 +230,13 @@ donot_pickle = False
 
 # How long before timing out a python file import while filling the DagBag
 dagbag_import_timeout = 30
+
+
+[operators]
+# The default owner assigned to each new operator, unless
+# provided explicitly or passed via `default_args`
+default_owner = Airflow
+
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
@@ -252,11 +274,11 @@ authenticate = False
 filter_by_owner = False
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
-# If you want airflow to send emails on retries, failure, and you want to
-# the airflow.utils.send_email function, you have to configure an smtp
+# If you want airflow to send emails on retries, failure, and you want to use
+# the airflow.utils.email.send_email_smtp function, you have to configure an smtp
 # server here
 smtp_host = localhost
 smtp_starttls = True
@@ -317,6 +339,11 @@ scheduler_heartbeat_sec = 5
 # statsd_host =  localhost
 # statsd_port =  8125
 # statsd_prefix = airflow
+
+# The scheduler can run multiple threads in parallel to schedule dags.
+# This defines how many threads will run. However airflow will never
+# use more threads than the amount of cpu cores available.
+max_threads = 2
 
 [mesos]
 # Mesos master address which MesosExecutor will connect to.
@@ -390,7 +417,7 @@ connection_auto_bind = NONE
 TEST_CONFIG = """\
 [core]
 airflow_home = {AIRFLOW_HOME}
-dags_folder = {AIRFLOW_HOME}/dags
+dags_folder = {TEST_DAGS_FOLDER}
 base_log_folder = {AIRFLOW_HOME}/logs
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
@@ -400,6 +427,10 @@ donot_pickle = False
 dag_concurrency = 16
 dags_are_paused_at_creation = False
 fernet_key = {FERNET_KEY}
+non_pooled_task_slot_count = 128
+
+[operators]
+default_owner = airflow
 
 [webserver]
 base_url = http://localhost:8080
@@ -407,7 +438,7 @@ web_server_host = 0.0.0.0
 web_server_port = 8080
 
 [email]
-email_backend = airflow.utils.send_email_smtp
+email_backend = airflow.utils.email.send_email_smtp
 
 [smtp]
 smtp_host = localhost
@@ -429,6 +460,7 @@ default_queue = default
 job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
+max_threads = 2
 """
 
 
@@ -616,6 +648,17 @@ if 'AIRFLOW_CONFIG' not in os.environ:
         AIRFLOW_CONFIG = AIRFLOW_HOME + '/airflow.cfg'
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
+
+# Set up dags folder for unit tests
+# this directory won't exist if users install via pip
+_TEST_DAGS_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+    'tests',
+    'dags')
+if os.path.exists(_TEST_DAGS_FOLDER):
+    TEST_DAGS_FOLDER = _TEST_DAGS_FOLDER
+else:
+    TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, 'dags')
 
 
 def parameterized_config(template):

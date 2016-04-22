@@ -16,6 +16,9 @@ if [ "${TRAVIS}" ]; then
     echo "Using travis airflow.cfg"
     DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     cp -f ${DIR}/airflow_travis.cfg ~/airflow/unittests.cfg
+
+    ROOTDIR="$(dirname $(dirname $DIR))"
+    export AIRFLOW__CORE__DAGS_FOLDER="$ROOTDIR/tests/dags"
 fi
 
 echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN

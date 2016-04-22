@@ -88,7 +88,7 @@ To Keep in Mind
   tasks in your DAG.
 * Subsequent ``DAG Runs`` are created by the scheduler process, based on
   your DAG's ``schedule_interval``, sequentially.
-* When clearing a set of tasks' state in hope of getting them to re-run, 
+* When clearing a set of tasks' state in hope of getting them to re-run,
   it is important to keep in mind the ``DAG Run``'s state too as it defines
   whether the scheduler should look into triggering tasks for that run.
 

@@ -42,7 +42,7 @@ Here are some of the common causes:
 
 - Is the ``concurrency`` parameter of your DAG reached? ``concurency`` defines
   how many ``running`` task instances a DAG is allowed to have, beyond which
-  point things get queued. 
+  point things get queued.
 
 - Is the ``max_active_runs`` parameter of your DAG reached? ``max_active_runs`` defines
   how many ``running`` concurrent instances of a DAG there are allowed to be.

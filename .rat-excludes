@@ -18,3 +18,4 @@ metastore_db
 .*sql
 .*csv
 CHANGELOG.txt
+.*zip

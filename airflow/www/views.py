@@ -16,6 +16,7 @@ import sys
 
 import os
 import socket
+import importlib
 
 from functools import wraps
 from datetime import datetime, timedelta
@@ -56,6 +57,7 @@ from airflow import models
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
+from airflow.models import XCom
 
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
@@ -575,15 +577,20 @@ class Airflow(BaseView):
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
+        RunningDagRun = (
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(DagRun.state == State.RUNNING)
+            .subquery('running_dag_run')
+        )
 
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
         qry = (
             session.query(TI.dag_id, TI.state, sqla.func.count(TI.task_id))
-            .outerjoin(DagRun, and_(
-                DagRun.dag_id == TI.dag_id,
-                DagRun.execution_date == TI.execution_date,
-                DagRun.state == State.RUNNING))
+            .outerjoin(RunningDagRun, and_(
+                RunningDagRun.c.dag_id == TI.dag_id,
+                RunningDagRun.c.execution_date == TI.execution_date)
+            )
             .outerjoin(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
                 LastDagRun.c.execution_date == TI.execution_date)
@@ -591,7 +598,7 @@ class Airflow(BaseView):
             .filter(TI.task_id.in_(task_ids))
             .filter(TI.dag_id.in_(dag_ids))
             .filter(or_(
-                DagRun.dag_id != None,
+                RunningDagRun.c.dag_id != None,
                 LastDagRun.c.dag_id != None
             ))
             .group_by(TI.dag_id, TI.state)
@@ -628,10 +635,15 @@ class Airflow(BaseView):
     def code(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        code = "".join(open(dag.full_filepath, 'r').readlines())
-        title = dag.filepath
-        html_code = highlight(
-            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        title = dag_id
+        try:
+            m = importlib.import_module(dag.module_name)
+            code = inspect.getsource(m)
+            html_code = highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        except IOError as e:
+            html_code = str(e)
+
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
@@ -889,6 +901,44 @@ class Airflow(BaseView):
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             dag=dag, title=title)
+
+    @expose('/xcom')
+    @login_required
+    @wwwutils.action_logging
+    def xcom(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        # Carrying execution_date through, even though it's irrelevant for
+        # this context
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        dag = dagbag.get_dag(dag_id)
+        if not dag or task_id not in dag.task_ids:
+            flash(
+                "Task [{}.{}] doesn't seem to exist"
+                " at the moment".format(dag_id, task_id),
+                "error")
+            return redirect('/admin/')
+
+        session = Session()
+        xcomlist = session.query(XCom).filter(
+            XCom.dag_id == dag_id, XCom.task_id == task_id,
+            XCom.execution_date == dttm).all()
+
+        attributes = []
+        for xcom in xcomlist:
+            if not xcom.key.startswith('_'):
+                attributes.append((xcom.key, xcom.value))
+
+        title = "XCom"
+        return self.render(
+            'airflow/xcom.html',
+            attributes=attributes,
+            task_id=task_id,
+            execution_date=execution_date,
+            form=form,
+            dag=dag, title=title)\
 
     @expose('/run')
     @login_required
@@ -1754,6 +1804,7 @@ class AirflowModelView(ModelView):
     list_template = 'airflow/model_list.html'
     edit_template = 'airflow/model_edit.html'
     create_template = 'airflow/model_create.html'
+    column_display_actions = True
     page_size = 500
 
 
@@ -2161,6 +2212,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('samba', 'Samba',),
             ('sqlite', 'Sqlite',),
             ('ssh', 'SSH',),
+            ('cloudant', 'IBM Cloudant',),
             ('mssql', 'Microsoft SQL Server'),
             ('mesos_framework-id', 'Mesos Framework ID'),
         ]

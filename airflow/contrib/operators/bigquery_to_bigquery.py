@@ -14,14 +14,14 @@ class BigQueryToBigQueryOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, 
+        self,
         source_project_dataset_tables,
         destination_project_dataset_table,
         write_disposition='WRITE_EMPTY',
         create_disposition='CREATE_IF_NEEDED',
         bigquery_conn_id='bigquery_default',
         delegate_to=None,
-        *args, 
+        *args,
         **kwargs):
         """
         Copies data from one BigQuery table to another. See here:

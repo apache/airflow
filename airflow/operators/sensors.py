@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from time import sleep
 
 from airflow import hooks, settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
 from airflow.hooks import BaseHook
 from airflow.utils.state import State
@@ -22,6 +22,8 @@ class BaseSensorOperator(BaseOperator):
     Sensor operators keep executing at a time interval and succeed when
         a criteria is met and fail if and when they time out.
 
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
     :type poke_interval: int
@@ -35,9 +37,11 @@ class BaseSensorOperator(BaseOperator):
             self,
             poke_interval=60,
             timeout=60*60*24*7,
+            soft_fail=False,
             *args, **kwargs):
         super(BaseSensorOperator, self).__init__(*args, **kwargs)
         self.poke_interval = poke_interval
+        self.soft_fail = soft_fail
         self.timeout = timeout
 
     def poke(self, context):
@@ -52,7 +56,10 @@ class BaseSensorOperator(BaseOperator):
         while not self.poke(context):
             sleep(self.poke_interval)
             if (datetime.now() - started_at).seconds > self.timeout:
-                raise AirflowSensorTimeout('Snap. Time is OUT.')
+                if self.soft_fail:
+                    raise AirflowSkipException('Snap. Time is OUT.')
+                else:
+                    raise AirflowSensorTimeout('Snap. Time is OUT.')
         logging.info("Success criteria met. Exiting.")
 
 

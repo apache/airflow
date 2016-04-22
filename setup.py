@@ -60,6 +60,7 @@ gcp_api = [
     'httplib2',
     'google-api-python-client<=1.4.2',
     'oauth2client>=1.5.2, <2.0.0',
+    'PyOpenSSL',
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -93,13 +94,14 @@ password = [
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
+cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = ['lxml>=3.3.4', 'nose', 'mock']
+
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
-
 
 setup(
     name='airflow',
@@ -117,11 +119,13 @@ setup(
         'chartkick>=0.4.2, < 0.5',
         'croniter>=0.3.8, <0.4',
         'dill>=0.2.2, <0.3',
+        'python-daemon>=2.1.1, <2.2',
         'flask>=0.10.1, <0.11',
         'flask-admin>=1.4.0, <2.0.0',
         'flask-cache>=0.13.1, <0.14',
         'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
+        'funcsigs>=0.4, <1',
         'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',
@@ -165,7 +169,8 @@ setup(
         'kerberos': kerberos,
         'password': password,
         'github_enterprise': github_enterprise,
-        'qds': qds
+        'qds': qds,
+        'cloudant': cloudant
     },
     classifiers={
         'Development Status :: 5 - Production/Stable',

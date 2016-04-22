@@ -11,8 +11,15 @@
         google_cloud_platform: {
             hidden_fields: ['host', 'schema', 'login', 'password', 'port', 'extra'],
             relabeling: {},
+        },
+        cloudant: {
+            hidden_fields: ['port', 'extra'],
+            relabeling: {
+                'host': 'Account',
+                'login': 'Username (or API Key)',
+                'schema': 'Database'
+            }
         }
-
       }
       function connTypeChange(connectionType) {
         $("div.form_group").removeClass("hide");

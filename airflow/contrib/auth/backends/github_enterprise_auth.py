@@ -14,7 +14,13 @@
 import logging
 
 import flask_login
-from flask_login import login_user
+
+# Need to expose these downstream
+# pylint: disable=unused-import
+from flask_login import (current_user,
+                         logout_user,
+                         login_required)
+# pylint: enable=unused-import
 
 from flask import url_for, redirect, request
 

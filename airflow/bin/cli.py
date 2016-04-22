@@ -13,17 +13,50 @@ from collections import namedtuple
 from dateutil.parser import parse as parsedate
 import json
 
+import daemon
+from daemon.pidfile import TimeoutPIDLockFile
+import signal
+import sys
+
 import airflow
 from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun
+from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
 from airflow.exceptions import AirflowException
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+
+
+def sigint_handler(signal, frame):
+    sys.exit(0)
+
+
+def setup_logging(filename):
+    root = logging.getLogger()
+    handler = logging.FileHandler(filename)
+    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
+    handler.setFormatter(formatter)
+    root.addHandler(handler)
+    root.setLevel(settings.LOGGING_LEVEL)
+
+    return handler.stream
+
+
+def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
+    if not stderr:
+        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.err".format(process))
+    if not stdout:
+        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.out".format(process))
+    if not log:
+        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.log".format(process))
+    if not pid:
+        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.pid".format(process))
+
+    return pid, stdout, stderr, log
 
 
 def process_subdir(subdir):
@@ -39,7 +72,8 @@ def process_subdir(subdir):
 def get_dag(args):
     dagbag = DagBag(process_subdir(args.subdir))
     if args.dag_id not in dagbag.dags:
-        raise AirflowException('dag_id could not be found')
+        raise AirflowException(
+            'dag_id could not be found: {}'.format(args.dag_id))
     return dagbag.dags[args.dag_id]
 
 
@@ -84,7 +118,6 @@ def backfill(args, dag=None):
 
 
 def trigger_dag(args):
-
     session = settings.Session()
     # TODO: verify dag_id
     execution_date = datetime.now()
@@ -110,6 +143,25 @@ def trigger_dag(args):
     session.commit()
 
 
+def variables(args):
+    if args.get:
+        try:
+            var = Variable.get(args.get,
+                               deserialize_json=args.json,
+                               default_var=args.default)
+            print(var)
+        except ValueError as e:
+            print(e)
+    if args.set:
+        Variable.set(args.set[0], args.set[1])
+    if not args.set and not args.get:
+        # list all variables
+        session = settings.Session()
+        vars = session.query(Variable)
+        msg = "\n".join(var.key for var in vars)
+        print(msg)
+
+
 def pause(args, dag=None):
     set_is_paused(True, args, dag)
 
@@ -132,7 +184,6 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
-
     db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
@@ -216,6 +267,13 @@ def run(args, dag=None):
             pool=args.pool)
         executor.heartbeat()
         executor.end()
+
+    # Force the log to flush, and set the handler to go back to normal so we
+    # don't continue logging to the task's log file. The flush is important
+    # because we subsequently read from the log to insert into S3 or Google
+    # cloud storage.
+    logging.root.handlers[0].flush()
+    logging.root.handlers = []
 
     # store logs remotely
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
@@ -342,6 +400,7 @@ def webserver(args):
                 args.port, args.hostname))
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
+        pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
         print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
@@ -349,8 +408,11 @@ def webserver(args):
         sp = subprocess.Popen([
             'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
             '-t', str(args.worker_timeout), '-b', args.hostname + ':' + str(args.port),
-            'airflow.www.app:cached_app()'])
-        sp.wait()
+            '-n', 'airflow-webserver', '--pid', pid,
+            'airflow.www.app:cached_app()']
+        )
+        if args.foreground:
+            sp.wait()
 
 
 def scheduler(args):
@@ -360,7 +422,28 @@ def scheduler(args):
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
-    job.run()
+
+    if not args.foreground:
+        pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
+        handle = setup_logging(log_file)
+        stdout = open(stdout, 'w+')
+        stderr = open(stderr, 'w+')
+
+        ctx = daemon.DaemonContext(
+            pidfile=TimeoutPIDLockFile(pid, -1),
+            files_preserve=[handle],
+            stdout=stdout,
+            stderr=stderr,
+        )
+        with ctx:
+            job.run()
+
+        stdout.close()
+        stderr.close()
+    else:
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
+        job.run()
 
 
 def serve_logs(args):
@@ -383,10 +466,8 @@ def serve_logs(args):
 
 
 def worker(args):
-    # Worker to serve static log files through this simple flask app
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
-    sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
 
     # Celery worker
     from airflow.executors.celery_executor import app as celery_app
@@ -399,8 +480,34 @@ def worker(args):
         'queues': args.queues,
         'concurrency': args.concurrency,
     }
-    worker.run(**options)
-    sp.kill()
+
+    if not args.foreground:
+        pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
+        handle = setup_logging(log_file)
+        stdout = open(stdout, 'w+')
+        stderr = open(stderr, 'w+')
+
+        ctx = daemon.DaemonContext(
+            pidfile=TimeoutPIDLockFile(pid, -1),
+            files_preserve=[handle],
+            stdout=stdout,
+            stderr=stderr,
+        )
+        with ctx:
+            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+            worker.run(**options)
+            sp.kill()
+
+        stdout.close()
+        stderr.close()
+    else:
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
+
+        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+
+        worker.run(**options)
+        sp.kill()
 
 
 def initdb(args):  # noqa
@@ -432,22 +539,63 @@ def version(args):  # noqa
 
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
-    args.port = args.port or conf.get('celery', 'FLOWER_PORT')
+    args.port = args.port
     port = '--port=' + args.port
     api = ''
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
-    sp = subprocess.Popen(['flower', '-b', broka, port, api])
-    sp.wait()
+
+    if not args.foreground:
+        pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
+        stdout = open(stdout, 'w+')
+        stderr = open(stderr, 'w+')
+
+        ctx = daemon.DaemonContext(
+            pidfile=TimeoutPIDLockFile(pid, -1),
+            stdout=stdout,
+            stderr=stderr,
+        )
+
+        with ctx:
+            sp = subprocess.Popen(['flower', '-b', broka, port, api])
+            sp.wait()
+
+        stdout.close()
+        stderr.close()
+    else:
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
+
+        sp = subprocess.Popen(['flower', '-b', broka, port, api])
+        sp.wait()
 
 
 def kerberos(args):  # noqa
     print(settings.HEADER)
     import airflow.security.kerberos
-    airflow.security.kerberos.run()
+
+    if not args.foreground:
+        pid, stdout, stderr, log_file = setup_locations("kerberos", args.pid, args.stdout, args.stderr, args.log_file)
+        stdout = open(stdout, 'w+')
+        stderr = open(stderr, 'w+')
+
+        ctx = daemon.DaemonContext(
+            pidfile=TimeoutPIDLockFile(pid, -1),
+            stdout=stdout,
+            stderr=stderr,
+        )
+
+        with ctx:
+            airflow.security.kerberos.run()
+
+        stdout.close()
+        stderr.close()
+    else:
+        airflow.security.kerberos.run()
+
 
 Arg = namedtuple(
-    'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices'])
+    'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
 
 
@@ -474,6 +622,17 @@ class CLIFactory(object):
             type=parsedate),
         'dry_run': Arg(
             ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
+        'pid': Arg(
+            ("--pid", ), "PID file location",
+            nargs='?'),
+        'foreground': Arg(
+            ("-f", "--foreground"), "Do not detach. Run in foreground", "store_true"),
+        'stderr': Arg(
+            ("--stderr", ), "Redirect stderr to this file"),
+        'stdout': Arg(
+            ("--stdout", ), "Redirect stdout to this file"),
+        'log_file': Arg(
+            ("-l", "--log-file"), "Location of the log file"),
 
         # backfill
         'mark_success': Arg(
@@ -525,6 +684,25 @@ class CLIFactory(object):
         'conf': Arg(
             ('-c', '--conf'),
             "json string that gets pickled into the DagRun's conf attribute"),
+        # variables
+        'set': Arg(
+            ("-s", "--set"),
+            nargs=2,
+            metavar=('KEY', 'VAL'),
+            help="Set a variable"),
+        'get': Arg(
+            ("-g", "--get"),
+            metavar='KEY',
+            help="Get value of a variable"),
+        'default': Arg(
+            ("-d", "--default"),
+            metavar="VAL",
+            default=None,
+            help="Default value returned if variable does not exist"),
+        'json': Arg(
+            ("-j", "--json"),
+            help="Deserialize JSON variable",
+            action="store_true"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal",
@@ -616,7 +794,7 @@ class CLIFactory(object):
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_port': Arg(
             ("-p", "--port"),
-            default=conf.get('webserver', 'WEB_SERVER_PORT'),
+            default=conf.get('celery', 'FLOWER_PORT'),
             type=int,
             help="The port on which to run the server"),
         'task_params': Arg(
@@ -641,7 +819,8 @@ class CLIFactory(object):
             'help': "Clear a set of task instance, as if they never ran",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
-                'upstream', 'downstream', 'no_confirm'),
+                'upstream', 'downstream', 'no_confirm', 'only_failed',
+                'only_running'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
@@ -655,9 +834,14 @@ class CLIFactory(object):
             'help': "Trigger a DAG run",
             'args': ('dag_id', 'subdir', 'run_id', 'conf'),
         }, {
+            'func': variables,
+            'help': "List all variables",
+            "args": ('set', 'get', 'json', 'default'),
+        }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
-            'args': ('dag_id', 'principal', 'keytab'),
+            'args': ('principal', 'keytab', 'pid',
+                     'foreground', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': render,
             'help': "Render a task instance's template(s)",
@@ -698,6 +882,7 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+                     'pid', 'foreground', 'stdout', 'stderr', 'log_file',
                      'debug'),
         }, {
             'func': resetdb,
@@ -710,15 +895,18 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle'),
+            'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
+                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': worker,
             'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency'),
+            'args': ('do_pickle', 'queues', 'concurrency',
+                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
-            'args': ('flower_port', 'broker_api'),
+            'args': ('flower_port', 'broker_api',
+                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",

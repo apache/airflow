@@ -27,6 +27,8 @@ import dill
 import functools
 import getpass
 import imp
+import importlib
+import zipfile
 import jinja2
 import json
 import logging
@@ -37,6 +39,7 @@ import signal
 import socket
 import sys
 import traceback
+import warnings
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -53,7 +56,7 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -63,7 +66,6 @@ from airflow.utils.logging import LoggingMixin
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
-
 
 Base = declarative_base()
 ID_LEN = 250
@@ -83,6 +85,9 @@ if 'mysql' in SQL_ALCHEMY_CONN:
     LongText = LONGTEXT
 else:
     LongText = Text
+
+# used by DAG context_managers
+_CONTEXT_MANAGER_DAG = None
 
 
 def clear_task_instances(tis, session, activate_dag_runs=True):
@@ -180,11 +185,12 @@ class DagBag(LoggingMixin):
         # If the root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
         if orm_dag and (
-                root_dag_id not in self.dags or (
-                    dag.last_loaded < (
-                    orm_dag.last_expired or datetime(2100, 1, 1)
+                root_dag_id not in self.dags or
+                (
+                    orm_dag.last_expired and
+                    dag.last_loaded < orm_dag.last_expired
                 )
-        )):
+        ):
             # Reprocessing source file
             found_dags = self.process_file(
                 filepath=orm_dag.fileloc, only_if_updated=False)
@@ -197,53 +203,95 @@ class DagBag(LoggingMixin):
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
         """
-        Given a path to a python module, this method imports the module and
-        look for dag objects within it.
+        Given a path to a python module or zip file, this method imports
+        the module and look for dag objects within it.
         """
         found_dags = []
+
+        # todo: raise exception?
+        if not os.path.isfile(filepath):
+            return found_dags
+
         try:
             # This failed before in what may have been a git sync
             # race condition
             dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
-            mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = 'unusual_prefix_' + mod_name
+            if only_if_updated \
+                    and filepath in self.file_last_changed \
+                    and dttm == self.file_last_changed[filepath]:
+                return found_dags
+
         except Exception as e:
             logging.exception(e)
             return found_dags
 
-        if safe_mode and os.path.isfile(filepath):
-            # Skip file if no obvious references to airflow or DAG are found.
-            with open(filepath, 'rb') as f:
-                content = f.read()
-                if not all([s in content for s in (b'DAG', b'airflow')]):
-                    return found_dags
+        mods = []
+        if not zipfile.is_zipfile(filepath):
+            if safe_mode and os.path.isfile(filepath):
+                with open(filepath, 'rb') as f:
+                    content = f.read()
+                    if not all([s in content for s in (b'DAG', b'airflow')]):
+                        return found_dags
 
-        if (not only_if_updated or
-                filepath not in self.file_last_changed or
-                dttm != self.file_last_changed[filepath]):
-            try:
-                self.logger.info("Importing " + filepath)
-                if mod_name in sys.modules:
-                    del sys.modules[mod_name]
-                with timeout(
-                        configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
+            self.logger.debug("Importing {}".format(filepath))
+            org_mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
+            mod_name = 'unusual_prefix_' + org_mod_name
+
+            if mod_name in sys.modules:
+                del sys.modules[mod_name]
+
+            with timeout(configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
+                try:
                     m = imp.load_source(mod_name, filepath)
-            except Exception as e:
-                self.logger.exception("Failed to import: " + filepath)
-                self.import_errors[filepath] = str(e)
-                self.file_last_changed[filepath] = dttm
-                return
+                    mods.append(m)
+                except Exception as e:
+                    self.logger.exception("Failed to import: " + filepath)
+                    self.import_errors[filepath] = str(e)
+                    self.file_last_changed[filepath] = dttm
 
+        else:
+            zip_file = zipfile.ZipFile(filepath)
+            for mod in zip_file.infolist():
+                head, tail = os.path.split(mod.filename)
+                mod_name, ext = os.path.splitext(mod.filename)
+                if not head and (ext == '.py' or ext == '.pyc'):
+                    if mod_name == '__init__':
+                        self.logger.warning("Found __init__.{0} at root of {1}".
+                                            format(ext, filepath))
+
+                    if safe_mode:
+                        with zip_file.open(mod.filename) as zf:
+                            self.logger.debug("Reading {} from {}".
+                                              format(mod.filename, filepath))
+                            content = zf.read()
+                            if not all([s in content for s in (b'DAG', b'airflow')]):
+                                # todo: create ignore list
+                                return found_dags
+
+                    if mod_name in sys.modules:
+                        del sys.modules[mod_name]
+
+                    try:
+                        sys.path.insert(0, filepath)
+                        m = importlib.import_module(mod_name)
+                        mods.append(m)
+                    except Exception as e:
+                        self.logger.exception("Failed to import: " + filepath)
+                        self.import_errors[filepath] = str(e)
+                        self.file_last_changed[filepath] = dttm
+
+        for m in mods:
             for dag in list(m.__dict__.values()):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
                     dag.is_subdag = False
+                    dag.module_name = m.__name__
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                     found_dags.append(dag)
                     found_dags += dag.subdags
 
-            self.file_last_changed[filepath] = dttm
+        self.file_last_changed[filepath] = dttm
         return found_dags
 
     @provide_session
@@ -314,7 +362,7 @@ class DagBag(LoggingMixin):
             subdag.fileloc = root_dag.full_filepath
             subdag.is_subdag = True
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
-        self.logger.info('Loaded DAG {dag}'.format(**locals()))
+        self.logger.debug('Loaded DAG {dag}'.format(**locals()))
 
     def collect_dags(
             self,
@@ -518,6 +566,8 @@ class Connection(Base):
                 return hooks.OracleHook(oracle_conn_id=self.conn_id)
             elif self.conn_type == 'vertica':
                 return contrib_hooks.VerticaHook(vertica_conn_id=self.conn_id)
+            elif self.conn_type == 'cloudant':
+                return contrib_hooks.CloudantHook(cloudant_conn_id=self.conn_id)
         except:
             return None
 
@@ -856,6 +906,62 @@ class TaskInstance(Base):
         return count == len(task.downstream_task_ids)
 
     @provide_session
+    def evaluate_trigger_rule(self, successes, skipped, failed,
+                              upstream_failed, done,
+                              flag_upstream_failed, session=None):
+        """
+        Returns a boolean on whether the current task can be scheduled
+        for execution based on its trigger_rule.
+
+        :param flag_upstream_failed: This is a hack to generate
+            the upstream_failed state creation while checking to see
+            whether the task instance is runnable. It was the shortest
+            path to add the feature
+        :type flag_upstream_failed: boolean
+        :param successes: Number of successful upstream tasks
+        :type successes: boolean
+        :param skipped: Number of skipped upstream tasks
+        :type skipped: boolean
+        :param failed: Number of failed upstream tasks
+        :type failed: boolean
+        :param upstream_failed: Number of upstream_failed upstream tasks
+        :type upstream_failed: boolean
+        :param done: Number of completed upstream tasks
+        :type done: boolean
+        """
+        TR = TriggerRule
+
+        task = self.task
+        upstream = len(task.upstream_task_ids)
+        tr = task.trigger_rule
+        upstream_done = done >= upstream
+
+        # handling instant state assignment based on trigger rules
+        if flag_upstream_failed:
+            if tr == TR.ALL_SUCCESS:
+                if upstream_failed or failed:
+                    self.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ALL_FAILED:
+                if successes or skipped:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_SUCCESS:
+                if upstream_done and not successes:
+                    self.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_FAILED:
+                if upstream_done and not (failed or upstream_failed):
+                    self.set_state(State.SKIPPED, session)
+
+        return (
+             (tr == TR.ONE_SUCCESS and successes > 0) or
+             (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
+             (tr == TR.ALL_SUCCESS and successes >= upstream) or
+             (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
+             (tr == TR.ALL_DONE and upstream_done)
+        )
+
+    @provide_session
     def are_dependencies_met(
             self,
             session=None,
@@ -934,41 +1040,16 @@ class TaskInstance(Base):
                     State.UPSTREAM_FAILED, State.SKIPPED]),
             )
         )
+
         successes, skipped, failed, upstream_failed, done = qry.first()
-        upstream = len(task.upstream_task_ids)
-        tr = task.trigger_rule
-        upstream_done = done >= upstream
-
-        # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
-            if tr == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    self.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ALL_FAILED:
-                if successes or skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_FAILED:
-                if upstream_done and not(failed or upstream_failed):
-                    self.set_state(State.SKIPPED, session)
-
-        if (
-            (tr == TR.ONE_SUCCESS and successes) or
-            (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-            (tr == TR.ALL_SUCCESS and successes >= upstream) or
-            (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-            (tr == TR.ALL_DONE and upstream_done)
-        ):
-            return True
-
+        satisfied = self.evaluate_trigger_rule(
+            session=session, successes=successes, skipped=skipped,
+            failed=failed, upstream_failed=upstream_failed, done=done,
+            flag_upstream_failed=flag_upstream_failed)
         session.commit()
-        if verbose:
-            logging.warning("Trigger rule `{}` not satisfied".format(tr))
-        return False
+        if verbose and not satisfied:
+            logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
+        return satisfied
 
     def __repr__(self):
         return (
@@ -1140,6 +1221,9 @@ class TaskInstance(Base):
                         self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                     task_copy.post_execute(context=context)
+                self.state = State.SUCCESS
+            except AirflowSkipException:
+                self.state = State.SKIPPED
             except (Exception, KeyboardInterrupt) as e:
                 self.handle_failure(e, test_mode, context)
                 raise
@@ -1147,9 +1231,8 @@ class TaskInstance(Base):
             # Recording SUCCESS
             self.end_date = datetime.now()
             self.set_duration()
-            self.state = State.SUCCESS
             if not test_mode:
-                session.add(Log(State.SUCCESS, self))
+                session.add(Log(self.state, self))
                 session.merge(self)
             session.commit()
 
@@ -1295,7 +1378,7 @@ class TaskInstance(Base):
         for attr in task.__class__.template_fields:
             content = getattr(task, attr)
             if content:
-                rendered_content = rt(content, jinja_context)
+                rendered_content = rt(attr, content, jinja_context)
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception, is_retry=False):
@@ -1570,7 +1653,7 @@ class BaseOperator(object):
     def __init__(
             self,
             task_id,
-            owner,
+            owner=configuration.get('operators', 'DEFAULT_OWNER'),
             email=None,
             email_on_retry=True,
             email_on_failure=True,
@@ -1597,8 +1680,18 @@ class BaseOperator(object):
             *args,
             **kwargs):
 
+        if args or kwargs:
+            # TODO remove *args and **kwargs in Airflow 2.0
+            warnings.warn(
+                'Invalid arguments were passed to {c}. Support for '
+                'passing such arguments will be dropped in Airflow 2.0. '
+                'Invalid arguments were:'
+                '\n*args: {a}\n**kwargs: {k}'.format(
+                    c=self.__class__.__name__, a=args, k=kwargs),
+                category=PendingDeprecationWarning
+            )
+
         validate_key(task_id)
-        self.dag_id = dag.dag_id if dag else 'adhoc_' + owner
         self.task_id = task_id
         self.owner = owner
         self.email = email
@@ -1644,13 +1737,15 @@ class BaseOperator(object):
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
         self.priority_weight = priority_weight
-        if dag:
-            dag.add_task(self)
-            self.dag = dag
 
         # Private attributes
         self._upstream_task_ids = []
         self._downstream_task_ids = []
+
+        if not dag and _CONTEXT_MANAGER_DAG:
+            dag = _CONTEXT_MANAGER_DAG
+        if dag:
+            self.dag = dag
 
         self._comps = {
             'task_id',
@@ -1695,6 +1790,96 @@ class BaseOperator(object):
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
 
+    # Composing Operators -----------------------------------------------
+
+    def __rshift__(self, other):
+        """
+        Implements Self >> Other == self.set_downstream(other)
+
+        If "Other" is a DAG, the DAG is assigned to the Operator.
+        """
+        if isinstance(other, DAG):
+            # if this dag is already assigned, do nothing
+            # otherwise, do normal dag assignment
+            if not (self.has_dag() and self.dag is other):
+                self.dag = other
+        else:
+            self.set_downstream(other)
+        return other
+
+    def __lshift__(self, other):
+        """
+        Implements Self << Other == self.set_upstream(other)
+
+        If "Other" is a DAG, the DAG is assigned to the Operator.
+        """
+        if isinstance(other, DAG):
+            # if this dag is already assigned, do nothing
+            # otherwise, do normal dag assignment
+            if not (self.has_dag() and self.dag is other):
+                self.dag = other
+        else:
+            self.set_upstream(other)
+        return other
+
+    def __rrshift__(self, other):
+        """
+        Called for [DAG] >> [Operator] because DAGs don't have
+        __rshift__ operators.
+        """
+        self.__lshift__(other)
+        return self
+
+    def __rlshift__(self, other):
+        """
+        Called for [DAG] << [Operator] because DAGs don't have
+        __lshift__ operators.
+        """
+        self.__rshift__(other)
+        return self
+
+    # /Composing Operators ---------------------------------------------
+
+    @property
+    def dag(self):
+        """
+        Returns the Operator's DAG if set, otherwise raises an error
+        """
+        if self.has_dag():
+            return self._dag
+        else:
+            raise AirflowException(
+                'Operator {} has not been assigned to a DAG yet'.format(self))
+
+    @dag.setter
+    def dag(self, dag):
+        """
+        Operators can be assigned to one DAG, one time. Repeat assignments to
+        that same DAG are ok.
+        """
+        if not isinstance(dag, DAG):
+            raise TypeError(
+                'Expected DAG; received {}'.format(dag.__class__.__name__))
+        elif self.has_dag() and self.dag is not dag:
+            raise AirflowException(
+                "The DAG assigned to {} can not be changed.".format(self))
+        elif self.task_id not in [t.task_id for t in dag.tasks]:
+            dag.add_task(self)
+            self._dag = dag
+
+    def has_dag(self):
+        """
+        Returns True if the Operator has been assigned to a DAG.
+        """
+        return getattr(self, '_dag', None) is not None
+
+    @property
+    def dag_id(self):
+        if self.has_dag():
+            return self.dag.dag_id
+        else:
+            return 'adhoc_' + self.owner
+
     @property
     def schedule_interval(self):
         """
@@ -1702,7 +1887,7 @@ class BaseOperator(object):
         that tasks within a DAG always line up. The task still needs a
         schedule_interval as it may not be attached to a DAG.
         """
-        if hasattr(self, 'dag') and self.dag:
+        if self.has_dag():
             return self.dag._schedule_interval
         else:
             return self._schedule_interval
@@ -1764,7 +1949,7 @@ class BaseOperator(object):
             result.user_defined_macros = self.user_defined_macros
         return result
 
-    def render_template_from_field(self, content, context, jinja_env):
+    def render_template_from_field(self, attr, content, context, jinja_env):
         '''
         Renders a template from a field. If the field is a string, it will
         simply render the string and return the result. If it is a collection or
@@ -1775,10 +1960,10 @@ class BaseOperator(object):
         if isinstance(content, six.string_types):
             result = jinja_env.from_string(content).render(**context)
         elif isinstance(content, (list, tuple)):
-            result = [rt(e, context) for e in content]
+            result = [rt(attr, e, context) for e in content]
         elif isinstance(content, dict):
             result = {
-                k: rt(v, context)
+                k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
         else:
             param_type = type(content)
@@ -1788,7 +1973,7 @@ class BaseOperator(object):
             raise AirflowException(msg)
         return result
 
-    def render_template(self, content, context):
+    def render_template(self, attr, content, context):
         '''
         Renders a template either from a file or directly in a field, and returns
         the rendered result.
@@ -1803,7 +1988,7 @@ class BaseOperator(object):
                 any([content.endswith(ext) for ext in exts])):
             return jinja_env.get_template(content).render(**context)
         else:
-            return self.render_template_from_field(content, context, jinja_env)
+            return self.render_template_from_field(attr, content, context, jinja_env)
 
     def prepare_template(self):
         '''
@@ -1953,7 +2138,6 @@ class BaseOperator(object):
                 logging.info('Rendering template for {0}'.format(attr))
                 logging.info(content)
 
-
     def get_direct_relatives(self, upstream=False):
         """
         Get the direct relatives to the current task, upstream or
@@ -1965,7 +2149,8 @@ class BaseOperator(object):
             return self.downstream_list
 
     def __repr__(self):
-        return "<Task({self.__class__.__name__}): {self.task_id}>".format(self=self)
+        return "<Task({self.__class__.__name__}): {self.task_id}>".format(
+            self=self)
 
     @property
     def task_type(self):
@@ -1984,9 +2169,35 @@ class BaseOperator(object):
             task_list = list(task_or_task_list)
         except TypeError:
             task_list = [task_or_task_list]
+
+        for t in task_list:
+            if not isinstance(t, BaseOperator):
+                raise AirflowException(
+                    "Relationships can only be set between "
+                    "Operators; received {}".format(t.__class__.__name__))
+
+        # relationships can only be set if the tasks share a single DAG. Tasks
+        # without a DAG are assigned to that DAG.
+        dags = set(t.dag for t in [self] + task_list if t.has_dag())
+
+        if len(dags) > 1:
+            raise AirflowException(
+                'Tried to set relationships between tasks in '
+                'more than one DAG: {}'.format(dags))
+        elif len(dags) == 1:
+            dag = list(dags)[0]
+        else:
+            raise AirflowException(
+                "Tried to create relationships between tasks that don't have "
+                "DAGs yet. Set the DAG for at least one "
+                "task  and try again: {}".format([self] + task_list))
+
+        if dag and not self.has_dag():
+            self.dag = dag
+
         for task in task_list:
-            if not isinstance(task, BaseOperator):
-                raise AirflowException('Expecting a task')
+            if dag and not task.has_dag():
+                task.dag = dag
             if upstream:
                 task.append_only_new(task._downstream_task_ids, self.task_id)
                 self.append_only_new(self._upstream_task_ids, task.task_id)
@@ -2174,7 +2385,7 @@ class DAG(LoggingMixin):
             del self.default_args['params']
 
         validate_key(dag_id)
-        self.tasks = []
+        self.task_dict = dict()
         self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
@@ -2234,6 +2445,20 @@ class DAG(LoggingMixin):
                 hash_components.append(repr(val))
         return hash(tuple(hash_components))
 
+    # Context Manager -----------------------------------------------
+
+    def __enter__(self):
+        global _CONTEXT_MANAGER_DAG
+        self._old_context_manager_dag = _CONTEXT_MANAGER_DAG
+        _CONTEXT_MANAGER_DAG = self
+        return self
+
+    def __exit__(self, _type, _value, _tb):
+        global _CONTEXT_MANAGER_DAG
+        _CONTEXT_MANAGER_DAG = self._old_context_manager_dag
+
+    # /Context Manager ----------------------------------------------
+
     def date_range(self, start_date, num=None, end_date=datetime.now()):
         if num:
             end_date = None
@@ -2256,12 +2481,21 @@ class DAG(LoggingMixin):
             return dttm - self._schedule_interval
 
     @property
+    def tasks(self):
+        return list(self.task_dict.values())
+
+    @tasks.setter
+    def tasks(self, val):
+        raise AttributeError(
+            'DAG.tasks can not be modified. Use dag.add_task() instead.')
+
+    @property
     def task_ids(self):
-        return [t.task_id for t in self.tasks]
+        return list(self.task_dict.keys())
 
     @property
     def active_task_ids(self):
-        return [t.task_id for t in self.tasks if not t.adhoc]
+        return list(k for k, v in self.task_dict.items() if not v.adhoc)
 
     @property
     def active_tasks(self):
@@ -2386,7 +2620,8 @@ class DAG(LoggingMixin):
             # AND there are unfinished tasks...
             any(ti.state in State.unfinished() for ti in task_instances) and
             # AND none of them have dependencies met...
-            all(not ti.are_dependencies_met() for ti in task_instances
+            all(not ti.are_dependencies_met(session=session)
+                for ti in task_instances
                 if ti.state in State.unfinished()))
 
         for run in active_runs:
@@ -2585,6 +2820,7 @@ class DAG(LoggingMixin):
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
+                print("K: {} V: {}".format(k, v))
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
@@ -2611,7 +2847,7 @@ class DAG(LoggingMixin):
                 also_include += t.get_flat_relatives(upstream=True)
 
         # Compiling the unique list of tasks that made the cut
-        dag.tasks = list(set(regex_match + also_include))
+        dag.task_dict = {t.task_id: t for t in regex_match + also_include}
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
@@ -2625,9 +2861,8 @@ class DAG(LoggingMixin):
         return task_id in (t.task_id for t in self.tasks)
 
     def get_task(self, task_id):
-        for task in self.tasks:
-            if task.task_id == task_id:
-                return task
+        if task_id in self.task_dict:
+            return self.task_dict[task_id]
         raise AirflowException("Task {task_id} not found".format(**locals()))
 
     @provide_session
@@ -2693,8 +2928,9 @@ class DAG(LoggingMixin):
                 "to the DAG ".format(task.task_id))
         else:
             self.tasks.append(task)
-            task.dag_id = self.dag_id
+            self.task_dict[task.task_id] = task
             task.dag = self
+
         self.task_count = len(self.tasks)
 
     def add_tasks(self, tasks):
@@ -2879,7 +3115,6 @@ class Variable(Base):
         session.flush()
 
 
-
 class XCom(Base):
     """
     Base class for XCom objects.
@@ -3011,8 +3246,8 @@ class XCom(Base):
             xcoms = [xcoms]
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
-                raise TypeError(
-                    'Expected XCom; received {}'.format(type(xcom)))
+                raise TypeError('Expected XCom; received {}'.format(
+                                xcom.__class__.__name__))
             session.delete(xcom)
         session.commit()
 

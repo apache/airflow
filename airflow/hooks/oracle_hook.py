@@ -19,11 +19,11 @@ class OracleHook(DbApiHook):
         """
         Returns a oracle connection object
         Optional parameters for using a custom DSN connection (instead of using a server alias from tnsnames.ora)
-        The dsn (data source name) is the TNS entry (from the Oracle names server or tnsnames.ora file) 
+        The dsn (data source name) is the TNS entry (from the Oracle names server or tnsnames.ora file)
         or is a string like the one returned from makedsn().
         :param dsn: the host address for the Oracle server
         :param service_name: the db_unique_name of the database that you are connecting to (CONNECT_DATA part of TNS)
-        You can set these parameters in the extra fields of your connection 
+        You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         """
         conn = self.get_connection(self.oracle_conn_id)

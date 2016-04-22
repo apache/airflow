@@ -234,14 +234,14 @@
 
             g.append('circle')
               .attr('stroke-width', function(d) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     return stroke_width;
                   else {
                     return 1;
                   }
               })
               .attr('stroke', function(d) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     return d.color;
                   else {
                     return 'grey';
@@ -255,7 +255,7 @@
                     return"cursor:pointer;"
               })
               .on('click', function(d, i) {
-                  if (d.count > 0)    
+                  if (d.count > 0)
                     window.location = "/admin/taskinstance/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {

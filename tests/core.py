@@ -1,3 +1,16 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import print_function
 
 import doctest
@@ -12,6 +25,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
 from time import sleep
+import warnings
 
 from dateutil.relativedelta import relativedelta
 
@@ -34,7 +48,7 @@ from airflow.configuration import AirflowConfigException
 
 import six
 
-NUM_EXAMPLE_DAGS = 14
+NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -42,7 +56,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
-configuration.test_mode()
+
 
 try:
     import cPickle as pickle
@@ -87,8 +101,11 @@ class CoreTest(unittest.TestCase):
         Tests scheduling a dag with no previous runs
         """
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_previous_runs')
-        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
-                                         start_date=datetime(2015, 1, 2, 0, 0))]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
+
         dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
@@ -109,9 +126,10 @@ class CoreTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous',
                   schedule_interval=delta,
                   start_date=DEFAULT_DATE)
-        dag.tasks = [models.BaseOperator(task_id="faketastic",
-                                         owner='Also fake',
-                                         start_date=DEFAULT_DATE)]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=DEFAULT_DATE))
         scheduler = jobs.SchedulerJob(test_mode=True)
         trigger = models.DagRun(
             dag_id=dag.dag_id,
@@ -139,8 +157,10 @@ class CoreTest(unittest.TestCase):
         """
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once')
         dag.schedule_interval = '@once'
-        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
-                                         start_date=datetime(2015, 1, 2, 0, 0))]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
         dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
         dag_run2 = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
 
@@ -169,7 +189,7 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+            dag.task_dict[task.task_id] = task
             dag_runs.append(scheduler.schedule_dag(dag))
 
         additional_dag_run = scheduler.schedule_dag(dag)
@@ -208,7 +228,8 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+
+            dag.task_dict[task.task_id] = task
 
             # Schedule the DagRun
             dag_run = scheduler.schedule_dag(dag)
@@ -319,6 +340,22 @@ class CoreTest(unittest.TestCase):
             upstream=True, downstream=True)
         ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
+
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        with warnings.catch_warnings(record=True) as w:
+            t = operators.BashOperator(
+                task_id='test_illegal_args',
+                bash_command='echo success',
+                dag=self.dag,
+                illegal_argument_1234='hello?')
+            self.assertTrue(
+                issubclass(w[0].category, PendingDeprecationWarning))
+            self.assertIn(
+                'Invalid arguments were passed to BashOperator.',
+                w[0].message.args[0])
 
     def test_bash_operator(self):
         t = operators.BashOperator(
@@ -695,6 +732,16 @@ class CliTests(unittest.TestCase):
                 'trigger_dag', 'example_bash_operator',
                 '-c', 'NOT JSON'])
         )
+
+    def test_variables(self):
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'foo', '{"foo":"bar"}']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-g', 'foo']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-g', 'baz', '-d', 'bar']))
+        cli.variables(self.parser.parse_args([
+            'variables']))
 
 
 class WebUiTests(unittest.TestCase):

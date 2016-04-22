@@ -782,6 +782,7 @@ def _bq_cast(string_field, bq_type):
     elif bq_type == 'FLOAT':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
-        return bool(string_field)
+        assert string_field in set(['true', 'false'])
+        return string_field == 'true'
     else:
         return string_field

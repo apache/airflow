@@ -122,3 +122,9 @@ class BaseExecutor(LoggingMixin):
         all done.
         """
         raise NotImplementedError()
+
+    def terminate(self):
+        """
+        This method is called when the daemon receives a SIGTERM
+        """
+        raise NotImplementedError()

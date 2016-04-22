@@ -1,10 +1,10 @@
 <div style="font-family: verdana;">
     <h1>Airflow 404 = lots of circles</h1>
     <div style="color: white">{{ hostname }}</div>
-<div 
+<div
             id="div_svg"
-            class="content" 
-            class="centered text-center" 
+            class="content"
+            class="centered text-center"
             style="border: 1px solid #CCC; padding:0px;margin:0;">
         <svg></svg>
 
@@ -19,7 +19,7 @@
     var i = 0;
     var flip = 0;
     var colors = [
-        "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400", 
+        "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400",
         "#FFAA91", "#B4A76C", "#9CA299", "#565A5C"
     ];
 
@@ -79,7 +79,7 @@
         }
         if(Math.random() > 0.8){
             col = function() {return choose(colors)};
-        } 
+        }
 
 
 
@@ -117,7 +117,7 @@
                 .attr("r", function(d, i) {return 0});
             }
         }
-    
+
     }
 
     setInterval(toggle, duration*3);

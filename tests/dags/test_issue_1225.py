@@ -21,83 +21,109 @@ Addresses issue #1225.
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator, PythonOperator
+from airflow.operators import DummyOperator, PythonOperator, SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
 DEFAULT_DATE = datetime(2016, 1, 1)
+default_args = dict(
+    start_date=DEFAULT_DATE,
+    owner='airflow')
 
 def fail():
     raise ValueError('Expected failure.')
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
-dag1 = DAG(dag_id='test_backfill_pooled_task_dag', start_date=DEFAULT_DATE)
+dag1 = DAG(dag_id='test_backfill_pooled_task_dag', default_args=default_args)
 dag1_task1 = DummyOperator(
     task_id='test_backfill_pooled_task',
     dag=dag1,
-    pool='test_backfill_pooled_task_pool',
-    owner='airflow')
+    pool='test_backfill_pooled_task_pool',)
 
 # DAG tests depends_on_past dependencies
-dag2 = DAG(dag_id='test_depends_on_past', start_date=DEFAULT_DATE)
+dag2 = DAG(dag_id='test_depends_on_past', default_args=default_args)
 dag2_task1 = DummyOperator(
     task_id='test_dop_task',
     dag=dag2,
-    depends_on_past=True,
-    owner='airflow')
+    depends_on_past=True,)
 
 # DAG tests that a Dag run that doesn't complete is marked failed
-dag3 = DAG(dag_id='test_dagrun_states_fail', start_date=DEFAULT_DATE)
+dag3 = DAG(dag_id='test_dagrun_states_fail', default_args=default_args)
 dag3_task1 = PythonOperator(
     task_id='test_dagrun_fail',
     dag=dag3,
-    owner='airflow',
     python_callable=fail)
 dag3_task2 = DummyOperator(
     task_id='test_dagrun_succeed',
-    dag=dag3,
-    owner='airflow')
+    dag=dag3,)
 dag3_task2.set_upstream(dag3_task1)
 
 # DAG tests that a Dag run that completes but has a failure is marked success
-dag4 = DAG(dag_id='test_dagrun_states_success', start_date=DEFAULT_DATE)
+dag4 = DAG(dag_id='test_dagrun_states_success', default_args=default_args)
 dag4_task1 = PythonOperator(
     task_id='test_dagrun_fail',
     dag=dag4,
-    owner='airflow',
     python_callable=fail,
 )
 dag4_task2 = DummyOperator(
     task_id='test_dagrun_succeed',
     dag=dag4,
-    owner='airflow',
     trigger_rule=TriggerRule.ALL_FAILED
 )
 dag4_task2.set_upstream(dag4_task1)
 
 # DAG tests that a Dag run that completes but has a root failure is marked fail
-dag5 = DAG(dag_id='test_dagrun_states_root_fail', start_date=DEFAULT_DATE)
+dag5 = DAG(dag_id='test_dagrun_states_root_fail', default_args=default_args)
 dag5_task1 = DummyOperator(
     task_id='test_dagrun_succeed',
     dag=dag5,
-    owner='airflow'
 )
 dag5_task2 = PythonOperator(
     task_id='test_dagrun_fail',
     dag=dag5,
-    owner='airflow',
     python_callable=fail,
 )
 
 # DAG tests that a Dag run that is deadlocked with no states is failed
-dag6 = DAG(dag_id='test_dagrun_states_deadlock', start_date=DEFAULT_DATE)
+dag6 = DAG(dag_id='test_dagrun_states_deadlock', default_args=default_args)
 dag6_task1 = DummyOperator(
     task_id='test_depends_on_past',
     depends_on_past=True,
-    dag=dag6,
-    owner='airflow')
+    dag=dag6,)
 dag6_task2 = DummyOperator(
     task_id='test_depends_on_past_2',
     depends_on_past=True,
-    dag=dag6,
-    owner='airflow')
+    dag=dag6,)
 dag6_task2.set_upstream(dag6_task1)
+
+
+# DAG tests that a deadlocked subdag is properly caught
+dag7 = DAG(dag_id='test_subdag_deadlock', default_args=default_args)
+subdag7 = DAG(dag_id='test_subdag_deadlock.subdag', default_args=default_args)
+subdag7_task1 = PythonOperator(
+    task_id='test_subdag_fail',
+    dag=subdag7,
+    python_callable=fail)
+subdag7_task2 = DummyOperator(
+    task_id='test_subdag_dummy_1',
+    dag=subdag7,)
+subdag7_task3 = DummyOperator(
+    task_id='test_subdag_dummy_2',
+    dag=subdag7)
+dag7_subdag1 = SubDagOperator(
+    task_id='subdag',
+    dag=dag7,
+    subdag=subdag7)
+subdag7_task1.set_downstream(subdag7_task2)
+subdag7_task2.set_downstream(subdag7_task3)
+
+# DAG tests that queued tasks are run
+dag8 = DAG(
+    dag_id='test_scheduled_queued_tasks',
+    start_date=DEFAULT_DATE,
+    end_date=DEFAULT_DATE,
+    default_args=default_args)
+dag8_task1 = PythonOperator(
+    python_callable=fail,
+    task_id='test_queued_task',
+    dag=dag8,
+    pool='test_queued_pool')

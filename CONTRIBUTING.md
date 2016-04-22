@@ -26,7 +26,7 @@ little bit helps, and credit will always be given.
 
 Report bugs through Github
 
-We now provide a [templated issue form](https://github.com/airbnb/airflow/blob/master/ISSUE_TEMPLATE.md). You must provide information for all required fields else the bug will be closed.
+We now provide a [templated issue form](https://github.com/airbnb/airflow/blob/master/.github/ISSUE_TEMPLATE.md). You must provide information for all required fields else the bug will be closed.
 
 
 ### Fix Bugs
@@ -100,7 +100,7 @@ Airflow requirement and should be used where possible).
 
 ### Testing locally
 
-#### TL;DR 
+#### TL;DR
 Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
 
     ./run_unit_tests.sh

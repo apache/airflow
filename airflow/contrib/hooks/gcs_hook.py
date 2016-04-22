@@ -11,7 +11,7 @@ logging.getLogger("google_cloud_storage").setLevel(logging.INFO)
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
     """
-    Interact with Google Cloud Storage. Connections must be defined with an 
+    Interact with Google Cloud Storage. Connections must be defined with an
     extras JSON field containing:
 
     {
@@ -20,8 +20,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         "key_path": "<p12 key path>"
     }
 
-    If you have used ``gcloud auth`` to authenticate on the machine that's 
-    running Airflow, you can exclude the service_account and key_path 
+    If you have used ``gcloud auth`` to authenticate on the machine that's
+    running Airflow, you can exclude the service_account and key_path
     parameters.
     """
     conn_name_attr = 'google_cloud_storage_conn_id'

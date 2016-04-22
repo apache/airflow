@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 class LogUtilsTest(unittest.TestCase):
 
     def test_gcs_url_parse(self):
+        """
+        Test GCS url parsing
+        """
         logging.info(
             'About to create a GCSLog object without a connection. This will '
             'log an error but testing will proceed.')

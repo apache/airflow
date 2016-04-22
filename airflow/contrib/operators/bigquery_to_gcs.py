@@ -14,19 +14,19 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-        self, 
+        self,
         source_project_dataset_table,
-        destination_cloud_storage_uris, 
-        compression='NONE', 
-        export_format='CSV', 
-        field_delimiter=',', 
-        print_header=True, 
+        destination_cloud_storage_uris,
+        compression='NONE',
+        export_format='CSV',
+        field_delimiter=',',
+        print_header=True,
         bigquery_conn_id='bigquery_default',
         delegate_to=None,
-        *args, 
+        *args,
         **kwargs):
         """
-        Create a new BigQueryToCloudStorage to move data from BigQuery to 
+        Create a new BigQueryToCloudStorage to move data from BigQuery to
         Google Cloud Storage.  See here:
 
         https://cloud.google.com/bigquery/docs/reference/v2/jobs
@@ -36,9 +36,9 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         :param source_project_dataset_table: The dotted (<project>.)<dataset>.<table> BigQuery table to use as the
             source data. If <project> is not included, project will be the project defined in the connection json.
         :type source_project_dataset_table: string
-        :param destination_cloud_storage_uris: The destination Google Cloud 
-            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows 
-            convention defined here: 
+        :param destination_cloud_storage_uris: The destination Google Cloud
+            Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
+            convention defined here:
             https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
         :type destination_cloud_storage_uris: list
         :param compression: Type of compression to use.

@@ -92,6 +92,8 @@ Community-contributed Operators
         BigQueryOperator,
         BigQueryToCloudStorageOperator,
         GoogleCloudStorageDownloadOperator,
+        HipChatAPIOperator,
+        HipChatAPISendRoomNotificationOperator,
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
@@ -148,7 +150,7 @@ attributes and methods.
 
 Macros
 ''''''
-Macros are a way to expose objects to your templates and live under the 
+Macros are a way to expose objects to your templates and live under the
 ``macros`` namespace in your templates.
 
 A few commonly used libraries and methods are made available.
@@ -218,7 +220,8 @@ Community contributed hooks
         GoogleCloudStorageHook,
         VerticaHook,
         FTPHook,
-        SSHHook
+        SSHHook,
+        CloudantHook
 
 Executors
 ---------
