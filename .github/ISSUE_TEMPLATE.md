@@ -2,11 +2,12 @@ Dear Airflow Maintainers,
 
 ### Environment
 
-Before I tell you about my issue, let me describe my environment:
+Before I tell you about my issue, let me describe my Airflow environment:
 
 *Please fill out any appropriate fields:*
 * Airflow version: *(release number or `git log --oneline | head -n 3`)*
 * Airflow components: *(e.g. "webserver and scheduler with a postgres database and LocalExecutor")*
+* Relevant `airflow.cfg` settings:
 * Python Version: *(`python --version`)*
 * Operating System: *(Windows version or `uname -a`)*
 * Python packages: *(`pip freeze` or `conda list`)*
