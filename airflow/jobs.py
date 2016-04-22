@@ -403,6 +403,50 @@ class SchedulerJob(BaseJob):
                     dr.end_date = datetime.now()
             session.commit()
 
+            if dag.schedule_interval.startswith('@continuous'):
+                if [run for run in active_runs if run.state == State.RUNNING]:
+                    # The DAG is still running, so just return None
+                    return None
+
+                # Fail if we have too many consecutive failures
+                max_consecutive_failures=1
+                if dag.schedule_interval[len('@continuous')] == '(' and dag.schedule_interval.endswith(')'):
+                   key_vals = dag.schedule_interval[len('@continuous')+1 : len(dag.schedule_interval)-1]
+                   self.logger.info(key_vals)
+                   splits = key_vals.split(',')
+                   max_consecutive_failures=int(splits[0])
+
+                last_n_runs = session.query(DagRun).filter(
+                    DagRun.dag_id == dag.dag_id
+                    ).order_by(
+                        -DagRun.start_date
+                    ).limit(
+                        max_consecutive_failures
+                    ).all()
+
+                failed_runs = [run for run in last_n_runs if run.state == State.FAILED]
+                self.logger.info('max_consecutive_failures[{}], failed_runs[{}]'.format(max_consecutive_failures, failed_runs))
+                if len(failed_runs) == max_consecutive_failures:
+                    # All of the previous n runs were failures, so don't schedule anything anymore.
+                    # We assume that an alert or failure message will notify the operator of the DAG
+                    # about the failures and they will know to look and see what's going on.
+                    return None
+
+                self.logger.info('Starting continuous dag[{}]'.format(dag.dag_id))
+                now = datetime.now()
+                next_run = DagRun(
+                    dag_id=dag.dag_id,
+                    run_id='scheduled__' + now.isoformat(),
+                    execution_date=now,
+                    start_date=now,
+                    state=State.RUNNING,
+                    external_trigger=False
+                )
+                session.add(next_run)
+                session.commit()
+                return next_run
+                    
+
             qry = session.query(func.max(DagRun.execution_date)).filter_by(
                     dag_id = dag.dag_id).filter(
                         or_(DagRun.external_trigger == False,
