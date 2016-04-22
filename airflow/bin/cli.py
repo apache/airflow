@@ -405,14 +405,23 @@ def webserver(args):
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
             '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
-        sp = subprocess.Popen([
-            'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
-            '-t', str(args.worker_timeout), '-b', args.hostname + ':' + str(args.port),
-            '-n', 'airflow-webserver', '--pid', pid,
-            'airflow.www.app:cached_app()']
+
+        run_args = ['gunicorn',
+                    '-w ' + str(args.workers),
+                    '-k ' + str(args.workerclass),
+                    '-t ' + str(args.worker_timeout),
+                    '-b ' + args.hostname + ':' + str(args.port),
+                    '-n ' + 'airflow-webserver',
+                    '-p ' + str(pid)]
+
+        if not args.foreground:
+            run_args.append("-D")
+
+        module = "airflow.www.app:cached_app()".encode()
+        run_args.append(module)
+        os.execvp(
+            'gunicorn', run_args
         )
-        if args.foreground:
-            sp.wait()
 
 
 def scheduler(args):
@@ -423,7 +432,7 @@ def scheduler(args):
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
 
-    if not args.foreground:
+    if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
@@ -481,7 +490,7 @@ def worker(args):
         'concurrency': args.concurrency,
     }
 
-    if not args.foreground:
+    if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
@@ -539,13 +548,12 @@ def version(args):  # noqa
 
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
-    args.port = args.port
-    port = '--port=' + args.port
+    port = '--port={}'.format(args.port)
     api = ''
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
 
-    if not args.foreground:
+    if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -557,8 +565,7 @@ def flower(args):
         )
 
         with ctx:
-            sp = subprocess.Popen(['flower', '-b', broka, port, api])
-            sp.wait()
+            os.execvp("flower", ['flower', '-b', broka, port, api])
 
         stdout.close()
         stderr.close()
@@ -566,15 +573,14 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sp = subprocess.Popen(['flower', '-b', broka, port, api])
-        sp.wait()
+        os.execvp("flower", ['flower', '-b', broka, port, api])
 
 
 def kerberos(args):  # noqa
     print(settings.HEADER)
     import airflow.security.kerberos
 
-    if not args.foreground:
+    if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("kerberos", args.pid, args.stdout, args.stderr, args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -625,8 +631,10 @@ class CLIFactory(object):
         'pid': Arg(
             ("--pid", ), "PID file location",
             nargs='?'),
-        'foreground': Arg(
-            ("-f", "--foreground"), "Do not detach. Run in foreground", "store_true"),
+        'daemon': Arg(
+            ("-D", "--daemon"), "Daemonize instead of running "
+                                "on the foreground",
+            "store_true"),
         'stderr': Arg(
             ("--stderr", ), "Redirect stderr to this file"),
         'stdout': Arg(
@@ -841,7 +849,7 @@ class CLIFactory(object):
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
             'args': ('principal', 'keytab', 'pid',
-                     'foreground', 'stdout', 'stderr', 'log_file'),
+                     'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': render,
             'help': "Render a task instance's template(s)",
@@ -882,7 +890,7 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'foreground', 'stdout', 'stderr', 'log_file',
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
                      'debug'),
         }, {
             'func': resetdb,
@@ -896,17 +904,17 @@ class CLIFactory(object):
             'func': scheduler,
             'help': "Start a scheduler scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
-                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': worker,
             'help': "Start a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency',
-                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
             'args': ('flower_port', 'broker_api',
-                     'pid', 'foreground', 'stdout', 'stderr', 'log_file'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
             'help': "Show the version",
