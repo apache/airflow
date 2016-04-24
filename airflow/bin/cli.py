@@ -414,7 +414,7 @@ def webserver(args):
                     '-n ' + 'airflow-webserver',
                     '-p ' + str(pid)]
 
-        if not args.foreground:
+        if args.daemon:
             run_args.append("-D")
 
         module = "airflow.www.app:cached_app()".encode()
