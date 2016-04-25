@@ -22,7 +22,7 @@ import os
 import unittest
 import time
 
-from airflow import models, AirflowException
+from airflow import models, AirflowException, settings
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
@@ -424,19 +424,35 @@ class TaskInstanceTest(unittest.TestCase):
         dag = dagbag.get_dag('test_depends_on_past')
         dag.clear()
         task = dag.tasks[0]
-        run_date = task.start_date + datetime.timedelta(days=5)
-        ti = TI(task, run_date)
+        fail_date = task.start_date + datetime.timedelta(days=2, hours=1)
+        end_date = task.start_date + datetime.timedelta(days=4)
 
-        # depends_on_past prevents the run
-        task.run(start_date=run_date, end_date=run_date)
-        ti.refresh_from_db()
-        self.assertIs(ti.state, None)
+        # add a failed run to the database
+        session = settings.Session()
+        fail_ti = TI(task, fail_date)
+        fail_ti.state = State.FAILED
+        session.add(fail_ti)
+        session.commit()
+
+        # run task. all runs after the fail_date shouldn't run
+        # note that fail_date is off-schedule (1 hour after a scheduled date)
+        # but should be picked up anyway
+        task.run(start_date=task.start_date, end_date=end_date)
+        for i in range(5):
+            dt = task.start_date + datetime.timedelta(days=i)
+            ti = TI(task, dt)
+            ti.refresh_from_db()
+            if i <= 2:
+                self.assertEqual(ti.state, State.SUCCESS)
+            else:
+                self.assertIs(ti.state, None)
 
         # ignore first depends_on_past to allow the run
         task.run(
-            start_date=run_date,
-            end_date=run_date,
+            start_date=task.start_date + datetime.timedelta(days=3),
+            end_date=end_date,
             ignore_first_depends_on_past=True)
+        ti = TI(task, end_date)
         ti.refresh_from_db()
         self.assertEqual(ti.state, State.SUCCESS)
 
