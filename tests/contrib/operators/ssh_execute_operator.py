@@ -45,7 +45,7 @@ class SSHExecuteOperatorTest(unittest.TestCase):
             ssh_hook=self.hook,
             dag=self.dag,
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_with_env(self):
         task = SSHExecuteOperator(
@@ -55,7 +55,7 @@ class SSHExecuteOperatorTest(unittest.TestCase):
             env={"AIRFLOW_test": "test"},
             dag=self.dag,
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
 if __name__ == '__main__':

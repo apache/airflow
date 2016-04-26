@@ -644,10 +644,10 @@ may look like inside your ``airflow_settings.py``:
 
 Task Documentation & Notes
 ==========================
-
-It's possible to add documentation or notes to your task objects that become
-visible in the "Task Details" view in the web interface. There are a set
-of special task attributes that get rendered as rich content if defined:
+It's possible to add documentation or notes to your dags & task objects that
+become visible in the web interface ("Graph View" for dags, "Task Instance Details" for
+tasks). There are a set of special task attributes that get rendered as rich
+content if defined:
 
 ==========  ================
 attribute   rendered to
@@ -671,7 +671,8 @@ to the related tasks in Airflow.
     Here's a [url](www.airbnb.com)
     """
 
-This content will get rendered as markdown in the "Task Details" page.
+This content will get rendered as markdown respectively in the "Graph View" and
+"Task Instance Details" pages.
 
 Jinja Templating
 ================

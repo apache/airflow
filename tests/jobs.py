@@ -34,10 +34,13 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from tests.executors.no_op_executor import NoOpExecutor
 
+from airflow import configuration
+
 configuration.test_mode()
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+
 
 class BackfillJobTest(unittest.TestCase):
 
@@ -214,7 +217,7 @@ class SchedulerJobTest(unittest.TestCase):
         # dagrun is running
         self.assertEqual(dr.state, State.RUNNING)
 
-        dag.get_active_runs()
+        dag.active_runs
 
         # dagrun failed
         self.assertEqual(dr.state, dagrun_state)
