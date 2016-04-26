@@ -410,6 +410,8 @@ class DagBag(LoggingMixin):
             'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
         Stats.gauge(
             'dagbag_size', len(self.dags), 1)
+        Stats.gauge(
+            'dagbag_import_errors', len(self.import_errors), 1)
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
