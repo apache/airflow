@@ -59,6 +59,8 @@ from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom
 
+from airflow.operators import BaseOperator, SubDagOperator
+
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
@@ -241,6 +243,23 @@ def fqueued_slots(v, c, m, p):
         '?flt1_pool_equals=' + m.pool +
         '&flt2_state_equals=queued&sort=10&desc=1')
     return Markup("<a href='{0}'>{1}</a>".format(url, m.queued_slots()))
+
+
+def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
+    if isinstance(tasks, list):
+        for task in tasks:
+            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
+        return
+    if isinstance(tasks, SubDagOperator):
+        subtasks = tasks.subdag.tasks
+        dag_ids.append(tasks.subdag.dag_id)
+        for subtask in subtasks:
+            if subtask.task_id not in task_ids:
+                task_ids.append(subtask.task_id)
+                task_id_to_dag[subtask.task_id] = tasks.subdag
+        recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
+    if isinstance(tasks, BaseOperator):
+        task_id_to_dag[tasks.task_id] = tasks.dag
 
 
 class Airflow(BaseView):
@@ -1071,11 +1090,16 @@ class Airflow(BaseView):
         downstream = request.args.get('downstream') == "true"
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
+        recursive = request.args.get('recursive') == "true"
         MAX_PERIODS = 1000
 
         # Flagging tasks as successful
         session = settings.Session()
         task_ids = [task_id]
+        dag_ids = [dag_id]
+        task_id_to_dag = {
+            task_id: dag
+        }
         end_date = ((dag.latest_execution_date or datetime.now())
                     if future else execution_date)
 
@@ -1088,14 +1112,19 @@ class Airflow(BaseView):
 
         start_date = execution_date if not past else start_date
 
+        if recursive:
+            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
+
         if downstream:
-            task_ids += [
-                t.task_id
-                for t in task.get_flat_relatives(upstream=False)]
+            relatives = task.get_flat_relatives(upstream=False)
+            task_ids += [t.task_id for t in relatives]
+            if recursive:
+                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
         if upstream:
-            task_ids += [
-                t.task_id
-                for t in task.get_flat_relatives(upstream=True)]
+            relatives = task.get_flat_relatives(upstream=False)
+            task_ids += [t.task_id for t in relatives]
+            if recursive:
+                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
         TI = models.TaskInstance
 
         if dag.schedule_interval == '@once':
@@ -1104,11 +1133,11 @@ class Airflow(BaseView):
             dates = dag.date_range(start_date, end_date=end_date)
 
         tis = session.query(TI).filter(
-            TI.dag_id == dag_id,
+            TI.dag_id.in_(dag_ids),
             TI.execution_date.in_(dates),
             TI.task_id.in_(task_ids)).all()
         tis_to_change = session.query(TI).filter(
-            TI.dag_id == dag_id,
+            TI.dag_id.in_(dag_ids),
             TI.execution_date.in_(dates),
             TI.task_id.in_(task_ids),
             TI.state != State.SUCCESS).all()
@@ -1133,7 +1162,7 @@ class Airflow(BaseView):
 
             for task_id, task_execution_date in tis_to_create:
                 ti = TI(
-                    task=dag.get_task(task_id),
+                    task=task_id_to_dag[task_id].get_task(task_id),
                     execution_date=task_execution_date,
                     state=State.SUCCESS)
                 session.add(ti)
@@ -1153,7 +1182,7 @@ class Airflow(BaseView):
                 tis = []
                 for task_id, task_execution_date in tis_all_altered:
                     tis.append(TI(
-                        task=dag.get_task(task_id),
+                        task=task_id_to_dag[task_id].get_task(task_id),
                         execution_date=task_execution_date,
                         state=State.SUCCESS))
                 details = "\n".join([str(t) for t in tis])
