@@ -24,6 +24,7 @@ class TriggerRule(object):
     ONE_SUCCESS = 'one_success'
     ONE_FAILED = 'one_failed'
     DUMMY = 'dummy'
+    MANUAL = 'manual'
 
     @classmethod
     def is_valid(cls, trigger_rule):

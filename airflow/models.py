@@ -1061,6 +1061,10 @@ class TaskInstance(Base):
 
         task = self.task
 
+        # If set to manual we will never automatically schedule
+        if task.trigger_rule == TR.MANUAL:
+            return False
+
         # Checking that the depends_on_past is fulfilled
         if (task.depends_on_past and not ignore_depends_on_past and
                 not self.execution_date == task.start_date):
