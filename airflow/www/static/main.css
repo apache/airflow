@@ -1,3 +1,17 @@
+/**
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 body { padding-top: 70px; }
 a.navbar-brand span {
     color: white;
@@ -238,3 +252,39 @@ div.square {
 .sc { color: #BA2121 } /* Literal.String.Char */
 .sd { color: #BA2121; font-style: italic } /* Literal.String.Doc */
 .s2 { color: #BA2121 } /* Literal.String.Double */
+
+/* === Connection List Style Starts === */
+td.footable-row-detail-cell {
+    -moz-box-shadow: 0 2px 2px #eee inset;
+    -webkit-box-shadow: 0 2px 2px #eee inset;
+    box-shadow: 0 2px 2px #eee inset;
+
+    background: #fcfcfc;
+}
+
+.model-list.footable.breakpoint .footable-toggle {
+    font-family: 'Glyphicons Halflings';
+    color: #000;
+}
+
+.model-list.footable.breakpoint .footable-toggle:before {
+    content: '';
+}
+
+.model-list.footable.breakpoint .not-empty .footable-toggle:before {
+    content: "\002b";
+}
+
+.model-list.footable.breakpoint .footable-detail-show .not-empty .footable-toggle:before {
+    content: "\2212";
+}
+
+.model-list.footable.breakpoint .footable-row-detail pre {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.8em;
+}
+
+/* === Connection List Style Ends === */
