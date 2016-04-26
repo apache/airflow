@@ -93,14 +93,13 @@ class BaseExecutor(LoggingMixin):
             # that was also queued to this executor. This is the last chance
             # to check if that hapened. The most probable way is that a
             # Scheduler tried to run a task that was originally queued by a
-            # Backfill.
-            ti.refresh_from_db()
-            if ti.state == State.RUNNING:
-                continue
-            self.running[key] = command
+            # Backfill. This fix reduces the probability of a collision but
+            # does NOT eliminate it.
             self.queued_tasks.pop(key)
-
-            self.execute_async(key, command=command, queue=queue)
+            ti.refresh_from_db()
+            if ti.state != State.RUNNING:
+                self.running[key] = command
+                self.execute_async(key, command=command, queue=queue)
 
     def change_state(self, key, state):
         self.running.pop(key)
