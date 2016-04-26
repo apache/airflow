@@ -44,6 +44,7 @@ from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
 from airflow.settings import Stats
+from airflow.ti_deps.dep_context import RUN_DEPS, DepContext
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
@@ -592,8 +593,6 @@ class SchedulerJob(BaseJob):
                     session.delete(ti)
                     session.commit()
 
-            blocking_tis = ([ti for ti in blocking_tis
-                            if ti.are_dependencies_met(session=session)])
             task_list = "\n".join([
                 sla.task_id + ' on ' + sla.execution_date.isoformat()
                 for sla in slas])
@@ -781,7 +780,6 @@ class SchedulerJob(BaseJob):
         active DAG runs and adding task instances that should run to the
         queue.
         """
-        DagModel = models.DagModel
         session = settings.Session()
 
         # update the state of the previously active dag runs
@@ -789,7 +787,7 @@ class SchedulerJob(BaseJob):
         active_dag_runs = []
         for run in dag_runs:
             self.logger.info("Examining DAG run {}".format(run))
-            # do not consider runs that are executed in the future
+            # don't consider runs that are executed in the future
             if run.execution_date > datetime.now():
                 self.logging.error("Execution date is in future: {}"
                                    .format(run.execution_date))
@@ -827,7 +825,9 @@ class SchedulerJob(BaseJob):
                 if task.adhoc:
                     continue
 
-                if ti.is_runnable(flag_upstream_failed=True):
+                if ti.are_dependencies_met(
+                        dep_context=DepContext(flag_upstream_failed=True),
+                        session=session):
                     self.logger.debug('Queuing task: {}'.format(ti))
                     queue.append(ti.key)
 
@@ -1015,9 +1015,10 @@ class SchedulerJob(BaseJob):
                     task_instance.execution_date,
                     local=True,
                     mark_success=False,
-                    force=False,
-                    ignore_dependencies=False,
+                    ignore_all_deps=False,
                     ignore_depends_on_past=False,
+                    ignore_task_deps=False,
+                    ignore_ti_state=False,
                     pool=task_instance.pool,
                     file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
                     pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id)
@@ -1564,11 +1565,14 @@ class BackfillJob(BaseJob):
 
     def __init__(
             self,
-            dag, start_date=None, end_date=None, mark_success=False,
+            dag,
+            start_date=None,
+            end_date=None,
+            mark_success=False,
             include_adhoc=False,
             donot_pickle=False,
-            ignore_dependencies=False,
             ignore_first_depends_on_past=False,
+            ignore_task_deps=False,
             pool=None,
             *args, **kwargs):
         self.dag = dag
@@ -1578,8 +1582,8 @@ class BackfillJob(BaseJob):
         self.mark_success = mark_success
         self.include_adhoc = include_adhoc
         self.donot_pickle = donot_pickle
-        self.ignore_dependencies = ignore_dependencies
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
+        self.ignore_task_deps = ignore_task_deps
         self.pool = pool
         super(BackfillJob, self).__init__(*args, **kwargs)
 
@@ -1705,11 +1709,16 @@ class BackfillJob(BaseJob):
                         session.commit()
                         continue
 
+                    backfill_context = DepContext(
+                        deps=RUN_DEPS,
+                        ignore_depends_on_past=ignore_depends_on_past,
+                        ignore_task_deps=self.ignore_task_deps,
+                        flag_upstream_failed=True)
                     # Is the task runnable? -- then run it
-                    if ti.is_queueable(
-                            include_queued=True,
-                            ignore_depends_on_past=ignore_depends_on_past,
-                            flag_upstream_failed=True):
+                    if ti.are_dependencies_met(
+                            dep_context=backfill_context,
+                            session=session,
+                            verbose=True):
                         self.logger.debug('Sending {} to executor'.format(ti))
                         if ti.state == State.NONE:
                             ti.state = State.SCHEDULED
@@ -1719,7 +1728,7 @@ class BackfillJob(BaseJob):
                             ti,
                             mark_success=self.mark_success,
                             pickle_id=pickle_id,
-                            ignore_dependencies=self.ignore_dependencies,
+                            ignore_task_deps=self.ignore_task_deps,
                             ignore_depends_on_past=ignore_depends_on_past,
                             pool=self.pool)
                         started.add(key)
@@ -1864,8 +1873,14 @@ class BackfillJob(BaseJob):
                 '---------------------------------------------------\n'
                 'BackfillJob is deadlocked.')
             deadlocked_depends_on_past = any(
-                t.are_dependencies_met() != t.are_dependencies_met(
-                    ignore_depends_on_past=True)
+                t.are_dependencies_met(
+                    dep_context=DepContext(ignore_depends_on_past=False),
+                    session=session,
+                    verbose=True) !=
+                t.are_dependencies_met(
+                    dep_context=DepContext(ignore_depends_on_past=True),
+                    session=session,
+                    verbose=True)
                 for t in deadlocked)
             if deadlocked_depends_on_past:
                 err += (
@@ -1890,17 +1905,19 @@ class LocalTaskJob(BaseJob):
     def __init__(
             self,
             task_instance,
-            ignore_dependencies=False,
+            ignore_all_deps=False,
             ignore_depends_on_past=False,
-            force=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
             mark_success=False,
             pickle_id=None,
             pool=None,
             *args, **kwargs):
         self.task_instance = task_instance
-        self.ignore_dependencies = ignore_dependencies
+        self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
-        self.force = force
+        self.ignore_task_deps = ignore_task_deps
+        self.ignore_ti_state = ignore_ti_state
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
@@ -1918,9 +1935,10 @@ class LocalTaskJob(BaseJob):
     def _execute(self):
         command = self.task_instance.command(
             raw=True,
-            ignore_dependencies=self.ignore_dependencies,
+            ignore_all_deps=self.ignore_all_deps,
             ignore_depends_on_past=self.ignore_depends_on_past,
-            force=self.force,
+            ignore_task_deps=self.ignore_task_deps,
+            ignore_ti_state=self.ignore_ti_state,
             pickle_id=self.pickle_id,
             mark_success=self.mark_success,
             job_id=self.id,

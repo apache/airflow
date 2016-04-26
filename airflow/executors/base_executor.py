@@ -55,17 +55,19 @@ class BaseExecutor(LoggingMixin):
             task_instance,
             mark_success=False,
             pickle_id=None,
-            force=False,
-            ignore_dependencies=False,
+            ignore_all_deps=False,
             ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
             pool=None):
         pool = pool or task_instance.pool
         command = task_instance.command(
             local=True,
             mark_success=mark_success,
-            force=force,
-            ignore_dependencies=ignore_dependencies,
+            ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id)
         self.queue_command(

@@ -57,7 +57,7 @@ class MySqlTest(unittest.TestCase):
             sql=sql,
             mysql_conn_id='airflow_db',
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def mysql_operator_test_multi(self):
         sql = [
@@ -69,7 +69,7 @@ class MySqlTest(unittest.TestCase):
             task_id='mysql_operator_test_multi',
             mysql_conn_id='airflow_db',
             sql=sql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
@@ -86,7 +86,7 @@ class MySqlTest(unittest.TestCase):
             destination_table="test_mysql_to_mysql",
             sql=sql,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sql_sensor(self):
         t = operators.sensors.SqlSensor(
@@ -94,7 +94,7 @@ class MySqlTest(unittest.TestCase):
             conn_id='mysql_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
 class PostgresTest(unittest.TestCase):
@@ -113,7 +113,7 @@ class PostgresTest(unittest.TestCase):
         import airflow.operators.postgres_operator
         t = operators.postgres_operator.PostgresOperator(
             task_id='basic_postgres', sql=sql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         autocommitTask = operators.postgres_operator.PostgresOperator(
             task_id='basic_postgres_with_autocommit',
@@ -123,7 +123,7 @@ class PostgresTest(unittest.TestCase):
         autocommitTask.run(
             start_date=DEFAULT_DATE,
             end_date=DEFAULT_DATE,
-            force=True)
+            ignore_ti_state=True)
 
     def postgres_operator_test_multi(self):
         sql = [
@@ -133,7 +133,7 @@ class PostgresTest(unittest.TestCase):
         import airflow.operators.postgres_operator
         t = operators.postgres_operator.PostgresOperator(
             task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
@@ -150,7 +150,7 @@ class PostgresTest(unittest.TestCase):
             destination_table="test_postgres_to_postgres",
             sql=sql,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_sql_sensor(self):
         t = operators.sensors.SqlSensor(
@@ -158,7 +158,7 @@ class PostgresTest(unittest.TestCase):
             conn_id='postgres_default',
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 @skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
@@ -189,7 +189,7 @@ class TransferTests(unittest.TestCase):
             recreate=True,
             delimiter=",",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_mysql_to_hive_partition(self):
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
@@ -205,4 +205,4 @@ class TransferTests(unittest.TestCase):
             create=True,
             delimiter=",",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

@@ -94,7 +94,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive_queues(self):
             import airflow.operators.hive_operator
@@ -103,7 +103,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 mapred_queue='default', mapred_queue_priority='HIGH',
                 mapred_job_name='airflow.test_hive_queues',
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
         def test_hive_dryrun(self):
@@ -117,7 +117,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t = operators.hive_operator.HiveOperator(
                 task_id='beeline_hql', hive_cli_conn_id='beeline_default',
                 hql=self.hql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_presto(self):
             sql = """
@@ -126,7 +126,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             import airflow.operators.presto_check_operator
             t = operators.presto_check_operator.PrestoCheckOperator(
                 task_id='presto_check', sql=sql, dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_presto_to_mysql(self):
             import airflow.operators.presto_to_mysql
@@ -140,14 +140,14 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 mysql_table='test_static_babynames',
                 mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hdfs_sensor(self):
             t = operators.sensors.HdfsSensor(
                 task_id='hdfs_sensor_check',
                 filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_webhdfs_sensor(self):
             t = operators.sensors.WebHdfsSensor(
@@ -155,7 +155,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 filepath='hdfs://user/hive/warehouse/airflow.db/static_babynames',
                 timeout=120,
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_sql_sensor(self):
             t = operators.sensors.SqlSensor(
@@ -163,7 +163,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 conn_id='presto_default',
                 sql="SELECT 'x' FROM airflow.static_babynames LIMIT 1;",
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive_stats(self):
             import airflow.operators.hive_stats_operator
@@ -172,14 +172,14 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 table="airflow.static_babynames_partitioned",
                 partition={'ds': DEFAULT_DATE_DS},
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_named_hive_partition_sensor(self):
             t = operators.sensors.NamedHivePartitionSensor(
                 task_id='hive_partition_check',
                 partition_names=["airflow.static_babynames_partitioned/ds={{ds}}"],
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_named_hive_partition_sensor_succeeds_on_multiple_partitions(self):
             t = operators.sensors.NamedHivePartitionSensor(
@@ -189,7 +189,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                     "airflow.static_babynames_partitioned/ds={{ds}}"
                 ],
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         @nose.tools.raises(airflow.exceptions.AirflowSensorTimeout)
         def test_named_hive_partition_sensor_times_out_on_nonexistent_partition(self):
@@ -202,14 +202,14 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 poke_interval=0.1,
                 timeout=1,
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive_partition_sensor(self):
             t = operators.sensors.HivePartitionSensor(
                 task_id='hive_partition_check',
                 table='airflow.static_babynames_partitioned',
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive_metastore_sql_sensor(self):
             t = operators.sensors.MetastorePartitionSensor(
@@ -217,7 +217,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 table='airflow.static_babynames_partitioned',
                 partition_name='ds={}'.format(DEFAULT_DATE_DS),
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive2samba(self):
             import airflow.operators.hive_to_samba_operator
@@ -227,7 +227,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 hql="SELECT * FROM airflow.static_babynames LIMIT 10000",
                 destination_filepath='test_airflow.csv',
                 dag=self.dag)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         def test_hive_to_mysql(self):
             import airflow.operators.hive_to_mysql
@@ -247,4 +247,4 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 ],
                 dag=self.dag)
             t.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

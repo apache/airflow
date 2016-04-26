@@ -85,18 +85,6 @@ class State(object):
             return 'black'
 
     @classmethod
-    def runnable(cls):
-        return [
-            cls.NONE,
-            cls.FAILED,
-            cls.UP_FOR_RETRY,
-            cls.UPSTREAM_FAILED,
-            cls.SKIPPED,
-            cls.QUEUED,
-            cls.SCHEDULED
-        ]
-
-    @classmethod
     def finished(cls):
         """
         A list of states indicating that a task started and completed a
