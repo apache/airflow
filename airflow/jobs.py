@@ -422,7 +422,7 @@ class SchedulerJob(BaseJob):
 
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
-                next_run_date = max(next_run_date, dag.start_date)
+                next_run_date = dag.start_date if not next_run_date else max(next_run_date, dag.start_date)
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
@@ -509,7 +509,7 @@ class SchedulerJob(BaseJob):
             if ti.state in (
                     State.RUNNING, State.QUEUED, State.SUCCESS, State.FAILED):
                 continue
-            elif ti.is_runnable(flag_upstream_failed=True):
+            elif ti.are_dependencies_met(flag_upstream_failed=True):
                 self.logger.debug('Firing task: {}'.format(ti))
                 executor.queue_task_instance(ti, pickle_id=pickle_id)
             else:
@@ -599,7 +599,6 @@ class SchedulerJob(BaseJob):
 
         self.queued_tis.clear()
 
-        dag_blacklist = set(dagbag.paused_dags())
         for pool, tis in list(d.items()):
             if not pool:
                 # Arbitrary:
@@ -642,11 +641,6 @@ class SchedulerJob(BaseJob):
                     self.logger.info("Pickling DAG {}".format(dag))
                     pickle_id = dag.pickle(session).id
 
-                if dag.dag_id in dag_blacklist:
-                    continue
-                if dag.concurrency_reached:
-                    dag_blacklist.add(dag.dag_id)
-                    continue
                 if ti.are_dependencies_met():
                     executor.queue_task_instance(ti, pickle_id=pickle_id)
                     open_slots -= 1
@@ -835,7 +829,7 @@ class BackfillJob(BaseJob):
                         continue
 
                 # Is the task runnable? -- then run it
-                if ti.is_queueable(
+                if ti.are_dependencies_met(
                         include_queued=True,
                         ignore_depends_on_past=ignore_depends_on_past,
                         flag_upstream_failed=True):

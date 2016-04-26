@@ -28,6 +28,7 @@ import functools
 import getpass
 import imp
 import importlib
+import itertools
 import zipfile
 import jinja2
 import json
@@ -48,7 +49,7 @@ from sqlalchemy import (
 from sqlalchemy import case, func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import reconstructor, relationship, synonym
 
 from croniter import croniter
 import six
@@ -613,6 +614,384 @@ class DagPickle(Base):
         self.pickle = dag
 
 
+from airflow.ti_dependencies.task_instance_dependency import TIDep, TIDeps
+class EndDateAfterExecutionDateDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.task.end_date and ti.execution_date > ti.task.end_date:
+            return cls.failing_status(
+                reason="The execution date is {0} but this is after the task's end date {1}."
+                           .format(ti.task.end_date.isoformat(), ti.execution_date().isoformat()))
+        return cls.passing_status()
+
+
+class ExecDateNotInFutureDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        cur_date = datetime.now()
+        if ti.execution_date > cur_date:
+            return cls.failing_status(
+                reason="Execution date {0} is in the future (the current "
+                        "date is {1}).".format(ti.execution_date.isoformat(), cur_date.isoformat()))
+        return cls.passing_status()
+
+
+class InRunnableStateDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if not ti.force and ti.state not in State.runnable():
+            if ti.state == State.SUCCESS:
+                return cls.failing_status(
+                    reason="Task previously succeeded on {1}.".format(ti, ti.end_date))
+            elif ti.state == state.RUNNING:
+                return cls.failing_status(reason="Task is already running.")
+            elif ti.state == state.SUCCESS:
+                return cls.failing_status(
+                    reason="Task previously succeeded on {ti.end_date}.".format(ti.end_date))
+            else:
+                return cls.failing_status(
+                    reason="Task is in the '{0}' state which is not a runnable "
+                           "state.".format(ti.state))
+
+        return cls.passing_status()
+
+
+class DagUnpausedDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.task.dag.is_paused:
+            return cls.failing_status(
+                reason="Task's DAG '{0}' is paused.".format(ti.dag_id))
+        else:
+            return cls.passing_status()
+
+
+
+class MaxConcurrencyNotReachedDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.task.dag.concurrency_reached:
+            return cls.failing_status(
+                reason="The maximum number of running tasks ({0}) for this task's DAG '{1}' has "
+                       "been reached.".format(ti.dag_id, ti.task.dag.concurrency))
+        else:
+            return cls.passing_status()
+
+
+class MaxDagrunsNotReachedDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.task.dag.concurrency_reached:
+            return cls.failing_status(
+                reason="The maximum number of active dag runs ({0}) for this task's DAG '{1}' has "
+                       "been reached.".format(ti.dag_id, ti.task.dag.max_active_runs))
+        else:
+            return cls.passing_status()
+
+
+class NotAlreadyQueuedDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.state == State.QUEUED and not include_queued:
+            return cls.failing_status(
+                reason="The task instance has already been queued and will run shortly.")
+        return cls.passing_status()
+
+
+class NotInRetryPeriodDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        # Calculate the date first so that it is always smaller than the timestamp
+        # used by ready_for_retry
+        if ti.state == State.UP_FOR_RETRY:
+            cur_date = datetime.now()
+            next_task_retry_date = ti.end_date + ti.task.retry_delay
+            if not ti.ready_for_retry():
+                return cls.failing_status(
+                    reason="Task is not ready for retry yet but will be retried automatically. "
+                           "Current date is {0} and task will be retried at {1}.".format(
+                               cur_date.isoformat(), next_task_retry_date.isoformat()))
+        return cls.passing_status()
+
+
+class NotSkippedDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.state == State.SKIPPED:
+            return cls.failing_status(reason="The task instance has been skipped.")
+        return cls.passing_status()
+
+
+class PastDagrunDep(TIDep):
+    """
+    Is the past dagrun in a state that allows this task instance to run, e.g. did
+    this task instance's task in the previous dagrun complete if we are depending on past
+    """
+
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+
+        # Are we still waiting for the previous task instance to succeed?
+
+        if ignore_depends_on_past or not ti.task.depends_on_past:
+            return cls.passing_status()
+
+        # The first task instance for a task shouldn't depend on the  task instance before it
+        # because there won't be one
+        if ti.execution_date == ti.task.start_date:
+            return cls.passing_status()
+
+        previous_ti = ti.previous_ti
+        if not ti.previous_ti:
+            return cls.failing_status(
+                reason="depends_on_past is true for this task, but the previous task instance has "
+                       "not run yet.")
+
+        if previous_ti.state not in [State.SUCCESS, State.SKIPPED]:
+            return cls.failing_status(
+                reason="depends_on_past is true for this task, but the previous task instance is "
+                "in the state '{0}' which is not a successful state.".format(previous_ti.state))
+
+        previous_ti.task = ti.task
+        if (ti.task.wait_for_downstream and
+                not previous_ti.are_dependents_done(session=session)):
+            return cls.failing_status(
+                reason="The tasks downstream of the previous task instance haven't completed.")
+
+        return cls.passing_status()
+
+
+class PoolHasSpaceDep(TIDep):
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+        if ti.pool_full():
+            return cls.failing_status(reason="Task's pool '{0}' is full.".format(ti.pool))
+        return cls.passing_status()
+
+
+class TriggerRuleDep(TIDep):
+    """
+    Determines if a task's upstream tasks are in a state that allows a given task instance
+    to run.
+    """
+
+    @classmethod
+    def get_dep_status(
+            cls,
+            ti,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed):
+
+        TI = TaskInstance
+        TR = TriggerRule
+
+        # Checking that all upstream dependencies have succeeded
+        if not ti.task.upstream_list or ti.task.trigger_rule == TR.DUMMY:
+            return cls.passing_status()
+
+        qry = (
+            session
+            .query(
+                func.coalesce(func.sum(
+                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
+                func.coalesce(func.sum(
+                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
+                func.coalesce(func.sum(
+                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
+                func.coalesce(func.sum(
+                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
+                func.count(TI.task_id),
+            )
+            .filter(
+                TI.dag_id == ti.dag_id,
+                TI.task_id.in_(ti.task.upstream_task_ids),
+                TI.execution_date == ti.execution_date,
+                TI.state.in_([
+                    State.SUCCESS, State.FAILED,
+                    State.UPSTREAM_FAILED, State.SKIPPED]),
+            )
+        )
+
+        successes, skipped, failed, upstream_failed, done = qry.first()
+
+        return cls._evaluate_trigger_rule(
+                    ti=ti,
+                    successes=successes,
+                    skipped=skipped,
+                    failed=failed,
+                    upstream_failed=upstream_failed,
+                    done=done,
+                    flag_upstream_failed=flag_upstream_failed,
+                    session=session)
+
+    """
+    :param flag_upstream_failed: This is a hack to generate
+        the upstream_failed state creation while checking to see
+        whether the task instance is runnable. It was the shortest
+        path to add the feature
+    :type flag_upstream_failed: boolean
+    :param successes: Number of successful upstream tasks
+    :type successes: boolean
+    :param skipped: Number of skipped upstream tasks
+    :type skipped: boolean
+    :param failed: Number of failed upstream tasks
+    :type failed: boolean
+    :param upstream_failed: Number of upstream_failed upstream tasks
+    :type upstream_failed: boolean
+    :param done: Number of completed upstream tasks
+    :type done: boolean
+    """
+    @classmethod
+    @provide_session
+    def _evaluate_trigger_rule(
+        cls,
+        ti,
+        successes,
+        skipped,
+        failed,
+        upstream_failed,
+        done,
+        flag_upstream_failed,
+        session):
+
+        TR = TriggerRule
+
+        task = ti.task
+        upstream = len(task.upstream_task_ids)
+        tr = task.trigger_rule
+        upstream_done = done >= upstream
+
+        # handling instant state assignment based on trigger rules
+        # TODO(aoen): trigger rules should probably be rewritten as TaskInstanceDependency or
+        # contain a TaskInstanceDependency, and then the logic could be broken up per each trigger
+        # rule class
+        if flag_upstream_failed:
+            if tr == TR.ALL_SUCCESS:
+                if upstream_failed or failed:
+                    ti.set_state(State.UPSTREAM_FAILED, session)
+                elif skipped:
+                    ti.set_state(State.SKIPPED, session)
+            elif tr == TR.ALL_FAILED:
+                if successes or skipped:
+                    ti.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_SUCCESS:
+                if upstream_done and not successes:
+                    ti.set_state(State.SKIPPED, session)
+            elif tr == TR.ONE_FAILED:
+                if upstream_done and not (failed or upstream_failed):
+                    ti.set_state(State.SKIPPED, session)
+
+        if tr == TR.ONE_SUCCESS:
+            if successes > 0:
+                return cls.passing_status()
+            else:
+                return cls.failing_status(
+                    reason="Task's trigger rule '{0}' requires one upstream task success, but none "
+                           "were found.".format(tr))
+        elif tr == TR.ONE_FAILED:
+            if failed or upstream_failed:
+                return cls.passing_status()
+            else:
+                return cls.failing_status(
+                    reason="Task's trigger rule '{0}' requires one upstream task failure but none, "
+                           "were found.").format(tr)
+        elif tr == TR.ALL_SUCCESS:
+            num_failures = upstream - successes
+            if num_failures <= 0:
+                return cls.passing_status()
+            else:
+                return cls.failing_status(
+                    reason="Task's trigger rule '{0}' requires all upstream tasks to have "
+                           "succeeded, but found {1} non-success(es).".format(tr, num_failures))
+        elif tr == TR.ALL_FAILED:
+            num_successes = upstream - failed - upstream_failed
+            if num_successes <= 0:
+                return cls.passing_status()
+            else:
+                return cls.failing_status(
+                    reason="Task's trigger rule '{0}' requires all upstream tasks to have failed, "
+                           "but found {1} non-faliure(s).".format(tr, num_successes))
+        elif tr == TR.ALL_DONE:
+            if upstream_done:
+                return cls.passing_status()
+            else:
+                return cls.failing_status(
+                    reason="Task's trigger rule '{0}' requires all upstream tasks to have "
+                           "completed, but found '{1}' task(s) that weren't "
+                           "done.".format(tr, upstream - done))
+        else:
+            return cls.failing_status(
+                reason="No strategy to evaluate trigger rule '{0}'.".format(tr))
+
+
 class TaskInstance(Base):
     """
     Task instances store the state of a task instance. This table is the
@@ -652,6 +1031,22 @@ class TaskInstance(Base):
         Index('ti_pool', pool, state, priority_weight),
     )
 
+    # The dependencies for each task instance that need to be met before the instance is run
+    TI_DEPS = [
+        PoolHasSpaceDep,
+        ExecDateNotInFutureDep,
+        NotInRetryPeriodDep,
+        EndDateAfterExecutionDateDep,
+        NotAlreadyQueuedDep,
+        InRunnableStateDep,
+        DagUnpausedDep,
+        MaxConcurrencyNotReachedDep,
+        MaxDagrunsNotReachedDep,
+        NotSkippedDep,
+        PastDagrunDep,
+        TriggerRuleDep,
+    ]
+
     def __init__(self, task, execution_date, state=None):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
@@ -661,11 +1056,16 @@ class TaskInstance(Base):
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
-        self.test_mode = False  # can be changed when calling 'run'
-        self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
         if state:
             self.state = state
+        self.init_on_load()
+
+    @reconstructor
+    def init_on_load(self):
+        """ Initialize the attributes that aren't stored in the DB. """
+        self.test_mode = False  # can be changed when calling 'run'
+        self.force = False  # can be changed when calling 'run'
 
     def command(
             self,
@@ -807,78 +1207,6 @@ class TaskInstance(Base):
         self.end_date = datetime.now()
         session.merge(self)
 
-    def is_queueable(
-            self,
-            include_queued=False,
-            ignore_depends_on_past=False,
-            flag_upstream_failed=False):
-        """
-        Returns a boolean on whether the task instance has met all dependencies
-        and is ready to run. It considers the task's state, the state
-        of its dependencies, depends_on_past and makes sure the execution
-        isn't in the future. It doesn't take into
-        account whether the pool has a slot for it to run.
-
-        :param include_queued: If True, tasks that have already been queued
-            are included. Defaults to False.
-        :type include_queued: boolean
-        :param ignore_depends_on_past: if True, ignores depends_on_past
-            dependencies. Defaults to False.
-        :type ignore_depends_on_past: boolean
-        :param flag_upstream_failed: This is a hack to generate
-            the upstream_failed state creation while checking to see
-            whether the task instance is runnable. It was the shortest
-            path to add the feature
-        :type flag_upstream_failed: boolean
-        """
-        # is the execution date in the future?
-        if self.execution_date > datetime.now():
-            return False
-        # is the task still in the retry waiting period?
-        elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
-            return False
-        # does the task have an end_date prior to the execution date?
-        elif self.task.end_date and self.execution_date > self.task.end_date:
-            return False
-        # has the task been skipped?
-        elif self.state == State.SKIPPED:
-            return False
-        # has the task already been queued (and are we excluding queued tasks)?
-        elif self.state == State.QUEUED and not include_queued:
-            return False
-        # is the task runnable and have its dependencies been met?
-        elif (
-                self.state in State.runnable() and
-                self.are_dependencies_met(
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    flag_upstream_failed=flag_upstream_failed)):
-            return True
-        # anything else
-        else:
-            return False
-
-    def is_runnable(
-            self,
-            include_queued=False,
-            ignore_depends_on_past=False,
-            flag_upstream_failed=False):
-        """
-        Returns whether a task is ready to run AND there's room in the
-        queue.
-
-        :param include_queued: If True, tasks that are already QUEUED are
-            considered "runnable". Defaults to False.
-        :type include_queued: boolean
-        :param ignore_depends_on_past: if True, ignores depends_on_past
-            dependencies. Defaults to False.
-        :type ignore_depends_on_past: boolean
-        """
-        queueable = self.is_queueable(
-            include_queued=include_queued,
-            ignore_depends_on_past=ignore_depends_on_past,
-            flag_upstream_failed=flag_upstream_failed)
-        return queueable and not self.pool_full()
-
     @provide_session
     def are_dependents_done(self, session=None):
         """
@@ -903,78 +1231,38 @@ class TaskInstance(Base):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
+    @property
     @provide_session
-    def evaluate_trigger_rule(self, successes, skipped, failed,
-                              upstream_failed, done,
-                              flag_upstream_failed, session=None):
-        """
-        Returns a boolean on whether the current task can be scheduled
-        for execution based on its trigger_rule.
+    def previous_ti(self, session=None):
+        """ The task instance for the task that ran before this task instance """
+        TI = TaskInstance
 
-        :param flag_upstream_failed: This is a hack to generate
-            the upstream_failed state creation while checking to see
-            whether the task instance is runnable. It was the shortest
-            path to add the feature
-        :type flag_upstream_failed: boolean
-        :param successes: Number of successful upstream tasks
-        :type successes: boolean
-        :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
-        :param failed: Number of failed upstream tasks
-        :type failed: boolean
-        :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
-        :param done: Number of completed upstream tasks
-        :type done: boolean
-        """
-        TR = TriggerRule
-
-        task = self.task
-        upstream = len(task.upstream_task_ids)
-        tr = task.trigger_rule
-        upstream_done = done >= upstream
-
-        # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
-            if tr == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    self.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ALL_FAILED:
-                if successes or skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_FAILED:
-                if upstream_done and not (failed or upstream_failed):
-                    self.set_state(State.SKIPPED, session)
-
-        return (
-             (tr == TR.ONE_SUCCESS and successes > 0) or
-             (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-             (tr == TR.ALL_SUCCESS and successes >= upstream) or
-             (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-             (tr == TR.ALL_DONE and upstream_done)
-        )
+        return session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.task_id == self.task.task_id,
+            TI.execution_date ==
+            self.task.dag.previous_schedule(self.execution_date),
+        ).first()
 
     @provide_session
     def are_dependencies_met(
             self,
             session=None,
-            flag_upstream_failed=False,
+            include_queued=False,
             ignore_depends_on_past=False,
+            flag_upstream_failed=False,
             verbose=False):
         """
-        Returns a boolean on whether the upstream tasks are in a SUCCESS state
-        and considers depends_on_past and the previous run's state.
+        Returns whether or not all the conditions are met for this task instance to be run
 
         :param flag_upstream_failed: This is a hack to generate
             the upstream_failed state creation while checking to see
             whether the task instance is runnable. It was the shortest
             path to add the feature
         :type flag_upstream_failed: boolean
+        :param include_queued: If True, tasks that have already been queued
+            are included. Defaults to False.
+        :type include_queued: boolean
         :param ignore_depends_on_past: if True, ignores depends_on_past
             dependencies. Defaults to False.
         :type ignore_depends_on_past: boolean
@@ -984,70 +1272,47 @@ class TaskInstance(Base):
             logging would be way too verbose.
         :type verbose: boolean
         """
-        TI = TaskInstance
-        TR = TriggerRule
+        verbose = True
+        for ti_dep in self.TI_DEPS:
+            for dep_statuses in ti_dep.get_dep_status(
+                                    self.TI_DEPS,
+                                    self,
+                                    session,
+                                    include_queued,
+                                    ignore_depends_on_past,
+                                    flag_upstream_failed):
+                for dep_status in dep_statuses:
+                    if not dep_status.passed:
+                        if verbose:
+                            logging.warning(
+                                'Task instance {0} dependencies not met: {1}'.format(
+                                    self, dep_status.reason))
+                        session.commit()
+                        return False
 
-        task = self.task
-
-        # Checking that the depends_on_past is fulfilled
-        if (task.depends_on_past and not ignore_depends_on_past and
-                not self.execution_date == task.start_date):
-            previous_ti = session.query(TI).filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id == task.task_id,
-                TI.execution_date ==
-                    self.task.dag.previous_schedule(self.execution_date),
-                TI.state.in_({State.SUCCESS, State.SKIPPED}),
-            ).first()
-            if not previous_ti:
-                if verbose:
-                    logging.warning("depends_on_past not satisfied")
-                return False
-
-            # Applying wait_for_downstream
-            previous_ti.task = self.task
-            if task.wait_for_downstream and not \
-                    previous_ti.are_dependents_done(session=session):
-                if verbose:
-                    logging.warning("wait_for_downstream not satisfied")
-                return False
-
-        # Checking that all upstream dependencies have succeeded
-        if not task.upstream_list or task.trigger_rule == TR.DUMMY:
-            return True
-
-        qry = (
-            session
-            .query(
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                func.count(TI.task_id),
-            )
-            .filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id.in_(task.upstream_task_ids),
-                TI.execution_date == self.execution_date,
-                TI.state.in_([
-                    State.SUCCESS, State.FAILED,
-                    State.UPSTREAM_FAILED, State.SKIPPED]),
-            )
-        )
-
-        successes, skipped, failed, upstream_failed, done = qry.first()
-        satisfied = self.evaluate_trigger_rule(
-            session=session, successes=successes, skipped=skipped,
-            failed=failed, upstream_failed=upstream_failed, done=done,
-            flag_upstream_failed=flag_upstream_failed)
         session.commit()
-        if verbose and not satisfied:
-            logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
-        return satisfied
+        return True
+
+    @provide_session
+    def get_failed_dependency_reasons(
+        self,
+        session=None,
+        include_queued=False,
+        ignore_depends_on_past=False,
+        flag_upstream_failed=False):
+
+        dep_statuses = TIDeps.get_dep_status(
+            self.TI_DEPS,
+            self,
+            session,
+            include_queued,
+            ignore_depends_on_past,
+            flag_upstream_failed)
+
+        flat_dep_statuses = list(itertools.chain.from_iterable(dep_statuses))
+        return [(dep_status.dep_name, dep_status.reason)
+                 for dep_status in flat_dep_statuses
+                 if not dep_status.passed]
 
     def __repr__(self):
         return (
@@ -1113,134 +1378,120 @@ class TaskInstance(Base):
         self.hostname = socket.gethostname()
         self.operator = task.__class__.__name__
 
-        if self.state == State.RUNNING:
-            logging.warning("Another instance is running, skipping.")
-        elif not force and self.state == State.SUCCESS:
-            logging.info(
-                "Task {self} previously succeeded"
-                " on {self.end_date}".format(**locals())
-            )
-        elif (
-                not ignore_dependencies and
-                not self.are_dependencies_met(
-                    session=session,
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    verbose=True)):
+        if (not ignore_dependencies and
+            not self.are_dependencies_met(
+                session=session,
+                ignore_depends_on_past=ignore_depends_on_past,
+                verbose=True)):
             logging.warning("Dependencies not met yet")
-        elif (
-                self.state == State.UP_FOR_RETRY and
-                not self.ready_for_retry()):
-            next_run = (self.end_date + task.retry_delay).isoformat()
-            logging.info(
-                "Not ready for retry yet. " +
-                "Next run after {0}".format(next_run)
-            )
-        elif force or self.state in State.runnable():
-            HR = "\n" + ("-" * 80) + "\n"  # Line break
+            session.commit()
+            return
 
-            # For reporting purposes, we report based on 1-indexed,
-            # not 0-indexed lists (i.e. Attempt 1 instead of
-            # Attempt 0 for the first attempt).
-            msg = "Starting attempt {attempt} of {total}".format(
+        HR = "\n" + ("-" * 80) + "\n"  # Line break
+
+        # For reporting purposes, we report based on 1-indexed,
+        # not 0-indexed lists (i.e. Attempt 1 instead of
+        # Attempt 0 for the first attempt).
+        msg = "Starting attempt {attempt} of {total}".format(
+            attempt=self.try_number % (task.retries + 1) + 1,
+            total=task.retries + 1)
+        self.start_date = datetime.now()
+
+        if not mark_success and self.state != State.QUEUED and (
+                self.pool or self.task.dag.concurrency_reached):
+            # If a pool is set for this task, marking the task instance
+            # as QUEUED
+            self.state = State.QUEUED
+            msg = "Queuing attempt {attempt} of {total}".format(
                 attempt=self.try_number % (task.retries + 1) + 1,
                 total=task.retries + 1)
-            self.start_date = datetime.now()
-
-            if not mark_success and self.state != State.QUEUED and (
-                    self.pool or self.task.dag.concurrency_reached):
-                # If a pool is set for this task, marking the task instance
-                # as QUEUED
-                self.state = State.QUEUED
-                msg = "Queuing attempt {attempt} of {total}".format(
-                    attempt=self.try_number % (task.retries + 1) + 1,
-                    total=task.retries + 1)
-                logging.info(HR + msg + HR)
-
-                self.queued_dttm = datetime.now()
-                session.merge(self)
-                session.commit()
-                logging.info("Queuing into pool {}".format(self.pool))
-                return
-
-            # print status message
             logging.info(HR + msg + HR)
-            self.try_number += 1
 
-            if not test_mode:
-                session.add(Log(State.RUNNING, self))
-            self.state = State.RUNNING
-            self.end_date = None
-            if not test_mode:
-                session.merge(self)
+            self.queued_dttm = datetime.now()
+            session.merge(self)
             session.commit()
+            logging.info("Queuing into pool {}".format(self.pool))
+            return
 
-            # Closing all pooled connections to prevent
-            # "max number of connections reached"
-            settings.engine.dispose()
-            if verbose:
-                if mark_success:
-                    msg = "Marking success for "
-                else:
-                    msg = "Executing "
-                msg += "{self.task} on {self.execution_date}"
+        # print status message
+        logging.info(HR + msg + HR)
+        self.try_number += 1
 
-            context = {}
-            try:
-                logging.info(msg.format(self=self))
-                if not mark_success:
-                    context = self.get_template_context()
+        if not test_mode:
+            session.add(Log(State.RUNNING, self))
+        self.state = State.RUNNING
+        self.end_date = None
+        if not test_mode:
+            session.merge(self)
+        session.commit()
 
-                    task_copy = copy.copy(task)
-                    self.task = task_copy
+        # Closing all pooled connections to prevent
+        # "max number of connections reached"
+        settings.engine.dispose()
+        if verbose:
+            if mark_success:
+                msg = "Marking success for "
+            else:
+                msg = "Executing "
+            msg += "{self.task} on {self.execution_date}"
 
-                    def signal_handler(signum, frame):
-                        '''Setting kill signal handler'''
-                        logging.error("Killing subprocess")
-                        task_copy.on_kill()
-                        raise AirflowException("Task received SIGTERM signal")
-                    signal.signal(signal.SIGTERM, signal_handler)
+        context = {}
+        try:
+            logging.info(msg.format(self=self))
+            if not mark_success:
+                context = self.get_template_context()
 
-                    self.render_templates()
-                    task_copy.pre_execute(context=context)
+                task_copy = copy.copy(task)
+                self.task = task_copy
 
-                    # If a timout is specified for the task, make it fail
-                    # if it goes beyond
-                    result = None
-                    if task_copy.execution_timeout:
-                        with timeout(int(
-                                task_copy.execution_timeout.total_seconds())):
-                            result = task_copy.execute(context=context)
+                def signal_handler(signum, frame):
+                    '''Setting kill signal handler'''
+                    logging.error("Killing subprocess")
+                    task_copy.on_kill()
+                    raise AirflowException("Task received SIGTERM signal")
+                signal.signal(signal.SIGTERM, signal_handler)
 
-                    else:
+                self.render_templates()
+                task_copy.pre_execute(context=context)
+
+                # If a timout is specified for the task, make it fail
+                # if it goes beyond
+                result = None
+                if task_copy.execution_timeout:
+                    with timeout(int(
+                            task_copy.execution_timeout.total_seconds())):
                         result = task_copy.execute(context=context)
 
-                    # If the task returns a result, push an XCom containing it
-                    if result is not None:
-                        self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+                else:
+                    result = task_copy.execute(context=context)
 
-                    task_copy.post_execute(context=context)
-                self.state = State.SUCCESS
-            except AirflowSkipException:
-                self.state = State.SKIPPED
-            except (Exception, KeyboardInterrupt) as e:
-                self.handle_failure(e, test_mode, context)
-                raise
+                # If the task returns a result, push an XCom containing it
+                if result is not None:
+                    self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
-            # Recording SUCCESS
-            self.end_date = datetime.now()
-            self.set_duration()
-            if not test_mode:
-                session.add(Log(self.state, self))
-                session.merge(self)
-            session.commit()
+                task_copy.post_execute(context=context)
+            self.state = State.SUCCESS
+        except AirflowSkipException:
+            self.state = State.SKIPPED
+        except (Exception, KeyboardInterrupt) as e:
+            self.handle_failure(e, test_mode, context)
+            raise
 
-            # Success callback
-            try:
-                if task.on_success_callback:
-                    task.on_success_callback(context)
-            except Exception as e3:
-                logging.error("Failed when executing success callback")
-                logging.exception(e3)
+        # Recording SUCCESS
+        self.end_date = datetime.now()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
+        session.commit()
+
+        # Success callback
+        try:
+            if task.on_success_callback:
+                task.on_success_callback(context)
+        except Exception as e3:
+            logging.error("Failed when executing success callback")
+            logging.exception(e3)
 
         session.commit()
 
@@ -1607,7 +1858,7 @@ class BaseOperator(object):
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send dan email
         soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeede yet.
+        has not succeeded yet.
         The scheduler pays special attention for jobs with an SLA and
         sends alert
         emails for sla misses. SLA misses are also recorded in the database

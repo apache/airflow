@@ -489,7 +489,7 @@ def worker(args):
 
         worker.run(**options)
         sp.kill()
-        
+
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))

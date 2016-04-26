@@ -902,6 +902,32 @@ class Airflow(BaseView):
             form=form,
             dag=dag, title=title)
 
+    @expose('/task_instance')
+    @login_required
+    @wwwutils.action_logging
+    def task_instance(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+
+        dag = dagbag.get_dag(dag_id)
+        task = dagbag.dags[dag_id].get_task(task_id)
+        ti = models.TaskInstance(task, dttm)
+
+        form = DateTimeForm(data={'execution_date': dttm})
+
+        title = "Task Instance Info"
+
+        reasons = [(dependency_name, reason) for (dependency_name, reason) in
+                   ti.get_failed_dependency_reasons()]
+
+        return self.render(
+            'airflow/task_instance_details.html',
+            reasons=reasons, dag=dag, title=title, task_id=task_id,
+            execution_date=execution_date, form=form)
+
     @expose('/xcom')
     @login_required
     @wwwutils.action_logging

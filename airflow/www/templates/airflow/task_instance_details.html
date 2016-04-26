@@ -1,0 +1,23 @@
+{% extends "airflow/task_instance.html" %}
+{% block title %}Airflow - DAGs{% endblock %}
+
+{% block body %}
+    {{ super() }}
+    <h4>{{ title }}</h4>
+    <div>
+        <h5>Blocking Dependencies</h5>
+        <table class="table table-striped table-bordered">
+            <tr>
+                <th>Dependency</th>
+                <th>Reason</th>
+            </tr>
+            {% for dependency, reason in reasons %}
+                <tr>
+                    <td>{{ dependency }}</td>
+                    <td class='code'>{{ reason }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        {{ html_code|safe }}
+    </div>
+{% endblock %}
