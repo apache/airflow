@@ -68,9 +68,6 @@ class BaseExecutor(LoggingMixin):
         pass
 
     def heartbeat(self):
-        # Calling child class sync method
-        self.logger.debug("Calling the {} sync method".format(self.__class__))
-        self.sync()
 
         # Triggering new jobs
         if not self.parallelism:
@@ -100,6 +97,10 @@ class BaseExecutor(LoggingMixin):
             if ti.state != State.RUNNING:
                 self.running[key] = command
                 self.execute_async(key, command=command, queue=queue)
+                
+        # Calling child class sync method
+        self.logger.debug("Calling the {} sync method".format(self.__class__))
+        self.sync()
 
     def change_state(self, key, state):
         self.running.pop(key)
