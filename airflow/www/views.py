@@ -1,7 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 import sys
 
 import os
 import socket
+import importlib
 
 from functools import wraps
 from datetime import datetime, timedelta
@@ -37,15 +52,19 @@ from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
 import airflow
-from airflow import models
-from airflow.settings import Session
 from airflow import configuration as conf
-from airflow import utils
-from airflow.utils import AirflowException
-from airflow.www import utils as wwwutils
+from airflow import models
 from airflow import settings
-from airflow.models import State
+from airflow.exceptions import AirflowException
+from airflow.settings import Session
+from airflow.models import XCom
 
+from airflow.utils.json import json_ser
+from airflow.utils.state import State
+from airflow.utils.db import provide_session
+from airflow.utils.helpers import alchemy_to_dict
+from airflow.utils import logging as log_utils
+from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 
 QUERY_LIMIT = 100000
@@ -558,15 +577,20 @@ class Airflow(BaseView):
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
+        RunningDagRun = (
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(DagRun.state == State.RUNNING)
+            .subquery('running_dag_run')
+        )
 
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
         qry = (
             session.query(TI.dag_id, TI.state, sqla.func.count(TI.task_id))
-            .outerjoin(DagRun, and_(
-                DagRun.dag_id == TI.dag_id,
-                DagRun.execution_date == TI.execution_date,
-                DagRun.state == State.RUNNING))
+            .outerjoin(RunningDagRun, and_(
+                RunningDagRun.c.dag_id == TI.dag_id,
+                RunningDagRun.c.execution_date == TI.execution_date)
+            )
             .outerjoin(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
                 LastDagRun.c.execution_date == TI.execution_date)
@@ -574,7 +598,7 @@ class Airflow(BaseView):
             .filter(TI.task_id.in_(task_ids))
             .filter(TI.dag_id.in_(dag_ids))
             .filter(or_(
-                DagRun.dag_id != None,
+                RunningDagRun.c.dag_id != None,
                 LastDagRun.c.dag_id != None
             ))
             .group_by(TI.dag_id, TI.state)
@@ -611,10 +635,15 @@ class Airflow(BaseView):
     def code(self):
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
-        code = "".join(open(dag.full_filepath, 'r').readlines())
-        title = dag.filepath
-        html_code = highlight(
-            code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        title = dag_id
+        try:
+            m = importlib.import_module(dag.module_name)
+            code = inspect.getsource(m)
+            html_code = highlight(
+                code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
+        except IOError as e:
+            html_code = str(e)
+
         return self.render(
             'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
             root=request.args.get('root'),
@@ -637,7 +666,7 @@ class Airflow(BaseView):
         )
         return self.render(
             'airflow/dag_details.html',
-            dag=dag, title=title, states=states, State=utils.State)
+            dag=dag, title=title, states=states, State=State)
 
     @current_app.errorhandler(404)
     def circles(self):
@@ -646,7 +675,7 @@ class Airflow(BaseView):
 
     @current_app.errorhandler(500)
     def show_traceback(self):
-        from airflow import ascii as ascii_
+        from airflow.utils import asciiart as ascii_
         return render_template(
             'airflow/traceback.html',
             hostname=socket.gethostname(),
@@ -803,11 +832,11 @@ class Airflow(BaseView):
 
                 # S3
                 if remote_log.startswith('s3:/'):
-                    log += utils.S3Log().read(remote_log, return_error=True)
+                    log += log_utils.S3Log().read(remote_log, return_error=True)
 
                 # GCS
                 elif remote_log.startswith('gs:/'):
-                    log += utils.GCSLog().read(remote_log, return_error=True)
+                    log += log_utils.GCSLog().read(remote_log, return_error=True)
 
                 # unsupported
                 elif remote_log:
@@ -872,6 +901,44 @@ class Airflow(BaseView):
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             dag=dag, title=title)
+
+    @expose('/xcom')
+    @login_required
+    @wwwutils.action_logging
+    def xcom(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        # Carrying execution_date through, even though it's irrelevant for
+        # this context
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        dag = dagbag.get_dag(dag_id)
+        if not dag or task_id not in dag.task_ids:
+            flash(
+                "Task [{}.{}] doesn't seem to exist"
+                " at the moment".format(dag_id, task_id),
+                "error")
+            return redirect('/admin/')
+
+        session = Session()
+        xcomlist = session.query(XCom).filter(
+            XCom.dag_id == dag_id, XCom.task_id == task_id,
+            XCom.execution_date == dttm).all()
+
+        attributes = []
+        for xcom in xcomlist:
+            if not xcom.key.startswith('_'):
+                attributes.append((xcom.key, xcom.value))
+
+        title = "XCom"
+        return self.render(
+            'airflow/xcom.html',
+            attributes=attributes,
+            task_id=task_id,
+            execution_date=execution_date,
+            form=form,
+            dag=dag, title=title)\
 
     @expose('/run')
     @login_required
@@ -1138,7 +1205,7 @@ class Airflow(BaseView):
             .all()
         )
         dag_runs = {
-            dr.execution_date: utils.alchemy_to_dict(dr) for dr in dag_runs}
+            dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
@@ -1146,7 +1213,7 @@ class Airflow(BaseView):
         max_date = max([ti.execution_date for ti in tis]) if dates else None
         task_instances = {}
         for ti in tis:
-            tid = utils.alchemy_to_dict(ti)
+            tid = alchemy_to_dict(ti)
             dr = dag_runs.get(ti.execution_date)
             tid['external_trigger'] = dr['external_trigger'] if dr else False
             task_instances[(ti.task_id, ti.execution_date)] = tid
@@ -1201,7 +1268,7 @@ class Airflow(BaseView):
                 for d in dates],
         }
 
-        data = json.dumps(data, indent=4, default=utils.json_ser)
+        data = json.dumps(data, indent=4, default=json_ser)
         session.commit()
         session.close()
 
@@ -1294,7 +1361,7 @@ class Airflow(BaseView):
             data={'execution_date': dttm.isoformat(), 'arrange': arrange})
 
         task_instances = {
-            ti.task_id: utils.alchemy_to_dict(ti)
+            ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(session, dttm, dttm)}
         tasks = {
             t.task_id: {
@@ -1593,7 +1660,7 @@ class Airflow(BaseView):
             return ("Error: Invalid execution_date")
 
         task_instances = {
-            ti.task_id: utils.alchemy_to_dict(ti)
+            ti.task_id: alchemy_to_dict(ti)
             for ti in dag.get_task_instances(session, dttm, dttm)}
 
         return json.dumps(task_instances)
@@ -1737,6 +1804,7 @@ class AirflowModelView(ModelView):
     list_template = 'airflow/model_list.html'
     edit_template = 'airflow/model_edit.html'
     create_template = 'airflow/model_create.html'
+    column_display_actions = True
     page_size = 500
 
 
@@ -1979,7 +2047,7 @@ class DagRunModelView(ModelViewOnly):
     def action_set_success(self, ids):
         self.set_dagrun_state(ids, State.SUCCESS)
 
-    @utils.provide_session
+    @provide_session
     def set_dagrun_state(self, ids, target_state, session=None):
         try:
             DR = models.DagRun
@@ -2058,7 +2126,7 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
-    @utils.provide_session
+    @provide_session
     def set_task_instance_state(self, ids, target_state, session=None):
         try:
             TI = models.TaskInstance
@@ -2144,6 +2212,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('samba', 'Samba',),
             ('sqlite', 'Sqlite',),
             ('ssh', 'SSH',),
+            ('cloudant', 'IBM Cloudant',),
             ('mssql', 'Microsoft SQL Server'),
             ('mesos_framework-id', 'Mesos Framework ID'),
         ]

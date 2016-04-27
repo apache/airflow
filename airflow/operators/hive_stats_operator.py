@@ -4,10 +4,10 @@ from collections import OrderedDict
 import json
 import logging
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks import PrestoHook, HiveMetastoreHook, MySqlHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class HiveStatsCollectionOperator(BaseOperator):

@@ -112,17 +112,17 @@ definitions in Airflow.
     class TestView(BaseView):
         @expose('/')
         def test(self):
+            # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
             return self.render("test_plugin/test.html", content="Hello galaxy!")
     v = TestView(category="Test Plugin", name="Test View")
 
     # Creating a flask blueprint to intergrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
-        template_folder='templates',
+        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder 
         static_folder='static',
         static_url_path='/static/test_plugin')
-
-
+        
     ml = MenuLink(
         category='Test Plugin',
         name='Test Menu Link',

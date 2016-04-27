@@ -3,7 +3,7 @@ import re
 
 from airflow.hooks import HiveCliHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class HiveOperator(BaseOperator):

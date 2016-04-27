@@ -10,7 +10,7 @@ import random
 
 from airflow import settings
 from airflow.models import Connection
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 

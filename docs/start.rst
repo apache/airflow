@@ -1,8 +1,7 @@
 Quick Start
-'''''''''''
-The installation is quick and straightforward. Note that Airflow is only
-tested under Python 2.7.* as many of our dependencies don't support
-python3 (as of 2015-06).
+-----------
+
+The installation is quick and straightforward.
 
 .. code-block:: bash
 
@@ -23,7 +22,9 @@ python3 (as of 2015-06).
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and lay an "airflow.cfg" file with defaults that get you going fast. You can
 inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
-the ``Admin->Configuration`` menu.
+the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
+in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``
+if started by systemd.
 
 Out of the box, Airflow uses a sqlite database, which you should outgrow
 fairly quickly since no parallelization is possible using this database
@@ -43,6 +44,6 @@ run the commands below.
     # run a backfill over 2 days
     airflow backfill example_bash_operator -s 2015-01-01 -e 2015-01-02
 
-From this point, you can move on to the :doc:`tutorial` section, and come back
-if/when you are ready to make your Airflow sandbox more of a serious
-environment.
+What's Next?
+''''''''''''
+From this point, you can head to the :doc:`tutorial` section for further examples or the :doc:`configuation` section if you're ready to get your hands dirty.

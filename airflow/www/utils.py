@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
@@ -8,14 +22,15 @@ import functools
 import gzip
 import dateutil.parser as dateparser
 import json
-import os
 from flask import after_this_request, request, Response
 from flask_login import current_user
 from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type
 
-from airflow import configuration, models, settings, utils
+from airflow import configuration, models, settings
+from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.email import send_email
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 
@@ -147,7 +162,7 @@ def notify_owner(f):
                     </table>
                     ''').render(**locals())
                 if task.email:
-                    utils.send_email(task.email, subject, content)
+                    send_email(task.email, subject, content)
         """
         return f(*args, **kwargs)
     return wrapper
@@ -159,7 +174,7 @@ def json_response(obj):
     """
     return Response(
         response=json.dumps(
-            obj, indent=4, cls=utils.AirflowJsonEncoder),
+            obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
 

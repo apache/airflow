@@ -5,7 +5,7 @@ import os
 import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.6.2'
+version = '1.7.0'
 
 
 class Tox(TestCommand):
@@ -54,12 +54,13 @@ doc = [
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
 gcloud = [
-    'gcloud>=1.1.0',
+    'gcloud>=0.11.0',
 ]
 gcp_api = [
     'httplib2',
     'google-api-python-client<=1.4.2',
     'oauth2client>=1.5.2, <2.0.0',
+    'PyOpenSSL',
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
@@ -84,27 +85,28 @@ slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = [
-    'pykerberos>=1.1.8',
-    'snakebite[kerberos]>=2.7.8'
-]
+kerberos = ['pykerberos>=1.1.8',
+            'thrift_sasl>=0.2.0',
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
+cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = ['lxml>=3.3.4', 'nose', 'mock']
+
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
 
-
 setup(
     name='airflow',
     description='Programmatically author, schedule and monitor data pipelines',
+    license='Apache License 2.0',
     version=version,
     packages=find_packages(),
     package_data={'': ['airflow/alembic.ini']},
@@ -117,11 +119,13 @@ setup(
         'chartkick>=0.4.2, < 0.5',
         'croniter>=0.3.8, <0.4',
         'dill>=0.2.2, <0.3',
+        'python-daemon>=2.1.1, <2.2',
         'flask>=0.10.1, <0.11',
         'flask-admin>=1.4.0, <2.0.0',
         'flask-cache>=0.13.1, <0.14',
         'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
+        'funcsigs>=0.4, <1',
         'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',
@@ -165,7 +169,19 @@ setup(
         'kerberos': kerberos,
         'password': password,
         'github_enterprise': github_enterprise,
-        'qds': qds
+        'qds': qds,
+        'cloudant': cloudant
+    },
+    classifiers={
+        'Development Status :: 5 - Production/Stable',
+        'Environment :: Console',
+        'Environment :: Web Environment',
+        'Intended Audience :: Developers',
+        'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: Apache Software License',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
+        'Topic :: System :: Monitoring',
     },
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',

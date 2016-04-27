@@ -44,8 +44,8 @@ or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic
-than a database structure would be. Airflow workflows are expected to look 
-similar from a run to the next, this allows for clarity around 
+than a database structure would be. Airflow workflows are expected to look
+similar from a run to the next, this allows for clarity around
 unit of work and continuity.
 
 Content
@@ -53,15 +53,16 @@ Content
 .. toctree::
     :maxdepth: 4
 
+    installation
     start
     tutorial
+    configuration
     ui
-    installation
     concepts
     profiling
     cli
     scheduler
     plugins
     security
-    faq 
+    faq
     code

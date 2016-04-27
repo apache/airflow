@@ -6,10 +6,10 @@
   {% endif %}
   {% if admin_view.alert_fernet_key() %}
     <div class="alert alert-danger"><b>Warning:</b>
-      Airflow is currently storing passwords in <b>plain text</b>. 
+      Airflow is currently storing passwords in <b>plain text</b>.
       To turn on password encryption for connections, you need to add a
       "fernet_key" option to the "core" section of your airflow.cfg file.
-      To generate a key, you can call the function 
+      To generate a key, you can call the function
       <code>airflow.configuration.generate_fernet_key()</code>
     </div>
   {% endif %}

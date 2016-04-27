@@ -1,8 +1,20 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from __future__ import print_function
 
 import doctest
 import json
-import logging
 import os
 import re
 import unittest
@@ -11,8 +23,9 @@ import tempfile
 from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-import errno
+import signal
 from time import sleep
+import warnings
 
 from dateutil.relativedelta import relativedelta
 
@@ -21,26 +34,29 @@ from airflow.executors import SequentialExecutor, LocalExecutor
 from airflow.models import Variable
 
 configuration.test_mode()
-from airflow import jobs, models, DAG, utils, operators, hooks, macros, settings
+from airflow import jobs, models, DAG, operators, hooks, utils, macros, settings, exceptions
 from airflow.hooks import BaseHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
-from airflow.utils import LoggingMixin, round_time
+from airflow.utils.state import State
+from airflow.utils.dates import round_time
+from airflow.utils.logging import LoggingMixin
 from lxml import html
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException
-from airflow.minihivecluster import MiniHiveCluster
 
 import six
 
-NUM_EXAMPLE_DAGS = 14
+NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
+TEST_DAG_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'dags')
 DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
-configuration.test_mode()
+
 
 try:
     import cPickle as pickle
@@ -85,8 +101,11 @@ class CoreTest(unittest.TestCase):
         Tests scheduling a dag with no previous runs
         """
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_previous_runs')
-        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
-                                         start_date=datetime(2015, 1, 2, 0, 0))]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
+
         dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
@@ -95,7 +114,7 @@ class CoreTest(unittest.TestCase):
         assert dag_run.execution_date == datetime(2015, 1, 2, 0, 0), (
             'dag_run.execution_date did not match expectation: {0}'
                 .format(dag_run.execution_date))
-        assert dag_run.state == models.State.RUNNING
+        assert dag_run.state == State.RUNNING
         assert dag_run.external_trigger == False
 
     def test_schedule_dag_fake_scheduled_previous(self):
@@ -107,15 +126,16 @@ class CoreTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_fake_scheduled_previous',
                   schedule_interval=delta,
                   start_date=DEFAULT_DATE)
-        dag.tasks = [models.BaseOperator(task_id="faketastic",
-                                         owner='Also fake',
-                                         start_date=DEFAULT_DATE)]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=DEFAULT_DATE))
         scheduler = jobs.SchedulerJob(test_mode=True)
         trigger = models.DagRun(
             dag_id=dag.dag_id,
             run_id=models.DagRun.id_for_date(DEFAULT_DATE),
             execution_date=DEFAULT_DATE,
-            state=utils.State.SUCCESS,
+            state=State.SUCCESS,
             external_trigger=True)
         settings.Session().add(trigger)
         settings.Session().commit()
@@ -127,7 +147,7 @@ class CoreTest(unittest.TestCase):
         assert dag_run.execution_date == DEFAULT_DATE + delta, (
             'dag_run.execution_date did not match expectation: {0}'
                 .format(dag_run.execution_date))
-        assert dag_run.state == models.State.RUNNING
+        assert dag_run.state == State.RUNNING
         assert dag_run.external_trigger == False
 
     def test_schedule_dag_once(self):
@@ -137,8 +157,10 @@ class CoreTest(unittest.TestCase):
         """
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once')
         dag.schedule_interval = '@once'
-        dag.tasks = [models.BaseOperator(task_id="faketastic", owner='Also fake',
-                                         start_date=datetime(2015, 1, 2, 0, 0))]
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2015, 1, 2, 0, 0)))
         dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
         dag_run2 = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
 
@@ -167,7 +189,7 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+            dag.task_dict[task.task_id] = task
             dag_runs.append(scheduler.schedule_dag(dag))
 
         additional_dag_run = scheduler.schedule_dag(dag)
@@ -206,14 +228,15 @@ class CoreTest(unittest.TestCase):
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
-            dag.tasks.append(task)
+
+            dag.task_dict[task.task_id] = task
 
             # Schedule the DagRun
             dag_run = scheduler.schedule_dag(dag)
             dag_runs.append(dag_run)
 
             # Mark the DagRun as complete
-            dag_run.state = utils.State.SUCCESS
+            dag_run.state = State.SUCCESS
             session.merge(dag_run)
             session.commit()
 
@@ -227,23 +250,6 @@ class CoreTest(unittest.TestCase):
 
     def test_confirm_unittest_mod(self):
         assert configuration.get('core', 'unit_test_mode')
-
-    def test_backfill_examples(self):
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
-        dags = [
-            dag for dag in self.dagbag.dags.values()
-            if dag.dag_id in ('example_bash_operator',)]
-        for dag in dags:
-            dag.clear(
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-        for dag in dags:
-            job = jobs.BackfillJob(
-                dag=dag,
-                start_date=DEFAULT_DATE,
-                end_date=DEFAULT_DATE)
-            job.run()
 
     def test_pickling(self):
         dp = self.dag.pickle()
@@ -335,6 +341,22 @@ class CoreTest(unittest.TestCase):
         ti = models.TaskInstance(task=task, execution_date=DEFAULT_DATE)
         ti.are_dependents_done()
 
+    def test_illegal_args(self):
+        """
+        Tests that Operators reject illegal arguments
+        """
+        with warnings.catch_warnings(record=True) as w:
+            t = operators.BashOperator(
+                task_id='test_illegal_args',
+                bash_command='echo success',
+                dag=self.dag,
+                illegal_argument_1234='hello?')
+            self.assertTrue(
+                issubclass(w[0].category, PendingDeprecationWarning))
+            self.assertIn(
+                'Invalid arguments were passed to BashOperator.',
+                w[0].message.args[0])
+
     def test_bash_operator(self):
         t = operators.BashOperator(
             task_id='time_sensor_check',
@@ -408,7 +430,7 @@ class CoreTest(unittest.TestCase):
             python_callable=lambda: sleep(5),
             dag=self.dag)
         self.assertRaises(
-            utils.AirflowTaskTimeout,
+            exceptions.AirflowTaskTimeout,
             t.run,
             start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
@@ -617,7 +639,6 @@ class CoreTest(unittest.TestCase):
                 trigger_rule="non_existant",
                 dag=self.dag)
 
-
 class CliTests(unittest.TestCase):
     def setUp(self):
         configuration.test_mode()
@@ -711,6 +732,16 @@ class CliTests(unittest.TestCase):
                 'trigger_dag', 'example_bash_operator',
                 '-c', 'NOT JSON'])
         )
+
+    def test_variables(self):
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'foo', '{"foo":"bar"}']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-g', 'foo']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-g', 'baz', '-d', 'bar']))
+        cli.variables(self.parser.parse_args([
+            'variables']))
 
 
 class WebUiTests(unittest.TestCase):
@@ -1123,6 +1154,18 @@ if 'PostgresOperator' in dir(operators):
                 end_date=DEFAULT_DATE,
                 force=True)
 
+class FakeSession(object):
+    def __init__(self):
+        from requests import Response
+        self.response = Response()
+        self.response.status_code = 200
+        self.response._content = 'airbnb/airflow'.encode('ascii', 'ignore')
+
+    def send(self, request, **kwargs):
+        return self.response
+
+    def prepare_request(self, request):
+        return self.response
 
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
@@ -1131,6 +1174,7 @@ class HttpOpSensorTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
+    @mock.patch('requests.Session', FakeSession)
     def test_get(self):
         t = operators.SimpleHttpOperator(
             task_id='get_op',
@@ -1141,6 +1185,7 @@ class HttpOpSensorTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    @mock.patch('requests.Session', FakeSession)
     def test_get_response_check(self):
         t = operators.SimpleHttpOperator(
             task_id='get_op',
@@ -1152,6 +1197,7 @@ class HttpOpSensorTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):
         sensor = operators.HttpSensor(
             task_id='http_sensor_check',
@@ -1187,7 +1233,7 @@ class WebHdfsSensorTest(unittest.TestCase):
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
         configuration.test_mode()
-        utils.initdb()
+        utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
         os.environ['AIRFLOW_CONN_TEST_URI_NO_CREDS'] = (
@@ -1328,16 +1374,16 @@ class EmailTest(unittest.TestCase):
     def setUp(self):
         configuration.remove_option('email', 'EMAIL_BACKEND')
 
-    @mock.patch('airflow.utils.send_email_smtp')
+    @mock.patch('airflow.utils.email.send_email')
     def test_default_backend(self, mock_send_email):
-        res = utils.send_email('to', 'subject', 'content')
-        mock_send_email.assert_called_with('to', 'subject', 'content', files=None, dryrun=False)
+        res = utils.email.send_email('to', 'subject', 'content')
+        mock_send_email.assert_called_with('to', 'subject', 'content')
         assert res == mock_send_email.return_value
 
-    @mock.patch('airflow.utils.send_email_smtp')
+    @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
         configuration.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
-        utils.send_email('to', 'subject', 'content')
+        utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False)
         assert not mock_send_email.called
 
@@ -1346,12 +1392,12 @@ class EmailSmtpTest(unittest.TestCase):
     def setUp(self):
         configuration.set('smtp', 'SMTP_SSL', 'False')
 
-    @mock.patch('airflow.utils.send_MIME_email')
+    @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_smtp(self, mock_send_mime):
         attachment = tempfile.NamedTemporaryFile()
         attachment.write(b'attachment')
         attachment.seek(0)
-        utils.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
+        utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name])
         assert mock_send_mime.called
         call_args = mock_send_mime.call_args[0]
         assert call_args[0] == configuration.get('smtp', 'SMTP_MAIL_FROM')
@@ -1369,7 +1415,7 @@ class EmailSmtpTest(unittest.TestCase):
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
         msg = MIMEMultipart()
-        utils.send_MIME_email('from', 'to', msg, dryrun=False)
+        utils.email.send_MIME_email('from', 'to', msg, dryrun=False)
         mock_smtp.assert_called_with(
             configuration.get('smtp', 'SMTP_HOST'),
             configuration.getint('smtp', 'SMTP_PORT'),
@@ -1388,7 +1434,7 @@ class EmailSmtpTest(unittest.TestCase):
         configuration.set('smtp', 'SMTP_SSL', 'True')
         mock_smtp.return_value = mock.Mock()
         mock_smtp_ssl.return_value = mock.Mock()
-        utils.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
+        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
         assert not mock_smtp.called
         mock_smtp_ssl.assert_called_with(
             configuration.get('smtp', 'SMTP_HOST'),
@@ -1398,7 +1444,7 @@ class EmailSmtpTest(unittest.TestCase):
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
     def test_send_mime_dryrun(self, mock_smtp, mock_smtp_ssl):
-        utils.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=True)
+        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=True)
         assert not mock_smtp.called
         assert not mock_smtp_ssl.called
 

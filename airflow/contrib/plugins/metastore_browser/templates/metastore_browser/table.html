@@ -2,7 +2,7 @@
 
 {% block plugin_content %}
 <div>
-    <h4> 
+    <h4>
         <span style="color:#AAA;">Table:</span>
         <span>{{ table.dbName }}.{{ table.tableName }}</span>
     </h4>
@@ -114,21 +114,21 @@ $('#tabs a').click(function (e) {
 });
 
 $.get("{{ url_for(".data" , table=table_name) }}", function( data ) {
-    $("#data").html(data);        
+    $("#data").html(data);
     $('#data table.dataframe').dataTable({
         "iDisplayLength": 30,
     });
 });
 
 $.get("{{ url_for(".partitions" , table=table_name) }}", function( data ) {
-    $("#partitions").html(data);        
+    $("#partitions").html(data);
     $('#partitions table.dataframe').dataTable({
         "iDisplayLength": 30,
     });
 });
 
 $.get("{{ url_for(".ddl" , table=table_name) }}", function( data ) {
-    $("#ddl_content").html(data);        
+    $("#ddl_content").html(data);
 });
 </script>
 {% endblock %}

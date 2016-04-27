@@ -7,7 +7,7 @@ try:
 except ImportError:
     snakebite_imported = False
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class HDFSHookException(AirflowException):
@@ -58,5 +58,5 @@ class HDFSHook(BaseHook):
                               hdfs_namenode_principal=hdfs_namenode_principal)
         else:
             raise HDFSHookException("conn_id doesn't exist in the repository")
-        
+
         return client

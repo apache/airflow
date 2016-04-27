@@ -1,6 +1,7 @@
 # Imports the hooks dynamically while keeping the package API clean,
 # abstracting the underlying modules
-from airflow.utils import import_module_attrs as _import_module_attrs
+
+from airflow.utils.helpers import import_module_attrs as _import_module_attrs
 from airflow.hooks.base_hook import BaseHook  # noqa to expose in package
 
 _hooks = {

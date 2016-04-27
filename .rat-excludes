@@ -17,4 +17,5 @@ airflow.egg-info
 metastore_db
 .*sql
 .*csv
-
+CHANGELOG.txt
+.*zip
