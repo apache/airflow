@@ -900,13 +900,9 @@ class CLIFactory(object):
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
-<<<<<<< HEAD
-            'args': ('port', 'workers', 'workerclass', 'hostname', 'ssl_certfile', 'ssl_keyfile', 'debug'),
-=======
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
-                     'debug'),
->>>>>>> 19097908eaeb6447847ab20b2f8acb2646c36e85
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'ssl_certfile',
+                     'ssl_keyfile', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
