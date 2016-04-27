@@ -339,19 +339,19 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         secure_params = True if args.ssl_certfile and args.ssl_keyfile else False
-        print(            
+        print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
             '{args.port}, secure={secure_params}'.format(**locals()))
         if secure_params:
-            sec_params = '--certfile={0} --keyfile={1}'.format(
-                args.ssl_certfile, args.ssl_keyfile)
+            sec_params = ['--certfile=' + args.ssl_certfile, '--keyfile=' +
+                args.ssl_keyfile]
         else:
-            secure_params = ''
+            sec_params = []
         sp = subprocess.Popen([
             'gunicorn', '-w', str(args.workers), '-k', str(args.workerclass),
             '-t', '120', '-b', args.hostname + ':' + str(args.port),
-            'airflow.www.app:cached_app()'])
+            'airflow.www.app:cached_app()'] + sec_params)
         sp.wait()
 
 
@@ -572,10 +572,10 @@ class CLIFactory(object):
             "Use the server that ships with Flask in debug mode",
             "store_true"),
         'ssl_certfile': Arg(
-            ("--ssl_certfile"),
+            ("-scf", "--ssl_certfile"),
             help="ssl certificate file"),
         'ssl_keyfile': Arg(
-            ("--ssl_keyfile"),
+            ("-skf", "--ssl_keyfile"),
             help="ssl key file"),
         # resetdb
         'yes': Arg(
