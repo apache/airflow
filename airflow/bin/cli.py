@@ -401,7 +401,7 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
-		secure_params = True if args.ssl_certfile and args.ssl_keyfile else False
+        secure_params = True if args.ssl_certfile and args.ssl_keyfile else False
         print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
