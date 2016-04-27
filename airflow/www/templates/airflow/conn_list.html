@@ -1,68 +1,18 @@
-{#
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-#}
-
 {% extends 'airflow/model_list.html' %}
 
-{% block head_css %}
-<link href="{{ url_for('static', filename='footable.core.css') }}" rel="stylesheet">
-{{ super() }}
-{% endblock %}
-
 {% block model_menu_bar %}
-{% if not admin_view.is_secure() %}
-<div class="alert alert-danger"><b>Warning:</b> Connection passwords are stored in plaintext until you install the
-    Python "cryptography" library. You can find installation instructions here: <a
-            href=https://cryptography.io/en/latest/installation/>https://cryptography.io/en/latest/installation/</a>.
-    Once installed, instructions for creating an encryption key will be displayed the next time you import Airflow.
-</div>
-{% endif %}
-{% if admin_view.alert_fernet_key() %}
-<div class="alert alert-danger"><b>Warning:</b>
-    Airflow is currently storing passwords in <b>plain text</b>.
-    To turn on password encryption for connections, you need to add a
-    "fernet_key" option to the "core" section of your airflow.cfg file.
-    To generate a key, you can call the function
-    <code>airflow.configuration.generate_fernet_key()</code>
-</div>
-{% endif %}
-{{ super() }}
+  {% if not admin_view.is_secure() %}
+  <div class="alert alert-danger"><b>Warning:</b> Connection passwords are stored in plaintext until you install the Python "cryptography" library. You can find installation instructions here: <a href=https://cryptography.io/en/latest/installation/>https://cryptography.io/en/latest/installation/</a>. Once installed, instructions for creating an encryption key will be displayed the next time you import Airflow. </div>
+  {% endif %}
+  {% if admin_view.alert_fernet_key() %}
+    <div class="alert alert-danger"><b>Warning:</b>
+      Airflow is currently storing passwords in <b>plain text</b>.
+      To turn on password encryption for connections, you need to add a
+      "fernet_key" option to the "core" section of your airflow.cfg file.
+      To generate a key, you can call the function
+      <code>airflow.configuration.generate_fernet_key()</code>
+    </div>
+  {% endif %}
+  {{ super() }}
 {% endblock %}
 
-{% block list_header scoped %}
-    {{ super() }}
-    <th data-toggle="true">Extra</th>
-    <th data-hide="all" title="extra"></th>
-{% endblock %}
-
-{% block list_row scoped %}
-    {{ super() }}
-    <td class="{{ 'not-empty' if get_value(row, 'extra') else 'empty' }}">
-    </td>
-    <td>
-        {{ get_value(row, 'extra_dejson') }}
-    </td>
-{% endblock %}
-
-{% block tail_js %}
-    {{ super() }}
-    <!-- enhances the table with "footable" -->
-    <script src="{{ url_for('static', filename='footable.js') }}" type="text/javascript"></script>
-    <script>
-        $(function () {
-            $('.table.model-list').footable();
-        });
-    </script>
-{% endblock %}
