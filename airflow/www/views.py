@@ -169,6 +169,21 @@ def pool_link(v, c, m, p):
     return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
 
 
+def pretty_json(v, c, m, p):
+    """
+    Prettify the property of the model as JSON
+    if it's not none, return None otherwise.
+    """
+    indent = 4
+    value = getattr(m, p)
+    formatted = json.dumps(value, indent=indent)
+    if value:
+        return Markup(
+            '<pre>{}</pre>'.format(formatted))
+    else:
+        return None
+
+
 def pygment_html_render(s, lexer=lexers.TextLexer):
     return highlight(
         s,
@@ -1807,6 +1822,9 @@ class AirflowModelView(ModelView):
     column_display_actions = True
     page_size = 500
 
+    extra_column = None
+    extra_column_toggle = None
+
 
 class ModelViewOnly(wwwutils.LoginMixin, AirflowModelView):
     """
@@ -2033,7 +2051,11 @@ class DagRunModelView(ModelViewOnly):
         execution_date=datetime_f,
         state=state_f,
         start_date=datetime_f,
-        dag_id=dag_link)
+        dag_id=dag_link,
+        conf=pretty_json)
+
+    extra_column = 'conf'
+    extra_column_toggle = 'Conf'
 
     @action('set_running', "Set state to 'running'", None)
     def action_set_running(self, ids):
@@ -2151,6 +2173,21 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     create_template = 'airflow/conn_create.html'
     edit_template = 'airflow/conn_edit.html'
     list_template = 'airflow/conn_list.html'
+
+    # list view arguments
+    verbose_name = "Connection"
+    verbose_name_plural = "Connections"
+    column_default_sort = ('conn_id', False)
+    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
+
+    column_formatters = {
+        # shows in the toggle area in JSON format
+        'extra_dejson': pretty_json
+    }
+
+    extra_column = 'extra_dejson'
+
+    # form view arguments
     form_columns = (
         'conn_id',
         'conn_type',
@@ -2167,10 +2204,6 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__service_account',
         'extra__google_cloud_platform__scope',
     )
-    verbose_name = "Connection"
-    verbose_name_plural = "Connections"
-    column_default_sort = ('conn_id', False)
-    column_list = ('conn_id', 'conn_type', 'host', 'port', 'is_encrypted', 'is_extra_encrypted',)
     form_overrides = dict(_password=PasswordField)
     form_widget_args = {
         'is_extra_encrypted': {'disabled': True},
