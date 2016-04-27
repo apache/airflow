@@ -660,12 +660,12 @@ class InRunnableStateDep(TIDep):
         if not ti.force and ti.state not in State.runnable():
             if ti.state == State.SUCCESS:
                 return cls.failing_status(
-                    reason="Task previously succeeded on {1}.".format(ti, ti.end_date))
+                    reason="Task previously succeeded on {1}. Cannot run a task that "
+                           "already succeeded.".format(ti, ti.end_date))
             elif ti.state == state.RUNNING:
-                return cls.failing_status(reason="Task is already running.")
-            elif ti.state == state.SUCCESS:
                 return cls.failing_status(
-                    reason="Task previously succeeded on {ti.end_date}.".format(ti.end_date))
+                    reason="Task is already running, it started on "
+                           "{0}.".format(ti, ti.start_date))
             else:
                 return cls.failing_status(
                     reason="Task is in the '{0}' state which is not a runnable "
@@ -1275,7 +1275,6 @@ class TaskInstance(Base):
         verbose = True
         for dep in self.TI_DEPS:
             for dep_status in self.get_failed_dep_statuses(
-                                        self,
                                         session,
                                         include_queued,
                                         ignore_depends_on_past,

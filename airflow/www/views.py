@@ -28,6 +28,7 @@ from past.utils import old_div
 from past.builtins import basestring
 
 import inspect
+from textwrap import dedent
 import traceback
 
 import sqlalchemy as sqla
@@ -906,23 +907,34 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def task_instance(self):
+        TI = models.TaskInstance
+
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
+        dag = dagbag.get_dag(dag_id)
+        task = dag.get_task(task_id)
 
         execution_date = request.args.get('execution_date')
         dttm = dateutil.parser.parse(execution_date)
 
-        dag = dagbag.get_dag(dag_id)
-        task = dagbag.dags[dag_id].get_task(task_id)
-        ti = models.TaskInstance(task, dttm)
+        ti = TI(task=task, execution_date=dttm)
+        ti.refresh_from_db()
 
         form = DateTimeForm(data={'execution_date': dttm})
-
         title = "Task Instance Info"
+        reasons = [(dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses()]
 
-        reasons = ((dep.dep_name, dep.reason) for dep in
-                   ti.get_failed_dep_statuses())
-
+        if not reasons:
+            if ti.state:
+                reasons = [("Task State", ti.state)]
+            else:
+                reasons = [(
+                    "Unknown",
+                    dedent("""\
+                    All dependencies are met but the task instance is not running. In most cases this means that the task will probably be scheduled soon unless:
+                    - This task instance already ran and was manually cleared
+                    - The scheduler is down or under heavy load
+                    If this task instance does not start soon please contact your Airflow administrator for more information."""))]
         return self.render(
             'airflow/task_instance_details.html',
             reasons=reasons, dag=dag, title=title, task_id=task_id,
