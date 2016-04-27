@@ -40,9 +40,6 @@
     <li><a href="{{ url_for("airflow.task", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       Task Details</a></li>
-    <li><a href="{{ url_for("airflow.task_instance", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
-      Task Instance Details</a></li>
     <li><a href="{{ url_for("airflow.rendered", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date) }}">
         <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
       Rendered Template</a></li>

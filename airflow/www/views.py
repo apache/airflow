@@ -860,6 +860,8 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def task(self):
+        TI = models.TaskInstance
+
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         # Carrying execution_date through, even though it's irrelevant for
@@ -868,6 +870,7 @@ class Airflow(BaseView):
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+
         if not dag or task_id not in dag.task_ids:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
@@ -877,6 +880,8 @@ class Airflow(BaseView):
         task = dag.get_task(task_id)
         task = copy.copy(task)
         task.resolve_template_files()
+        ti = TI(task=task, execution_date=dttm)
+        ti.refresh_from_db()
 
         attributes = []
         for attr_name in dir(task):
@@ -886,7 +891,6 @@ class Airflow(BaseView):
                                 attr_name not in attr_renderer:
                     attributes.append((attr_name, str(attr)))
 
-        title = "Task Details"
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
         for attr_name in attr_renderer:
@@ -894,51 +898,27 @@ class Airflow(BaseView):
                 source = getattr(task, attr_name)
                 special_attrs_rendered[attr_name] = attr_renderer[attr_name](source)
 
+        NO_FAILED_DEPS = [(
+            "Unknown",
+            dedent("""\
+            All dependencies are met but the task instance is not running. In most cases this just means that the task will probably be scheduled soon unless:
+            - This task instance already ran and had it's status changed manually
+            - The scheduler is down or under heavy load
+            If this task instance does not start soon please contact your Airflow administrator for more information."""))]
+
+        failed_dep_reasons = [(dep.dep_name, dep.reason) for dep in
+                              ti.get_failed_dep_statuses()] or NO_FAILED_DEPS
+
+        title = "Task Details"
         return self.render(
-            'airflow/task.html',
+           'airflow/task.html',
             attributes=attributes,
+            failed_dep_reasons=failed_dep_reasons,
             task_id=task_id,
             execution_date=execution_date,
             special_attrs_rendered=special_attrs_rendered,
             form=form,
             dag=dag, title=title)
-
-    @expose('/task_instance')
-    @login_required
-    @wwwutils.action_logging
-    def task_instance(self):
-        TI = models.TaskInstance
-
-        dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
-        dag = dagbag.get_dag(dag_id)
-        task = dag.get_task(task_id)
-
-        execution_date = request.args.get('execution_date')
-        dttm = dateutil.parser.parse(execution_date)
-
-        ti = TI(task=task, execution_date=dttm)
-        ti.refresh_from_db()
-
-        form = DateTimeForm(data={'execution_date': dttm})
-        title = "Task Instance Info"
-        reasons = [(dep.dep_name, dep.reason) for dep in ti.get_failed_dep_statuses()]
-
-        if not reasons:
-            if ti.state:
-                reasons = [("Task State", ti.state)]
-            else:
-                reasons = [(
-                    "Unknown",
-                    dedent("""\
-                    All dependencies are met but the task instance is not running. In most cases this means that the task will probably be scheduled soon unless:
-                    - This task instance already ran and was manually cleared
-                    - The scheduler is down or under heavy load
-                    If this task instance does not start soon please contact your Airflow administrator for more information."""))]
-        return self.render(
-            'airflow/task_instance_details.html',
-            reasons=reasons, dag=dag, title=title, task_id=task_id,
-            execution_date=execution_date, form=form)
 
     @expose('/xcom')
     @login_required

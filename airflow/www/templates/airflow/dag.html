@@ -104,9 +104,6 @@
             Rendered
           </button>
           <button id="btn_ti" type="button" class="btn btn-primary">
-            Task Instance
-          </button>
-          <button id="btn_tis" type="button" class="btn btn-primary">
             Task Instances
           </button>
           <button id="btn_log" type="button" class="btn btn-primary">
@@ -257,15 +254,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_ti").click(function(){
-      url = "{{ url_for('airflow.task_instance') }}" +
-        "?task_id=" + task_id +
-        "&dag_id=" + dag_id +
-        "&execution_date=" + execution_date;
-      window.location = url;
-    });
-
-    $("#btn_tis").click(function(){
-      url = "/admin/taskinstances/" +
+      url = "/admin/taskinstance/" +
         "?flt1_dag_id_equals=" + dag_id +
         "&flt2_task_id_equals=" + task_id +
         "&sort=3&desc=1";
