@@ -1274,13 +1274,12 @@ class TaskInstance(Base):
         """
         verbose = True
         for dep in self.TI_DEPS:
-            for dep_status in dep.get_dep_statuses(
-                                    self,
-                                    session,
-                                    include_queued,
-                                    ignore_depends_on_past,
-                                    flag_upstream_failed):
-                if not dep_status.passed:
+            for dep_status in self.get_failed_dep_statuses(
+                                        self,
+                                        session,
+                                        include_queued,
+                                        ignore_depends_on_past,
+                                        flag_upstream_failed):
                     if verbose:
                         logging.warning(
                             'Task instance {0} dependencies not met: {1}'.format(
@@ -1292,7 +1291,7 @@ class TaskInstance(Base):
         return True
 
     @provide_session
-    def get_failed_dependency_reasons(
+    def get_failed_dep_statuses(
         self,
         session=None,
         include_queued=False,
@@ -1307,7 +1306,7 @@ class TaskInstance(Base):
                                       ignore_depends_on_past,
                                       flag_upstream_failed):
                 if not dep_status.passed:
-                    yield (dep_status.dep_name, dep_status.reason)
+                    yield dep_status
 
     def __repr__(self):
         return (
