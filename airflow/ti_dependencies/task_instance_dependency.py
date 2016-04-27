@@ -96,4 +96,4 @@ class TIDep(object):
         yield TIDepStatus(dep_name, False, reason)
 
 # Information on whether or not a task instance dependency is met and reasons why it isn't met.
-TIDepStatus = namedtuple('TIDepStatus', 'dep_name passed reason')
+TIDepStatus = namedtuple('TIDepStatus', ['dep_name', 'passed', 'reason'])

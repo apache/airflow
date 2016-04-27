@@ -1282,8 +1282,8 @@ class TaskInstance(Base):
                                         flag_upstream_failed):
                     if verbose:
                         logging.warning(
-                            'Task instance {0} dependencies not met: {1}'.format(
-                                self, dep_status.reason))
+                            "Task instance {0} dependencies not met, dependency {1} "
+                            "failed: {1}".format(self, dep_status.dep_name, dep_status.reason))
                     session.commit()
                     return False
 
@@ -2504,7 +2504,8 @@ class DagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = configuration.getboolean('core', 'dags_are_paused_at_creation')
+    is_paused_at_creation = configuration.getboolean(
+                                'core', 'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
