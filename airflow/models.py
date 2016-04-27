@@ -614,10 +614,10 @@ class DagPickle(Base):
         self.pickle = dag
 
 
-from airflow.ti_dependencies.task_instance_dependency import TIDep, TIDeps
+from airflow.ti_dependencies.task_instance_dependency import TIDep
 class EndDateAfterExecutionDateDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -633,7 +633,7 @@ class EndDateAfterExecutionDateDep(TIDep):
 
 class ExecDateNotInFutureDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -650,7 +650,7 @@ class ExecDateNotInFutureDep(TIDep):
 
 class InRunnableStateDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -676,7 +676,7 @@ class InRunnableStateDep(TIDep):
 
 class DagUnpausedDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -693,7 +693,7 @@ class DagUnpausedDep(TIDep):
 
 class MaxConcurrencyNotReachedDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -710,7 +710,7 @@ class MaxConcurrencyNotReachedDep(TIDep):
 
 class MaxDagrunsNotReachedDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -727,7 +727,7 @@ class MaxDagrunsNotReachedDep(TIDep):
 
 class NotAlreadyQueuedDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -742,7 +742,7 @@ class NotAlreadyQueuedDep(TIDep):
 
 class NotInRetryPeriodDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -764,7 +764,7 @@ class NotInRetryPeriodDep(TIDep):
 
 class NotSkippedDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -783,7 +783,7 @@ class PastDagrunDep(TIDep):
     """
 
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -823,7 +823,7 @@ class PastDagrunDep(TIDep):
 
 class PoolHasSpaceDep(TIDep):
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -842,7 +842,7 @@ class TriggerRuleDep(TIDep):
     """
 
     @classmethod
-    def get_dep_status(
+    def get_dep_statuses(
             cls,
             ti,
             session,
@@ -1273,22 +1273,20 @@ class TaskInstance(Base):
         :type verbose: boolean
         """
         verbose = True
-        for ti_dep in self.TI_DEPS:
-            for dep_statuses in ti_dep.get_dep_status(
-                                    self.TI_DEPS,
+        for dep in self.TI_DEPS:
+            for dep_status in dep.get_dep_statuses(
                                     self,
                                     session,
                                     include_queued,
                                     ignore_depends_on_past,
                                     flag_upstream_failed):
-                for dep_status in dep_statuses:
-                    if not dep_status.passed:
-                        if verbose:
-                            logging.warning(
-                                'Task instance {0} dependencies not met: {1}'.format(
-                                    self, dep_status.reason))
-                        session.commit()
-                        return False
+                if not dep_status.passed:
+                    if verbose:
+                        logging.warning(
+                            'Task instance {0} dependencies not met: {1}'.format(
+                                self, dep_status.reason))
+                    session.commit()
+                    return False
 
         session.commit()
         return True
@@ -1301,18 +1299,15 @@ class TaskInstance(Base):
         ignore_depends_on_past=False,
         flag_upstream_failed=False):
 
-        dep_statuses = TIDeps.get_dep_status(
-            self.TI_DEPS,
-            self,
-            session,
-            include_queued,
-            ignore_depends_on_past,
-            flag_upstream_failed)
-
-        flat_dep_statuses = list(itertools.chain.from_iterable(dep_statuses))
-        return [(dep_status.dep_name, dep_status.reason)
-                 for dep_status in flat_dep_statuses
-                 if not dep_status.passed]
+        for dep in self.TI_DEPS:
+            for dep_status in dep.get_dep_statuses(
+                                      self,
+                                      session,
+                                      include_queued,
+                                      ignore_depends_on_past,
+                                      flag_upstream_failed):
+                if not dep_status.passed:
+                    yield (dep_status.dep_name, dep_status.reason)
 
     def __repr__(self):
         return (

@@ -920,8 +920,8 @@ class Airflow(BaseView):
 
         title = "Task Instance Info"
 
-        reasons = [(dependency_name, reason) for (dependency_name, reason) in
-                   ti.get_failed_dependency_reasons()]
+        reasons = ((dependency_name, reason) for (dependency_name, reason) in
+                   ti.get_failed_dependency_reasons())
 
         return self.render(
             'airflow/task_instance_details.html',

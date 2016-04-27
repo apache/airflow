@@ -422,7 +422,8 @@ class SchedulerJob(BaseJob):
 
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
-                next_run_date = dag.start_date if not next_run_date else max(next_run_date, dag.start_date)
+                next_run_date = (max(next_run_date, dag.start_date) if next_run_date else
+                                 dag.start_date)
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
