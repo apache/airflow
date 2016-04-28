@@ -71,6 +71,8 @@ def create_app(config=None):
         av(vs.SlaMissModelView(
             models.SlaMiss,
             Session, name="SLA Misses", category="Browse"))
+        av(vs.TaskInstanceModelView(models.TaskInstance,
+            Session, name="Task Instances", category="Browse"))
         av(vs.LogModelView(
             models.Log, Session, name="Logs", category="Browse"))
         av(vs.JobModelView(
