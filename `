@@ -17,13 +17,12 @@ import sys
 import os
 import socket
 import importlib
+
 from functools import wraps
 from datetime import datetime, timedelta
 import dateutil.parser
 import copy
 from itertools import chain, product
-import time
-import json
 
 from past.utils import old_div
 from past.builtins import basestring
@@ -34,8 +33,8 @@ import traceback
 import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_
 
-from flask import (
-    redirect, url_for, request, Markup, Response, current_app, render_template)
+
+from flask import redirect, url_for, request, Markup, Response, current_app, render_template
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
@@ -44,7 +43,7 @@ from flask._compat import PY2
 
 import jinja2
 import markdown
-from nvd3 import lineChart
+import json
 
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField, StringField)
@@ -59,8 +58,6 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom
-
-from airflow.operators import BaseOperator, SubDagOperator
 
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
@@ -244,23 +241,6 @@ def fqueued_slots(v, c, m, p):
         '?flt1_pool_equals=' + m.pool +
         '&flt2_state_equals=queued&sort=10&desc=1')
     return Markup("<a href='{0}'>{1}</a>".format(url, m.queued_slots()))
-
-
-def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
-    if isinstance(tasks, list):
-        for task in tasks:
-            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
-        return
-    if isinstance(tasks, SubDagOperator):
-        subtasks = tasks.subdag.tasks
-        dag_ids.append(tasks.subdag.dag_id)
-        for subtask in subtasks:
-            if subtask.task_id not in task_ids:
-                task_ids.append(subtask.task_id)
-                task_id_to_dag[subtask.task_id] = tasks.subdag
-        recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
-    if isinstance(tasks, BaseOperator):
-        task_id_to_dag[tasks.task_id] = tasks.dag
 
 
 class Airflow(BaseView):
@@ -1091,16 +1071,11 @@ class Airflow(BaseView):
         downstream = request.args.get('downstream') == "true"
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
-        recursive = request.args.get('recursive') == "true"
         MAX_PERIODS = 1000
 
         # Flagging tasks as successful
         session = settings.Session()
         task_ids = [task_id]
-        dag_ids = [dag_id]
-        task_id_to_dag = {
-            task_id: dag
-        }
         end_date = ((dag.latest_execution_date or datetime.now())
                     if future else execution_date)
 
@@ -1113,19 +1088,14 @@ class Airflow(BaseView):
 
         start_date = execution_date if not past else start_date
 
-        if recursive:
-            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
-
         if downstream:
-            relatives = task.get_flat_relatives(upstream=False)
-            task_ids += [t.task_id for t in relatives]
-            if recursive:
-                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
+            task_ids += [
+                t.task_id
+                for t in task.get_flat_relatives(upstream=False)]
         if upstream:
-            relatives = task.get_flat_relatives(upstream=False)
-            task_ids += [t.task_id for t in relatives]
-            if recursive:
-                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
+            task_ids += [
+                t.task_id
+                for t in task.get_flat_relatives(upstream=True)]
         TI = models.TaskInstance
 
         if dag.schedule_interval == '@once':
@@ -1134,11 +1104,11 @@ class Airflow(BaseView):
             dates = dag.date_range(start_date, end_date=end_date)
 
         tis = session.query(TI).filter(
-            TI.dag_id.in_(dag_ids),
+            TI.dag_id == dag_id,
             TI.execution_date.in_(dates),
             TI.task_id.in_(task_ids)).all()
         tis_to_change = session.query(TI).filter(
-            TI.dag_id.in_(dag_ids),
+            TI.dag_id == dag_id,
             TI.execution_date.in_(dates),
             TI.task_id.in_(task_ids),
             TI.state != State.SUCCESS).all()
@@ -1163,7 +1133,7 @@ class Airflow(BaseView):
 
             for task_id, task_execution_date in tis_to_create:
                 ti = TI(
-                    task=task_id_to_dag[task_id].get_task(task_id),
+                    task=dag.get_task(task_id),
                     execution_date=task_execution_date,
                     state=State.SUCCESS)
                 session.add(ti)
@@ -1183,7 +1153,7 @@ class Airflow(BaseView):
                 tis = []
                 for task_id, task_execution_date in tis_all_altered:
                     tis.append(TI(
-                        task=task_id_to_dag[task_id].get_task(task_id),
+                        task=dag.get_task(task_id),
                         execution_date=task_execution_date,
                         state=State.SUCCESS))
                 details = "\n".join([str(t) for t in tis])
@@ -1430,6 +1400,8 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def duration(self):
+        from nvd3 import lineChart
+        import time
         session = settings.Session()
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
@@ -1452,15 +1424,14 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        chart = lineChart(
-            name="lineChart", x_is_date=True, height=600, width="1200")
+        chart = lineChart(name="lineChart", x_is_date=True, height=750, width=600)
         for task in dag.tasks:
             y = []
             x = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 if ti.duration:
-                    dttm = wwwutils.epoch(ti.execution_date)
+                    dttm = int(time.mktime(ti.execution_date.timetuple())) * 1000
                     x.append(dttm)
                     y.append(float(ti.duration) / (60*60))
             if x:
@@ -1512,23 +1483,18 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        chart = lineChart(
-            name="lineChart", x_is_date=True, height=600, width="1200")
+        all_data = []
         for task in dag.tasks:
-            y = []
-            x = []
+            data = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
-                ts = ti.execution_date
-                if dag.schedule_interval:
-                    ts = dag.following_schedule(ts)
                 if ti.end_date:
-                    dttm = wwwutils.epoch(ti.execution_date)
+                    ts = ti.execution_date
+                    if dag.schedule_interval:
+                        ts = dag.following_schedule(ts)
                     secs = old_div((ti.end_date - ts).total_seconds(), 60*60)
-                    x.append(dttm)
-                    y.append(secs)
-            if x:
-                chart.add_serie(name=task.task_id, x=x, y=y)
+                    data.append([ti.execution_date.isoformat(), secs])
+            all_data.append({'data': data, 'name': task.task_id})
 
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
@@ -1543,8 +1509,9 @@ class Airflow(BaseView):
         return self.render(
             'airflow/chart.html',
             dag=dag,
-            chart=chart,
+            data=json.dumps(all_data),
             height="700px",
+            chart_options={'yAxis': {'title': {'text': 'hours after 00:00'}}},
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
@@ -1602,6 +1569,7 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def gantt(self):
+
         session = settings.Session()
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
@@ -1623,39 +1591,57 @@ class Airflow(BaseView):
         form = DateTimeForm(data={'execution_date': dttm})
 
         tis = [
-            ti for ti in dag.get_task_instances(session, dttm, dttm)
+            ti
+            for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
-
         tasks = []
-        for ti in tis:
-            tasks.append({
-                'startDate': wwwutils.epoch(ti.start_date),
-                'endDate': wwwutils.epoch(ti.end_date or datetime.now()),
-                'isoStart': ti.start_date.isoformat()[:-4],
-                'isoEnd': ti.end_date.isoformat()[:-4],
-                'taskName': ti.task_id,
-                'duration': "{}".format(ti.end_date - ti.start_date)[:-4],
-                'status': ti.state,
+        data = []
+        for i, ti in enumerate(tis):
+            end_date = ti.end_date or datetime.now()
+            tasks += [ti.task_id]
+            color = State.color(ti.state)
+            data.append({
+                'x': i,
+                'low': int(ti.start_date.strftime('%s')) * 1000,
+                'high': int(end_date.strftime('%s')) * 1000,
+                'color': color,
             })
-        states = {ti.state:ti.state for ti in tis}
-        data = {
-            'taskNames': [ti.task_id for ti in tis],
-            'tasks': tasks,
-            'taskStatus': states,
-            'height': len(tis) * 25,
-        }
-
+        height = (len(tis) * 25) + 50
         session.commit()
         session.close()
 
+        hc = {
+            'chart': {
+                'type': 'columnrange',
+                'inverted': True,
+                'height': height,
+            },
+            'xAxis': {'categories': tasks, 'alternateGridColor': '#FAFAFA'},
+            'yAxis': {'type': 'datetime'},
+            'title': {
+                'text': None
+            },
+            'plotOptions': {
+                'series': {
+                    'cursor': 'pointer',
+                    'minPointLength': 4,
+                },
+            },
+            'legend': {
+                'enabled': False
+            },
+            'series': [{
+                'data': data
+            }]
+        }
         return self.render(
             'airflow/gantt.html',
             dag=dag,
             execution_date=dttm.isoformat(),
             form=form,
-            data=json.dumps(data, indent=2),
-            base_date='',
+            hc=json.dumps(hc, indent=4),
+            height=height,
             demo_mode=demo_mode,
             root=root,
         )
@@ -2179,6 +2165,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__jdbc__drv_clsname',
         'extra__google_cloud_platform__project',
         'extra__google_cloud_platform__key_path',
+        'extra__google_cloud_platform__service_account',
         'extra__google_cloud_platform__scope',
     )
     verbose_name = "Connection"
@@ -2198,14 +2185,18 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     form_extra_fields = {
         'extra__jdbc__drv_path' : StringField('Driver Path'),
         'extra__jdbc__drv_clsname': StringField('Driver Class'),
-        'extra__google_cloud_platform__project': StringField('Project Id'),
+        'extra__google_cloud_platform__project': StringField('Project'),
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
+        'extra__google_cloud_platform__service_account': StringField('Service Account'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma seperated)'),
 
     }
     form_choices = {
         'conn_type': [
+            ('bigquery', 'BigQuery',),
+            ('datastore', 'Google Datastore'),
             ('ftp', 'FTP',),
+            ('google_cloud_storage', 'Google Cloud Storage'),
             ('google_cloud_platform', 'Google Cloud Platform'),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),
