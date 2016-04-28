@@ -62,7 +62,6 @@ class State(object):
     def runnable(cls):
         return [
             cls.NONE,
-            cls.FAILED,
             cls.UP_FOR_RETRY,
             cls.UPSTREAM_FAILED,
             cls.SKIPPED,

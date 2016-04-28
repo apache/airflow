@@ -877,8 +877,7 @@ class Airflow(BaseView):
                 " at the moment".format(dag_id, task_id),
                 "error")
             return redirect('/admin/')
-        task = dag.get_task(task_id)
-        task = copy.copy(task)
+        task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
         ti = TI(task=task, execution_date=dttm)
         ti.refresh_from_db()
@@ -898,7 +897,7 @@ class Airflow(BaseView):
                 source = getattr(task, attr_name)
                 special_attrs_rendered[attr_name] = attr_renderer[attr_name](source)
 
-        NO_FAILED_DEPS = [(
+        no_failed_deps = [(
             "Unknown",
             dedent("""\
             All dependencies are met but the task instance is not running. In most cases this just means that the task will probably be scheduled soon unless:
@@ -911,7 +910,7 @@ class Airflow(BaseView):
 
         title = "Task Details"
         return self.render(
-           'airflow/task.html',
+            'airflow/task.html',
             attributes=attributes,
             failed_dep_reasons=failed_dep_reasons,
             task_id=task_id,

@@ -28,7 +28,6 @@ import functools
 import getpass
 import imp
 import importlib
-import itertools
 import zipfile
 import jinja2
 import json
@@ -46,7 +45,7 @@ from urllib.parse import urlparse
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float)
-from sqlalchemy import case, func, or_, and_
+from sqlalchemy import func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -58,15 +57,6 @@ from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import AirflowException, AirflowSkipException
-from airflow.utils.dates import cron_presets, date_range as utils_date_range
-from airflow.utils.db import provide_session
-from airflow.utils.decorators import apply_defaults
-from airflow.utils.email import send_email
-from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
-from airflow.utils.logging import LoggingMixin
-from airflow.utils.state import State
-from airflow.utils.timeout import timeout
-from airflow.utils.trigger_rule import TriggerRule
 from airflow.ti_deps.ti_deps import (
     DagUnpausedDep,
     EndDateAfterExecutionDateDep,
@@ -80,6 +70,15 @@ from airflow.ti_deps.ti_deps import (
     PastDagrunDep,
     PoolHasSpaceDep,
     TriggerRuleDep)
+from airflow.utils.dates import cron_presets, date_range as utils_date_range
+from airflow.utils.db import provide_session
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.email import send_email
+from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
+from airflow.utils.logging import LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.timeout import timeout
+from airflow.utils.trigger_rule import TriggerRule
 
 Base = declarative_base()
 ID_LEN = 250
@@ -666,7 +665,8 @@ class TaskInstance(Base):
         Index('ti_pool', pool, state, priority_weight),
     )
 
-    # The dependencies for each task instance that need to be met before the instance is run
+    # The dependencies for each task instance that need to be met before the instance is
+    # run
     TI_DEPS = [
         PoolHasSpaceDep,
         ExecDateNotInFutureDep,
@@ -909,36 +909,37 @@ class TaskInstance(Base):
         """
         verbose = True
         for dep in self.TI_DEPS:
-            for dep_status in self.get_failed_dep_statuses(
-                                        session,
-                                        include_queued,
-                                        ignore_depends_on_past,
-                                        flag_upstream_failed):
-                    if verbose:
-                        logging.warning(
-                            "Task instance {0} dependencies not met, dependency {1} "
-                            "failed: {1}".format(self, dep_status.dep_name, dep_status.reason))
-                    session.commit()
-                    return False
+            for dep_status in dep.get_failed_dep_statuses(
+                                  self,
+                                  session,
+                                  include_queued,
+                                  ignore_depends_on_past,
+                                  flag_upstream_failed):
+                if verbose:
+                    logging.warning(
+                        "Task instance {0} dependencies not met, dependency {1} failed: "
+                        "{2}".format(self, dep_status.dep_name, dep_status.reason))
+                session.commit()
+                return False
 
         session.commit()
         return True
 
     @provide_session
     def get_failed_dep_statuses(
-        self,
-        session=None,
-        include_queued=False,
-        ignore_depends_on_past=False,
-        flag_upstream_failed=False):
+            self,
+            session=None,
+            include_queued=False,
+            ignore_depends_on_past=False,
+            flag_upstream_failed=False):
 
         for dep in self.TI_DEPS:
             for dep_status in dep.get_dep_statuses(
-                                      self,
-                                      session,
-                                      include_queued,
-                                      ignore_depends_on_past,
-                                      flag_upstream_failed):
+                                  self,
+                                  session,
+                                  include_queued,
+                                  ignore_depends_on_past,
+                                  flag_upstream_failed):
                 if not dep_status.passed:
                     yield dep_status
 
@@ -2138,8 +2139,8 @@ class DagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = configuration.getboolean(
-                                'core', 'dags_are_paused_at_creation')
+    is_paused_at_creation = configuration.getboolean('core',
+                                                     'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
@@ -2991,7 +2992,6 @@ class Variable(Base):
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
-
 
 
 class XCom(Base):
