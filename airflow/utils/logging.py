@@ -116,36 +116,27 @@ class S3Log(object):
 
 class GCSLog(object):
     """
-    Utility class for reading and writing logs in GCS.
-    Requires either airflow[gcloud] or airflow[gcp_api] and
-    setting the REMOTE_BASE_LOG_FOLDER and REMOTE_LOG_CONN_ID configuration
-    options in airflow.cfg.
+    Utility class for reading and writing logs in GCS. Requires
+    airflow[gcp_api] and setting the REMOTE_BASE_LOG_FOLDER and
+    REMOTE_LOG_CONN_ID configuration options in airflow.cfg.
     """
     def __init__(self):
         """
-        Attempt to create hook with airflow[gcloud] (and set
-        use_gcloud = True), otherwise uses airflow[gcp_api]
+        Attempt to create hook with airflow[gcp_api].
         """
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
-        self.use_gcloud = False
+        self.hook = None
 
         try:
-            from airflow.contrib.hooks import GCSHook
-            self.hook = GCSHook(remote_conn_id)
-            self.use_gcloud = True
+            from airflow.contrib.hooks import GoogleCloudStorageHook
+            self.hook = GoogleCloudStorageHook(
+                scope='https://www.googleapis.com/auth/devstorage.read_write',
+                google_cloud_storage_conn_id=remote_conn_id)
         except:
-            try:
-                from airflow.contrib.hooks import GoogleCloudStorageHook
-                self.hook = GoogleCloudStorageHook(
-                    scope='https://www.googleapis.com/auth/devstorage.read_write',
-                    google_cloud_storage_conn_id=remote_conn_id)
-            except:
-                self.hook = None
-                logging.error(
-                    'Could not create a GCSHook with connection id "{}". '
-                    'Please make sure that either airflow[gcloud] or '
-                    'airflow[gcp_api] is installed and the GCS connection '
-                    'exists.'.format(remote_conn_id))
+            logging.error(
+                'Could not create a GoogleCloudStorageHook with connection id '
+                '"{}". Please make sure that airflow[gcp_api] is installed '
+                'and the GCS connection exists.'.format(remote_conn_id))
 
     def read(self, remote_log_location, return_error=False):
         """
@@ -159,13 +150,8 @@ class GCSLog(object):
         """
         if self.hook:
             try:
-                if self.use_gcloud:
-                    gcs_blob = self.hook.get_blob(remote_log_location)
-                    if gcs_blob:
-                        return gcs_blob.download_as_string().decode()
-                else:
-                    bkt, blob = self.parse_gcs_url(remote_log_location)
-                    return self.hook.download(bkt, blob).decode()
+                bkt, blob = self.parse_gcs_url(remote_log_location)
+                return self.hook.download(bkt, blob).decode()
             except:
                 pass
 
@@ -189,34 +175,23 @@ class GCSLog(object):
 
         """
         if self.hook:
-
             if append:
                 old_log = self.read(remote_log_location)
                 log = old_log + '\n' + log
 
             try:
-                if self.use_gcloud:
-                    self.hook.upload_from_string(
-                        log,
-                        blob=remote_log_location,
-                        replace=True)
-                    return
-                else:
-                    bkt, blob = self.parse_gcs_url(remote_log_location)
-                    from tempfile import NamedTemporaryFile
-                    with NamedTemporaryFile(mode='w+') as tmpfile:
-                        tmpfile.write(log)
-                        # Force the file to be flushed, since we're doing the
-                        # upload from within the file context (it hasn't been
-                        # closed).
-                        tmpfile.flush()
-                        self.hook.upload(bkt, blob, tmpfile.name)
-                    return
+                bkt, blob = self.parse_gcs_url(remote_log_location)
+                from tempfile import NamedTemporaryFile
+                with NamedTemporaryFile(mode='w+') as tmpfile:
+                    tmpfile.write(log)
+                    # Force the file to be flushed, since we're doing the
+                    # upload from within the file context (it hasn't been
+                    # closed).
+                    tmpfile.flush()
+                    self.hook.upload(bkt, blob, tmpfile.name)
             except:
-                pass
-
-        # raise/return error if we get here
-        logging.error('Could not write logs to {}'.format(remote_log_location))
+                # raise/return error if we get here
+                logging.error('Could not write logs to {}'.format(remote_log_location))
 
     def parse_gcs_url(self, gsurl):
         """

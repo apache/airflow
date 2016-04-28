@@ -53,9 +53,6 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
-gcloud = [
-    'gcloud>=0.11.0',
-]
 gcp_api = [
     'httplib2',
     'google-api-python-client<=1.4.2',
@@ -149,7 +146,6 @@ setup(
         'doc': doc,
         'docker': docker,
         'druid': druid,
-        'gcloud': gcloud,
         'gcp_api': gcp_api,
         'hdfs': hdfs,
         'hive': hive,
