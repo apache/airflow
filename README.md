@@ -25,7 +25,7 @@ monitor progress, and troubleshoot issues when needed.
 ## Getting started
 Please visit the Airflow Platform documentation for help with [installing Airflow](http://pythonhosted.org/airflow/installation.html), getting a [quick start](http://pythonhosted.org/airflow/start.html), or a more complete [tutorial](http://pythonhosted.org/airflow/tutorial.html).
 
-For further information, please visit the [Airflow Wiki](https://github.com/airbnb/airflow/wiki).
+For further information, please visit the [Airflow Wiki](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Home).
 
 ## Beyond the Horizon
 
@@ -77,7 +77,7 @@ if you may.
 
 Committers:
 
-* Refer to [Committers](https://github.com/airbnb/airflow/wiki/Committers)
+* Refer to [Committers](https://cwiki.apache.org/confluence/display/AIRFLOW/Committers)
 
 Currently **officially** using Airflow:
 
@@ -120,7 +120,7 @@ Currently **officially** using Airflow:
 * [Full documentation on pythonhosted.org](http://pythonhosted.org/airflow/)
 * [Airflow Google Group (mailing list / forum)](https://groups.google.com/forum/#!forum/airbnb_airflow)
 * [Airbnb Blog Post about Airflow](http://nerds.airbnb.com/airflow/)
-* [Airflow Common Pitfalls](https://github.com/airbnb/airflow/wiki/Common-Pitfalls)
+* [Airflow Common Pitfalls](https://cwiki.apache.org/confluence/display/AIRFLOW/Common+Pitfalls)
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
 * [Airflow at Agari Blog Post](http://agari.com/blog/airflow-agari)
 * [Best practices with Airflow (Max) nov 2015](https://youtu.be/dgaoqOZlvEA)
