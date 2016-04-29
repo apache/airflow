@@ -166,7 +166,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         Google cloud storage.
         """
         hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                                      scope='https://www.googleapis.com/auth/devstorage.read_write',
                                       delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
             hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')

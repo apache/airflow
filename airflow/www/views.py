@@ -2221,10 +2221,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
     form_choices = {
         'conn_type': [
-            ('bigquery', 'BigQuery',),
-            ('datastore', 'Google Datastore'),
             ('ftp', 'FTP',),
-            ('google_cloud_storage', 'Google Cloud Storage'),
             ('google_cloud_platform', 'Google Cloud Platform'),
             ('hdfs', 'HDFS',),
             ('http', 'HTTP',),
