@@ -5,6 +5,7 @@
 }
 rect {
     stroke: black;
+    cursor: pointer;
 }
 .d3-tip {
   line-height: 1;

@@ -105,6 +105,9 @@ d3.gantt = function() {
     .append("rect")
     .on('mouseover', tip.show)
     .on('mouseout', tip.hide)
+    .on('click', function(d) {
+      call_modal(d.taskName, d.executionDate);
+    })
     .attr("class", function(d){
       if(taskStatus[d.status] == null){ return "bar";}
       return taskStatus[d.status];
@@ -113,7 +116,7 @@ d3.gantt = function() {
     .attr("transform", rectTransform)
     .attr("height", function(d) { return y.rangeBand(); })
     .attr("width", function(d) {
-      return (x(d.endDate) - x(d.startDate));
+      return d3.max([x(d.endDate) - x(d.startDate), 1]);
     });
 
 
