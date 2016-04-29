@@ -62,7 +62,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = urljoin(self.base_url, endpoint)
+        url = urljoin(str(self.base_url), str(endpoint))
         req = None
         if self.method == 'GET':
             # GET uses params
