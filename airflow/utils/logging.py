@@ -130,7 +130,6 @@ class GCSLog(object):
         try:
             from airflow.contrib.hooks import GoogleCloudStorageHook
             self.hook = GoogleCloudStorageHook(
-                scope='https://www.googleapis.com/auth/devstorage.read_write',
                 google_cloud_storage_conn_id=remote_conn_id)
         except:
             logging.error(

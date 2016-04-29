@@ -35,18 +35,12 @@ class DatastoreHook(GoogleCloudBaseHook):
     simultaniously, you will need to create a hook per thread.
     """
 
-    conn_name_attr = 'datastore_conn_id'
-
     def __init__(self,
-                 scope=None,
                  datastore_conn_id='google_cloud_datastore_default',
                  delegate_to=None):
-        scope = scope or [
-                'https://www.googleapis.com/auth/datastore',
-                'https://www.googleapis.com/auth/userinfo.email']
-        super(DatastoreHook, self).__init__(scope, datastore_conn_id, delegate_to)
+        super(DatastoreHook, self).__init__(datastore_conn_id, delegate_to)
         # datasetId is the same as the project name
-        self.dataset_id = self._extras_dejson().get('project')
+        self.dataset_id = self._get_field('project')
         self.connection = self.get_conn()
 
     def get_conn(self):
