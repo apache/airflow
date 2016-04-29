@@ -24,7 +24,10 @@ import time
 from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from apiclient.discovery import build
-from pandas.io.gbq import GbqConnector, _parse_data as gbq_parse_data
+from pandas.io.gbq import GbqConnector, \
+    _parse_data as gbq_parse_data, \
+    _check_google_client_version as gbq_check_google_client_version, \
+    _test_google_api_imports as gbq_test_google_api_imports
 from pandas.tools.merge import concat
 
 logging.getLogger("bigquery").setLevel(logging.INFO)
@@ -48,15 +51,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     conn_name_attr = 'bigquery_conn_id'
 
     def __init__(self,
-                 scope='https://www.googleapis.com/auth/bigquery',
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None):
-        """
-        :param scope: The scope of the hook.
-        :type scope: string
-        """
         super(BigQueryHook, self).__init__(
-            scope=scope,
             conn_id=bigquery_conn_id,
             delegate_to=delegate_to)
 
@@ -65,8 +62,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         Returns a BigQuery PEP 249 connection object.
         """
         service = self.get_service()
-        connection_extras = self._extras_dejson()
-        project = connection_extras['project']
+        project = self._get_field('project')
         return BigQueryConnection(service=service, project_id=project)
 
     def get_service(self):
@@ -97,10 +93,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         :type bql: string
         """
         service = self.get_service()
-        connection_extras = self._extras_dejson()
-        project = connection_extras['project']
+        project = self._get_field('project')
         connector = BigQueryPandasConnector(project, service)
-        schema, pages = connector.run_query(bql, verbose=False)
+        schema, pages = connector.run_query(bql)
         dataframe_list = []
 
         while len(pages) > 0:
@@ -121,11 +116,13 @@ class BigQueryPandasConnector(GbqConnector):
     without forcing a three legged OAuth connection. Instead, we can inject
     service account credentials into the binding.
     """
-    def __init__(self, project_id, service, reauth=False):
-        self.test_google_api_imports()
+    def __init__(self, project_id, service, reauth=False, verbose=False):
+        gbq_check_google_client_version()
+        gbq_test_google_api_imports()
         self.project_id = project_id
         self.reauth = reauth
         self.service = service
+        self.verbose = verbose
 
 
 class BigQueryConnection(object):
