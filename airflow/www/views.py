@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import sys
 
 import os
 import socket
@@ -22,7 +21,6 @@ from datetime import datetime, timedelta
 import dateutil.parser
 import copy
 from itertools import chain, product
-import time
 import json
 
 from past.utils import old_div
@@ -44,7 +42,7 @@ from flask._compat import PY2
 
 import jinja2
 import markdown
-from nvd3 import lineChart
+import nvd3
 
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField, StringField)
@@ -278,6 +276,8 @@ class Airflow(BaseView):
     @wwwutils.gzipped
     # @cache.cached(timeout=3600, key_prefix=wwwutils.make_cache_key)
     def chart_data(self):
+        from airflow import macros
+        import pandas as pd
         session = settings.Session()
         chart_id = request.args.get('chart_id')
         csv = request.args.get('csv') == "true"
@@ -287,6 +287,7 @@ class Airflow(BaseView):
         session.expunge_all()
         session.commit()
         session.close()
+
 
         payload = {}
         payload['state'] = 'ERROR'
@@ -304,7 +305,6 @@ class Airflow(BaseView):
                 "a Python dictionary. ")
 
         request_dict = {k: request.args.get(k) for k in request.args}
-        from airflow import macros
         args.update(request_dict)
         args['macros'] = macros
         sql = jinja2.Template(chart.sql).render(**args)
@@ -316,11 +316,11 @@ class Airflow(BaseView):
         )
         payload['label'] = label
 
-        import pandas as pd
         pd.set_option('display.max_colwidth', 100)
         hook = db.get_hook()
         try:
-            df = hook.get_pandas_df(wwwutils.limit_sql(sql, CHART_LIMIT, conn_type=db.conn_type))
+            df = hook.get_pandas_df(
+                wwwutils.limit_sql(sql, CHART_LIMIT, conn_type=db.conn_type))
             df = df.fillna(0)
         except Exception as e:
             payload['error'] += "SQL execution failed. Details: " + str(e)
@@ -339,26 +339,25 @@ class Airflow(BaseView):
         if not payload['error'] and len(df) == 0:
             payload['error'] += "Empty result set. "
         elif (
-                            not payload['error'] and
-                                chart.sql_layout == 'series' and
-                            chart.chart_type != "datatable" and
-                        len(df.columns) < 3):
+                not payload['error'] and
+                chart.sql_layout == 'series' and
+                chart.chart_type != "datatable" and
+                len(df.columns) < 3):
             payload['error'] += "SQL needs to return at least 3 columns. "
         elif (
-                        not payload['error'] and
-                            chart.sql_layout == 'columns'and
-                        len(df.columns) < 2):
+                not payload['error'] and
+                chart.sql_layout == 'columns'and
+                len(df.columns) < 2):
             payload['error'] += "SQL needs to return at least 2 columns. "
         elif not payload['error']:
             import numpy as np
             chart_type = chart.chart_type
 
             data = None
-            if chart_type == "datatable":
-                chart.show_datatable = True
-            if chart.show_datatable:
+            if chart.show_datatable or chart_type == "datatable":
                 data = df.to_dict(orient="split")
                 data['columns'] = [{'title': c} for c in data['columns']]
+                payload['data'] = data
 
             # Trying to convert time to something Highcharts likes
             x_col = 1 if chart.sql_layout == 'series' else 0
@@ -367,101 +366,14 @@ class Airflow(BaseView):
                     # From string to datetime
                     df[df.columns[x_col]] = pd.to_datetime(
                         df[df.columns[x_col]])
+                    df[df.columns[x_col]] = df[df.columns[x_col]].apply(
+                        lambda x: int(x.strftime("%s")) * 1000)
                 except Exception as e:
-                    raise AirflowException(str(e))
-                df[df.columns[x_col]] = df[df.columns[x_col]].apply(
-                    lambda x: int(x.strftime("%s")) * 1000)
+                    payload['error'] = "Time conversion failed"
 
-            series = []
-            colorAxis = None
             if chart_type == 'datatable':
-                payload['data'] = data
                 payload['state'] = 'SUCCESS'
                 return wwwutils.json_response(payload)
-
-            elif chart_type == 'para':
-                df.rename(columns={
-                    df.columns[0]: 'name',
-                    df.columns[1]: 'group',
-                }, inplace=True)
-                return Response(
-                    response=df.to_csv(index=False),
-                    status=200,
-                    mimetype="application/text")
-
-            elif chart_type == 'heatmap':
-                color_perc_lbound = float(
-                    request.args.get('color_perc_lbound', 0))
-                color_perc_rbound = float(
-                    request.args.get('color_perc_rbound', 1))
-                color_scheme = request.args.get('color_scheme', 'blue_red')
-
-                if color_scheme == 'blue_red':
-                    stops = [
-                        [color_perc_lbound, '#00D1C1'],
-                        [
-                            color_perc_lbound +
-                            ((color_perc_rbound - color_perc_lbound)/2),
-                            '#FFFFCC'
-                        ],
-                        [color_perc_rbound, '#FF5A5F']
-                    ]
-                elif color_scheme == 'blue_scale':
-                    stops = [
-                        [color_perc_lbound, '#FFFFFF'],
-                        [color_perc_rbound, '#2222FF']
-                    ]
-                elif color_scheme == 'fire':
-                    diff = float(color_perc_rbound - color_perc_lbound)
-                    stops = [
-                        [color_perc_lbound, '#FFFFFF'],
-                        [color_perc_lbound + 0.33*diff, '#FFFF00'],
-                        [color_perc_lbound + 0.66*diff, '#FF0000'],
-                        [color_perc_rbound, '#000000']
-                    ]
-                else:
-                    stops = [
-                        [color_perc_lbound, '#FFFFFF'],
-                        [
-                            color_perc_lbound +
-                            ((color_perc_rbound - color_perc_lbound)/2),
-                            '#888888'
-                        ],
-                        [color_perc_rbound, '#000000'],
-                    ]
-
-                xaxis_label = df.columns[1]
-                yaxis_label = df.columns[2]
-                data = []
-                for row in df.itertuples():
-                    data.append({
-                        'x': row[2],
-                        'y': row[3],
-                        'value': row[4],
-                    })
-                x_format = '{point.x:%Y-%m-%d}' \
-                    if chart.x_is_date else '{point.x}'
-                series.append({
-                    'data': data,
-                    'borderWidth': 0,
-                    'colsize': 24 * 36e5,
-                    'turboThreshold': sys.float_info.max,
-                    'tooltip': {
-                        'headerFormat': '',
-                        'pointFormat': (
-                            df.columns[1] + ': ' + x_format + '<br/>' +
-                            df.columns[2] + ': {point.y}<br/>' +
-                            df.columns[3] + ': <b>{point.value}</b>'
-                        ),
-                    },
-                })
-                colorAxis = {
-                    'stops': stops,
-                    'minColor': '#FFFFFF',
-                    'maxColor': '#000000',
-                    'min': 50,
-                    'max': 2200,
-                }
             else:
                 if chart.sql_layout == 'series':
                     # User provides columns (series, x, y)
@@ -482,63 +394,22 @@ class Airflow(BaseView):
                     for col in df.columns:
                         df[col] = df[col].astype(np.float)
 
+                df = df.fillna(0)
+                NVd3ChartClass = chart_mapping.get(chart.chart_type)
+                NVd3ChartClass = getattr(nvd3, NVd3ChartClass)
+                nvd3_chart = NVd3ChartClass(x_is_date=chart.x_is_date)
+
                 for col in df.columns:
-                    series.append({
-                        'name': col,
-                        'data': [
-                            (k, df[col][k])
-                            for k in df[col].keys()
-                            if not np.isnan(df[col][k])]
-                    })
-                series = [serie for serie in sorted(
-                    series, key=lambda s: s['data'][0][1], reverse=True)]
+                    nvd3_chart.add_serie(name=col, y=df[col].tolist(), x=df[col].index.tolist())
+                try:
+                    nvd3_chart.buildcontent()
+                    payload['chart_type'] = nvd3_chart.__class__.__name__
+                    payload['htmlcontent'] = nvd3_chart.htmlcontent
+                except Exception as e:
+                    payload['error'] = str(e)
 
-            if chart_type == "stacked_area":
-                stacking = "normal"
-                chart_type = 'area'
-            elif chart_type == "percent_area":
-                stacking = "percent"
-                chart_type = 'area'
-            else:
-                stacking = None
-            hc = {
-                'chart': {
-                    'type': chart_type
-                },
-                'plotOptions': {
-                    'series': {
-                        'marker': {
-                            'enabled': False
-                        }
-                    },
-                    'area': {'stacking': stacking},
-                },
-                'title': {'text': ''},
-                'xAxis': {
-                    'title': {'text': xaxis_label},
-                    'type': 'datetime' if chart.x_is_date else None,
-                },
-                'yAxis': {
-                    'title': {'text': yaxis_label},
-                },
-                'colorAxis': colorAxis,
-                'tooltip': {
-                    'useHTML': True,
-                    'backgroundColor': None,
-                    'borderWidth': 0,
-                },
-                'series': series,
-            }
-
-            if chart.y_log_scale:
-                hc['yAxis']['type'] = 'logarithmic'
-                hc['yAxis']['minorTickInterval'] = 0.1
-                if 'min' in hc['yAxis']:
-                    del hc['yAxis']['min']
 
             payload['state'] = 'SUCCESS'
-            payload['hc'] = hc
-            payload['data'] = data
             payload['request_dict'] = request_dict
         return wwwutils.json_response(payload)
 
@@ -552,8 +423,14 @@ class Airflow(BaseView):
         session.expunge_all()
         session.commit()
         session.close()
-        if chart.chart_type == 'para':
-            return self.render('airflow/para/para.html', chart=chart)
+
+        NVd3ChartClass = chart_mapping.get(chart.chart_type)
+        if not NVd3ChartClass:
+            flash(
+                "Not supported anymore as the license was incompatible, "
+                "sorry",
+                "danger")
+            redirect('/admin/chart/')
 
         sql = ""
         if chart.show_sql:
@@ -563,7 +440,7 @@ class Airflow(BaseView):
                 HtmlFormatter(noclasses=True))
             )
         return self.render(
-            'airflow/highchart.html',
+            'airflow/nvd3.html',
             chart=chart,
             title="Airflow - Chart",
             sql=sql,
@@ -1452,7 +1329,7 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        chart = lineChart(
+        chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=600, width="1200")
         for task in dag.tasks:
             y = []
@@ -1512,7 +1389,7 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        chart = lineChart(
+        chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=600, width="1200")
         for task in dag.tasks:
             y = []
@@ -1637,6 +1514,7 @@ class Airflow(BaseView):
                 'taskName': ti.task_id,
                 'duration': "{}".format(ti.end_date - ti.start_date)[:-4],
                 'status': ti.state,
+                'executionDate': ti.execution_date.isoformat(),
             })
         states = {ti.state:ti.state for ti in tis}
         data = {
@@ -1928,12 +1806,10 @@ class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
             ('line', 'Line Chart'),
             ('spline', 'Spline Chart'),
             ('bar', 'Bar Chart'),
-            ('para', 'Parallel Coordinates'),
             ('column', 'Column Chart'),
             ('area', 'Overlapping Area Chart'),
             ('stacked_area', 'Stacked Area Chart'),
             ('percent_area', 'Percent Area Chart'),
-            ('heatmap', 'Heatmap'),
             ('datatable', 'No chart, data table only'),
         ],
         'sql_layout': [
@@ -1957,6 +1833,18 @@ class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
         if not model.user_id and current_user and hasattr(current_user, 'id'):
             model.user_id = current_user.id
         model.last_modified = datetime.now()
+
+chart_mapping = (
+    ('line', 'lineChart'),
+    ('spline', 'lineChart'),
+    ('bar', 'multiBarChart'),
+    ('column', 'multiBarChart'),
+    ('area', 'stackedAreaChart'),
+    ('stacked_area', 'stackedAreaChart'),
+    ('percent_area', 'stackedAreaChart'),
+    ('datatable', 'datatable'),
+)
+chart_mapping = dict(chart_mapping)
 
 
 class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -2238,7 +2126,12 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     @classmethod
     def alert_fernet_key(cls):
-        return conf.get('core', 'fernet_key') is None
+        fk = None
+        try:
+            fk = conf.get('core', 'fernet_key')
+        except:
+            pass
+        return fk is None
 
     @classmethod
     def is_secure(self):

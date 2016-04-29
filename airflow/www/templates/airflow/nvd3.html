@@ -5,6 +5,8 @@
     href="{{ url_for("static", filename="main.css") }}">
 <link rel="stylesheet" type="text/css"
     href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
+<link rel="stylesheet" type="text/css"
+    href="{{ url_for("static", filename="nv.d3.css") }}">
 <style>
   pre {
     margin: 0px;
@@ -12,14 +14,6 @@
     border: none;
     background: none;
     background-color: #FFF;
-  }
-  .highcharts-tooltip>span {
-    background: rgba(255,255,255,0.85);
-    border: 1px solid silver;
-    border-radius: 3px;
-    box-shadow: 1px 1px 2px #888;
-    padding: 8px;
-    z-index: 2;
   }
 .panel-heading .accordion-toggle:after {
     /* symbol for "opening" panels */
@@ -125,11 +119,8 @@ body {
 {% block tail %}
     {{ super() }}
     <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='highcharts.js') }}"></script>
-    <script src="{{ url_for('static', filename='highcharts-more.js') }}">
-    </script>
-    <script src="{{ url_for('static', filename='heatmap.js') }}"></script>
-    <script src="{{ url_for('static', filename='heatmap-canvas.js') }}"></script>
+    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='nv.d3.js') }}"></script>
     <script>
     function error(msg){
       $('#error_msg').html(msg);
@@ -143,22 +134,23 @@ body {
       $('#error').show();
     }
     $( document ).ready(function() {
-      Highcharts.setOptions({
-        colors: [
-            "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400",
-            "#FFAA91", "#B4A76C", "#9CA299", "#565A5C"
-        ],
-      });
+      colors: [
+          "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400",
+          "#FFAA91", "#B4A76C", "#9CA299", "#565A5C"
+      ];
       url = "{{ url_for('airflow.chart_data') }}" + location.search;
       $.getJSON(url, function(payload) {
         $('#loading').hide();
+        if (payload.error !== undefined) {
+          $('#chart_body').html('<div class="alert alert-danger">' + payload.error + '</div>');
+        }
         $("#sql_panel_body").html(payload.sql_html);
         $("#label").html(payload.label);
         if (payload.state == "SUCCESS") {
           {% if chart.chart_type != "datatable" %}
             $('#chart_body').css('width', '100%');
-            $('#chart_body').css('height', '{{ chart.height }}');
-            $('#chart_body').highcharts(payload.hc);
+            console.log(payload);
+            $('#chart_body').html(payload.htmlcontent);
           {% endif %}
           {% if chart.show_datatable or chart.chart_type == "datatable" %}
               $('#datatable').dataTable( {
