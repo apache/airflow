@@ -114,6 +114,7 @@ Currently **officially** using Airflow:
 * Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 * [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 * Yahoo!
+* [Zendesk](https://www.github.com/zendesk)
 
 ## Links
 
