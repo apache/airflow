@@ -39,18 +39,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     running Airflow, you can exclude the service_account and key_path
     parameters.
     """
-    conn_name_attr = 'google_cloud_storage_conn_id'
 
     def __init__(self,
-                 scope='https://www.googleapis.com/auth/devstorage.read_only',
                  google_cloud_storage_conn_id='google_cloud_storage_default',
                  delegate_to=None):
-        """
-        :param scope: The scope of the hook (read only, read write, etc). See:
-            https://cloud.google.com/storage/docs/authentication?hl=en#oauth-scopes
-        :type scope: string
-        """
-        super(GoogleCloudStorageHook, self).__init__(scope, google_cloud_storage_conn_id, delegate_to)
+        super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id, delegate_to)
 
     def get_conn(self):
         """
