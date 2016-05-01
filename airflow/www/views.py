@@ -2193,7 +2193,6 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__jdbc__drv_clsname',
         'extra__google_cloud_platform__project',
         'extra__google_cloud_platform__key_path',
-        'extra__google_cloud_platform__service_account',
         'extra__google_cloud_platform__scope',
     )
     verbose_name = "Connection"
@@ -2213,9 +2212,8 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     form_extra_fields = {
         'extra__jdbc__drv_path' : StringField('Driver Path'),
         'extra__jdbc__drv_clsname': StringField('Driver Class'),
-        'extra__google_cloud_platform__project': StringField('Project'),
+        'extra__google_cloud_platform__project': StringField('Project Id'),
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
-        'extra__google_cloud_platform__service_account': StringField('Service Account'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma seperated)'),
 
     }

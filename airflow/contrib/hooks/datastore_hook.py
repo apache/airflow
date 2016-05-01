@@ -14,22 +14,12 @@
 #
 
 from apiclient.discovery import build
-from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 class DatastoreHook(GoogleCloudBaseHook):
     """
-    Interact with Google Cloud Datastore. Connections must be defined with an
-    extras JSON field containing:
-
-    {
-        "project": "<google project ID>",
-        "service_account": "<google service account email>",
-        "key_path": "<p12 key path>"
-    }
-
-    If you have used ``gcloud auth`` to authenticate on the machine that's
-    running Airflow, you can exclude the service_account and key_path
-    parameters.
+    Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform
+    connection.
 
     This object is not threads safe. If you want to make multiple requests
     simultaniously, you will need to create a hook per thread.
