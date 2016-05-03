@@ -1,7 +1,10 @@
 import unittest
 
-from airflow.operators.docker_operator import DockerOperator
-from docker.client import Client
+try:
+    from airflow.operators.docker_operator import DockerOperator
+    from docker.client import Client
+except ImportError:
+    pass
 
 from airflow.exceptions import AirflowException
 
