@@ -145,3 +145,41 @@ def chain(*tasks):
     """
     for up_task, down_task in zip(tasks[:-1], tasks[1:]):
         up_task.set_downstream(down_task)
+
+
+def pprinttable(rows):
+    """Returns a pretty ascii table from tuples
+
+    If namedtuple are used, the table will have headers
+    """
+    if not rows:
+        return
+    if hasattr(rows[0], '_fields'):  # if namedtuple
+        headers = rows[0]._fields
+    else:
+        headers = ["col{}".format(i) for i in range(len(rows[0]))]
+    lens = [len(s) for s in headers]
+
+    for row in rows:
+        for i in range(len(rows[0])):
+            slenght = len("{}".format(row[i]))
+            if slenght > lens[i]:
+                lens[i] = slenght
+    formats = []
+    hformats = []
+    for i in range(len(rows[0])):
+        if isinstance(rows[0][i], int):
+            formats.append("%%%dd" % lens[i])
+        else:
+            formats.append("%%-%ds" % lens[i])
+        hformats.append("%%-%ds" % lens[i])
+    pattern = " | ".join(formats)
+    hpattern = " | ".join(hformats)
+    separator = "-+-".join(['-' * n for n in lens])
+    s = ""
+    s += (hpattern % tuple(headers)) + '\n'
+    s += separator + '\n'
+    _u = lambda t: t.decode('UTF-8', 'replace') if isinstance(t, str) else t
+    for line in rows:
+        s+= pattern % tuple(_u(t) for t in line) + '\n'
+    return s
