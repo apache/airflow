@@ -39,6 +39,7 @@ import re
 import signal
 import socket
 import sys
+import textwrap
 import traceback
 import warnings
 from urllib.parse import urlparse
@@ -430,7 +431,6 @@ class DagBag(LoggingMixin):
         Stats.gauge(
             'dagbag_import_errors', len(self.import_errors), 1)
         stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        import textwrap
         dagbag_stats = textwrap.dedent("""\n
         -------------------------------------------------------------------
         DagBag stats for {dag_folder}

@@ -179,7 +179,8 @@ def pprinttable(rows):
     s = ""
     s += (hpattern % tuple(headers)) + '\n'
     s += separator + '\n'
-    _u = lambda t: t.decode('UTF-8', 'replace') if isinstance(t, str) else t
+    def f(t):
+        return t.decode('UTF-8', 'replace') if isinstance(t, str) else t
     for line in rows:
-        s+= pattern % tuple(_u(t) for t in line) + '\n'
+        s += pattern % tuple(f(t) for t in line) + '\n'
     return s
