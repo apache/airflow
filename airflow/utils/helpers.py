@@ -180,7 +180,7 @@ def pprinttable(rows):
     s += (hpattern % tuple(headers)) + '\n'
     s += separator + '\n'
     def f(t):
-        return t.decode('UTF-8', 'replace') if isinstance(t, str) else t
+        return t.decode('UTF-8', 'replace') if isinstance(t, basestring) else t
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'
     return s
