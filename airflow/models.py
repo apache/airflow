@@ -22,6 +22,7 @@ install_aliases()
 from builtins import str
 from builtins import object, bytes
 import copy
+from collections import namedtuple
 from datetime import datetime, timedelta
 import dill
 import functools
@@ -38,6 +39,7 @@ import re
 import signal
 import socket
 import sys
+import textwrap
 import traceback
 import warnings
 from urllib.parse import urlparse
@@ -61,7 +63,8 @@ from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
-from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
+from airflow.utils.helpers import (
+    as_tuple, is_container, is_in, validate_key, pprinttable)
 from airflow.utils.logging import LoggingMixin
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -381,6 +384,11 @@ class DagBag(LoggingMixin):
         """
         start_dttm = datetime.now()
         dag_folder = dag_folder or self.dag_folder
+
+        # Used to store stats around DagBag processing
+        stats = []
+        FileLoadStat = namedtuple(
+            'FileLoadStat', "file duration dag_num task_num dags")
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
@@ -402,8 +410,20 @@ class DagBag(LoggingMixin):
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
-                            self.process_file(
+                            ts = datetime.now()
+                            found_dags = self.process_file(
                                 filepath, only_if_updated=only_if_updated)
+
+                            td = datetime.now() - ts
+                            td = td.total_seconds() + (
+                                float(td.microseconds) / 1000000)
+                            stats.append(FileLoadStat(
+                                filepath.replace(dag_folder, ''),
+                                td,
+                                len(found_dags),
+                                sum([len(dag.tasks) for dag in found_dags]),
+                                str([dag.dag_id for dag in found_dags]),
+                            ))
                     except Exception as e:
                         logging.warning(e)
         Stats.gauge(
@@ -412,6 +432,24 @@ class DagBag(LoggingMixin):
             'dagbag_size', len(self.dags), 1)
         Stats.gauge(
             'dagbag_import_errors', len(self.import_errors), 1)
+        stats = sorted(stats, key=lambda x: x.duration, reverse=True)
+        dagbag_stats = textwrap.dedent("""\n
+        -------------------------------------------------------------------
+        DagBag stats for {dag_folder}
+        -------------------------------------------------------------------
+        Number of DAGs: {dag_num}
+        Total task number: {task_num}
+        DagBag parsing time: {duration}
+        {table}
+        """)
+        dagbag_stats = dagbag_stats.format(
+            dag_folder=dag_folder,
+            duration=sum([o.duration for o in stats]),
+            dag_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.dag_num for o in stats]),
+            table=pprinttable(stats),
+        )
+        logging.debug(dagbag_stats)
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
