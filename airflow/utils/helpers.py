@@ -177,10 +177,12 @@ def pprinttable(rows):
     hpattern = " | ".join(hformats)
     separator = "-+-".join(['-' * n for n in lens])
     s = ""
+    s += separator + '\n'
     s += (hpattern % tuple(headers)) + '\n'
     s += separator + '\n'
     def f(t):
-        return t.decode('UTF-8', 'replace') if isinstance(t, basestring) else t
+        return "{}".format(t) if isinstance(t, basestring) else t
     for line in rows:
         s += pattern % tuple(f(t) for t in line) + '\n'
+    s += separator + '\n'
     return s

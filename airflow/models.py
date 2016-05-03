@@ -387,7 +387,8 @@ class DagBag(LoggingMixin):
 
         # Used to store stats around DagBag processing
         stats = []
-        FileLoadStat = namedtuple('FileLoadStat', "file duration dag_num dags")
+        FileLoadStat = namedtuple(
+            'FileLoadStat', "file duration dag_num task_num dags")
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
@@ -420,6 +421,7 @@ class DagBag(LoggingMixin):
                                 filepath.replace(dag_folder, ''),
                                 td,
                                 len(found_dags),
+                                sum([len(dag.tasks) for dag in found_dags]),
                                 str([dag.dag_id for dag in found_dags]),
                             ))
                     except Exception as e:
@@ -436,18 +438,18 @@ class DagBag(LoggingMixin):
         DagBag stats for {dag_folder}
         -------------------------------------------------------------------
         Number of DAGs: {dag_num}
+        Total task number: {task_num}
         DagBag parsing time: {duration}
-        -------------------------------------------------------------------
         {table}
-        -------------------------------------------------------------------
         """)
         dagbag_stats = dagbag_stats.format(
             dag_folder=dag_folder,
             duration=sum([o.duration for o in stats]),
             dag_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.dag_num for o in stats]),
             table=pprinttable(stats),
         )
-        print(dagbag_stats)
+        logging.debug(dagbag_stats)
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
