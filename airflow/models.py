@@ -432,24 +432,28 @@ class DagBag(LoggingMixin):
             'dagbag_size', len(self.dags), 1)
         Stats.gauge(
             'dagbag_import_errors', len(self.import_errors), 1)
-        stats = sorted(stats, key=lambda x: x.duration, reverse=True)
-        dagbag_stats = textwrap.dedent("""\n
+        self.dagbag_stats = sorted(
+            stats, key=lambda x: x.duration, reverse=True)
+
+    def dagbag_report(self):
+        """Prints a report around DagBag loading stats"""
+        report = textwrap.dedent("""\n
         -------------------------------------------------------------------
-        DagBag stats for {dag_folder}
+        DagBag loading stats for {dag_folder}
         -------------------------------------------------------------------
         Number of DAGs: {dag_num}
         Total task number: {task_num}
         DagBag parsing time: {duration}
         {table}
         """)
-        dagbag_stats = dagbag_stats.format(
-            dag_folder=dag_folder,
+        stats = self.dagbag_stats
+        return report.format(
+            dag_folder=self.dag_folder,
             duration=sum([o.duration for o in stats]),
             dag_num=sum([o.dag_num for o in stats]),
             task_num=sum([o.dag_num for o in stats]),
             table=pprinttable(stats),
         )
-        logging.debug(dagbag_stats)
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]

@@ -324,7 +324,16 @@ def task_state(args):
 
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
-    print("\n".join(sorted(dagbag.dags)))
+    s = textwrap.dedent("""\n
+    -------------------------------------------------------------------
+    DAGS
+    -------------------------------------------------------------------
+    {dag_list}
+    """)
+    dag_list = "\n".join(sorted(dagbag.dags))
+    print(s.format(dag_list=dag_list))
+    if args.report:
+        print(dagbag.dagbag_report())
 
 
 def list_tasks(args, dag=None):
@@ -673,8 +682,11 @@ class CLIFactory(object):
                 "DO respect depends_on_past)."),
             "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
-        # list_dags
+        # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
+        # list_dags
+        'report': Arg(
+            ("-r", "--report"), "Show DagBag loading report", "store_true"),
         # clear
         'upstream': Arg(
             ("-u", "--upstream"), "Include upstream tasks", "store_true"),
@@ -869,7 +881,7 @@ class CLIFactory(object):
         }, {
             'func': list_dags,
             'help': "List all the DAGs",
-            'args': ('subdir',),
+            'args': ('subdir', 'report'),
         }, {
             'func': task_state,
             'help': "Get the status of a task instance",
