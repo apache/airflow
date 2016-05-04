@@ -649,7 +649,7 @@ class CliTests(unittest.TestCase):
             dag_folder=DEV_NULL, include_examples=True)
 
     def test_cli_list_dags(self):
-        args = self.parser.parse_args(['list_dags'])
+        args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
 
     def test_cli_list_tasks(self):
