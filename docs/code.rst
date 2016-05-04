@@ -49,7 +49,6 @@ Operator API
         BashOperator,
         BranchPythonOperator,
         TriggerDagRunOperator,
-        DockerOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -82,6 +81,8 @@ Operator API
         TimeSensor,
         WebHdfsSensor
 
+.. autoclass:: airflow.operators.docker_operator.DockerOperator
+
 
 Community-contributed Operators
 '''''''''''''''''''''''''''''''
@@ -92,11 +93,12 @@ Community-contributed Operators
         BigQueryOperator,
         BigQueryToCloudStorageOperator,
         GoogleCloudStorageDownloadOperator,
-        HipChatAPIOperator,
-        HipChatAPISendRoomNotificationOperator,
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
+
+.. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
+.. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
 
 .. _macros:
 

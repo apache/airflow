@@ -1,13 +1,11 @@
-########
 Concepts
 ########
 
 The Airflow Platform is a tool for describing, executing, and monitoring
 workflows.
 
-**********
 Core Ideas
-**********
+''''''''''
 
 DAGs
 ====
@@ -250,9 +248,8 @@ be conceptualized like this:
 By combining ``DAGs`` and ``Operators`` to create ``TaskInstances``, you can
 build complex workflows.
 
-************************
 Additional Functionality
-************************
+''''''''''''''''''''''''
 
 In addition to the core Airflow objects, there are a number of more complex
 features that enable behaviors like limiting simultaneous access to resources,
