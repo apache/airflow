@@ -14,8 +14,8 @@ complicated, a line by line explanation follows below.
 .. code:: python
 
     """
-    Code that goes along with the Airflow located at:
-    http://airflow.readthedocs.org/en/latest/tutorial.html
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators import BashOperator
@@ -141,7 +141,7 @@ Instantiate a DAG
 
 We'll need a DAG object to nest our tasks into. Here we pass a string
 that defines the ``dag_id``, which serves as a unique identifier for your DAG.
-We also pass the default argument dictionary that we just defined and 
+We also pass the default argument dictionary that we just defined and
 define a ``schedule_interval`` of 1 day for the DAG.
 
 .. code:: python
@@ -358,8 +358,8 @@ Let's run a few commands to validate this script further.
 
 Testing
 '''''''
-Let's test by running the actual task instances on a specific date. The 
-date specified in this context is an ``execution_date``, which simulates the 
+Let's test by running the actual task instances on a specific date. The
+date specified in this context is an ``execution_date``, which simulates the
 scheduler running your task or dag at a specific date + time:
 
 .. code-block:: bash
@@ -410,7 +410,6 @@ which are used to populate the run schedule with task instances from this dag.
 
     # start your backfill on a date range
     airflow backfill tutorial -s 2015-06-01 -e 2015-06-07
-
 
 What's Next?
 -------------

@@ -1,6 +1,6 @@
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.operators import CheckOperator, ValueCheckOperator, IntervalCheckOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class BigQueryCheckOperator(CheckOperator):
@@ -50,6 +50,7 @@ class BigQueryCheckOperator(CheckOperator):
     def get_db_hook(self):
         return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
 
+
 class BigQueryValueCheckOperator(ValueCheckOperator):
     """
     Performs a simple value check using sql code.
@@ -63,11 +64,14 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
             self, sql, pass_value, tolerance=None,
             bigquery_conn_id='bigquery_default',
             *args, **kwargs):
-        super(BigQueryValueCheckOperator, self).__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, *args, **kwargs)
+        super(BigQueryValueCheckOperator, self).__init__(
+            sql=sql, pass_value=pass_value, tolerance=tolerance,
+            *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
 
     def get_db_hook(self):
         return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
+
 
 class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     """
@@ -97,7 +101,8 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
             bigquery_conn_id='bigquery_default',
             *args, **kwargs):
         super(BigQueryIntervalCheckOperator, self).__init__(
-            table=table, metrics_thresholds=metrics_thresholds, date_filter_column=date_filter_column, days_back=days_back,
+            table=table, metrics_thresholds=metrics_thresholds,
+            date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
 

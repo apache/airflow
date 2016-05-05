@@ -49,7 +49,6 @@ Operator API
         BashOperator,
         BranchPythonOperator,
         TriggerDagRunOperator,
-        DockerOperator,
         DummyOperator,
         EmailOperator,
         ExternalTaskSensor,
@@ -82,6 +81,8 @@ Operator API
         TimeSensor,
         WebHdfsSensor
 
+.. autoclass:: airflow.operators.docker_operator.DockerOperator
+
 
 Community-contributed Operators
 '''''''''''''''''''''''''''''''
@@ -95,6 +96,9 @@ Community-contributed Operators
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
+
+.. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
+.. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
 
 .. _macros:
 
@@ -148,7 +152,7 @@ attributes and methods.
 
 Macros
 ''''''
-Macros are a way to expose objects to your templates and live under the 
+Macros are a way to expose objects to your templates and live under the
 ``macros`` namespace in your templates.
 
 A few commonly used libraries and methods are made available.
@@ -218,7 +222,8 @@ Community contributed hooks
         GoogleCloudStorageHook,
         VerticaHook,
         FTPHook,
-        SSHHook
+        SSHHook,
+        CloudantHook
 
 Executors
 ---------

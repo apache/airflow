@@ -1,6 +1,6 @@
 # Imports the operators dynamically while keeping the package API clean,
 # abstracting the underlying modules
-from airflow.utils import import_module_attrs as _import_module_attrs
+from airflow.utils.helpers import import_module_attrs as _import_module_attrs
 
 _operators = {
     'ssh_execute_operator': ['SSHExecuteOperator'],

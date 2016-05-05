@@ -3,7 +3,22 @@
 Contributions are welcome and are greatly appreciated! Every
 little bit helps, and credit will always be given.
 
-You can contribute in many ways:
+
+# Table of Contents
+  * [TOC](#table-of-contents)
+  * [Types of Contributions](#types-of-contribution)
+      - [Report Bugs](#report-bugs)
+      - [Fix Bugs](#fix-bugs)
+      - [Implement Features](#implement-features)
+      - [Improve Documentation](#improve-documentation)
+      - [Submit Feedback](#submit-feedback)
+  * [Documentation](#documentation)
+  * [Development and Testing](#development-and-testing)
+      - [Setting up a development environment](#setting-up-a-development-environment)
+      - [Pull requests guidelines](#pull-requests-guidelines)
+      - [Testing Locally](#testing-locally)
+  * [Changing the Metadata Database](#changing-the-metadata-database)
+
 
 ## Types of Contributions
 
@@ -11,12 +26,8 @@ You can contribute in many ways:
 
 Report bugs through Github
 
-If you are reporting a bug, please include:
+We now provide a [templated issue form](https://github.com/airbnb/airflow/blob/master/.github/ISSUE_TEMPLATE.md). You must provide information for all required fields else the bug will be closed.
 
--   Your operating system name and version.
--   Any details about your local setup that might be helpful in
-    troubleshooting.
--   Detailed steps to reproduce the bug.
 
 ### Fix Bugs
 
@@ -32,7 +43,7 @@ We've created the operators, hooks, macros and executors we needed, but we
 made sure that this part of Airflow is extensible. New operators,
 hooks and operators are very welcomed!
 
-### Documentation
+### Improve Documentation
 
 Airflow could always use better documentation,
 whether as part of the official Airflow docs,
@@ -51,54 +62,52 @@ If you are proposing a feature:
 -   Remember that this is a volunteer-driven project, and that
     contributions are welcome :)
 
-## Latests Documentation
+## Documentation
 
-[API Documentation](http://pythonhosted.com/airflow)
+The latest API documentation is usually available [here](http://pythonhosted.org/airflow). To generate a local version, you need to have installed airflow with the `doc` extra. In that case you can generate the doc by running:
 
-## Testing
+    cd docs && ./build.sh
 
-Assuming you are working in a virtualenv. Install development requirements:
+## Development and Testing
+
+### Setting up a development environment
+
+It is usually best to work in a virtualenv. Install development requirements:
 
     cd $AIRFLOW_HOME
     virtualenv env
     source env/bin/activate
-    pip install -r requirements.txt
-    python setup.py develop
+    pip install -e .[devel]
 
-Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
+Feel free to customize based on the extras available in [setup.py](./setup.py)
 
-    ./run_unit_tests.sh
-
-Lint the project with:
-
-    flake8 changes tests
-
-## API documentation
-
-Generate the documentation with:
-
-    cd docs && ./build.sh
-
-
-## Pull Request Guidelines
+### Pull Request Guidelines
 
 Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
 1. The pull request should include tests, either as doctests, unit tests, or
-both.
+both. The airflow repo uses [Travis CI](https://travis-ci.org/airbnb/airflow) to run the tests and [coveralls](https://coveralls.io/github/airbnb/airflow) to track coverage. You can set up both for free on your fork. It will help you making sure you do not break the build with your PR and that you help increase coverage.
 2. If the pull request adds functionality, the docs should be updated as part
 of the same PR. Doc string are often sufficient.  Make sure to follow the
 sphinx compatible standards.
-3. The pull request should work for Python 2.6, 2.7, and 3.3. If you need help
+3. The pull request should work for Python 2.7 and 3.4. If you need help
 writing code that works in both Python 2 and 3, see the documentation at the
 [Python-Future project](http://python-future.org) (the future package is an
 Airflow requirement and should be used where possible).
-4. Code will be reviewed by re running the unittests and `flake8`. Syntax should
-be as rigorous as the core Python project.
+4. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We track this using [landscape.io](https://landscape.io/github/airbnb/airflow/), which you can setup on your fork as well to check before you submit your PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`
 5. Please rebase and resolve all conflicts before submitting.
 
-## Running unit tests
+### Testing locally
+
+#### TL;DR
+Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
+
+    ./run_unit_tests.sh
+
+#### Running unit tests
+
+We *highly* recommend setting up [Travis CI](https://travis-ci.org/) on your repo to automate this. It is free for open source projects. If for some reason you cannot, you can use the steps below to run tests.
 
 Here are loose guidelines on how to get your environment to run the unit tests.
 We do understand that no one out there can run the full test suite since
@@ -137,7 +146,7 @@ nosetests docs.
 
 See also the the list of test classes and methods in `tests/code.py`.
 
-## Changing Metadata Database
+### Changing the Metadata Database
 
 When developing features the need may arise to persist information to the the
 metadata database. Airflow has [Alembic](https://bitbucket.org/zzzeek/alembic)

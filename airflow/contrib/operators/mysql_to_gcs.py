@@ -1,11 +1,14 @@
 import json
 import logging
+import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks import MySqlHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from collections import OrderedDict
+from datetime import date, datetime
+from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 
@@ -23,7 +26,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  bucket,
                  filename,
                  schema_filename=None,
-                 approx_max_file_size_bytes=1900000000L,
+                 approx_max_file_size_bytes=1900000000,
                  mysql_conn_id='mysql_default',
                  google_cloud_storage_conn_id='google_cloud_storage_default',
                  delegate_to=None,
@@ -110,7 +113,10 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         tmp_file_handles = { self.filename.format(file_no): tmp_file_handle }
 
         for row in cursor:
+            # Convert datetime objects to utc seconds, and decimals to floats
+            row = map(self.convert_types, row)
             row_dict = dict(zip(schema, row))
+
             # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
             json.dump(row_dict, tmp_file_handle)
 
@@ -139,7 +145,10 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             # See PEP 249 for details about the description tuple.
             field_name = field[0]
             field_type = self.type_map(field[1])
-            field_mode = 'NULLABLE' if field[6] else 'REQUIRED'
+            # Always allow TIMESTAMP to be nullable. MySQLdb returns None types
+            # for required fields because some MySQL timestamps can't be
+            # represented by Python's datetime (e.g. 0000-00-00 00:00:00).
+            field_mode = 'NULLABLE' if field[6] or field_type == 'TIMESTAMP' else 'REQUIRED'
             schema.append({
                 'name': field_name,
                 'type': field_type,
@@ -162,15 +171,32 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
 
     @classmethod
+    def convert_types(cls, value):
+        """
+        Takes a value from MySQLdb, and converts it to a value that's safe for
+        JSON/Google cloud storage/BigQuery. Dates are converted to UTC seconds.
+        Decimals are converted to floats.
+        """
+        if type(value) in (datetime, date):
+            return time.mktime(value.timetuple())
+        elif isinstance(value, Decimal):
+            return float(value)
+        else:
+            return value
+
+    @classmethod
     def type_map(cls, mysql_type):
         """
         Helper function that maps from MySQL fields to BigQuery fields. Used
         when a schema_filename is set.
         """
         d = {
+            FIELD_TYPE.INT24: 'INTEGER',
+            FIELD_TYPE.TINY: 'INTEGER',
             FIELD_TYPE.BIT: 'INTEGER',
             FIELD_TYPE.DATETIME: 'TIMESTAMP',
             FIELD_TYPE.DECIMAL: 'FLOAT',
+            FIELD_TYPE.NEWDECIMAL: 'FLOAT',
             FIELD_TYPE.DOUBLE: 'FLOAT',
             FIELD_TYPE.FLOAT: 'FLOAT',
             FIELD_TYPE.INT24: 'INTEGER',

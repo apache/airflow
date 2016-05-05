@@ -1,0 +1,13 @@
+max-line-length: 90
+strictness: medium
+pep8:
+  full: true
+uses:
+  - flask
+pylint:
+  disable:
+    - cyclic-import
+    - invalid-name
+    - super-on-old-class
+  options:
+    docstring-min-length: 10

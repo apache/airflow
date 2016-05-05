@@ -1,0 +1,33 @@
+The upstart files in this directory are tested on Ubuntu 14.04 LTS based systems running in VPC on AWS.
+
+Copy *.conf files to /etc/init.
+
+You can then start airflow services by using initctl start <service>. Where <service> is airflow-worker,
+airflow-webserver, airflow-scheduler, etc.
+
+Upstart automatically starts all airflow services for which you have a corresponding *.conf file in /etc/init
+upon system boot. If service process dies, upstart will automatically re-spawn it (until it hits re-spawn limit
+set in a *.conf file)
+
+You may have to adjust `start on` & `stop on` stanzas to make it work on other upstart systems. Some of the possible
+options are listed bellow
+
+# This should work on most Linux distributions that support upstart
+start on started network-services
+
+# This is for Ubuntu based systems which lack generic network-services job
+# Wait for a non-loopback interface before starting airflow services
+start on (local-filesystems and net-device-up IFACE!=lo)
+
+# This should work on Ubuntu 11.10 based systems
+# Start after all network interfaces are up
+start on static-network-up
+
+# If nothing else works, use this
+start on runlevel [2345]
+
+It is assumed that airflow will run under `airflow:airflow`. Change `setuid` and `setgid` in *.conf files
+if you use other user/group
+
+You can use `initctl` to manually start, stop, view status of the airflow process.  For example
+`initctl status airflow-webserver`

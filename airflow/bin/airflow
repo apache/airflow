@@ -2,7 +2,7 @@
 import logging
 import os
 from airflow import configuration
-from airflow.bin.cli import get_parser
+from airflow.bin.cli import CLIFactory
 
 if __name__ == '__main__':
 
@@ -10,6 +10,6 @@ if __name__ == '__main__':
         os.environ['KRB5CCNAME'] = configuration.get('kerberos', 'ccache')
         os.environ['KRB5_KTNAME'] = configuration.get('kerberos', 'keytab')
 
-    parser = get_parser()
+    parser = CLIFactory.get_parser()
     args = parser.parse_args()
     args.func(args)

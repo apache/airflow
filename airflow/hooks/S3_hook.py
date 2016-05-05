@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from future import standard_library
 standard_library.install_aliases()
 import logging
@@ -15,7 +29,7 @@ from boto.sts import STSConnection
 boto.set_stream_logger('boto')
 logging.getLogger("boto").setLevel(logging.INFO)
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
 
@@ -63,10 +77,13 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
         try:
             access_key = Config.get(cred_section, key_id_option)
             secret_key = Config.get(cred_section, secret_key_option)
+            calling_format = None
+            if Config.has_option(cred_section, 'calling_format'):
+                calling_format = Config.get(cred_section, 'calling_format')
         except:
             logging.warning("Option Error in parsing s3 config file")
             raise
-        return (access_key, secret_key)
+        return (access_key, secret_key, calling_format)
 
 
 class S3Hook(BaseHook):
@@ -80,12 +97,15 @@ class S3Hook(BaseHook):
         self.s3_conn = self.get_connection(s3_conn_id)
         self.extra_params = self.s3_conn.extra_dejson
         self.profile = self.extra_params.get('profile')
+        self.calling_format = None
         self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
         if self._creds_in_conn:
             self._a_key = self.extra_params['aws_access_key_id']
             self._s_key = self.extra_params['aws_secret_access_key']
+            if 'calling_format' in self.extra_params:
+                self.calling_format = self.extra_params['calling_format']
         elif self._creds_in_config_file:
             self.s3_config_file = self.extra_params['s3_config_file']
             # The format can be None and will default to boto in the parser
@@ -126,10 +146,7 @@ class S3Hook(BaseHook):
             raise AirflowException('Please provide a bucket_name')
         else:
             bucket_name = parsed_url.netloc
-            if parsed_url.path[0] == '/':
-                key = parsed_url.path[1:]
-            else:
-                key = parsed_url.path
+            key = parsed_url.path.strip('/')
             return (bucket_name, key)
 
     def get_conn(self):
@@ -140,12 +157,17 @@ class S3Hook(BaseHook):
             return S3Connection(profile_name=self.profile)
         a_key = s_key = None
         if self._creds_in_config_file:
-            a_key, s_key = _parse_s3_config(self.s3_config_file,
-                                            self.s3_config_format,
-                                            self.profile)
+            a_key, s_key, calling_format = _parse_s3_config(self.s3_config_file,
+                                                self.s3_config_format,
+                                                self.profile)
         elif self._creds_in_conn:
             a_key = self._a_key
             s_key = self._s_key
+            calling_format = self.calling_format
+
+        if calling_format is None:
+            calling_format = 'boto.s3.connection.SubdomainCallingFormat'
+
         if self._sts_conn_required:
             sts_connection = STSConnection(aws_access_key_id=a_key,
                                            aws_secret_access_key=s_key,
@@ -158,11 +180,13 @@ class S3Hook(BaseHook):
             connection = S3Connection(
                 aws_access_key_id=creds.access_key,
                 aws_secret_access_key=creds.secret_key,
+                calling_format=calling_format,
                 security_token=creds.session_token
                 )
         else:
             connection = S3Connection(aws_access_key_id=a_key,
                                       aws_secret_access_key=s_key,
+                                      calling_format=calling_format,
                                       profile_name=self.profile)
         return connection
 
@@ -283,7 +307,7 @@ class S3Hook(BaseHook):
             key,
             bucket_name=None,
             replace=False,
-            multipart_bytes=None):
+            multipart_bytes=5 * (1024 ** 3)):
         """
         Loads a local file to S3
 
@@ -298,8 +322,10 @@ class S3Hook(BaseHook):
             error will be raised.
         :type replace: bool
         :param multipart_bytes: If provided, the file is uploaded in parts of
-            this size (minimum 5242880). If None, the whole file is uploaded at
-            once.
+            this size (minimum 5242880). The default value is 5GB, since S3
+            cannot accept non-multipart uploads for files larger than 5GB. If
+            the file is smaller than the specified limit, the option will be
+            ignored.
         :type multipart_bytes: int
         """
         if not bucket_name:
@@ -309,9 +335,11 @@ class S3Hook(BaseHook):
         if not replace and key_obj:
             raise ValueError("The key {key} already exists.".format(
                 **locals()))
-        if multipart_bytes:
+
+        key_size = os.path.getsize(filename)
+        if multipart_bytes and key_size >= multipart_bytes:
+            # multipart upload
             from filechunkio import FileChunkIO
-            key_size = os.path.getsize(filename)
             mp = bucket.initiate_multipart_upload(key_name=key)
             total_chunks = int(math.ceil(key_size / multipart_bytes))
             sent_bytes = 0
@@ -329,6 +357,7 @@ class S3Hook(BaseHook):
                 raise
             mp.complete_upload()
         else:
+            # regular upload
             if not key_obj:
                 key_obj = bucket.new_key(key_name=key)
             key_size = key_obj.set_contents_from_filename(filename,
@@ -338,7 +367,8 @@ class S3Hook(BaseHook):
 
     def load_string(self, string_data,
                     key, bucket_name=None,
-                    replace=False):
+                    replace=False,
+                    encrypt=False):
         """
         Loads a local file to S3
 
@@ -366,6 +396,7 @@ class S3Hook(BaseHook):
         if not key_obj:
             key_obj = bucket.new_key(key_name=key)
         key_size = key_obj.set_contents_from_string(string_data,
-                                                    replace=replace)
+                                                    replace=replace,
+                                                    encrypt_key=encrypt)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))

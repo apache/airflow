@@ -145,7 +145,7 @@ body {
     $( document ).ready(function() {
       Highcharts.setOptions({
         colors: [
-            "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400", 
+            "#FF5A5F", "#007A87", "#7B0051", "#00D1C1", "#8CE071", "#FFB400",
             "#FFAA91", "#B4A76C", "#9CA299", "#565A5C"
         ],
       });
@@ -166,9 +166,9 @@ body {
                 "columns": payload.data.columns,
                 "scrollX": true,
                 "iDisplayLength": 100,
-              });   
+              });
           {% endif %}
-        }  
+        }
         else {
           error(payload.error);
         }

@@ -62,7 +62,7 @@
       <li>
       <a href="{{ url_for("airflow.dag_details", dag_id=dag.dag_id) }}">
           <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-          Details 
+          Details
         </a>
       </li>
       <li>
@@ -165,6 +165,10 @@
             <button id="btn_success_downstream"
               type="button" class="btn" data-toggle="button">
               Downstream
+            </button>
+            <button id="btn_success_recursive"
+              type="button" class="btn" data-toggle="button">
+              Recursive
             </button>
           </span>
         </div>
@@ -293,6 +297,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
         "&future=" + $('#btn_success_future').hasClass('active') +
         "&past=" + $('#btn_success_past').hasClass('active') +
+        "&recursive=" + $('#btn_success_recursive').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
 

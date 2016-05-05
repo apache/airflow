@@ -9,7 +9,6 @@ User=airflow
 Group=airflow
 Type=simple
 ExecStart=/bin/airflow worker
-KillMode=process
 Restart=on-failure
 RestartSec=42s
 

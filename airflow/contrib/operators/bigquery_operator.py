@@ -2,7 +2,7 @@ import logging
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 class BigQueryOperator(BaseOperator):
     """
@@ -20,6 +20,7 @@ class BigQueryOperator(BaseOperator):
                  allow_large_results=False,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 udf_config=False,
                  *args,
                  **kwargs):
         """
@@ -37,6 +38,9 @@ class BigQueryOperator(BaseOperator):
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide delegation enabled.
         :type delegate_to: string
+        :param udf_config: The User Defined Function configuration for the query.
+            See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :type udf_config: list
         """
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
@@ -45,10 +49,11 @@ class BigQueryOperator(BaseOperator):
         self.allow_large_results = allow_large_results
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.udf_config = udf_config
 
     def execute(self, context):
         logging.info('Executing: %s', str(self.bql))
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition, self.allow_large_results)
+        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition, self.allow_large_results, self.udf_config)

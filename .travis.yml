@@ -70,6 +70,7 @@ install:
 before_script:
   - mysql -e 'drop database if exists airflow; create database airflow' -u root
   - psql -c 'create database airflow;' -U postgres
+  - export PATH=${PATH}:/tmp/hive/bin
 script:
   - pip --version
   - ls -l $HOME/.wheelhouse

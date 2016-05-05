@@ -1,6 +1,6 @@
 # Imports operators dynamically while keeping the package API clean,
 # abstracting the underlying modules
-from airflow.utils import import_module_attrs as _import_module_attrs
+from airflow.utils.helpers import import_module_attrs as _import_module_attrs
 
 # These need to be integrated first as other operators depend on them
 _import_module_attrs(globals(), {
@@ -19,6 +19,7 @@ _operators = {
         'ShortCircuitOperator',
     ],
     'hive_operator': ['HiveOperator'],
+    'pig_operator': ['PigOperator'],
     'presto_check_operator': [
         'PrestoCheckOperator',
         'PrestoValueCheckOperator',
@@ -59,6 +60,7 @@ _operators = {
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
     'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
     'generic_transfer': ['GenericTransfer'],
+    'oracle_operator': ['OracleOperator']
 }
 
 _import_module_attrs(globals(), _operators)

@@ -7,6 +7,7 @@ coverage
 coveralls
 croniter
 dill
+python-daemon
 docker-py
 filechunkio
 flake8
@@ -16,16 +17,14 @@ flask-cache
 flask-login
 flower
 future
-google-api-python-client
 gunicorn
 hive-thrift-py
-httplib2
 ipython
 jinja2
 markdown
 nose
+nose-parameterized
 nose-exclude
-oauth2client
 pandas
 pygments
 pyhive
@@ -34,7 +33,6 @@ PyOpenSSL
 PySmbClient
 psycopg2
 python-dateutil
-# pyhs2 -> not compatible with Python 3 because of sasl
 redis
 requests
 setproctitle
@@ -58,3 +56,6 @@ bcrypt
 flask-bcrypt
 mock
 hdfs
+thrift_sasl
+impyla
+cloudant

@@ -34,7 +34,7 @@ dag = DAG(
 
 
 def run_this_func(ds, **kwargs):
-    print( "Remotely received value of {} for key=message".format(kwargs['dag_run'].conf['message']))
+    print("Remotely received value of {} for key=message".format(kwargs['dag_run'].conf['message']))
 
 run_this = PythonOperator(
     task_id='run_this',

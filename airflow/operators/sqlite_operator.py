@@ -2,7 +2,7 @@ import logging
 
 from airflow.hooks import SqliteHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class SqliteOperator(BaseOperator):

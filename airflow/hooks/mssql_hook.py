@@ -23,3 +23,6 @@ class MsSqlHook(DbApiHook):
             conn.password,
             conn.schema)
         return conn
+
+    def set_autocommit(self, conn, autocommit):
+        conn.autocommit(autocommit)

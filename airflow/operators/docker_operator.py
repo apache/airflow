@@ -1,7 +1,9 @@
 import json
 import logging
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults, AirflowException, TemporaryDirectory
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.file import TemporaryDirectory
 from docker import Client, tls
 import ast
 

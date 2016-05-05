@@ -1,5 +1,5 @@
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 from airflow.contrib.hooks import QuboleHook
 
 
@@ -94,6 +94,8 @@ class QuboleOperator(BaseOperator):
 
     """
 
+    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files', 'archives', 'program', 'cmdline', 'sql', 'where_clause', 'extract_query', 'boundary_query', 'macros', 'tags', 'name')
+    template_ext = ('.hql', '.sql', '.sh', '.bash', '.pig')
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
 
@@ -106,6 +108,8 @@ class QuboleOperator(BaseOperator):
         super(QuboleOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
+        # Reinitiating the hook, as some template fields might have changed
+        self.hook = QuboleHook(*self.args, **self.kwargs)
         return self.hook.execute(context)
 
     def on_kill(self, ti):
@@ -119,6 +123,21 @@ class QuboleOperator(BaseOperator):
 
     def get_jobs_id(self, ti):
         return self.hook.get_jobs_id(ti)
+
+    def __getattribute__(self, name):
+        if name in QuboleOperator.template_fields:
+            if name in self.kwargs:
+                return self.kwargs[name]
+            else:
+                return ''
+        else:
+            return object.__getattribute__(self, name)
+
+    def __setattr__(self, name, value):
+        if name in QuboleOperator.template_fields:
+            self.kwargs[name] = value
+        else:
+            object.__setattr__(self, name, value)
 
 
 

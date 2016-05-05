@@ -23,6 +23,10 @@ sftp-config.json
 unittests.cfg
 error.log
 unittests.db
-.pydevproject
+rat-results.txt
+/.eggs/
+/.tox/
+venv
 .project
+.pydevproject
 airflow/contrib/tests/

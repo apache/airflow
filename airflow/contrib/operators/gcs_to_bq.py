@@ -4,13 +4,13 @@ import logging
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
     Loads files from Google cloud storage into BigQuery.
     """
-    template_fields = ('bucket','source_objects','schema_object','destination_dataset_table')
+    template_fields = ('bucket','source_objects','schema_object','destination_project_dataset_table')
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
@@ -19,7 +19,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self,
         bucket,
         source_objects,
-        destination_dataset_table,
+        destination_project_dataset_table,
         schema_fields=False,
         schema_object=False,
         source_format='CSV',
@@ -43,8 +43,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type bucket: string
         :param source_objects: List of Google cloud storage URIs to load from.
         :type object: list
-        :param destination_dataset_table: The dotted <dataset>.<table> BigQuery table to load data into.
-        :type destination_dataset_table: string
+        :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table> BigQuery table to load data
+            into. If <project> is not included, project will be the project defined in the connection json.
+        :type destination_project_dataset_table: string
         :param schema_fields: If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         :type schema_fields: list
@@ -85,7 +86,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.schema_object = schema_object
 
         # BQ config
-        self.destination_dataset_table = destination_dataset_table
+        self.destination_project_dataset_table = destination_project_dataset_table
         self.schema_fields = schema_fields
         self.source_format = source_format
         self.create_disposition = create_disposition
@@ -109,7 +110,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
         cursor.run_load(
-            destination_dataset_table=self.destination_dataset_table,
+            destination_project_dataset_table=self.destination_project_dataset_table,
             schema_fields=schema_fields,
             source_uris=source_uris,
             source_format=self.source_format,
@@ -119,8 +120,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             field_delimiter=self.field_delimiter)
 
         if self.max_id_key:
-            cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, self.destination_dataset_table))
+            cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, self.destination_project_dataset_table))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
-            logging.info('Loaded BQ data with max {}.{}={}'.format(self.destination_dataset_table, self.max_id_key, max_id))
+            logging.info('Loaded BQ data with max {}.{}={}'.format(self.destination_project_dataset_table, self.max_id_key, max_id))
             return max_id

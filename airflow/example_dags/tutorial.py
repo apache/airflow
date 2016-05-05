@@ -1,6 +1,6 @@
 """
 ### Tutorial Documentation
-Code that goes along with the Airflow located
+Documentation that goes along with the Airflow tutorial located
 [here](http://pythonhosted.org/airflow/tutorial.html)
 """
 from airflow import DAG

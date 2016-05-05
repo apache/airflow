@@ -1,7 +1,9 @@
 from slackclient import SlackClient
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
+from airflow.exceptions import AirflowException
 import json
+import logging
 
 
 class SlackAPIOperator(BaseOperator):
@@ -48,7 +50,10 @@ class SlackAPIOperator(BaseOperator):
         if not self.api_params:
             self.construct_api_call_params()
         sc = SlackClient(self.token)
-        sc.api_call(self.method, **self.api_params)
+        rc = sc.api_call(self.method, **self.api_params)
+        if not rc['ok']:
+            logging.error("Slack API call failed ({})".format(rc['error']))
+            raise AirflowException("Slack API call failed: ({})".format(rc['error']))
 
 
 class SlackAPIPostOperator(SlackAPIOperator):

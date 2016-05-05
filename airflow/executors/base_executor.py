@@ -1,7 +1,8 @@
 from builtins import range
 
 from airflow import configuration
-from airflow.utils import State, LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.logging import LoggingMixin
 
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
@@ -35,8 +36,13 @@ class BaseExecutor(LoggingMixin):
             self.queued_tasks[key] = (command, priority, queue)
 
     def queue_task_instance(
-            self, task_instance, mark_success=False, pickle_id=None,
-            force=False, ignore_dependencies=False, task_start_date=None,
+            self,
+            task_instance,
+            mark_success=False,
+            pickle_id=None,
+            force=False,
+            ignore_dependencies=False,
+            ignore_depends_on_past=False,
             pool=None):
         pool = pool or task_instance.pool
         command = task_instance.command(
@@ -44,7 +50,7 @@ class BaseExecutor(LoggingMixin):
             mark_success=mark_success,
             force=force,
             ignore_dependencies=ignore_dependencies,
-            task_start_date=task_start_date,
+            ignore_depends_on_past=ignore_depends_on_past,
             pool=pool,
             pickle_id=pickle_id)
         self.queue_command(
@@ -114,5 +120,11 @@ class BaseExecutor(LoggingMixin):
         This method is called when the caller is done submitting job and is
         wants to wait synchronously for the job submitted previously to be
         all done.
+        """
+        raise NotImplementedError()
+
+    def terminate(self):
+        """
+        This method is called when the daemon receives a SIGTERM
         """
         raise NotImplementedError()

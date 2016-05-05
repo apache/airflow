@@ -35,3 +35,6 @@ task = BashOperator(
     bash_command='echo "run_id={{ run_id }} | dag_run={{ dag_run }}"',
     dag=dag)
 task.set_downstream(run_this_last)
+
+if __name__ == "__main__":
+    dag.cli()

@@ -19,17 +19,21 @@ class OracleHook(DbApiHook):
         """
         Returns a oracle connection object
         Optional parameters for using a custom DSN connection (instead of using a server alias from tnsnames.ora)
-        The dsn (data source name) is the TNS entry (from the Oracle names server or tnsnames.ora file) 
+        The dsn (data source name) is the TNS entry (from the Oracle names server or tnsnames.ora file)
         or is a string like the one returned from makedsn().
         :param dsn: the host address for the Oracle server
         :param service_name: the db_unique_name of the database that you are connecting to (CONNECT_DATA part of TNS)
-        You can set these parameters in the extra fields of your connection 
+        You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         """
         conn = self.get_connection(self.oracle_conn_id)
         dsn = conn.extra_dejson.get('dsn', None)
+        sid = conn.extra_dejson.get('sid', None)
         service_name = conn.extra_dejson.get('service_name', None)
-        if dsn and service_name:            
+        if dsn and sid and not service_name:
+            dsn = cx_Oracle.makedsn(dsn, conn.port, sid)
+            conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
+        elif dsn and service_name and not sid:
             dsn = cx_Oracle.makedsn(dsn, conn.port, service_name=service_name)
             conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
         else:
@@ -82,3 +86,36 @@ class OracleHook(DbApiHook):
         cur.close()
         conn.close()
         logging.info('Done loading. Loaded a total of {i} rows'.format(**locals()))
+
+    def bulk_insert_rows(self, table, rows, target_fields=None, commit_every=5000):
+        """A performant bulk insert for cx_Oracle that uses prepared statements via `executemany()`.
+        For best performance, pass in `rows` as an iterator.
+        """
+        conn = self.get_conn()
+        cursor = conn.cursor()
+        values = ', '.join(':%s' % i for i in range(1, len(target_fields) + 1))
+        prepared_stm = 'insert into {tablename} ({columns}) values ({values})'.format(
+                tablename=table,
+                columns=', '.join(target_fields),
+                values=values
+            )
+        row_count = 0
+        # Chunk the rows
+        row_chunk = []
+        for row in rows:
+            row_chunk.append(row)
+            row_count += 1
+            if row_count % commit_every == 0:
+                cursor.prepare(prepared_stm)
+                cursor.executemany(None, row_chunk)
+                conn.commit()
+                logging.info('[%s] inserted %s rows', table, row_count)
+                # Empty chunk
+                row_chunk = []
+        # Commit the leftover chunk
+        cursor.prepare(prepared_stm)
+        cursor.executemany(None, row_chunk)
+        conn.commit()
+        logging.info('[%s] inserted %s rows', table, row_count)
+        cursor.close()
+        conn.close()

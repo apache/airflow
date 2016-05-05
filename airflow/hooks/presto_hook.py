@@ -95,4 +95,4 @@ class PrestoHook(DbApiHook):
         return super(PrestoHook, self).run(self._strip_sql(hql), parameters)
 
     def insert_rows(self):
-        raise NotImplemented()
+        raise NotImplementedError()
