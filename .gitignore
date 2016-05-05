@@ -26,3 +26,4 @@ unittests.db
 rat-results.txt
 /.eggs/
 /.tox/
+venv
