@@ -141,6 +141,11 @@ defaults = {
         'scheduler_heartbeat_sec': 60,
         'authenticate': False,
         'max_threads': 2,
+        'run_duration': 30 * 60,
+        'dag_dir_list_interval': 5 * 60,
+        'print_stats_interval': 30,
+        'min_file_process_interval': 180,
+        'child_process_log_directory': '/tmp/airflow/scheduler/logs'
     },
     'celery': {
         'broker_url': 'sqla+mysql://airflow:airflow@localhost:3306/airflow',

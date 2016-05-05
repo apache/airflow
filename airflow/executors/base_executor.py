@@ -102,7 +102,7 @@ class BaseExecutor(LoggingMixin):
             # TODO(jlowin) without a way to know what Job ran which tasks,
             # there is a danger that another Job started running a task
             # that was also queued to this executor. This is the last chance
-            # to check if that hapened. The most probable way is that a
+            # to check if that happened. The most probable way is that a
             # Scheduler tried to run a task that was originally queued by a
             # Backfill. This fix reduces the probability of a collision but
             # does NOT eliminate it.
