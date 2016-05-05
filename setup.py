@@ -55,8 +55,8 @@ docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
 gcp_api = [
     'httplib2',
-    'google-api-python-client<=1.4.2',
-    'oauth2client>=1.5.2, <2.0.0',
+    'google-api-python-client>=1.5.0, <1.6.0',
+    'oauth2client>=2.0.2, <2.1.0',
     'PyOpenSSL',
 ]
 hdfs = ['snakebite>=2.7.8']

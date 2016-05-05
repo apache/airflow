@@ -13,12 +13,15 @@
 # limitations under the License.
 #
 
-import httplib2
 import logging
 
-from airflow.hooks.base_hook import BaseHook
+import httplib2
+from oauth2client.client import GoogleCredentials
+from oauth2client.service_account import ServiceAccountCredentials
+
 from airflow.exceptions import AirflowException
-from oauth2client.client import SignedJwtAssertionCredentials, GoogleCredentials
+from airflow.hooks.base_hook import BaseHook
+
 
 class GoogleCloudBaseHook(BaseHook):
     """
@@ -29,6 +32,16 @@ class GoogleCloudBaseHook(BaseHook):
     for a Google cloud service.
 
     The class also contains some miscellaneous helper functions.
+
+    All hook derived from this base hook use the 'Google Cloud Platform' connection
+    type. Two ways of authentication are supported:
+
+    Default credentials: Only specify 'Project Id'. Then you need to have executed
+    ``gcloud auth`` on the Airflow worker machine.
+
+    JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
+
+    Legacy P12 key files are not supported.
     """
 
     def __init__(self, conn_id, delegate_to=None):
@@ -36,7 +49,8 @@ class GoogleCloudBaseHook(BaseHook):
         :param conn_id: The connection ID to use when fetching connection info.
         :type conn_id: string
         :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have domain-wide delegation enabled.
+            For this to work, the service account making the request must have
+            domain-wide delegation enabled.
         :type delegate_to: string
         """
         self.conn_id = conn_id
@@ -48,7 +62,6 @@ class GoogleCloudBaseHook(BaseHook):
         Returns an authorized HTTP object to be used to build a Google cloud
         service hook connection.
         """
-        service_account = self._get_field('service_account', False)
         key_path = self._get_field('key_path', False)
         scope = self._get_field('scope', False)
 
@@ -56,19 +69,23 @@ class GoogleCloudBaseHook(BaseHook):
         if self.delegate_to:
             kwargs['sub'] = self.delegate_to
 
-        if not key_path or not service_account:
-            logging.info('Getting connection using `gcloud auth` user, since no service_account/key_path are defined for hook.')
+        if not key_path:
+            logging.info('Getting connection using `gcloud auth` user, since no key file '
+                         'is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
-        elif self.scope:
-            with open(key_path, 'rb') as key_file:
-                key = key_file.read()
-                credentials = SignedJwtAssertionCredentials(
-                    service_account,
-                    key,
-                    scope=self.scope,
-                    **kwargs)
         else:
-            raise AirflowException('Scope undefined, or either key_path/service_account config was missing.')
+            if not scope:
+                raise AirflowException('Scope should be defined when using a key file.')
+            scopes = [s.strip() for s in scope.split(',')]
+            if key_path.endswith('.json'):
+                logging.info('Getting connection using a JSON key file.')
+                credentials = ServiceAccountCredentials\
+                    .from_json_keyfile_name(key_path, scopes)
+            elif key_path.endswith('.p12'):
+                raise AirflowException('Legacy P12 key file are not supported, '
+                                       'use a JSON key file.')
+            else:
+                raise AirflowException('Unrecognised extension for key file.')
 
         http = httplib2.Http()
         return credentials.authorize(http)
@@ -85,3 +102,7 @@ class GoogleCloudBaseHook(BaseHook):
             return self.extras[long_f]
         else:
             return default
+
+    @property
+    def project_id(self):
+        return self._get_field('project')

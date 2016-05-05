@@ -15,7 +15,7 @@
 
 import logging
 
-from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 
@@ -24,19 +24,8 @@ logging.getLogger("google_cloud_storage").setLevel(logging.INFO)
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
     """
-    Interact with Google Cloud Storage. Connections must be defined with an
-    extras JSON field containing:
-
-    ::
-        {
-            "project": "<google project ID>",
-            "service_account": "<google service account email>",
-            "key_path": "<p12 key path>"
-        }
-
-    If you have used ``gcloud auth`` to authenticate on the machine that's
-    running Airflow, you can exclude the service_account and key_path
-    parameters.
+    Interact with Google Cloud Storage. This hook uses the Google Cloud Platform
+    connection.
     """
 
     def __init__(self,
