@@ -63,6 +63,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
 from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
 from airflow.utils.logging import LoggingMixin
+from airflow.utils.models import BaseDag, BaseDagBag
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
@@ -121,7 +122,7 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
             dr.start_date = datetime.now()
 
 
-class DagBag(LoggingMixin):
+class DagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -132,7 +133,7 @@ class DagBag(LoggingMixin):
     independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :type dag_folder: str
+    :type dag_folder: unicode
     :param executor: the executor to use when executing task instances
         in this DagBag
     :param include_examples: whether to include the examples that ship
@@ -147,25 +148,23 @@ class DagBag(LoggingMixin):
             self,
             dag_folder=None,
             executor=DEFAULT_EXECUTOR,
-            include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES'),
-            sync_to_db=False):
+            include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES')):
 
         dag_folder = dag_folder or DAGS_FOLDER
+        self.logger.error("Using dag_folder {}".format(dag_folder))
         self.logger.info("Filling up the DagBag from {}".format(dag_folder))
         self.dag_folder = dag_folder
         self.dags = {}
-        self.sync_to_db = sync_to_db
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+
         if include_examples:
             example_dag_folder = os.path.join(
                 os.path.dirname(__file__),
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(dag_folder)
-        if sync_to_db:
-            self.deactivate_inactive_dags()
 
     def size(self):
         """
@@ -297,7 +296,7 @@ class DagBag(LoggingMixin):
         return found_dags
 
     @provide_session
-    def kill_zombies(self, session):
+    def kill_zombies(self, session=None):
         """
         Fails tasks that haven't had a heartbeat in too long
         """
@@ -343,20 +342,6 @@ class DagBag(LoggingMixin):
 
         for task in dag.tasks:
             settings.policy(task)
-
-        if self.sync_to_db:
-            session = settings.Session()
-            orm_dag = session.query(
-                DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-            if not orm_dag:
-                orm_dag = DagModel(dag_id=dag.dag_id)
-            orm_dag.fileloc = root_dag.full_filepath
-            orm_dag.is_subdag = dag.is_subdag
-            orm_dag.owners = root_dag.owner
-            orm_dag.is_active = True
-            session.merge(orm_dag)
-            session.commit()
-            session.close()
 
         for subdag in dag.subdags:
             subdag.full_filepath = dag.full_filepath
@@ -695,8 +680,77 @@ class TaskInstance(Base):
         the orchestrator.
         """
         dag = self.task.dag
-        iso = self.execution_date.isoformat()
-        cmd = "airflow run {self.dag_id} {self.task_id} {iso} "
+
+        # Keeping existing logic, but not entirely sure why this is here.
+        if not pickle_id and dag:
+            if dag.full_filepath != dag.filepath:
+                path = "DAGS_FOLDER/{}".format(dag.filepath)
+            elif dag.full_filepath:
+                path = dag.full_filepath
+
+        return TaskInstance.generate_command(
+            self.dag_id,
+            self.task_id,
+            self.execution_date,
+            mark_success=mark_success,
+            ignore_dependencies=ignore_dependencies,
+            ignore_depends_on_past=ignore_depends_on_past,
+            force=force,
+            local=local,
+            pickle_id=pickle_id,
+            file_path=path,
+            raw=raw,
+            job_id=job_id,
+            pool=pool)
+
+    @staticmethod
+    def generate_command(dag_id,
+                         task_id,
+                         execution_date,
+                         mark_success=False,
+                         ignore_dependencies=False,
+                         ignore_depends_on_past=False,
+                         force=False,
+                         local=False,
+                         pickle_id=None,
+                         file_path=None,
+                         raw=False,
+                         job_id=None,
+                         pool=None
+                         ):
+        """
+        Generates the shell command required to execute this task instance.
+
+        :param dag_id: DAG ID
+        :type dag_id: unicode
+        :param task_id: Task ID
+        :type task_id: unicode
+        :param execution_date: Execution date for the task
+        :type execution_date: datetime
+        :param mark_success: Whether to mark the task as successful
+        :type mark_success: bool
+        :param ignore_dependencies: Whether to ignore the dependencies and run
+        anyway
+        :type ignore_dependencies: bool
+        :param ignore_depends_on_past: Whether to ignore the depends on past
+        setting and run anyway
+        :type ignore_depends_on_past: bool
+        :param force: Whether to force running - see TaskInstance.run()
+        :type force: bool
+        :param local: Whether to run the task locally
+        :type local: bool
+        :param pickle_id: If the DAG was serialized to the DB, the ID
+        associated with the pickled DAG
+        :type pickle_id: unicode
+        :param file_path: path to the file containing the DAG definition
+        :param raw: raw mode (needs more details)
+        :param job_id: job ID (needs more details)
+        :param pool: the Airflow pool that the task should run in
+        :type pool: unicode
+        :return: shell command that can be used to run the task instance
+        """
+        iso = execution_date.isoformat()
+        cmd = "airflow run {dag_id} {task_id} {iso} "
         cmd += "--mark_success " if mark_success else ""
         cmd += "--pickle {pickle_id} " if pickle_id else ""
         cmd += "--job_id {job_id} " if job_id else ""
@@ -706,11 +760,7 @@ class TaskInstance(Base):
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
-        if not pickle_id and dag:
-            if dag.full_filepath != dag.filepath:
-                cmd += "-sd DAGS_FOLDER/{dag.filepath} "
-            elif dag.full_filepath:
-                cmd += "-sd {dag.full_filepath}"
+        cmd += "-sd {file_path}"
         return cmd.format(**locals())
 
     @property
@@ -1108,9 +1158,7 @@ class TaskInstance(Base):
             .first()
         )
         if not pool:
-            raise ValueError(
-                "Task specified a pool ({}) but the pool "
-                "doesn't exist!".format(self.task.pool))
+            return False
         open_slots = pool.open_slots(session=session)
 
         return open_slots <= 0
@@ -2325,7 +2373,7 @@ class DagModel(Base):
 
 
 @functools.total_ordering
-class DAG(LoggingMixin):
+class DAG(BaseDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start end an end date
@@ -2413,8 +2461,14 @@ class DAG(LoggingMixin):
             del self.default_args['params']
 
         validate_key(dag_id)
+
+        # Properties from BaseDag
+        self._dag_id = dag_id
+        self._full_filepath = full_filepath if full_filepath else ''
+        self._concurrency = concurrency
+        self._pickle_id = None
+
         self.task_dict = dict()
-        self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.schedule_interval = schedule_interval
@@ -2424,14 +2478,12 @@ class DAG(LoggingMixin):
             self._schedule_interval = None
         else:
             self._schedule_interval = schedule_interval
-        self.full_filepath = full_filepath if full_filepath else ''
         if isinstance(template_searchpath, six.string_types):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = datetime.now()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
-        self.concurrency = concurrency
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
@@ -2453,7 +2505,9 @@ class DAG(LoggingMixin):
     def __eq__(self, other):
         return (
             type(self) == type(other) and
-            all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            all(getattr(self, c, None) == getattr(other, c, None)
                 for c in self._comps))
 
     def __neq__(self, other):
@@ -2511,6 +2565,38 @@ class DAG(LoggingMixin):
             return cron.get_prev(datetime)
         elif isinstance(self._schedule_interval, timedelta):
             return dttm - self._schedule_interval
+
+    @property
+    def dag_id(self):
+        return self._dag_id
+
+    @dag_id.setter
+    def dag_id(self, value):
+        self._dag_id = value
+
+    @property
+    def full_filepath(self):
+        return self._full_filepath
+
+    @full_filepath.setter
+    def full_filepath(self, value):
+        self._full_filepath = value
+
+    @property
+    def concurrency(self):
+        return self._concurrency
+
+    @concurrency.setter
+    def concurrency(self, value):
+        self._concurrency = value
+
+    @property
+    def pickle_id(self):
+        return self._pickle_id
+
+    @pickle_id.setter
+    def pickle_id(self, value):
+        self._pickle_id = value
 
     @property
     def tasks(self):
@@ -3031,6 +3117,80 @@ class DAG(LoggingMixin):
         args = parser.parse_args()
         args.func(args, self)
 
+    @staticmethod
+    @provide_session
+    def sync_to_db(dag, owner, sync_time, session=None):
+        """
+        Save attributes about this DAG to the DB. Note that this method
+        can be called for both DAGs and SubDAGs. A SubDag is actually a
+        SubDagOperator.
+
+        :param dag: the DAG object to save to the DB
+        :type dag: DAG
+        :own
+        :param sync_time: The time that the DAG should be marked as sync'ed
+        :type sync_time: datetime
+        :return: None
+        """
+        orm_dag = session.query(
+            DagModel).filter(DagModel.dag_id == dag.dag_id).first()
+        if not orm_dag:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            logging.info("Creating ORM DAG for %s",
+                         dag.dag_id)
+        orm_dag.fileloc = dag.full_filepath
+        orm_dag.is_subdag = dag.is_subdag
+        orm_dag.owners = owner
+        orm_dag.is_active = True
+        orm_dag.last_scheduler_run = sync_time
+        session.merge(orm_dag)
+        session.commit()
+
+        for subdag in dag.subdags:
+            DAG.sync_to_db(subdag, owner, sync_time, session=session)
+
+    @staticmethod
+    @provide_session
+    def deactivate_unknown_dags(active_dag_ids, session=None):
+        """
+        Given a list of known DAGs, deactivate any other DAGs that are
+        marked as active in the ORM
+
+        :param active_dag_ids: list of DAG IDs that are active
+        :type active_dag_ids: list[unicode]
+        :return: None
+        """
+
+        if len(active_dag_ids) == 0:
+            return
+        for dag in session.query(
+                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
+            dag.is_active = False
+            session.merge(dag)
+
+    @staticmethod
+    @provide_session
+    def deactivate_stale_dags(expiration_date, session=None):
+        """
+        Deactivate any DAGs that were last touched by the scheduler before
+        the expiration date. These DAGs were likely deleted.
+
+        :param expiration_date: set inactive DAGs that were touched before this
+        time
+        :type expiration_date: datetime
+        :return: None
+        """
+        for dag in session.query(
+                DagModel).filter(DagModel.last_scheduler_run < expiration_date,
+                                 DagModel.is_active).all():
+            logging.info("Deactivating DAG ID %s since it was last touched "
+                         "by the scheduler at %s",
+                         dag.dag_id,
+                         dag.last_scheduler_run.isoformat())
+            dag.is_active = False
+            session.merge(dag)
+            session.commit()
+
 
 class Chart(Base):
     __tablename__ = "chart"
@@ -3325,6 +3485,26 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
+    @staticmethod
+    def get_running_tasks(session, dag_id, task_ids):
+        """
+        Returns the number of tasks running in the given DAG.
+
+        :param session: ORM session
+        :param dag_id: ID of the DAG to get the task concurrency of
+        :type dag_id: unicode
+        :param task_ids: A list of valid task IDs for the given DAG
+        :type task_ids: list[unicode]
+        :return: The number of running tasks
+        :rtype: int
+        """
+        qry = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.task_id.in_(task_ids),
+            TaskInstance.state == State.RUNNING,
+        )
+        return qry.scalar()
 
 
 class Pool(Base):

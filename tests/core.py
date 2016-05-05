@@ -84,6 +84,12 @@ reset()
 
 
 class CoreTest(unittest.TestCase):
+
+    # These defaults make the test faster to run
+    default_scheduler_args = {"file_process_interval": 0,
+                              "processor_poll_interval": 0.5,
+                              "num_runs": 1}
+
     def setUp(self):
         configuration.test_mode()
         self.dagbag = models.DagBag(
@@ -106,7 +112,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
         assert dag_run.run_id is not None
@@ -130,7 +136,7 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=DEFAULT_DATE))
-        scheduler = jobs.SchedulerJob(test_mode=True)
+        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         trigger = models.DagRun(
             dag_id=dag.dag_id,
             run_id=models.DagRun.id_for_date(DEFAULT_DATE),
@@ -139,7 +145,7 @@ class CoreTest(unittest.TestCase):
             external_trigger=True)
         settings.Session().add(trigger)
         settings.Session().commit()
-        dag_run = scheduler.schedule_dag(dag)
+        dag_run = scheduler.create_dag_run(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
         assert dag_run.run_id is not None
@@ -161,8 +167,8 @@ class CoreTest(unittest.TestCase):
             task_id="faketastic",
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
-        dag_run = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
-        dag_run2 = jobs.SchedulerJob(test_mode=True).schedule_dag(dag)
+        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        dag_run2 = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
 
         assert dag_run is not None
         assert dag_run2 is None
@@ -183,16 +189,16 @@ class CoreTest(unittest.TestCase):
 
         # Create and schedule the dag runs
         dag_runs = []
-        scheduler = jobs.SchedulerJob(test_mode=True)
+        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
             date = dag.start_date + i * delta
             task = models.BaseOperator(task_id='faketastic__%s' % i,
                                        owner='Also fake',
                                        start_date=date)
             dag.task_dict[task.task_id] = task
-            dag_runs.append(scheduler.schedule_dag(dag))
+            dag_runs.append(scheduler.create_dag_run(dag))
 
-        additional_dag_run = scheduler.schedule_dag(dag)
+        additional_dag_run = scheduler.create_dag_run(dag)
 
         for dag_run in dag_runs:
             assert dag_run is not None
@@ -221,7 +227,7 @@ class CoreTest(unittest.TestCase):
                   schedule_interval=delta)
 
         dag_runs = []
-        scheduler = jobs.SchedulerJob(test_mode=True)
+        scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
             # Create the DagRun
             date = dag.start_date + i * delta
@@ -232,7 +238,7 @@ class CoreTest(unittest.TestCase):
             dag.task_dict[task.task_id] = task
 
             # Schedule the DagRun
-            dag_run = scheduler.schedule_dag(dag)
+            dag_run = scheduler.create_dag_run(dag)
             dag_runs.append(dag_run)
 
             # Mark the DagRun as complete
@@ -241,7 +247,7 @@ class CoreTest(unittest.TestCase):
             session.commit()
 
         # Attempt to schedule an additional dag run (for 2016-01-01)
-        additional_dag_run = scheduler.schedule_dag(dag)
+        additional_dag_run = scheduler.create_dag_run(dag)
 
         for dag_run in dag_runs:
             assert dag_run is not None
@@ -483,7 +489,8 @@ class CoreTest(unittest.TestCase):
         job.run()
 
     def test_scheduler_job(self):
-        job = jobs.SchedulerJob(dag_id='example_bash_operator', test_mode=True)
+        job = jobs.SchedulerJob(dag_id='example_bash_operator',
+                                **self.default_scheduler_args)
         job.run()
 
     def test_raw_job(self):
@@ -647,6 +654,7 @@ class CliTests(unittest.TestCase):
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
+        # Persist DAGs
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags'])

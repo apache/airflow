@@ -17,6 +17,8 @@ import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 import signal
 import sys
+import threading
+import traceback
 
 import airflow
 from airflow import jobs, settings
@@ -31,8 +33,26 @@ from airflow.exceptions import AirflowException
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 
-def sigint_handler(signal, frame):
+def sigint_handler(sig, frame):
     sys.exit(0)
+
+
+def sigquit_handler(sig, frame):
+    """Helps debug deadlocks by printing stacktraces when this gets a SIGQUIT
+    e.g. kill -s QUIT <PID> or CTRL+\
+    """
+    print("Dumping stack traces for all threads in PID {}".format(os.getpid()))
+    id_to_name = dict([(th.ident, th.name) for th in threading.enumerate()])
+    code = []
+    for thread_id, stack in sys._current_frames().items():
+        code.append("\n# Thread: {}({})"
+                    .format(id_to_name.get(thread_id, ""), thread_id))
+        for filename, line_number, name, line in traceback.extract_stack(stack):
+            code.append('File: "{}", line {}, in {}'
+                        .format((filename, line_number, name)))
+            if line:
+                code.append("  {}".format(line.strip()))
+    print("\n".join(code))
 
 
 def setup_logging(filename):
@@ -429,6 +449,7 @@ def scheduler(args):
     job = jobs.SchedulerJob(
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
+        run_duration=args.run_duration,
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
 
@@ -452,6 +473,7 @@ def scheduler(args):
     else:
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
+        signal.signal(signal.SIGQUIT, sigquit_handler)
         job.run()
 
 
@@ -776,6 +798,10 @@ class CLIFactory(object):
             default=False),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
+        'run_duration': Arg(
+            ("-r", "--run-duration"),
+            default=None, type=int,
+            help="Set number of seconds to execute before exiting"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
             default=None, type=int,
@@ -903,8 +929,9 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
+                     'log_file'),
         }, {
             'func': worker,
             'help': "Start a Celery worker node",
