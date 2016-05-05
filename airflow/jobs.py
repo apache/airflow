@@ -444,7 +444,17 @@ class SchedulerJob(BaseJob):
             elif next_run_date:
                 schedule_end = dag.following_schedule(next_run_date)
 
+            # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
+                return
+
+            # Don't schedule a dag beyond its end_date (as specified by the task params)
+            # Get the min task end date, which may come from the dag.default_args
+            min_task_end_date = []
+            task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+            if task_end_dates:
+                min_task_end_date = min(task_end_dates)
+            if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
             if next_run_date and schedule_end and schedule_end <= datetime.now():
