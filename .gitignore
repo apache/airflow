@@ -25,3 +25,4 @@ error.log
 unittests.db
 .pydevproject
 .project
+airflow/contrib/tests/
