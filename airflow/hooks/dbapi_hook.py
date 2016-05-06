@@ -203,6 +203,17 @@ class DbApiHook(BaseHook):
         else:
             return str(cell)
 
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+
+        :param table: The name of the source table
+        :type table: str
+        :param tmp_file: The path of the target file
+        :type tmp_file: str
+        """
+        raise NotImplementedError()
+
     def bulk_load(self, table, tmp_file):
         """
         Loads a tab-delimited file into a database table
