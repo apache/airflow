@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 """
 This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
@@ -6,10 +21,13 @@ implementation for BigQuery.
 import logging
 import time
 
-from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from apiclient.discovery import build
-from pandas.io.gbq import GbqConnector, _parse_data as gbq_parse_data
+from pandas.io.gbq import GbqConnector, \
+    _parse_data as gbq_parse_data, \
+    _check_google_client_version as gbq_check_google_client_version, \
+    _test_google_api_imports as gbq_test_google_api_imports
 from pandas.tools.merge import concat
 
 logging.getLogger("bigquery").setLevel(logging.INFO)
@@ -17,31 +35,15 @@ logging.getLogger("bigquery").setLevel(logging.INFO)
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
-    Interact with BigQuery. Connections must be defined with an extras JSON
-    field containing:
-
-    {
-        "project": "<google project ID>",
-        "service_account": "<google service account email>",
-        "key_path": "<p12 key path>"
-    }
-
-    If you have used ``gcloud auth`` to authenticate on the machine that's
-    running Airflow, you can exclude the service_account and key_path
-    parameters.
+    Interact with BigQuery. This hook uses the Google Cloud Platform
+    connection.
     """
     conn_name_attr = 'bigquery_conn_id'
 
     def __init__(self,
-                 scope='https://www.googleapis.com/auth/bigquery',
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None):
-        """
-        :param scope: The scope of the hook.
-        :type scope: string
-        """
         super(BigQueryHook, self).__init__(
-            scope=scope,
             conn_id=bigquery_conn_id,
             delegate_to=delegate_to)
 
@@ -50,8 +52,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         Returns a BigQuery PEP 249 connection object.
         """
         service = self.get_service()
-        connection_extras = self._extras_dejson()
-        project = connection_extras['project']
+        project = self._get_field('project')
         return BigQueryConnection(service=service, project_id=project)
 
     def get_service(self):
@@ -82,10 +83,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         :type bql: string
         """
         service = self.get_service()
-        connection_extras = self._extras_dejson()
-        project = connection_extras['project']
+        project = self._get_field('project')
         connector = BigQueryPandasConnector(project, service)
-        schema, pages = connector.run_query(bql, verbose=False)
+        schema, pages = connector.run_query(bql)
         dataframe_list = []
 
         while len(pages) > 0:
@@ -106,11 +106,13 @@ class BigQueryPandasConnector(GbqConnector):
     without forcing a three legged OAuth connection. Instead, we can inject
     service account credentials into the binding.
     """
-    def __init__(self, project_id, service, reauth=False):
-        self.test_google_api_imports()
+    def __init__(self, project_id, service, reauth=False, verbose=False):
+        gbq_check_google_client_version()
+        gbq_test_google_api_imports()
         self.project_id = project_id
         self.reauth = reauth
         self.service = service
+        self.verbose = verbose
 
 
 class BigQueryConnection(object):
