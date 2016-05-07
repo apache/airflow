@@ -1873,7 +1873,7 @@ class BaseOperator(object):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(
                 "The DAG assigned to {} can not be changed.".format(self))
-        elif self.task_id not in [t.task_id for t in dag.tasks]:
+        elif self.task_id not in dag.task_dict:
             dag.add_task(self)
             self._dag = dag
 
@@ -2420,7 +2420,7 @@ class DAG(LoggingMixin):
 
         self._comps = {
             'dag_id',
-            'tasks',
+            'task_ids',
             'parent_dag',
             'start_date',
             'schedule_interval',
@@ -2447,7 +2447,11 @@ class DAG(LoggingMixin):
     def __hash__(self):
         hash_components = [type(self)]
         for c in self._comps:
-            val = getattr(self, c, None)
+            # task_ids returns a list and lists can't be hashed
+            if c == 'task_ids':
+                val = tuple(self.task_dict.keys())
+            else:
+                val = getattr(self, c, None)
             try:
                 hash(val)
                 hash_components.append(val)
@@ -2932,7 +2936,7 @@ class DAG(LoggingMixin):
         if not task.start_date:
             task.start_date = self.start_date
 
-        if task.task_id in [t.task_id for t in self.tasks]:
+        if task.task_id in self.task_dict:
             raise AirflowException(
                 "Task id '{0}' has already been added "
                 "to the DAG ".format(task.task_id))
