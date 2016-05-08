@@ -60,6 +60,10 @@ class DockerOperator(BaseOperator):
     :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
+    :param dockercfg_path: Path for the .dockercfg file
+    :type dockercfg_path: str
+    :param username: username to the docker-registry.
+    :type username: str
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -86,6 +90,8 @@ class DockerOperator(BaseOperator):
             volumes=None,
             xcom_push=False,
             xcom_all=False,
+            dockercfg_path=None,
+            username=None,
             *args,
             **kwargs):
 
@@ -109,6 +115,8 @@ class DockerOperator(BaseOperator):
         self.volumes = volumes or []
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
+        self.dockercfg_path = dockercfg_path
+        self.username = username
 
         self.cli = None
         self.container = None
@@ -136,7 +144,7 @@ class DockerOperator(BaseOperator):
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
             logging.info('Pulling docker image ' + image)
-            for l in self.cli.pull(image, stream=True):
+            for l in self.cli.pull(image, stream=True, auth_config=self.get_auth_config()):
                 output = json.loads(l)
                 logging.info("{}".format(output['status']))
 
@@ -158,7 +166,7 @@ class DockerOperator(BaseOperator):
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                logging.info("{}".format(line.decode('UTF-8').encode("ascii", "ignore").strip()))
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -178,3 +186,11 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             logging.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+
+    def get_auth_config(self):
+        auth_config = None
+        if self.username is not None and "/" in self.image:
+            registry = self.image.split("/")[0]
+            auth_config = self.cli.login(registry=registry, username=self.username,
+                                         dockercfg_path=self.dockercfg_path)
+        return auth_config
