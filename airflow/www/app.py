@@ -117,7 +117,7 @@ def create_app(config=None):
         @app.context_processor
         def jinja_globals():
             return {
-                'hostname': socket.gethostname(),
+                'hostname': socket.getfqdn(),
             }
 
         @app.teardown_appcontext

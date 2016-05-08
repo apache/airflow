@@ -690,14 +690,14 @@ class Airflow(BaseView):
     @current_app.errorhandler(404)
     def circles(self):
         return render_template(
-            'airflow/circles.html', hostname=socket.gethostname()), 404
+            'airflow/circles.html', hostname=socket.getfqdn()), 404
 
     @current_app.errorhandler(500)
     def show_traceback(self):
         from airflow.utils import asciiart as ascii_
         return render_template(
             'airflow/traceback.html',
-            hostname=socket.gethostname(),
+            hostname=socket.getfqdn(),
             nukular=ascii_.nukular,
             info=traceback.format_exc()), 500
 
@@ -819,7 +819,7 @@ class Airflow(BaseView):
             host = ti.hostname
             log_loaded = False
 
-            if socket.gethostname() == host:
+            if socket.getfqdn() == host:
                 try:
                     f = open(loc)
                     log += "".join(f.readlines())

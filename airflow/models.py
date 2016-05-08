@@ -1163,7 +1163,7 @@ class TaskInstance(Base):
         self.clear_xcom_data()
         self.job_id = job_id
         iso = datetime.now().isoformat()
-        self.hostname = socket.gethostname()
+        self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
 
         if self.state == State.RUNNING:
