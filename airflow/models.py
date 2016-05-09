@@ -2979,9 +2979,13 @@ class DAG(LoggingMixin):
             task.start_date = self.start_date
 
         if task.task_id in self.task_dict:
-            raise AirflowException(
-                "Task id '{0}' has already been added "
-                "to the DAG ".format(task.task_id))
+            #TODO raise an error in Airflow 2.0
+            warnings.warn(
+                'The requested task could not be added to the DAG because a '
+                'task with task_id {} is already in the DAG. Starting in '
+                'Airflow 2.0, trying to overwrite a task will raise an '
+                'exception.'.format(task.task_id),
+                category=PendingDeprecationWarning)
         else:
             self.tasks.append(task)
             self.task_dict[task.task_id] = task
