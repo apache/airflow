@@ -817,16 +817,25 @@ class TaskInstance(Base):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None):
+    def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key
+
+        :param lock_for_update: if True, indicates that the database should
+        lock the TaskInstance (issuing a FOR UPDATE clause) until the session
+        is committed.
         """
         TI = TaskInstance
-        ti = session.query(TI).filter(
+
+        qry = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
-        ).first()
+            TI.execution_date == self.execution_date)
+
+        if lock_for_update:
+            ti = qry.with_for_update().first()
+        else:
+            ti = qry.first()
         if ti:
             self.state = ti.state
             self.start_date = ti.start_date
@@ -1159,7 +1168,7 @@ class TaskInstance(Base):
         self.pool = pool or task.pool
         self.test_mode = test_mode
         self.force = force
-        self.refresh_from_db()
+        self.refresh_from_db(session=session, lock_for_update=True)
         self.clear_xcom_data()
         self.job_id = job_id
         iso = datetime.now().isoformat()

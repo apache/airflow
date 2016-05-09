@@ -23,12 +23,24 @@ from datetime import datetime
 from airflow.models import DAG
 from airflow.operators import DummyOperator, PythonOperator, SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
+import time
+
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(
     start_date=DEFAULT_DATE,
     owner='airflow')
 
 def fail():
+    raise ValueError('Expected failure.')
+
+def delayed_fail():
+    """
+    Delayed failure to make sure that processes are running before the error
+    is raised.
+    
+    TODO handle more directly (without sleeping)
+    """
+    time.sleep(5)
     raise ValueError('Expected failure.')
 
 # DAG tests backfill with pooled tasks
@@ -123,7 +135,9 @@ dag8 = DAG(
     end_date=DEFAULT_DATE,
     default_args=default_args)
 dag8_task1 = PythonOperator(
-    python_callable=fail,
+    # use delayed_fail because otherwise LocalExecutor will have a chance to
+    # complete the task
+    python_callable=delayed_fail,
     task_id='test_queued_task',
     dag=dag8,
     pool='test_queued_pool')
