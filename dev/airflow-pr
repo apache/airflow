@@ -1,0 +1,613 @@
+#!/usr/bin/env python
+
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+# Utility for creating well-formed pull request merges and pushing them to
+# Apache.
+#
+#   usage: ./airflow-pr    (see config env vars below)
+#
+# This utility assumes you already have a local Airflow git folder and that you
+# have added remotes corresponding to both (i) the github apache Airflow
+# mirror and (ii) the apache git repo.
+
+# This tool is based on the Spark merge_spark_pr script:
+# https://github.com/apache/spark/blob/master/dev/merge_spark_pr.py
+
+from __future__ import print_function
+import json
+import os
+import re
+import subprocess
+import sys
+
+# Python 3 compatibility
+try:
+    import urllib2 as urllib
+except ImportError:
+    import urllib.request as urllib
+if sys.version_info[0] == 3:
+    raw_input = input
+
+try:
+    import jira.client
+    JIRA_IMPORTED = True
+except ImportError:
+    JIRA_IMPORTED = False
+
+try:
+    import click
+except ImportError:
+    print("Could not find the click library. Run 'sudo pip install click' to install.")
+    sys.exit(-1)
+
+# Location of your Airflow git development area
+AIRFLOW_GIT_LOCATION = os.environ.get("AIRFLOW_GIT", os.getcwd())
+# Remote name which points to the Gihub site
+GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
+# Remote name which points to Apache git
+APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
+# ASF JIRA username
+JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
+# ASF JIRA password
+JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
+# OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
+# will be unauthenticated. You should only need to configure this if you find yourself regularly
+# exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
+# https://github.com/settings/tokens. This tool only requires the "public_repo" scope.
+GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
+
+GITHUB_BASE = "https://github.com/apache/incubator-airflow/pull"
+GITHUB_API_BASE = "https://api.github.com/repos/apache/incubator-airflow"
+GITHUB_USER = 'asfgit'
+
+JIRA_BASE = "https://issues.apache.org/jira/browse"
+JIRA_API_BASE = "https://issues.apache.org/jira"
+# Prefix added to temporary branches
+BRANCH_PREFIX = "PR_TOOL"
+
+
+def get_json(url):
+    try:
+        request = urllib.Request(url)
+        if GITHUB_OAUTH_KEY:
+            request.add_header('Authorization', 'token %s' % GITHUB_OAUTH_KEY)
+
+        # decode response for Py3 compatibility
+        response = urllib.urlopen(request).read().decode('utf-8')
+        return json.loads(response)
+    except urllib.HTTPError as e:
+        if (
+                "X-RateLimit-Remaining" in e.headers and
+                e.headers["X-RateLimit-Remaining"] == '0'):
+            print(
+                "Exceeded the GitHub API rate limit; set the environment "
+                "variable GITHUB_OAUTH_KEY in order to make authenticated "
+                "GitHub requests.")
+        else:
+            print("Unable to fetch URL, exiting: %s" % url)
+        sys.exit(-1)
+
+
+def fail(msg):
+    print(msg)
+    clean_up()
+    sys.exit(-1)
+
+
+def run_cmd(cmd):
+    if isinstance(cmd, list):
+        print('<Running command:> {}'.format(' '.join(cmd)))
+        return subprocess.check_output(cmd).decode('utf-8')
+    else:
+        print('<Running command:> {}'.format(cmd))
+        return subprocess.check_output(cmd.split(" ")).decode('utf-8')
+
+def get_yes_no(prompt):
+    while True:
+        result = raw_input("\n%s (y/n): " % prompt)
+        if result.lower() not in ('y', 'n'):
+            print('Invalid response.')
+        else:
+            break
+    return result.lower() == 'y'
+
+
+def continue_maybe(prompt):
+    if not get_yes_no(prompt):
+        fail("Okay, exiting.")
+
+
+def clean_up():
+    if 'original_head' not in globals():
+        return
+
+    print("Restoring head pointer to %s" % original_head)
+    run_cmd("git checkout %s" % original_head)
+
+    branches = run_cmd("git branch").replace(" ", "").split("\n")
+
+    for branch in filter(lambda x: x.startswith(BRANCH_PREFIX), branches):
+        print("Deleting local branch %s" % branch)
+        run_cmd("git branch -D %s" % branch)
+
+
+# merge the requested PR and return the merge hash
+def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
+
+    pr_branch_name = "%s_MERGE_PR_%s" % (BRANCH_PREFIX, pr_num)
+    target_branch_name = "%s_MERGE_PR_%s_%s" % (BRANCH_PREFIX, pr_num, target_ref.upper())
+    run_cmd("git fetch %s pull/%s/head:%s" % (GITHUB_REMOTE_NAME, pr_num, pr_branch_name))
+    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, target_ref, target_branch_name))
+    run_cmd("git checkout %s" % target_branch_name)
+
+    had_conflicts = False
+    squash = get_yes_no(
+        "Do you want to squash the PR commits? If you do not, a merge commit "
+        "will be created in addition to the PR commits. If you do, GitHub "
+        "will mark the PR as 'closed' rather than 'merged'. "
+        "Though it's purely cosmetic, you may prefer to ask the original "
+        "author to squash commits in his or her branch before merging.")
+
+    if squash:
+        merge_cmd = ['git', 'merge', pr_branch_name, '--squash']
+    else:
+        merge_cmd = ['git', 'merge', pr_branch_name, '--no-ff', '--no-commit']
+    try:
+        run_cmd(merge_cmd)
+    except Exception as e:
+        msg = "Error merging: %s\nWould you like to manually fix-up this merge?" % e
+        continue_maybe(msg)
+        msg = "Okay, please fix any conflicts and 'git add' conflicting files... Finished?"
+        continue_maybe(msg)
+        had_conflicts = True
+
+    merge_message_flags = []
+
+    if squash:
+        commit_authors = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
+                                 '--pretty=format:%an <%ae>']).split("\n")
+        distinct_authors = sorted(set(commit_authors),
+                                  key=lambda x: commit_authors.count(x), reverse=True)
+        primary_author = raw_input(
+            "Enter primary author in the format of \"name <email>\" [%s]: " %
+            distinct_authors[0])
+        if primary_author == "":
+            primary_author = distinct_authors[0]
+
+        merge_message_flags.append('--author="{}"'.format(primary_author))
+
+        commits = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
+                          '--pretty=format:%h [%an] %s']).split("\n\n")
+
+
+        merge_message_flags.extend(["-m", title])
+        if body:
+            # We remove @ symbols from the body to avoid triggering e-mails
+            # to people every time someone creates a public fork of Airflow.
+            merge_message_flags += ["-m", body.replace("@", "")]
+
+        authors = "\n".join(["Author: %s" % a for a in distinct_authors])
+
+        merge_message_flags.extend(["-m", authors])
+
+        if had_conflicts:
+            committer_name = run_cmd("git config --get user.name").strip()
+            committer_email = run_cmd("git config --get user.email").strip()
+            message = "This patch had conflicts when merged, resolved by\nCommitter: %s <%s>" % (
+                committer_name, committer_email)
+            merge_message_flags.extend(["-m", message])
+
+        # The string "Closes #%s" string is required for GitHub to correctly close the PR
+        # GitHub will mark the PR as closed, not merged
+        merge_message_flags += ["-m", "Closes #%s from %s." % (pr_num, pr_repo_desc)]
+    else:
+        # This will mark the PR as merged
+        merge_message_flags += ['-m', 'Merge pull request #{} from {}'.format(pr_num, pr_repo_desc)]
+
+
+    run_cmd(['git', 'commit'] + merge_message_flags)
+    if local:
+        raw_input(
+            '\nThe PR has been merged locally in branch {}. You may leave '
+            'this program running while you work on it. When you are finished, '
+            'press <enter> to delete the PR branch and restore your original '
+            'environment.'.format(target_branch_name))
+        clean_up()
+        return
+
+    continue_maybe("Merge complete (local ref %s). Push to %s?" % (
+        target_branch_name, APACHE_REMOTE_NAME))
+
+    try:
+        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, target_branch_name, target_ref))
+    except Exception as e:
+        clean_up()
+        fail("Exception while pushing: %s" % e)
+
+    merge_hash = run_cmd("git rev-parse %s" % target_branch_name)[:8]
+    clean_up()
+    print("Pull request #%s merged!" % pr_num)
+    print("Merge hash: %s" % merge_hash)
+    return merge_hash
+
+
+def cherry_pick(pr_num, merge_hash, default_branch):
+    pick_ref = raw_input("Enter a branch name [%s]: " % default_branch)
+    if pick_ref == "":
+        pick_ref = default_branch
+
+    pick_branch_name = "%s_PICK_PR_%s_%s" % (BRANCH_PREFIX, pr_num, pick_ref.upper())
+
+    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
+    run_cmd("git checkout %s" % pick_branch_name)
+
+    try:
+        run_cmd("git cherry-pick -sx %s" % merge_hash)
+    except Exception as e:
+        msg = "Error cherry-picking: %s\nWould you like to manually fix-up this merge?" % e
+        continue_maybe(msg)
+        msg = "Okay, please fix any conflicts and finish the cherry-pick. Finished?"
+        continue_maybe(msg)
+
+    continue_maybe("Pick complete (local ref %s). Push to %s?" % (
+        pick_branch_name, APACHE_REMOTE_NAME))
+
+    try:
+        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
+    except Exception as e:
+        clean_up()
+        fail("Exception while pushing: %s" % e)
+
+    pick_hash = run_cmd("git rev-parse %s" % pick_branch_name)[:8]
+    clean_up()
+
+    print("Pull request #%s picked into %s!" % (pr_num, pick_ref))
+    print("Pick hash: %s" % pick_hash)
+    return pick_ref
+
+
+def fix_version_from_branch(branch, versions):
+    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
+    if branch == "master":
+        return versions[0]
+    else:
+        branch_ver = branch.replace("branch-", "")
+        return filter(lambda x: x.name.startswith(branch_ver), versions)[-1]
+
+
+def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
+    asf_jira = jira.client.JIRA({'server': JIRA_API_BASE},
+                                basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+
+    jira_id = raw_input("Enter a JIRA id [%s]: " % default_jira_id)
+    if jira_id == "":
+        jira_id = default_jira_id
+
+    try:
+        issue = asf_jira.issue(jira_id)
+    except Exception as e:
+        fail("ASF JIRA could not find %s\n%s" % (jira_id, e))
+
+    cur_status = issue.fields.status.name
+    cur_summary = issue.fields.summary
+    cur_assignee = issue.fields.assignee
+    if cur_assignee is None:
+        cur_assignee = "NOT ASSIGNED!!!"
+    else:
+        cur_assignee = cur_assignee.displayName
+
+    if cur_status == "Resolved" or cur_status == "Closed":
+        fail("JIRA issue %s already has status '%s'" % (jira_id, cur_status))
+    print ("=== JIRA %s ===" % jira_id)
+    print ("summary\t\t%s\nassignee\t%s\nstatus\t\t%s\nurl\t\t%s/%s\n" % (
+        cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
+
+    versions = asf_jira.project_versions("AIRFLOW")
+    versions = sorted(versions, key=lambda x: x.name, reverse=True)
+    versions = filter(lambda x: x.raw['released'] is False, versions)
+    # Consider only x.y.z versions
+    versions = filter(lambda x: re.match('\d+\.\d+\.\d+', x.name), versions)
+
+    default_fix_versions = map(lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+    for v in default_fix_versions:
+        # Handles the case where we have forked a release branch but not yet made the release.
+        # In this case, if the PR is committed to the master branch and the release branch, we
+        # only consider the release branch to be the fix version. E.g. it is not valid to have
+        # both 1.1.0 and 1.0.0 as fix versions.
+        (major, minor, patch) = v.split(".")
+        if patch == "0":
+            previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
+            if previous in default_fix_versions:
+                default_fix_versions = filter(lambda x: x != v, default_fix_versions)
+    default_fix_versions = ",".join(default_fix_versions)
+
+    fix_versions = raw_input("Enter comma-separated fix version(s) [%s]: " % default_fix_versions)
+    if fix_versions == "":
+        fix_versions = default_fix_versions
+    fix_versions = fix_versions.replace(" ", "").split(",")
+
+    def get_version_json(version_str):
+        return filter(lambda v: v.name == version_str, versions)[0].raw
+
+    jira_fix_versions = map(lambda v: get_version_json(v), fix_versions)
+
+    resolve = filter(lambda a: a['name'] == "Resolve Issue", asf_jira.transitions(jira_id))[0]
+    resolution = filter(lambda r: r.raw['name'] == "Fixed", asf_jira.resolutions())[0]
+    asf_jira.transition_issue(
+        jira_id, resolve["id"], fixVersions = jira_fix_versions,
+        comment = comment, resolution = {'id': resolution.raw['id']})
+
+    print("Successfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions))
+
+
+def resolve_jira_issues(title, merge_branches, comment):
+    jira_ids = re.findall("AIRFLOW-[0-9]{4,5}", title)
+
+    if len(jira_ids) == 0:
+        resolve_jira_issue(merge_branches, comment)
+    for jira_id in jira_ids:
+        resolve_jira_issue(merge_branches, comment, jira_id)
+
+
+def standardize_jira_ref(text):
+    """
+    Standardize the [AIRFLOW-XXXXX] [MODULE] prefix
+    Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
+
+    >>> standardize_jira_ref("[AIRFLOW-5821] [SQL] ParquetRelation2 CTAS should check if delete is successful")
+    '[AIRFLOW-5821][SQL] ParquetRelation2 CTAS should check if delete is successful'
+    >>> standardize_jira_ref("[AIRFLOW-4123][Project Infra][WIP]: Show new dependencies added in pull requests")
+    '[AIRFLOW-4123][PROJECT INFRA][WIP] Show new dependencies added in pull requests'
+    >>> standardize_jira_ref("[MLlib] Airflow  5954: Top by key")
+    '[AIRFLOW-5954][MLLIB] Top by key'
+    >>> standardize_jira_ref("[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl")
+    '[AIRFLOW-979] a LRU scheduler for load balancing in TaskSchedulerImpl'
+    >>> standardize_jira_ref("AIRFLOW-1094 Support MiMa for reporting binary compatibility accross versions.")
+    '[AIRFLOW-1094] Support MiMa for reporting binary compatibility accross versions.'
+    >>> standardize_jira_ref("[WIP]  [AIRFLOW-1146] Vagrant support for Spark")
+    '[AIRFLOW-1146][WIP] Vagrant support for Spark'
+    >>> standardize_jira_ref("AIRFLOW-1032. If Yarn app fails before registering, app master stays aroun...")
+    '[AIRFLOW-1032] If Yarn app fails before registering, app master stays aroun...'
+    >>> standardize_jira_ref("[AIRFLOW-6250][AIRFLOW-6146][AIRFLOW-5911][SQL] Types are now reserved words in DDL parser.")
+    '[AIRFLOW-6250][AIRFLOW-6146][AIRFLOW-5911][SQL] Types are now reserved words in DDL parser.'
+    >>> standardize_jira_ref("Additional information for users building from source code")
+    'Additional information for users building from source code'
+    """
+    jira_refs = []
+    components = []
+
+    # If the string is compliant, no need to process any further
+    if (re.search(r'^\[AIRFLOW-[0-9]{3,6}\](\[[A-Z0-9_\s,]+\] )+\S+', text)):
+        return text
+
+    # Extract JIRA ref(s):
+    pattern = re.compile(r'(AIRFLOW[-\s]*[0-9]{3,6})+', re.IGNORECASE)
+    for ref in pattern.findall(text):
+        # Add brackets, replace spaces with a dash, & convert to uppercase
+        jira_refs.append('[' + re.sub(r'\s+', '-', ref.upper()) + ']')
+        text = text.replace(ref, '')
+
+    # Extract Airflow component(s):
+    # Look for alphanumeric chars, spaces, dashes, periods, and/or commas
+    pattern = re.compile(r'(\[[\w\s,-\.]+\])', re.IGNORECASE)
+    for component in pattern.findall(text):
+        components.append(component.upper())
+        text = text.replace(component, '')
+
+    # Cleanup any remaining symbols:
+    pattern = re.compile(r'^\W+(.*)', re.IGNORECASE)
+    if (pattern.search(text) is not None):
+        text = pattern.search(text).groups()[0]
+
+    # Assemble full text (JIRA ref(s), module(s), remaining text)
+    clean_text = ''.join(jira_refs).strip() + ''.join(components).strip() + " " + text.strip()
+
+    # Replace multiple spaces with a single space, e.g. if no jira refs and/or components were included
+    clean_text = re.sub(r'\s+', ' ', clean_text.strip())
+
+    return clean_text
+
+
+def get_current_ref():
+    ref = run_cmd("git rev-parse --abbrev-ref HEAD").strip()
+    if ref == 'HEAD':
+        # The current ref is a detached HEAD, so grab its SHA.
+        return run_cmd("git rev-parse HEAD").strip()
+    else:
+        return ref
+
+
+def main(pr_num, local=False):
+    """
+    Utility for creating well-formed pull request merges and pushing them
+    to Apache.
+
+    This tool assumes you already have a local Airflow git folder and that you
+    have added remotes corresponding to both (i) the github apache Airflow
+    mirror and (ii) the apache git repo.
+
+    To configure the tool, set the following env vars:
+    - AIRFLOW_GIT
+        The location of your Airflow git development area (defaults to the
+        current working directory)
+
+    - GITHUB_REMOTE_NAME
+        GitHub remote name (defaults to "github")
+
+    - APACHE_REMOTE_NAME
+        Apache git remote name (defaults to "apache")
+
+    - JIRA_USERNAME
+        ASF JIRA username. Required to automatically close JIRA issues
+
+    - JIRA_PASSWORD
+        ASF JIRA password. Required to automatically close JIRA issues
+
+    - GITHUB_OAUTH_KEY
+        Only required if you are exceeding the rate limit for a single IP
+        address.
+    """
+    global original_head
+
+    os.chdir(AIRFLOW_GIT_LOCATION)
+    original_head = get_current_ref()
+
+    branches = get_json("%s/branches" % GITHUB_API_BASE)
+    branch_names = filter(lambda x: x.startswith("branch-"), [x['name'] for x in branches])
+    # Assumes branch names can be sorted lexicographically
+    latest_branch = sorted(branch_names, reverse=True)
+    if latest_branch:
+        latest_branch = latest_branch[0]
+    else:
+        latest_branch = ''
+
+    if not pr_num:
+        pr_num = raw_input(
+            "Please enter the number of the pull request you'd "
+            "like to work with (e.g. 42): ")
+    else:
+        print('Working with pull request {}'.format(pr_num))
+
+    pr = get_json("%s/pulls/%s" % (GITHUB_API_BASE, pr_num))
+    pr_events = get_json("%s/issues/%s/events" % (GITHUB_API_BASE, pr_num))
+
+    url = pr["url"]
+
+    # Decide whether to use the modified title or not
+    modified_title = standardize_jira_ref(pr["title"])
+    if modified_title != pr["title"]:
+        print("I've re-written the title as follows to match the standard format:")
+        print("Original: %s" % pr["title"])
+        print("Modified: %s" % modified_title)
+        result = get_yes_no("Would you like to use the modified title?")
+        if result:
+            title = modified_title
+            print("Using modified title:")
+        else:
+            title = pr["title"]
+            print("Using original title:")
+        print(title)
+    else:
+        title = pr["title"]
+
+    body = pr["body"]
+    target_ref = pr["base"]["ref"]
+    user_login = pr["user"]["login"]
+    base_ref = pr["head"]["ref"]
+    pr_repo_desc = "%s/%s" % (user_login, base_ref)
+
+    # Merged pull requests are either closed or merged by asfgit
+    merge_commits = [
+        e for e in pr_events
+        if e["actor"]["login"] == GITHUB_USER and
+        (e["event"] == "closed" or e["event"] == "merged")]
+
+    if merge_commits:
+        merge_hash = merge_commits[0]["commit_id"]
+        message = get_json("%s/commits/%s" % (GITHUB_API_BASE, merge_hash))["commit"]["message"]
+
+        continue_maybe(
+            "Pull request %s has already been merged. Do you want to backport?" % pr_num)
+        commit_is_downloaded = run_cmd(['git', 'rev-parse', '--quiet', '--verify',
+                                    "%s^{commit}" % merge_hash]).strip() != ""
+        if not commit_is_downloaded:
+            fail("Couldn't find any merge commit for #%s, you may need to update HEAD." % pr_num)
+
+        print("Found commit %s:\n%s" % (merge_hash, message))
+        cherry_pick(pr_num, merge_hash, latest_branch)
+        sys.exit(0)
+
+    if not bool(pr["mergeable"]):
+        msg = "Pull request %s is not mergeable in its current form.\n" % pr_num + \
+            "Continue? (experts only!)"
+        continue_maybe(msg)
+
+    print("\n=== Pull Request #%s ===" % pr_num)
+    print("title\t%s\nsource\t%s\ntarget\t%s\nurl\t%s" % (
+        title, pr_repo_desc, target_ref, url))
+    continue_maybe("Proceed with pull request #{}?".format(pr_num))
+
+    merged_refs = [target_ref]
+
+    merge_hash = merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local)
+
+    if local:
+        return
+
+    pick_prompt = "Would you like to pick %s into another branch?" % merge_hash
+    while raw_input("\n%s (y/n): " % pick_prompt).lower() == "y":
+        merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
+
+    if JIRA_IMPORTED:
+        if JIRA_USERNAME and JIRA_PASSWORD:
+            continue_maybe("Would you like to update an associated JIRA?")
+            jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (pr_num, GITHUB_BASE, pr_num)
+            resolve_jira_issues(title, merged_refs, jira_comment)
+        else:
+            print("JIRA_USERNAME and JIRA_PASSWORD not set")
+            print("Exiting without trying to close the associated JIRA.")
+    else:
+        print("Could not find jira-python library. Run 'sudo pip install jira' to install.")
+        print("Exiting without trying to close the associated JIRA.")
+
+@click.group()
+def cli():
+    """
+    This tool should be used by Airflow committers to test PRs, merge them
+    into the master branch, and close related JIRA issues.
+
+    NOTE: this tool will restore your current branch when it finishes, but
+    you will lose any uncommitted changes.
+
+    *** Please commit any changes you wish to keep before
+    proceeding. ***
+    """
+    pass
+
+@cli.command(short_help='Merge a GitHub PR into Airflow master')
+@click.argument('pr_num', default=0)
+def merge(pr_num):
+    """
+    Merges a PR locally and then pushes it to Airflow master. ALso (optionally)
+    closes any related JIRA issues.
+    """
+    main(pr_num, local=False)
+
+@cli.command(short_help='Clone a GitHub PR locally for testing (no push)')
+@click.argument('pr_num', default=0)
+def work_local(pr_num):
+    """
+    Clones a PR locally for testing, imitating a full merge workflow, but does
+    not push the changes to Airflow master. Instead, the program will pause
+    once the local merge is complete, allowing the user to explore any changes.
+    Once finished, the program will delete the merge and restore the original
+    environment.
+    """
+    main(pr_num, local=True)
+
+if __name__ == "__main__":
+    import doctest
+    (failure_count, test_count) = doctest.testmod()
+    if failure_count:
+        exit(-1)
+    try:
+        cli()
+    except:
+        clean_up()
+        raise
