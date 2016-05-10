@@ -868,6 +868,7 @@ class TaskInstance(Base):
         self.start_date = datetime.now()
         self.end_date = datetime.now()
         session.merge(self)
+        session.commit()
 
     def is_queueable(
             self,
@@ -1106,7 +1107,6 @@ class TaskInstance(Base):
             session=session, successes=successes, skipped=skipped,
             failed=failed, upstream_failed=upstream_failed, done=done,
             flag_upstream_failed=flag_upstream_failed)
-        session.commit()
         if verbose and not satisfied:
             logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
         return satisfied
