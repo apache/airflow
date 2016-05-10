@@ -62,8 +62,8 @@ class DockerOperator(BaseOperator):
     :type xcom_all: bool
     :param dockercfg_path: Path for the .dockercfg file
     :type dockercfg_path: str
-    :param username: username to the docker-registry.
-    :type username: str
+    :param registry_username: username to the docker-registry.
+    :type registry_username: str
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -91,7 +91,7 @@ class DockerOperator(BaseOperator):
             xcom_push=False,
             xcom_all=False,
             dockercfg_path=None,
-            username=None,
+            registry_username=None,
             *args,
             **kwargs):
 
@@ -116,7 +116,7 @@ class DockerOperator(BaseOperator):
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
         self.dockercfg_path = dockercfg_path
-        self.username = username
+        self.registry_username = registry_username
 
         self.cli = None
         self.container = None
@@ -189,8 +189,8 @@ class DockerOperator(BaseOperator):
 
     def get_auth_config(self):
         auth_config = None
-        if self.username is not None and "/" in self.image:
+        if self.registry_username is not None and "/" in self.image:
             registry = self.image.split("/")[0]
-            auth_config = self.cli.login(registry=registry, username=self.username,
+            auth_config = self.cli.login(registry=registry, username=self.registry_username,
                                          dockercfg_path=self.dockercfg_path)
         return auth_config
