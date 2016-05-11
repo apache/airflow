@@ -456,10 +456,7 @@ class CoreTest(unittest.TestCase):
                 self.some_templated_field = some_templated_field
 
             def execute(*args, **kwargs):
-                pass
-
-        def test_some_templated_field_template_render(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+                self.assertEqual(kwargs['context']['ti'].task.some_templated_field['bar'][1], kwargs['context']['ds'])
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -468,7 +465,6 @@ class CoreTest(unittest.TestCase):
                 'foo': '123',
                 'bar': ['baz', '{{ ds }}']
             },
-            on_success_callback=test_some_templated_field_template_render,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
