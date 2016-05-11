@@ -266,10 +266,10 @@ authenticate = False
 filter_by_owner = False
 
 # SSL certificate file
-ssl_certfile =
+# ssl_certfile =
 
 # SSL key file
-ssl_keyfile =
+# ssl_keyfile =
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
