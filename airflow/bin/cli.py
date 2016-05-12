@@ -27,6 +27,7 @@ from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
 from airflow.exceptions import AirflowException
+from airflow.configuration import AirflowConfigException
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -410,10 +411,20 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
+
+        sec_params = []
+        try:
+            ssl_certfile = conf.get('webserver', 'ssl_certfile')
+            ssl_keyfile = conf.get('webserver', 'ssl_keyfile')
+            sec_params = ['--certfile=' + ssl_certfile, '--keyfile=' +
+                          ssl_keyfile]
+        except AirflowConfigException:
+            pass
         print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
-            '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
+            '{args.port} with a timeout of {worker_timeout},'
+            ' secure={secure_params}'.format(**locals()))
 
         run_args = ['gunicorn',
                     '-w ' + str(args.workers),
@@ -421,7 +432,7 @@ def webserver(args):
                     '-t ' + str(args.worker_timeout),
                     '-b ' + args.hostname + ':' + str(args.port),
                     '-n ' + 'airflow-webserver',
-                    '-p ' + str(pid)]
+                    '-p ' + str(pid)] + sec_params
 
         if args.daemon:
             run_args.append("-D")
@@ -902,8 +913,7 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
-                     'debug'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
