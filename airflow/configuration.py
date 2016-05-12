@@ -109,6 +109,8 @@ defaults = {
         'expose_config': False,
         'workers': 4,
         'worker_class': 'sync',
+        'ssl_certfile': None,
+        'ssl_keyfile': None,
     },
     'scheduler': {
         'statsd_on': False,
@@ -262,6 +264,12 @@ authenticate = False
 
 # Filter the list of dags by owner name (requires authentication to be enabled)
 filter_by_owner = False
+
+# SSL certificate file
+# ssl_certfile =
+
+# SSL key file
+# ssl_keyfile =
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
