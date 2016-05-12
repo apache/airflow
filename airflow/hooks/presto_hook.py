@@ -74,8 +74,8 @@ class PrestoHook(DbApiHook):
         """
         import pandas
         cursor = self.get_cursor()
-        cursor.execute(self._strip_sql(hql), parameters)
         try:
+            cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             obj = eval(str(e))
