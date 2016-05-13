@@ -45,7 +45,7 @@
                 </td>
                 <td>
                     {% if dag %}
-                    <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}">
+                    <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id) }}">
                         {{ dag_id }}
                     </a>
                     {% else %}
