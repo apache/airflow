@@ -898,7 +898,7 @@ class TaskInstance(Base):
         if self.execution_date > datetime.now():
             return False
         # is the task still in the retry waiting period?
-        elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
+        elif self.is_premature():
             return False
         # does the task have an end_date prior to the execution date?
         elif self.task.end_date and self.execution_date > self.task.end_date:
@@ -919,6 +919,15 @@ class TaskInstance(Base):
         # anything else
         else:
             return False
+
+
+    def is_premature(self):
+        """
+        Returns whether a task is in UP_FOR_RETRY state and its retry interval
+        has elapsed.
+        """
+        # is the task still in the retry waiting period?
+        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
 
     def is_runnable(
             self,
