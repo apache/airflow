@@ -1,13 +1,13 @@
 # Airflow
 
 [![PyPI version](https://badge.fury.io/py/airflow.svg)](https://badge.fury.io/py/airflow)
-[![Build Status](https://travis-ci.org/airbnb/airflow.svg)](https://travis-ci.org/airbnb/airflow)
-[![Coverage Status](https://coveralls.io/repos/airbnb/airflow/badge.svg?service=github)](https://coveralls.io/github/airbnb/airflow)
-[![Code Health](https://landscape.io/github/airbnb/airflow/master/landscape.svg?style=flat)](https://landscape.io/github/airbnb/airflow/master)
-[![Requirements Status](https://requires.io/github/airbnb/airflow/requirements.svg?branch=master)](https://requires.io/github/airbnb/airflow/requirements/?branch=master)
+[![Build Status](https://travis-ci.org/apache/incubator-airflow.svg)](https://travis-ci.org/apache/incubator-airflow)
+[![Coverage Status](https://coveralls.io/repos/apache/incubator-airflow/badge.svg?service=github)](https://coveralls.io/github/apache/incubator-airflow)
+[![Code Health](https://landscape.io/github/apache/incubator-airflow/master/landscape.svg?style=flat)](https://landscape.io/github/apache/incubator-airflow/master)
+[![Requirements Status](https://requires.io/github/apache/incubator-airflow/requirements.svg?branch=master)](https://requires.io/github/apache/incubator-airflow/requirements/?branch=master)
 [![pypi downloads](https://img.shields.io/pypi/dm/airflow.svg)](https://pypi.python.org/pypi/airflow/)
 [![Documentation](https://img.shields.io/badge/docs-pythonhosted-blue.svg)](http://pythonhosted.org/airflow/)
-[![Join the chat at https://gitter.im/airbnb/airflow](https://badges.gitter.im/airbnb/airflow.svg)](https://gitter.im/airbnb/airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Join the chat at https://gitter.im/apache/incubator-airflow](https://badges.gitter.im/apache/incubator-airflow.svg)](https://gitter.im/apache/incubator-airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
@@ -119,7 +119,7 @@ Currently **officially** using Airflow:
 ## Links
 
 * [Full documentation on pythonhosted.org](http://pythonhosted.org/airflow/)
-* [Airflow Google Group (mailing list / forum)](https://groups.google.com/forum/#!forum/airbnb_airflow)
+* [Airflow Apache (incubator) (mailing list)](http://mail-archives.apache.org/mod_mbox/incubator-airflow-dev/)
 * [Airbnb Blog Post about Airflow](http://nerds.airbnb.com/airflow/)
 * [Airflow Common Pitfalls](https://cwiki.apache.org/confluence/display/AIRFLOW/Common+Pitfalls)
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
@@ -130,4 +130,4 @@ Currently **officially** using Airflow:
 * [Airflow: Tips, Tricks, and Pitfalls @ Handy](https://medium.com/handy-tech/airflow-tips-tricks-and-pitfalls-9ba53fba14eb#.o2snqeoz7)
 * Airflow Chef recipe (community contributed) [github] (https://github.com/bahchis/airflow-cookbook) [chef] (https://supermarket.chef.io/cookbooks/airflow)
 * Airflow Puppet Module (community contributed) [github] (https://github.com/similarweb/puppet-airflow) [puppet forge] (https://forge.puppetlabs.com/similarweb/airflow)
-* [Gitter (live chat) Channel](https://gitter.im/airbnb/airflow)
+* [Gitter (live chat) Channel](https://gitter.im/apache/incubator-airflow)
