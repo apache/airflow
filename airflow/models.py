@@ -1935,7 +1935,8 @@ class BaseOperator(object):
                 "The DAG assigned to {} can not be changed.".format(self))
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-            self._dag = dag
+
+        self._dag = dag
 
     def has_dag(self):
         """
@@ -3073,6 +3074,56 @@ class DAG(LoggingMixin):
         args = parser.parse_args()
         args.func(args, self)
 
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      execution_date,
+                      state,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag. Returns the dag
+        run.
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type state_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        run = DagRun(
+            dag_id=self.dag_id,
+            run_id=run_id,
+            execution_date=execution_date,
+            start_date=start_date,
+            external_trigger=external_trigger,
+            conf=conf,
+            state=state
+        )
+        session.add(run)
+
+        # create the associated taskinstances
+        # state is None at the moment of creation
+        for task in self.tasks:
+            if task.adhoc:
+                continue
+
+            ti = TaskInstance(task, execution_date)
+            session.add(ti)
+
+        session.commit()
+
+        run.refresh_from_db()
+        return run
+
 
 class Chart(Base):
     __tablename__ = "chart"
@@ -3367,6 +3418,50 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
+    @provide_session
+    def refresh_from_db(self, session=None):
+        """
+        Reloads the current dagrun from the database
+        :param session: database session
+        """
+        DR = DagRun
+
+        dr = session.query(DR).filter(
+            DR.dag_id == self.dag_id,
+            DR.execution_date == self.execution_date,
+            DR.run_id == self.run_id
+        ).one()
+        if dr:
+            self.id = dr.id
+            self.state = dr.state
+
+    @staticmethod
+    @provide_session
+    def find(dag_id, run_id=None, state=None, external_trigger=None, session=None):
+        """
+        Returns a set of dag runs for the given search criteria.
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param state: the state of the dag run
+        :type state: State
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        DR = DagRun
+
+        qry = session.query(DR).filter(DR.dag_id == dag_id)
+        if run_id:
+            qry = qry.filter(DR.run_id == run_id)
+        if state:
+            qry = qry.filter(DR.state == state)
+        if external_trigger:
+            qry = qry.filter(DR.external_trigger == external_trigger)
+        dr = qry.all()
+
+        return dr
 
 
 class Pool(Base):

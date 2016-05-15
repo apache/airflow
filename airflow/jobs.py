@@ -386,12 +386,11 @@ class SchedulerJob(BaseJob):
         if dag.schedule_interval:
             DagRun = models.DagRun
             session = settings.Session()
-            qry = session.query(DagRun).filter(
-                DagRun.dag_id == dag.dag_id,
-                DagRun.external_trigger == False,
-                DagRun.state == State.RUNNING,
+            active_runs = DagRun.find(
+                dag_id=dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False
             )
-            active_runs = qry.all()
             if len(active_runs) >= dag.max_active_runs:
                 return
             for dr in active_runs:
@@ -457,16 +456,13 @@ class SchedulerJob(BaseJob):
                 return
 
             if next_run_date and schedule_end and schedule_end <= datetime.now():
-                next_run = DagRun(
-                    dag_id=dag.dag_id,
+                next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
                     start_date=datetime.now(),
                     state=State.RUNNING,
                     external_trigger=False
                 )
-                session.add(next_run)
-                session.commit()
                 return next_run
 
     def process_dag(self, dag, queue):
