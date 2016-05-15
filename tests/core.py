@@ -116,6 +116,7 @@ class CoreTest(unittest.TestCase):
                 .format(dag_run.execution_date))
         assert dag_run.state == State.RUNNING
         assert dag_run.external_trigger == False
+        dag.clear()
 
     def test_schedule_dag_fake_scheduled_previous(self):
         """
@@ -131,14 +132,10 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
         scheduler = jobs.SchedulerJob(test_mode=True)
-        trigger = models.DagRun(
-            dag_id=dag.dag_id,
-            run_id=models.DagRun.id_for_date(DEFAULT_DATE),
-            execution_date=DEFAULT_DATE,
-            state=State.SUCCESS,
-            external_trigger=True)
-        settings.Session().add(trigger)
-        settings.Session().commit()
+        dag.create_dagrun(run_id=models.DagRun.id_for_date(DEFAULT_DATE),
+                          execution_date=DEFAULT_DATE,
+                          state=State.SUCCESS,
+                          external_trigger=True)
         dag_run = scheduler.schedule_dag(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
@@ -166,6 +163,7 @@ class CoreTest(unittest.TestCase):
 
         assert dag_run is not None
         assert dag_run2 is None
+        dag.clear()
 
     def test_schedule_dag_start_end_dates(self):
         """
@@ -180,16 +178,13 @@ class CoreTest(unittest.TestCase):
                   start_date=start_date,
                   end_date=end_date,
                   schedule_interval=delta)
+        dag.add_task(models.BaseOperator(task_id='faketastic',
+                                         owner='Also fake'))
 
         # Create and schedule the dag runs
         dag_runs = []
         scheduler = jobs.SchedulerJob(test_mode=True)
         for i in range(runs):
-            date = dag.start_date + i * delta
-            task = models.BaseOperator(task_id='faketastic__%s' % i,
-                                       owner='Also fake',
-                                       start_date=date)
-            dag.task_dict[task.task_id] = task
             dag_runs.append(scheduler.schedule_dag(dag))
 
         additional_dag_run = scheduler.schedule_dag(dag)
@@ -219,19 +214,12 @@ class CoreTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only',
                   start_date=start_date,
                   schedule_interval=delta)
+        dag.add_task(models.BaseOperator(task_id='faketastic',
+                                         owner='Also fake'))
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(test_mode=True)
         for i in range(runs):
-            # Create the DagRun
-            date = dag.start_date + i * delta
-            task = models.BaseOperator(task_id='faketastic__%s' % i,
-                                       owner='Also fake',
-                                       start_date=date)
-
-            dag.task_dict[task.task_id] = task
-
-            # Schedule the DagRun
             dag_run = scheduler.schedule_dag(dag)
             dag_runs.append(dag_run)
 
@@ -730,6 +718,7 @@ class CliTests(unittest.TestCase):
             cli.trigger_dag,
             self.parser.parse_args([
                 'trigger_dag', 'example_bash_operator',
+                '--run_id', 'trigger_dag_xxx',
                 '-c', 'NOT JSON'])
         )
 

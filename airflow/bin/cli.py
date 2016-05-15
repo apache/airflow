@@ -118,29 +118,32 @@ def backfill(args, dag=None):
 
 
 def trigger_dag(args):
-    session = settings.Session()
-    # TODO: verify dag_id
+    dag = get_dag(args)
+
+    if not dag:
+        logging.error("Cannot find dag {}".format(args.dag_id))
+        sys.exit(1)
+
     execution_date = datetime.now()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
-    dr = session.query(DagRun).filter(
-        DagRun.dag_id == args.dag_id, DagRun.run_id == run_id).first()
 
-    conf = {}
-    if args.conf:
-        conf = json.loads(args.conf)
+    dr = DagRun.find(dag_id=args.dag_id, run_id=run_id)
     if dr:
-        logging.error("This run_id already exists")
-    else:
-        trigger = DagRun(
-            dag_id=args.dag_id,
-            run_id=run_id,
-            execution_date=execution_date,
-            state=State.RUNNING,
-            conf=conf,
-            external_trigger=True)
-        session.add(trigger)
-        logging.info("Created {}".format(trigger))
-    session.commit()
+        logging.error("This run_id {} already exists".format(run_id))
+        raise AirflowException()
+
+    run_conf = {}
+    if args.conf:
+        run_conf = json.loads(args.conf)
+
+    trigger = dag.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.RUNNING,
+        conf=run_conf,
+        external_trigger=True
+    )
+    logging.info("Created {}".format(trigger))
 
 
 def variables(args):

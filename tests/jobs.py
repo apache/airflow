@@ -252,9 +252,9 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_deadlock(self):
         """
-        Deadlocked DagRun is marked a failure
+        Do not deadlock
 
-        Test that a deadlocked dagrun is marked as a failure by having
+        Test that a dagrun is marked as a running by having
         depends_on_past and an execution_date after the start_date
         """
         self.evaluate_dagrun(
@@ -263,7 +263,7 @@ class SchedulerJobTest(unittest.TestCase):
                 'test_depends_on_past': None,
                 'test_depends_on_past_2': None,
             },
-            dagrun_state=State.FAILED,
+            dagrun_state=State.RUNNING,
             advance_execution_date=True)
 
     def test_scheduler_pooled_tasks(self):
