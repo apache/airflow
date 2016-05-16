@@ -10,7 +10,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
 LOAD_CHECK_INTERVAL = 5
-TARGET_PARTITION_SIZE = 5000000
+DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
 class AirflowDruidLoadException(AirflowException):
     pass
@@ -64,7 +64,7 @@ class DruidHook(BaseHook):
         # and overwrites the num_shards
         if target_partition_size == -1:
             if num_shards == -1:
-                target_partition_size = TARGET_PARTITION_SIZE
+                target_partition_size = DEFAULT_TARGET_PARTITION_SIZE
         else:
             num_shards = -1
 
