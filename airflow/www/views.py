@@ -15,6 +15,7 @@
 import sys
 
 import os
+import pkg_resources
 import socket
 import importlib
 
@@ -28,6 +29,7 @@ from past.utils import old_div
 from past.builtins import basestring
 
 import inspect
+import subprocess
 import traceback
 
 import sqlalchemy as sqla
@@ -61,6 +63,7 @@ from airflow.models import XCom
 
 from airflow.operators import BaseOperator, SubDagOperator
 
+from airflow.utils.logging import LoggingMixin
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
@@ -2289,6 +2292,32 @@ class UserModelView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "User"
     verbose_name_plural = "Users"
     column_default_sort = 'username'
+
+
+class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
+    @expose('/')
+    def version(self):
+        # Look at the version from setup.py
+        try:
+            airflow_version = pkg_resources.require("airflow")[0].version
+        except Exception as e:
+            airflow_version = None
+            self.logger.error(e)
+
+        # Get the Git repo and git hash
+        git_version = None
+        try:
+            with open("airflow/git_version") as f:
+                git_version = f.readline()
+        except Exception as e:
+            self.logger.error(e)
+
+        # Render information
+        title = "Version Info"
+        return self.render('airflow/version.html',
+                           title=title,
+                           airflow_version=airflow_version,
+                           git_version=git_version)
 
 
 class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
