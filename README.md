@@ -119,7 +119,7 @@ Currently **officially** using Airflow:
 ## Links
 
 * [Full documentation on pythonhosted.org](http://pythonhosted.org/airflow/)
-* [Airflow Apache (incubator) (mailing list)](http://mail-archives.apache.org/mod_mbox/incubator-airflow-dev/)
+* [Airflow Apache (incubating) (mailing list)](http://mail-archives.apache.org/mod_mbox/incubator-airflow-dev/)
 * [Airbnb Blog Post about Airflow](http://nerds.airbnb.com/airflow/)
 * [Airflow Common Pitfalls](https://cwiki.apache.org/confluence/display/AIRFLOW/Common+Pitfalls)
 * [Hadoop Summit Airflow Video](https://www.youtube.com/watch?v=oYp49mBwH60)
