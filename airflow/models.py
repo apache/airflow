@@ -619,6 +619,8 @@ class Connection(Base):
                 return contrib_hooks.VerticaHook(vertica_conn_id=self.conn_id)
             elif self.conn_type == 'cloudant':
                 return contrib_hooks.CloudantHook(cloudant_conn_id=self.conn_id)
+            elif self.conn_type in ['dashdb', 'db2']:
+                return contrib_hooks.IbmDbHook(ibmdb_conn_id=self.conn_id)
         except:
             return None
 

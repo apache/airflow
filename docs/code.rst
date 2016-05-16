@@ -223,7 +223,8 @@ Community contributed hooks
         VerticaHook,
         FTPHook,
         SSHHook,
-        CloudantHook
+        CloudantHook,
+        IbmDbHook
 
 Executors
 ---------

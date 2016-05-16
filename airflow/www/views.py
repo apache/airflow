@@ -2239,6 +2239,8 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
             ('cloudant', 'IBM Cloudant',),
             ('mssql', 'Microsoft SQL Server'),
             ('mesos_framework-id', 'Mesos Framework ID'),
+            ('db2', 'IBM DB2',),
+            ('dashdb', 'IBM DashDB',)
         ]
     }
 
