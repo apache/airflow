@@ -95,6 +95,8 @@ def create_app(config=None):
             base.MenuLink(category='Docs',
                 name='Github',url='https://github.com/airbnb/airflow'))
 
+        av(vs.VersionView(name='Version', category="About"))
+
         av(vs.DagRunModelView(
             models.DagRun, Session, name="DAG Runs", category="Browse"))
         av(vs.DagModelView(models.DagModel, Session, name=None))

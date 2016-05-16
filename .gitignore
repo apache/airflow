@@ -5,6 +5,7 @@
 .DS_Store
 .ipynb*
 .coverage
+airflow/git_version
 airflow/www/static/coverage/
 airflow.db
 airflow.cfg
