@@ -49,7 +49,8 @@ class HiveToDruidTransfer(BaseOperator):
             metastore_conn_id='metastore_default',
             hadoop_dependency_coordinates=None,
             intervals=None,
-            num_shards=1,
+            num_shards=-1,
+            target_partition_size=-1,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -57,6 +58,7 @@ class HiveToDruidTransfer(BaseOperator):
         self.ts_dim = ts_dim
         self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
         self.num_shards = num_shards
+        self.target_partition_size = target_partition_size
         self.metric_spec = metric_spec or [{
             "name": "count",
             "type": "count"}]
@@ -103,8 +105,8 @@ class HiveToDruidTransfer(BaseOperator):
             datasource=self.druid_datasource,
             intervals=self.intervals,
             static_path=static_path, ts_dim=self.ts_dim,
-            columns=columns, num_shards=self.num_shards, metric_spec=self.metric_spec,
-            hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
+            columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
+            metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
         logging.info("Load seems to have succeeded!")
 
         logging.info(
