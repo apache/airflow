@@ -95,7 +95,7 @@ class QuboleOperator(BaseOperator):
     """
 
     template_fields = ('query', 'script_location', 'sub_command', 'script', 'files', 'archives', 'program', 'cmdline', 'sql', 'where_clause', 'extract_query', 'boundary_query', 'macros', 'tags', 'name')
-    template_ext = ('.hql', '.sql', '.sh', '.bash', '.pig')
+    template_ext = ('.txt')
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
 
