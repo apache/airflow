@@ -1062,27 +1062,31 @@ class TaskInstance(Base):
         task = self.task
 
         # Checking that the depends_on_past is fulfilled
-        if (task.depends_on_past and not ignore_depends_on_past and
-                not self.execution_date == task.start_date):
-            previous_ti = session.query(TI).filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id == task.task_id,
-                TI.execution_date ==
-                    self.task.dag.previous_schedule(self.execution_date),
-                TI.state.in_({State.SUCCESS, State.SKIPPED}),
-            ).first()
-            if not previous_ti:
-                if verbose:
-                    logging.warning("depends_on_past not satisfied")
-                return False
+        # 1. get the last TI run prior to the current execution date
+        # 2. if there is one and it didn't succeed/skip, the condition fails
+        if (task.depends_on_past and not ignore_depends_on_past):
+            previous_ti = (
+                session.query(TI)
+                .filter(
+                    TI.dag_id == self.dag_id,
+                    TI.task_id == task.task_id,
+                    TI.execution_date < self.execution_date)
+                .order_by(TI.execution_date.desc())
+                .first())
+                
+            if previous_ti:
+                if previous_ti.state not in (State.SUCCESS, State.SKIPPED):
+                    if verbose:
+                        logging.warning("depends_on_past not satisfied")
+                    return False
 
-            # Applying wait_for_downstream
-            previous_ti.task = self.task
-            if task.wait_for_downstream and not \
-                    previous_ti.are_dependents_done(session=session):
-                if verbose:
-                    logging.warning("wait_for_downstream not satisfied")
-                return False
+                # Applying wait_for_downstream
+                previous_ti.task = self.task
+                if task.wait_for_downstream and not \
+                        previous_ti.are_dependents_done(session=session):
+                    if verbose:
+                        logging.warning("wait_for_downstream not satisfied")
+                    return False
 
         # Checking that all upstream dependencies have succeeded
         if not task.upstream_list or task.trigger_rule == TR.DUMMY:
