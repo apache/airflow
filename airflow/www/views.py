@@ -1014,6 +1014,7 @@ class Airflow(BaseView):
         downstream = request.args.get('downstream') == "true"
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
+        recursive = request.args.get('recursive') == "true"
 
         dag = dag.sub_dag(
             task_regex=r"^{0}$".format(task_id),
@@ -1025,7 +1026,8 @@ class Airflow(BaseView):
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
-                end_date=end_date)
+                end_date=end_date,
+                include_subdags=recursive)
 
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
@@ -1033,6 +1035,7 @@ class Airflow(BaseView):
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
+                include_subdags=recursive,
                 dry_run=True)
             if not tis:
                 flash("No task instances to clear", 'error')
