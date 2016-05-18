@@ -58,4 +58,5 @@ mock
 hdfs
 thrift_sasl
 impyla
+kafka-python
 cloudant
