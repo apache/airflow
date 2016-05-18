@@ -17,6 +17,7 @@ import os
 import time
 import datetime
 import logging
+import six
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -155,14 +156,18 @@ class QuboleHook(BaseHook):
                 elif k in POSITIONAL_ARGS:
                     inplace_args = v
                 elif k == 'tags':
-                    tags.add(v)
+                    if isinstance(v, six.string_types):
+                        tags.add(v)
+                    elif isinstance(v, (list, tuple)):
+                        for val in v:
+                            tags.add(val)
                 else:
                     args.append("--{0}={1}".format(k,v))
 
             if k == 'notify' and v is True:
                 args.append("--notify")
 
-        args.append("--tags={0}".format(','.join(tags)))
+        args.append("--tags={0}".format(','.join(filter(None,tags))))
 
         if inplace_args is not None:
             if cmd_type == 'hadoopcmd':
