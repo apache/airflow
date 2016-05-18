@@ -1733,7 +1733,7 @@ class HomeView(AdminIndexView):
                 session.query(DM)
                     .filter(
                     ~DM.is_subdag, DM.is_active,
-                    DM.owners == current_user.username)
+                    DM.owners.like('%' + current_user.username + '%'))
                     .all()
             )
         else:
