@@ -104,7 +104,7 @@ def action_logging(f):
             event=f.__name__,
             task_instance=None,
             owner=user,
-            extra=str(request.args.items()),
+            extra=str(list(request.args.items())),
             task_id=request.args.get('task_id'),
             dag_id=request.args.get('dag_id'))
 
