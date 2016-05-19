@@ -489,7 +489,8 @@ class HiveServer2Hook(BaseHook):
             schema='default',
             delimiter=',',
             lineterminator='\r\n',
-            output_header=True):
+            output_header=True,
+            fetch_size=1000):
         schema = schema or 'default'
         with self.get_conn() as conn:
             with conn.cursor() as cur:
@@ -504,7 +505,7 @@ class HiveServer2Hook(BaseHook):
                             for c in cur.description])
                     i = 0
                     while True:
-                        rows = [row for row in cur.fetchmany() if row]
+                        rows = [row for row in cur.fetchmany(fetch_size) if row]
                         if not rows:
                             break
 
