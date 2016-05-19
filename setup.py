@@ -39,41 +39,48 @@ class CleanCommand(Command):
 
 
 def git_version(version):
+    """
+    Return a version to identify the state of the underlying git repo. The version will
+    indicate whether the head of the current git-backed working directory is tied to a
+    release tag or not : it will indicate the former with a 'release:{version}' prefix
+    and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
+    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted changes
+    are present.
+    """
+    repo = None
     try:
         import git
+        repo = git.Repo('.git')
     except ImportError:
         logger.warn('gitpython not found: Cannot compute the git version.')
         return ''
-    try:
-        repo = git.Repo('.git')
-    except ImportError:
+    except Exception as e:
         logger.warn('Git repo not found: Cannot compute the git version.')
         return ''
-    sha = repo.head.commit.hexsha
-    if repo.is_dirty():
-        return '.dev0+{sha}.dirty'.format(sha=sha)
-    # commit is clean
-    # is it release of `version` ?
-    try:
-        tag = repo.git.describe(
-            match='[0-9]*', exact_match=True,
-            tags=True, dirty=True)
-        assert tag == version, (tag, version)
-        return '.release:{version}+{sha}'.format(version=version,
-                                                 sha=sha)
-    except git.GitCommandError:
-        return '.dev0+{sha}'.format(sha=sha)
+    if repo:
+        sha = repo.head.commit.hexsha
+        if repo.is_dirty():
+            return '.dev0+{sha}.dirty'.format(sha=sha)
+        # commit is clean
+        # is it release of `version` ?
+        try:
+            tag = repo.git.describe(
+                match='[0-9]*', exact_match=True,
+                tags=True, dirty=True)
+            assert tag == version, (tag, version)
+            return '.release:{version}+{sha}'.format(version=version,
+                                                     sha=sha)
+        except git.GitCommandError:
+            return '.dev0+{sha}'.format(sha=sha)
+    else:
+        return 'no_git_version'
 
 
-def write_version(filename=os.path.join('airflow', 'git_version')):
-    cnt = """%(git_revision)s"""
-    text = cnt % {'git_revision':
-                  git_version(version)}
-    try:
-        with open(filename, 'w') as a:
-            a.write(text)
-    except Exception as e:
-        logger.error(e)
+def write_version(filename=os.path.join(*['airflow',
+                                          'git_version'])):
+    text = "{}".format(git_version(version))
+    with open(filename, 'w') as a:
+        a.write(text)
 
 
 async = [

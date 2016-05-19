@@ -2307,7 +2307,7 @@ class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
         # Get the Git repo and git hash
         git_version = None
         try:
-            with open("airflow/git_version") as f:
+            with open(os.path.join(*[settings.AIRFLOW_HOME, 'airflow', 'git_version'])) as f:
                 git_version = f.readline()
         except Exception as e:
             self.logger.error(e)
