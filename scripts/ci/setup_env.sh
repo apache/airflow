@@ -103,7 +103,6 @@ tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
 
 echo "Downloading and unpacking minicluster"
-rm -rf ${TRAVIS_CACHE}/minicluster/minicluster.zip
 curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
 unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
 
