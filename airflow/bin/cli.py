@@ -217,6 +217,11 @@ def run(args, dag=None):
         dag = dag_pickle.pickle
     task = dag.get_task(task_id=args.task_id)
 
+    # Add CLI provided task_params to task.params
+    if args.task_params:
+        passed_in_params = json.loads(args.task_params)
+        task.params.update(passed_in_params)
+
     ti = TaskInstance(task, args.execution_date)
 
     if args.local:
@@ -876,7 +881,8 @@ class CLIFactory(object):
                 'dag_id', 'task_id', 'execution_date', 'subdir',
                 'mark_success', 'force', 'pool',
                 'local', 'raw', 'ignore_dependencies',
-                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
+                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id',
+                'task_params'),
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",

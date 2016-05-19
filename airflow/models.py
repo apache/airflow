@@ -738,6 +738,7 @@ class TaskInstance(Base):
         """
         dag = self.task.dag
         iso = self.execution_date.isoformat()
+        tp = json.dumps(self.task.params) if self.task.params else None
         cmd = "airflow run {self.dag_id} {self.task_id} {iso} "
         cmd += "--mark_success " if mark_success else ""
         cmd += "--pickle {pickle_id} " if pickle_id else ""
@@ -748,6 +749,7 @@ class TaskInstance(Base):
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
+        cmd += "-tp '{tp}' " if tp else ""
         if not pickle_id and dag:
             if dag.full_filepath != dag.filepath:
                 cmd += "-sd DAGS_FOLDER/{dag.filepath} "
