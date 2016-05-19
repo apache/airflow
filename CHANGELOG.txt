@@ -1,28 +1,214 @@
-AIRFLOW 1.7.0, 2016-03-28
+AIRFLOW 1.7.1, 2016-05-19
 -------------------------
 
-- Add MySQL->GCS, GCS->BQ operators
-- Support pause/unpause DAGs in CLI
-- SLA_miss_callbacks
-- Pause newly minted DAGs by default if configured to do so
-- Fixes related to solving the "infinite retry problem"
-- Handle SKIPPED tasks as SUCCESS when depends_on_past=True
-- Pass JSON task params via the airflow testCLI command
-- Extend FERNET key encryption to VARIABLES and to the connections's OTHER field
-- Add GCSHook for Google Cloud Storage
-- Parameterize DagBag import timeouts
-- Add startup scripts for upstart based systems
-- Add template support in QBol operator
-- Add SudDag documentation and examples
-- Improve kerberos integration for hdfs hook
-- Add SSL support for SMTP
-- Add BigQuery and Google Cloud Storage operators
-- Set effective user of (web)hdfs hook
-- Add support for three-legged OAuth for Google connections
-- Add Docker operator
-- Add "search_scope" as a configuration variable for LDAP
-- Add super user and profiler to ldap
-- Disable concurrent executors for sqllite backend
-- Implement GitHub Enterprise Authentication
-- Fix invalid syntax in SSHHook
-- Upgrade flask admin
+- Fix : Don't treat premature tasks as could_not_run tasks
+- AIRFLOW-92 Avoid unneeded upstream_failed session closes apache/incubator-airflow#1485
+- Add logic to lock DB and avoid race condition
+- Handle queued tasks from multiple jobs/executors
+- AIRFLOW-52 Warn about overwriting tasks in a DAG
+- Fix corner case with joining processes/queues (#1473)
+- [AIRFLOW-52] Fix bottlenecks when working with many tasks
+- Add columns to toggle extra detail in the connection list view.
+- Log the number of errors when importing DAGs
+- Log dagbag metrics dupplicate messages in queue into Statsd (#1406)
+- Clean up issue template (#1419)
+- correct missed arg.foreground to arg.daemon in cli
+- Reinstate imports for github enterprise auth
+- Use os.execvp instead of subprocess.Popen for the webserver
+- Revert from using "--foreground" to "--daemon"
+- Implement a Cloudant hook
+- Add missing args to `airflow clear`
+- Fixed a bug in the scheduler: num_runs used where runs intended
+- Add multiprocessing support to the scheduler
+- Partial fix to make sure next_run_date cannot be None
+- Support list/get/set variables in the CLI
+- Properly handle BigQuery booleans in BigQuery hook.
+- Added the ability to view XCom variables in webserver
+- Change DAG.tasks from a list to a dict
+- Add support for zipped dags
+- Stop creating hook on instantiating of S3 operator
+- User subquery in views to find running DAGs
+- Prevent DAGs from being reloaded on every scheduler iteration
+- Add a missing word to docs
+- Document the parameters of `DbApiHook`
+- added oracle operator with existing oracle hook
+- Add PyOpenSSL to Google cloud gcp_api.
+- Remove executor error unit test
+- Add DAG inference, deferral, and context manager
+- Don't return error when writing files to Google cloud storage.
+- Fix GCS logging for gcp_api.
+- Ensure attr is in scope for error message
+- Fixing misnamed PULL_REQUEST_TEMPLATE
+- Extract non_pooled_task_slot_count into a configuration param
+- Update plugins.rst for clarity on the example (#1309)
+- Fix s3 logging issue
+- Add twitter feed example dag
+- Github ISSUE_TEMPLATE & PR_TEMPLATE cleanup
+- Reduce logger verbosity
+- Adding a PR Template
+- Add Lucid to list of users
+- Fix usage of asciiart
+- Use session instead of outdated main_session for are_dependencies_met
+- Fix celery flower port allocation
+- Fix for missing edit actions due to flask-admin upgrade
+- Fix typo in comment in prioritize_queued method
+- Add HipchatOperator
+- Include all example dags in backfill unit test
+- Make sure skipped jobs are actually skipped
+- Fixing a broken example dag, example_skip_dag.py
+- Add consistent and thorough signal handling and logging
+- Allow Operators to specify SKIPPED status internally
+- Update docstring for executor trap unit test
+- Doc: explain the usage of Jinja templating for templated params
+- Don't schedule runs before the DAG's start_date
+- Fix infinite retries with pools, with test
+- Fix handling of deadlocked jobs
+- Show only Airflow's deprecation warnings
+- Set DAG_FOLDER for unit tests
+- Missing comma in setup.py
+- Deprecate *args and **kwargs in BaseOperator
+- Raise deep scheduler exceptions to force a process restart.
+- Change inconsistent example DAG owners
+- Fix module path of send_email_smtp in configuration
+- added Gentner Lab to list of users
+- Increase timeout time for unit test
+- Fix reading strings from conf
+- CHORE - Remove Trailing Spaces
+- Fix SSHExecuteOperator crash when using a custom ssh port
+- Add note about airflow components to template
+- Rewrite BackfillJob logic for clarity
+- Add unit tests
+- Fix miscellaneous bugs and clean up code
+- Fix logic for determining DagRun states
+- Make SchedulerJob not run EVERY queued task
+- Improve BackfillJob handling of queued/deadlocked tasks
+- Introduce ignore_depends_on_past parameters
+- Use Popen with CeleryExecutor
+- Rename user table to users to avoid conflict with postgres
+- Beware of negative pool slots.
+- Add support for calling_format from boto to S3_Hook
+- Add pypi meta data and sync version number
+- Set dags_are_paused_at_creation's default value to True
+- Resurface S3Log class eaten by rebase/push -f
+- Add missing session.commit() at end of initdb
+- Validate that subdag tasks have pool slots available, and test
+- Use urlparse for remote GCS logs, and add unit tests
+- Make webserver worker timeout configurable
+- Fixed scheduling for @once interval
+- Use psycopg2's API for serializing postgres cell values
+- Make the provide_session decorator more robust
+- update link to Lyft's website
+- use num_shards instead of partitions to be consistent with batch ingestion
+- Add documentation links to README
+- Update docs with separate configuration section
+- Fix airflow.utils deprecation warning code being Python 3 incompatible
+- Extract dbapi cell serialization into its own method
+- Set Postgres autocommit as supported only if server version is < 7.4
+- Use refactored utils module in unit test imports
+- Add changelog for 1.7.0
+- Use LocalExecutor on Travis if possible
+- remove unused logging,errno, MiniHiveCluster imports
+- remove extra import of logging lib
+- Fix required gcloud version
+- Refactoring utils into smaller submodules
+- Properly measure number of task retry attempts
+- Add function to get configuration as dict, plus unit tests
+- Merge branch 'master' into hivemeta_sasl
+- Add wiki link to README.md
+- [hotfix] make email.Utils > email.utils for py3
+- Add the missing "Date" header to the warning e-mails
+- Add the missing "Date" header to the warning e-mails
+- Check name of SubDag class instead of class itself
+- [hotfix] removing repo_token from .coveralls.yml
+- Set the service_name in coverals.yml
+- Fixes #1223
+- Update Airflow docs for remote logging
+- Add unit tests for trapping Executor errors
+- Make sure Executors properly trap errors
+- Fix HttpOpSensorTest to use fake resquest session
+- Linting
+- Add an example on pool usage in the documentation
+- Add two methods to bigquery hook's base cursor: run_table_upsert, which adds a table or updates an existing table; and run_grant_dataset_view_access, which grants view access to a given dataset for a given table.
+- Tasks references upstream and downstream tasks using strings instead of references
+- Fix typos in models.py
+- Fix broken links in documentation
+- [hotfix] fixing the Scheduler CLI to make dag_id optional
+- Update link to Common Pitfalls wiki page in README
+- Allow disabling periodic committing when inserting rows with DbApiHook
+- added Glassdoor to "who uses airflow"
+- Fix typo preventing from launching webserver
+- Documentation badge
+- Fixing ISSUE_TEMPLATE name to include .md suffix
+- Adding an ISSUE_TEMPLATE to ensure that issues are adequately defined
+- Linting & debugging
+- Refactoring the CLI to be data-driven
+- Updating the Bug Reporting protocol in the Contributing.md file
+- Fixing the docs
+- clean up references to old session
+- remove session reference
+- resolve conflict
+- clear xcom data when task instance starts
+- replace main_session with @provide_session
+- Add extras to installation.rst
+- Changes to Contributing to reflect more closely the current state of development.
+- Modifying README to link to the wiki committer list
+- docs: fixes a spelling mistake in default config
+- Set killMode to 'control-group' for webservice.service
+- Set KillMode to 'control-group' for worker.service
+- Linting
+- Fix WebHdfsSensor
+- Adding more licenses to pass checks
+- fixing landscape's config
+- [hotfix] typo that made it in master
+- [hotfix] fixing landscape requirement detection
+- Make testing on hive conditional
+- Merge remote-tracking branch 'upstream/master' into minicluster
+- Update README.md
+- Throwing in a few license to pass the build
+- Adding a reqs.txt for landscape.io
+- Pointing to a reqs file
+- Some linting
+- Adding a .landscape.yml file
+- badge for pypi version
+- Add license and ignore for sql and csv
+- Use correct connection id
+- Use correct table name
+- Provide data for ci tests
+- new badge for showing staleness of reqs
+- removing requirements.txt as it is uni-dimensional
+- Make it work on py3
+- Remove decode for logging
+- Also keep py2 compatible
+- More py3 fixes
+- Convert to bytes for py3 compat
+- Make sure to be py3 compatible
+- Use unicodecsv to make it py3 compatible
+- Replace tab with spaces Remove unused import
+- Merge remote-tracking branch 'upstream/master'
+- Support decimal types in MySQL to GCS
+- Make sure to write binary as string can be unicode
+- Ignore metastore
+- More impyla fixes
+- Test HivemetaStore if python 2
+- Allow users to set hdfs_namenode_principal in HDFSHook config
+- Add tests for Hiveserver2 and fix some issues from impyla
+- Merge branch 'impyla' into minicluster
+- This patch allows for testing of hive operators and hooks. Sasl is used (NoSasl in connection string is not possible). Tests have been adjusted.
+- Treat SKIPPED and SUCCESS the same way when evaluating depends_on_past=True
+- fix bigquery hook
+- version cap for gcp_api
+- Fix typo when returning VerticaHook
+- Adding fernet key to use it as part of stdout commands
+- Adding support for ssl parameters.  (picking up from jthomas123)
+- more detail in error message.
+- make sure paths don't conflict bc of trailing /
+- change gcs_hook to self.hook
+- refactor remote log read/write and add GCS support
+- Only use multipart upload in S3Hook if file is large enough
+- Merge branch 'airbnb/master'
+- Add GSSAPI SASL to HiveMetaStoreHook.
+- Add warning for deprecated setting
+- Use kerberos_service_name = 'hive' as standard instead of 'impala'.
+- Use GSSAPI instead of KERBEROS and provide backwards compatibility
+- ISSUE-1123 Use impyla instead of pyhs2
+- set celery_executor to use queue name as exchange
