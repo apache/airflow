@@ -538,27 +538,33 @@ class BigQueryBaseCursor(object):
                                                 body=table_resource).execute()
 
     def run_grant_dataset_view_access(self,
-                                      source_project,
                                       source_dataset,
-                                      view_project,
                                       view_dataset,
-                                      view_table):
+                                      view_table,
+                                      source_project = None,
+                                      view_project = None):
         """
         Grant authorized view access of a dataset to a view table.
         If this view has already been granted access to the dataset, do nothing.
         This method is not atomic.  Running it may clobber a simultaneous update.
-        :param source_project: the project of the source dataset
-        :type source_project: str
         :param source_dataset: the source dataset
         :type source_dataset: str
-        :param view_project: the project that the view is in
-        :type view_project: str
         :param view_dataset: the dataset that the view is in
         :type view_dataset: str
         :param view_table: the table of the view
         :type view_table: str
+        :param source_project: the project of the source dataset. If None,
+        self.project_id will be used.
+        :type source_project: str
+        :param view_project: the project that the view is in. If None,
+        self.project_id will be used.
+        :type view_project: str
         :return: the datasets resource of the source dataset.
         """
+
+        # Apply default values to projects
+        source_project = source_project if source_project else self.project_id
+        view_project = view_project if view_project else self.project_id
 
         # we don't want to clobber any existing accesses, so we have to get
         # info on the dataset before we can add view access
