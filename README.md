@@ -98,6 +98,7 @@ Currently **officially** using Airflow:
 * [Hootsuite](https://github.com/hootsuite)
 * [ING](http://www.ing.com/)
 * [Jampp](https://github.com/jampp)
+* [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
 * [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
 * [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
 * [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
