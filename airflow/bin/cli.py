@@ -645,7 +645,7 @@ class CLIFactory(object):
             nargs='?'),
         'daemon': Arg(
             ("-D", "--daemon"), "Daemonize instead of running "
-                                "on the foreground",
+                                "in the foreground",
             "store_true"),
         'stderr': Arg(
             ("--stderr", ), "Redirect stderr to this file"),
@@ -703,10 +703,10 @@ class CLIFactory(object):
             ("-c", "--no_confirm"),
             "Do not request confirmation", "store_true"),
         # trigger_dag
-        'run_id': Arg(("-r", "--run_id"), "Helps to indentify this run"),
+        'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
             ('-c', '--conf'),
-            "json string that gets pickled into the DagRun's conf attribute"),
+            "JSON string that gets pickled into the DagRun's conf attribute"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -736,7 +736,7 @@ class CLIFactory(object):
         # run
         'force': Arg(
             ("-f", "--force"),
-            "Force a run regardless or previous success", "store_true"),
+            "Force a run regardless of previous success", "store_true"),
         'raw': Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true"),
         'ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
@@ -769,7 +769,7 @@ class CLIFactory(object):
             ("-k", "--workerclass"),
             default=conf.get('webserver', 'WORKER_CLASS'),
             choices=['sync', 'eventlet', 'gevent', 'tornado'],
-            help="The worker class to use for gunicorn"),
+            help="The worker class to use for Gunicorn"),
         'worker_timeout': Arg(
             ("-t", "--worker_timeout"),
             default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
@@ -850,7 +850,7 @@ class CLIFactory(object):
             'args': ('dag_id', 'subdir'),
         }, {
             'func': unpause,
-            'help': "Pause a DAG",
+            'help': "Resume a paused DAG",
             'args': ('dag_id', 'subdir'),
         }, {
             'func': trigger_dag,
@@ -913,11 +913,11 @@ class CLIFactory(object):
             'args': ('yes',),
         }, {
             'func': upgradedb,
-            'help': "Upgrade metadata database to latest version",
+            'help': "Upgrade the metadata database to latest version",
             'args': tuple(),
         }, {
             'func': scheduler,
-            'help': "Start a scheduler scheduler instance",
+            'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
