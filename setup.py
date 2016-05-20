@@ -219,7 +219,7 @@ def do_setup():
             'qds': qds,
             'cloudant': cloudant
         },
-        classifiers={
+        classifiers=[
             'Development Status :: 5 - Production/Stable',
             'Environment :: Console',
             'Environment :: Web Environment',
@@ -229,7 +229,7 @@ def do_setup():
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.4',
             'Topic :: System :: Monitoring',
-        },
+        ],
         author='Maxime Beauchemin',
         author_email='maximebeauchemin@gmail.com',
         url='https://github.com/airbnb/airflow',
