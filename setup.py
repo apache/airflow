@@ -232,9 +232,9 @@ def do_setup():
         ],
         author='Maxime Beauchemin',
         author_email='maximebeauchemin@gmail.com',
-        url='https://github.com/airbnb/airflow',
+        url='https://github.com/apache/incubator-airflow',
         download_url=(
-            'https://github.com/airbnb/airflow/tarball/' + version),
+            'https://github.com/apache/incubator-airflow/tarball/' + version),
         cmdclass={'test': Tox,
                   'extra_clean': CleanCommand,
                   },
