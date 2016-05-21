@@ -1133,7 +1133,7 @@ class Airflow(BaseView):
                 recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
         TI = models.TaskInstance
 
-        if dag.schedule_interval == '@once':
+        if dag.schedule_interval.startswith('@'):
             dates = [start_date]
         else:
             dates = dag.date_range(start_date, end_date=end_date)
