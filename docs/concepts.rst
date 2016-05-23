@@ -172,7 +172,7 @@ functionally equivalent:
 
 When using the bitshift to compose operators, the relationship is set in the
 direction that the bitshift operator points. For example, ``op1 >> op2`` means
-that ``op1`` runs first and ``op2`` runs seconds. Multiple operators can be
+that ``op1`` runs first and ``op2`` runs second. Multiple operators can be
 composed -- keep in mind the chain is executed left-to-right and the rightmost
 object is always returned. For example:
 
