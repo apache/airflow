@@ -1657,7 +1657,9 @@ class Airflow(BaseView):
                 'inverted': True,
                 'height': height,
             },
-            'xAxis': {'categories': tasks, 'alternateGridColor': '#FAFAFA', 'types': tasks},
+            'xAxis': {'categories': tasks,
+                      'alternateGridColor': '#FAFAFA',
+                      'types': tasks},
             'yAxis': {'type': 'datetime'},
             'title': {
                 'text': None
@@ -1694,7 +1696,7 @@ class Airflow(BaseView):
 
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        execution_date =  request.args.get('execution_date')
+        execution_date = request.args.get('execution_date')
         redirect_to = request.args.get('redirect_to')
         dttm = dateutil.parser.parse(execution_date)
         dag = dagbag.get_dag(dag_id)
@@ -1713,6 +1715,13 @@ class Airflow(BaseView):
                 if t.task_id == task_id:
                     task = t
                     break
+
+            if task.task_type != 'QuboleOperator':
+                flash(
+                    "Task [{}.{}] doesn't seem to be a QDS task."
+                    .format(dag_id, task_id),
+                    "error")
+                return redirect('/admin/')
 
             conn = BaseHook.get_connection(task.kwargs['qubole_conn_id'])
             host = None
