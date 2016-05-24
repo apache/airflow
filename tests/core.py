@@ -678,6 +678,10 @@ class CliTests(unittest.TestCase):
             'task_state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
+    def test_dag_state(self):
+        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
+            'dag_state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
+
     def test_pause(self):
         args = self.parser.parse_args([
             'pause', 'example_bash_operator'])

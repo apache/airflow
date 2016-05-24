@@ -325,6 +325,18 @@ def task_state(args):
     print(ti.current_state())
 
 
+def dag_state(args):
+    """
+    Returns the state of a DagRun at the command line.
+
+    >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
+    running
+    """
+    dag = get_dag(args)
+    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
+    print(dr[0].state if len(dr) > 0 else None)
+
+
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -885,6 +897,10 @@ class CLIFactory(object):
             'func': list_dags,
             'help': "List all the DAGs",
             'args': ('subdir', 'report'),
+        }, {
+            'func': dag_state,
+            'help': "Get the status of a dag run",
+            'args': ('dag_id', 'execution_date', 'subdir'),
         }, {
             'func': task_state,
             'help': "Get the status of a task instance",
