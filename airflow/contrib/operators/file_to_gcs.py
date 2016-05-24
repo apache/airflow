@@ -15,7 +15,7 @@
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.models import BaseOperator
-import os
+from airflow.utils.decorators import apply_defaults
 
 
 class FileToGoogleCloudStorageOperator(BaseOperator):
@@ -23,6 +23,7 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     Uploads a file to Google Cloud Storage
     """
 
+    @apply_defaults
     def __init__(self,
                  src,
                  dst,
