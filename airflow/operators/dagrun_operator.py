@@ -7,9 +7,10 @@ from airflow import settings
 
 
 class DagRunOrder(object):
-    def __init__(self, run_id=None, payload=None):
+    def __init__(self, run_id=None, payload=None, execution_date=None):
         self.run_id = run_id
         self.payload = payload
+        self.execution_date = execution_date
 
 
 class TriggerDagRunOperator(BaseOperator):
@@ -28,6 +29,9 @@ class TriggerDagRunOperator(BaseOperator):
         to your tasks while executing that DAG run. Your function header
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
+    :param execution_date: the date to run the dag for in 'YYYY-MM-DD' format.
+        Defaults to ``datetime.now()``
+    :type execution_date: str
     """
     template_fields = tuple()
     template_ext = tuple()
@@ -37,13 +41,20 @@ class TriggerDagRunOperator(BaseOperator):
             self,
             trigger_dag_id,
             python_callable,
+            execution_date = None,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
+        if execution_date:
+            print("Setting execution date to: " + execution_date)
+            self.execution_date = datetime.strptime(execution_date, '%Y-%m-%d')
+        else:
+            self.execution_date = None
 
     def execute(self, context):
-        dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
+        date = self.execution_date if self.execution_date else datetime.now()
+        dro = DagRunOrder(run_id='trig__' + date.isoformat(), execution_date=date)
         dro = self.python_callable(context, dro)
         if dro:
             session = settings.Session()
@@ -51,6 +62,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_id=self.trigger_dag_id,
                 run_id=dro.run_id,
                 conf=dro.payload,
+                execution_date=date,
                 external_trigger=True)
             logging.info("Creating DagRun {}".format(dr))
             session.add(dr)
