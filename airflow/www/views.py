@@ -82,6 +82,17 @@ current_user = airflow.login.current_user
 logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
+
+DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
+    'password',
+    'secret',
+    'passwd',
+    'authorization',
+    'api_key',
+    'apikey',
+    'access_token',
+)
+
 if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
@@ -263,6 +274,11 @@ def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
         recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
     if isinstance(tasks, BaseOperator):
         task_id_to_dag[tasks.task_id] = tasks.dag
+
+
+def should_hide_value_for_key(key_name):
+    return any(s in key_name for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
+           and conf.getboolean('admin', 'hide_sensitive_variable_fields')
 
 
 class Airflow(BaseView):
@@ -2015,11 +2031,17 @@ admin.add_view(mv)
 class VariableView(wwwutils.LoginMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
+
+    def hidden_field_formatter(view, context, model, name):
+        if should_hide_value_for_key(model.key):
+            return Markup('*' * 8)
+        return getattr(model, name)
+
     form_columns = (
         'key',
         'val',
     )
-    column_list = ('key', 'is_encrypted',)
+    column_list = ('key', 'val', 'is_encrypted',)
     column_filters = ('key', 'val')
     column_searchable_list = ('key', 'val')
     form_widget_args = {
@@ -2028,6 +2050,18 @@ class VariableView(wwwutils.LoginMixin, AirflowModelView):
             'rows': 20,
         }
     }
+    column_sortable_list = (
+        'key',
+        'val',
+        'is_encrypted',
+    )
+    column_formatters = {
+        'val': hidden_field_formatter
+    }
+
+    def on_form_prefill(self, form, id):
+        if should_hide_value_for_key(form.key.data):
+            form.val.data = '*' * 8
 
 
 class JobModelView(ModelViewOnly):
