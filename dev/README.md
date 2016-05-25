@@ -8,7 +8,6 @@ It is very important that PRs reference a JIRA issue. The preferred way to do th
 
 __Please note:__ this tool will restore your current branch when it finishes, but you will lose any uncommitted changes. Make sure you commit any changes you wish to keep before proceeding.
 
-Also, do not run this tool from inside the `dev` folder if you are working with a PR that predates the `dev` directory. It will be unable to restore itself from a nonexistent location. Run it from the main airflow directory instead: `dev/airflow-pr`.
 
 ### Execution
 Simply execute the `airflow-pr` tool:
@@ -28,6 +27,7 @@ Options:
   --help  Show this message and exit.
 
 Commands:
+  close_jira  Close a JIRA issue (without merging a PR)
   merge       Merge a GitHub PR into Airflow master
   work_local  Clone a GitHub PR locally for testing (no push)
 ```
@@ -38,8 +38,7 @@ Execute `airflow-pr merge` to be interactively guided through the process of mer
 
 Execute `airflow-pr work_local` to only merge the PR locally. The tool will pause once the merge is complete, allowing the user to explore the PR, and then will delete the merge and restore the original development environment.
 
-Both commands can be followed by a PR number (`airflow-pr merge 42`); otherwise the tool will prompt for one.
-
+Execute `airflow-pr close_jira` to close a JIRA issue without needing to merge a PR. You will be prompted for an issue number and close comment.
 
 ### Configuration
 

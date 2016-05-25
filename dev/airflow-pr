@@ -35,6 +35,7 @@ import os
 import re
 import subprocess
 import sys
+import textwrap
 
 # Python 3 compatibility
 try:
@@ -95,41 +96,32 @@ def get_json(url):
         if (
                 "X-RateLimit-Remaining" in e.headers and
                 e.headers["X-RateLimit-Remaining"] == '0'):
-            print(
+            click.echo(
                 "Exceeded the GitHub API rate limit; set the environment "
                 "variable GITHUB_OAUTH_KEY in order to make authenticated "
                 "GitHub requests.")
         else:
-            print("Unable to fetch URL, exiting: %s" % url)
+            click.echo("Unable to fetch URL, exiting: %s" % url)
         sys.exit(-1)
 
 
 def fail(msg):
-    print(msg)
+    click.echo(msg)
     clean_up()
     sys.exit(-1)
 
 
 def run_cmd(cmd):
     if isinstance(cmd, list):
-        print('<Running command:> {}'.format(' '.join(cmd)))
+        click.echo('>> Running command: {}'.format(' '.join(cmd)))
         return subprocess.check_output(cmd).decode('utf-8')
     else:
-        print('<Running command:> {}'.format(cmd))
+        click.echo('>> Running command: {}'.format(cmd))
         return subprocess.check_output(cmd.split(" ")).decode('utf-8')
-
-def get_yes_no(prompt):
-    while True:
-        result = raw_input("\n%s (y/n): " % prompt)
-        if result.lower() not in ('y', 'n'):
-            print('Invalid response.')
-        else:
-            break
-    return result.lower() == 'y'
 
 
 def continue_maybe(prompt):
-    if not get_yes_no(prompt):
+    if not click.confirm(prompt):
         fail("Okay, exiting.")
 
 
@@ -137,13 +129,16 @@ def clean_up():
     if 'original_head' not in globals():
         return
 
-    print("Restoring head pointer to %s" % original_head)
+    click.echo('Resetting git to remove any changes')
+    run_cmd('git reset --hard')
+
+    click.echo("Restoring head pointer to %s" % original_head)
     run_cmd("git checkout %s" % original_head)
 
     branches = run_cmd("git branch").replace(" ", "").split("\n")
 
     for branch in filter(lambda x: x.startswith(BRANCH_PREFIX), branches):
-        print("Deleting local branch %s" % branch)
+        click.echo("Deleting local branch %s" % branch)
         run_cmd("git branch -D %s" % branch)
 
 
@@ -157,12 +152,18 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     run_cmd("git checkout %s" % target_branch_name)
 
     had_conflicts = False
-    squash = get_yes_no(
-        "Do you want to squash the PR commits? If you do not, a merge commit "
-        "will be created in addition to the PR commits. If you do, GitHub "
-        "will mark the PR as 'closed' rather than 'merged'. "
-        "Though it's purely cosmetic, you may prefer to ask the original "
-        "author to squash commits in his or her branch before merging.")
+    squash = click.confirm(textwrap.dedent(
+        """
+        Do you want to squash the PR commits?
+
+        If you do not, a merge commit will be created in addition to the PR
+        commits. If you do, GitHub will mark the PR as 'closed' rather than
+        'merged'. Though it's purely cosmetic, you may prefer to ask the
+        original author to squash commits in his or her branch before
+        merging.
+
+        Squash?
+        """))
 
     if squash:
         merge_cmd = ['git', 'merge', pr_branch_name, '--squash']
@@ -185,7 +186,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         distinct_authors = sorted(set(commit_authors),
                                   key=lambda x: commit_authors.count(x), reverse=True)
         primary_author = raw_input(
-            "Enter primary author in the format of \"name <email>\" [%s]: " %
+            "Enter primary author in the format of \"name <email>\" (or press enter to use %s): " %
             distinct_authors[0])
         if primary_author == "":
             primary_author = distinct_authors[0]
@@ -224,10 +225,10 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     run_cmd(['git', 'commit'] + merge_message_flags)
     if local:
         raw_input(
-            '\nThe PR has been merged locally in branch {}. You may leave '
-            'this program running while you work on it. When you are finished, '
-            'press <enter> to delete the PR branch and restore your original '
-            'environment.'.format(target_branch_name))
+            '\nThe PR has been merged locally in branch {}. You may leave\n'
+            'this program running while you work on it. When you are\n'
+            'finished, press <enter> to delete the PR branch and restore your\n'
+            'original environment.'.format(target_branch_name))
         clean_up()
         return
 
@@ -242,13 +243,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
     merge_hash = run_cmd("git rev-parse %s" % target_branch_name)[:8]
     clean_up()
-    print("Pull request #%s merged!" % pr_num)
-    print("Merge hash: %s" % merge_hash)
+    click.echo("Pull request #%s merged!" % pr_num)
+    click.echo("Merge hash: %s" % merge_hash)
     return merge_hash
 
 
 def cherry_pick(pr_num, merge_hash, default_branch):
-    pick_ref = raw_input("Enter a branch name [%s]: " % default_branch)
+    pick_ref = raw_input("Enter a branch name (or press enter to use %s): " % default_branch)
     if pick_ref == "":
         pick_ref = default_branch
 
@@ -277,8 +278,8 @@ def cherry_pick(pr_num, merge_hash, default_branch):
     pick_hash = run_cmd("git rev-parse %s" % pick_branch_name)[:8]
     clean_up()
 
-    print("Pull request #%s picked into %s!" % (pr_num, pick_ref))
-    print("Pick hash: %s" % pick_hash)
+    click.echo("Pull request #%s picked into %s!" % (pr_num, pick_ref))
+    click.echo("Pick hash: %s" % pick_hash)
     return pick_ref
 
 
@@ -287,22 +288,46 @@ def fix_version_from_branch(branch, versions):
     if branch == "master":
         return versions[0]
     else:
+        #TODO adopt a release scheme with branches. Spark uses branch-XX.
         branch_ver = branch.replace("branch-", "")
-        return filter(lambda x: x.name.startswith(branch_ver), versions)[-1]
+        versions = list(filter(
+            lambda x: x.name.startswith(branch_ver), versions))
+        if versions:
+            return versions[-1]
 
 
-def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
-    asf_jira = jira.client.JIRA({'server': JIRA_API_BASE},
-                                basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
+    if merge_branches is None:
+        merge_branches = []
 
-    jira_id = raw_input("Enter a JIRA id [%s]: " % default_jira_id)
-    if jira_id == "":
-        jira_id = default_jira_id
+    if JIRA_IMPORTED:
+        if not JIRA_USERNAME and not JIRA_PASSWORD:
+            click.echo("JIRA_USERNAME and JIRA_PASSWORD not set; exiting.")
+            return
+    else:
+        click.echo(
+            "Could not find jira-python library; exiting. Run "
+            "'sudo pip install jira' to install.")
+        return
 
+    asf_jira = jira.client.JIRA(
+        {'server': JIRA_API_BASE},
+        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+
+    jira_id = 'AIRFLOW-{}'.format(abs(click.prompt(
+        'Enter an Airflow JIRA id', default=jira_id, type=int)))
     try:
         issue = asf_jira.issue(jira_id)
     except Exception as e:
-        fail("ASF JIRA could not find %s\n%s" % (jira_id, e))
+        fail("ASF JIRA could not find issue {}\n{}".format(jira_id, e))
+
+    if comment is None:
+        comment = click.prompt(
+            'Please enter a comment to explain why the issue is being closed',
+            default='',
+            show_default=False)
+    if not comment:
+        comment = None
 
     cur_status = issue.fields.status.name
     cur_summary = issue.fields.summary
@@ -314,17 +339,19 @@ def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
 
     if cur_status == "Resolved" or cur_status == "Closed":
         fail("JIRA issue %s already has status '%s'" % (jira_id, cur_status))
-    print ("=== JIRA %s ===" % jira_id)
-    print ("summary\t\t%s\nassignee\t%s\nstatus\t\t%s\nurl\t\t%s/%s\n" % (
+    click.echo ("=== JIRA %s ===" % jira_id)
+    click.echo ("summary\t\t%s\nassignee\t%s\nstatus\t\t%s\nurl\t\t%s/%s\n" % (
         cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
 
     versions = asf_jira.project_versions("AIRFLOW")
     versions = sorted(versions, key=lambda x: x.name, reverse=True)
     versions = filter(lambda x: x.raw['released'] is False, versions)
     # Consider only x.y.z versions
-    versions = filter(lambda x: re.match('\d+\.\d+\.\d+', x.name), versions)
+    versions = list(filter(
+        lambda x: re.match('\d+\.\d+\.\d+', x.name), versions))
 
-    default_fix_versions = map(lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+    default_fix_versions = map(
+        lambda x: fix_version_from_branch(x, versions).name, merge_branches)
     for v in default_fix_versions:
         # Handles the case where we have forked a release branch but not yet made the release.
         # In this case, if the PR is committed to the master branch and the release branch, we
@@ -334,35 +361,43 @@ def resolve_jira_issue(merge_branches, comment, default_jira_id=""):
         if patch == "0":
             previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
             if previous in default_fix_versions:
-                default_fix_versions = filter(lambda x: x != v, default_fix_versions)
+                default_fix_versions = list(filter(
+                    lambda x: x != v, default_fix_versions))
     default_fix_versions = ",".join(default_fix_versions)
 
-    fix_versions = raw_input("Enter comma-separated fix version(s) [%s]: " % default_fix_versions)
+    fix_versions = click.prompt(
+        "Enter comma-separated fix version(s)", default=default_fix_versions)
     if fix_versions == "":
         fix_versions = default_fix_versions
     fix_versions = fix_versions.replace(" ", "").split(",")
+    if fix_versions == ['']:
+        fix_versions = None
 
     def get_version_json(version_str):
-        return filter(lambda v: v.name == version_str, versions)[0].raw
+        return list(filter(lambda v: v.name == version_str, versions))[0].raw
 
-    jira_fix_versions = map(lambda v: get_version_json(v), fix_versions)
+    if fix_versions and fix_versions != ['']:
+        jira_fix_versions = list(
+            map(lambda v: get_version_json(v), fix_versions))
+    else:
+        jira_fix_versions = None
 
-    resolve = filter(lambda a: a['name'] == "Resolve Issue", asf_jira.transitions(jira_id))[0]
-    resolution = filter(lambda r: r.raw['name'] == "Fixed", asf_jira.resolutions())[0]
+    resolve = list(filter(
+        lambda a: a['name'] == "Resolve Issue",
+        asf_jira.transitions(jira_id)))[0]
+    resolution = list(filter(
+        lambda r: r.raw['name'] == "Fixed",
+        asf_jira.resolutions()))[0]
     asf_jira.transition_issue(
-        jira_id, resolve["id"], fixVersions = jira_fix_versions,
-        comment = comment, resolution = {'id': resolution.raw['id']})
+        jira_id,
+        resolve["id"],
+        fixVersions=jira_fix_versions,
+        comment=comment,
+        resolution = {'id': resolution.raw['id']})
 
-    print("Successfully resolved %s with fixVersions=%s!" % (jira_id, fix_versions))
-
-
-def resolve_jira_issues(title, merge_branches, comment):
-    jira_ids = re.findall("AIRFLOW-[0-9]{4,5}", title)
-
-    if len(jira_ids) == 0:
-        resolve_jira_issue(merge_branches, comment)
-    for jira_id in jira_ids:
-        resolve_jira_issue(merge_branches, comment, jira_id)
+    click.echo("Successfully resolved {id}{fv}!".format(
+        id=jira_id,
+        fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''))
 
 
 def standardize_jira_ref(text):
@@ -469,7 +504,8 @@ def main(pr_num, local=False):
     original_head = get_current_ref()
 
     branches = get_json("%s/branches" % GITHUB_API_BASE)
-    branch_names = filter(lambda x: x.startswith("branch-"), [x['name'] for x in branches])
+    branch_names = filter(
+        lambda x: x.startswith("branch-"), [x['name'] for x in branches])
     # Assumes branch names can be sorted lexicographically
     latest_branch = sorted(branch_names, reverse=True)
     if latest_branch:
@@ -482,7 +518,7 @@ def main(pr_num, local=False):
             "Please enter the number of the pull request you'd "
             "like to work with (e.g. 42): ")
     else:
-        print('Working with pull request {}'.format(pr_num))
+        click.echo('Working with pull request {}'.format(pr_num))
 
     pr = get_json("%s/pulls/%s" % (GITHUB_API_BASE, pr_num))
     pr_events = get_json("%s/issues/%s/events" % (GITHUB_API_BASE, pr_num))
@@ -492,17 +528,17 @@ def main(pr_num, local=False):
     # Decide whether to use the modified title or not
     modified_title = standardize_jira_ref(pr["title"])
     if modified_title != pr["title"]:
-        print("I've re-written the title as follows to match the standard format:")
-        print("Original: %s" % pr["title"])
-        print("Modified: %s" % modified_title)
-        result = get_yes_no("Would you like to use the modified title?")
+        click.echo("I've re-written the title as follows to match the standard format:")
+        click.echo("Original: %s" % pr["title"])
+        click.echo("Modified: %s" % modified_title)
+        result = click.confirm("Would you like to use the modified title?")
         if result:
             title = modified_title
-            print("Using modified title:")
+            click.echo("Using modified title:")
         else:
             title = pr["title"]
-            print("Using original title:")
-        print(title)
+            click.echo("Using original title:")
+        click.echo(title)
     else:
         title = pr["title"]
 
@@ -518,7 +554,7 @@ def main(pr_num, local=False):
         if e["actor"]["login"] == GITHUB_USER and
         (e["event"] == "closed" or e["event"] == "merged")]
 
-    if merge_commits:
+    if merge_commits and False:
         merge_hash = merge_commits[0]["commit_id"]
         message = get_json("%s/commits/%s" % (GITHUB_API_BASE, merge_hash))["commit"]["message"]
 
@@ -529,7 +565,7 @@ def main(pr_num, local=False):
         if not commit_is_downloaded:
             fail("Couldn't find any merge commit for #%s, you may need to update HEAD." % pr_num)
 
-        print("Found commit %s:\n%s" % (merge_hash, message))
+        click.echo("Found commit %s:\n%s" % (merge_hash, message))
         cherry_pick(pr_num, merge_hash, latest_branch)
         sys.exit(0)
 
@@ -538,8 +574,8 @@ def main(pr_num, local=False):
             "Continue? (experts only!)"
         continue_maybe(msg)
 
-    print("\n=== Pull Request #%s ===" % pr_num)
-    print("title\t%s\nsource\t%s\ntarget\t%s\nurl\t%s" % (
+    click.echo("\n=== Pull Request #%s ===" % pr_num)
+    click.echo("title\t%s\nsource\t%s\ntarget\t%s\nurl\t%s" % (
         title, pr_repo_desc, target_ref, url))
     continue_maybe("Proceed with pull request #{}?".format(pr_num))
 
@@ -554,17 +590,16 @@ def main(pr_num, local=False):
     while raw_input("\n%s (y/n): " % pick_prompt).lower() == "y":
         merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
 
-    if JIRA_IMPORTED:
-        if JIRA_USERNAME and JIRA_PASSWORD:
-            continue_maybe("Would you like to update an associated JIRA?")
-            jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (pr_num, GITHUB_BASE, pr_num)
-            resolve_jira_issues(title, merged_refs, jira_comment)
-        else:
-            print("JIRA_USERNAME and JIRA_PASSWORD not set")
-            print("Exiting without trying to close the associated JIRA.")
-    else:
-        print("Could not find jira-python library. Run 'sudo pip install jira' to install.")
-        print("Exiting without trying to close the associated JIRA.")
+    continue_maybe("Would you like to update an associated JIRA?")
+    jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (pr_num, GITHUB_BASE, pr_num)
+    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title)
+    if not jira_ids:
+        resolve_jira_issue(
+            jira_id=None, comment=jira_comment, merge_branches=merged_refs)
+    for jira_id in jira_ids:
+        resolve_jira_issue(
+            jira_id=jira_id, comment=jira_comment, merge_branches=merged_refs)
+
 
 @click.group()
 def cli():
@@ -580,6 +615,7 @@ def cli():
     """
     pass
 
+
 @cli.command(short_help='Merge a GitHub PR into Airflow master')
 @click.argument('pr_num', default=0)
 def merge(pr_num):
@@ -588,6 +624,7 @@ def merge(pr_num):
     closes any related JIRA issues.
     """
     main(pr_num, local=False)
+
 
 @cli.command(short_help='Clone a GitHub PR locally for testing (no push)')
 @click.argument('pr_num', default=0)
@@ -600,6 +637,16 @@ def work_local(pr_num):
     environment.
     """
     main(pr_num, local=True)
+
+
+@cli.command(short_help='Close a JIRA issue (without merging a PR)')
+def close_jira():
+    """
+    This command runs only the JIRA part of the PR tool; it doesn't do any
+    merging at all.
+    """
+    resolve_jira_issue(comment=None, jira_id=None, merge_branches=None)
+
 
 if __name__ == "__main__":
     import doctest
