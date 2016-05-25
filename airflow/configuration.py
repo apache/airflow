@@ -156,7 +156,10 @@ defaults = {
     },
     'github_enterprise': {
         'api_rev': 'v3'
-    }
+    },
+    'admin': {
+        'hide_sensitive_variable_fields': True,
+    },
 }
 
 DEFAULT_CONFIG = """\
@@ -385,6 +388,10 @@ authenticate = False
 # Mesos credentials, if authentication is enabled
 # default_principal = admin
 # default_secret = admin
+
+[admin]
+# UI to hide sensitive variable fields when set to True
+hide_sensitive_variable_fields = True
 
 """
 
