@@ -129,6 +129,9 @@ def clean_up():
     if 'original_head' not in globals():
         return
 
+    click.echo('Resetting git to remove any changes')
+    run_cmd('git reset --hard')
+
     click.echo("Restoring head pointer to %s" % original_head)
     run_cmd("git checkout %s" % original_head)
 
