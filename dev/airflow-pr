@@ -391,7 +391,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     continue_maybe('Proceed with AIRFLOW-{}?'.format(jira_id))
 
     comment = click.prompt(
-        'Please enter a comment to explain why {jid} is being closed'.format(
+        'Please enter a comment to explain why {} is being closed'.format(
             jira_id),
         default=comment)
 
