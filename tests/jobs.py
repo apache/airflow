@@ -398,3 +398,20 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 0)
+
+    def test_scheduler_dagrun_once(self):
+        """
+        Test if the scheduler does not create multiple dagruns
+        if a dag is scheduled with @once and a start_date
+        """
+        dag = DAG(
+            'test_scheduler_dagrun_once',
+            start_date=datetime.datetime(2015, 1, 1),
+            schedule_interval="@once")
+
+        scheduler = SchedulerJob()
+        dag.clear()
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNone(dr)

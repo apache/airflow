@@ -407,28 +407,18 @@ class SchedulerJob(BaseJob):
                             # add % as a wildcard for the like query
                             DagRun.run_id.like(DagRun.ID_PREFIX+'%')))
             last_scheduled_run = qry.scalar()
+
+            # don't schedule @once again
+            if dag.schedule_interval == '@once' and last_scheduled_run:
+                return None
+
             next_run_date = None
-            if dag.schedule_interval == '@once' and not last_scheduled_run:
-                next_run_date = datetime.now()
-            elif not last_scheduled_run:
+            if not last_scheduled_run:
                 # First run
-                TI = models.TaskInstance
-                latest_run = (
-                    session.query(func.max(TI.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .scalar()
-                )
-                if latest_run:
-                    # Migrating from previous version
-                    # make the past 5 runs active
-                    next_run_date = dag.date_range(latest_run, -5)[0]
-                else:
-                    task_start_dates = [t.start_date for t in dag.tasks]
-                    if task_start_dates:
-                        next_run_date = min(task_start_dates)
-                    else:
-                        next_run_date = None
-            elif dag.schedule_interval != '@once':
+                task_start_dates = [t.start_date for t in dag.tasks]
+                if task_start_dates:
+                    next_run_date = min(task_start_dates)
+            else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
             # don't ever schedule prior to the dag's start_date
