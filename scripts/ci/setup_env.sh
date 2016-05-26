@@ -94,7 +94,14 @@ tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $
 
 if [ $? != 0 ]; then
     echo "Failed to extract Hadoop from ${HADOOP_HOME}/hadoop.tar.gz to ${HADOOP_HOME} - abort" >&2
-    exit 1
+    echo "Trying again..." >&2
+    # dont use cache
+    curl -o ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz -L $URL
+    tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
+    if [ $? != 0 ]; then
+        echo "Failed twice in downloading and unpacking hadoop!" >&2
+        exit 1
+    fi
 fi
 
 echo "Downloading and unpacking hive"
@@ -108,4 +115,4 @@ unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
 
 echo "Path = ${PATH}"
 
-java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster &
+java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &
