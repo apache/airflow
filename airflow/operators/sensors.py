@@ -69,12 +69,12 @@ class BaseSensorOperator(BaseOperator):
     def execute(self, context):
         started_at = datetime.now()
         while not self.poke(context):
-            sleep(self.poke_interval)
-            if (datetime.now() - started_at).seconds > self.timeout:
+            if (datetime.now() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
+            sleep(self.poke_interval)
         logging.info("Success criteria met. Exiting.")
 
 
