@@ -406,7 +406,7 @@ class DagBag(LoggingMixin):
                             continue
                         mod_name, file_ext = os.path.splitext(
                             os.path.split(filepath)[-1])
-                        if file_ext != '.py':
+                        if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
