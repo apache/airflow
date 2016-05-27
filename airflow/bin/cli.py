@@ -425,10 +425,15 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
+        secure_params = args.ssl_certfile and args.ssl_keyfile
         print(
             'Running the Gunicorn server with {workers} {args.workerclass}'
             'workers on host {args.hostname} and port '
-            '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
+            '{args.port} with a timeout of {worker_timeout} and secure={secure_params}'
+            .format(**locals()))
+
+        sec_params = ['--certfile=' + args.ssl_certfile, '--keyfile=' +
+                args.ssl_keyfile] if secure_params else []
 
         run_args = ['gunicorn',
                     '-w ' + str(args.workers),
@@ -436,7 +441,7 @@ def webserver(args):
                     '-t ' + str(args.worker_timeout),
                     '-b ' + args.hostname + ':' + str(args.port),
                     '-n ' + 'airflow-webserver',
-                    '-p ' + str(pid)]
+                    '-p ' + str(pid)] + sec_params
 
         if args.daemon:
             run_args.append("-D")
@@ -795,6 +800,12 @@ class CLIFactory(object):
             ("-d", "--debug"),
             "Use the server that ships with Flask in debug mode",
             "store_true"),
+        'ssl_certfile': Arg(
+            ("-scf", "--ssl_certfile"),
+            help="ssl certificate file"),
+        'ssl_keyfile': Arg(
+            ("-skf", "--ssl_keyfile"),
+            help="ssl key file"),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -921,8 +932,8 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
-                     'debug'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'log_file', 'ssl_certfile',
+                     'ssl_keyfile', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
