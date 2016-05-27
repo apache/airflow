@@ -402,8 +402,12 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     versions = list(filter(
         lambda x: re.match('\d+\.\d+\.\d+', x.name), versions))
 
-    default_fix_versions = map(
-        lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+    if versions:
+        default_fix_versions = map(
+            lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+    else:
+        default_fix_versions = []
+        
     for v in default_fix_versions:
         # Handles the case where we have forked a release branch but not yet made the release.
         # In this case, if the PR is committed to the master branch and the release branch, we
