@@ -386,7 +386,14 @@ class Airflow(BaseView):
                     df[df.columns[x_col]] = pd.to_datetime(
                         df[df.columns[x_col]])
                 except Exception as e:
-                    raise AirflowException(str(e))
+                    error_format_str = ("Error in chart ID {} while converting " +
+                                        "X column {} to datetime. Please verify " +
+                                        "that the X values are valid and can be " +
+                                        "converted to datetime. Exception was: {}")
+                    payload['error'] += error_format_str.format(chart_id,
+                                                                x_col,
+                                                                str(e))
+                    return wwwutils.json_response(payload)
                 df[df.columns[x_col]] = df[df.columns[x_col]].apply(
                     lambda x: int(x.strftime("%s")) * 1000)
 
