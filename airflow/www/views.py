@@ -856,7 +856,9 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    log += '\n' + requests.get(url).text
+                    response = requests.get(url)
+                    response.raise_for_status()
+                    log += '\n' + response.text
                     log_loaded = True
                 except:
                     log += "*** Failed to fetch log file from worker.\n".format(
