@@ -306,6 +306,11 @@ def run(args, dag=None):
                 log,
                 remote_log_location,
                 append=True)
+        elif remote_base.startswith('hdfs:/'):
+            logging_utils.HDFSLog().write(
+                log,
+                remote_log_location,
+                append=True)
         # Other
         elif remote_base and remote_base != 'None':
             logging.error(
