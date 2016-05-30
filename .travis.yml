@@ -67,6 +67,7 @@ before_install:
 install:
   - pip install --upgrade pip
   - pip install tox
+  - pip install codecov
 before_script:
   - mysql -e 'drop database if exists airflow; create database airflow' -u root
   - psql -c 'create database airflow;' -U postgres
@@ -76,3 +77,5 @@ script:
   - ls -l $HOME/.wheelhouse
   - tox --version
   - tox -e $TOX_ENV
+after_success:
+  - codecov
