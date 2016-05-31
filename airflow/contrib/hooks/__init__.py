@@ -26,6 +26,7 @@ _hooks = {
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],
     'datastore_hook': ['DatastoreHook'],
+    'gcp_dataproc_hook': ['DataProcHook'],
     'cloudant_hook': ['CloudantHook']
 }
 
