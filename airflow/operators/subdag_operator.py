@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import copy
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Pool
@@ -86,3 +87,21 @@ class SubDagOperator(BaseOperator):
         self.subdag.run(
             start_date=ed, end_date=ed, donot_pickle=True,
             executor=self.executor)
+
+    def __deepcopy__(self, memo):
+        """
+        Deep copying object except for the attrs in DONT_DEEPCOPY_ATTRS
+        """
+        DONT_DEEPCOPY_ATTRS = ('executor')
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        for k, v in list(self.__dict__.items()):
+            if k not in DONT_DEEPCOPY_ATTRS:
+                setattr(result, k, copy.deepcopy(v, memo))
+
+        for attr in DONT_DEEPCOPY_ATTRS:
+            if hasattr(self, attr):
+                setattr(result, attr, getattr(self, attr))
+        return result

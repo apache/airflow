@@ -292,9 +292,15 @@ class DagBag(LoggingMixin):
                         dag.full_filepath = filepath
                     dag.is_subdag = False
                     dag.module_name = m.__name__
-                    self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                    found_dags.append(dag)
-                    found_dags += dag.subdags
+                    try:
+                        dag.validate()
+                    except Exception as e:
+                        logging.error("DAG {} is not valid".format(dag))
+                        raise e
+                    else:
+                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        found_dags.append(dag)
+                        found_dags += dag.subdags
 
         self.file_last_changed[filepath] = dttm
         return found_dags
@@ -2004,20 +2010,20 @@ class BaseOperator(object):
 
     def __deepcopy__(self, memo):
         """
-        Hack sorting double chained task lists by task_id to avoid hitting
-        max_depth on deepcopy operations.
+        Deep copying object except for the attrs in DONT_DEEPCOPY_ATTRS
         """
-        sys.setrecursionlimit(5000)  # TODO fix this in a better way
+        DONT_DEEPCOPY_ATTRS = ('user_defined_macros', 'params')
         cls = self.__class__
         result = cls.__new__(cls)
         memo[id(self)] = result
 
         for k, v in list(self.__dict__.items()):
-            if k not in ('user_defined_macros', 'params'):
+            if k not in DONT_DEEPCOPY_ATTRS:
                 setattr(result, k, copy.deepcopy(v, memo))
-        result.params = self.params
-        if hasattr(self, 'user_defined_macros'):
-            result.user_defined_macros = self.user_defined_macros
+
+        for attr in DONT_DEEPCOPY_ATTRS:
+            if hasattr(self, attr):
+                setattr(result, attr, getattr(self, attr))
         return result
 
     def render_template_from_field(self, attr, content, context, jinja_env):
@@ -2651,6 +2657,23 @@ class DAG(LoggingMixin):
                 l.append(task.subdag)
                 l += task.subdag.subdags
         return l
+
+    def validate(self):
+        """Raises an error if the DAG is not valid"""
+        try:
+            copy.deepcopy(self)
+        except Exception as e:
+            logging.error("DAG won't deepcopy, attempting task-per-task")
+            for t in self.tasks:
+                try:
+                    copy.deepcopy(t)
+                except Exception as e:
+                    logging.error("{t} is not deepcopyable".format(t))
+                    raise e
+            logging.info(
+                "It doesn't appear to be a specific task, raising the "
+                "original exception")
+            raise e
 
     def get_active_runs(self):
         """
