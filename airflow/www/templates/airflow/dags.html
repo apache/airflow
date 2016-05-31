@@ -60,7 +60,7 @@
                   <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
                       {{ dag.schedule_interval }}</a></td>
                 <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
-                <td style="padding:0px; width:200px; height:10px;">
+                <td style="padding:0px; width:210px; height:10px;">
                     <svg height="10" width="10" id='dag-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
                 <td class="text-center" style="width:160px;"><nobr>
@@ -145,7 +145,7 @@
             states = json[dag_id];
             g = d3.select('svg#dag-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
-              .attr('width', '180px')
+              .attr('width', '210px')
               .selectAll("g")
               .data(states)
               .enter()

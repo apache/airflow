@@ -9,6 +9,9 @@ g.node text {
 g.node.success rect {
     stroke: green;
 }
+g.node.future_succeeded rect {
+    stroke: darkgreen;
+}
 g.node.up_for_retry rect {
     stroke: gold;
 }

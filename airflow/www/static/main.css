@@ -49,6 +49,9 @@ div.task_row{
 span.success{
     background-color: green;
 }
+span.future_succeeded{
+    background-color: darkgreen;
+}
 span.up_for_retry{
     background-color: gold;
 }

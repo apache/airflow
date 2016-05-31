@@ -25,6 +25,9 @@ rect.undefined {
 rect.success {
     fill: green;
 }
+rect.future_succeeded {
+    fill: darkgreen;
+}
 rect.running {
     fill: lime;
 }

@@ -509,7 +509,7 @@ class SchedulerJob(BaseJob):
                 .filter(
                     TI.dag_id == dag.dag_id,
                     TI.execution_date.in_(active_runs),
-                    TI.state.in_((State.RUNNING, State.SUCCESS, State.FAILED)),
+                    TI.state.in_((State.RUNNING, State.SUCCESS, State.FUTURE_SUCCEEDED, State.FAILED)),
                 )
             )
             skip_tis = {(ti[0], ti[1]) for ti in qry.all()}
@@ -526,7 +526,7 @@ class SchedulerJob(BaseJob):
 
             ti.refresh_from_db()
             if ti.state in (
-                    State.RUNNING, State.QUEUED, State.SUCCESS, State.FAILED):
+                    State.RUNNING, State.QUEUED, State.SUCCESS, State.FUTURE_SUCCEEDED, State.FAILED):
                 continue
             elif ti.is_runnable(flag_upstream_failed=True):
                 self.logger.debug('Queuing task: {}'.format(ti))
@@ -862,7 +862,7 @@ class BackfillJob(BaseJob):
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
                 if key not in started:
-                    if ti.state == State.SUCCESS:
+                    if ti.state == State.SUCCESS or ti.state == State.FUTURE_SUCCEEDED:
                         succeeded.add(key)
                         tasks_to_run.pop(key)
                         continue
@@ -935,7 +935,7 @@ class BackfillJob(BaseJob):
                 elif state == State.SUCCESS:
 
                     # task reports success
-                    if ti.state == State.SUCCESS:
+                    if ti.state == State.SUCCESS or ti.state == State.FUTURE_SUCCEEDED:
                         self.logger.info(
                             'Task instance {} succeeded'.format(key))
                         succeeded.add(key)
@@ -961,6 +961,7 @@ class BackfillJob(BaseJob):
                     # executor reports success but task does not - this is weird
                     elif ti.state not in (
                             State.SUCCESS,
+                            State.FUTURE_SUCCEEDED,
                             State.QUEUED,
                             State.UP_FOR_RETRY):
                         self.logger.error(
