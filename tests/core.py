@@ -693,6 +693,14 @@ class CliTests(unittest.TestCase):
         cli.unpause(args)
         assert self.dagbag.dags['example_bash_operator'].is_paused in [False, 0]
 
+    def test_subdag_clear(self):
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator', '--no_confirm'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
+        cli.clear(args)
+
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
