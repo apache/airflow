@@ -135,8 +135,13 @@ defaults = {
         'max_threads': 2,
     },
     'celery': {
+        'broker_url': 'sqla+mysql://airflow:airflow@localhost:3306/airflow',
+        'celery_app_name': 'airflow.executors.celery_executor',
+        'celery_result_backend': 'db+mysql://airflow:airflow@localhost:3306/airflow',
+        'celeryd_concurrency': 16,
         'default_queue': 'default',
-        'flower_port': '5555'
+        'flower_port': '5555',
+        'worker_log_server_port': '8793',
     },
     'email': {
         'email_backend': 'airflow.utils.email.send_email_smtp',
