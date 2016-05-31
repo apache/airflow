@@ -25,7 +25,7 @@ from airflow import AirflowException, settings
 from airflow.bin import cli
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import DAG, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators import DummyOperator
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
@@ -33,6 +33,14 @@ from airflow.utils.timeout import timeout
 
 from airflow import configuration
 configuration.test_mode()
+
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
@@ -157,6 +165,7 @@ class BackfillJobTest(unittest.TestCase):
         ti.refresh_from_db()
         # task ran
         self.assertEqual(ti.state, State.SUCCESS)
+        dag.clear()
 
 
 class SchedulerJobTest(unittest.TestCase):
@@ -174,7 +183,9 @@ class SchedulerJobTest(unittest.TestCase):
             advance_execution_date=False,
             session=None):
         """
-        Helper for testing DagRun states with simple two-task DAGS
+        Helper for testing DagRun states with simple two-task DAGS.
+        This is hackish: a dag run is created but its tasks are
+        run by a backfill.
         """
         if run_kwargs is None:
             run_kwargs = {}
@@ -183,6 +194,7 @@ class SchedulerJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
         dr = scheduler.schedule_dag(dag)
+
         if advance_execution_date:
             # run a second time to schedule a dagrun after the start_date
             dr = scheduler.schedule_dag(dag)
@@ -201,15 +213,14 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(ti.state, expected_state)
 
         # load dagrun
-        dr = session.query(DagRun).filter(
-            DagRun.dag_id == dag.dag_id,
-            DagRun.execution_date == ex_date
-        ).first()
+        dr = DagRun.find(dag_id=dag_id, execution_date=ex_date)
+        dr = dr[0]
+        dr.dag = dag
 
         # dagrun is running
         self.assertEqual(dr.state, State.RUNNING)
 
-        dag.get_active_runs()
+        dr.update_state()
 
         # dagrun failed
         self.assertEqual(dr.state, dagrun_state)
@@ -252,9 +263,9 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dagrun_deadlock(self):
         """
-        Do not deadlock
+        Deadlocked DagRun is marked a failure
 
-        Test that a dagrun is marked as a running by having
+        Test that a deadlocked dagrun is marked as a failure by having
         depends_on_past and an execution_date after the start_date
         """
         self.evaluate_dagrun(
@@ -263,7 +274,7 @@ class SchedulerJobTest(unittest.TestCase):
                 'test_depends_on_past': None,
                 'test_depends_on_past_2': None,
             },
-            dagrun_state=State.RUNNING,
+            dagrun_state=State.FAILED,
             advance_execution_date=True)
 
     def test_scheduler_pooled_tasks(self):
@@ -415,3 +426,68 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr)
         dr = scheduler.schedule_dag(dag)
         self.assertIsNone(dr)
+
+    def test_scheduler_process_execute_task(self):
+        """
+        Test if process dag sends a task to the executor
+        """
+        dag = DAG(
+            dag_id='test_scheduler_process_execute_task',
+            start_date=DEFAULT_DATE)
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+
+        queue = mock.Mock()
+        scheduler.process_dag(dag, queue=queue)
+
+        queue.put.assert_called_with(
+            ((dag.dag_id, dag_task1.task_id, DEFAULT_DATE), None)
+        )
+
+        tis = dr.get_task_instances(state=State.SCHEDULED)
+        self.assertIsNotNone(tis)
+
+    def test_scheduler_process_check_heartrate(self):
+        """
+        Test if process dag honors the heartrate
+        """
+        dag = DAG(
+            dag_id='test_scheduler_process_check_heartrate',
+            start_date=DEFAULT_DATE)
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.last_scheduler_run = datetime.datetime.now()
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        scheduler.heartrate = 1000
+
+        dag.clear()
+
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+
+        queue = mock.Mock()
+        scheduler.process_dag(dag, queue=queue)
+
+        queue.put.assert_not_called()
