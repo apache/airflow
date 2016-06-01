@@ -37,6 +37,9 @@ class DummyStatsLogger(object):
     @classmethod
     def gauge(cls, stat, value, rate=1, delta=False):
         pass
+    @classmethod
+    def timing(cls, stat, dt):
+        pass
 
 Stats = DummyStatsLogger
 
