@@ -2895,7 +2895,6 @@ class DAG(LoggingMixin):
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
-                print("K: {} V: {}".format(k, v))
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
