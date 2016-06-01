@@ -18,18 +18,22 @@ Usage: airflow-pr [OPTIONS] COMMAND [ARGS]...
   This tool should be used by Airflow committers to test PRs, merge them
   into the master branch, and close related JIRA issues.
 
-  NOTE: this tool will restore your current branch when it finishes, but
-  you will lose any uncommitted changes.
+  Before you begin, make sure you have created the 'apache' and 'github' git
+  remotes. You can use the "setup_git_remotes" command to do this
+  automatically. If you do not want to use these remote names, you can tell
+  the PR tool by setting the appropriate environment variables. For more
+  information, run:
 
-  *** Please commit any changes you wish to keep before proceeding. ***
+      airflow-pr merge --help
 
 Options:
   --help  Show this message and exit.
 
 Commands:
-  close_jira  Close a JIRA issue (without merging a PR)
-  merge       Merge a GitHub PR into Airflow master
-  work_local  Clone a GitHub PR locally for testing (no push)
+  close_jira         Close a JIRA issue (without merging a PR)
+  merge              Merge a GitHub PR into Airflow master
+  setup_git_remotes  Set up default git remotes
+  work_local         Clone a GitHub PR locally for testing (no push)
 ```
 
 #### Commands
@@ -40,6 +44,8 @@ Execute `airflow-pr work_local` to only merge the PR locally. The tool will paus
 
 Execute `airflow-pr close_jira` to close a JIRA issue without needing to merge a PR. You will be prompted for an issue number and close comment.
 
+Execute `airflow-pr setup_git_remotes` to configure the default (expected) git remotes. See below for details.
+
 ### Configuration
 
 #### Python Libraries
@@ -49,7 +55,11 @@ pip install click jira
 ```
 
 #### git Remotes
+tl;dr run `airflow-pr setup_git_remotes` before using the tool for the first time.
+
 Before using the merge tool, users need to make sure their git remotes are configured. By default, the tool assumes a setup like the one below, where the github repo remote is named `github` and the Apache repo remote is named `apache`. If users have other remote names, they can be supplied by setting environment variables `GITHUB_REMOTE_NAME` and `APACHE_REMOTE_NAME`, respectively.
+
+Users can configure this automatically by running `airflow-pr setup_git_remotes`.
 
 ```bash
 $ git remote -v
