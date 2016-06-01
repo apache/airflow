@@ -104,6 +104,7 @@ Currently **officially** using Airflow:
 * [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
 * [Lyft](https://www.lyft.com/)[[@SaurabhBajaj](https://github.com/SaurabhBajaj)]
 * [Nerdwallet](https://www.nerdwallet.com)
+* [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
 * [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 * [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 * [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
