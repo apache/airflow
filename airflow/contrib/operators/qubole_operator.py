@@ -5,96 +5,82 @@ from airflow.contrib.hooks import QuboleHook
 
 class QuboleOperator(BaseOperator):
     """
-    Executes commands on Qubole (https://qubole.com).
+    Execute tasks (commands) on QDS (https://qubole.com).
 
-    mandatory:
-        :param command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd
-    other:
+    :param qubole_conn_id: Connection id which consists of qds auth_token
+    :type qubole_conn_id: str
+
+    kwargs:
+        :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd
+        :tags: array of tags to be assigned with the command
+        :cluster_label: cluster label on which the command will be executed
+        :name: name to be given to command
+
+        **Arguments specific to command types**
+
         hivecmd:
-            :param query: inline query statement
-            :param script_location: s3 location containing query statement
-            :param sample_size:
-            :param macros: macro values which were used in query
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
+            :query: inline query statement
+            :script_location: s3 location containing query statement
+            :sample_size: size of sample in bytes on which to run query
+            :macros: macro values which were used in query
         prestocmd:
-            :param query: inline query statement
-            :param script_location: s3 location containing query statement
-            :param macros: macro values which were used in query
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
+            :query: inline query statement
+            :script_location: s3 location containing query statement
+            :macros: macro values which were used in query
         hadoopcmd:
-            :param sub_commnad: must be one these ["jar", "s3distcp", "streaming"] followed by 1 or more args
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
+            :sub_commnad: must be one these ["jar", "s3distcp", "streaming"] followed by 1 or more args
         shellcmd:
-            :param script: inline command with args
-            :param script_location: s3 location containing query statement
-            :param files: list of files in s3 bucket as file1,file2 format. These files will be copied into the working
-                          directory where the qubole command is being executed.
-            :param archives: list of archives in s3 bucket as archive1,archive2 format. These will be unarchived into
-                             the working directory where the qubole command is being executed
-            :param parameters: any extra args which need to be passed to script (only wwhen script_location is supplied)
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
+            :script: inline command with args
+            :script_location: s3 location containing query statement
+            :files: list of files in s3 bucket as file1,file2 format. These files will be copied into the working directory where the qubole command is being executed.
+            :archives: list of archives in s3 bucket as archive1,archive2 format. These will be unarchived intothe working directory where the qubole command is being executed
+            :parameters: any extra args which need to be passed to script (only when script_location is supplied)
         pigcmd:
-            :param script: inline query statement (latin_statements)
-            :param script_location: s3 location containing pig query
-            :param parameters: any extra args which need to be passed to script (only wwhen script_location is supplied
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
-        dbtapquerycmd:
-            :param db_tap_id: data store ID of the target database, in Qubole.
-            :param query: inline query statement
-            :param macros: macro values which were used in query
-            :param tags: array of tags to be assigned with the command
-            :param name: name to be given to command
+            :script: inline query statement (latin_statements)
+            :script_location: s3 location containing pig query
+            :parameters: any extra args which need to be passed to script (only when script_location is supplied
         sparkcmd:
-            :param program: the complete Spark Program in Scala, SQL, Command, R, or Python
-            :param cmdline: spark-submit command line, all required information must be specify in cmdline itself.
-            :param sql: inline sql query
-            :param script_location: s3 location containing query statement
-            :param language: language of the program, Scala, SQL, Command, R, or Python
-            :param app_id: ID of an Spark job server app
-            :param arguments: spark-submit command line arguments
-            :param user_program_arguments: arguments that the user program takes in
-            :param macros: macro values which were used in query
-            :param tags: array of tags to be assigned with the command
-            :param cluster_label: cluster label on which to execute command
-            :param name: name to be given to command
+            :program: the complete Spark Program in Scala, SQL, Command, R, or Python
+            :cmdline: spark-submit command line, all required information must be specify in cmdline itself.
+            :sql: inline sql query
+            :script_location: s3 location containing query statement
+            :language: language of the program, Scala, SQL, Command, R, or Python
+            :app_id: ID of an Spark job server app
+            :arguments: spark-submit command line arguments
+            :user_program_arguments: arguments that the user program takes in
+            :macros: macro values which were used in query
+        dbtapquerycmd:
+            :db_tap_id: data store ID of the target database, in Qubole.
+            :query: inline query statement
+            :macros: macro values which were used in query
         dbexportcmd:
-            :param mode: 1 (simple), 2 (advance)
-            :param hive_table: Name of the hive table
-            :param partition_spec: partition specification for Hive table.
-            :param dbtap_id: data store ID of the target database, in Qubole.
-            :param db_table: name of the db table
-            :param db_update_mode: allowinsert or updateonly
-            :param db_update_keys: columns used to determine the uniqueness of rows
-            :param export_dir: HDFS/S3 location from which data will be exported.
-            :param fields_terminated_by:
-            :param tags: array of tags to be assigned with the command
-            :param name: name to be given to command
+            :mode: 1 (simple), 2 (advance)
+            :hive_table: Name of the hive table
+            :partition_spec: partition specification for Hive table.
+            :dbtap_id: data store ID of the target database, in Qubole.
+            :db_table: name of the db table
+            :db_update_mode: allowinsert or updateonly
+            :db_update_keys: columns used to determine the uniqueness of rows
+            :export_dir: HDFS/S3 location from which data will be exported.
+            :fields_terminated_by: hex of the char used as column separator in the dataset.
         dbimportcmd:
-            :param mode: 1 (simple), 2 (advance)
-            :param hive_table: Name of the hive table
-            :param dbtap_id: data store ID of the target database, in Qubole.
-            :param db_table: name of the db table
-            :param where_clause: where clause, if any
-            :param parallelism: number of parallel db connections to use for extracting data
-            :param extract_query: SQL query to extract data from db. $CONDITIONS must be part of the where clause.
-            :param boundary_query: Query to be used get range of row IDs to be extracted
-            :param split_column: Column used as row ID to split data into ranges (mode 2)
-            :param tags: array of tags to be assigned with the command
-            :param name: name to be given to command
+            :mode: 1 (simple), 2 (advance)
+            :hive_table: Name of the hive table
+            :dbtap_id: data store ID of the target database, in Qubole.
+            :db_table: name of the db table
+            :where_clause: where clause, if any
+            :parallelism: number of parallel db connections to use for extracting data
+            :extract_query: SQL query to extract data from db. $CONDITIONS must be part of the where clause.
+            :boundary_query: Query to be used get range of row IDs to be extracted
+            :split_column: Column used as row ID to split data into ranges (mode 2)
 
+    .. note:: Following fields are template-supported : ``query``, ``script_location``, ``sub_command``, ``script``, ``files``,
+        ``archives``, ``program``, ``cmdline``, ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``, ``tags``,
+        ``name``, ``parameters``. You can also use ``.txt`` files for template driven use cases.
     """
 
-    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files', 'archives', 'program', 'cmdline', 'sql', 'where_clause', 'extract_query', 'boundary_query', 'macros', 'tags', 'name')
+    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files', 'archives', 'program', 'cmdline',
+                       'sql', 'where_clause', 'extract_query', 'boundary_query', 'macros', 'tags', 'name', 'parameters')
     template_ext = ('.txt')
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
