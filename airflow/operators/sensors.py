@@ -516,4 +516,6 @@ class HttpSensor(BaseSensorOperator):
             if ae.message.startswith("404"):
                 return False
 
+            raise ae
+
         return True

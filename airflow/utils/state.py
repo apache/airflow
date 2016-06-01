@@ -22,7 +22,16 @@ class State(object):
     Static class with task instance states constants and color method to
     avoid hardcoding.
     """
+
+    # scheduler
     NONE = None
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+
+    # set by the executor (t.b.d.)
+    # LAUNCHED = "launched"
+
+    # set by a task
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
@@ -43,6 +52,8 @@ class State(object):
         UPSTREAM_FAILED: 'orange',
         SKIPPED: 'pink',
         FUTURE_SUCCEEDED: 'darkgreen'
+        REMOVED: 'lightgrey',
+        SCHEDULED: 'white',
     }
 
     @classmethod
@@ -68,7 +79,8 @@ class State(object):
             cls.UP_FOR_RETRY,
             cls.UPSTREAM_FAILED,
             cls.SKIPPED,
-            cls.QUEUED
+            cls.QUEUED,
+            cls.SCHEDULED
         ]
 
     @classmethod
@@ -94,6 +106,7 @@ class State(object):
         """
         return [
             cls.NONE,
+            cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
             cls.UP_FOR_RETRY
