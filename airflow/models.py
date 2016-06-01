@@ -924,7 +924,6 @@ class TaskInstance(Base):
     def is_superceded_by_future(self, session):
         if not self.task.only_run_latest:
             return False
-        logging.info("checking for future")
         TI = TaskInstance
         ti = session.query(TI).filter(
             TI.dag_id == self.dag_id,
@@ -1339,7 +1338,17 @@ class TaskInstance(Base):
         session.commit()
 
     def mark_past_future_succeeded(self, session, activate_dag_runs=True):
+        """
+        Goes through past TaskInstances of this Task and changes their state
+        to FUTURE_SUCCEEDED (excepting if their state is already SUCCESS).
+        Downstream TaskInstances of those past TaskInstances are then cleared
+        and previously blocked DAG runs are allowed to proceed.
 
+        :param activate_dag_runs: passed through to clear_task_instances()
+        If True, DAG runs for cleared tasks are returned to State.RUNNING
+        and allowed to schedule now unblocked tasks.
+        :type activate_dag_runs: boolean
+        """
         TI = TaskInstance
         tis = session.query(TI).filter(TI.dag_id == self.dag_id,
                                        TI.task_id == self.task_id,
