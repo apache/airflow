@@ -93,7 +93,6 @@ Community-contributed Operators
         BigQueryOperator,
         BigQueryToCloudStorageOperator,
         GoogleCloudStorageDownloadOperator,
-        QuboleOperator,
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
