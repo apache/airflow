@@ -407,7 +407,8 @@ def clear(args):
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.no_confirm)
+        confirm_prompt=not args.no_confirm,
+        include_subdags=not args.exclude_subdags)
 
 
 def webserver(args):
@@ -714,6 +715,9 @@ class CLIFactory(object):
         'no_confirm': Arg(
             ("-c", "--no_confirm"),
             "Do not request confirmation", "store_true"),
+        'exclude_subdags': Arg(
+            ("-x", "--exclude_subdags"),
+            "Exclude subdags", "store_true"),
         # trigger_dag
         'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
@@ -855,7 +859,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running'),
+                'only_running', 'exclude_subdags'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
