@@ -290,8 +290,9 @@ class HiveMetastoreHook(BaseHook):
             def sasl_factory():
                 sasl_client = sasl.Client()
                 sasl_client.setAttr("host", ms.host)
-                sasl_client("service", kerberos_service_name)
+                sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
+                return sasl_client
 
             from thrift_sasl import TSaslClientTransport
             transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
