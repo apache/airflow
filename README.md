@@ -7,6 +7,7 @@
 [![Requirements Status](https://requires.io/github/apache/incubator-airflow/requirements.svg?branch=master)](https://requires.io/github/apache/incubator-airflow/requirements/?branch=master)
 [![Documentation](https://img.shields.io/badge/docs-pythonhosted-blue.svg)](http://pythonhosted.org/airflow/)
 [![Join the chat at https://gitter.im/apache/incubator-airflow](https://badges.gitter.im/apache/incubator-airflow.svg)](https://gitter.im/apache/incubator-airflow?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![PyPI](https://img.shields.io/pypi/pyversions/airflow.svg?maxAge=2592000)](https://pypi.python.org/pypi/airflow)
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
