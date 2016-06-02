@@ -46,12 +46,6 @@ if sys.version_info[0] == 3:
     raw_input = input
 
 try:
-    import jira.client
-    JIRA_IMPORTED = True
-except ImportError:
-    JIRA_IMPORTED = False
-
-try:
     import click
 except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
@@ -63,10 +57,6 @@ AIRFLOW_GIT_LOCATION = os.environ.get("AIRFLOW_GIT", os.getcwd())
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # Remote name which points to Apache git
 APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
-# ASF JIRA username
-JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
-# ASF JIRA password
-JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
 # OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
 # will be unauthenticated. You should only need to configure this if you find yourself regularly
 # exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
@@ -405,21 +395,41 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     jira_id: an Airflow JIRA id, either an integer or a string with the form
         AIRFLOW-X. If not provided, the user will be prompted to provide one.
     """
-    if merge_branches is None:
-        merge_branches = []
-
-    if JIRA_IMPORTED:
-        if not JIRA_USERNAME and not JIRA_PASSWORD:
-            raise PRToolError(
-                "JIRA_USERNAME and JIRA_PASSWORD not set; exiting.")
-    else:
+    try:
+        import jira.client
+    except ImportError:
         raise PRToolError(
             "Could not find jira-python library; exiting. Run "
             "'sudo pip install jira' to install.")
 
-    asf_jira = jira.client.JIRA(
-        {'server': JIRA_API_BASE},
-        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+    if merge_branches is None:
+        merge_branches = []
+
+    # ASF JIRA username
+    JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
+    # ASF JIRA password
+    JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
+
+    if not JIRA_USERNAME:
+        JIRA_USERNAME = click.prompt(
+            click.style('Username for Airflow JIRA', fg='blue', bold=True),
+            type=str)
+        click.echo(
+            'Set the JIRA_USERNAME env var to avoid this prompt in the future.')
+    if not JIRA_PASSWORD:
+        JIRA_PASSWORD = click.prompt(
+            click.style('Password for Airflow JIRA', fg='blue', bold=True),
+            type=str,
+            hide_input=True)
+        click.echo(
+            'Set the JIRA_PASSWORD env var to avoid this prompt in the future.')
+
+    try:
+        asf_jira = jira.client.JIRA(
+            {'server': JIRA_API_BASE},
+            basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+    except:
+        raise ValueError('Could not log in to JIRA!')
 
     if jira_id is None:
         jira_id = click.prompt(click.style(
@@ -618,10 +628,12 @@ def main(pr_num, local=False):
         Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
-        ASF JIRA username. Required to automatically close JIRA issues
+        ASF JIRA username for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - JIRA_PASSWORD
-        ASF JIRA password. Required to automatically close JIRA issues
+        ASF JIRA password for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - GITHUB_OAUTH_KEY
         Only required if you are exceeding the rate limit for a single IP
@@ -719,8 +731,8 @@ def main(pr_num, local=False):
     if local:
         return
 
-    pick_prompt = "Would you like to pick %s into another branch?" % merge_hash
-    while click.confirm(click.style("pick_prompt", fg='blue', bold=True)):
+    msg = "Would you like to pick {} into another branch?".format(merge_hash)
+    while click.confirm(click.style(msg, fg='blue', bold=True)):
         merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
 
     continue_maybe("Would you like to update associated JIRA issues?")
@@ -787,10 +799,12 @@ def merge(pr_num):
         Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
-        ASF JIRA username. Required to automatically close JIRA issues
+        ASF JIRA username for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - JIRA_PASSWORD
-        ASF JIRA password. Required to automatically close JIRA issues
+        ASF JIRA password for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - GITHUB_OAUTH_KEY
         Only required if you are exceeding the rate limit for a single IP
