@@ -837,8 +837,8 @@ class Airflow(BaseView):
         if ti:
             host = ti.hostname
             log_loaded = False
-
-            if socket.getfqdn() == host:
+            
+            if conf.get('webserver', 'FORCE_LOCAL_LOGS') or socket.getfqdn() == host:
                 try:
                     f = open(loc)
                     log += "".join(f.readlines())

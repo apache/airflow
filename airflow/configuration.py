@@ -123,6 +123,7 @@ defaults = {
         'expose_config': False,
         'workers': 4,
         'worker_class': 'sync',
+        'force_local_logs': False
     },
     'scheduler': {
         'statsd_on': False,
