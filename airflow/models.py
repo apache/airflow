@@ -992,7 +992,7 @@ class TaskInstance(Base):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.execution_date == self.execution_date,
-            TaskInstance.state == State.SUCCESS or TaskInstance.state == State.FUTURE_SUCCEEDED,
+            TaskInstance.state.in_([State.SUCCESS, State.FUTURE_SUCCEEDED]),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
