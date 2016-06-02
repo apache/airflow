@@ -3444,7 +3444,11 @@ class DagRun(Base):
                      .format(self, len(tis)))
 
         for ti in tis:
-            ti.task = dag.get_task(ti.task_id)
+            # skip in db?
+            if ti.state == State.REMOVED:
+                tis.remove(ti)
+            else:
+                ti.task = dag.get_task(ti.task_id)
 
         # pre-calculate
         # db is faster
@@ -3511,8 +3515,11 @@ class DagRun(Base):
         task_ids = []
         for ti in tis:
             task_ids.append(ti.task_id)
-            if not dag.get_task(ti.task_id) and self.state not in State.unfinished():
-                ti.state = State.REMOVED
+            try:
+                dag.get_task(ti.task_id)
+            except AirflowException:
+                if self.state is not State.RUNNING:
+                    ti.state = State.REMOVED
 
         # check for missing tasks
         for task in dag.tasks:
