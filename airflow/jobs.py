@@ -390,7 +390,8 @@ class SchedulerJob(BaseJob):
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
-                external_trigger=False
+                external_trigger=False,
+                session=session
             )
             if len(active_runs) >= dag.max_active_runs:
                 return
@@ -402,7 +403,7 @@ class SchedulerJob(BaseJob):
                     dr.end_date = datetime.now()
             session.commit()
 
-            # this query should be replace by find dagrun
+            # this query should be replaced by find dagrun
             qry = (
                 session.query(func.max(DagRun.execution_date))
                 .filter_by(dag_id=dag.dag_id)
@@ -434,9 +435,9 @@ class SchedulerJob(BaseJob):
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
             if dag.schedule_interval == '@once':
-                schedule_end = next_run_date
+                period_end = next_run_date
             elif next_run_date:
-                schedule_end = dag.following_schedule(next_run_date)
+                period_end = dag.following_schedule(next_run_date)
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
@@ -451,7 +452,7 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and schedule_end and schedule_end <= datetime.now():
+            if next_run_date and period_end and period_end <= datetime.now():
                 next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
