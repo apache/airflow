@@ -97,6 +97,7 @@ Community-contributed Operators
         VerticaOperator,
         VerticaToHiveTransfer
 
+.. autoclass:: airflow.contrib.operators.QuboleOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
 
