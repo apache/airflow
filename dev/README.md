@@ -72,7 +72,7 @@ origin	https://github.com/<USER>/airflow (push)
 ```
 
 #### JIRA
-Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corresponding to their ASF JIRA login. This will allow the tool to automatically close issues.
+Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corresponding to their ASF JIRA login. This will allow the tool to automatically close issues. If they are not set, the user will be prompted every time.
 
 #### GitHub OAuth Token
 Unauthenticated users can only make 60 requests/hour to the Github API. If you get an error about exceeding the rate, you will need to set a `GITHUB_OAUTH_KEY` environment variable that contains a token value. Users can generate tokens from their GitHub profile.
