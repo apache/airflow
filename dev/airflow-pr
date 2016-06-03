@@ -163,7 +163,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             you do this only if the PR commits are logically distinct and should
             remain separate.
             """),
-        click.style('Squash?', fg='blue', bold=True)]))
+        click.style('Squash?', fg='blue', bold=True)]),
+        default=True)
 
     if squash:
         merge_cmd = ['git', 'merge', pr_branch_name, '--squash']
@@ -205,7 +206,6 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         # -- set authors and add authors to commit message
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
-        merge_message_flags.extend(["-m", authors])
 
         # -- Add PR to commit message
         merge_message_flags.extend(["-m", title])
@@ -345,6 +345,8 @@ def fix_version_from_branch(branch, versions):
 def validate_jira_id(jira_id):
     if not jira_id:
         return
+    elif isinstance(jira_id, int):
+        return 'AIRFLOW-{}'.format(abs(jira_id))
 
     # first look for AIRFLOW-X
     ids = re.findall("AIRFLOW-[0-9]{1,6}", jira_id)
@@ -380,7 +382,9 @@ def resolve_jira_issues_loop(comment=None, merge_branches=None):
         except Exception as e:
             click.echo("ERROR: {}".format(e))
 
-        if not click.confirm('Would you like to resolve another JIRA issue?'):
+        if not click.confirm(click.style(
+                'Would you like to resolve another JIRA issue?',
+                fg='blue', bold=True)):
             return
 
 
@@ -443,17 +447,6 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         raise ValueError(
             "ASF JIRA could not find issue {}\n{}".format(jira_id, e))
 
-    if comment is None:
-        comment = click.prompt(
-            click.style(
-                'Please enter a comment to explain why this issue '
-                'is being closed',
-                fg='blue', bold=True),
-            default='',
-            show_default=False)
-    if not comment:
-        comment = None
-
     cur_status = issue.fields.status.name
     cur_summary = issue.fields.summary
     cur_assignee = issue.fields.assignee
@@ -470,10 +463,14 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
     continue_maybe('Proceed with AIRFLOW-{}?'.format(jira_id))
 
-    comment = click.prompt(
-        'Please enter a comment to explain why {} is being closed'.format(
-            jira_id),
-        default=comment)
+    if comment is None:
+        comment = click.prompt(
+            click.style(
+                'Please enter a comment to explain why this issue '
+                'is being closed',
+                fg='blue', bold=True),
+            default='',
+            show_default=False)
 
     versions = asf_jira.project_versions("AIRFLOW")
     versions = sorted(versions, key=lambda x: x.name, reverse=True)
@@ -520,12 +517,8 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     else:
         jira_fix_versions = None
 
-    resolved = click.confirm(click.style(
-        'Do you want to mark {} as "resolved" instead '
-        'of "closed"?'.format(jira_id),
-        fg='blue', bold=True))
     action = list(filter(
-        lambda a: a['name'] == 'Resolve Issue' if resolved else 'Close Issue',
+        lambda a: a['name'] == 'Resolve Issue',
         asf_jira.transitions(jira_id)))[0]
     resolution = list(filter(
         lambda r: r.raw['name'] == "Fixed",
@@ -534,11 +527,10 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         jira_id,
         action["id"],
         fixVersions=jira_fix_versions,
-        comment=comment,
+        comment=comment or None,
         resolution = {'id': resolution.raw['id']})
 
-    click.echo("Successfully {action} {id}{fv}!".format(
-        action='resolved' if resolved else 'closed',
+    click.echo("Successfully resolved {id}{fv}!".format(
         id=jira_id,
         fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''))
 
@@ -739,10 +731,13 @@ def main(pr_num, local=False):
     while click.confirm(click.style(msg, fg='blue', bold=True)):
         merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
 
-    continue_maybe("Would you like to update associated JIRA issues?")
-    jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (pr_num, GITHUB_BASE, pr_num)
+    msg = "Would you like to update associated JIRA issues?"
+    if not click.confirm(click.style(msg, fg='blue', bold=True), default=True):
+        fail("Okay, exiting.")
+    jira_comment = "Issue resolved by pull request #{}\n[{}/{}]".format(
+        pr_num, GITHUB_BASE, pr_num)
 
-    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title) or [None]
+    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None]
     for jira_id in jira_ids:
         resolve_jira_issue(
             jira_id=jira_id,
