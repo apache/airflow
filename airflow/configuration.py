@@ -174,9 +174,11 @@ airflow_home = {AIRFLOW_HOME}
 
 # The folder where your airflow pipelines live, most likely a
 # subfolder in a code repository
+# This path must be absolute
 dags_folder = {AIRFLOW_HOME}/dags
 
-# The folder where airflow should store its log files. This location
+# The folder where airflow should store its log files
+# This path must be absolute
 base_log_folder = {AIRFLOW_HOME}/logs
 
 # Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
