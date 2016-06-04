@@ -111,7 +111,7 @@ def create_app(config=None):
                 admin.add_view(v)
             for bp in flask_blueprints:
                 app.register_blueprint(bp)
-            for ml in menu_links:
+            for ml in sorted(menu_links, key=lambda x: x.name):
                 admin.add_link(ml)
 
         integrate_plugins()
