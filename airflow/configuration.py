@@ -122,7 +122,7 @@ defaults = {
         'secret_key': 'airflowified',
         'expose_config': False,
         'workers': 4,
-        'worker_class': 'sync',
+        'worker_class': 'sync'
     },
     'scheduler': {
         'statsd_on': False,

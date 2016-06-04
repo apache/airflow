@@ -837,15 +837,15 @@ class Airflow(BaseView):
         if ti:
             host = ti.hostname
             log_loaded = False
-
-            if socket.getfqdn() == host:
+            
+            if os.path.exists(loc):
                 try:
                     f = open(loc)
                     log += "".join(f.readlines())
                     f.close()
                     log_loaded = True
                 except:
-                    log = "*** Local log file not found.\n".format(loc)
+                    log = "*** Failed to load local log file: {0}.\n".format(loc)
             else:
                 WORKER_LOG_SERVER_PORT = \
                     conf.get('celery', 'WORKER_LOG_SERVER_PORT')
