@@ -231,8 +231,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
         # The string "Closes #%s" string is required for GitHub to correctly
         # close the PR. GitHub will mark the PR as closed, not merged
-        merge_message_flags.extend(
-            ["-m", "Closes #{} from {}.".format(pr_num, pr_repo_desc)])
+        close_msg = "closes #{}".format(pr_num)
+        merge_message_flags.extend(["-m", "{} from {}".format(
+            close_msg.capitalize(), pr_repo_desc)])
 
         # -- add individual commit messages to squash commit
         msg = click.style(
@@ -262,6 +263,23 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             'When you have finished, return here and press any key to '
             'continue.')
         click.pause(click.style(msg, fg='blue', bold=True))
+
+        # The user might have removed "Closes #XXXX" from the commit message
+        # so we add it back to make sure GitHub closes the PR.
+        commit_msg = run_cmd('git log -1 --pretty=%B', echo_cmd=False)
+        if close_msg not in commit_msg.lower():
+            click.echo(
+                'Your commit message does not contain the phrase "{}".\n'
+                'Without it, GitHub can\'t link this commit to the PR. We\n'
+                'will automatically add it to the end of your commit ' 'message.'.format(close_msg))
+            commit_flags = []
+            commit_flags.append('--author="{}"'.format(primary_author))
+            commit_flags.extend(['-m', commit_msg])
+            commit_flags.extend(
+                ["-m", "{} from {}".format(
+                    close_msg.capitalize(), pr_repo_desc)])
+            run_cmd('git reset --soft HEAD~1', echo_cmd=False)
+            run_cmd(['git', 'commit'] + commit_flags, echo_cmd=False)
 
     if local:
         msg =(
@@ -738,7 +756,7 @@ def main(pr_num, local=False):
         pr_num, GITHUB_BASE, pr_num)
 
     jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None]
-    for jira_id in jira_ids:
+    for jira_id in set(jira_ids):
         resolve_jira_issue(
             jira_id=jira_id,
             comment=jira_comment,
