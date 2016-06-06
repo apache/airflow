@@ -503,7 +503,7 @@ class SchedulerJob(BaseJob):
         session.commit()
 
         # update the state of the previously active dag runs
-        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING)
+        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
         active_dag_runs = []
         for run in dag_runs:
             # do not consider runs that are executed in the future
@@ -513,14 +513,15 @@ class SchedulerJob(BaseJob):
             # todo: run.task is transient but needs to be set
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
-            run.verify_integrity()
-            run.update_state()
+            run.verify_integrity(session=session)
+            run.update_state(session=session)
             if run.state == State.RUNNING:
                 active_dag_runs.append(run)
 
         for run in active_dag_runs:
-            tis = run.get_task_instances(session=session, state=(State.NONE,
-                                                                 State.UP_FOR_RETRY))
+            # this needs a fresh session sometimes tis get detached
+            tis = run.get_task_instances(state=(State.NONE,
+                                                State.UP_FOR_RETRY))
 
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
