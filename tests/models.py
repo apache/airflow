@@ -507,3 +507,64 @@ class TaskInstanceTest(unittest.TestCase):
 
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
+
+    def test_xcom_pull_after_success(self):
+        """
+        tests xcom set/clear relative to a task in a 'success' rerun scenario
+        """
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        dag = models.DAG(dag_id='test_xcom', schedule_interval='@monthly')
+        task = DummyOperator(
+            task_id='test_xcom',
+            dag=dag,
+            pool='test_xcom',
+            owner='airflow',
+            start_date=datetime.datetime(2016, 6, 2, 0, 0, 0))
+        exec_date = datetime.datetime.now()
+        ti = TI(
+            task=task, execution_date=exec_date)
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
+        ti.run()
+        # The second run and assert is to handle AIRFLOW-131 (don't clear on
+        # prior success)
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
+
+    def test_xcom_pull_different_execution_date(self):
+        """
+        tests xcom fetch behavior with different execution dates, using
+        both xcom_pull with "include_prior_dates" and without
+        """
+        key = 'xcom_key'
+        value = 'xcom_value'
+
+        dag = models.DAG(dag_id='test_xcom', schedule_interval='@monthly')
+        task = DummyOperator(
+            task_id='test_xcom',
+            dag=dag,
+            pool='test_xcom',
+            owner='airflow',
+            start_date=datetime.datetime(2016, 6, 2, 0, 0, 0))
+        exec_date = datetime.datetime.now()
+        ti = TI(
+            task=task, execution_date=exec_date)
+        ti.run(mark_success=True)
+        ti.xcom_push(key=key, value=value)
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
+        ti.run()
+        exec_date = exec_date.replace(day=exec_date.day + 1)
+        ti = TI(
+            task=task, execution_date=exec_date)
+        ti.run()
+        # We have set a new execution date (and did not pass in
+        # 'include_prior_dates'which means this task should now have a cleared
+        # xcom value
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), None)
+        # We *should* get a value using 'include_prior_dates'
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom',
+                                      key=key,
+                                      include_prior_dates=True),
+                         value)
