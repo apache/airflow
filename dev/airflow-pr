@@ -46,12 +46,6 @@ if sys.version_info[0] == 3:
     raw_input = input
 
 try:
-    import jira.client
-    JIRA_IMPORTED = True
-except ImportError:
-    JIRA_IMPORTED = False
-
-try:
     import click
 except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
@@ -63,10 +57,6 @@ AIRFLOW_GIT_LOCATION = os.environ.get("AIRFLOW_GIT", os.getcwd())
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # Remote name which points to Apache git
 APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
-# ASF JIRA username
-JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
-# ASF JIRA password
-JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
 # OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
 # will be unauthenticated. You should only need to configure this if you find yourself regularly
 # exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
@@ -118,11 +108,11 @@ def run_cmd(cmd, echo_cmd=True):
     if isinstance(cmd, list):
         if echo_cmd:
             click.echo('>> Running command: {}'.format(' '.join(cmd)))
-        return subprocess.check_output(cmd).decode('utf-8')
+        return subprocess.check_output(cmd).decode('utf-8').strip()
     else:
         if echo_cmd:
             click.echo('>> Running command: {}'.format(cmd))
-        return subprocess.check_output(cmd.split(" ")).decode('utf-8')
+        return subprocess.check_output(cmd.split(" ")).decode('utf-8').strip()
 
 
 def continue_maybe(prompt):
@@ -173,7 +163,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             you do this only if the PR commits are logically distinct and should
             remain separate.
             """),
-        click.style('Squash?', fg='blue', bold=True)]))
+        click.style('Squash?', fg='blue', bold=True)]),
+        default=True)
 
     if squash:
         merge_cmd = ['git', 'merge', pr_branch_name, '--squash']
@@ -193,8 +184,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     merge_message_flags = []
 
     if squash:
-        commit_authors = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
-                                 '--pretty=format:%an <%ae>']).split("\n")
+        commit_authors = run_cmd(
+            ['git', 'log', 'HEAD..{}'.format(pr_branch_name),
+             '--pretty=format:%an <%ae>'], echo_cmd=False).split("\n")
         distinct_authors = sorted(
             set(commit_authors),
             key=lambda x: commit_authors.count(x),
@@ -207,18 +199,19 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        commits = run_cmd(['git', 'log', 'HEAD..%s' % pr_branch_name,
-                          '--pretty=format:%h [%an] %s']).split("\n\n")
+        commits = run_cmd(
+            ['git', 'log', 'HEAD..%s' % pr_branch_name,
+             '--pretty=format:%h [%an] %s'], echo_cmd=False).split("\n\n")
 
         # -- set authors and add authors to commit message
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
-        merge_message_flags.extend(["-m", authors])
 
         # -- Add PR to commit message
         merge_message_flags.extend(["-m", title])
         msg = click.style(
-            'Would you like include the PR body in the squash commit message?',
+            'Would you like to include the PR body in the squash '
+            'commit message?',
             fg='blue', bold=True)
         if body and click.confirm(msg, default=False, prompt_suffix=''):
             # We remove @ symbols from the body to avoid triggering e-mails
@@ -227,10 +220,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
 
         if had_conflicts:
-            committer_name = run_cmd("git config --get user.name").strip()
-            committer_email = run_cmd("git config --get user.email").strip()
-            message = "This patch had conflicts when merged, resolved by\nCommitter: %s <%s>" % (
-                committer_name, committer_email)
+            committer_name = run_cmd(
+                "git config --get user.name", echo_cmd=False)
+            committer_email = run_cmd(
+                "git config --get user.email", echo_cmd=False)
+            message = (
+                'This patch had conflicts when merged, resolved by '
+                'Committer: %s <%s>' % (committer_name, committer_email))
             merge_message_flags.extend(["-m", message])
 
         # The string "Closes #%s" string is required for GitHub to correctly
@@ -258,17 +254,14 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         # -- ask user to edit commit message
         click.echo(click.style('\n=== Current Squash Commit ===', bold=True))
         click.echo(run_cmd('git log -1 --pretty=%B', echo_cmd=False))
+        click.echo(click.style('=== End of Squash Commit ===\n', bold=True))
         msg = (
-            'If you would like to edit the commit message, open a new\n'
+            'If you would like to edit the commit message, open a new '
             'terminal and run:\n\n'
             '  git commit --amend\n\n'
-            'When you have finished, return here and press any key to \n'
+            'When you have finished, return here and press any key to '
             'continue.')
-        click.prompt(
-            click.style(msg, fg='blue', bold=True),
-            prompt_suffix='',
-            default='ok',
-            show_default=False)
+        click.pause(click.style(msg, fg='blue', bold=True))
 
     if local:
         msg =(
@@ -277,11 +270,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             'you are finished, press any key to delete the PR branch and\n'
             'restore your original environment.'.format(target_branch_name))
 
-        click.prompt(
-            click.style(msg, fg='blue', bold=True),
-            prompt_suffix='',
-            default='ok',
-            show_default=False)
+        click.pause(click.style(msg, fg='blue', bold=True))
 
         clean_up()
         return
@@ -356,6 +345,8 @@ def fix_version_from_branch(branch, versions):
 def validate_jira_id(jira_id):
     if not jira_id:
         return
+    elif isinstance(jira_id, int):
+        return 'AIRFLOW-{}'.format(abs(jira_id))
 
     # first look for AIRFLOW-X
     ids = re.findall("AIRFLOW-[0-9]{1,6}", jira_id)
@@ -391,7 +382,9 @@ def resolve_jira_issues_loop(comment=None, merge_branches=None):
         except Exception as e:
             click.echo("ERROR: {}".format(e))
 
-        if not click.confirm('Would you like to resolve another JIRA issue?'):
+        if not click.confirm(click.style(
+                'Would you like to resolve another JIRA issue?',
+                fg='blue', bold=True)):
             return
 
 
@@ -405,21 +398,41 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     jira_id: an Airflow JIRA id, either an integer or a string with the form
         AIRFLOW-X. If not provided, the user will be prompted to provide one.
     """
-    if merge_branches is None:
-        merge_branches = []
-
-    if JIRA_IMPORTED:
-        if not JIRA_USERNAME and not JIRA_PASSWORD:
-            raise PRToolError(
-                "JIRA_USERNAME and JIRA_PASSWORD not set; exiting.")
-    else:
+    try:
+        import jira.client
+    except ImportError:
         raise PRToolError(
             "Could not find jira-python library; exiting. Run "
             "'sudo pip install jira' to install.")
 
-    asf_jira = jira.client.JIRA(
-        {'server': JIRA_API_BASE},
-        basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+    if merge_branches is None:
+        merge_branches = []
+
+    # ASF JIRA username
+    JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
+    # ASF JIRA password
+    JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
+
+    if not JIRA_USERNAME:
+        JIRA_USERNAME = click.prompt(
+            click.style('Username for Airflow JIRA', fg='blue', bold=True),
+            type=str)
+        click.echo(
+            'Set the JIRA_USERNAME env var to avoid this prompt in the future.')
+    if not JIRA_PASSWORD:
+        JIRA_PASSWORD = click.prompt(
+            click.style('Password for Airflow JIRA', fg='blue', bold=True),
+            type=str,
+            hide_input=True)
+        click.echo(
+            'Set the JIRA_PASSWORD env var to avoid this prompt in the future.')
+
+    try:
+        asf_jira = jira.client.JIRA(
+            {'server': JIRA_API_BASE},
+            basic_auth=(JIRA_USERNAME, JIRA_PASSWORD))
+    except:
+        raise ValueError('Could not log in to JIRA!')
 
     if jira_id is None:
         jira_id = click.prompt(click.style(
@@ -434,17 +447,6 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         raise ValueError(
             "ASF JIRA could not find issue {}\n{}".format(jira_id, e))
 
-    if comment is None:
-        comment = click.prompt(
-            click.style(
-                'Please enter a comment to explain why this issue '
-                'is being closed',
-                fg='blue', bold=True),
-            default='',
-            show_default=False)
-    if not comment:
-        comment = None
-
     cur_status = issue.fields.status.name
     cur_summary = issue.fields.summary
     cur_assignee = issue.fields.assignee
@@ -457,14 +459,18 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
 
         fail("JIRA issue %s already has status '%s'" % (jira_id, cur_status))
     click.echo(click.style("\n === JIRA %s ===" % jira_id, bold=True))
-    click.echo("summary:\t\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
+    click.echo("summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
         cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
     continue_maybe('Proceed with AIRFLOW-{}?'.format(jira_id))
 
-    comment = click.prompt(
-        'Please enter a comment to explain why {} is being closed'.format(
-            jira_id),
-        default=comment)
+    if comment is None:
+        comment = click.prompt(
+            click.style(
+                'Please enter a comment to explain why this issue '
+                'is being closed',
+                fg='blue', bold=True),
+            default='',
+            show_default=False)
 
     versions = asf_jira.project_versions("AIRFLOW")
     versions = sorted(versions, key=lambda x: x.name, reverse=True)
@@ -511,17 +517,17 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     else:
         jira_fix_versions = None
 
-    resolve = list(filter(
-        lambda a: a['name'] == "Resolve Issue",
+    action = list(filter(
+        lambda a: a['name'] == 'Resolve Issue',
         asf_jira.transitions(jira_id)))[0]
     resolution = list(filter(
         lambda r: r.raw['name'] == "Fixed",
         asf_jira.resolutions()))[0]
     asf_jira.transition_issue(
         jira_id,
-        resolve["id"],
+        action["id"],
         fixVersions=jira_fix_versions,
-        comment=comment,
+        comment=comment or None,
         resolution = {'id': resolution.raw['id']})
 
     click.echo("Successfully resolved {id}{fv}!".format(
@@ -589,10 +595,10 @@ def standardize_jira_ref(text):
 
 
 def get_current_ref():
-    ref = run_cmd("git rev-parse --abbrev-ref HEAD").strip()
+    ref = run_cmd("git rev-parse --abbrev-ref HEAD")
     if ref == 'HEAD':
         # The current ref is a detached HEAD, so grab its SHA.
-        return run_cmd("git rev-parse HEAD").strip()
+        return run_cmd("git rev-parse HEAD")
     else:
         return ref
 
@@ -618,10 +624,12 @@ def main(pr_num, local=False):
         Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
-        ASF JIRA username. Required to automatically close JIRA issues
+        ASF JIRA username for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - JIRA_PASSWORD
-        ASF JIRA password. Required to automatically close JIRA issues
+        ASF JIRA password for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - GITHUB_OAUTH_KEY
         Only required if you are exceeding the rate limit for a single IP
@@ -693,8 +701,8 @@ def main(pr_num, local=False):
 
         continue_maybe(
             "Pull request %s has already been merged. Do you want to backport?" % pr_num)
-        commit_is_downloaded = run_cmd(['git', 'rev-parse', '--quiet', '--verify',
-                                    "%s^{commit}" % merge_hash]).strip() != ""
+        commit_is_downloaded = run_cmd(
+            ['git', 'rev-parse', '--quiet', '--verify', "%s^{commit}" % merge_hash]) != ""
         if not commit_is_downloaded:
             fail("Couldn't find any merge commit for #%s, you may need to update HEAD." % pr_num)
 
@@ -719,14 +727,17 @@ def main(pr_num, local=False):
     if local:
         return
 
-    pick_prompt = "Would you like to pick %s into another branch?" % merge_hash
-    while click.confirm(click.style("pick_prompt", fg='blue', bold=True)):
+    msg = "Would you like to pick {} into another branch?".format(merge_hash)
+    while click.confirm(click.style(msg, fg='blue', bold=True)):
         merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
 
-    continue_maybe("Would you like to update associated JIRA issues?")
-    jira_comment = "Issue resolved by pull request %s\n[%s/%s]" % (pr_num, GITHUB_BASE, pr_num)
+    msg = "Would you like to update associated JIRA issues?"
+    if not click.confirm(click.style(msg, fg='blue', bold=True), default=True):
+        fail("Okay, exiting.")
+    jira_comment = "Issue resolved by pull request #{}\n[{}/{}]".format(
+        pr_num, GITHUB_BASE, pr_num)
 
-    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title) or [None]
+    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None]
     for jira_id in jira_ids:
         resolve_jira_issue(
             jira_id=jira_id,
@@ -787,10 +798,12 @@ def merge(pr_num):
         Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
-        ASF JIRA username. Required to automatically close JIRA issues
+        ASF JIRA username for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - JIRA_PASSWORD
-        ASF JIRA password. Required to automatically close JIRA issues
+        ASF JIRA password for automatically closing JIRA issues. Users will be
+        prompted if it is not set.
 
     - GITHUB_OAUTH_KEY
         Only required if you are exceeding the rate limit for a single IP
