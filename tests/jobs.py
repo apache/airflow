@@ -672,9 +672,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.schedule_dag(dag)
         self.assertIsNotNone(dr)
-        print(dr.start_date)
         dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
-        print(dr.start_date)
         session.merge(dr)
         session.commit()
 
@@ -684,3 +682,53 @@ class SchedulerJobTest(unittest.TestCase):
         dr.refresh_from_db(session=session)
         self.assertEquals(dr.state, State.FAILED)
 
+    def test_scheduler_auto_align(self):
+        """
+        Test if the schedule_interval will be auto aligned with the start_date
+        such that if the start_date coincides with the schedule the first
+        execution_date will be start_date, otherwise it will be start_date +
+        interval.
+        """
+        dag = DAG(
+            dag_id='test_scheduler_auto_align_1',
+            start_date=datetime.datetime(2016, 1, 1, 10, 10, 0),
+            schedule_interval="4 5 * * *"
+        )
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+        self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 2, 5, 4))
+
+        dag = DAG(
+            dag_id='test_scheduler_auto_align_2',
+            start_date=datetime.datetime(2016, 1, 1, 10, 10, 0),
+            schedule_interval="10 10 * * *"
+        )
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+        self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 1, 10, 10))

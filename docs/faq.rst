@@ -78,12 +78,17 @@ We recommend against using dynamic values as ``start_date``, especially
 once the period closes, and in theory an ``@hourly`` DAG would never get to
 an hour after now as ``now()`` moves along.
 
-We also recommend using rounded ``start_date`` in relation to your
-``schedule_interval``. This means an ``@hourly`` would be at ``00:00``
+
+Previously we also recommended using rounded ``start_date`` in relation to your
+``schedule_interval``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
-first of the month. You can use any sensor or a ``TimeDeltaSensor`` to delay
-the execution of tasks within that period. While ``schedule_interval``
-does allow specifying a ``datetime.timedelta``
+first of the month. This is no longer required. Airflow will not auto align
+the ``start_date`` and the ``schedule_interval``, by using the ``start_date``
+as the moment to start looking.
+
+You can use any sensor or a ``TimeDeltaSensor`` to delay
+the execution of tasks within the schedule interval.
+While ``schedule_interval`` does allow specifying a ``datetime.timedelta``
 object, we recommend using the macros or cron expressions instead, as
 it enforces this idea of rounded schedules.
 
