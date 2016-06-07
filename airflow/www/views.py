@@ -46,6 +46,7 @@ from flask._compat import PY2
 import jinja2
 import markdown
 import json
+import re
 
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField, StringField)
@@ -60,6 +61,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom
+from airflow.hooks import BaseHook
 
 from airflow.operators import BaseOperator, SubDagOperator
 
@@ -1660,6 +1662,10 @@ class Airflow(BaseView):
                 'color': color,
             })
         height = (len(tis) * 25) + 50
+        types = {}
+        for t in dag.tasks:
+            types[t.task_id] = t.task_type
+
         session.commit()
         session.close()
 
@@ -1669,7 +1675,9 @@ class Airflow(BaseView):
                 'inverted': True,
                 'height': height,
             },
-            'xAxis': {'categories': tasks, 'alternateGridColor': '#FAFAFA'},
+            'xAxis': {'categories': tasks,
+                      'alternateGridColor': '#FAFAFA',
+                      'types': tasks},
             'yAxis': {'type': 'datetime'},
             'title': {
                 'text': None
@@ -1696,7 +1704,69 @@ class Airflow(BaseView):
             height=height,
             demo_mode=demo_mode,
             root=root,
+            types=types
         )
+
+    @expose('/redirect')
+    @login_required
+    @wwwutils.action_logging
+    def redirect(self):
+
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        redirect_to = request.args.get('redirect_to')
+        dttm = dateutil.parser.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+        if not dag or task_id not in dag.task_ids:
+            flash(
+                "Task [{}.{}] doesn't seem to exist"
+                " at the moment".format(dag_id, task_id),
+                "error")
+            return redirect('/admin/')
+
+        session = Session()
+        url = None
+
+        if redirect_to == 'qds':
+            for t in dag.tasks:
+                if t.task_id == task_id:
+                    task = t
+                    break
+
+            if task.task_type != 'QuboleOperator':
+                flash(
+                    "Task [{}.{}] doesn't seem to be a QDS task."
+                    .format(dag_id, task_id),
+                    "error")
+                return redirect('/admin/')
+
+            conn = BaseHook.get_connection(task.kwargs['qubole_conn_id'])
+            host = None
+            if conn:
+                host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
+            else:
+                host = 'https://api.qubole.com/v2/analyze?command_id?command_id='
+
+            xcom = session.query(XCom).filter(
+                XCom.dag_id == dag_id, XCom.task_id == task_id,
+                XCom.execution_date == dttm, XCom.key == 'qbol_cmd_id').first()
+
+            if xcom:
+                qds_cmd_id = str(xcom.value)
+                url = host + qds_cmd_id
+
+        session.commit()
+        session.close()
+
+        if url:
+            return redirect(url)
+        else:
+            flash(
+                "Couldn't redirect to {} for [{}.{}]"
+                " at the moment".format(redirect_to, dag_id, task_id),
+                "error")
+            return redirect('/admin/')
 
     @expose('/object/task_instances')
     @login_required

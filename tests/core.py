@@ -886,6 +886,12 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             "/admin/airflow/paused?"
             "dag_id=example_python_operator&is_paused=false")
+        url = (
+            "/admin/airflow/redirect?task_id=runme_1&"
+            "dag_id=example_bash_operator&redirect_to=qds&"
+            "execution_date={}".format(DEFAULT_DATE_DS))
+        response = self.app.get(url)
+        assert "doesn't seem to be a QDS task" in response.data.decode('utf-8')
 
     def test_charts(self):
         session = Session()

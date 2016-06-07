@@ -109,6 +109,9 @@
           <button id="btn_log" type="button" class="btn btn-primary">
             View Log
           </button>
+          <button id="btn_qds" type="button" class="btn btn-primary">
+            Goto QDS
+          </button>
           <hr/>
           <button id="btn_run" type="button" class="btn btn-primary"
             title="Runs a single task instance">
@@ -210,24 +213,27 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, sd) {
+    function call_modal(t, d, task_type) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
         window.location = updateQueryStringParameter(loc, "root", task_id);
       });
-      subdag_id = sd;
       execution_date = d;
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
+      $("#div_btn_subdag").hide();
+      $('#btn_qds').hide();
       $("#myModal").css("margin-top","0px")
-        if (subdag_id===undefined)
-            $("#div_btn_subdag").hide();
-        else {
+        if (task_type=="SubDagOperator"){
             $("#div_btn_subdag").show();
             subdag_id = "{{ dag.dag_id }}."+t;
         }
+        else if (task_type =="QuboleOperator"){
+          $('#btn_qds').show();
+        }
+
     }
 
     $("#btn_rendered").click(function(){
@@ -251,6 +257,15 @@ function updateQueryStringParameter(uri, key, value) {
         "&dag_id=" + dag_id +
         "&execution_date=" + execution_date;
       window.location = url;
+    });
+
+    $("#btn_qds").click(function(){
+      url = "{{ url_for('airflow.redirect') }}" +
+              "?task_id=" + task_id +
+              "&dag_id=" + dag_id +
+              "&execution_date=" + execution_date +
+              "&redirect_to=qds";
+      window.open(url, '_blank');
     });
 
     $("#btn_task").click(function(){

@@ -31,10 +31,11 @@
     $( document ).ready(function() {
       execution_date = '{{ execution_date }}';
       hc = {{ hc|safe }};
+      types = {{ types|safe }};
       hc.plotOptions.series.point = {
         events: {
             click: function(p){
-                call_modal(this.category, execution_date);
+                call_modal(this.category, execution_date, types[this.category]);
             }
         }
       };
