@@ -702,6 +702,7 @@ class TaskInstance(Base):
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(DateTime)
+    run_as_user = Column(String(1000))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -722,6 +723,7 @@ class TaskInstance(Base):
         self.test_mode = False  # can be changed when calling 'run'
         self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
+        self.run_as_user = task.run_as_user
         if state:
             self.state = state
 
@@ -1890,9 +1892,14 @@ class BaseOperator(object):
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
     :type trigger_rule: str
+<<<<<<< 348f25f08af2c02627cec04453564edd2fb69fa3
     :param resources: A map of resource parameter names (the argument names of the
         Resources constructor) to their values.
     :type resources: dict
+=======
+    :param run_as_user: unix username to impersonate while running the task
+    :type run_as_user: str
+>>>>>>> Unix user impersonation based on new BaseOperator.run_as_user
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1933,7 +1940,11 @@ class BaseOperator(object):
             on_success_callback=None,
             on_retry_callback=None,
             trigger_rule=TriggerRule.ALL_SUCCESS,
+<<<<<<< 348f25f08af2c02627cec04453564edd2fb69fa3
             resources=None,
+=======
+            run_as_user=None,
+>>>>>>> Unix user impersonation based on new BaseOperator.run_as_user
             *args,
             **kwargs):
 
@@ -1986,6 +1997,7 @@ class BaseOperator(object):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.run_as_user = run_as_user
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:

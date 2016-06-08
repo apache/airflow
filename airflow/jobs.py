@@ -1922,6 +1922,8 @@ class LocalTaskJob(BaseJob):
             job_id=self.id,
             pool=self.pool,
         )
+        # TODO alter the command to impersonate (sudo su)
+        # note that `self.task_instance.run_as_user` is in scope here
         self.process = subprocess.Popen(['bash', '-c', command])
         return_code = None
         while return_code is None:
