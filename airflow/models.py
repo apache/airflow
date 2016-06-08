@@ -1247,7 +1247,7 @@ class TaskInstance(Base):
                 logging.info("Queuing into pool {}".format(self.pool))
                 return
 
-            if concurrency_reached:
+            if not mark_success and self.state == State.QUEUED and concurrency_reached:
                 logging.warning('Job_id={} has to wait, since dag concurrency limit [{}] is reached'
                                 .format(self.job_id, self.task.dag.concurrency))
                 return
