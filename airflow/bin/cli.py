@@ -416,6 +416,8 @@ def webserver(args):
 
     from airflow.www.app import cached_app
     app = cached_app(conf)
+    access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
+    error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
@@ -427,23 +429,36 @@ def webserver(args):
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
         print(
-            'Running the Gunicorn server with {workers} {args.workerclass}'
-            'workers on host {args.hostname} and port '
-            '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
+            textwrap.dedent('''\
+                Running the Gunicorn Server with:
+                Workers: {workers} {args.workerclass}
+                Host: {args.hostname}:{args.port}
+                Timeout: {worker_timeout}
+                Logfiles: {access_logfile} {error_logfile}
+                =================================================================\
+            '''.format(**locals())))
 
-        run_args = ['gunicorn',
-                    '-w ' + str(args.workers),
-                    '-k ' + str(args.workerclass),
-                    '-t ' + str(args.worker_timeout),
-                    '-b ' + args.hostname + ':' + str(args.port),
-                    '-n ' + 'airflow-webserver',
-                    '-p ' + str(pid)]
+        run_args = [
+            'gunicorn',
+            '-w ' + str(args.workers),
+            '-k ' + str(args.workerclass),
+            '-t ' + str(args.worker_timeout),
+            '-b ' + args.hostname + ':' + str(args.port),
+            '-n ' + 'airflow-webserver',
+            '-p ' + str(pid),
+        ]
+
+        if args.access_logfile:
+            run_args += ['--access-logfile', str(args.access_logfile)]
+
+        if args.error_logfile:
+            run_args += ['--error-logfile', str(args.error_logfile)]
 
         if args.daemon:
-            run_args.append("-D")
+            run_args += ["-D"]
 
         module = "airflow.www.app:cached_app()".encode()
-        run_args.append(module)
+        run_args += [module]
         os.execvp(
             'gunicorn', run_args
         )
@@ -799,6 +814,16 @@ class CLIFactory(object):
             ("-d", "--debug"),
             "Use the server that ships with Flask in debug mode",
             "store_true"),
+        'access_logfile': Arg(
+            ("-A", "--access_logfile"),
+            default=conf.get('webserver', 'ACCESS_LOGFILE'),
+            help="The logfile to store the webserver access log. Use '-' to print to "
+                 "stderr."),
+        'error_logfile': Arg(
+            ("-E", "--error_logfile"),
+            default=conf.get('webserver', 'ERROR_LOGFILE'),
+            help="The logfile to store the webserver error log. Use '-' to print to "
+                 "stderr."),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -925,8 +950,8 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
-                     'debug'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
+                     'error_logfile', 'log_file', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",

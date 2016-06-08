@@ -98,7 +98,7 @@ defaults = {
         'remote_base_log_folder': '',
         'remote_log_conn_id': '',
         'encrypt_s3_logs': False,
-        's3_log_folder': '', # deprecated!
+        's3_log_folder': '',  # deprecated!
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
@@ -122,7 +122,9 @@ defaults = {
         'secret_key': 'airflowified',
         'expose_config': False,
         'workers': 4,
-        'worker_class': 'sync'
+        'worker_class': 'sync',
+        'access_logfile': '',
+        'error_logfile': '',
     },
     'scheduler': {
         'statsd_on': False,
@@ -276,6 +278,10 @@ workers = 4
 # The worker class gunicorn should use. Choices include
 # sync (default), eventlet, gevent
 worker_class = sync
+
+# Log files for the gunicorn webserver. '-' means log to stderr.
+access_logfile = -
+error_logfile = -
 
 # Expose the configuration file in the web server
 expose_config = true
