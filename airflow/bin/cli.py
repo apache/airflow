@@ -588,6 +588,7 @@ def version(args):  # noqa
 
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
+    address = '--address={}'.format(args.hostname)
     port = '--port={}'.format(args.port)
     api = ''
     if args.broker_api:
@@ -605,7 +606,7 @@ def flower(args):
         )
 
         with ctx:
-            os.execvp("flower", ['flower', '-b', broka, port, api])
+            os.execvp("flower", ['flower', '-b', broka, address, port, api])
 
         stdout.close()
         stderr.close()
@@ -613,7 +614,7 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        os.execvp("flower", ['flower', '-b', broka, port, api])
+        os.execvp("flower", ['flower', '-b', broka, address, port, api])
 
 
 def kerberos(args):  # noqa
@@ -856,6 +857,10 @@ class CLIFactory(object):
             default=conf.get('celery', 'celeryd_concurrency')),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
+        'flower_hostname': Arg(
+            ("-hn", "--hostname"),
+            default=conf.get('celery', 'FLOWER_HOST'),
+            help="Set the hostname on which to run the server"),
         'flower_port': Arg(
             ("-p", "--port"),
             default=conf.get('celery', 'FLOWER_PORT'),
@@ -973,7 +978,7 @@ class CLIFactory(object):
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
-            'args': ('flower_port', 'broker_api',
+            'args': ('flower_hostname', 'flower_port', 'broker_api',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
