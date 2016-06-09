@@ -69,7 +69,8 @@ if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
     HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
-    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.0.6.0/tars/hadoop-2.2.0.2.0.6.0-76.tar.gz"
+    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/hadoop-2.7.1.2.3.2.0-2950.tar.gz"
+    HIVE_URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/apache-hive-1.2.1.2.3.2.0-2950-bin.tar.gz"
 else
     echo "No/bad HADOOP_DISTRO='${HADOOP_DISTRO}' specified" >&2
     exit 1
