@@ -224,7 +224,8 @@ Community contributed hooks
         VerticaHook,
         FTPHook,
         SSHHook,
-        CloudantHook
+        CloudantHook,
+        SqoopHook
 
 Executors
 ---------
