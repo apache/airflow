@@ -630,8 +630,7 @@ class Airflow(BaseView):
                 RunningDagRun.c.execution_date == TI.execution_date)
             )
             .outerjoin(LastDagRun, and_(
-                LastDagRun.c.dag_id == TI.dag_id,
-                LastDagRun.c.execution_date == TI.execution_date)
+                LastDagRun.c.dag_id == TI.dag_id)
             )
             .filter(TI.task_id.in_(task_ids))
             .filter(TI.dag_id.in_(dag_ids))
