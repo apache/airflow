@@ -1179,17 +1179,32 @@ class TaskInstance(Base):
     def run(
             self,
             verbose=True,
-            ignore_dependencies=False,  # Doesn't check for deps, just runs
-            ignore_depends_on_past=False,   # Ignore depends_on_past but respect
-                                            # other deps
-            force=False,  # Disregards previous successes
-            mark_success=False,  # Don't run the task, act as if it succeeded
-            test_mode=False,  # Doesn't record success or failure in the DB
+            ignore_dependencies=False,
+            ignore_depends_on_past=False,
+            force=False,
+            mark_success=False,
+            test_mode=False,
             job_id=None,
             pool=None,
             session=None):
         """
         Runs the task instance.
+
+        :param verbose: whether to turn on more verbose loggin
+        :type verbose: boolean
+        :param ignore_dependencies: Doesn't check for deps, just runs
+        :type ignore_dependencies: boolean
+        :param ignore_depends_on_past: Ignore depends_on_past but respect
+            other dependencies
+        :type ignore_depends_on_past: boolean
+        :param force: Forces a run regarless of previous success
+        :type force: boolean
+        :param mark_success: Don't run the task, mark its state as success
+        :type mark_success: boolean
+        :param test_mode: Doesn't record success or failure in the DB
+        :type test_mode: boolean
+        :param pool: specifies the pool to use to run the task instance
+        :type pool: str
         """
         task = self.task
         self.pool = pool or task.pool
