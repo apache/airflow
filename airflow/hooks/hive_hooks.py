@@ -465,6 +465,7 @@ class HiveServer2Hook(BaseHook):
             database=db.schema or 'default')
 
     def get_results(self, hql, schema='default', arraysize=1000):
+        from impala.error import ProgrammingError
         with self.get_conn() as conn:
             if isinstance(hql, basestring):
                 hql = [hql]
@@ -475,7 +476,14 @@ class HiveServer2Hook(BaseHook):
             for statement in hql:
                 with conn.cursor() as cur:
                     cur.execute(statement)
-                    records = cur.fetchall()
+                    records = []
+                    try:
+                        # impala Lib raises when no results are returned
+                        # we're silencing here as some statements in the list
+                        # may be `SET` or DDL
+                        records = cur.fetchall()
+                    except ProgrammingError:
+                        logging.debug("get_results returned no records")
                     if records:
                         results = {
                             'data': records,
