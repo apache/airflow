@@ -2567,6 +2567,21 @@ class DAG(LoggingMixin):
         elif isinstance(self._schedule_interval, timedelta):
             return dttm - self._schedule_interval
 
+    def normalize_schedule(self, dttm):
+        """
+        Returns dttm + interval unless dttm is first interval then it returns dttm
+        """
+        following = self.following_schedule(dttm)
+
+        # in case of @once
+        if not following:
+            return dttm
+
+        if self.previous_schedule(following) != dttm:
+            return following
+
+        return dttm
+
     @property
     def tasks(self):
         return list(self.task_dict.values())
