@@ -3361,10 +3361,12 @@ class DagRun(Base):
 
     @staticmethod
     @provide_session
-    def find(dag_id, run_id=None, execution_date=None,
+    def find(dag_id=None, run_id=None, execution_date=None,
              state=None, external_trigger=None, session=None):
         """
         Returns a set of dag runs for the given search criteria.
+        :param dag_id: the dag_id to find dag runs for
+        :type dag_id: integer, list
         :param run_id: defines the the run id for this dag run
         :type run_id: string
         :param execution_date: the execution date
@@ -3378,7 +3380,9 @@ class DagRun(Base):
         """
         DR = DagRun
 
-        qry = session.query(DR).filter(DR.dag_id == dag_id)
+        qry = session.query(DR)
+        if dag_id:
+            qry = qry.filter(DR.dag_id == dag_id)
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
         if execution_date:
