@@ -518,12 +518,13 @@ class SchedulerJob(BaseJob):
             if run.execution_date > datetime.now():
                 continue
 
-            # todo: run.task is transient but needs to be set
+            # todo: run.dag is transient but needs to be set
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
             run.verify_integrity(session=session)
             run.update_state(session=session)
             if run.state == State.RUNNING:
+                make_transient(run)
                 active_dag_runs.append(run)
 
         for run in active_dag_runs:
@@ -546,20 +547,6 @@ class SchedulerJob(BaseJob):
 
                 if ti.is_runnable(flag_upstream_failed=True):
                     self.logger.debug('Queuing task: {}'.format(ti))
-
-                    ti.refresh_from_db(session=session, lock_for_update=True)
-                    # another scheduler could have picked this task
-                    # todo: UP_FOR_RETRY still could create a race condition
-                    if ti.state is State.SCHEDULED:
-                        session.commit()
-                        self.logger.debug("Task {} was picked up by another scheduler"
-                                          .format(ti))
-                        continue
-                    elif ti.state is State.NONE:
-                        ti.state = State.SCHEDULED
-                        session.merge(ti)
-
-                    session.commit()
                     queue.put((ti.key, pickle_id))
 
         session.close()
@@ -676,7 +663,28 @@ class SchedulerJob(BaseJob):
             except Exception as e:
                 self.logger.exception(e)
 
+    @provide_session
+    def _reset_state_for_orphaned_tasks(self, dag_run, session=None):
+        """
+        This function checks for a DagRun if there are any tasks
+        that have a scheduled state but are not known by the
+        executor. If it finds those it will reset the state to None
+        so they will get picked up again.
+        """
+        queued_tis = self.executor.queued_tasks
+
+        # also consider running as the state might not have changed in the db yet
+        running = self.executor.running
+        tis = dag_run.get_task_instances(state=State.SCHEDULED, session=session)
+        for ti in tis:
+            if ti.key not in queued_tis and ti.key not in running:
+                ti.state = State.NONE
+                self.logger.debug("Rescheduling orphaned task {}".format(ti))
+
+        session.commit()
+
     def _execute(self):
+        session = settings.Session()
         TI = models.TaskInstance
 
         pessimistic_connection_handling()
@@ -687,6 +695,16 @@ class SchedulerJob(BaseJob):
         dagbag = models.DagBag(self.subdir, sync_to_db=True)
         executor = self.executor = dagbag.executor
         executor.start()
+
+        # grab orphaned tasks and make sure to reset their state
+        active_runs = DagRun.find(
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
+        for dr in active_runs:
+            self._reset_state_for_orphaned_tasks(dr, session=session)
+
         self.runs = 0
         while not self.num_runs or self.num_runs > self.runs:
             try:
@@ -738,7 +756,19 @@ class SchedulerJob(BaseJob):
                         dag = dagbag.dags[ti_key[0]]
                         task = dag.get_task(ti_key[1])
                         ti = TI(task, ti_key[2])
+                        ti.refresh_from_db(session=session, lock_for_update=True)
+                        if ti.state == State.SCHEDULED:
+                            session.commit()
+                            self.logger.debug("Task {} was picked up by another scheduler"
+                                              .format(ti))
+                            continue
+                        elif ti.state is State.NONE:
+                            ti.state = State.SCHEDULED
+
                         self.executor.queue_task_instance(ti, pickle_id=pickle_id)
+
+                        session.merge(ti)
+                        session.commit()
 
                 for j in jobs:
                     j.join()
@@ -769,6 +799,8 @@ class SchedulerJob(BaseJob):
             finally:
                 settings.Session.remove()
         executor.end()
+
+        session.close()
 
     def heartbeat_callback(self):
         Stats.gauge('scheduler_heartbeat', 1, 1)

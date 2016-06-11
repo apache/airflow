@@ -31,6 +31,8 @@ from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 
+from tests.executor.test_executor import TestExecutor
+
 from airflow import configuration
 configuration.test_mode()
 
@@ -44,6 +46,7 @@ except ImportError:
 
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+
 
 class BackfillJobTest(unittest.TestCase):
 
@@ -732,3 +735,47 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.schedule_dag(dag)
         self.assertIsNotNone(dr)
         self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 1, 10, 10))
+
+    def test_scheduler_reschedule(self):
+        """
+        Checks if tasks that are not taken up by the executor
+        get rescheduled
+        """
+        executor = TestExecutor()
+
+        dagbag = DagBag(executor=executor)
+        dagbag.dags.clear()
+        dagbag.executor = executor
+
+        dag = DAG(
+            dag_id='test_scheduler_reschedule',
+            start_date=DEFAULT_DATE)
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        dag.clear()
+        dag.is_subdag = False
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.is_paused = False
+        session.merge(orm_dag)
+        session.commit()
+
+        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+
+        @mock.patch('airflow.models.DagBag', return_value=dagbag)
+        @mock.patch('airflow.models.DagBag.collect_dags')
+        def do_schedule(function, function2):
+            scheduler = SchedulerJob(num_runs=1, executor=executor,)
+            scheduler.run()
+
+        do_schedule()
+        self.assertEquals(1, len(executor.queued_tasks))
+        executor.queued_tasks.clear()
+
+        do_schedule()
+        self.assertEquals(2, len(executor.queued_tasks))
+
