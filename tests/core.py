@@ -1474,6 +1474,15 @@ if 'HiveOperator' in dir(operators):
             hook = HiveServer2Hook()
             hook.get_records(sql)
 
+        def test_multi_statements(self):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+            sqls = [
+                "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
+                "DROP TABLE test_multi_statements",
+            ]
+            hook = HiveServer2Hook()
+            hook.get_records(sqls)
+
         def test_get_metastore_databases(self):
             if six.PY2:
                 from airflow.hooks.hive_hooks import HiveMetastoreHook
