@@ -1,0 +1,39 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# create all groups
+
+dn: ou=groups,dc=example,dc=com
+objectClass: organizationalunit
+ou: groups
+description: generic groups branch
+
+dn: cn=group1,ou=groups,dc=example,dc=com
+objectclass: groupofnames
+cn: group1
+description: Group 1 of users
+# add the group members all of which are 
+# assumed to exist under example
+member: cn=user1,dc=example,dc=com
+
+dn: cn=group2,ou=groups,dc=example,dc=com
+objectclass: groupofnames
+cn: group2
+description: Group 2 of users
+member: cn=user2,dc=example,dc=com
+
+dn: cn=group3,ou=groups,dc=example,dc=com
+objectclass: groupofnames
+cn: group3
+description: Group 3 of users
+member: cn=user1,dc=example,dc=com
