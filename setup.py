@@ -5,7 +5,7 @@ import os
 import sys
 
 # Kept manually in sync with airflow.__version__
-version = '1.7.1.2'
+version = '1.7.1.3'
 
 
 class Tox(TestCommand):
@@ -121,7 +121,7 @@ setup(
         'dill>=0.2.2, <0.3',
         'python-daemon>=2.1.1, <2.2',
         'flask>=0.10.1, <0.11',
-        'flask-admin>=1.4.0, <2.0.0',
+        'flask-admin==1.4.0',
         'flask-cache>=0.13.1, <0.14',
         'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
@@ -172,7 +172,7 @@ setup(
         'qds': qds,
         'cloudant': cloudant
     },
-    classifiers={
+    classifiers=[
         'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'Environment :: Web Environment',
@@ -182,7 +182,7 @@ setup(
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Topic :: System :: Monitoring',
-    },
+    ],
     author='Maxime Beauchemin',
     author_email='maximebeauchemin@gmail.com',
     url='https://github.com/airbnb/airflow',
