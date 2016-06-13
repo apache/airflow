@@ -235,9 +235,10 @@ def do_setup():
         url='https://github.com/apache/incubator-airflow',
         download_url=(
             'https://github.com/apache/incubator-airflow/tarball/' + version),
-        cmdclass={'test': Tox,
-                  'extra_clean': CleanCommand,
-                  },
+        cmdclass={
+            'test': Tox,
+            'extra_clean': CleanCommand,
+        },
     )
 
 

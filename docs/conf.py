@@ -13,6 +13,21 @@
 # serve to show the default.
 import os
 import sys
+import mock
+
+MOCK_MODULES = [
+    'apiclient',
+    'apiclient.discovery',
+    'apiclient.http',
+    'mesos',
+    'mesos.interface',
+    'mesos.native',
+    'oauth2client.service_account',
+    'pandas.io.gbq',
+]
+for mod_name in MOCK_MODULES:
+    sys.modules[mod_name] = mock.Mock()
+
 
 # Hack to allow changing for piece of the code to behave differently while
 # the docs are being built. The main objective was to alter the
