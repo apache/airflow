@@ -59,6 +59,7 @@ class S3FileTransformOperator(BaseOperator):
         self.transform_script = transform_script
 
     def execute(self, context):
+        super(S3FileTransformOperator, self).execute(context)
         source_s3 = S3Hook(s3_conn_id=self.source_s3_conn_id)
         dest_s3 = S3Hook(s3_conn_id=self.dest_s3_conn_id)
         logging.info("Downloading source S3 file {0}"

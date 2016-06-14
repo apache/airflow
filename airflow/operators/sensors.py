@@ -52,6 +52,7 @@ class BaseSensorOperator(BaseOperator):
         raise AirflowException('Override me.')
 
     def execute(self, context):
+        super(BaseSensorOperator, self).execute(context)
         started_at = datetime.now()
         while not self.poke(context):
             sleep(self.poke_interval)

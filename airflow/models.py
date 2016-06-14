@@ -1996,7 +1996,14 @@ class BaseOperator(object):
 
         Refer to get_template_context for more context.
         """
-        raise NotImplementedError()
+        if self.dag:
+            os.environ['AIRFLOW_DAG_ID'] = self.dag.dag_id
+        dagrun = context['dag_run']
+        if dagrun and dagrun.execution_date:
+                os.environ['AIRFLOW_DAGRUN'] = dagrun.execution_date.isoformat()
+        os.environ['AIRFLOW_TASK_ID'] = self.task_id
+        if self.start_date:
+            os.environ['AIRFLOW_TASK_INSTANCE'] = self.start_date.isoformat()
 
     def post_execute(self, context):
         """

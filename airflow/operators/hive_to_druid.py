@@ -68,6 +68,7 @@ class HiveToDruidTransfer(BaseOperator):
         self.metastore_conn_id = metastore_conn_id
 
     def execute(self, context):
+        super(HiveToDruidTransfer, self).execute(context)
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         logging.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')

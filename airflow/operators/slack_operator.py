@@ -47,6 +47,7 @@ class SlackAPIOperator(BaseOperator):
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
+        super(SlackAPIOperator, self).execute(context)
         if not self.api_params:
             self.construct_api_call_params()
         sc = SlackClient(self.token)

@@ -37,6 +37,7 @@ class Hive2SambaOperator(BaseOperator):
         self.hql = hql.strip().rstrip(';')
 
     def execute(self, context):
+        super(Hive2SambaOperator, self).execute(context)
         samba = SambaHook(samba_conn_id=self.samba_conn_id)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         tmpfile = tempfile.NamedTemporaryFile()

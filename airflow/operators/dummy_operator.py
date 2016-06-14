@@ -16,4 +16,4 @@ class DummyOperator(BaseOperator):
         super(DummyOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
-        pass
+        super(DummyOperator, self).execute(context)

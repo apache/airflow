@@ -115,6 +115,7 @@ class DockerOperator(BaseOperator):
         self.container = None
 
     def execute(self, context):
+        super(DockerOperator, self).execute(context)
         logging.info('Starting docker container from image ' + self.image)
 
         tls_config = None

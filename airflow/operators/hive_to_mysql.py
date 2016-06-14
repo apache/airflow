@@ -63,6 +63,7 @@ class HiveToMySqlTransfer(BaseOperator):
         self.bulk_load = bulk_load
 
     def execute(self, context):
+        super(HiveToMySqlTransfer, self).execute(context)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         logging.info("Extracting data from Hive")
         logging.info(self.sql)

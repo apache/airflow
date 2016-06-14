@@ -91,6 +91,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         return {k: v.format(col=col) for k, v in d.items()}
 
     def execute(self, context=None):
+        super(HiveStatsCollectionOperator, self).execute(context)
         metastore = HiveMetastoreHook(metastore_conn_id=self.metastore_conn_id)
         table = metastore.get_table(table_name=self.table)
         field_types = {col.name: col.type for col in table.sd.cols}

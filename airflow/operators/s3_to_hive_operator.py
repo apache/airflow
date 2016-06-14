@@ -92,6 +92,7 @@ class S3ToHiveTransfer(BaseOperator):
         self.s3_conn_id = s3_conn_id
 
     def execute(self, context):
+        super(S3ToHiveTransfer, self).execute(context)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
         logging.info("Downloading S3 file")

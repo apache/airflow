@@ -45,6 +45,7 @@ class OracleOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
+        super(OracleOperator, self).execute(context)
         logging.info('Executing: ' + str(self.sql))
         hook = OracleHook(oracle_conn_id=self.oracle_conn_id)
         hook.run(

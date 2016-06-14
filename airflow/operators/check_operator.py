@@ -57,6 +57,7 @@ class CheckOperator(BaseOperator):
         self.sql = sql
 
     def execute(self, context=None):
+        super(CheckOperator, self).execute(context)
         logging.info('Executing SQL check: ' + self.sql)
         records = self.get_db_hook().get_first(self.sql)
         logging.info("Record: " + str(records))
