@@ -61,5 +61,8 @@ class SimpleHttpOperator(BaseOperator):
                             self.headers,
                             self.extra_options)
         if self.response_check:
-            if not self.response_check(response):
-                raise AirflowException("Response check returned False.")
+            resp = self.response_check(response)
+            if resp is None:
+                raise AirflowException("Response check returned None.")
+            else:
+                return resp
