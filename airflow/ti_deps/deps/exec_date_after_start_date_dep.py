@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -13,14 +14,24 @@
 # limitations under the License.
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.db import provide_session
-from airflow.utils.state import State
 
 
-class NotQueuedDep(BaseTIDep):
-    NAME = "Task Instance Not Already Queued"
+class ExecDateAfterStartDateDep(BaseTIDep):
+    NAME = "Execution Date"
 
     @provide_session
     def get_dep_statuses(self, ti, session, dep_context):
-        if ti.state == State.QUEUED:
+        if ti.task.start_date and ti.execution_date < ti.task.start_date:
             yield self._failing_status(
-                reason="The task instance has already been queued and will run shortly.")
+                reason="The execution date is {0} but this is before the task's start "
+                "date {1}.".format(
+                    ti.execution_date.isoformat(),
+                    ti.task.start_date.isoformat()))
+
+        if (ti.task.dag and ti.task.dag.start_date and
+                ti.execution_date < ti.task.dag.start_date):
+            yield self._failing_status(
+                reason="The execution date is {0} but this is before the task's "
+                "DAG's start date {1}.".format(
+                    ti.execution_date.isoformat(),
+                    ti.task.dag.start_date.isoformat()))

@@ -25,6 +25,7 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
+from airflow.ti_deps.contexts.scheduler_end_to_end_context import SchedulerEndToEndContext
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
@@ -330,6 +331,29 @@ def run(args, dag=None):
         elif remote_base and remote_base != 'None':
             logging.error(
                 'Unsupported remote log location: {}'.format(remote_base))
+
+
+def task_failed_deps(args):
+    """
+    Returns the dependencies for a task that are not met from the perspective of the
+    scheduler.
+
+    >>> airflow task_failed_deps tutorial sleep 2015-01-01
+    Task instance dependencies not met:
+    Dagrun Exists: Task instance's dagrun did not exist: Unknown reason
+    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks to have succeeded, but found 1 non-success(es).
+    """
+    dag = get_dag(args)
+    task = dag.get_task(task_id=args.task_id)
+    ti = TaskInstance(task, args.execution_date)
+
+    failed_deps = list(ti.get_failed_dep_statuses(dep_context=SchedulerEndToEndContext()))
+    if failed_deps:
+        print ("Task instance dependencies not met:")
+        for dep in failed_deps:
+            print ("{}: {}".format(dep.dep_name, dep.reason))
+    else:
+        print ("Task instance dependencies are all met.")
 
 
 def task_state(args):
@@ -918,6 +942,13 @@ class CLIFactory(object):
             'func': list_dags,
             'help': "List all the DAGs",
             'args': ('subdir',),
+        }, {
+            'func': task_failed_deps,
+            'help': (
+                "Get the dependencies of a task instance that are failing from the "
+                "perspective of the scheduler, i.e. the reasons a task instance isn't "
+                "being run by the scheduler"),
+            'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
         }, {
             'func': task_state,
             'help': "Get the status of a task instance",

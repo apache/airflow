@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from airflow.ti_deps.contexts.minimum_run_context import MinimumRunContext
+from airflow.ti_deps.contexts.queue_context import QueueContext
 from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
 from airflow.ti_deps.deps.pool_has_space_dep import PoolHasSpaceDep
 
 
-class RunContext(MinimumRunContext):
+class RunContext(QueueContext):
     """
     Context to get the dependencies that need to be met for a given task instance to be
     able to get run by an executor. This class just extends QueueContext by adding

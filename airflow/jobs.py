@@ -736,7 +736,7 @@ class SchedulerJob(BaseJob):
         DagModel = models.DagModel
         session = settings.Session()
 
-        active_runs = dag.get_active_runs()
+        active_runs = dag.active_runs
 
         self.logger.info('Getting list of tasks to skip for active runs.')
         skip_tis = set()
@@ -924,9 +924,10 @@ class SchedulerJob(BaseJob):
                     task_instance.execution_date,
                     local=True,
                     mark_success=False,
-                    force=False,
-                    ignore_dependencies=False,
+                    ignore_all_deps=False,
                     ignore_depends_on_past=False,
+                    ignore_task_deps=False,
+                    ignore_ti_state=False,
                     pool=task_instance.pool,
                     file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
                     pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id)
@@ -1461,9 +1462,10 @@ class BackfillJob(BaseJob):
                     ignore_depends_on_past=ignore_depends_on_past,
                     ignore_task_deps=self.ignore_task_deps)
                 # Is the task runnable? -- then run it
-                if ti.are_dependencies_met(dep_context=backfill_context,
-                                           session=session,
-                                           verbose=True):
+                if ti.are_dependencies_met(
+                        dep_context=backfill_context,
+                        session=session,
+                        verbose=True):
                     self.logger.debug('Sending {} to executor'.format(ti))
                     executor.queue_task_instance(
                         ti,

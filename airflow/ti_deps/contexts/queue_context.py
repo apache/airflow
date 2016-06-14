@@ -12,21 +12,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from airflow.ti_deps.contexts.minimum_run_context import MinimumRunContext
-from airflow.ti_deps.deps.not_queued_dep import NotQueuedDep
+from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 
 
+# TODODAN I think I can replace MinimumRunContext with this and make RunContext and BackfillContext depend on this instead
 # TODODAN look over run and backfill and runminusqueue contexts to make sure there isn't wrong comments since now runcontext et al
 # TODODAN shouldn't __init__ have docstring? other contexts might need it too
 class QueueContext(MinimumRunContext):
+    """
+    TODODAN this is off
+    Context to get the dependencies that need to be met for a given task instance to be
+    able to get run by an executor. This class just extends QueueContext by adding
+    dependencies for resources.
+    """
+
     def get_ignoreable_deps(self, ti):
         """
-        Context to get the dependencies that need to be met for a given task instance to be
-        able to get queued for execution once resources become available.
+        TODODAN header
 
         :param ti: The task instance for which to get the dependencies for in the given
             context.
         :type ti: TaskInstance
         """
-        return super(QueueContext, self).get_ignoreable_deps(ti) | {
-            NotQueuedDep(),
+        return super(MinimumRunContext, self).get_ignoreable_deps(ti) | {
+            RunnableExecDateDep(),
         }

@@ -1173,7 +1173,7 @@ class FakeSession(object):
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
         configuration.test_mode()
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
@@ -1481,7 +1481,7 @@ if 'MySqlOperator' in dir(operators) and 'HiveOperator' in dir(operators):
 
         def setUp(self):
             configuration.test_mode()
-            args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
+            args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
             dag = DAG(TEST_DAG_ID, default_args=args)
             self.dag = dag
 

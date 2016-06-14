@@ -11,10 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from airflow.ti_deps.contexts.run_context import RunContext
+from airflow.ti_deps.contexts.minimum_run_context import MinimumRunContext
+from airflow.ti_deps.deps.dag_ti_slots_available_dep import DagTISlotsAvailableDep
+from airflow.ti_deps.deps.pool_has_space_dep import PoolHasSpaceDep
 
 
-class BackfillContext(RunContext):
+# TODODAN see how to refactor backfillcontext and runcontext and queue context and minimum run context I think I can make a lot more overlap and reuuse
+class BackfillContext(MinimumRunContext):
     """
     TODODAN main part of docstring (not just different with run context but where this is used
 
@@ -33,3 +36,16 @@ class BackfillContext(RunContext):
             ignore_depends_on_past=ignore_depends_on_past,
             ignore_task_deps=ignore_task_deps,
             ignore_ti_state=True)
+
+    def get_ignoreable_deps(self, ti):
+        """
+        TODODAN header
+
+        :param ti: The task instance for which to get the dependencies for in the given
+            context.
+        :type ti: TaskInstance
+        """
+        return super(BackfillContext, self).get_ignoreable_deps(ti) | {
+            DagTISlotsAvailableDep(),
+            PoolHasSpaceDep(),
+        }

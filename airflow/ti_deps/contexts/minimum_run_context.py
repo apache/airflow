@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from airflow.ti_deps.contexts.base_dep_context import BaseDepContext
-from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
-from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
 from airflow.ti_deps.deps.runnable_state_dep import RunnableStateDep
 
 
+# TODODAN look over run and backfill and runminusqueue contexts to make sure there isn't wrong comments since now runcontext et al
+# TODODAN shouldn't __init__ have docstring? other contexts might need it too
+# TODODAN class docstring
 # TODODAN go over comments and docstrings since this was a copy-and-paste (also in run_context and backfill_run_context and others)
 # TODODAN think of a better name
 # TODODAN shouldn't __init__ have docstring? other contexts might need it too
@@ -47,8 +48,6 @@ class MinimumRunContext(BaseDepContext):
         :type ti: TaskInstance
         """
         deps = super(MinimumRunContext, self).get_ignoreable_deps(ti) | {
-            DagUnpausedDep(),
-            RunnableExecDateDep(),
             NotSkippedDep(),
         }
 

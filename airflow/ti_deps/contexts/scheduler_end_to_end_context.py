@@ -13,6 +13,8 @@
 # limitations under the License.
 from airflow.ti_deps.contexts.run_context import RunContext
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunExistsDep
+from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
+from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterStartDateDep
 
 
 # TODODAN docstrings and comments - basically the requirements for a task to get scheduled with the scheduler job and then run on a worker
@@ -33,6 +35,8 @@ class SchedulerEndToEndContext(RunContext):
             context.
         :type ti: TaskInstance
         """
-        return super(RunContext, self).get_ignoreable_deps(ti) | {
+        return super(SchedulerEndToEndContext, self).get_ignoreable_deps(ti) | {
             DagrunExistsDep(),
+            DagUnpausedDep(),
+            ExecDateAfterStartDateDep()
         }

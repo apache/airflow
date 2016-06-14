@@ -704,9 +704,10 @@ class TaskInstance(Base):
             self.task_id,
             self.execution_date,
             mark_success=mark_success,
-            ignore_dependencies=ignore_dependencies,
+            ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
-            force=force,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
             local=local,
             pickle_id=pickle_id,
             file_path=path,
@@ -719,8 +720,10 @@ class TaskInstance(Base):
                          task_id,
                          execution_date,
                          mark_success=False,
-                         ignore_dependencies=False,
+                         ignore_all_deps=False,
                          ignore_depends_on_past=False,
+                         ignore_task_deps=False,
+                         ignore_ti_state=False,
                          force=False,
                          local=False,
                          pickle_id=None,
@@ -730,7 +733,8 @@ class TaskInstance(Base):
                          pool=None
                          ):
         """
-        Generates the shell command required to execute this task instance.
+        TODODAN fix docstring ignore_dependencies and ignore_depends on past and stuff haven't been updated
+        Generates the shell command required to execute this task instance. also force isn't used anymore
 
         :param dag_id: DAG ID
         :type dag_id: unicode
@@ -740,12 +744,12 @@ class TaskInstance(Base):
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
-        :param ignore_dependencies: Whether to ignore the dependencies and run
-        anyway
-        :type ignore_dependencies: bool
-        :param ignore_depends_on_past: Whether to ignore the depends on past
-        setting and run anyway
-        :type ignore_depends_on_past: bool
+        :param ignore_all_deps: Whether or not the context should ignore all ignoreable
+            dependencies. Overrides the other ignore_* parameters
+        :type ignore_all_deps: boolean
+        :param ignore_depends_on_past: Whether or not the depends_on_past parameter of DAGs
+            should be ignored (e.g. for Backfills)
+        :type ignore_depends_on_past: boolean
         :param force: Whether to force running - see TaskInstance.run()
         :type force: bool
         :param local: Whether to run the task locally
@@ -1095,18 +1099,19 @@ class TaskInstance(Base):
             verbose=True)
 
         if not runnable and not mark_success:
-            # If a task's dependencies are met but it can't be run yet then queue it
-            # instead
-            self.state = State.QUEUED
-            msg = "Queuing attempt {attempt} of {total}".format(
-                attempt=self.try_number % (task.retries + 1) + 1,
-                total=task.retries + 1)
-            logging.info(HR + msg + HR)
+            if self.state != State.QUEUED:
+                # If a task's dependencies are met but it can't be run yet then queue it
+                # instead
+                self.state = State.QUEUED
+                msg = "Queuing attempt {attempt} of {total}".format(
+                    attempt=self.try_number % (task.retries + 1) + 1,
+                    total=task.retries + 1)
+                logging.info(HR + msg + HR)
 
-            self.queued_dttm = datetime.now()
-            session.merge(self)
-            session.commit()
-            logging.info("Queuing into pool {}".format(self.pool))
+                self.queued_dttm = datetime.now()
+                session.merge(self)
+                session.commit()
+                logging.info("Queuing into pool {}".format(self.pool))
             return
 
         # print status message
