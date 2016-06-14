@@ -106,14 +106,9 @@ def dag_link(v, c, m, p):
         '<a href="{url}">{m.dag_id}</a>'.format(**locals()))
 
 
-def log_link(v, c, m, p):
-    url = url_for(
-        'airflow.log',
-        dag_id=m.dag_id,
-        task_id=m.task_id,
-        execution_date=m.execution_date.isoformat())
+def log_url_formatter(v, c, m, p):
     return Markup(
-        '<a href="{url}">'
+        '<a href="{m.log_url}">'
         '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
         '</span></a>').format(**locals())
 
@@ -837,7 +832,7 @@ class Airflow(BaseView):
         if ti:
             host = ti.hostname
             log_loaded = False
-            
+
             if os.path.exists(loc):
                 try:
                     f = open(loc)
@@ -2156,7 +2151,8 @@ class TaskInstanceModelView(ModelViewOnly):
         'queue', 'pool', 'operator', 'start_date', 'end_date')
     named_filter_urls = True
     column_formatters = dict(
-        log=log_link, task_id=task_instance_link,
+        log_url=log_url_formatter,
+        task_id=task_instance_link,
         hostname=nobr_f,
         state=state_f,
         execution_date=datetime_f,
@@ -2177,7 +2173,7 @@ class TaskInstanceModelView(ModelViewOnly):
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
-        'pool', 'log')
+        'pool', 'log_url')
     can_delete = True
     page_size = 500
 
