@@ -8,7 +8,7 @@ import sys
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-version = '1.7.1.2'
+version = '1.7.1.3'
 
 
 class Tox(TestCommand):
@@ -168,7 +168,7 @@ def do_setup():
             'dill>=0.2.2, <0.3',
             'python-daemon>=2.1.1, <2.2',
             'flask>=0.10.1, <0.11',
-            'flask-admin>=1.4.0, <2.0.0',
+            'flask-admin==1.4.1',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
             'future>=0.15.0, <0.16',
