@@ -1,10 +1,11 @@
 from builtins import str
+import logging
+
 from pyhive import presto
 from pyhive.exc import DatabaseError
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
-import logging
 logging.getLogger("pyhive").setLevel(logging.INFO)
 
 
@@ -65,8 +66,7 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_first(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            obj = eval(str(e))
-            raise PrestoException(obj['message'])
+            raise PrestoException(e[0]['message'])
 
     def get_pandas_df(self, hql, parameters=None):
         """
@@ -78,8 +78,7 @@ class PrestoHook(DbApiHook):
             cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
-            obj = eval(str(e))
-            raise PrestoException(obj['message'])
+            raise PrestoException(e[0]['message'])
         column_descriptions = cursor.description
         if data:
             df = pandas.DataFrame(data)
