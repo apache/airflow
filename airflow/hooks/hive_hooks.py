@@ -22,6 +22,7 @@ import logging
 import re
 import subprocess
 from tempfile import NamedTemporaryFile
+import hive_metastore
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -321,7 +322,17 @@ class HiveMetastoreHook(BaseHook):
         return self.metastore
 
     def check_for_partition(self, schema, table, partition):
-        """Checks whether a partition exists
+        """
+        Checks whether a partition exists
+
+        :param schema: Name of hive schema (database) @table belongs to
+        :type schema: string
+        :param table: Name of hive table @partition belongs to
+        :type schema: string
+        :partition: Expression that matches the partitions to check for
+            (eg `a = 'b' AND c = 'd'`)
+        :type schema: string
+        :rtype: boolean
 
         >>> hh = HiveMetastoreHook()
         >>> t = 'static_babynames_partitioned'
@@ -336,6 +347,35 @@ class HiveMetastoreHook(BaseHook):
             return True
         else:
             return False
+
+    def check_for_named_partition(self, schema, table, partition_name):
+        """
+        Checks whether a partition with a given name exists
+
+        :param schema: Name of hive schema (database) @table belongs to
+        :type schema: string
+        :param table: Name of hive table @partition belongs to
+        :type schema: string
+        :partition: Name of the partitions to check for (eg `a=b/c=d`)
+        :type schema: string
+        :rtype: boolean
+
+        >>> hh = HiveMetastoreHook()
+        >>> t = 'static_babynames_partitioned'
+        >>> hh.check_for_named_partition('airflow', t, "ds=2015-01-01")
+        True
+        >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
+        False
+        """
+        self.metastore._oprot.trans.open()
+        try:
+            self.metastore.get_partition_by_name(
+                schema, table, partition_name)
+            return True
+        except hive_metastore.ttypes.NoSuchObjectException:
+            return False
+        finally:
+            self.metastore._oprot.trans.close()
 
     def get_table(self, table_name, db='default'):
         """Get a metastore table object
