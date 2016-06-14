@@ -1290,10 +1290,16 @@ class Airflow(BaseView):
             elif children:
                 children_key = "_children"
 
+            def set_duration(tid):
+                if isinstance(tid, dict) and tid.get("state") == State.RUNNING:
+                    d = datetime.now() - dateutil.parser.parse(tid["start_date"])
+                    tid["duration"] = d.total_seconds()
+                return tid
+
             return {
                 'name': task.task_id,
                 'instances': [
-                        task_instances.get((task.task_id, d)) or {
+                        set_duration(task_instances.get((task.task_id, d))) or {
                             'execution_date': d.isoformat(),
                             'task_id': task.task_id
                         }
