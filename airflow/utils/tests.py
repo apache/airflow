@@ -12,22 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
+import unittest
 
-
-class DummyOperator(BaseOperator):
-    """
-    Operator that does literally nothing. It can be used to group tasks in a
-    DAG.
-    """
-
-    template_fields = tuple()
-    ui_color = '#e8f7e4'
-
-    @apply_defaults
-    def __init__(self, *args, **kwargs):
-        super(DummyOperator, self).__init__(*args, **kwargs)
-
-    def execute(self, context):
-        pass
+def skipUnlessImported(module, obj):
+    import importlib
+    m = importlib.import_module(module)
+    return unittest.skipUnless(
+        obj in dir(m),
+        "Skipping test because {} could not be imported from {}".format(
+            obj, module))

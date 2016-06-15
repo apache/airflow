@@ -2,7 +2,8 @@
 ### Example HTTP operator and sensor
 """
 from airflow import DAG
-from airflow.operators import SimpleHttpOperator, HttpSensor
+from airflow.operators import SimpleHttpOperator
+from airflow.operators.sensors import HttpSensor
 from datetime import datetime, timedelta
 import json
 

@@ -15,7 +15,7 @@
 import os
 import unittest
 
-from airflow.operators import HttpSensor
+from airflow.operators.sensors import HttpSensor
 from airflow.exceptions import AirflowException
 
 
