@@ -182,6 +182,10 @@ def initdb():
         models.Connection(
             conn_id='ssh_default', conn_type='ssh',
             host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='fs_default', conn_type='fs',
+            extra='{"path": "/"}'))
 
     # Known event types
     KET = models.KnownEventType
