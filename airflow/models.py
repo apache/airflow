@@ -596,33 +596,43 @@ class Connection(Base):
                        descriptor=property(cls.get_extra, cls.set_extra))
 
     def get_hook(self):
-        from airflow import hooks
-        from airflow.contrib import hooks as contrib_hooks
         try:
             if self.conn_type == 'mysql':
-                return hooks.MySqlHook(mysql_conn_id=self.conn_id)
+                from airflow.hooks.mysql_hook import MySqlHook
+                return MySqlHook(mysql_conn_id=self.conn_id)
             elif self.conn_type == 'google_cloud_platform':
-                return contrib_hooks.BigQueryHook(bigquery_conn_id=self.conn_id)
+                from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+                return BigQueryHook(bigquery_conn_id=self.conn_id)
             elif self.conn_type == 'postgres':
-                return hooks.PostgresHook(postgres_conn_id=self.conn_id)
+                from airflow.hooks.postgres_hook import PostgresHook
+                return PostgresHook(postgres_conn_id=self.conn_id)
             elif self.conn_type == 'hive_cli':
-                return hooks.HiveCliHook(hive_cli_conn_id=self.conn_id)
+                from airflow.hooks.hive_hooks import HiveCliHook
+                return HiveCliHook(hive_cli_conn_id=self.conn_id)
             elif self.conn_type == 'presto':
-                return hooks.PrestoHook(presto_conn_id=self.conn_id)
+                from airflow.hooks.presto_hook import PrestoHook
+                return PrestoHook(presto_conn_id=self.conn_id)
             elif self.conn_type == 'hiveserver2':
-                return hooks.HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
+                from airflow.hooks.hive_hooks import HiveServer2Hook
+                return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
             elif self.conn_type == 'sqlite':
-                return hooks.SqliteHook(sqlite_conn_id=self.conn_id)
+                from airflow.hooks.sqlite_hook import SqliteHook
+                return SqliteHook(sqlite_conn_id=self.conn_id)
             elif self.conn_type == 'jdbc':
-                return hooks.JdbcHook(jdbc_conn_id=self.conn_id)
+                from airflow.hooks.jdbc_hook import JdbcHook
+                return JdbcHook(jdbc_conn_id=self.conn_id)
             elif self.conn_type == 'mssql':
-                return hooks.MsSqlHook(mssql_conn_id=self.conn_id)
+                from airflow.hooks.mssql_hook import MsSqlHook
+                return MsSqlHook(mssql_conn_id=self.conn_id)
             elif self.conn_type == 'oracle':
-                return hooks.OracleHook(oracle_conn_id=self.conn_id)
+                from airflow.hooks.oracle_hook import OracleHook
+                return OracleHook(oracle_conn_id=self.conn_id)
             elif self.conn_type == 'vertica':
-                return contrib_hooks.VerticaHook(vertica_conn_id=self.conn_id)
+                from airflow.contrib.hooks.vertica_hook import VerticaHook
+                return VerticaHook(vertica_conn_id=self.conn_id)
             elif self.conn_type == 'cloudant':
-                return contrib_hooks.CloudantHook(cloudant_conn_id=self.conn_id)
+                from airflow.contrib.hooks.cloudant_hook import CloudantHook
+                return CloudantHook(cloudant_conn_id=self.conn_id)
         except:
             return None
 

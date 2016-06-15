@@ -17,7 +17,7 @@ from os import walk
 import logging
 
 from airflow.operators.sensors import BaseSensorOperator
-from airflow.contrib.hooks import FSHook
+from airflow.contrib.hooks.fs_hook import FSHook
 from airflow.utils.decorators import apply_defaults
 
 class FileSensor(BaseSensorOperator):
@@ -54,4 +54,3 @@ class FileSensor(BaseSensorOperator):
         except:
             return False
         return True
-

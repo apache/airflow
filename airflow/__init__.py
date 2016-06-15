@@ -79,6 +79,6 @@ from airflow import executors
 from airflow import macros
 from airflow import contrib
 
-operators.integrate_plugins()
-hooks.integrate_plugins()
-macros.integrate_plugins()
+operators._integrate_plugins()
+hooks._integrate_plugins()
+macros._integrate_plugins()

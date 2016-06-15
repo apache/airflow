@@ -1,4 +1,4 @@
-from airflow.operators import HiveToDruidTransfer
+from airflow.operators.hive_to_druid import HiveToDruidTransfer
 from airflow import DAG
 from datetime import datetime
 

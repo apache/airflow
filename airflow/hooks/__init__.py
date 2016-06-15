@@ -1,3 +1,36 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Only import Core Airflow Operators that don't have extra requirements.
+# All other operators must be imported directly.
+from .base_hook import BaseHook
+from .dbapi_hook import DbApiHook
+from .http_hook import HttpHook
+from .sqlite_hook import SqliteHook
+
+# ------------------------------------------------------------------------
+#
+# #TODO #FIXME Airflow 2.0
+#
+# Old import machinary below.
+#
+# This is deprecated but should be kept until Airflow 2.0
+# for compatibility.
+#
+# ------------------------------------------------------------------------
+
 # Imports the hooks dynamically while keeping the package API clean,
 # abstracting the underlying modules
 
@@ -17,9 +50,9 @@ _hooks = {
     'postgres_hook': ['PostgresHook'],
     'presto_hook': ['PrestoHook'],
     'samba_hook': ['SambaHook'],
-    'sqlite_hook': ['SqliteHook'],
+    # 'sqlite_hook': ['SqliteHook'],
     'S3_hook': ['S3Hook'],
-    'http_hook': ['HttpHook'],
+    # 'http_hook': ['HttpHook'],
     'druid_hook': ['DruidHook'],
     'jdbc_hook': ['JdbcHook'],
     'dbapi_hook': ['DbApiHook'],
@@ -27,11 +60,39 @@ _hooks = {
     'oracle_hook': ['OracleHook'],
 }
 
-_import_module_attrs(globals(), _hooks)
+
+import os as _os
+if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+    from zope.deprecation import deprecated as _deprecated
+    _imported = _import_module_attrs(globals(), _hooks)
+    for _i in _imported:
+        _deprecated(
+            _i,
+            "Importing {i} directly from 'airflow.hooks' has been "
+            "deprecated. Please import from "
+            "'airflow.hooks.[hook_module]' instead. Support for direct imports "
+            "will be dropped entirely in Airflow 2.0.".format(i=_i))
 
 
-def integrate_plugins():
+def _integrate_plugins():
     """Integrate plugins to the context"""
+    import sys
     from airflow.plugins_manager import hooks as _hooks
-    for _h in _hooks:
-        globals()[_h.__name__] = _h
+    for _hook_module in _hooks:
+        sys.modules[_hook_module.__name__] = _hook_module
+        globals()[_hook_module._name] = _hook_module
+
+
+        ##########################################################
+        # TODO FIXME Remove in Airflow 2.0
+
+        if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+            from zope.deprecation import deprecated as _deprecated
+            for _hook in _hook_module._objects:
+                globals()[_hook.__name__] = _deprecated(
+                    _hook,
+                    "Importing plugin hook '{i}' directly from "
+                    "'airflow.hooks' has been deprecated. Please "
+                    "import from 'airflow.hooks.[plugin_module]' "
+                    "instead. Support for direct imports will be dropped "
+                    "entirely in Airflow 2.0.".format(i=_hook))

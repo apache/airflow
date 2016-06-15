@@ -89,10 +89,26 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             logging.exception(e)
             logging.error('Failed to import plugin ' + filepath)
 
-operators = merge([p.operators for p in plugins])
-hooks = merge([p.hooks for p in plugins])
-executors = merge([p.executors for p in plugins])
-macros = merge([p.macros for p in plugins])
-admin_views = merge([p.admin_views for p in plugins])
-flask_blueprints = merge([p.flask_blueprints for p in plugins])
-menu_links = merge([p.menu_links for p in plugins])
+def make_module(name, objects):
+    name = name.lower()
+    module = imp.new_module(name)
+    module._name = name.split('.')[-1]
+    module._objects = objects
+    module.__dict__.update((o.__name__, o) for o in objects)
+    return module
+
+operators, hooks, executors, macros, admin_views = [], [], [], [], []
+flask_blueprints, menu_links = [], []
+
+for p in plugins:
+    operators.append(make_module('airflow.operators.' + p.name, p.operators))
+    hooks.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    executors.append(make_module('airflow.executors.' + p.name, p.executors))
+    macros.append(make_module('airflow.macros.' + p.name, p.macros))
+    admin_views.append(
+        make_module('airflow.www.admin_views' + p.name, p.admin_views))
+    flask_blueprints.append(
+        make_module(
+            'airflow.www.flask_blueprints' + p.name, p.flask_blueprints))
+    menu_links.append(
+        make_module('airflow.www.menu_links' + p.name, p.menu_links))
