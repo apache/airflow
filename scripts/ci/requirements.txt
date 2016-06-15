@@ -51,7 +51,7 @@ slackclient
 ldap3
 Flask-WTF
 lxml
-pykerberos
+#pykerberos
 bcrypt
 flask-bcrypt
 mock

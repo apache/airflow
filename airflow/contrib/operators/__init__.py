@@ -6,6 +6,7 @@ _operators = {
     'ssh_execute_operator': ['SSHExecuteOperator'],
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
+    'ecs_operator': ['ECSOperator'],
     'qubole_operator': ['QuboleOperator']
 }
 
