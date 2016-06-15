@@ -1587,33 +1587,31 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='presto_check', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+        def test_presto_to_mysql(self):
+            t = operators.PrestoToMySqlTransfer(
+                task_id='presto_to_mysql_check',
+                sql="""
+                SELECT name, count(*) as ccount
+                FROM airflow.static_babynames
+                GROUP BY name
+                """,
+                mysql_table='test_static_babynames',
+                mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-    def test_presto_to_mysql(self):
-        t = operators.PrestoToMySqlTransfer(
-            task_id='presto_to_mysql_check',
-            sql="""
-            SELECT name, count(*) as ccount
-            FROM airflow.static_babynames
-            GROUP BY name
-            """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
-
-    def test_presto_to_mysql(self):
-        t = operators.PrestoToMySqlTransfer(
-            task_id='presto_to_mysql_check',
-            sql="""
-            SELECT name, count(*) as ccount
-            FROM airflow.static_babynames
-            GROUP BY name
-            """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        def test_presto_to_mysql(self):
+            t = operators.PrestoToMySqlTransfer(
+                task_id='presto_to_mysql_check',
+                sql="""
+                SELECT name, count(*) as ccount
+                FROM airflow.static_babynames
+                GROUP BY name
+                """,
+                mysql_table='test_static_babynames',
+                mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hdfs_sensor(self):
             t = operators.HdfsSensor(
