@@ -99,6 +99,7 @@ class DataProcPigOperator(BaseOperator):
         self.dataproc_jars = dataproc_pig_jars
 
     def execute(self, context):
+        super(DataProcPigOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
         job = hook.create_job_template(self.task_id, self.dataproc_cluster, "pigJob",
@@ -163,6 +164,7 @@ class DataProcHiveOperator(BaseOperator):
         self.dataproc_jars = dataproc_hive_jars
 
     def execute(self, context):
+        super(DataProcHiveOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
 
@@ -228,6 +230,7 @@ class DataProcSparkSqlOperator(BaseOperator):
         self.dataproc_jars = dataproc_spark_jars
 
     def execute(self, context):
+        super(DataProcSparkSqlOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
 
@@ -304,6 +307,7 @@ class DataProcSparkOperator(BaseOperator):
         self.dataproc_jars = dataproc_spark_jars
 
     def execute(self, context):
+        super(DataProcSparkOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
         job = hook.create_job_template(self.task_id, self.dataproc_cluster, "sparkJob",
@@ -380,6 +384,7 @@ class DataProcHadoopOperator(BaseOperator):
         self.dataproc_jars = dataproc_hadoop_jars
 
     def execute(self, context):
+        super(DataProcHadoopOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
         job = hook.create_job_template(self.task_id, self.dataproc_cluster, "hadoopJob",
@@ -451,6 +456,7 @@ class DataProcPySparkOperator(BaseOperator):
         self.dataproc_jars = dataproc_pyspark_jars
 
     def execute(self, context):
+        super(DataProcPySparkOperator, self).execute(context)
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
                             delegate_to=self.delegate_to)
         job = hook.create_job_template(self.task_id, self.dataproc_cluster, "pysparkJob",

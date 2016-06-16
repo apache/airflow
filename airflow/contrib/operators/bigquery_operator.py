@@ -52,6 +52,7 @@ class BigQueryOperator(BaseOperator):
         self.udf_config = udf_config
 
     def execute(self, context):
+        super(BigQueryOperator, self).execute(context)
         logging.info('Executing: %s', str(self.bql))
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to)
         conn = hook.get_conn()

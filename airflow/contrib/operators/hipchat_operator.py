@@ -57,6 +57,7 @@ class HipChatAPIOperator(BaseOperator):
         pass
 
     def execute(self, context):
+        super(HipChatAPIOperator, self).execute(context)
         self.prepare_request()
 
         response = requests.request(self.method,

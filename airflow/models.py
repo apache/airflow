@@ -2000,10 +2000,10 @@ class BaseOperator(object):
             os.environ['AIRFLOW_DAG_ID'] = self.dag.dag_id
         dagrun = context['dag_run']
         if dagrun and dagrun.execution_date:
-                os.environ['AIRFLOW_DAGRUN'] = dagrun.execution_date.isoformat()
+                os.environ['AIRFLOW_DAGRUN_EXECUTION_DATE'] = dagrun.execution_date.isoformat()
         os.environ['AIRFLOW_TASK_ID'] = self.task_id
         if self.start_date:
-            os.environ['AIRFLOW_TASK_INSTANCE'] = self.start_date.isoformat()
+            os.environ['AIRFLOW_TASK_INSTANCE_EXECUTION_DATE'] = self.start_date.isoformat()
 
     def post_execute(self, context):
         """

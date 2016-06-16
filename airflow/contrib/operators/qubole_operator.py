@@ -94,6 +94,7 @@ class QuboleOperator(BaseOperator):
         super(QuboleOperator, self).__init__(*args, **kwargs)
 
     def execute(self, context):
+        super(QuboleOperator, self).execute(context)
         # Reinitiating the hook, as some template fields might have changed
         self.hook = QuboleHook(*self.args, **self.kwargs)
         return self.hook.execute(context)
