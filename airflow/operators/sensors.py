@@ -532,7 +532,7 @@ class HttpSensor(BaseSensorOperator):
                 # run content check on response
                 return self.response_check(response)
         except AirflowException as ae:
-            if ae.message.startswith("404"):
+            if str(ae).startswith("404"):
                 return False
 
             raise ae
