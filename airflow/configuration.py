@@ -142,6 +142,7 @@ defaults = {
         'celery_result_backend': 'db+mysql://airflow:airflow@localhost:3306/airflow',
         'celeryd_concurrency': 16,
         'default_queue': 'default',
+        'flower_host': '0.0.0.0',
         'flower_port': '5555',
         'worker_log_server_port': '8793',
     },
@@ -337,7 +338,10 @@ broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
 
 # Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-# it `airflow flower`. This defines the port that Celery Flower runs on
+# it `airflow flower`. This defines the IP that Celery Flower runs on
+flower_host = 0.0.0.0
+
+# This defines the port that Celery Flower runs on
 flower_port = 5555
 
 # Default queue that tasks get assigned to and that worker listen on.
@@ -447,6 +451,7 @@ celeryd_concurrency = 16
 worker_log_server_port = 8793
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
+flower_host = 0.0.0.0
 flower_port = 5555
 default_queue = default
 

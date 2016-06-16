@@ -6,7 +6,8 @@ _operators = {
     'ssh_execute_operator': ['SSHExecuteOperator'],
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
-    'qubole_operator': ['QuboleOperator']
+    'qubole_operator': ['QuboleOperator'],
+    'fs': ['FileSensor']
 }
 
 _import_module_attrs(globals(), _operators)

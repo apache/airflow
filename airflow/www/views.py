@@ -2263,6 +2263,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
     form_choices = {
         'conn_type': [
+            ('fs', 'File (path)'),
             ('ftp', 'FTP',),
             ('google_cloud_platform', 'Google Cloud Platform'),
             ('hdfs', 'HDFS',),
