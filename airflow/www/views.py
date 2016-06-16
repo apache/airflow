@@ -1477,6 +1477,7 @@ class Airflow(BaseView):
                 include_downstream=False)
 
         all_data = []
+        max_duration = 0
         for task in dag.tasks:
             data = []
             for ti in task.get_task_instances(session, start_date=min_date,
@@ -1484,10 +1485,26 @@ class Airflow(BaseView):
                 if ti.duration:
                     data.append([
                         ti.execution_date.isoformat(),
-                        float(ti.duration) / (60*60)
+                        ti.duration
                     ])
+                    if max_duration < ti.duration:
+                        max_duration = ti.duration
             if data:
                 all_data.append({'data': data, 'name': task.task_id})
+
+        def divide_durations(all_data, denom):
+            for data in all_data:
+                for d in data['data']:
+                    d[1] /= denom
+
+        if 60*60 < max_duration:
+            unit = 'hours'
+            divide_durations(all_data, float(60*60))
+        elif 60 < max_duration:
+            unit = 'minutes'
+            divide_durations(all_data, 60.0)
+        else:
+            unit = 'seconds'
 
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
@@ -1503,7 +1520,7 @@ class Airflow(BaseView):
             'airflow/chart.html',
             dag=dag,
             data=json.dumps(all_data),
-            chart_options={'yAxis': {'title': {'text': 'hours'}}},
+            chart_options={'yAxis': {'title': {'text': unit}}},
             height="700px",
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
