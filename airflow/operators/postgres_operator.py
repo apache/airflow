@@ -34,7 +34,6 @@ class PostgresOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        super(PostgresOperator, self).execute(context)
         logging.info('Executing: ' + str(self.sql))
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

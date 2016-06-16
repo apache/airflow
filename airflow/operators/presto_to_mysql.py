@@ -48,7 +48,6 @@ class PrestoToMySqlTransfer(BaseOperator):
         self.presto_conn_id = presto_conn_id
 
     def execute(self, context):
-        super(PrestoToMySqlTransfer, self).execute(context)
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         logging.info("Extracting data from Presto")
         logging.info(self.sql)

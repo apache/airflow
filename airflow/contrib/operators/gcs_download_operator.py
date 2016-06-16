@@ -48,7 +48,6 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        super(GoogleCloudStorageDownloadOperator, self).execute(context)
         logging.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
         hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                                       delegate_to=self.delegate_to)

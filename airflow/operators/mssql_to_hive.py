@@ -82,7 +82,6 @@ class MsSqlToHiveTransfer(BaseOperator):
         return d[mssql_type] if mssql_type in d else 'STRING'
 
     def execute(self, context):
-        super(MsSqlToHiveTransfer, self).execute(context)
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
 

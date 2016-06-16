@@ -105,7 +105,6 @@ class SSHExecuteOperator(BaseOperator):
         self.xcom_push = xcom_push
 
     def execute(self, context):
-        super(SSHExecuteOperator, self).execute(context)
         bash_command = self.bash_command
         hook = self.hook
         host = hook._host_ref()

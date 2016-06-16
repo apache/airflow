@@ -29,7 +29,6 @@ class MsSqlOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        super(MsSqlOperator, self).execute(context)
         logging.info('Executing: ' + str(self.sql))
         hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
         hook.run(self.sql, parameters=self.parameters)

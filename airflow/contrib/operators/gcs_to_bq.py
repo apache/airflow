@@ -100,7 +100,6 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        super(GoogleCloudStorageToBigQueryOperator, self).execute(context)
         gcs_hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                                           delegate_to=self.delegate_to)
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,

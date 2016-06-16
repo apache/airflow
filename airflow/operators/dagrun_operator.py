@@ -43,7 +43,6 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_dag_id = trigger_dag_id
 
     def execute(self, context):
-        super(TriggerDagRunOperator, self).execute(context)
         dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
         dro = self.python_callable(context, dro)
         if dro:

@@ -58,7 +58,6 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
 
     def execute(self, context):
-        super(PythonOperator, self).execute(context)
         if self.provide_context:
             context.update(self.op_kwargs)
             context['templates_dict'] = self.templates_dict
@@ -89,7 +88,6 @@ class BranchPythonOperator(PythonOperator):
     ``skipped``.
     """
     def execute(self, context):
-        super(BranchPythonOperator, self).execute(context)
         branch = super(BranchPythonOperator, self).execute(context)
         logging.info("Following branch " + branch)
         logging.info("Marking other directly downstream tasks as skipped")
@@ -120,7 +118,6 @@ class ShortCircuitOperator(PythonOperator):
     The condition is determined by the result of `python_callable`.
     """
     def execute(self, context):
-        super(ShortCircuitOperator, self).execute(context)
         condition = super(ShortCircuitOperator, self).execute(context)
         logging.info("Condition result is {}".format(condition))
         if condition:

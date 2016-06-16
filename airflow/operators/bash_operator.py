@@ -51,7 +51,6 @@ class BashOperator(BaseOperator):
         Execute the bash command in a temporary directory
         which will be cleaned afterwards
         """
-        super(BashOperator, self).execute(context)
         bash_command = self.bash_command
         logging.info("tmp dir root location: \n" + gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:

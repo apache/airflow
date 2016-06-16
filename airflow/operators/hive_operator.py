@@ -60,7 +60,6 @@ class HiveOperator(BaseOperator):
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
     def execute(self, context):
-        super(HiveOperator, self).execute(context)
         logging.info('Executing: ' + self.hql)
         self.hook = self.get_hook()
         self.hook.run_cli(hql=self.hql, schema=self.schema)

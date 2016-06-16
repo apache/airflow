@@ -37,5 +37,4 @@ class EmailOperator(BaseOperator):
         self.files = files or []
 
     def execute(self, context):
-        super(EmailOperator, self).execute(context)
         send_email(self.to, self.subject, self.html_content, files=self.files)

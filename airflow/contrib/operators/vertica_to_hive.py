@@ -86,7 +86,6 @@ class VerticaToHiveTransfer(BaseOperator):
         return d[vertica_type] if vertica_type in d else 'STRING'
 
     def execute(self, context):
-        super(VerticaToHiveTransfer, self).execute(context)
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 

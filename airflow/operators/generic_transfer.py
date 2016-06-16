@@ -48,7 +48,6 @@ class GenericTransfer(BaseOperator):
         self.preoperator = preoperator
 
     def execute(self, context):
-        super(GenericTransfer, self).execute(context)
         source_hook = BaseHook.get_hook(self.source_conn_id)
 
         logging.info("Extracting data from {}".format(self.source_conn_id))

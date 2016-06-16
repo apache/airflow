@@ -72,7 +72,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        super(MySqlToGoogleCloudStorageOperator, self).execute(context)
         cursor = self._query_mysql()
         files_to_upload = self._write_local_data_files(cursor)
 

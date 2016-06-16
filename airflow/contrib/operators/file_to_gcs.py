@@ -59,7 +59,6 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
         """
         Uploads the file to Google cloud storage
         """
-        super(FileToGoogleCloudStorageOperator, self).execute(context)
         hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)

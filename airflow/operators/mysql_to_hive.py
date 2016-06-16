@@ -89,7 +89,6 @@ class MySqlToHiveTransfer(BaseOperator):
         return d[mysql_type] if mysql_type in d else 'STRING'
 
     def execute(self, context):
-        super(MySqlToHiveTransfer, self).execute(context)
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
