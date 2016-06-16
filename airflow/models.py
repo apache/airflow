@@ -1285,6 +1285,7 @@ class TaskInstance(Base):
                     signal.signal(signal.SIGTERM, signal_handler)
 
                     self.render_templates()
+                    task_copy.stamp_environ(context=context)
                     task_copy.pre_execute(context=context)
 
                     # If a timout is specified for the task, make it fail
@@ -1982,6 +1983,16 @@ class BaseOperator(object):
             for t in self.get_flat_relatives(upstream=False)
         ]) + self.priority_weight
 
+    def stamp_environ(self, context):
+        if self.dag:
+            os.environ['AIRFLOW_CTX__DAG__DAG_ID'] = self.dag.dag_id
+        dagrun = context['dag_run']
+        if dagrun and dagrun.execution_date:
+                os.environ['AIRFLOW_CTX__DAG_RUN__EXECUTION_DATE'] = dagrun.execution_date.isoformat()
+        os.environ['AIRFLOW_CTX__TASK_ID'] = self.task_id
+        if self.start_date:
+            os.environ['AIRFLOW_CTX__START_DATE'] = self.start_date.isoformat()
+
     def pre_execute(self, context):
         """
         This is triggered right before self.execute, it's mostly a hook
@@ -1996,14 +2007,7 @@ class BaseOperator(object):
 
         Refer to get_template_context for more context.
         """
-        if self.dag:
-            os.environ['AIRFLOW_DAG_ID'] = self.dag.dag_id
-        dagrun = context['dag_run']
-        if dagrun and dagrun.execution_date:
-                os.environ['AIRFLOW_DAGRUN_EXECUTION_DATE'] = dagrun.execution_date.isoformat()
-        os.environ['AIRFLOW_TASK_ID'] = self.task_id
-        if self.start_date:
-            os.environ['AIRFLOW_TASK_INSTANCE_EXECUTION_DATE'] = self.start_date.isoformat()
+        raise NotImplementedError()
 
     def post_execute(self, context):
         """
