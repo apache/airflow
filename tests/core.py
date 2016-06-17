@@ -19,6 +19,7 @@ import json
 import os
 import re
 import unittest
+import multiprocessing
 import mock
 import tempfile
 from datetime import datetime, time, timedelta
@@ -49,7 +50,7 @@ from airflow.configuration import AirflowConfigException
 
 import six
 
-NUM_EXAMPLE_DAGS = 15
+NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -628,6 +629,45 @@ class CoreTest(unittest.TestCase):
                 task_id='test_bad_trigger',
                 trigger_rule="non_existant",
                 dag=self.dag)
+
+    def test_terminate_task(self):
+        """If a task instance's db state get deleted, it should fail"""
+        TI = models.TaskInstance
+        dag = self.dagbag.dags.get('test_utils')
+        task = dag.task_dict.get('sleeps_forever')
+
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        job = jobs.LocalTaskJob(
+            task_instance=ti, force=True, executor=SequentialExecutor())
+
+        # Running task instance asynchronously
+        p = multiprocessing.Process(target=job.run)
+        p.start()
+        sleep(5)
+        settings.engine.dispose()
+        session = settings.Session()
+        ti.refresh_from_db(session=session)
+        # making sure it's actually running
+        assert State.RUNNING == ti.state
+        ti = (
+            session.query(TI)
+            .filter_by(
+                dag_id=task.dag_id,
+                task_id=task.task_id,
+                execution_date=DEFAULT_DATE)
+            .one()
+        )
+        # deleting the instance should result in a failure
+        session.delete(ti)
+        session.commit()
+        # waiting for the async task to finish
+        p.join()
+
+        # making sure that the task ended up as failed
+        ti.refresh_from_db(session=session)
+        assert State.FAILED == ti.state
+        session.close()
+
 
 class CliTests(unittest.TestCase):
     def setUp(self):

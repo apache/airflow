@@ -19,7 +19,7 @@ from __future__ import unicode_literals
 
 from past.builtins import basestring
 from collections import defaultdict, Counter
-from datetime import datetime
+from datetime import datetime, timedelta
 import getpass
 import logging
 import socket
@@ -116,7 +116,7 @@ class BaseJob(Base, LoggingMixin):
         '''
         pass
 
-    def heartbeat_callback(self):
+    def heartbeat_callback(self, session=None):
         pass
 
     def heartbeat(self):
@@ -139,7 +139,7 @@ class BaseJob(Base, LoggingMixin):
         sleep at all.
         '''
         session = settings.Session()
-        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job = session.query(BaseJob).filter_by(id=self.id).one()
 
         if job.state == State.SHUTDOWN:
             self.kill()
@@ -154,9 +154,9 @@ class BaseJob(Base, LoggingMixin):
 
         session.merge(job)
         session.commit()
-        session.close()
 
-        self.heartbeat_callback()
+        self.heartbeat_callback(session=session)
+        session.close()
         self.logger.debug('[heart] Boom.')
 
     def run(self):
@@ -378,7 +378,8 @@ class SchedulerJob(BaseJob):
                 filename=filename, stacktrace=stacktrace))
         session.commit()
 
-    def schedule_dag(self, dag):
+    @provide_session
+    def schedule_dag(self, dag, session=None):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval
@@ -386,7 +387,6 @@ class SchedulerJob(BaseJob):
         """
         if dag.schedule_interval:
             DagRun = models.DagRun
-            session = settings.Session()
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
@@ -799,10 +799,10 @@ class SchedulerJob(BaseJob):
             finally:
                 settings.Session.remove()
         executor.end()
-
         session.close()
 
-    def heartbeat_callback(self):
+    @provide_session
+    def heartbeat_callback(self, session=None):
         Stats.gauge('scheduler_heartbeat', 1, 1)
 
 
@@ -1093,6 +1093,15 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+
+        # terminating state is used so that a job don't try to
+        # terminate multiple times
+        self.terminating = False
+
+        # Keeps track of the fact that the task instance has been observed
+        # as running at least once
+        self.was_running = False
+
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
@@ -1115,23 +1124,26 @@ class LocalTaskJob(BaseJob):
     def on_kill(self):
         self.process.terminate()
 
-    """
-    def heartbeat_callback(self):
-        if datetime.now() - self.start_date < timedelta(seconds=300):
+    @provide_session
+    def heartbeat_callback(self, session=None):
+        """Self destruct task if state has been moved away from running externally"""
+
+        if self.terminating:
+            # task is already terminating, let it breathe
             return
+
         # Suicide pill
         TI = models.TaskInstance
         ti = self.task_instance
-        session = settings.Session()
         state = session.query(TI.state).filter(
             TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
             TI.execution_date==ti.execution_date).scalar()
-        session.commit()
-        session.close()
-        if state != State.RUNNING:
+        if state == State.RUNNING:
+            self.was_running = True
+        elif self.was_running and hasattr(self, 'process'):
             logging.warning(
                 "State of this instance has been externally set to "
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))
             self.process.terminate()
-    """
+            self.terminating = True
