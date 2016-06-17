@@ -47,7 +47,7 @@ from urllib.parse import urlparse
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float)
-from sqlalchemy import case, func, or_, and_
+from sqlalchemy import case, func, or_, and_, MetaData
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import relationship, synonym
@@ -71,7 +71,11 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 
-Base = declarative_base()
+SQL_ALCHEMY_SCHEMA = configuration.get('core', 'SQL_ALCHEMY_SCHEMA')
+if SQL_ALCHEMY_SCHEMA is None or SQL_ALCHEMY_SCHEMA.isspace():
+    Base = declarative_base()
+else:
+    Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
 ID_LEN = 250
 SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))

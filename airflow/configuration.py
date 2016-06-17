@@ -106,6 +106,7 @@ defaults = {
         'dags_are_paused_at_creation': True,
         'sql_alchemy_pool_size': 5,
         'sql_alchemy_pool_recycle': 3600,
+        'sql_alchemy_schema': None,
         'dagbag_import_timeout': 30,
         'non_pooled_task_slot_count': 128,
     },
@@ -209,6 +210,10 @@ executor = SequentialExecutor
 # SqlAlchemy supports many different database engine, more information
 # their website
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/airflow.db
+
+# The schema to use for the metadata database
+# SqlAlchemy supports databases with the concept of multiple schemas.
+sql_alchemy_schema =
 
 # The SqlAlchemy pool size is the maximum number of database connections
 # in the pool.
