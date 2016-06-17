@@ -18,6 +18,7 @@ import re
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.utils.operator_helpers import context_to_airflow_vars
 
 
 class HiveOperator(BaseOperator):
@@ -76,7 +77,8 @@ class HiveOperator(BaseOperator):
     def execute(self, context):
         logging.info('Executing: ' + self.hql)
         self.hook = self.get_hook()
-        self.hook.run_cli(hql=self.hql, schema=self.schema)
+        self.hook.run_cli(hql=self.hql, schema=self.schema,
+                          hive_conf=context_to_airflow_vars(context))
 
     def dry_run(self):
         self.hook = self.get_hook()
