@@ -4,7 +4,7 @@ import unicodecsv as csv
 import logging
 from tempfile import NamedTemporaryFile
 
-from airflow.hooks import HiveCliHook
+from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.contrib.hooks import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults

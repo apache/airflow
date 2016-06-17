@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
@@ -7,6 +21,7 @@ import logging
 from urllib.parse import urlparse
 from time import sleep
 
+import airflow
 from airflow import hooks, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
@@ -249,7 +264,8 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
-            self.hook = hooks.HiveMetastoreHook(
+            import airflow.hooks.hive_hooks
+            self.hook = airflow.hooks.hive_hooks.HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return self.hook.check_for_partition(
             self.schema, self.table, self.partition)
@@ -272,7 +288,8 @@ class HdfsSensor(BaseSensorOperator):
         self.hdfs_conn_id = hdfs_conn_id
 
     def poke(self, context):
-        sb = hooks.HDFSHook(self.hdfs_conn_id).get_conn()
+        import airflow.hooks.hdfs_hook
+        sb = airflow.hooks.hdfs_hook.HDFSHook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
         logging.info(
             'Poking for file {self.filepath} '.format(**locals()))
@@ -300,7 +317,7 @@ class WebHdfsSensor(BaseSensorOperator):
         self.webhdfs_conn_id = webhdfs_conn_id
 
     def poke(self, context):
-        c = hooks.WebHDFSHook(self.webhdfs_conn_id)
+        c = airflow.hooks.webhdfs_hook.WebHDFSHook(self.webhdfs_conn_id)
         logging.info(
             'Poking for file {self.filepath} '.format(**locals()))
         return c.check_for_path(hdfs_path=self.filepath)
@@ -356,7 +373,8 @@ class S3KeySensor(BaseSensorOperator):
         session.close()
 
     def poke(self, context):
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        import airflow.hooks.S3_hook
+        hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         logging.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
@@ -408,7 +426,8 @@ class S3PrefixSensor(BaseSensorOperator):
     def poke(self, context):
         logging.info('Poking for prefix : {self.prefix}\n'
                      'in bucket s3://{self.bucket_name}'.format(**locals()))
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        import airflow.hooks.S3_hook
+        hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         return hook.check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,
@@ -513,7 +532,7 @@ class HttpSensor(BaseSensorOperator):
                 # run content check on response
                 return self.response_check(response)
         except AirflowException as ae:
-            if ae.message.startswith("404"):
+            if str(ae).startswith("404"):
                 return False
 
             raise ae
