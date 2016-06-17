@@ -3,7 +3,7 @@ import logging
 import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.hooks import MySqlHook
+from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from collections import OrderedDict
