@@ -21,54 +21,21 @@
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     </form>
 </div>
-<div style="clear: both;"></div>
+<div style="clear: both;">{{ chart |safe }}</div>
 <hr/>
 {% endblock %}
 
 {% block tail %}
     {{ super() }}
-    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='highcharts.js') }}"></script>
-    <script src="/ck/static/chartkick.js"></script>
     <script>
       // We blur task_ids in demo mode
     $( document ).ready(function() {
-      if ("{{ demo_mode }}" == "True") {
-          d3.select("svg")
-            .append("filter")
-            .attr("id", "blur-effect-1")
-            .append("feGaussianBlur")
-            .attr("stdDeviation", 3);
-          d3.selectAll("g.highcharts-legend-item text").style("filter", "url(#blur-effect-1)");
-      }
-      $('#uncheck').click(function(){
-          chart = Highcharts.charts[0];
-          $(chart.series).each(function(){
-              this.setVisible(false, false);
-          });
-          chart.redraw();
-      });
-      $('#check').click(function(){
-          chart = Highcharts.charts[0];
-          $(chart.series).each(function(){
-              this.setVisible(true, false);
-          });
-          chart.redraw();
-      });
     });
     </script>
 
-    <div class="container">
-      {% line_chart data with height=height library=chart_options%}
-      <div class="text-center">
-        <button class="btn" id="uncheck">Hide all series</button>
-        <button class="btn" id="check">Show all series</button>
-      </div>
-    </div>
+    <div class="container"></div>
 
-    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
       <script src="{{ admin_static.url(
         filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
-      <script src="{{ admin_static.url(filename='admin/js/form-1.0.0.js') }}"></script>
     <script>
 {% endblock %}

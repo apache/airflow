@@ -4,8 +4,8 @@
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
 
 {% block head_css %}
-  {{ super() }}
   {{ lib.form_css() }}
+  {{ super() }}
 {% endblock %}
 
 {% block body %}
@@ -186,8 +186,8 @@
   </div>
 {% endblock %}
 {% block tail %}
-  {{ super() }}
   {{ lib.form_js() }}
+  {{ super() }}
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
