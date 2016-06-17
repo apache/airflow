@@ -770,6 +770,7 @@ class SchedulerJobTest(unittest.TestCase):
         @mock.patch('airflow.models.DagBag.collect_dags')
         def do_schedule(function, function2):
             scheduler = SchedulerJob(num_runs=1, executor=executor,)
+            scheduler.heartrate = 0
             scheduler.run()
 
         do_schedule()
