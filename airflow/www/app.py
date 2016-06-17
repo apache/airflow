@@ -13,8 +13,12 @@
 # limitations under the License.
 #
 import socket
+import os
+import logging
 
-from flask import Flask
+from datetime import datetime
+
+from flask import Flask, g
 from flask_admin import Admin, base
 from flask_cache import Cache
 from flask_wtf.csrf import CsrfProtect
@@ -29,6 +33,9 @@ from airflow import settings
 from airflow import configuration
 
 csrf = CsrfProtect()
+
+dagbag = models.DagBag(os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
+last_modified = datetime.now()
 
 
 def create_app(config=None):
@@ -50,6 +57,7 @@ def create_app(config=None):
     app.jinja_env.add_extension("chartkick.ext.charts")
 
     with app.app_context():
+        g.last_modified = datetime.now()
         from airflow.www import views
 
         admin = Admin(
@@ -125,6 +133,22 @@ def create_app(config=None):
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             settings.Session.remove()
+
+        @app.before_request
+        def update_dagbag():
+            global last_modified
+            session = settings.Session()
+
+            qry = session.query(models.DagModel).filter(
+                models.DagModel.last_modified > last_modified
+            ).first()
+
+            if qry:
+                logging.info("Refreshing outdated dagbag")
+                dagbag.collect_dags(only_if_updated=False)
+                last_modified = datetime.now()
+
+            session.close()
 
         return app
 

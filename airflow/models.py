@@ -361,6 +361,7 @@ class DagBag(LoggingMixin):
             orm_dag.is_subdag = dag.is_subdag
             orm_dag.owners = root_dag.owner
             orm_dag.is_active = True
+            orm_dag.last_modified = datetime.now()
             session.merge(orm_dag)
             session.commit()
             session.close()
@@ -2375,6 +2376,8 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Last modified
+    last_modified = Column(DateTime, nullable=False)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
