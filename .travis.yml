@@ -10,6 +10,10 @@ addons:
       - slapd
       - ldap-utils
       - openssh-server
+      - mysql-server-5.6
+      - mysql-client-core-5.6
+      - mysql-client-5.6
+    postgresql: "9.4"
 python:
   - "2.7"
   - "3.4"
