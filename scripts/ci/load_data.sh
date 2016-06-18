@@ -24,5 +24,7 @@ DATABASE=airflow_ci
 
 mysqladmin -u root create ${DATABASE}
 mysql -u root < ${DATA_DIR}/mysql_schema.sql
+ls -l ${DATA_FILE}
+whoami
 mysqlimport -u root --fields-optionally-enclosed-by="\"" --fields-terminated-by=, --ignore-lines=1 ${DATABASE} ${DATA_FILE}
 
