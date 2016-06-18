@@ -1,5 +1,4 @@
-sudo: required
-dist: trusty
+sudo: false
 language: python
 jdk: oraclejdk7
 services:
