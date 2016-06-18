@@ -199,6 +199,7 @@ def do_setup():
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=0.9.8',
             'thrift>=0.9.2, <0.10',
+            'zope.deprecation>=4.0, <5.0',
         ],
         extras_require={
             'all': devel_all,
@@ -257,4 +258,3 @@ def do_setup():
 
 if __name__ == "__main__":
     do_setup()
-
