@@ -75,6 +75,7 @@ install:
   - pip install codecov
 before_script:
   - sudo service apparmor stop
+  - sudo service apparmor teardown
   - mysql -e 'drop database if exists airflow; create database airflow' -u root
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
