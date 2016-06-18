@@ -2,7 +2,6 @@ sudo: false
 language: python
 jdk: oraclejdk7
 services:
-  - mysql
   - postgresql
 addons:
   apt:
@@ -10,9 +9,6 @@ addons:
       - slapd
       - ldap-utils
       - openssh-server
-      - mysql-server-5.6
-      - mysql-client-core-5.6
-      - mysql-client-5.6
     postgresql: "9.4"
 python:
   - "2.7"
@@ -69,6 +65,9 @@ before_install:
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*
 install:
+  - apt-get remove mysql-common mysql-server-5.5 mysql-server-core-5.5 mysql-client-5.5 mysql-client-core-5.5
+  - apt-get autoremove
+  - apt-get install libaio1
   - pip install --upgrade pip
   - pip install tox
   - pip install codecov
