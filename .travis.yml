@@ -74,6 +74,8 @@ install:
   - pip install tox
   - pip install codecov
 before_script:
+  - sudo invoke-rc.d apparmor teardown
+  - sudo update-rc.d -f apparmor remove
   - mysql -e 'drop database if exists airflow; create database airflow' -u root
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
