@@ -38,6 +38,7 @@ from flask import (
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
+from flask_admin.tools import iterdecode
 from flask_login import flash
 from flask._compat import PY2
 
@@ -2096,6 +2097,17 @@ class TaskInstanceModelView(ModelViewOnly):
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set state', 'error')
+
+    def get_one(self, id):
+        """
+        As a workaround for AIRFLOW-252, this method overrides Flask-Admin's ModelView.get_one().
+
+        TODO: this method should be removed once the below bug is fixed on Flask-Admin side.
+        https://github.com/flask-admin/flask-admin/issues/1226
+        """
+        task_id, dag_id, execution_date = iterdecode(id)
+        execution_date = dateutil.parser.parse(execution_date)
+        return self.session.query(self.model).get((task_id, dag_id, execution_date))
 
 
 class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
