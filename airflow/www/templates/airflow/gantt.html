@@ -2,66 +2,48 @@
 
 {% block head_css %}
 {{ super() }}
-<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+<link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet"/>
+<link type="text/css" href="{{ url_for('static', filename='gantt.css') }}" rel="stylesheet" />
+<link type="text/css" href="{{ url_for('static', filename='tree.css') }}" rel="stylesheet" />
 {% endblock %}
 
 {% block body %}
 {{ super() }}
 <form method="get">
-    <div class="form-inline">
-        Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
-	{{ form.execution_date(class_="form-control") | safe }}
-	<input type="submit" value="Go" class="btn btn-default" action="" method="get">
-        <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
-    </div>
+  <div class="form-inline">
+    Run:<input type="hidden" value="{{ dag.dag_id }}" name="dag_id">
+    {{ form.execution_date(class_="form-control") | safe }}
+    <input type="submit" value="Go" class="btn btn-default" action="" method="get">
+    <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+  </div>
 </form>
-<div id="container"></div>
+<div style="clear: both;"></div>
+<div class="container">
+  <div class="gantt"></div>
+</div>
 {% endblock %}
 
 {% block tail %}
-    {{ super() }}
-    <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='highcharts.js') }}"></script>
-    <script src="{{ url_for('static', filename='highcharts-more.js') }}">
-    </script>
-    <script src="{{ admin_static.url(
-      filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
-    <script src="{{ admin_static.url(filename='admin/js/form-1.0.0.js') }}"></script>
-    <script>
-    $( document ).ready(function() {
-      execution_date = '{{ execution_date }}';
-      hc = {{ hc|safe }};
-      hc.plotOptions.series.point = {
-        events: {
-            click: function(p){
-                call_modal(this.category, execution_date);
-            }
-        }
-      };
-
-      hc.tooltip = {
-        formatter: function() {
-          duration = new Date(this.point.high - this.point.low);
-          return "From " +
-            Highcharts.dateFormat('%H:%M:%S', new Date(this.point.low)) +
-            " to " +
-            Highcharts.dateFormat('%H:%M:%S', new Date(this.point.high)) +
-            "<br>Duration: " +
-            Highcharts.dateFormat('%H:%M:%S', new Date(duration));
-        }
-      }
-      $("#container").highcharts(hc);
-
-      // We blur task_ids in demo mode
-      if ("{{ demo_mode }}" == "True") {
-          d3.select("svg")
-            .append("filter")
-            .attr("id", "blur-effect-1")
-            .append("feGaussianBlur")
-            .attr("stdDeviation", 3);
-          d3.selectAll("g.highcharts-xaxis-labels text").style("filter", "url(#blur-effect-1)");
-      }
-    });
-    </script>
+{{ super() }}
+<script src="{{ admin_static.url(
+  filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
+<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+<script src="{{ url_for('static', filename='d3.tip.v0.6.3.js') }}"></script>/
+<script src="{{ url_for('static', filename='gantt-chart-d3v2.js') }}"></script>
+<script>
+  $( document ).ready(function() {
+    var dag_id = '{{ dag.dag_id }}';
+    var task_id = '';
+    var exection_date = '';
+    data = {{ data |safe }};
+    var gantt = d3.gantt()
+      .taskTypes(data.taskNames)
+      .taskStatus(data.taskStatus)
+      .height(data.height)
+      .selector('.gantt')
+      .tickFormat("%H:%M:%S");
+    gantt(data.tasks);
+  });
+</script>
 
 {% endblock %}
