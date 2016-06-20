@@ -14,6 +14,7 @@
 #
 
 import os
+import pkg_resources
 import socket
 import importlib
 from functools import wraps
@@ -27,6 +28,7 @@ from past.utils import old_div
 from past.builtins import basestring
 
 import inspect
+import subprocess
 import traceback
 
 import sqlalchemy as sqla
@@ -60,6 +62,7 @@ from airflow.models import XCom
 
 from airflow.operators import BaseOperator, SubDagOperator
 
+from airflow.utils.logging import LoggingMixin
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
@@ -78,6 +81,17 @@ current_user = airflow.login.current_user
 logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
+
+DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
+    'password',
+    'secret',
+    'passwd',
+    'authorization',
+    'api_key',
+    'apikey',
+    'access_token',
+)
+
 if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
@@ -91,14 +105,9 @@ def dag_link(v, c, m, p):
         '<a href="{url}">{m.dag_id}</a>'.format(**locals()))
 
 
-def log_link(v, c, m, p):
-    url = url_for(
-        'airflow.log',
-        dag_id=m.dag_id,
-        task_id=m.task_id,
-        execution_date=m.execution_date.isoformat())
+def log_url_formatter(v, c, m, p):
     return Markup(
-        '<a href="{url}">'
+        '<a href="{m.log_url}">'
         '    <span class="glyphicon glyphicon-book" aria-hidden="true">'
         '</span></a>').format(**locals())
 
@@ -259,6 +268,11 @@ def recurse_tasks(tasks, task_ids, dag_ids, task_id_to_dag):
         recurse_tasks(subtasks, task_ids, dag_ids, task_id_to_dag)
     if isinstance(tasks, BaseOperator):
         task_id_to_dag[tasks.task_id] = tasks.dag
+
+
+def should_hide_value_for_key(key_name):
+    return any(s in key_name for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
+           and conf.getboolean('admin', 'hide_sensitive_variable_fields')
 
 
 class Airflow(BaseView):
@@ -568,14 +582,14 @@ class Airflow(BaseView):
     @current_app.errorhandler(404)
     def circles(self):
         return render_template(
-            'airflow/circles.html', hostname=socket.gethostname()), 404
+            'airflow/circles.html', hostname=socket.getfqdn()), 404
 
     @current_app.errorhandler(500)
     def show_traceback(self):
         from airflow.utils import asciiart as ascii_
         return render_template(
             'airflow/traceback.html',
-            hostname=socket.gethostname(),
+            hostname=socket.getfqdn(),
             nukular=ascii_.nukular,
             info=traceback.format_exc()), 500
 
@@ -697,14 +711,14 @@ class Airflow(BaseView):
             host = ti.hostname
             log_loaded = False
 
-            if socket.gethostname() == host:
+            if os.path.exists(loc):
                 try:
                     f = open(loc)
                     log += "".join(f.readlines())
                     f.close()
                     log_loaded = True
                 except:
-                    log = "*** Local log file not found.\n".format(loc)
+                    log = "*** Failed to load local log file: {0}.\n".format(loc)
             else:
                 WORKER_LOG_SERVER_PORT = \
                     conf.get('celery', 'WORKER_LOG_SERVER_PORT')
@@ -715,7 +729,9 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    log += '\n' + requests.get(url).text
+                    response = requests.get(url)
+                    response.raise_for_status()
+                    log += '\n' + response.text
                     log_loaded = True
                 except:
                     log += "*** Failed to fetch log file from worker.\n".format(
@@ -892,6 +908,7 @@ class Airflow(BaseView):
         downstream = request.args.get('downstream') == "true"
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
+        recursive = request.args.get('recursive') == "true"
 
         dag = dag.sub_dag(
             task_regex=r"^{0}$".format(task_id),
@@ -903,7 +920,8 @@ class Airflow(BaseView):
         if confirmed:
             count = dag.clear(
                 start_date=start_date,
-                end_date=end_date)
+                end_date=end_date,
+                include_subdags=recursive)
 
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
@@ -911,6 +929,7 @@ class Airflow(BaseView):
             tis = dag.clear(
                 start_date=start_date,
                 end_date=end_date,
+                include_subdags=recursive,
                 dry_run=True)
             if not tis:
                 flash("No task instances to clear", 'error')
@@ -1149,10 +1168,16 @@ class Airflow(BaseView):
             elif children:
                 children_key = "_children"
 
+            def set_duration(tid):
+                if isinstance(tid, dict) and tid.get("state") == State.RUNNING:
+                    d = datetime.now() - dateutil.parser.parse(tid["start_date"])
+                    tid["duration"] = d.total_seconds()
+                return tid
+
             return {
                 'name': task.task_id,
                 'instances': [
-                        task_instances.get((task.task_id, d)) or {
+                        set_duration(task_instances.get((task.task_id, d))) or {
                             'execution_date': d.isoformat(),
                             'task_id': task.task_id
                         }
@@ -1329,14 +1354,19 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
+        max_duration = 0
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=600, width="1200")
+
         for task in dag.tasks:
             y = []
             x = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 if ti.duration:
+                    if max_duration < ti.duration:
+                        max_duration = ti.duration
+
                     dttm = wwwutils.epoch(ti.execution_date)
                     x.append(dttm)
                     y.append(float(ti.duration) / (60*60))
@@ -1594,7 +1624,7 @@ class HomeView(AdminIndexView):
                 session.query(DM)
                     .filter(
                     ~DM.is_subdag, DM.is_active,
-                    DM.owners == current_user.username)
+                    DM.owners.like('%' + current_user.username + '%'))
                     .all()
             )
         else:
@@ -1883,11 +1913,17 @@ admin.add_view(mv)
 class VariableView(wwwutils.LoginMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
+
+    def hidden_field_formatter(view, context, model, name):
+        if should_hide_value_for_key(model.key):
+            return Markup('*' * 8)
+        return getattr(model, name)
+
     form_columns = (
         'key',
         'val',
     )
-    column_list = ('key', 'is_encrypted',)
+    column_list = ('key', 'val', 'is_encrypted',)
     column_filters = ('key', 'val')
     column_searchable_list = ('key', 'val')
     form_widget_args = {
@@ -1896,6 +1932,18 @@ class VariableView(wwwutils.LoginMixin, AirflowModelView):
             'rows': 20,
         }
     }
+    column_sortable_list = (
+        'key',
+        'val',
+        'is_encrypted',
+    )
+    column_formatters = {
+        'val': hidden_field_formatter
+    }
+
+    def on_form_prefill(self, form, id):
+        if should_hide_value_for_key(form.key.data):
+            form.val.data = '*' * 8
 
 
 class JobModelView(ModelViewOnly):
@@ -1988,7 +2036,8 @@ class TaskInstanceModelView(ModelViewOnly):
         'queue', 'pool', 'operator', 'start_date', 'end_date')
     named_filter_urls = True
     column_formatters = dict(
-        log=log_link, task_id=task_instance_link,
+        log_url=log_url_formatter,
+        task_id=task_instance_link,
         hostname=nobr_f,
         state=state_f,
         execution_date=datetime_f,
@@ -2009,7 +2058,7 @@ class TaskInstanceModelView(ModelViewOnly):
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
-        'pool', 'log')
+        'pool', 'log_url')
     can_delete = True
     page_size = 500
 
@@ -2093,6 +2142,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     }
     form_choices = {
         'conn_type': [
+            ('fs', 'File (path)'),
             ('ftp', 'FTP',),
             ('google_cloud_platform', 'Google Cloud Platform'),
             ('hdfs', 'HDFS',),
@@ -2165,6 +2215,32 @@ class UserModelView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "User"
     verbose_name_plural = "Users"
     column_default_sort = 'username'
+
+
+class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
+    @expose('/')
+    def version(self):
+        # Look at the version from setup.py
+        try:
+            airflow_version = pkg_resources.require("airflow")[0].version
+        except Exception as e:
+            airflow_version = None
+            self.logger.error(e)
+
+        # Get the Git repo and git hash
+        git_version = None
+        try:
+            with open(os.path.join(*[settings.AIRFLOW_HOME, 'airflow', 'git_version'])) as f:
+                git_version = f.readline()
+        except Exception as e:
+            self.logger.error(e)
+
+        # Render information
+        title = "Version Info"
+        return self.render('airflow/version.html',
+                           title=title,
+                           airflow_version=airflow_version,
+                           git_version=git_version)
 
 
 class ConfigurationView(wwwutils.SuperUserMixin, BaseView):

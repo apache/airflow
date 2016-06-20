@@ -118,29 +118,32 @@ def backfill(args, dag=None):
 
 
 def trigger_dag(args):
-    session = settings.Session()
-    # TODO: verify dag_id
+    dag = get_dag(args)
+
+    if not dag:
+        logging.error("Cannot find dag {}".format(args.dag_id))
+        sys.exit(1)
+
     execution_date = datetime.now()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
-    dr = session.query(DagRun).filter(
-        DagRun.dag_id == args.dag_id, DagRun.run_id == run_id).first()
 
-    conf = {}
-    if args.conf:
-        conf = json.loads(args.conf)
+    dr = DagRun.find(dag_id=args.dag_id, run_id=run_id)
     if dr:
-        logging.error("This run_id already exists")
-    else:
-        trigger = DagRun(
-            dag_id=args.dag_id,
-            run_id=run_id,
-            execution_date=execution_date,
-            state=State.RUNNING,
-            conf=conf,
-            external_trigger=True)
-        session.add(trigger)
-        logging.info("Created {}".format(trigger))
-    session.commit()
+        logging.error("This run_id {} already exists".format(run_id))
+        raise AirflowException()
+
+    run_conf = {}
+    if args.conf:
+        run_conf = json.loads(args.conf)
+
+    trigger = dag.create_dagrun(
+        run_id=run_id,
+        execution_date=execution_date,
+        state=State.RUNNING,
+        conf=run_conf,
+        external_trigger=True
+    )
+    logging.info("Created {}".format(trigger))
 
 
 def variables(args):
@@ -322,6 +325,18 @@ def task_state(args):
     print(ti.current_state())
 
 
+def dag_state(args):
+    """
+    Returns the state of a DagRun at the command line.
+
+    >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
+    running
+    """
+    dag = get_dag(args)
+    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
+    print(dr[0].state if len(dr) > 0 else None)
+
+
 def list_dags(args):
     dagbag = DagBag(process_subdir(args.subdir))
     s = textwrap.dedent("""\n
@@ -392,7 +407,8 @@ def clear(args):
         end_date=args.end_date,
         only_failed=args.only_failed,
         only_running=args.only_running,
-        confirm_prompt=not args.no_confirm)
+        confirm_prompt=not args.no_confirm,
+        include_subdags=not args.exclude_subdags)
 
 
 def webserver(args):
@@ -400,6 +416,8 @@ def webserver(args):
 
     from airflow.www.app import cached_app
     app = cached_app(conf)
+    access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
+    error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
@@ -411,23 +429,36 @@ def webserver(args):
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
         print(
-            'Running the Gunicorn server with {workers} {args.workerclass}'
-            'workers on host {args.hostname} and port '
-            '{args.port} with a timeout of {worker_timeout}...'.format(**locals()))
+            textwrap.dedent('''\
+                Running the Gunicorn Server with:
+                Workers: {workers} {args.workerclass}
+                Host: {args.hostname}:{args.port}
+                Timeout: {worker_timeout}
+                Logfiles: {access_logfile} {error_logfile}
+                =================================================================\
+            '''.format(**locals())))
 
-        run_args = ['gunicorn',
-                    '-w ' + str(args.workers),
-                    '-k ' + str(args.workerclass),
-                    '-t ' + str(args.worker_timeout),
-                    '-b ' + args.hostname + ':' + str(args.port),
-                    '-n ' + 'airflow-webserver',
-                    '-p ' + str(pid)]
+        run_args = [
+            'gunicorn',
+            '-w ' + str(args.workers),
+            '-k ' + str(args.workerclass),
+            '-t ' + str(args.worker_timeout),
+            '-b ' + args.hostname + ':' + str(args.port),
+            '-n ' + 'airflow-webserver',
+            '-p ' + str(pid),
+        ]
+
+        if args.access_logfile:
+            run_args += ['--access-logfile', str(args.access_logfile)]
+
+        if args.error_logfile:
+            run_args += ['--error-logfile', str(args.error_logfile)]
 
         if args.daemon:
-            run_args.append("-D")
+            run_args += ["-D"]
 
         module = "airflow.www.app:cached_app()".encode()
-        run_args.append(module)
+        run_args += [module]
         os.execvp(
             'gunicorn', run_args
         )
@@ -557,6 +588,7 @@ def version(args):  # noqa
 
 def flower(args):
     broka = conf.get('celery', 'BROKER_URL')
+    address = '--address={}'.format(args.hostname)
     port = '--port={}'.format(args.port)
     api = ''
     if args.broker_api:
@@ -574,7 +606,7 @@ def flower(args):
         )
 
         with ctx:
-            os.execvp("flower", ['flower', '-b', broka, port, api])
+            os.execvp("flower", ['flower', '-b', broka, address, port, api])
 
         stdout.close()
         stderr.close()
@@ -582,7 +614,7 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        os.execvp("flower", ['flower', '-b', broka, port, api])
+        os.execvp("flower", ['flower', '-b', broka, address, port, api])
 
 
 def kerberos(args):  # noqa
@@ -642,7 +674,7 @@ class CLIFactory(object):
             nargs='?'),
         'daemon': Arg(
             ("-D", "--daemon"), "Daemonize instead of running "
-                                "on the foreground",
+                                "in the foreground",
             "store_true"),
         'stderr': Arg(
             ("--stderr", ), "Redirect stderr to this file"),
@@ -699,11 +731,14 @@ class CLIFactory(object):
         'no_confirm': Arg(
             ("-c", "--no_confirm"),
             "Do not request confirmation", "store_true"),
+        'exclude_subdags': Arg(
+            ("-x", "--exclude_subdags"),
+            "Exclude subdags", "store_true"),
         # trigger_dag
-        'run_id': Arg(("-r", "--run_id"), "Helps to indentify this run"),
+        'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
             ('-c', '--conf'),
-            "json string that gets pickled into the DagRun's conf attribute"),
+            "JSON string that gets pickled into the DagRun's conf attribute"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -733,7 +768,7 @@ class CLIFactory(object):
         # run
         'force': Arg(
             ("-f", "--force"),
-            "Force a run regardless or previous success", "store_true"),
+            "Force a run regardless of previous success", "store_true"),
         'raw': Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true"),
         'ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
@@ -766,7 +801,7 @@ class CLIFactory(object):
             ("-k", "--workerclass"),
             default=conf.get('webserver', 'WORKER_CLASS'),
             choices=['sync', 'eventlet', 'gevent', 'tornado'],
-            help="The worker class to use for gunicorn"),
+            help="The worker class to use for Gunicorn"),
         'worker_timeout': Arg(
             ("-t", "--worker_timeout"),
             default=conf.get('webserver', 'WEB_SERVER_WORKER_TIMEOUT'),
@@ -780,6 +815,16 @@ class CLIFactory(object):
             ("-d", "--debug"),
             "Use the server that ships with Flask in debug mode",
             "store_true"),
+        'access_logfile': Arg(
+            ("-A", "--access_logfile"),
+            default=conf.get('webserver', 'ACCESS_LOGFILE'),
+            help="The logfile to store the webserver access log. Use '-' to print to "
+                 "stderr."),
+        'error_logfile': Arg(
+            ("-E", "--error_logfile"),
+            default=conf.get('webserver', 'ERROR_LOGFILE'),
+            help="The logfile to store the webserver error log. Use '-' to print to "
+                 "stderr."),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -812,6 +857,10 @@ class CLIFactory(object):
             default=conf.get('celery', 'celeryd_concurrency')),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
+        'flower_hostname': Arg(
+            ("-hn", "--hostname"),
+            default=conf.get('celery', 'FLOWER_HOST'),
+            help="Set the hostname on which to run the server"),
         'flower_port': Arg(
             ("-p", "--port"),
             default=conf.get('celery', 'FLOWER_PORT'),
@@ -840,14 +889,14 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running'),
+                'only_running', 'exclude_subdags'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
             'args': ('dag_id', 'subdir'),
         }, {
             'func': unpause,
-            'help': "Pause a DAG",
+            'help': "Resume a paused DAG",
             'args': ('dag_id', 'subdir'),
         }, {
             'func': trigger_dag,
@@ -883,6 +932,10 @@ class CLIFactory(object):
             'help': "List all the DAGs",
             'args': ('subdir', 'report'),
         }, {
+            'func': dag_state,
+            'help': "Get the status of a dag run",
+            'args': ('dag_id', 'execution_date', 'subdir'),
+        }, {
             'func': task_state,
             'help': "Get the status of a task instance",
             'args': ('dag_id', 'task_id', 'execution_date', 'subdir'),
@@ -902,19 +955,19 @@ class CLIFactory(object):
             'func': webserver,
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file',
-                     'debug'),
+                     'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
+                     'error_logfile', 'log_file', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
             'args': ('yes',),
         }, {
             'func': upgradedb,
-            'help': "Upgrade metadata database to latest version",
+            'help': "Upgrade the metadata database to latest version",
             'args': tuple(),
         }, {
             'func': scheduler,
-            'help': "Start a scheduler scheduler instance",
+            'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
@@ -925,7 +978,7 @@ class CLIFactory(object):
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
-            'args': ('flower_port', 'broker_api',
+            'args': ('flower_hostname', 'flower_port', 'broker_api',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,

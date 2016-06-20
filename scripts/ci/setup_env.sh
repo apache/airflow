@@ -69,7 +69,8 @@ if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
     HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
-    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.0.6.0/tars/hadoop-2.2.0.2.0.6.0-76.tar.gz"
+    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/hadoop-2.7.1.2.3.2.0-2950.tar.gz"
+    HIVE_URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/apache-hive-1.2.1.2.3.2.0-2950-bin.tar.gz"
 else
     echo "No/bad HADOOP_DISTRO='${HADOOP_DISTRO}' specified" >&2
     exit 1
@@ -94,7 +95,14 @@ tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $
 
 if [ $? != 0 ]; then
     echo "Failed to extract Hadoop from ${HADOOP_HOME}/hadoop.tar.gz to ${HADOOP_HOME} - abort" >&2
-    exit 1
+    echo "Trying again..." >&2
+    # dont use cache
+    curl -o ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz -L $URL
+    tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
+    if [ $? != 0 ]; then
+        echo "Failed twice in downloading and unpacking hadoop!" >&2
+        exit 1
+    fi
 fi
 
 echo "Downloading and unpacking hive"
@@ -103,10 +111,9 @@ tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
 
 echo "Downloading and unpacking minicluster"
-rm -rf ${TRAVIS_CACHE}/minicluster/minicluster.zip
 curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
 unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
 
 echo "Path = ${PATH}"
 
-java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster &
+java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &

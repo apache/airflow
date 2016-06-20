@@ -148,6 +148,10 @@
               >
               Downstream
             </button>
+            <button id="btn_recursive"
+              type="button" class="btn active" data-toggle="button">
+               Recursive
+            </button>
           </span>
           <hr/>
           <button id="btn_success" type="button" class="btn btn-primary">
@@ -284,6 +288,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&past=" + $('#btn_past').hasClass('active') +
         "&upstream=" + $('#btn_upstream').hasClass('active') +
         "&downstream=" + $('#btn_downstream').hasClass('active') +
+        "&recursive=" + $('#btn_recursive').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;

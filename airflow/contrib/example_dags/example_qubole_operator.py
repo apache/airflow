@@ -39,7 +39,7 @@ t2 = QuboleOperator(
     command_type="hivecmd",
     script_location="s3n://dev.canopydata.com/airflow/show_table.hql",
     notfiy=True,
-    tags='aiflow_example_run',
+    tags=['tag1', 'tag2'],
     trigger_rule="all_done",
     dag=dag)
 

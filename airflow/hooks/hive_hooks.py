@@ -290,8 +290,9 @@ class HiveMetastoreHook(BaseHook):
             def sasl_factory():
                 sasl_client = sasl.Client()
                 sasl_client.setAttr("host", ms.host)
-                sasl_client("service", kerberos_service_name)
+                sasl_client.setAttr("service", kerberos_service_name)
                 sasl_client.init()
+                return sasl_client
 
             from thrift_sasl import TSaslClientTransport
             transport = TSaslClientTransport(sasl_factory, "GSSAPI", socket)
@@ -464,6 +465,7 @@ class HiveServer2Hook(BaseHook):
             database=db.schema or 'default')
 
     def get_results(self, hql, schema='default', arraysize=1000):
+        from impala.error import ProgrammingError
         with self.get_conn() as conn:
             if isinstance(hql, basestring):
                 hql = [hql]
@@ -474,7 +476,14 @@ class HiveServer2Hook(BaseHook):
             for statement in hql:
                 with conn.cursor() as cur:
                     cur.execute(statement)
-                    records = cur.fetchall()
+                    records = []
+                    try:
+                        # impala Lib raises when no results are returned
+                        # we're silencing here as some statements in the list
+                        # may be `SET` or DDL
+                        records = cur.fetchall()
+                    except ProgrammingError:
+                        logging.debug("get_results returned no records")
                     if records:
                         results = {
                             'data': records,
@@ -489,7 +498,8 @@ class HiveServer2Hook(BaseHook):
             schema='default',
             delimiter=',',
             lineterminator='\r\n',
-            output_header=True):
+            output_header=True,
+            fetch_size=1000):
         schema = schema or 'default'
         with self.get_conn() as conn:
             with conn.cursor() as cur:
@@ -504,7 +514,7 @@ class HiveServer2Hook(BaseHook):
                             for c in cur.description])
                     i = 0
                     while True:
-                        rows = [row for row in cur.fetchmany() if row]
+                        rows = [row for row in cur.fetchmany(fetch_size) if row]
                         if not rows:
                             break
 

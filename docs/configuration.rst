@@ -107,7 +107,7 @@ Here are a few imperative requirements for your workers:
   ``MySqlOperator``, the required Python library needs to be available in
   the ``PYTHONPATH`` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
-  synchronize the filesystems by your own mean. A common setup would be to
+  synchronize the filesystems by your own means. A common setup would be to
   store your DAGS_FOLDER in a Git repository and sync it across machines using
   Chef, Puppet, Ansible, or whatever you use to configure machines in your
   environment. If all your boxes have a common mount point, having your

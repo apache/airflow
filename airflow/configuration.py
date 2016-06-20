@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -84,7 +98,7 @@ defaults = {
         'remote_base_log_folder': '',
         'remote_log_conn_id': '',
         'encrypt_s3_logs': False,
-        's3_log_folder': '', # deprecated!
+        's3_log_folder': '',  # deprecated!
         'dag_concurrency': 16,
         'max_active_runs_per_dag': 16,
         'executor': 'SequentialExecutor',
@@ -109,6 +123,8 @@ defaults = {
         'expose_config': False,
         'workers': 4,
         'worker_class': 'sync',
+        'access_logfile': '',
+        'error_logfile': '',
     },
     'scheduler': {
         'statsd_on': False,
@@ -121,8 +137,14 @@ defaults = {
         'max_threads': 2,
     },
     'celery': {
+        'broker_url': 'sqla+mysql://airflow:airflow@localhost:3306/airflow',
+        'celery_app_name': 'airflow.executors.celery_executor',
+        'celery_result_backend': 'db+mysql://airflow:airflow@localhost:3306/airflow',
+        'celeryd_concurrency': 16,
         'default_queue': 'default',
-        'flower_port': '5555'
+        'flower_host': '0.0.0.0',
+        'flower_port': '5555',
+        'worker_log_server_port': '8793',
     },
     'email': {
         'email_backend': 'airflow.utils.email.send_email_smtp',
@@ -142,7 +164,10 @@ defaults = {
     },
     'github_enterprise': {
         'api_rev': 'v3'
-    }
+    },
+    'admin': {
+        'hide_sensitive_variable_fields': True,
+    },
 }
 
 DEFAULT_CONFIG = """\
@@ -152,9 +177,11 @@ airflow_home = {AIRFLOW_HOME}
 
 # The folder where your airflow pipelines live, most likely a
 # subfolder in a code repository
+# This path must be absolute
 dags_folder = {AIRFLOW_HOME}/dags
 
-# The folder where airflow should store its log files. This location
+# The folder where airflow should store its log files
+# This path must be absolute
 base_log_folder = {AIRFLOW_HOME}/logs
 
 # Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
@@ -253,6 +280,10 @@ workers = 4
 # sync (default), eventlet, gevent
 worker_class = sync
 
+# Log files for the gunicorn webserver. '-' means log to stderr.
+access_logfile = -
+error_logfile = -
+
 # Expose the configuration file in the web server
 expose_config = true
 
@@ -307,7 +338,10 @@ broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
 
 # Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-# it `airflow flower`. This defines the port that Celery Flower runs on
+# it `airflow flower`. This defines the IP that Celery Flower runs on
+flower_host = 0.0.0.0
+
+# This defines the port that Celery Flower runs on
 flower_port = 5555
 
 # Default queue that tasks get assigned to and that worker listen on.
@@ -372,6 +406,10 @@ authenticate = False
 # default_principal = admin
 # default_secret = admin
 
+[admin]
+# UI to hide sensitive variable fields when set to True
+hide_sensitive_variable_fields = True
+
 """
 
 TEST_CONFIG = """\
@@ -413,6 +451,7 @@ celeryd_concurrency = 16
 worker_log_server_port = 8793
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
+flower_host = 0.0.0.0
 flower_port = 5555
 default_queue = default
 

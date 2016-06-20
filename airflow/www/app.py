@@ -93,6 +93,8 @@ def create_app(config=None):
             base.MenuLink(category='Docs',
                 name='Github',url='https://github.com/airbnb/airflow'))
 
+        av(vs.VersionView(name='Version', category="About"))
+
         av(vs.DagRunModelView(
             models.DagRun, Session, name="DAG Runs", category="Browse"))
         av(vs.DagModelView(models.DagModel, Session, name=None))
@@ -107,7 +109,7 @@ def create_app(config=None):
                 admin.add_view(v)
             for bp in flask_blueprints:
                 app.register_blueprint(bp)
-            for ml in menu_links:
+            for ml in sorted(menu_links, key=lambda x: x.name):
                 admin.add_link(ml)
 
         integrate_plugins()
@@ -115,7 +117,7 @@ def create_app(config=None):
         @app.context_processor
         def jinja_globals():
             return {
-                'hostname': socket.gethostname(),
+                'hostname': socket.getfqdn(),
             }
 
         @app.teardown_appcontext

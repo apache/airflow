@@ -106,6 +106,10 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
             if ti.job_id:
                 ti.state = State.SHUTDOWN
                 job_ids.append(ti.job_id)
+        # todo: this creates an issue with the webui tests
+        #elif ti.state != State.REMOVED:
+        #    ti.state = State.NONE
+        #    session.merge(ti)
         else:
             session.delete(ti)
     if job_ids:
@@ -406,7 +410,7 @@ class DagBag(LoggingMixin):
                             continue
                         mod_name, file_ext = os.path.splitext(
                             os.path.split(filepath)[-1])
-                        if file_ext != '.py':
+                        if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
@@ -817,16 +821,25 @@ class TaskInstance(Base):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None):
+    def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key
+
+        :param lock_for_update: if True, indicates that the database should
+        lock the TaskInstance (issuing a FOR UPDATE clause) until the session
+        is committed.
         """
         TI = TaskInstance
-        ti = session.query(TI).filter(
+
+        qry = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
-        ).first()
+            TI.execution_date == self.execution_date)
+
+        if lock_for_update:
+            ti = qry.with_for_update().first()
+        else:
+            ti = qry.first()
         if ti:
             self.state = ti.state
             self.start_date = ti.start_date
@@ -859,6 +872,7 @@ class TaskInstance(Base):
         self.start_date = datetime.now()
         self.end_date = datetime.now()
         session.merge(self)
+        session.commit()
 
     def is_queueable(
             self,
@@ -888,7 +902,7 @@ class TaskInstance(Base):
         if self.execution_date > datetime.now():
             return False
         # is the task still in the retry waiting period?
-        elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
+        elif self.is_premature():
             return False
         # does the task have an end_date prior to the execution date?
         elif self.task.end_date and self.execution_date > self.task.end_date:
@@ -909,6 +923,14 @@ class TaskInstance(Base):
         # anything else
         else:
             return False
+
+    def is_premature(self):
+        """
+        Returns whether a task is in UP_FOR_RETRY state and its retry interval
+        has elapsed.
+        """
+        # is the task still in the retry waiting period?
+        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
 
     def is_runnable(
             self,
@@ -1069,6 +1091,9 @@ class TaskInstance(Base):
         if not task.upstream_list or task.trigger_rule == TR.DUMMY:
             return True
 
+        # todo: this query becomes quite expensive with dags that have
+        # many tasks. It should be refactored to let the task report
+        # to the dag run and get the aggregates from there
         qry = (
             session
             .query(
@@ -1093,11 +1118,12 @@ class TaskInstance(Base):
         )
 
         successes, skipped, failed, upstream_failed, done = qry.first()
+
         satisfied = self.evaluate_trigger_rule(
             session=session, successes=successes, skipped=skipped,
             failed=failed, upstream_failed=upstream_failed, done=done,
             flag_upstream_failed=flag_upstream_failed)
-        session.commit()
+
         if verbose and not satisfied:
             logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
         return satisfied
@@ -1159,15 +1185,17 @@ class TaskInstance(Base):
         self.pool = pool or task.pool
         self.test_mode = test_mode
         self.force = force
-        self.refresh_from_db()
-        self.clear_xcom_data()
+        self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
         iso = datetime.now().isoformat()
-        self.hostname = socket.gethostname()
+        self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
 
         if self.state == State.RUNNING:
             logging.warning("Another instance is running, skipping.")
+        elif self.state == State.REMOVED:
+            self.clear_xcom_data()
+            logging.debug("Task {} was removed from the dag".format(self))
         elif not force and self.state == State.SUCCESS:
             logging.info(
                 "Task {self} previously succeeded"
@@ -1182,6 +1210,7 @@ class TaskInstance(Base):
                     verbose=True)):
             logging.warning("Dependencies not met yet")
         elif (
+            # todo: move this to the scheduler
                 self.state == State.UP_FOR_RETRY and
                 not self.ready_for_retry()):
             next_run = (self.end_date + task.retry_delay).isoformat()
@@ -1190,6 +1219,7 @@ class TaskInstance(Base):
                 "Next run after {0}".format(next_run)
             )
         elif force or self.state in State.runnable():
+            self.clear_xcom_data()
             HR = "\n" + ("-" * 80) + "\n"  # Line break
 
             # For reporting purposes, we report based on 1-indexed,
@@ -1915,9 +1945,10 @@ class BaseOperator(object):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(
                 "The DAG assigned to {} can not be changed.".format(self))
-        elif self.task_id not in [t.task_id for t in dag.tasks]:
+        elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-            self._dag = dag
+
+        self._dag = dag
 
     def has_dag(self):
         """
@@ -2462,7 +2493,7 @@ class DAG(LoggingMixin):
 
         self._comps = {
             'dag_id',
-            'tasks',
+            'task_ids',
             'parent_dag',
             'start_date',
             'schedule_interval',
@@ -2489,7 +2520,11 @@ class DAG(LoggingMixin):
     def __hash__(self):
         hash_components = [type(self)]
         for c in self._comps:
-            val = getattr(self, c, None)
+            # task_ids returns a list and lists can't be hashed
+            if c == 'task_ids':
+                val = tuple(self.task_dict.keys())
+            else:
+                val = getattr(self, c, None)
             try:
                 hash(val)
                 hash_components.append(val)
@@ -2531,6 +2566,21 @@ class DAG(LoggingMixin):
             return cron.get_prev(datetime)
         elif isinstance(self._schedule_interval, timedelta):
             return dttm - self._schedule_interval
+
+    def normalize_schedule(self, dttm):
+        """
+        Returns dttm + interval unless dttm is first interval then it returns dttm
+        """
+        following = self.following_schedule(dttm)
+
+        # in case of @once
+        if not following:
+            return dttm
+
+        if self.previous_schedule(following) != dttm:
+            return following
+
+        return dttm
 
     @property
     def tasks(self):
@@ -2628,107 +2678,6 @@ class DAG(LoggingMixin):
                 l.append(task.subdag)
                 l += task.subdag.subdags
         return l
-
-    def get_active_runs(self):
-        """
-        Maintains and returns the currently active runs as a list of dates.
-
-        A run is considered a SUCCESS if all of its root tasks either succeeded
-        or were skipped.
-
-        A run is considered a FAILURE if any of its root tasks failed OR if
-        it is deadlocked, meaning no tasks can run.
-        """
-        TI = TaskInstance
-        session = settings.Session()
-        active_dates = []
-        active_runs = (
-            session.query(DagRun)
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state == State.RUNNING)
-            .order_by(DagRun.execution_date)
-            .all())
-
-        task_instances = (
-            session
-            .query(TI)
-            .filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id.in_(self.active_task_ids),
-                TI.execution_date.in_(r.execution_date for r in active_runs)
-            )
-            .all())
-
-        for ti in task_instances:
-            ti.task = self.get_task(ti.task_id)
-
-        # Runs are considered deadlocked if there are unfinished tasks but
-        # none of them can run. First we check across *all* dagruns in case
-        # there are depends_on_past relationships which could make individual
-        # dags look deadlocked incorrectly. Later we will check individual
-        # dagruns, as long as they don't have depends_on_past=True
-        all_deadlocked = (
-            # AND there are unfinished tasks...
-            any(ti.state in State.unfinished() for ti in task_instances) and
-            # AND none of them have dependencies met...
-            all(not ti.are_dependencies_met(session=session)
-                for ti in task_instances
-                if ti.state in State.unfinished()))
-
-        for run in active_runs:
-            self.logger.info("Checking state for {}".format(run))
-
-            tis = [
-                t for t in task_instances
-                if t.execution_date == run.execution_date
-            ]
-
-            if len(tis) == len(self.active_tasks):
-
-                # if any roots failed, the run failed
-                root_ids = [t.task_id for t in self.roots]
-                roots = [t for t in tis if t.task_id in root_ids]
-                if any(
-                        r.state in (State.FAILED,  State.UPSTREAM_FAILED)
-                        for r in roots):
-                    self.logger.info('Marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # if all roots succeeded, the run succeeded
-                elif all(
-                        r.state in (State.SUCCESS, State.SKIPPED)
-                        for r in roots):
-                    self.logger.info('Marking run {} successful'.format(run))
-                    run.state = State.SUCCESS
-
-                # if *the individual dagrun* is deadlocked, the run failed
-                elif (
-                        # there are unfinished tasks
-                        any(t.state in State.unfinished() for t in tis) and
-                        # AND none of them depend on past
-                        all(not t.task.depends_on_past for t in tis
-                            if t.state in State.unfinished()) and
-                        # AND none of their dependencies are met
-                        all(not t.are_dependencies_met() for t in tis
-                            if t.state in State.unfinished())):
-                    self.logger.info(
-                        'Deadlock; marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # if *ALL* dagruns are deadlocked, the run failed
-                elif all_deadlocked:
-                    self.logger.info(
-                        'Deadlock; marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # finally, if the roots aren't done, the dag is still running
-                else:
-                    active_dates.append(run.execution_date)
-            else:
-                active_dates.append(run.execution_date)
-        session.commit()
-        return active_dates
 
     def resolve_template_files(self):
         for t in self.tasks:
@@ -2872,7 +2821,6 @@ class DAG(LoggingMixin):
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
-                print("K: {} V: {}".format(k, v))
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
@@ -2974,10 +2922,14 @@ class DAG(LoggingMixin):
         if not task.start_date:
             task.start_date = self.start_date
 
-        if task.task_id in [t.task_id for t in self.tasks]:
-            raise AirflowException(
-                "Task id '{0}' has already been added "
-                "to the DAG ".format(task.task_id))
+        if task.task_id in self.task_dict:
+            #TODO raise an error in Airflow 2.0
+            warnings.warn(
+                'The requested task could not be added to the DAG because a '
+                'task with task_id {} is already in the DAG. Starting in '
+                'Airflow 2.0, trying to overwrite a task will raise an '
+                'exception.'.format(task.task_id),
+                category=PendingDeprecationWarning)
         else:
             self.tasks.append(task)
             self.task_dict[task.task_id] = task
@@ -3046,6 +2998,52 @@ class DAG(LoggingMixin):
         parser = cli.CLIFactory.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
+
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      execution_date,
+                      state,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag. Returns the dag
+        run.
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type state_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        run = DagRun(
+            dag_id=self.dag_id,
+            run_id=run_id,
+            execution_date=execution_date,
+            start_date=start_date,
+            external_trigger=external_trigger,
+            conf=conf,
+            state=state
+        )
+        session.add(run)
+        session.commit()
+
+        run.dag = self
+
+        # create the associated taskinstances
+        # state is None at the moment of creation
+        run.verify_integrity(session=session)
+
+        run.refresh_from_db()
+        return run
 
 
 class Chart(Base):
@@ -3324,6 +3322,8 @@ class DagRun(Base):
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
 
+    dag = None
+
     __table_args__ = (
         Index('dr_run_id', dag_id, run_id, unique=True),
     )
@@ -3341,6 +3341,216 @@ class DagRun(Base):
     @classmethod
     def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
+    @provide_session
+    def refresh_from_db(self, session=None):
+        """
+        Reloads the current dagrun from the database
+        :param session: database session
+        """
+        DR = DagRun
+
+        dr = session.query(DR).filter(
+            DR.dag_id == self.dag_id,
+            DR.execution_date == self.execution_date,
+            DR.run_id == self.run_id
+        ).one()
+        if dr:
+            self.id = dr.id
+            self.state = dr.state
+
+    @staticmethod
+    @provide_session
+    def find(dag_id=None, run_id=None, execution_date=None,
+             state=None, external_trigger=None, session=None):
+        """
+        Returns a set of dag runs for the given search criteria.
+        :param dag_id: the dag_id to find dag runs for
+        :type dag_id: integer, list
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param execution_date: the execution date
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        DR = DagRun
+
+        qry = session.query(DR)
+        if dag_id:
+            qry = qry.filter(DR.dag_id == dag_id)
+        if run_id:
+            qry = qry.filter(DR.run_id == run_id)
+        if execution_date:
+            qry = qry.filter(DR.execution_date == execution_date)
+        if state:
+            qry = qry.filter(DR.state == state)
+        if external_trigger:
+            qry = qry.filter(DR.external_trigger == external_trigger)
+
+        dr = qry.order_by(DR.execution_date).all()
+
+        return dr
+
+    @provide_session
+    def get_task_instances(self, state=None, session=None):
+        """
+        Returns the task instances for this dag run
+        """
+        TI = TaskInstance
+        tis = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
+        )
+        if state:
+            if isinstance(state, six.string_types):
+                tis = tis.filter(TI.state == state)
+            else:
+                # this is required to deal with NULL values
+                if None in state:
+                    tis = tis.filter(or_(
+                        TI.state.in_(state),
+                        TI.state.is_(None))
+                    )
+                else:
+                    tis = tis.filter(TI.state.in_(state))
+
+        return tis.all()
+
+    @provide_session
+    def get_task_instance(self, task_id, session=None):
+        """
+        Returns the task instance specified by task_id for this dag run
+        :param task_id: the task id
+        """
+
+        TI = TaskInstance
+        ti = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
+            TI.task_id == task_id
+        ).one()
+
+        return ti
+
+    def get_dag(self):
+        """
+        Returns the Dag associated with this DagRun
+        :param session: database session
+        :return: DAG
+        """
+        if not self.dag:
+            raise AirflowException("The DAG (.dag) for {} needs to be set"
+                                   .format(self))
+
+        return self.dag
+
+    @provide_session
+    def update_state(self, session=None):
+        """
+        Determines the overall state of the DagRun based on the state
+        of its TaskInstances.
+        :returns State:
+        """
+
+        dag = self.get_dag()
+        tis = self.get_task_instances(session=session)
+
+        logging.info("Updating state for {} considering {} task(s)"
+                     .format(self, len(tis)))
+
+        for ti in tis:
+            # skip in db?
+            if ti.state == State.REMOVED:
+                tis.remove(ti)
+            else:
+                ti.task = dag.get_task(ti.task_id)
+
+        # pre-calculate
+        # db is faster
+        start_dttm = datetime.now()
+        unfinished_tasks = self.get_task_instances(
+            state=State.unfinished(),
+            session=session
+        )
+        none_depends_on_past = all(t.task.depends_on_past for t in unfinished_tasks)
+
+        # small speed up
+        if unfinished_tasks and none_depends_on_past:
+            # todo: this can actually get pretty slow: one task costs between 0.01-015s
+            no_dependencies_met = all(not t.are_dependencies_met(session=session)
+                                      for t in unfinished_tasks)
+
+        duration = (datetime.now() - start_dttm).total_seconds() * 1000
+        Stats.timing("dagrun.dependency-check.{}.{}".
+                     format(self.dag_id, self.execution_date), duration)
+
+        # future: remove the check on adhoc tasks (=active_tasks)
+        if len(tis) == len(dag.active_tasks):
+            # if any roots failed, the run failed
+            root_ids = [t.task_id for t in dag.roots]
+            roots = [t for t in tis if t.task_id in root_ids]
+
+            if any(r.state in (State.FAILED,  State.UPSTREAM_FAILED)
+                   for r in roots):
+                logging.info('Marking run {} failed'.format(self))
+                self.state = State.FAILED
+
+            # if all roots succeeded, the run succeeded
+            elif all(r.state in (State.SUCCESS, State.SKIPPED)
+                     for r in roots):
+                logging.info('Marking run {} successful'.format(self))
+                self.state = State.SUCCESS
+
+            # if *all tasks* are deadlocked, the run failed
+            elif unfinished_tasks and none_depends_on_past and no_dependencies_met:
+                logging.info(
+                    'Deadlock; marking run {} failed'.format(self))
+                self.state = State.FAILED
+
+            # finally, if the roots aren't done, the dag is still running
+            else:
+                self.state = State.RUNNING
+
+        # todo: determine we want to use with_for_update to make sure to lock the run
+        session.merge(self)
+        session.commit()
+
+        return self.state
+
+    @provide_session
+    def verify_integrity(self, session=None):
+        """
+        Verifies the DagRun by checking for removed tasks or tasks that are not in the
+        database yet. It will set state to removed or add the task if required.
+        """
+        dag = self.get_dag()
+        tis = self.get_task_instances(session=session)
+
+        # check for removed tasks
+        task_ids = []
+        for ti in tis:
+            task_ids.append(ti.task_id)
+            try:
+                dag.get_task(ti.task_id)
+            except AirflowException:
+                if self.state is not State.RUNNING:
+                    ti.state = State.REMOVED
+
+        # check for missing tasks
+        for task in dag.tasks:
+            if task.adhoc:
+                continue
+
+            if task.task_id not in task_ids:
+                ti = TaskInstance(task, self.execution_date)
+                session.add(ti)
+
+        session.commit()
 
 
 class Pool(Base):

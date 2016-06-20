@@ -48,7 +48,7 @@ from airflow.configuration import AirflowConfigException
 
 import six
 
-NUM_EXAMPLE_DAGS = 16
+NUM_EXAMPLE_DAGS = 15
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -116,6 +116,7 @@ class CoreTest(unittest.TestCase):
                 .format(dag_run.execution_date))
         assert dag_run.state == State.RUNNING
         assert dag_run.external_trigger == False
+        dag.clear()
 
     def test_schedule_dag_fake_scheduled_previous(self):
         """
@@ -131,14 +132,10 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=DEFAULT_DATE))
         scheduler = jobs.SchedulerJob(test_mode=True)
-        trigger = models.DagRun(
-            dag_id=dag.dag_id,
-            run_id=models.DagRun.id_for_date(DEFAULT_DATE),
-            execution_date=DEFAULT_DATE,
-            state=State.SUCCESS,
-            external_trigger=True)
-        settings.Session().add(trigger)
-        settings.Session().commit()
+        dag.create_dagrun(run_id=models.DagRun.id_for_date(DEFAULT_DATE),
+                          execution_date=DEFAULT_DATE,
+                          state=State.SUCCESS,
+                          external_trigger=True)
         dag_run = scheduler.schedule_dag(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
@@ -166,6 +163,7 @@ class CoreTest(unittest.TestCase):
 
         assert dag_run is not None
         assert dag_run2 is None
+        dag.clear()
 
     def test_schedule_dag_start_end_dates(self):
         """
@@ -180,16 +178,13 @@ class CoreTest(unittest.TestCase):
                   start_date=start_date,
                   end_date=end_date,
                   schedule_interval=delta)
+        dag.add_task(models.BaseOperator(task_id='faketastic',
+                                         owner='Also fake'))
 
         # Create and schedule the dag runs
         dag_runs = []
         scheduler = jobs.SchedulerJob(test_mode=True)
         for i in range(runs):
-            date = dag.start_date + i * delta
-            task = models.BaseOperator(task_id='faketastic__%s' % i,
-                                       owner='Also fake',
-                                       start_date=date)
-            dag.task_dict[task.task_id] = task
             dag_runs.append(scheduler.schedule_dag(dag))
 
         additional_dag_run = scheduler.schedule_dag(dag)
@@ -219,19 +214,12 @@ class CoreTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID + 'test_schedule_dag_no_end_date_up_to_today_only',
                   start_date=start_date,
                   schedule_interval=delta)
+        dag.add_task(models.BaseOperator(task_id='faketastic',
+                                         owner='Also fake'))
 
         dag_runs = []
         scheduler = jobs.SchedulerJob(test_mode=True)
         for i in range(runs):
-            # Create the DagRun
-            date = dag.start_date + i * delta
-            task = models.BaseOperator(task_id='faketastic__%s' % i,
-                                       owner='Also fake',
-                                       start_date=date)
-
-            dag.task_dict[task.task_id] = task
-
-            # Schedule the DagRun
             dag_run = scheduler.schedule_dag(dag)
             dag_runs.append(dag_run)
 
@@ -690,6 +678,10 @@ class CliTests(unittest.TestCase):
             'task_state', 'example_bash_operator', 'runme_0',
             DEFAULT_DATE.isoformat()]))
 
+    def test_dag_state(self):
+        self.assertEqual(None, cli.dag_state(self.parser.parse_args([
+            'dag_state', 'example_bash_operator', DEFAULT_DATE.isoformat()])))
+
     def test_pause(self):
         args = self.parser.parse_args([
             'pause', 'example_bash_operator'])
@@ -700,6 +692,14 @@ class CliTests(unittest.TestCase):
             'unpause', 'example_bash_operator'])
         cli.unpause(args)
         assert self.dagbag.dags['example_bash_operator'].is_paused in [False, 0]
+
+    def test_subdag_clear(self):
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator', '--no_confirm'])
+        cli.clear(args)
+        args = self.parser.parse_args([
+            'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
+        cli.clear(args)
 
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
@@ -730,6 +730,7 @@ class CliTests(unittest.TestCase):
             cli.trigger_dag,
             self.parser.parse_args([
                 'trigger_dag', 'example_bash_operator',
+                '--run_id', 'trigger_dag_xxx',
                 '-c', 'NOT JSON'])
         )
 
@@ -1454,6 +1455,15 @@ if 'HiveOperator' in dir(operators):
             hook = HiveServer2Hook()
             hook.get_records(sql)
 
+        def test_multi_statements(self):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+            sqls = [
+                "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
+                "DROP TABLE test_multi_statements",
+            ]
+            hook = HiveServer2Hook()
+            hook.get_records(sqls)
+
         def test_get_metastore_databases(self):
             if six.PY2:
                 from airflow.hooks.hive_hooks import HiveMetastoreHook
@@ -1558,33 +1568,31 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='presto_check', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+        def test_presto_to_mysql(self):
+            t = operators.PrestoToMySqlTransfer(
+                task_id='presto_to_mysql_check',
+                sql="""
+                SELECT name, count(*) as ccount
+                FROM airflow.static_babynames
+                GROUP BY name
+                """,
+                mysql_table='test_static_babynames',
+                mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-    def test_presto_to_mysql(self):
-        t = operators.PrestoToMySqlTransfer(
-            task_id='presto_to_mysql_check',
-            sql="""
-            SELECT name, count(*) as ccount
-            FROM airflow.static_babynames
-            GROUP BY name
-            """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
-
-
-    def test_presto_to_mysql(self):
-        t = operators.PrestoToMySqlTransfer(
-            task_id='presto_to_mysql_check',
-            sql="""
-            SELECT name, count(*) as ccount
-            FROM airflow.static_babynames
-            GROUP BY name
-            """,
-            mysql_table='test_static_babynames',
-            mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        def test_presto_to_mysql(self):
+            t = operators.PrestoToMySqlTransfer(
+                task_id='presto_to_mysql_check',
+                sql="""
+                SELECT name, count(*) as ccount
+                FROM airflow.static_babynames
+                GROUP BY name
+                """,
+                mysql_table='test_static_babynames',
+                mysql_preoperator='TRUNCATE TABLE test_static_babynames;',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
         def test_hdfs_sensor(self):
             t = operators.HdfsSensor(

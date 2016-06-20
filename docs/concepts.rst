@@ -172,7 +172,7 @@ functionally equivalent:
 
 When using the bitshift to compose operators, the relationship is set in the
 direction that the bitshift operator points. For example, ``op1 >> op2`` means
-that ``op1`` runs first and ``op2`` runs seconds. Multiple operators can be
+that ``op1`` runs first and ``op2`` runs second. Multiple operators can be
 composed -- keep in mind the chain is executed left-to-right and the rightmost
 object is always returned. For example:
 
@@ -639,12 +639,13 @@ may look like inside your ``airflow_settings.py``:
             task.timeout = timedelta(hours=48)
 
 
-Task Documentation & Notes
-==========================
+Documentation & Notes
+=====================
 
-It's possible to add documentation or notes to your task objects that become
-visible in the "Task Details" view in the web interface. There are a set
-of special task attributes that get rendered as rich content if defined:
+It's possible to add documentation or notes to your dags & task objects that
+become visible in the web interface ("Graph View" for dags, "Task Details" for
+tasks). There are a set of special task attributes that get rendered as rich
+content if defined:
 
 ==========  ================
 attribute   rendered to
@@ -656,11 +657,19 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
+Please note that for dags, dag_md is the only attribute interpreted.
+
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
 to the related tasks in Airflow.
 
 .. code:: python
+    """
+    ### My great DAG
+    """
+
+    dag = DAG('my_dag', default_args=default_args)
+    dag.doc_md = __doc__
 
     t = BashOperator("foo", dag=dag)
     t.doc_md = """\
@@ -668,7 +677,8 @@ to the related tasks in Airflow.
     Here's a [url](www.airbnb.com)
     """
 
-This content will get rendered as markdown in the "Task Details" page.
+This content will get rendered as markdown respectively in the "Graph View" and
+"Task Details" pages.
 
 Jinja Templating
 ================
