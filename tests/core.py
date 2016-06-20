@@ -438,6 +438,74 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+
+    def test_template_context_simple(self):
+        TI = models.TaskInstance
+        dag = models.DAG('test-dag', start_date=DEFAULT_DATE)
+        task = operators.DummyOperator(task_id='task', owner='unittest', dag=dag)
+        ti = TI(task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+
+        expected = {
+            'tomorrow_ds': '2015-01-02',
+            'task_instance_key_str': 'test-dag__task__20150101',
+            'test_mode': False,
+            'params': {}
+        }
+        self.assertDictContainsSubset(expected, context)
+
+    def test_template_context_with_static_params(self):
+        TI = models.TaskInstance
+        dag = models.DAG('test-dag', start_date=DEFAULT_DATE,
+                         params={'foo': 'dag', 'bar': 'dag'})
+        task = operators.DummyOperator(task_id='task', owner='unittest', dag=dag,
+                                       params={'foo': 'task', 'boolean': True})
+        ti = TI(task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+
+        expected = {
+            'tomorrow_ds': '2015-01-02',
+            'task_instance_key_str': 'test-dag__task__20150101',
+            'test_mode': False,
+            'params': {'foo': 'task', 'bar': 'dag', 'boolean': True}
+        }
+        self.assertDictContainsSubset(expected, context)
+
+    def test_template_context_with_dynamic_params(self):
+        TI = models.TaskInstance
+        dag = models.DAG('test-dag', start_date=DEFAULT_DATE,
+                         params={'foo': 'dag', 'bar': 'dag'})
+        task = operators.DummyOperator(task_id='task', owner='unittest', dag=dag,
+                                       params={'foo': '{{ ds }}'})
+        ti = TI(task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+
+        expected = {
+            'tomorrow_ds': '2015-01-02',
+            'task_instance_key_str': 'test-dag__task__20150101',
+            'test_mode': False,
+            'params': {'foo': '{{ ds }}', 'bar': 'dag'}
+        }
+        self.assertDictContainsSubset(expected, context)
+
+    def test_template_context_with_dynamic_params_and_render_params(self):
+        TI = models.TaskInstance
+        dag = models.DAG('test-dag', start_date=DEFAULT_DATE,
+                         params={'foo': 'dag', 'bar': 'dag'})
+        task = operators.DummyOperator(task_id='task', owner='unittest', dag=dag,
+                                       render_params=True,
+                                       params={'foo': '{{ ds }}'})
+        ti = TI(task, execution_date=DEFAULT_DATE)
+        context = ti.get_template_context()
+
+        expected = {
+            'tomorrow_ds': '2015-01-02',
+            'task_instance_key_str': 'test-dag__task__20150101',
+            'test_mode': False,
+            'params': {'foo': '2015-01-01', 'bar': 'dag'}
+        }
+        self.assertDictContainsSubset(expected, context)
+
     def test_complex_template(self):
         class OperatorSubclass(operators.BaseOperator):
             template_fields = ['some_templated_field']

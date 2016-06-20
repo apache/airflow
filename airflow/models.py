@@ -1443,10 +1443,7 @@ class TaskInstance(Base):
             session.expunge_all()
             session.commit()
 
-        if task.params:
-            params.update(task.params)
-
-        return {
+        context = {
             'dag': task.dag,
             'ds': ds,
             'ds_nodash': ds_nodash,
@@ -1472,6 +1469,18 @@ class TaskInstance(Base):
             'conf': configuration,
             'test_mode': self.test_mode,
         }
+
+        # Allow task level param definitions to be rendered via jinja
+        # using the context available up until this point
+        if task.params:
+            if task.render_params:
+                rt = self.task.render_template  # shortcut to method
+                rendered_content = rt('params', task.params, context)
+                params.update(rendered_content)
+            else:
+                params.update(task.params)
+
+        return context
 
     def render_templates(self):
         task = self.task
@@ -1738,6 +1747,9 @@ class BaseOperator(object):
     :param on_success_callback: much like the ``on_failure_callback`` excepts
         that it is executed when the task succeeds.
     :type on_success_callback: callable
+    :param render_params: set this to true to allow params to be rendered
+        and available to other templates
+    :type render_params: bool
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
@@ -1783,6 +1795,7 @@ class BaseOperator(object):
             on_failure_callback=None,
             on_success_callback=None,
             on_retry_callback=None,
+            render_params=False,
             trigger_rule=TriggerRule.ALL_SUCCESS,
             *args,
             **kwargs):
@@ -1816,6 +1829,7 @@ class BaseOperator(object):
                 .format(all_triggers=TriggerRule.all_triggers,
                         d=dag.dag_id, t=task_id, tr = trigger_rule))
 
+        self.render_params = render_params
         self.trigger_rule = trigger_rule
         self.depends_on_past = depends_on_past
         self.wait_for_downstream = wait_for_downstream
@@ -2074,11 +2088,7 @@ class BaseOperator(object):
                 k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
         else:
-            param_type = type(content)
-            msg = (
-                "Type '{param_type}' used for parameter '{attr}' is "
-                "not supported for templating").format(**locals())
-            raise AirflowException(msg)
+            result = content
         return result
 
     def render_template(self, attr, content, context):
