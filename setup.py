@@ -155,12 +155,12 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
+
 
 def do_setup():
     write_version()
@@ -177,34 +177,35 @@ def do_setup():
         install_requires=[
             'alembic>=0.8.3, <0.9',
             'babel>=1.3, <2.0',
-            'chartkick>=0.4.2, < 0.5',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
-            'python-daemon>=2.1.1, <2.2',
             'flask>=0.10.1, <0.11',
             'flask-admin==1.4.1',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
-            'future>=0.15.0, <0.16',
+            'flask-wtf==0.12',
             'funcsigs>=0.4, <1',
+            'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <3.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.15.2, <1.0.0',
             'pygments>=2.0.1, <3.0',
+            'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
+            'python-nvd3==0.14.2',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=0.9.8',
             'thrift>=0.9.2, <0.10',
-            'Flask-WTF==0.12'
         ],
         extras_require={
             'all': devel_all,
             'all_dbs': all_dbs,
             'async': async,
             'celery': celery,
+            'cloudant': cloudant,
             'crypto': crypto,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
@@ -212,26 +213,25 @@ def do_setup():
             'docker': docker,
             'druid': druid,
             'gcp_api': gcp_api,
+            'github_enterprise': github_enterprise,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,
+            'kerberos': kerberos,
+            'ldap': ldap,
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'password': password,
             'postgres': postgres,
+            'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
             'samba': samba,
             'slack': slack,
             'statsd': statsd,
             'vertica': vertica,
-            'ldap': ldap,
             'webhdfs': webhdfs,
-            'kerberos': kerberos,
-            'password': password,
-            'github_enterprise': github_enterprise,
-            'qds': qds,
-            'cloudant': cloudant
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
@@ -257,3 +257,4 @@ def do_setup():
 
 if __name__ == "__main__":
     do_setup()
+

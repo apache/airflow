@@ -23,7 +23,7 @@ import airflow
 from airflow import models
 from airflow.settings import Session
 
-from airflow.www.blueprints import ck, routes
+from airflow.www.blueprints import routes
 from airflow import jobs
 from airflow import settings
 from airflow import configuration
@@ -45,9 +45,7 @@ def create_app(config=None):
     cache = Cache(
         app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
 
-    app.register_blueprint(ck, url_prefix='/ck')
     app.register_blueprint(routes)
-    app.jinja_env.add_extension("chartkick.ext.charts")
 
     with app.app_context():
         from airflow.www import views
