@@ -1,4 +1,4 @@
-recursive-include airflow/www/templates *
-recursive-include airflow/www/static *
+graft airflow/www/templates
+graft airflow/www/static
 include airflow/alembic.ini
 include requirements.txt
