@@ -1446,6 +1446,24 @@ class TaskInstance(Base):
         if task.params:
             params.update(task.params)
 
+        class VariableAccessor:
+            """
+            Wrapper around Variable. This way you can get variables in templates by using
+            {var.variable_name}.
+            """
+            def __init__(self):
+                pass
+
+            def __getattr__(self, item):
+                return Variable.get(item)
+
+        class VariableJsonAccessor:
+            def __init__(self):
+                pass
+
+            def __getattr__(self, item):
+                return Variable.get(item, deserialize_json=True)
+
         return {
             'dag': task.dag,
             'ds': ds,
@@ -1471,6 +1489,10 @@ class TaskInstance(Base):
             'task_instance_key_str': ti_key_str,
             'conf': configuration,
             'test_mode': self.test_mode,
+            'var': {
+                'value': VariableAccessor(),
+                'json': VariableJsonAccessor()
+            }
         }
 
     def render_templates(self):
