@@ -470,6 +470,7 @@ def scheduler(args):
         dag_id=args.dag_id,
         subdir=process_subdir(args.subdir),
         num_runs=args.num_runs,
+        refresh_dags_every=args.refresh_dags_every,
         do_pickle=args.do_pickle)
 
     if args.daemon:
@@ -837,6 +838,10 @@ class CLIFactory(object):
             ("-n", "--num_runs"),
             default=None, type=int,
             help="Set the number of runs to execute before exiting"),
+        'refresh_dags_every': Arg(
+            ("-r", "--refresh_dags_every"),
+            default=conf.get('scheduler', 'REFRESH_DAGS_EVERY'), type=int,
+            help="Set every how many runs to refresh the DAG definition"),
         # worker
         'do_pickle': Arg(
             ("-p", "--do_pickle"),
@@ -968,8 +973,8 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'num_runs', 'do_pickle',
-                     'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
+            'args': ('dag_id_opt', 'subdir', 'num_runs', 'refresh_dags_every',
+                     'do_pickle', 'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': worker,
             'help': "Start a Celery worker node",

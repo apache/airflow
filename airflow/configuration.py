@@ -135,6 +135,7 @@ defaults = {
         'scheduler_heartbeat_sec': 60,
         'authenticate': False,
         'max_threads': 2,
+        'refresh_dags_every': 10,
     },
     'celery': {
         'broker_url': 'sqla+mysql://airflow:airflow@localhost:3306/airflow',
@@ -369,6 +370,10 @@ scheduler_heartbeat_sec = 5
 # use more threads than the amount of cpu cores available.
 max_threads = 2
 
+# The scheduler reloads the DAG definition from dags_folder for every N runs.
+# This defines the parameter N.
+refresh_dags_every = 10
+
 [mesos]
 # Mesos master address which MesosExecutor will connect to.
 master = localhost:5050
@@ -460,6 +465,7 @@ job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
 max_threads = 2
+refresh_dags_every = 10
 """
 
 
