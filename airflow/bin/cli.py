@@ -250,8 +250,8 @@ def run(args, dag=None):
                 session.commit()
                 pickle_id = pickle.id
                 print((
-                    'Pickled dag {dag} '
-                    'as pickle_id:{pickle_id}').format(**locals()))
+                          'Pickled dag {dag} '
+                          'as pickle_id:{pickle_id}').format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -508,6 +508,7 @@ def serve_logs(args):
             filename,
             mimetype="application/json",
             as_attachment=False)
+
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(
@@ -515,6 +516,20 @@ def serve_logs(args):
 
 
 def worker(args):
+    """
+    Spawn Celery workers for using the CeleryExecutor
+    """
+
+    # only applied when using the CeleryExecutor
+    executor_type = conf.get_executor_type()
+    if executor_type != 'celeryexecutor':
+        # reassign with the original one
+        executor_type = conf.get_executor_type(case_sensitive=False)
+        raise AirflowException(
+            'The `worker` is only for the CeleryExecutor, '
+            'got {0} instead'
+            .format(executor_type))
+
     env = os.environ.copy()
     env['AIRFLOW_HOME'] = settings.AIRFLOW_HOME
 
@@ -670,16 +685,16 @@ class CLIFactory(object):
         'dry_run': Arg(
             ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
         'pid': Arg(
-            ("--pid", ), "PID file location",
+            ("--pid",), "PID file location",
             nargs='?'),
         'daemon': Arg(
             ("-D", "--daemon"), "Daemonize instead of running "
                                 "in the foreground",
             "store_true"),
         'stderr': Arg(
-            ("--stderr", ), "Redirect stderr to this file"),
+            ("--stderr",), "Redirect stderr to this file"),
         'stdout': Arg(
-            ("--stdout", ), "Redirect stdout to this file"),
+            ("--stdout",), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
 

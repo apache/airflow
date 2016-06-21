@@ -25,6 +25,7 @@ import subprocess
 import warnings
 
 from future import standard_library
+
 standard_library.install_aliases()
 
 from builtins import str
@@ -37,8 +38,10 @@ warnings.filterwarnings(
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
 
+
 class AirflowConfigException(Exception):
     pass
+
 
 try:
     from cryptography.fernet import Fernet
@@ -81,7 +84,7 @@ def run_command(command):
     if process.returncode != 0:
         raise AirflowConfigException(
             "Cannot execute {}. Error code is: {}. Output: {}, Stderr: {}"
-            .format(command, process.returncode, output, stderr)
+                .format(command, process.returncode, output, stderr)
         )
 
     return output
@@ -157,7 +160,7 @@ defaults = {
     },
     'kerberos': {
         'ccache': '/tmp/airflow_krb5_ccache',
-        'principal': 'airflow',                 # gets augmented with fqdn
+        'principal': 'airflow',  # gets augmented with fqdn
         'reinit_frequency': '3600',
         'kinit_path': 'kinit',
         'keytab': 'airflow.keytab',
@@ -464,7 +467,6 @@ max_threads = 2
 
 
 class ConfigParserWithDefaults(ConfigParser):
-
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this is to not
     # store password on boxes in text files.
@@ -481,11 +483,19 @@ class ConfigParserWithDefaults(ConfigParser):
         self.is_validated = False
 
     def _validate(self):
-        if (
-                self.get("core", "executor") != 'SequentialExecutor' and
-                "sqlite" in self.get('core', 'sql_alchemy_conn')):
-            raise AirflowConfigException("error: cannot use sqlite with the {}".
-                format(self.get('core', 'executor')))
+        """
+        Ensure the executor matches the database engine used by the airflow,
+        raise AirflowConfigException if not.
+        """
+        executor_type = get_executor_type()
+        sqlalchemy_conn = self.get('core', 'sql_alchemy_conn')
+
+        if executor_type != 'sequentialexecutor' and 'sqlite' in sqlalchemy_conn:
+            executor_type = get_executor_type(case_sensitive=False)
+            raise AirflowConfigException(
+                "error: sqlite should be used with 'SequentialExecutor', "
+                "{} found instead."
+                    .format(executor_type))
 
         self.is_validated = True
 
@@ -498,8 +508,8 @@ class ConfigParserWithDefaults(ConfigParser):
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
         if (
-                (section, key) in ConfigParserWithDefaults.as_command_stdout and
-                self.has_option(section, fallback_key)):
+                        (section, key) in ConfigParserWithDefaults.as_command_stdout and
+                    self.has_option(section, fallback_key)):
             command = self.get(section, fallback_key)
             return run_command(command)
 
@@ -628,6 +638,7 @@ def mkdir_p(path):
         else:
             raise AirflowConfigException('Had trouble creating a directory')
 
+
 """
 Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 "~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
@@ -670,6 +681,7 @@ def parameterized_config(template):
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
     return template.format(**all_vars)
 
+
 TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
 if not os.path.isfile(TEST_CONFIG_FILE):
     logging.info("Creating new airflow config file for unit tests in: " +
@@ -691,6 +703,7 @@ logging.info("Reading the config from " + AIRFLOW_CONFIG)
 def test_mode():
     conf = ConfigParserWithDefaults(defaults)
     conf.read(TEST_CONFIG)
+
 
 conf = ConfigParserWithDefaults(defaults)
 conf.read(AIRFLOW_CONFIG)
@@ -723,11 +736,14 @@ def remove_option(section, option):
 def as_dict(display_source=False, display_sensitive=False):
     return conf.as_dict(
         display_source=display_source, display_sensitive=display_sensitive)
+
+
 as_dict.__doc__ = conf.as_dict.__doc__
 
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
+
 
 ########################
 # convenience method to access config entries
@@ -735,3 +751,19 @@ def set(section, option, value):  # noqa
 
 def get_dags_folder():
     return os.path.expanduser(get('core', 'DAGS_FOLDER'))
+
+
+def get_executor_type(case_sensitive=False):
+    """
+    Get the executor type
+
+    :return:
+        if `case_sensitive` is True,
+        the original setting. Otherwise the
+        lower case executor type
+    """
+    executor_type = get('core', 'executor')
+    if not case_sensitive:
+        return executor_type.lower()
+    else:
+        return executor_type

@@ -74,7 +74,7 @@ def ask_yesno(question):
 
 
 def import_module_attrs(parent_module_globals, module_attrs_dict):
-    '''
+    """
     Attempts to import a set of modules and specified attributes in the
     form of a dictionary. The attributes are copied in the parent module's
     namespace. The function returns a list of attributes names that can be
@@ -84,7 +84,7 @@ def import_module_attrs(parent_module_globals, module_attrs_dict):
     silence the import errors for when libraries are missing. It makes
     for a clean package abstracting the underlying modules and only
     brings functional operators to those namespaces.
-    '''
+    """
     imported_attrs = []
     for mod, attrs in list(module_attrs_dict.items()):
         try:
