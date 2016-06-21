@@ -68,12 +68,11 @@ from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils import logging as log_utils
 from airflow.www import utils as wwwutils
+from airflow.www.app import dagbag
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
-
-dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -1488,6 +1487,7 @@ class Airflow(BaseView):
 
         if orm_dag:
             orm_dag.last_expired = datetime.now()
+            orm_dag.last_modified = datetime.now()
             session.merge(orm_dag)
         session.commit()
         session.close()
