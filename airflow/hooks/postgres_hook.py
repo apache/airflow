@@ -41,7 +41,7 @@ class PostgresHook(DbApiHook):
             if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl']:
                 conn_args[arg_name] = arg_val
         psycopg2_conn = psycopg2.connect(**conn_args)
-        if psycopg2_conn.server_version < 70400:
+        if psycopg2_conn.server_version <= 80200:
             self.supports_autocommit = True
         return psycopg2_conn
 
