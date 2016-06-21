@@ -16,6 +16,7 @@
 from __future__ import print_function
 from builtins import zip
 from past.builtins import basestring
+
 import unicodecsv as csv
 import logging
 import re
@@ -41,6 +42,7 @@ class HiveCliHook(BaseHook):
     Note that you can also set default hive CLI parameters using the
     ``hive_cli_params`` to be used in your connection as in
     ``{"hive_cli_params": "-hiveconf mapred.job.tracker=some.jobtracker:444"}``
+    Parameters passed here can be overridden by run_cli's hive_conf param
 
     The extra connection parameter ``auth`` gets passed as in the ``jdbc``
     connection string as is.
@@ -57,9 +59,17 @@ class HiveCliHook(BaseHook):
         self.conn = conn
         self.run_as = run_as
 
-    def run_cli(self, hql, schema=None, verbose=True):
+    def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
         """
-        Run an hql statement using the hive cli
+        Run an hql statement using the hive cli. If hive_conf is specified it should be a
+        dict and the entries will be set as key/value pairs in HiveConf
+
+
+        :param hive_conf: if specified these key value pairs will be passed to hive as
+            ``-hiveconf "key"="value"``. Note that they will be passed after the
+            ``hive_cli_params`` and thus will override whatever values are specified in
+            the database.
+        :type hive_conf: dict
 
         >>> hh = HiveCliHook()
         >>> result = hh.run_cli("USE airflow;")
@@ -106,6 +116,10 @@ class HiveCliHook(BaseHook):
                         cmd_extra += ['-n', conn.login]
                     if conn.password:
                         cmd_extra += ['-p', conn.password]
+
+                hive_conf = hive_conf or {}
+                for key, value in hive_conf.items():
+                    cmd_extra += ['-hiveconf', '{0}={1}'.format(key, value)]
 
                 hive_cmd = [hive_bin, '-f', fname] + cmd_extra
 
