@@ -685,6 +685,45 @@ class SchedulerJobTest(unittest.TestCase):
         dr.refresh_from_db(session=session)
         self.assertEquals(dr.state, State.FAILED)
 
+    def test_scheduler_verify_max_active_runs_and_dagrun_timeout(self):
+        """
+        Test if a a dagrun will not be scheduled if max_dag_runs has been reached and dagrun_timeout is not reached
+        Test if a a dagrun will be scheduled if max_dag_runs has been reached but dagrun_timeout is also reached
+        """
+        dag = DAG(
+            dag_id='test_scheduler_verify_max_active_runs_and_dagrun_timeout',
+            start_date=DEFAULT_DATE)
+        dag.max_active_runs = 1
+        dag.dagrun_timeout = datetime.timedelta(seconds=60)
+
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(dr)
+
+        # Should not be scheduled as DagRun has not timedout and max_active_runs is reached
+        new_dr = scheduler.schedule_dag(dag)
+        self.assertIsNone(new_dr)
+
+        # Should be scheduled as dagrun_timeout has passed
+        dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        session.merge(dr)
+        session.commit()
+        new_dr = scheduler.schedule_dag(dag)
+        self.assertIsNotNone(new_dr)
+
     def test_scheduler_auto_align(self):
         """
         Test if the schedule_interval will be auto aligned with the start_date
