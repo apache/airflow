@@ -85,6 +85,20 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
+class OperatorSubclass(operators.BaseOperator):
+    """
+    An operator to test template substitution
+    """
+    template_fields = ['some_templated_field']
+
+    def __init__(self, some_templated_field, *args, **kwargs):
+        super(OperatorSubclass, self).__init__(*args, **kwargs)
+        self.some_templated_field = some_templated_field
+
+    def execute(*args, **kwargs):
+        pass
+
+
 class CoreTest(unittest.TestCase):
     def setUp(self):
         configuration.test_mode()
@@ -439,29 +453,88 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_complex_template(self):
-        class OperatorSubclass(operators.BaseOperator):
-            template_fields = ['some_templated_field']
-
-            def __init__(self, some_templated_field, *args, **kwargs):
-                super(OperatorSubclass, self).__init__(*args, **kwargs)
-                self.some_templated_field = some_templated_field
-
-            def execute(*args, **kwargs):
-                pass
-
-        def test_some_templated_field_template_render(context):
+        def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
 
         t = OperatorSubclass(
             task_id='test_complex_template',
-            provide_context=True,
             some_templated_field={
                 'foo': '123',
-                'bar': ['baz', '{{ ds }}']
+                'bar': ['baz', ' {{ ds }}']
             },
-            on_success_callback=test_some_templated_field_template_render,
+            on_success_callback=verify_templated_field,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_template_with_variable(self):
+        """
+        Test the availability of variables in templates
+        """
+        val = {
+            'success':False,
+            'test_value': 'a test value'
+        }
+        Variable.set("a_variable", val['test_value'])
+
+        def verify_templated_field(context):
+            self.assertEqual(context['ti'].task.some_templated_field,
+                             val['test_value'])
+            val['success'] = True
+
+        t = OperatorSubclass(
+            task_id='test_complex_template',
+            some_templated_field='{{ var.value.a_variable }}',
+            on_success_callback=verify_templated_field,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        assert val['success']
+
+    def test_template_with_json_variable(self):
+        """
+        Test the availability of variables (serialized as JSON) in templates
+        """
+        val = {
+            'success': False,
+            'test_value': {'foo': 'bar', 'obj': {'v1': 'yes', 'v2': 'no'}}
+        }
+        Variable.set("a_variable", val['test_value'], serialize_json=True)
+
+        def verify_templated_field(context):
+            self.assertEqual(context['ti'].task.some_templated_field,
+                             val['test_value']['obj']['v2'])
+            val['success'] = True
+
+        t = OperatorSubclass(
+            task_id='test_complex_template',
+            some_templated_field='{{ var.json.a_variable.obj.v2 }}',
+            on_success_callback=verify_templated_field,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        assert val['success']
+
+    def test_template_with_json_variable_as_value(self):
+        """
+        Test the availability of variables (serialized as JSON) in templates, but
+        accessed as a value
+        """
+        val = {
+            'success': False,
+            'test_value': {'foo': 'bar'}
+        }
+        Variable.set("a_variable", val['test_value'], serialize_json=True)
+
+        def verify_templated_field(context):
+            self.assertEqual(context['ti'].task.some_templated_field,
+                             u'{"foo": "bar"}')
+            val['success'] = True
+
+        t = OperatorSubclass(
+            task_id='test_complex_template',
+            some_templated_field='{{ var.value.a_variable }}',
+            on_success_callback=verify_templated_field,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        assert val['success']
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
