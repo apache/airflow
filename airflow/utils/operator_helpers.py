@@ -20,19 +20,19 @@ def context_to_airflow_vars(context):
     externally reconstruct relations between dags, dag_runs, tasks and task_instances.
 
     :param context: The context for the task_instance of interest
-    :type successes: dict
+    :type context: dict
     """
     params = dict()
-    dag = context['dag']
+    dag = context.get('dag')
     if dag and dag.dag_id:
         params['airflow.ctx.dag.dag_id'] = dag.dag_id
-    dag_run = context['dag_run']
+    dag_run = context.get('dag_run')
     if dag_run and dag_run.execution_date:
         params['airflow.ctx.dag_run.execution_date'] = dag_run.execution_date.isoformat()
-    task = context['task']
+    task = context.get('task')
     if task and task.task_id:
         params['airflow.ctx.task.task_id'] = task.task_id
-    task_instance = context['task_instance']
+    task_instance = context.get('task_instance')
     if task_instance and task_instance.execution_date:
         params['airflow.ctx.task_instance.execution_date'] = \
             task_instance.execution_date.isoformat()

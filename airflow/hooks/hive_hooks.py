@@ -17,18 +17,24 @@ from __future__ import print_function
 from builtins import zip
 from past.builtins import basestring
 
+import collections
 import unicodecsv as csv
+import itertools
 import logging
 import re
 import subprocess
+import time
 from tempfile import NamedTemporaryFile
 import hive_metastore
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.helpers import as_flattened_list
 from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 import airflow.security.utils as utils
+
+HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
 
 
 class HiveCliHook(BaseHook):
@@ -47,12 +53,24 @@ class HiveCliHook(BaseHook):
 
     The extra connection parameter ``auth`` gets passed as in the ``jdbc``
     connection string as is.
+
+    :param mapred_queue: queue used by the Hadoop Scheduler (Capacity or Fair)
+    :type  mapred_queue: string
+    :param mapred_queue_priority: priority within the job queue.
+        Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
+    :type  mapred_queue_priority: string
+    :param mapred_job_name: This name will appear in the jobtracker.
+        This can make monitoring easier.
+    :type  mapred_job_name: string
     """
 
     def __init__(
             self,
             hive_cli_conn_id="hive_cli_default",
-            run_as=None):
+            run_as=None,
+            mapred_queue=None,
+            mapred_queue_priority=None,
+            mapred_job_name=None):
         conn = self.get_connection(hive_cli_conn_id)
         self.hive_cli_params = conn.extra_dejson.get('hive_cli_params', '')
         self.use_beeline = conn.extra_dejson.get('use_beeline', False)
@@ -60,16 +78,92 @@ class HiveCliHook(BaseHook):
         self.conn = conn
         self.run_as = run_as
 
+        if mapred_queue_priority:
+            mapred_queue_priority = mapred_queue_priority.upper()
+            if mapred_queue_priority not in HIVE_QUEUE_PRIORITIES:
+                raise AirflowException(
+                    "Invalid Mapred Queue Priority.  Valid values are: "
+                    "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
+
+        self.mapred_queue = mapred_queue
+        self.mapred_queue_priority = mapred_queue_priority
+        self.mapred_job_name = mapred_job_name
+
+    def _prepare_cli_cmd(self):
+        """
+        This function creates the command list from available information
+        """
+        conn = self.conn
+        hive_bin = 'hive'
+        cmd_extra = []
+
+        if self.use_beeline:
+            hive_bin = 'beeline'
+            jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
+            if configuration.get('core', 'security') == 'kerberos':
+                template = conn.extra_dejson.get(
+                    'principal', "hive/_HOST@EXAMPLE.COM")
+                if "_HOST" in template:
+                    template = utils.replace_hostname_pattern(
+                        utils.get_components(template))
+
+                proxy_user = ""  # noqa
+                if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
+                    proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
+                elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
+                    proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
+
+                jdbc_url += ";principal={template};{proxy_user}"
+            elif self.auth:
+                jdbc_url += ";auth=" + self.auth
+
+            jdbc_url = jdbc_url.format(**locals())
+
+            cmd_extra += ['-u', jdbc_url]
+            if conn.login:
+                cmd_extra += ['-n', conn.login]
+            if conn.password:
+                cmd_extra += ['-p', conn.password]
+
+        hive_params_list = self.hive_cli_params.split()
+
+        return [hive_bin] + cmd_extra + hive_params_list
+
+    def _prepare_hiveconf(self, d):
+        """
+        This function prepares a list of hiveconf params
+        from a dictionary of key value pairs.
+
+        :param d:
+        :type d: dict
+
+        >>> hh = HiveCliHook()
+        >>> hive_conf = {"hive.exec.dynamic.partition": "true",
+        ... "hive.exec.dynamic.partition.mode": "nonstrict"}
+        >>> hh._prepare_hiveconf(hive_conf)
+        ["-hiveconf", "hive.exec.dynamic.partition=true",\
+ "-hiveconf", "hive.exec.dynamic.partition.mode=nonstrict"]
+        """
+        if not d:
+            return []
+        return as_flattened_list(
+            itertools.izip(
+                ["-hiveconf"] * len(d),
+                ["{}={}".format(k, v) for k, v in d.items()]
+                )
+            )
+
     def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
         """
-        Run an hql statement using the hive cli. If hive_conf is specified it should be a
-        dict and the entries will be set as key/value pairs in HiveConf
+        Run an hql statement using the hive cli. If hive_conf is specified
+        it should be a dict and the entries will be set as key/value pairs
+        in HiveConf
 
 
-        :param hive_conf: if specified these key value pairs will be passed to hive as
-            ``-hiveconf "key"="value"``. Note that they will be passed after the
-            ``hive_cli_params`` and thus will override whatever values are specified in
-            the database.
+        :param hive_conf: if specified these key value pairs will be passed
+            to hive as ``-hiveconf "key"="value"``. Note that they will be
+            passed after the ``hive_cli_params`` and thus will override
+            whatever values are specified in the database.
         :type hive_conf: dict
 
         >>> hh = HiveCliHook()
@@ -86,47 +180,29 @@ class HiveCliHook(BaseHook):
             with NamedTemporaryFile(dir=tmp_dir) as f:
                 f.write(hql.encode('UTF-8'))
                 f.flush()
-                fname = f.name
-                hive_bin = 'hive'
-                cmd_extra = []
+                hive_cmd = self._prepare_cli_cmd()
+                hive_conf_params = self._prepare_hiveconf(hive_conf)
+                if self.mapred_queue:
+                    hive_conf_params.extend(
+                        ['-hiveconf',
+                         'mapreduce.job.queuename={}'
+                         .format(self.mapred_queue)])
 
-                if self.use_beeline:
-                    hive_bin = 'beeline'
-                    jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
-                    if configuration.get('core', 'security') == 'kerberos':
-                        template = conn.extra_dejson.get(
-                            'principal', "hive/_HOST@EXAMPLE.COM")
-                        if "_HOST" in template:
-                            template = utils.replace_hostname_pattern(
-                                utils.get_components(template))
+                if self.mapred_queue_priority:
+                    hive_conf_params.extend(
+                        ['-hiveconf',
+                         'mapreduce.job.priority={}'
+                         .format(self.mapred_queue_priority)])
 
-                        proxy_user = ""  # noqa
-                        if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
-                            proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
-                        elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
-                            proxy_user = "hive.server2.proxy.user={0}".format(self.run_as)
+                if self.mapred_job_name:
+                    hive_conf_params.extend(
+                        ['-hiveconf',
+                         'mapred.job.name={}'
+                         .format(self.mapred_job_name)])
 
-                        jdbc_url += ";principal={template};{proxy_user}"
-                    elif self.auth:
-                        jdbc_url += ";auth=" + self.auth
+                hive_cmd.extend(hive_conf_params)
+                hive_cmd.extend(['-f', f.name])
 
-                    jdbc_url = jdbc_url.format(**locals())
-
-                    cmd_extra += ['-u', jdbc_url]
-                    if conn.login:
-                        cmd_extra += ['-n', conn.login]
-                    if conn.password:
-                        cmd_extra += ['-p', conn.password]
-
-                hive_conf = hive_conf or {}
-                for key, value in hive_conf.items():
-                    cmd_extra += ['-hiveconf', '{0}={1}'.format(key, value)]
-
-                hive_cmd = [hive_bin, '-f', fname] + cmd_extra
-
-                if self.hive_cli_params:
-                    hive_params_list = self.hive_cli_params.split()
-                    hive_cmd.extend(hive_params_list)
                 if verbose:
                     logging.info(" ".join(hive_cmd))
                 sp = subprocess.Popen(
@@ -260,6 +336,8 @@ class HiveCliHook(BaseHook):
         if hasattr(self, 'sp'):
             if self.sp.poll() is None:
                 print("Killing the Hive job")
+                self.sp.terminate()
+                time.sleep(60)
                 self.sp.kill()
 
 
@@ -561,11 +639,12 @@ class HiveServer2Hook(BaseHook):
                 cur.execute(hql)
                 schema = cur.description
                 with open(csv_filepath, 'wb') as f:
-                    writer = csv.writer(f, delimiter=delimiter,
-                        lineterminator=lineterminator, encoding='utf-8')
+                    writer = csv.writer(f,
+                                        delimiter=delimiter,
+                                        lineterminator=lineterminator,
+                                        encoding='utf-8')
                     if output_header:
-                        writer.writerow([c[0]
-                            for c in cur.description])
+                        writer.writerow([c[0] for c in cur.description])
                     i = 0
                     while True:
                         rows = [row for row in cur.fetchmany(fetch_size) if row]

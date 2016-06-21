@@ -38,6 +38,14 @@ class HiveOperator(BaseOperator):
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
+    :param mapred_queue: queue used by the Hadoop CapacityScheduler
+    :type  mapred_queue: string
+    :param mapred_queue_priority: priority within CapacityScheduler queue.
+        Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
+    :type  mapred_queue_priority: string
+    :param mapred_job_name: This name will appear in the jobtracker.
+        This can make monitoring easier.
+    :type  mapred_job_name: string
     """
 
     template_fields = ('hql', 'schema')
@@ -52,6 +60,9 @@ class HiveOperator(BaseOperator):
             hiveconf_jinja_translate=False,
             script_begin_tag=None,
             run_as_owner=False,
+            mapred_queue=None,
+            mapred_queue_priority=None,
+            mapred_job_name=None,
             *args, **kwargs):
 
         super(HiveOperator, self).__init__(*args, **kwargs)
@@ -64,8 +75,17 @@ class HiveOperator(BaseOperator):
         if run_as_owner:
             self.run_as = self.dag.owner
 
+        self.mapred_queue = mapred_queue
+        self.mapred_queue_priority = mapred_queue_priority
+        self.mapred_job_name = mapred_job_name
+
     def get_hook(self):
-        return HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id, run_as=self.run_as)
+        return HiveCliHook(
+                        hive_cli_conn_id=self.hive_cli_conn_id,
+                        run_as=self.run_as,
+                        mapred_queue=self.mapred_queue,
+                        mapred_queue_priority=self.mapred_queue_priority,
+                        mapred_job_name=self.mapred_job_name)
 
     def prepare_template(self):
         if self.hiveconf_jinja_translate:
