@@ -30,14 +30,11 @@ from airflow import configuration
 
 import threading, time, os
 
-from airflow.models import get_global_dagbag
-
 csrf = CsrfProtect()
 
 def update_dags():
     while True:
-        print('refreshing')
-        get_global_dagbag().refresh_dags()
+        airflow.shared.dagbag.refresh_dags()
         time.sleep(1)
 
 def create_app(config=None):
@@ -47,7 +44,7 @@ def create_app(config=None):
 
     csrf.init_app(app)
 
-    get_global_dagbag().refresh_dags()
+    airflow.shared.dagbag.refresh_dags()
 
     t = threading.Thread(target=update_dags)
     t.daemon = True
