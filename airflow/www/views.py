@@ -75,7 +75,7 @@ from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
+dagbag = models.get_global_dagbag()
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -1656,7 +1656,9 @@ class HomeView(AdminIndexView):
         session.expunge_all()
         session.commit()
         session.close()
+
         dags = dagbag.dags.values()
+
         if do_filter:
             if owner_mode == 'ldapgroup':
                 dags = {

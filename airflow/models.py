@@ -70,6 +70,8 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 
+from airflow import configuration as conf
+
 Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
@@ -165,14 +167,20 @@ class DagBag(LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
-        if include_examples:
+        self.include_examples = include_examples
+
+        self.refresh_dags()
+
+        if sync_to_db:
+            self.deactivate_inactive_dags()
+
+    def refresh_dags(self):
+        if self.include_examples:
             example_dag_folder = os.path.join(
                 os.path.dirname(__file__),
                 'example_dags')
             self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
-        if sync_to_db:
-            self.deactivate_inactive_dags()
+        self.collect_dags(self.dag_folder)
 
     def size(self):
         """
@@ -477,6 +485,12 @@ class DagBag(LoggingMixin):
         session.close()
         return dag_ids
 
+global_dagbag = None
+def get_global_dagbag():
+    global global_dagbag
+    if global_dagbag is None:
+        global_dagbag = DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
+    return global_dagbag
 
 class User(Base):
     __tablename__ = "users"
