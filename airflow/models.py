@@ -172,6 +172,12 @@ class DagBag(LoggingMixin):
         if sync_to_db:
             self.deactivate_inactive_dags()
 
+    def size(self):
+        """
+        :return: the amount of dags contained in this dagbag
+        """
+        return len(self.dags)
+
     def refresh_dags(self):
         if self.include_examples:
             example_dag_folder = os.path.join(
@@ -179,12 +185,6 @@ class DagBag(LoggingMixin):
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(self.dag_folder)
-
-    def size(self):
-        """
-        :return: the amount of dags contained in this dagbag
-        """
-        return len(self.dags)
 
     def get_dag(self, dag_id):
         """
