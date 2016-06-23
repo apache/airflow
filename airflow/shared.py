@@ -1,4 +1,4 @@
-from models import DagBag
+from airflow.models import DagBag
 from airflow import configuration as conf
 import os
 
