@@ -24,15 +24,16 @@ little bit helps, and credit will always be given.
 
 ### Report Bugs
 
-Report bugs through Github
+Report bugs through [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
 
-We now provide a [templated issue form](https://github.com/airbnb/airflow/blob/master/.github/ISSUE_TEMPLATE.md). You must provide information for all required fields else the bug will be closed.
+Please report relevant information and preferably code that exhibits
+the problem.
 
 
 ### Fix Bugs
 
-Look through the GitHub issues for bugs. Anything tagged with "bug" is
-open to whoever wants to implement it.
+Look through the Jira issues for bugs. Anything is open to whoever wants 
+to implement it.
 
 ### Implement Features
 
@@ -64,7 +65,9 @@ If you are proposing a feature:
 
 ## Documentation
 
-The latest API documentation is usually available [here](http://pythonhosted.org/airflow). To generate a local version, you need to have installed airflow with the `doc` extra. In that case you can generate the doc by running:
+The latest API documentation is usually available [here](http://pythonhosted.org/airflow). 
+To generate a local version, you need to have installed airflow with 
+the `doc` extra. In that case you can generate the doc by running:
 
     cd docs && ./build.sh
 
@@ -87,7 +90,11 @@ Before you submit a pull request from your forked repo, check that it
 meets these guidelines:
 
 1. The pull request should include tests, either as doctests, unit tests, or
-both. The airflow repo uses [Travis CI](https://travis-ci.org/airbnb/airflow) to run the tests and [coveralls](https://coveralls.io/github/airbnb/airflow) to track coverage. You can set up both for free on your fork. It will help you making sure you do not break the build with your PR and that you help increase coverage.
+both. The airflow repo uses [Travis CI](https://travis-ci.org/apache/incubator-airflow) 
+to run the tests and [codecov](https://codecov.io/gh/apache/incubator-airflow) 
+to track coverage. You can set up both for free on your fork. It will 
+help you making sure you do not break the build with your PR and that you help 
+increase coverage.
 2. If the pull request adds functionality, the docs should be updated as part
 of the same PR. Doc string are often sufficient.  Make sure to follow the
 sphinx compatible standards.
@@ -95,8 +102,18 @@ sphinx compatible standards.
 writing code that works in both Python 2 and 3, see the documentation at the
 [Python-Future project](http://python-future.org) (the future package is an
 Airflow requirement and should be used where possible).
-4. As Airflow grows as a project, we try to enforce a more consistent style and try to follow the Python community guidelines. We track this using [landscape.io](https://landscape.io/github/airbnb/airflow/), which you can setup on your fork as well to check before you submit your PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) and a few other linting rules. It is usually a good idea to lint locally as well using [flake8](https://flake8.readthedocs.org/en/latest/) using `flake8 airflow tests`
+4. As Airflow grows as a project, we try to enforce a more consistent 
+style and try to follow the Python community guidelines. We track this 
+using [landscape.io](https://landscape.io/github/apache/incubator-airflow/), 
+which you can setup on your fork as well to check before you submit your 
+PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/) 
+and a few other linting rules. It is usually a good idea to lint locally 
+as well using [flake8](https://flake8.readthedocs.org/en/latest/) 
+using `flake8 airflow tests`
 5. Please rebase and resolve all conflicts before submitting.
+6. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on
+commit messages and adhere to them. It makes the lives of those who
+come after you a lot easier.
 
 ### Testing locally
 
@@ -107,7 +124,9 @@ Tests can then be run with (see also the [Running unit tests](#running-unit-test
 
 #### Running unit tests
 
-We *highly* recommend setting up [Travis CI](https://travis-ci.org/) on your repo to automate this. It is free for open source projects. If for some reason you cannot, you can use the steps below to run tests.
+We *highly* recommend setting up [Travis CI](https://travis-ci.org/) on 
+your repo to automate this. It is free for open source projects. If for 
+some reason you cannot, you can use the steps below to run tests.
 
 Here are loose guidelines on how to get your environment to run the unit tests.
 We do understand that no one out there can run the full test suite since
