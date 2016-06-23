@@ -1656,9 +1656,7 @@ class HomeView(AdminIndexView):
         session.expunge_all()
         session.commit()
         session.close()
-
         dags = dagbag.dags.values()
-
         if do_filter:
             if owner_mode == 'ldapgroup':
                 dags = {
