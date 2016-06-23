@@ -19,6 +19,7 @@ from __future__ import unicode_literals
 
 import logging
 import signal
+import threading
 
 from builtins import object
 
@@ -39,8 +40,9 @@ class timeout(object):
 
     def __enter__(self):
         try:
-            signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.alarm(self.seconds)
+            if isinstance(threading.current_thread(), threading._MainThread):
+                signal.signal(signal.SIGALRM, self.handle_timeout)
+                signal.alarm(self.seconds)
         except ValueError as e:
             logging.warning("timeout can't be used in the current context")
             logging.exception(e)
