@@ -1,8 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 class BigQueryOperator(BaseOperator):
     """
@@ -17,8 +31,10 @@ class BigQueryOperator(BaseOperator):
                  bql,
                  destination_dataset_table = False,
                  write_disposition = 'WRITE_EMPTY',
+                 allow_large_results=False,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
+                 udf_config=False,
                  *args,
                  **kwargs):
         """
@@ -36,17 +52,22 @@ class BigQueryOperator(BaseOperator):
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide delegation enabled.
         :type delegate_to: string
+        :param udf_config: The User Defined Function configuration for the query.
+            See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :type udf_config: list
         """
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
+        self.allow_large_results = allow_large_results
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
+        self.udf_config = udf_config
 
     def execute(self, context):
         logging.info('Executing: %s', str(self.bql))
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition)
+        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition, self.allow_large_results, self.udf_config)

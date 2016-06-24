@@ -72,7 +72,7 @@ looks like:
         admin_views = []
         # A list of Blueprint object created from flask.Blueprint
         flask_blueprints = []
-        # A list of menu links (flask.ext.admin.base.MenuLink)
+        # A list of menu links (flask_admin.base.MenuLink)
         menu_links = []
 
 
@@ -88,8 +88,8 @@ definitions in Airflow.
     from airflow.plugins_manager import AirflowPlugin
 
     from flask import Blueprint
-    from flask.ext.admin import BaseView, expose
-    from flask.ext.admin.base import MenuLink
+    from flask_admin import BaseView, expose
+    from flask_admin.base import MenuLink
 
     # Importing base classes that we need to derive
     from airflow.hooks.base_hook import BaseHook
@@ -112,17 +112,17 @@ definitions in Airflow.
     class TestView(BaseView):
         @expose('/')
         def test(self):
+            # in this example, put your test_plugin/test.html template at airflow/plugins/templates/test_plugin/test.html
             return self.render("test_plugin/test.html", content="Hello galaxy!")
     v = TestView(category="Test Plugin", name="Test View")
 
     # Creating a flask blueprint to intergrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
-        template_folder='templates',
+        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder 
         static_folder='static',
         static_url_path='/static/test_plugin')
-
-
+        
     ml = MenuLink(
         category='Test Plugin',
         name='Test Menu Link',

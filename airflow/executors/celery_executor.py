@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import object
 import logging
 import subprocess
@@ -6,7 +20,7 @@ import time
 from celery import Celery
 from celery import states as celery_states
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 
@@ -28,6 +42,7 @@ class CeleryConfig(object):
     CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
+    CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
@@ -37,9 +52,10 @@ app = Celery(
 @app.task
 def execute_command(command):
     logging.info("Executing command in Celery " + command)
-    rc = subprocess.Popen(command, shell=True).wait()
-    if rc:
-        logging.error(rc)
+    try:
+        subprocess.check_call(command, shell=True)
+    except subprocess.CalledProcessError as e:
+        logging.error(e)
         raise AirflowException('Celery command failed')
 
 
@@ -65,6 +81,7 @@ class CeleryExecutor(BaseExecutor):
         self.last_state[key] = celery_states.PENDING
 
     def sync(self):
+
         self.logger.debug(
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
         for key, async in list(self.tasks.items()):
@@ -92,3 +109,4 @@ class CeleryExecutor(BaseExecutor):
                     async.state not in celery_states.READY_STATES
                     for async in self.tasks.values()]):
                 time.sleep(5)
+        self.sync()

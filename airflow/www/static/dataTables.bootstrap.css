@@ -1,3 +1,22 @@
+/**
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements. See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership. The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License. You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
 div.dataTables_length label {
 	font-weight: normal;
 	text-align: left;
@@ -196,7 +215,7 @@ ul.DTTT_dropdown.dropdown-menu li:hover a {
 }
 
 div.DTTT_collection_background {
-	z-index: 2002;	
+	z-index: 2002;
 }
 
 /* TableTools information display */
@@ -216,7 +235,7 @@ div.DTTT_print_info {
 	background-color: white;
 	border: 1px solid rgba(0, 0, 0, 0.2);
 	border-radius: 6px;
-	
+
 	-webkit-box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
 	        box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5);
 }
@@ -267,7 +286,7 @@ table.DTFC_Cloned tr.even {
     background-color: white;
     margin-bottom: 0;
 }
- 
+
 div.DTFC_RightHeadWrapper table ,
 div.DTFC_LeftHeadWrapper table {
 	border-bottom: none !important;
@@ -276,7 +295,7 @@ div.DTFC_LeftHeadWrapper table {
     border-bottom-left-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
 }
- 
+
 div.DTFC_RightHeadWrapper table thead tr:last-child th:first-child,
 div.DTFC_RightHeadWrapper table thead tr:last-child td:first-child,
 div.DTFC_LeftHeadWrapper table thead tr:last-child th:first-child,
@@ -284,20 +303,20 @@ div.DTFC_LeftHeadWrapper table thead tr:last-child td:first-child {
     border-bottom-left-radius: 0 !important;
     border-bottom-right-radius: 0 !important;
 }
- 
+
 div.DTFC_RightBodyWrapper table,
 div.DTFC_LeftBodyWrapper table {
     border-top: none;
     margin: 0 !important;
 }
- 
+
 div.DTFC_RightBodyWrapper tbody tr:first-child th,
 div.DTFC_RightBodyWrapper tbody tr:first-child td,
 div.DTFC_LeftBodyWrapper tbody tr:first-child th,
 div.DTFC_LeftBodyWrapper tbody tr:first-child td {
     border-top: none;
 }
- 
+
 div.DTFC_RightFootWrapper table,
 div.DTFC_LeftFootWrapper table {
     border-top: none;

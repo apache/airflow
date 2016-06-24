@@ -1,6 +1,19 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 from airflow.operators import ShortCircuitOperator, DummyOperator
 from airflow.models import DAG
-import airflow.utils
+import airflow.utils.helpers
 from datetime import datetime, timedelta
 
 seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
@@ -21,5 +34,5 @@ cond_false = ShortCircuitOperator(
 ds_true = [DummyOperator(task_id='true_' + str(i), dag=dag) for i in [1, 2]]
 ds_false = [DummyOperator(task_id='false_' + str(i), dag=dag) for i in [1, 2]]
 
-airflow.utils.chain(cond_true, *ds_true)
-airflow.utils.chain(cond_false, *ds_false)
+airflow.utils.helpers.chain(cond_true, *ds_true)
+airflow.utils.helpers.chain(cond_false, *ds_false)

@@ -42,7 +42,7 @@ Here are some of the common causes:
 
 - Is the ``concurrency`` parameter of your DAG reached? ``concurency`` defines
   how many ``running`` task instances a DAG is allowed to have, beyond which
-  point things get queued. 
+  point things get queued.
 
 - Is the ``max_active_runs`` parameter of your DAG reached? ``max_active_runs`` defines
   how many ``running`` concurrent instances of a DAG there are allowed to be.
@@ -60,3 +60,46 @@ documentation
 
 - Verify that the ``fernet_key`` defined in ``$AIRFLOW_HOME/airflow.cfg`` is a valid Fernet key. It must be a base64-encoded 32-byte key. You need to restart the webserver after you update the key
 - For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it
+
+**What's the deal with ``start_date``?**
+
+``start_date`` is partly legacy from the pre-DagRun era, but it is still
+relevant in many ways. When creating a new DAG, you probably want to set
+a global ``start_date`` for your tasks using ``default_args``. The first
+DagRun to be created will be based on the ``min(start_date)`` for all your
+task. From that point on, the scheduler creates new DagRuns based on
+your ``schedule_interval`` and the corresponding task instances run as your
+dependencies are met. When introducing new tasks to your DAG, you need to
+pay special attention to ``start_date``, and may want to reactivate
+inactive DagRuns to get the new task to get onboarded properly.
+
+We recommend against using dynamic values as ``start_date``, especially
+``datetime.now()`` as it can be quite confusing. The task is triggered
+once the period closes, and in theory an ``@hourly`` DAG would never get to
+an hour after now as ``now()`` moves along.
+
+
+Previously we also recommended using rounded ``start_date`` in relation to your
+``schedule_interval``. This meant an ``@hourly`` would be at ``00:00``
+minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
+first of the month. This is no longer required. Airflow will not auto align
+the ``start_date`` and the ``schedule_interval``, by using the ``start_date``
+as the moment to start looking.
+
+You can use any sensor or a ``TimeDeltaSensor`` to delay
+the execution of tasks within the schedule interval.
+While ``schedule_interval`` does allow specifying a ``datetime.timedelta``
+object, we recommend using the macros or cron expressions instead, as
+it enforces this idea of rounded schedules.
+
+When using ``depends_on_past=True`` it's important to pay special attention
+to ``start_date`` as the past dependency is not enforced only on the specific
+schedule of the ``start_date`` specified for the task. It' also
+important to watch DagRun activity status in time when introducing
+new ``depends_on_past=True``, unless you are planning on running a backfill
+for the new task(s).
+
+Also important to note is that the tasks ``start_date``, in the context of a
+backfill CLI command, get overridden by the backfill's command ``start_date``.
+This allows for a backfill on tasks that have ``depends_on_past=True`` to
+actually start, if it wasn't the case, the backfill just wouldn't start.

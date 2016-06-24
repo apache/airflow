@@ -5,6 +5,7 @@
 .DS_Store
 .ipynb*
 .coverage
+airflow/git_version
 airflow/www/static/coverage/
 airflow.db
 airflow.cfg
@@ -23,3 +24,7 @@ sftp-config.json
 unittests.cfg
 error.log
 unittests.db
+rat-results.txt
+/.eggs/
+/.tox/
+venv

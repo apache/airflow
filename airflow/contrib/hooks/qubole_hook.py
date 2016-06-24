@@ -1,9 +1,25 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import os
 import time
 import datetime
 import logging
+import six
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 
@@ -47,12 +63,11 @@ class QuboleHook(BaseHook):
         self.task_id = kwargs['task_id']
         self.dag_id = kwargs['dag'].dag_id
         self.kwargs = kwargs
-        self.args = self.create_cmd_args()
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd = None
 
     def execute(self, context):
-        args = self.cls.parse(self.args)
+        args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
         logging.info("Qubole command created with Id: {0} and Status: {1}".format(str(self.cmd.id), self.cmd.status))
@@ -128,10 +143,11 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=self.task_id)
         Command.get_jobs_id(self.cls, cmd_id)
 
-    def create_cmd_args(self):
+    def create_cmd_args(self, context):
         args = []
         cmd_type = self.kwargs['command_type']
         inplace_args = None
+        tags = set([self.dag_id, self.task_id, context['run_id']])
 
         for k,v in self.kwargs.items():
             if k in COMMAND_ARGS[cmd_type]:
@@ -139,11 +155,19 @@ class QuboleHook(BaseHook):
                     args.append("--{0}={1}".format(k.replace('_', '-'),v))
                 elif k in POSITIONAL_ARGS:
                     inplace_args = v
+                elif k == 'tags':
+                    if isinstance(v, six.string_types):
+                        tags.add(v)
+                    elif isinstance(v, (list, tuple)):
+                        for val in v:
+                            tags.add(val)
                 else:
                     args.append("--{0}={1}".format(k,v))
 
             if k == 'notify' and v is True:
                 args.append("--notify")
+
+        args.append("--tags={0}".format(','.join(filter(None,tags))))
 
         if inplace_args is not None:
             if cmd_type == 'hadoopcmd':

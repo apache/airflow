@@ -1,8 +1,23 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
-from airflow.hooks import HiveCliHook, DruidHook, HiveMetastoreHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
+from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class HiveToDruidTransfer(BaseOperator):
@@ -49,7 +64,8 @@ class HiveToDruidTransfer(BaseOperator):
             metastore_conn_id='metastore_default',
             hadoop_dependency_coordinates=None,
             intervals=None,
-            num_shards=1,
+            num_shards=-1,
+            target_partition_size=-1,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -57,6 +73,7 @@ class HiveToDruidTransfer(BaseOperator):
         self.ts_dim = ts_dim
         self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
         self.num_shards = num_shards
+        self.target_partition_size = target_partition_size
         self.metric_spec = metric_spec or [{
             "name": "count",
             "type": "count"}]
@@ -103,8 +120,8 @@ class HiveToDruidTransfer(BaseOperator):
             datasource=self.druid_datasource,
             intervals=self.intervals,
             static_path=static_path, ts_dim=self.ts_dim,
-            columns=columns, num_shards=self.num_shards, metric_spec=self.metric_spec,
-            hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
+            columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
+            metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
         logging.info("Load seems to have succeeded!")
 
         logging.info(

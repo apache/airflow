@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
@@ -7,12 +21,13 @@ import logging
 from urllib.parse import urlparse
 from time import sleep
 
+import airflow
 from airflow import hooks, settings
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
 from airflow.hooks import BaseHook
-from airflow.utils import State
-from airflow.utils import (
-    apply_defaults, AirflowException, AirflowSensorTimeout)
+from airflow.utils.state import State
+from airflow.utils.decorators import apply_defaults
 
 
 class BaseSensorOperator(BaseOperator):
@@ -22,6 +37,8 @@ class BaseSensorOperator(BaseOperator):
     Sensor operators keep executing at a time interval and succeed when
         a criteria is met and fail if and when they time out.
 
+    :param soft_fail: Set to true to mark the task as SKIPPED on failure
+    :type soft_fail: bool
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
     :type poke_interval: int
@@ -35,9 +52,11 @@ class BaseSensorOperator(BaseOperator):
             self,
             poke_interval=60,
             timeout=60*60*24*7,
+            soft_fail=False,
             *args, **kwargs):
         super(BaseSensorOperator, self).__init__(*args, **kwargs)
         self.poke_interval = poke_interval
+        self.soft_fail = soft_fail
         self.timeout = timeout
 
     def poke(self, context):
@@ -50,9 +69,12 @@ class BaseSensorOperator(BaseOperator):
     def execute(self, context):
         started_at = datetime.now()
         while not self.poke(context):
+            if (datetime.now() - started_at).total_seconds() > self.timeout:
+                if self.soft_fail:
+                    raise AirflowSkipException('Snap. Time is OUT.')
+                else:
+                    raise AirflowSensorTimeout('Snap. Time is OUT.')
             sleep(self.poke_interval)
-            if (datetime.now() - started_at).seconds > self.timeout:
-                raise AirflowSensorTimeout('Snap. Time is OUT.')
         logging.info("Success criteria met. Exiting.")
 
 
@@ -242,7 +264,8 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
-            self.hook = hooks.HiveMetastoreHook(
+            import airflow.hooks.hive_hooks
+            self.hook = airflow.hooks.hive_hooks.HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return self.hook.check_for_partition(
             self.schema, self.table, self.partition)
@@ -265,7 +288,8 @@ class HdfsSensor(BaseSensorOperator):
         self.hdfs_conn_id = hdfs_conn_id
 
     def poke(self, context):
-        sb = hooks.HDFSHook(self.hdfs_conn_id).get_conn()
+        import airflow.hooks.hdfs_hook
+        sb = airflow.hooks.hdfs_hook.HDFSHook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
         logging.info(
             'Poking for file {self.filepath} '.format(**locals()))
@@ -290,10 +314,10 @@ class WebHdfsSensor(BaseSensorOperator):
             *args, **kwargs):
         super(WebHdfsSensor, self).__init__(*args, **kwargs)
         self.filepath = filepath
-        self.hdfs_conn_id = webhdfs_conn_id
+        self.webhdfs_conn_id = webhdfs_conn_id
 
     def poke(self, context):
-        c = hooks.WebHDFSHook(self.webhdfs_conn_id).get_conn()
+        c = airflow.hooks.webhdfs_hook.WebHDFSHook(self.webhdfs_conn_id)
         logging.info(
             'Poking for file {self.filepath} '.format(**locals()))
         return c.check_for_path(hdfs_path=self.filepath)
@@ -349,7 +373,8 @@ class S3KeySensor(BaseSensorOperator):
         session.close()
 
     def poke(self, context):
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        import airflow.hooks.S3_hook
+        hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         logging.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
@@ -401,7 +426,8 @@ class S3PrefixSensor(BaseSensorOperator):
     def poke(self, context):
         logging.info('Poking for prefix : {self.prefix}\n'
                      'in bucket s3://{self.bucket_name}'.format(**locals()))
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        import airflow.hooks.S3_hook
+        hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         return hook.check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,
@@ -506,7 +532,9 @@ class HttpSensor(BaseSensorOperator):
                 # run content check on response
                 return self.response_check(response)
         except AirflowException as ae:
-            if ae.message.startswith("404"):
+            if str(ae).startswith("404"):
                 return False
+
+            raise ae
 
         return True

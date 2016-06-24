@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import print_function
 import logging
 import json
@@ -7,10 +21,10 @@ from pydruid.client import PyDruid
 import requests
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 LOAD_CHECK_INTERVAL = 5
-
+DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
 class AirflowDruidLoadException(AirflowException):
     pass
@@ -52,16 +66,25 @@ class DruidHook(BaseHook):
 
     def construct_ingest_query(
             self, datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates=None):
         """
         Builds an ingest query for an HDFS TSV load.
 
         :param datasource: target datasource in druid
         :param columns: list of all columns in the TSV, in the right order
         """
+
+        # backward compatibilty for num_shards, but target_partition_size is the default setting
+        # and overwrites the num_shards
+        if target_partition_size == -1:
+            if num_shards == -1:
+                target_partition_size = DEFAULT_TARGET_PARTITION_SIZE
+        else:
+            num_shards = -1
+
         metric_names = [
             m['fieldName'] for m in metric_spec if m['type'] != 'count']
-        dimensions = [c for c in columns if c not in metric_names]
+        dimensions = [c for c in columns if c not in metric_names and c != ts_dim]
         ingest_query_dict = {
             "type": "index_hadoop",
             "spec": {
@@ -100,7 +123,7 @@ class DruidHook(BaseHook):
                     },
                     "partitionsSpec" : {
                         "type" : "hashed",
-                        "targetPartitionSize" : -1,
+                        "targetPartitionSize" : target_partition_size,
                         "numShards" : num_shards,
                     },
                 },
@@ -121,10 +144,10 @@ class DruidHook(BaseHook):
 
     def send_ingest_query(
             self, datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates=None):
         query = self.construct_ingest_query(
             datasource, static_path, ts_dim, columns,
-            metric_spec, intervals, num_shards, hadoop_dependency_coordinates)
+            metric_spec, intervals, num_shards, target_partition_size, hadoop_dependency_coordinates)
         r = requests.post(
             self.ingest_post_url, headers=self.header, data=query)
         logging.info(self.ingest_post_url)
@@ -138,7 +161,7 @@ class DruidHook(BaseHook):
 
     def load_from_hdfs(
             self, datasource, static_path,  ts_dim, columns,
-            intervals, num_shards, metric_spec=None, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size, metric_spec=None, hadoop_dependency_coordinates=None):
         """
         load data to druid from hdfs
         :params ts_dim: The column name to use as a timestamp
@@ -146,7 +169,7 @@ class DruidHook(BaseHook):
         """
         task_id = self.send_ingest_query(
             datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, hadoop_dependency_coordinates)
+            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates)
         status_url = self.get_ingest_status_url(task_id)
         while True:
             r = requests.get(status_url)

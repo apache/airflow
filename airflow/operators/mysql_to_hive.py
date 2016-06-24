@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
@@ -5,9 +19,10 @@ import logging
 from tempfile import NamedTemporaryFile
 import MySQLdb
 
-from airflow.hooks import HiveCliHook, MySqlHook
+from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class MySqlToHiveTransfer(BaseOperator):
@@ -96,8 +111,8 @@ class MySqlToHiveTransfer(BaseOperator):
         conn = mysql.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
-        with NamedTemporaryFile("w") as f:
-            csv_writer = csv.writer(f, delimiter=self.delimiter)
+        with NamedTemporaryFile("wb") as f:
+            csv_writer = csv.writer(f, delimiter=self.delimiter, encoding="utf-8")
             field_dict = OrderedDict()
             for field in cursor.description:
                 field_dict[field[0]] = self.type_map(field[1])

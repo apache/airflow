@@ -1,11 +1,28 @@
+{# 
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+  
+    http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
 {% extends "airflow/master.html" %}
 {% import 'admin/lib.html' as lib with context %}
 
 {% block title %}Airflow - DAG {{ dag.dag_id }}{% endblock %}
 
 {% block head_css %}
-  {{ super() }}
   {{ lib.form_css() }}
+  {{ super() }}
 {% endblock %}
 
 {% block body %}
@@ -62,7 +79,7 @@
       <li>
       <a href="{{ url_for("airflow.dag_details", dag_id=dag.dag_id) }}">
           <span class="glyphicon glyphicon-list" aria-hidden="true"></span>
-          Details 
+          Details
         </a>
       </li>
       <li>
@@ -148,6 +165,10 @@
               >
               Downstream
             </button>
+            <button id="btn_recursive"
+              type="button" class="btn active" data-toggle="button">
+               Recursive
+            </button>
           </span>
           <hr/>
           <button id="btn_success" type="button" class="btn btn-primary">
@@ -166,6 +187,10 @@
               type="button" class="btn" data-toggle="button">
               Downstream
             </button>
+            <button id="btn_success_recursive"
+              type="button" class="btn" data-toggle="button">
+              Recursive
+            </button>
           </span>
         </div>
         <div class="modal-footer">
@@ -178,8 +203,8 @@
   </div>
 {% endblock %}
 {% block tail %}
-  {{ super() }}
   {{ lib.form_js() }}
+  {{ super() }}
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
@@ -280,6 +305,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&past=" + $('#btn_past').hasClass('active') +
         "&upstream=" + $('#btn_upstream').hasClass('active') +
         "&downstream=" + $('#btn_downstream').hasClass('active') +
+        "&recursive=" + $('#btn_recursive').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
@@ -293,6 +319,7 @@ function updateQueryStringParameter(uri, key, value) {
         "&downstream=" + $('#btn_success_downstream').hasClass('active') +
         "&future=" + $('#btn_success_future').hasClass('active') +
         "&past=" + $('#btn_success_past').hasClass('active') +
+        "&recursive=" + $('#btn_success_recursive').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
 

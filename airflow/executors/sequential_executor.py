@@ -1,9 +1,22 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import str
-import logging
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils import State
+from airflow.utils.state import State
 
 
 class SequentialExecutor(BaseExecutor):
@@ -25,13 +38,14 @@ class SequentialExecutor(BaseExecutor):
     def sync(self):
         for key, command in self.commands_to_run:
             self.logger.info("Executing command: {}".format(command))
+
             try:
-                sp = subprocess.Popen(command, shell=True)
-                sp.wait()
-            except Exception as e:
+                subprocess.check_call(command, shell=True)
+                self.change_state(key, State.SUCCESS)
+            except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)
-                raise e
-            self.change_state(key, State.SUCCESS)
+                self.logger.error("Failed to execute task {}:".format(str(e)))
+
         self.commands_to_run = []
 
     def end(self):

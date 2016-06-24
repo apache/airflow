@@ -1,7 +1,10 @@
-.. image:: img/pin_large.png
-    :width: 70
 
-Airflow Documentation
+.. image:: img/pin_large.png
+    :width: 100
+.. image:: img/incubator.jpg
+    :width: 150
+
+Apache Airflow (incubating) Documentation
 ================================
 
 Airflow is a platform to programmatically author, schedule and monitor
@@ -18,6 +21,7 @@ When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
 
 ------------
+
 
 .. image:: img/airflow.gif
 
@@ -44,24 +48,28 @@ or `Storm <https://storm.apache.org/>`_ space, it is more comparable to
 
 Workflows are expected to be mostly static or slowly changing. You can think
 of the structure of the tasks in your workflow as slightly more dynamic
-than a database structure would be. Airflow workflows are expected to look 
-similar from a run to the next, this allows for clarity around 
+than a database structure would be. Airflow workflows are expected to look
+similar from a run to the next, this allows for clarity around
 unit of work and continuity.
+
 
 Content
 -------
 .. toctree::
     :maxdepth: 4
 
+    project
+    license
     start
-    tutorial
-    ui
     installation
+    tutorial
+    configuration
+    ui
     concepts
     profiling
     cli
     scheduler
     plugins
     security
-    faq 
+    faq
     code

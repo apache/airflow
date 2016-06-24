@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -22,6 +36,9 @@ class DummyStatsLogger(object):
         pass
     @classmethod
     def gauge(cls, stat, value, rate=1, delta=False):
+        pass
+    @classmethod
+    def timing(cls, stat, dt):
         pass
 
 Stats = DummyStatsLogger
@@ -55,8 +72,9 @@ DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 engine_args = {}
 if 'sqlite' not in SQL_ALCHEMY_CONN:
     # Engine args not supported by sqlite
-    engine_args['pool_size'] = 5
-    engine_args['pool_recycle'] = 3600
+    engine_args['pool_size'] = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE')
+    engine_args['pool_recycle'] = conf.getint('core',
+                                              'SQL_ALCHEMY_POOL_RECYCLE')
 
 engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
 Session = scoped_session(
@@ -93,6 +111,7 @@ def policy(task_instance):
     * ...
     """
     pass
+
 
 def configure_logging():
     logging.root.handlers = []

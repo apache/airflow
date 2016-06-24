@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import multiprocessing
 import subprocess
 import time
@@ -6,7 +20,8 @@ from builtins import range
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils import State, LoggingMixin
+from airflow.utils.state import State
+from airflow.utils.logging import LoggingMixin
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
@@ -17,6 +32,7 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
         multiprocessing.Process.__init__(self)
         self.task_queue = task_queue
         self.result_queue = result_queue
+        self.daemon = True
 
     def run(self):
         while True:
@@ -29,9 +45,9 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
                 self.__class__.__name__, command))
             command = "exec bash -c '{0}'".format(command)
             try:
-                subprocess.Popen(command, shell=True).wait()
+                subprocess.check_call(command, shell=True)
                 state = State.SUCCESS
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 state = State.FAILED
                 self.logger.error("failed to execute task {}:".format(str(e)))
                 # raise e
@@ -71,3 +87,4 @@ class LocalExecutor(BaseExecutor):
         [self.queue.put((None, None)) for w in self.workers]
         # Wait for commands to finish
         self.queue.join()
+        self.sync()

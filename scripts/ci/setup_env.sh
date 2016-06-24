@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -o verbose
 
 MINIKDC_VERSION=2.7.1
@@ -7,6 +21,10 @@ HADOOP_DISTRO=${HADOOP_DISTRO:-"hdp"}
 
 ONLY_DOWNLOAD=${ONLY_DOWNLOAD:-false}
 ONLY_EXTRACT=${ONLY_EXTRACT:-false}
+
+MINICLUSTER_URL=https://github.com/bolkedebruin/minicluster/releases/download/1.1/minicluster-1.1-SNAPSHOT-bin.zip
+
+HIVE_HOME=/tmp/hive
 
 while test $# -gt 0; do
     case "$1" in
@@ -46,6 +64,7 @@ while test $# -gt 0; do
 done
 
 HADOOP_HOME=/tmp/hadoop-${HADOOP_DISTRO}
+MINICLUSTER_HOME=/tmp/minicluster
 
 if $ONLY_DOWNLOAD && $ONLY_EXTRACT; then
     echo "Both only-download and only-extract specified - abort" >&2
@@ -54,11 +73,18 @@ fi
 
 mkdir -p ${HADOOP_HOME}
 mkdir -p ${TRAVIS_CACHE}/${HADOOP_DISTRO}
+mkdir -p ${TRAVIS_CACHE}/minicluster
+mkdir -p ${TRAVIS_CACHE}/hive
+mkdir -p ${HIVE_HOME}
+chmod -R 777 ${HIVE_HOME}
+mkdir -p /user/hive/warehouse
 
 if [ $HADOOP_DISTRO = "cdh" ]; then
     URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
+    HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
-    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.0.6.0/tars/hadoop-2.2.0.2.0.6.0-76.tar.gz"
+    URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/hadoop-2.7.1.2.3.2.0-2950.tar.gz"
+    HIVE_URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/apache-hive-1.2.1.2.3.2.0-2950-bin.tar.gz"
 else
     echo "No/bad HADOOP_DISTRO='${HADOOP_DISTRO}' specified" >&2
     exit 1
@@ -83,7 +109,25 @@ tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $
 
 if [ $? != 0 ]; then
     echo "Failed to extract Hadoop from ${HADOOP_HOME}/hadoop.tar.gz to ${HADOOP_HOME} - abort" >&2
-    exit 1
+    echo "Trying again..." >&2
+    # dont use cache
+    curl -o ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz -L $URL
+    tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
+    if [ $? != 0 ]; then
+        echo "Failed twice in downloading and unpacking hadoop!" >&2
+        exit 1
+    fi
 fi
 
+echo "Downloading and unpacking hive"
+curl -z ${TRAVIS_CACHE}/hive/hive.tar.gz -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
+tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
+
+echo "Downloading and unpacking minicluster"
+curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+
+echo "Path = ${PATH}"
+
+java -cp "/tmp/minicluster-1.1-SNAPSHOT/*" com.ing.minicluster.MiniCluster > /dev/null &

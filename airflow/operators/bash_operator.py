@@ -1,12 +1,27 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 from builtins import bytes
 import logging
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults, TemporaryDirectory
+from airflow.utils.decorators import apply_defaults
+from airflow.utils.file import TemporaryDirectory
 
 
 class BashOperator(BaseOperator):
@@ -19,7 +34,7 @@ class BashOperator(BaseOperator):
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
-        behavior.
+        behavior. (templated)
     :type env: dict
     :type output_encoding: output encoding of bash command
     """

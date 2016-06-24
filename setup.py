@@ -1,11 +1,28 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
+import logging
 import os
 import sys
 
+logger = logging.getLogger(__name__)
+
 # Kept manually in sync with airflow.__version__
-version = '1.6.2'
+version = '1.7.1.3'
 
 
 class Tox(TestCommand):
@@ -35,6 +52,51 @@ class CleanCommand(Command):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
 
+def git_version(version):
+    """
+    Return a version to identify the state of the underlying git repo. The version will
+    indicate whether the head of the current git-backed working directory is tied to a
+    release tag or not : it will indicate the former with a 'release:{version}' prefix
+    and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
+    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted changes
+    are present.
+    """
+    repo = None
+    try:
+        import git
+        repo = git.Repo('.git')
+    except ImportError:
+        logger.warn('gitpython not found: Cannot compute the git version.')
+        return ''
+    except Exception as e:
+        logger.warn('Git repo not found: Cannot compute the git version.')
+        return ''
+    if repo:
+        sha = repo.head.commit.hexsha
+        if repo.is_dirty():
+            return '.dev0+{sha}.dirty'.format(sha=sha)
+        # commit is clean
+        # is it release of `version` ?
+        try:
+            tag = repo.git.describe(
+                match='[0-9]*', exact_match=True,
+                tags=True, dirty=True)
+            assert tag == version, (tag, version)
+            return '.release:{version}+{sha}'.format(version=version,
+                                                     sha=sha)
+        except git.GitCommandError:
+            return '.dev0+{sha}'.format(sha=sha)
+    else:
+        return 'no_git_version'
+
+
+def write_version(filename=os.path.join(*['airflow',
+                                          'git_version'])):
+    text = "{}".format(git_version(version))
+    with open(filename, 'w') as a:
+        a.write(text)
+
+
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
@@ -53,17 +115,24 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
-hdfs = ['snakebite>=2.4.13']
+gcp_api = [
+    'httplib2',
+    'google-api-python-client>=1.5.0, <1.6.0',
+    'oauth2client>=2.0.2, <2.1.0',
+    'PyOpenSSL',
+]
+hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
-    'pyhs2>=0.6.0',
+    'impyla>=0.13.3',
+    'unicodecsv>=0.14.1'
 ]
 jdbc = ['jaydebeapi>=0.2.0']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.13.0']
+mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
-optional = ['librabbitmq>=1.6.1']
+rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.6']
 s3 = [
@@ -71,90 +140,121 @@ s3 = [
     'filechunkio>=1.6',
 ]
 samba = ['pysmbclient>=0.1.3']
-slack = ['slackclient>=0.15']
+slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = ['pykerberos>=1.1.8']
+kerberos = ['pykerberos>=1.1.8',
+            'thrift_sasl>=0.2.0',
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
+cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica
-devel = ['lxml>=3.3.4', 'nose', 'mock']
-devel += all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira']
+devel_minreq = devel + mysql + doc + password + s3
+devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
+devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
 
-setup(
-    name='airflow',
-    description='Programmatically author, schedule and monitor data pipelines',
-    version=version,
-    packages=find_packages(),
-    package_data={'': ['airflow/alembic.ini']},
-    include_package_data=True,
-    zip_safe=False,
-    scripts=['airflow/bin/airflow'],
-    install_requires=[
-        'alembic>=0.8.3, <0.9',
-        'babel>=1.3, <2.0',
-        'chartkick>=0.4.2, < 0.5',
-        'croniter>=0.3.8, <0.4',
-        'dill>=0.2.2, <0.3',
-        'flask>=0.10.1, <0.11',
-        'flask-admin>=1.4.0, <2.0.0',
-        'flask-cache>=0.13.1, <0.14',
-        'flask-login==0.2.11',
-        'future>=0.15.0, <0.16',
-        'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
-        'jinja2>=2.7.3, <3.0',
-        'markdown>=2.5.2, <3.0',
-        'oauth2client>=1.5.2, <2.0.0',
-        'pandas>=0.15.2, <1.0.0',
-        'pygments>=2.0.1, <3.0',
-        'python-dateutil>=2.3, <3',
-        'requests>=2.5.1, <3',
-        'setproctitle>=1.1.8, <2',
-        'sqlalchemy>=0.9.8',
-        'thrift>=0.9.2, <0.10',
-        'Flask-WTF==0.12'
-    ],
-    extras_require={
-        'all': devel + optional,
-        'all_dbs': all_dbs,
-        'async': async,
-        'celery': celery,
-        'crypto': crypto,
-        'devel': devel,
-        'doc': doc,
-        'docker': docker,
-        'druid': druid,
-        'hdfs': hdfs,
-        'hive': hive,
-        'jdbc': jdbc,
-        'mssql': mssql,
-        'mysql': mysql,
-        'oracle': oracle,
-        'postgres': postgres,
-        's3': s3,
-        'samba': samba,
-        'slack': slack,
-        'statsd': statsd,
-        'vertica': vertica,
-        'ldap': ldap,
-        'webhdfs': webhdfs,
-        'kerberos': kerberos,
-        'password': password,
-        'github_enterprise': github_enterprise,
-        'qds': qds
-    },
-    author='Maxime Beauchemin',
-    author_email='maximebeauchemin@gmail.com',
-    url='https://github.com/airbnb/airflow',
-    download_url=(
-        'https://github.com/airbnb/airflow/tarball/' + version),
-    cmdclass={'test': Tox,
-              'extra_clean': CleanCommand,
-              },
-)
+
+def do_setup():
+    write_version()
+    setup(
+        name='airflow',
+        description='Programmatically author, schedule and monitor data pipelines',
+        license='Apache License 2.0',
+        version=version,
+        packages=find_packages(),
+        package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
+        include_package_data=True,
+        zip_safe=False,
+        scripts=['airflow/bin/airflow'],
+        install_requires=[
+            'alembic>=0.8.3, <0.9',
+            'babel>=1.3, <2.0',
+            'croniter>=0.3.8, <0.4',
+            'dill>=0.2.2, <0.3',
+            'flask>=0.10.1, <0.11',
+            'flask-admin==1.4.1',
+            'flask-cache>=0.13.1, <0.14',
+            'flask-login==0.2.11',
+            'flask-wtf==0.12',
+            'funcsigs>=0.4, <1',
+            'future>=0.15.0, <0.16',
+            'gitpython>=2.0.2',
+            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
+            'jinja2>=2.7.3, <3.0',
+            'markdown>=2.5.2, <3.0',
+            'pandas>=0.15.2, <1.0.0',
+            'pygments>=2.0.1, <3.0',
+            'python-daemon>=2.1.1, <2.2',
+            'python-dateutil>=2.3, <3',
+            'python-nvd3==0.14.2',
+            'requests>=2.5.1, <3',
+            'setproctitle>=1.1.8, <2',
+            'sqlalchemy>=0.9.8',
+            'thrift>=0.9.2, <0.10',
+            'zope.deprecation>=4.0, <5.0',
+        ],
+        extras_require={
+            'all': devel_all,
+            'all_dbs': all_dbs,
+            'async': async,
+            'celery': celery,
+            'cloudant': cloudant,
+            'crypto': crypto,
+            'devel': devel_minreq,
+            'devel_hadoop': devel_hadoop,
+            'doc': doc,
+            'docker': docker,
+            'druid': druid,
+            'gcp_api': gcp_api,
+            'github_enterprise': github_enterprise,
+            'hdfs': hdfs,
+            'hive': hive,
+            'jdbc': jdbc,
+            'kerberos': kerberos,
+            'ldap': ldap,
+            'mssql': mssql,
+            'mysql': mysql,
+            'oracle': oracle,
+            'password': password,
+            'postgres': postgres,
+            'qds': qds,
+            'rabbitmq': rabbitmq,
+            's3': s3,
+            'samba': samba,
+            'slack': slack,
+            'statsd': statsd,
+            'vertica': vertica,
+            'webhdfs': webhdfs,
+        },
+        classifiers=[
+            'Development Status :: 5 - Production/Stable',
+            'Environment :: Console',
+            'Environment :: Web Environment',
+            'Intended Audience :: Developers',
+            'Intended Audience :: System Administrators',
+            'License :: OSI Approved :: Apache Software License',
+            'Programming Language :: Python :: 2.7',
+            'Programming Language :: Python :: 3.4',
+            'Topic :: System :: Monitoring',
+        ],
+        author='Maxime Beauchemin',
+        author_email='maximebeauchemin@gmail.com',
+        url='https://github.com/apache/incubator-airflow',
+        download_url=(
+            'https://github.com/apache/incubator-airflow/tarball/' + version),
+        cmdclass={'test': Tox,
+                  'extra_clean': CleanCommand,
+                  },
+    )
+
+
+if __name__ == "__main__":
+    do_setup()

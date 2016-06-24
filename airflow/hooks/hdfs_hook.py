@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 
@@ -7,7 +21,7 @@ try:
 except ImportError:
     snakebite_imported = False
 
-from airflow.utils import AirflowException
+from airflow.exceptions import AirflowException
 
 
 class HDFSHookException(AirflowException):
@@ -47,12 +61,16 @@ class HDFSHook(BaseHook):
             if autoconfig:
                 client = AutoConfigClient(effective_user=effective_user, use_sasl=use_sasl)
             else:
+                hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
                 client = Client(connections[0].host, connections[0].port,
-                                effective_user=effective_user, use_sasl=use_sasl)
+                                effective_user=effective_user, use_sasl=use_sasl,
+                                hdfs_namenode_principal=hdfs_namenode_principal)
         elif len(connections) > 1:
+            hdfs_namenode_principal = connections[0].extra_dejson.get('hdfs_namenode_principal')
             nn = [Namenode(conn.host, conn.port) for conn in connections]
-            client = HAClient(nn, effective_user=effective_user, use_sasl=use_sasl)
+            client = HAClient(nn, effective_user=effective_user, use_sasl=use_sasl,
+                              hdfs_namenode_principal=hdfs_namenode_principal)
         else:
             raise HDFSHookException("conn_id doesn't exist in the repository")
-        
+
         return client

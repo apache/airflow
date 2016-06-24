@@ -1,8 +1,23 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 
-from airflow.hooks import PrestoHook, MySqlHook
+from airflow.hooks.presto_hook import PrestoHook
+from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
-from airflow.utils import apply_defaults
+from airflow.utils.decorators import apply_defaults
 
 
 class PrestoToMySqlTransfer(BaseOperator):
@@ -51,7 +66,7 @@ class PrestoToMySqlTransfer(BaseOperator):
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
         logging.info("Extracting data from Presto")
         logging.info(self.sql)
-        results = hive.get_records(self.sql)
+        results = presto.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
