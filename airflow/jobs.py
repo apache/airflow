@@ -393,8 +393,6 @@ class SchedulerJob(BaseJob):
                 external_trigger=False,
                 session=session
             )
-            if len(active_runs) >= dag.max_active_runs:
-                return
             for dr in active_runs:
                 if (
                         dr.start_date and dag.dagrun_timeout and
@@ -402,6 +400,8 @@ class SchedulerJob(BaseJob):
                     dr.state = State.FAILED
                     dr.end_date = datetime.now()
             session.commit()
+            if len(active_runs) >= dag.max_active_runs:
+                return
 
             # this query should be replaced by find dagrun
             qry = (
