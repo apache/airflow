@@ -116,16 +116,17 @@ class HiveToDruidTransfer(BaseOperator):
         logging.info("Inserting rows into Druid")
         logging.info("HDFS path: " + static_path)
 
-        druid.load_from_hdfs(
-            datasource=self.druid_datasource,
-            intervals=self.intervals,
-            static_path=static_path, ts_dim=self.ts_dim,
-            columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
-            metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
-        logging.info("Load seems to have succeeded!")
-
-        logging.info(
-            "Cleaning up by dropping the temp "
-            "Hive table {}".format(hive_table))
-        hql = "DROP TABLE IF EXISTS {}".format(hive_table)
-        hive.run_cli(hql)
+        try:
+            druid.load_from_hdfs(
+                datasource=self.druid_datasource,
+                intervals=self.intervals,
+                static_path=static_path, ts_dim=self.ts_dim,
+                columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
+                metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
+            logging.info("Load seems to have succeeded!")
+        finally:
+            logging.info(
+                "Cleaning up by dropping the temp "
+                "Hive table {}".format(hive_table))
+            hql = "DROP TABLE IF EXISTS {}".format(hive_table)
+            hive.run_cli(hql)
