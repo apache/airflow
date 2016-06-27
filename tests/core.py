@@ -428,6 +428,23 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+    def test_dag_run_state_sensor(self):
+        t = operators.sensors.DagRunStateSensor(
+            task_id='test_dag_run_state_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            allowed_states=['running'],
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_dag_run_state_sensor_delta(self):
+        t = operators.sensors.DagRunStateSensor(
+            task_id='test_dag_run_state_sensor_check_delta',
+            external_dag_id=TEST_DAG_ID,
+            execution_delta=timedelta(0),
+            allowed_states=['running'],
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
     def test_timeout(self):
         t = operators.PythonOperator(
             task_id='test_timeout',

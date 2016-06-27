@@ -24,7 +24,7 @@ from time import sleep
 import airflow
 from airflow import hooks, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
-from airflow.models import BaseOperator, TaskInstance, Connection as DB
+from airflow.models import BaseOperator, TaskInstance, DagRun, Connection as DB
 from airflow.hooks import BaseHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
@@ -219,6 +219,56 @@ class ExternalTaskSensor(BaseSensorOperator):
         ).count()
         session.commit()
         session.close()
+        return count
+
+
+class DagRunStateSensor(BaseSensorOperator):
+    """
+    Waits for a dag run to complete in a different DAG
+
+    :param external_dag_id: The dag_id that contains the task you want to
+        wait for
+    :type external_dag_id: string
+    :param allowed_states: list of allowed states, default is ``['success']``
+    :type allowed_states: list
+    :param execution_delta: time difference with the previous execution to
+        look at, the default is the same execution_date as the current task.
+        For yesterday, use [positive!] datetime.timedelta(days=1)
+    :type execution_delta: datetime.timedelta
+        """
+    @apply_defaults
+    def __init__(
+            self,
+            external_dag_id,
+            allowed_states=None,
+            execution_delta=None,
+            *args, **kwargs):
+        super(DagRunStateSensor, self).__init__(*args, **kwargs)
+        self.allowed_states = allowed_states or [State.SUCCESS]
+        self.execution_delta = execution_delta
+        self.external_dag_id = external_dag_id
+
+    def poke(self, context):
+        if self.execution_delta:
+            dttm = context['execution_date'] - self.execution_delta
+        else:
+            dttm = context['execution_date']
+
+        logging.info(
+            'Poking for '
+            '{self.external_dag_id}.'
+            '{dttm} ... '.format(**locals()))
+        dag_run = DagRun
+
+        session = settings.Session()
+        count = session.query(dag_run).filter(
+            dag_run.dag_id == self.external_dag_id,
+            dag_run.state.in_(self.allowed_states),
+            dag_run.execution_date == dttm,
+        ).count()
+        session.commit()
+        session.close()
+        logging.info('')
         return count
 
 
