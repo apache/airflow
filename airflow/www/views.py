@@ -38,6 +38,7 @@ from flask import (
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
+from flask_admin.babel import lazy_gettext
 from flask_admin.tools import iterdecode
 from flask_login import flash
 from flask._compat import PY2
@@ -2078,6 +2079,21 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
+    @action('delete',
+            lazy_gettext('Delete'),
+            lazy_gettext('Are you sure you want to delete selected records?'))
+    def action_delete(self, ids):
+        """
+        As a workaround for AIRFLOW-277, this method overrides Flask-Admin's ModelView.action_delete().
+
+        TODO: this method should be removed once the below bug is fixed on Flask-Admin side.
+        https://github.com/flask-admin/flask-admin/issues/1226
+        """
+        if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
+            self.delete_task_instances(ids)
+        else:
+            super(TaskInstanceModelView, self).action_delete(ids)
+
     @provide_session
     def set_task_instance_state(self, ids, target_state, session=None):
         try:
@@ -2097,6 +2113,24 @@ class TaskInstanceModelView(ModelViewOnly):
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set state', 'error')
+
+    @provide_session
+    def delete_task_instances(self, ids, session=None):
+        try:
+            TI = models.TaskInstance
+            count = 0
+            for id in ids:
+                task_id, dag_id, execution_date = id.split(',')
+                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                count += session.query(TI).filter(TI.task_id == task_id,
+                                                  TI.dag_id == dag_id,
+                                                  TI.execution_date == execution_date).delete()
+            session.commit()
+            flash("{count} task instances were deleted".format(**locals()))
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to delete', 'error')
 
     def get_one(self, id):
         """
