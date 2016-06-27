@@ -23,7 +23,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
     """
-    template_fields = ('bucket','object','filename',)
+    template_fields = ('bucket','object','filename','store_to_xcom_key',)
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
@@ -53,7 +53,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         :type filename: string
         :param store_to_xcom_key: If this param is set, the operator will push
             the contents of the downloaded file to XCom with the key set in this
-            paramater. If false, the downloaded data will not be pushed to XCom.
+            parameter. If false, the downloaded data will not be pushed to XCom.
         :type store_to_xcom_key: string
         :param google_cloud_storage_conn_id: The connection ID to use when
             connecting to Google cloud storage.
