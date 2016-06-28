@@ -17,7 +17,7 @@ from builtins import str
 import logging
 
 from airflow.exceptions import AirflowException
-from airflow.hooks import BaseHook
+from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

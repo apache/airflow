@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """Used for unit tests"""
-from airflow.operators import BashOperator
+from airflow.operators.bash_operator import BashOperator
 from airflow.models import DAG
 from datetime import datetime
 

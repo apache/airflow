@@ -25,6 +25,7 @@ import logging
 import os
 import re
 import sys
+import warnings
 
 from airflow.exceptions import AirflowException
 
@@ -163,8 +164,9 @@ def pprinttable(rows):
 class AirflowImporter(object):
     """
     Importer that dynamically loads a class and module from its parent. This
-    allows Airflow to support `from airflow.operators import BashOperator` even
-    though BashOperator is actually in airflow.operators.bash_operator.
+    allows Airflow to support `from airflow.operators.bash_operator import
+    BashOperator` even though BashOperator is actually in
+    airflow.operators.bash_operator.
 
     The importer also takes over for the parent_module by wrapping it. This is
     required to support attribute-based usage:
@@ -182,9 +184,9 @@ class AirflowImporter(object):
             classes.
         :type module_attributes: string
         """
-        self.parent_module = parent_module
-        self.attribute_modules = self._build_attribute_modules(module_attributes)
-        self.loaded_modules = {}
+        self._parent_module = parent_module
+        self._attribute_modules = self._build_attribute_modules(module_attributes)
+        self._loaded_modules = {}
 
         # Wrap the module so we can take over __getattr__.
         sys.modules[parent_module.__name__] = self
@@ -215,34 +217,33 @@ class AirflowImporter(object):
         """
         Load the class attribute if it hasn't been loaded yet, and return it.
         """
-        module = self.attribute_modules.get(attribute, False)
+        module = self._attribute_modules.get(attribute, False)
 
         if not module:
             # This shouldn't happen. The check happens in find_modules, too.
             raise ImportError(attribute)
-        elif module not in self.loaded_modules:
+        elif module not in self._loaded_modules:
             # Note that it's very important to only load a given modules once.
             # If they are loaded more than once, the memory reference to the
             # class objects changes, and Python thinks that an object of type
             # Foo that was declared before Foo's module was reloaded is no
             # longer the same type as Foo after it's reloaded.
-            path = os.path.realpath(self.parent_module.__file__)
+            path = os.path.realpath(self._parent_module.__file__)
             folder = os.path.dirname(path)
             f, filename, description = imp.find_module(module, [folder])
-            self.loaded_modules[module] = imp.load_module(module, f, filename, description)
+            self._loaded_modules[module] = imp.load_module(module, f, filename, description)
 
             # This functionality is deprecated, and AirflowImporter should be
             # removed in 2.0.
-            from zope.deprecation import deprecated as _deprecated
-            _deprecated(
-                attribute,
+            warnings.warn(
                 "Importing {i} directly from {m} has been "
                 "deprecated. Please import from "
                 "'{m}.[operator_module]' instead. Support for direct "
                 "imports will be dropped entirely in Airflow 2.0.".format(
-                    i=attribute, m=self.parent_module))
+                    i=attribute, m=self._parent_module),
+                DeprecationWarning)
 
-        loaded_module = self.loaded_modules[module]
+        loaded_module = self._loaded_modules[module]
 
         return getattr(loaded_module, attribute)
 
@@ -259,12 +260,12 @@ class AirflowImporter(object):
 
         It also allows normal from imports to work:
 
-            from airflow.operators import BashOperator
+            from airflow.operators.bash_operator import BashOperator
         """
-        if hasattr(self.parent_module, attribute):
+        if hasattr(self._parent_module, attribute):
             # Always default to the parent module if the attribute exists.
-            return getattr(self.parent_module, attribute)
-        elif attribute in self.attribute_modules:
+            return getattr(self._parent_module, attribute)
+        elif attribute in self._attribute_modules:
             # Try and import the attribute if it's got a module defined.
             loaded_attribute = self._load_attribute(attribute)
             setattr(self, attribute, loaded_attribute)

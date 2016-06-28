@@ -18,7 +18,9 @@ import unittest
 
 import airflow
 from airflow.models import DAG, DagBag
-from airflow.operators import BashOperator, DummyOperator, SubDagOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.subdag_operator import SubDagOperator
 from airflow.jobs import BackfillJob
 from airflow.exceptions import AirflowException
 

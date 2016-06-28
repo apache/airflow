@@ -60,7 +60,8 @@ from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom
 
-from airflow.operators import BaseOperator, SubDagOperator
+from airflow.models import BaseOperator
+from airflow.operators.subdag_operator import SubDagOperator
 
 from airflow.utils.logging import LoggingMixin
 from airflow.utils.json import json_ser

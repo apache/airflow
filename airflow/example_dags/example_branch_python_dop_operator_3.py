@@ -13,7 +13,8 @@
 # limitations under the License.
 #
 
-from airflow.operators import BranchPythonOperator, DummyOperator
+from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
 

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from airflow.hooks.presto_hook import PrestoHook
-from airflow.operators import CheckOperator, ValueCheckOperator, IntervalCheckOperator
+from airflow.operators.check_operator import CheckOperator, ValueCheckOperator, IntervalCheckOperator
 from airflow.utils.decorators import apply_defaults
 
 

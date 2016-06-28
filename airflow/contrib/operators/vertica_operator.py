@@ -14,7 +14,7 @@
 
 import logging
 
-from airflow.contrib.hooks import VerticaHook
+from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

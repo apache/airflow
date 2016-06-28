@@ -128,7 +128,7 @@ class GCSLog(object):
         self.hook = None
 
         try:
-            from airflow.contrib.hooks import GoogleCloudStorageHook
+            from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
             self.hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=remote_conn_id)
         except:
