@@ -23,6 +23,7 @@ import sys
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
 
@@ -121,11 +122,13 @@ engine = None
 Session = None
 
 
-def configure_orm():
+def configure_orm(disable_connection_pool=False):
     global engine
     global Session
     engine_args = {}
-    if 'sqlite' not in SQL_ALCHEMY_CONN:
+    if disable_connection_pool:
+        engine_args['poolclass'] = NullPool
+    elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Engine args not supported by sqlite
         engine_args['pool_size'] = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE')
         engine_args['pool_recycle'] = conf.getint('core',

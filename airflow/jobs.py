@@ -163,15 +163,21 @@ class BaseJob(Base, LoggingMixin):
         if job.state == State.SHUTDOWN:
             self.kill()
 
+        # Figure out how long to sleep for
+        sleep_for = 0
         if job.latest_heartbeat:
-            sleep_for = self.heartrate - (
-                datetime.now() - job.latest_heartbeat).total_seconds()
-            if sleep_for > 0:
-                sleep(sleep_for)
+            sleep_for = max(
+                0,
+                self.heartrate - (datetime.now() - job.latest_heartbeat).total_seconds())
 
-        job.latest_heartbeat = datetime.now()
+        # Don't keep session open while sleeping as it leaves a connection open
+        session.close()
+        sleep(sleep_for)
 
+        # Update last heartbeat time
         session = settings.Session()
+        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job.latest_heartbeat = datetime.now()
         session.merge(job)
         session.commit()
 
@@ -180,7 +186,7 @@ class BaseJob(Base, LoggingMixin):
         self.logger.debug('[heart] Boom.')
 
     def run(self):
-        Stats.incr(self.__class__.__name__.lower()+'_start', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         session = settings.Session()
         self.state = State.RUNNING
@@ -200,7 +206,7 @@ class BaseJob(Base, LoggingMixin):
         session.commit()
         session.close()
 
-        Stats.incr(self.__class__.__name__.lower()+'_end', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")
@@ -712,7 +718,7 @@ class SchedulerJob(BaseJob):
                 .filter(or_(
                     DagRun.external_trigger == False,
                     # add % as a wildcard for the like query
-                    DagRun.run_id.like(DagRun.ID_PREFIX+'%')
+                    DagRun.run_id.like(DagRun.ID_PREFIX + '%')
                 ))
             )
             last_scheduled_run = qry.scalar()
