@@ -18,6 +18,15 @@ objectClass: account
 objectClass: simpleSecurityObject
 uid: user1
 userPassword: user1
+memberOf: cn=group1,dc=example,dc=com
+memberOf: cn=group3,dc=example,dc=com
+
+dn: uid=user2,dc=example,dc=com
+objectClass: account
+objectClass: simpleSecurityObject
+uid: user2
+userPassword: user2
+memberOf: cn=group2,dc=example,dc=com
 
 dn: uid=dataprofiler,dc=example,dc=com
 objectClass: account
