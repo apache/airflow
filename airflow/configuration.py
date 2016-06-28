@@ -118,6 +118,7 @@ defaults = {
         'web_server_worker_timeout': 120,
         'authenticate': False,
         'filter_by_owner': False,
+        'owner_mode': 'user',
         'demo_mode': False,
         'secret_key': 'airflowified',
         'expose_config': False,
@@ -293,6 +294,13 @@ authenticate = False
 
 # Filter the list of dags by owner name (requires authentication to be enabled)
 filter_by_owner = False
+
+# Filtering mode. Choices include user (default) and ldapgroup.
+# Ldap group filtering requires using the ldap backend
+#
+# Note that the ldap server needs the "memberOf" overlay to be set up
+# in order to user the ldapgroup mode.
+owner_mode = user
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
@@ -486,6 +494,22 @@ class ConfigParserWithDefaults(ConfigParser):
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
             raise AirflowConfigException("error: cannot use sqlite with the {}".
                 format(self.get('core', 'executor')))
+
+        elif (
+            self.getboolean("webserver", "authenticate") and
+            self.get("webserver", "owner_mode") not in ['user', 'ldapgroup']
+        ):
+            raise AirflowConfigException("error: owner_mode option should be either "
+                                         "'user' or 'ldapgroup' "
+                                         "when filtering by owner is set")
+
+        elif (
+            self.getboolean("webserver", "authenticate") and
+            self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
+            self.get("core", "auth_backend") != 'airflow.contrib.auth.backends.ldap_auth'
+        ):
+            raise AirflowConfigException("error: attempt at using ldapgroup "
+                                         "filtering without using the Ldap backend")
 
         self.is_validated = True
 

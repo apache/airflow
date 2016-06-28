@@ -1619,17 +1619,30 @@ class HomeView(AdminIndexView):
         qry = None
         # filter the dags if filter_by_owner and current user is not superuser
         do_filter = FILTER_BY_OWNER and (not current_user.is_superuser())
+        owner_mode = conf.get('webserver', 'OWNER_MODE').strip().lower()
+
+        qry = session.query(DM)
+        qry_fltr = []
+
         if do_filter:
-            qry = (
-                session.query(DM)
-                    .filter(
-                    ~DM.is_subdag, DM.is_active,
-                    DM.owners.like('%' + current_user.username + '%'))
+            if owner_mode == 'ldapgroup':
+                qry_fltr = (
+                    qry.filter(
+                        ~DM.is_subdag, DM.is_active,
+                        DM.owners.in_(current_user.ldap_groups))
                     .all()
-            )
+                )
+            elif owner_mode == 'user':
+                qry_fltr = (
+                    qry.filter(
+                        ~DM.is_subdag, DM.is_active,
+                        DM.owners == current_user.user.username)
+                    .all()
+                )
         else:
-            qry = session.query(DM).filter(~DM.is_subdag, DM.is_active).all()
-        orm_dags = {dag.dag_id: dag for dag in qry}
+            qry_fltr = qry.filter(~DM.is_subdag, DM.is_active).all()
+
+        orm_dags = {dag.dag_id: dag for dag in qry_fltr}
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
             flash(
@@ -1640,12 +1653,21 @@ class HomeView(AdminIndexView):
         session.close()
         dags = dagbag.dags.values()
         if do_filter:
-            dags = {
-                dag.dag_id: dag
-                for dag in dags
-                if (
-                    dag.owner == current_user.username and (not dag.parent_dag)
-                )
+            if owner_mode == 'ldapgroup':
+                dags = {
+                    dag.dag_id: dag
+                    for dag in dags
+                    if (
+                        dag.owner in current_user.ldap_groups and (not dag.parent_dag)
+                    )
+                }
+            elif owner_mode == 'user':
+                dags = {
+                    dag.dag_id: dag
+                    for dag in dags
+                    if (
+                        dag.owner == current_user.user.username and (not dag.parent_dag)
+                    )
                 }
         else:
             dags = {dag.dag_id: dag for dag in dags if not dag.parent_dag}
