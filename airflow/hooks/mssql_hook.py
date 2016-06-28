@@ -32,10 +32,11 @@ class MsSqlHook(DbApiHook):
         """
         conn = self.get_connection(self.mssql_conn_id)
         conn = pymssql.connect(
-            conn.host,
-            conn.login,
-            conn.password,
-            conn.schema)
+            server=conn.host,
+            user=conn.login,
+            password=conn.password,
+            database=conn.schema,
+            port=conn.port)
         return conn
 
     def set_autocommit(self, conn, autocommit):
