@@ -16,7 +16,8 @@
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators import BashOperator, PythonOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python_operator import PythonOperator
 
 dag = DAG("example_passing_params_via_test_command",
           default_args={"owner" : "airflow",

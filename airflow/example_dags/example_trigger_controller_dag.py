@@ -29,7 +29,7 @@ This example illustrates the following features :
 """
 
 from airflow import DAG
-from airflow.operators import TriggerDagRunOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime
 
 import pprint

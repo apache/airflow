@@ -15,7 +15,7 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator
+from airflow.operators.dummy_operator import DummyOperator
 DEFAULT_DATE = datetime(2100, 1, 1)
 
 # DAG tests backfill with pooled tasks

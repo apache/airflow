@@ -14,7 +14,8 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator, SubDagOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.subdag_operator import SubDagOperator
 
 from airflow.example_dags.subdags.subdag import subdag
 
