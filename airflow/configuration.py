@@ -692,7 +692,7 @@ def test_mode():
     conf = ConfigParserWithDefaults(defaults)
     conf.read(TEST_CONFIG)
 
-conf = ConfigParserWithDefaults(defaults)
+conf = ConfigParserWithDefaults(defaults, os.environ)
 conf.read(AIRFLOW_CONFIG)
 
 
