@@ -68,6 +68,7 @@ _operators = {
         'HivePartitionSensor',
         'HttpSensor',
         'MetastorePartitionSensor',
+        'NamedHivePartitionSensor',
         'S3KeySensor',
         'S3PrefixSensor',
         'SqlSensor',

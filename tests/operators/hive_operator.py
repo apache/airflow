@@ -24,6 +24,7 @@ configuration.test_mode()
 
 import os
 import unittest
+import nose
 
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
@@ -160,6 +161,36 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='hive_stats_check',
                 table="airflow.static_babynames_partitioned",
                 partition={'ds': DEFAULT_DATE_DS},
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+        def test_named_hive_partition_sensor(self):
+            t = operators.sensors.NamedHivePartitionSensor(
+                task_id='hive_partition_check',
+                partition_names=["airflow.static_babynames_partitioned/ds={{ds}}"],
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+        def test_named_hive_partition_sensor_succeeds_on_multiple_partitions(self):
+            t = operators.sensors.NamedHivePartitionSensor(
+                task_id='hive_partition_check',
+                partition_names=[
+                    "airflow.static_babynames_partitioned/ds={{ds}}",
+                    "airflow.static_babynames_partitioned/ds={{ds}}"
+                ],
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+        @nose.tools.raises(airflow.exceptions.AirflowSensorTimeout)
+        def test_named_hive_partition_sensor_times_out_on_nonexistent_partition(self):
+            t = operators.sensors.NamedHivePartitionSensor(
+                task_id='hive_partition_check',
+                partition_names=[
+                    "airflow.static_babynames_partitioned/ds={{ds}}",
+                    "airflow.static_babynames_partitioned/ds=nonexistent"
+                ],
+                poke_interval=0.1,
+                timeout=1,
                 dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
