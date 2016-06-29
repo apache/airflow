@@ -652,7 +652,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        dr.start_date = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         session.merge(dr)
         session.commit()
 
@@ -695,7 +695,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNone(new_dr)
 
         # Should be scheduled as dagrun_timeout has passed
-        dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        dr.start_date = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         session.merge(dr)
         session.commit()
         new_dr = scheduler.create_dag_run(dag)
@@ -812,12 +812,12 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertTrue(dag.start_date > DEFAULT_DATE)
 
         expected_run_duration = 5
-        start_time = datetime.datetime.now()
+        start_time = datetime.datetime.utcnow()
         scheduler = SchedulerJob(dag_id,
                                  run_duration=expected_run_duration,
                                  **self.default_scheduler_args)
         scheduler.run()
-        end_time = datetime.datetime.now()
+        end_time = datetime.datetime.utcnow()
 
         run_duration = (end_time - start_time).total_seconds()
         logging.info("Test ran in %.2fs, expected %.2fs",

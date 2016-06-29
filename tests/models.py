@@ -303,7 +303,7 @@ class TaskInstanceTest(unittest.TestCase):
                              pool='test_run_pooling_task_pool', owner='airflow',
                              start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+            task=task, execution_date=datetime.datetime.utcnow())
         ti.run()
         self.assertEqual(ti.state, models.State.QUEUED)
 
@@ -324,7 +324,7 @@ class TaskInstanceTest(unittest.TestCase):
             owner='airflow',
             start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+            task=task, execution_date=datetime.datetime.utcnow())
         ti.run(mark_success=True)
         self.assertEqual(ti.state, models.State.SUCCESS)
 
@@ -345,7 +345,7 @@ class TaskInstanceTest(unittest.TestCase):
             owner='airflow',
             start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+            task=task, execution_date=datetime.datetime.utcnow())
         ti.run()
         self.assertTrue(ti.state == models.State.SKIPPED)
 
@@ -370,7 +370,7 @@ class TaskInstanceTest(unittest.TestCase):
                 pass
 
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+            task=task, execution_date=datetime.datetime.utcnow())
 
         # first run -- up for retry
         run_with_error(ti)
@@ -411,7 +411,7 @@ class TaskInstanceTest(unittest.TestCase):
                 pass
 
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
+            task=task, execution_date=datetime.datetime.utcnow())
 
         # first run -- up for retry
         run_with_error(ti)
@@ -454,8 +454,8 @@ class TaskInstanceTest(unittest.TestCase):
             owner='airflow',
             start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
         ti = TI(
-            task=task, execution_date=datetime.datetime.now())
-        ti.end_date = datetime.datetime.now()
+            task=task, execution_date=datetime.datetime.utcnow())
+        ti.end_date = datetime.datetime.utcnow()
 
         ti.try_number = 1
         dt = ti.next_retry_datetime()
@@ -577,7 +577,7 @@ class TaskInstanceTest(unittest.TestCase):
             pool='test_xcom',
             owner='airflow',
             start_date=datetime.datetime(2016, 6, 2, 0, 0, 0))
-        exec_date = datetime.datetime.now()
+        exec_date = datetime.datetime.utcnow()
         ti = TI(
             task=task, execution_date=exec_date)
         ti.run(mark_success=True)
@@ -603,7 +603,7 @@ class TaskInstanceTest(unittest.TestCase):
             pool='test_xcom',
             owner='airflow',
             start_date=datetime.datetime(2016, 6, 2, 0, 0, 0))
-        exec_date = datetime.datetime.now()
+        exec_date = datetime.datetime.utcnow()
         ti = TI(
             task=task, execution_date=exec_date)
         ti.run(mark_success=True)

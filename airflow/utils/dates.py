@@ -66,7 +66,7 @@ def date_range(
     if end_date and num:
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
-        end_date = datetime.now()
+        end_date = datetime.utcnow()
 
     delta_iscron = False
     if isinstance(delta, six.string_types):
