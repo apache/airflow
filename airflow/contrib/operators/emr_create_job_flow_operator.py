@@ -41,11 +41,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
             self,
             aws_conn_id='s3_default',
             emr_conn_id='emr_default',
-            job_flow_overrides={},
+            job_flow_overrides=None,
             *args, **kwargs):
         super(EmrCreateJobFlowOperator, self).__init__(*args, **kwargs)
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
+        if job_flow_overrides is None:
+            job_flow_overrides = {}
         self.job_flow_overrides = job_flow_overrides
 
     def execute(self, context):
