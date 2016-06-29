@@ -31,7 +31,7 @@ import inspect
 import traceback
 
 import sqlalchemy as sqla
-from sqlalchemy import or_, desc, and_
+from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
     redirect, url_for, request, Markup, Response, current_app, render_template)
@@ -497,23 +497,27 @@ class Airflow(BaseView):
 
         # Select all task_instances from active dag_runs.
         # If no dag_run is active, return task instances from most recent dag_run.
-        qry = (
-            session.query(TI.dag_id, TI.state, sqla.func.count(TI.task_id))
-            .outerjoin(RunningDagRun, and_(
-                RunningDagRun.c.dag_id == TI.dag_id,
-                RunningDagRun.c.execution_date == TI.execution_date)
-            )
-            .outerjoin(LastDagRun, and_(
+        LastTI = (
+            session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
+            .join(LastDagRun, and_(
                 LastDagRun.c.dag_id == TI.dag_id,
-                LastDagRun.c.execution_date == TI.execution_date)
-            )
+                LastDagRun.c.execution_date == TI.execution_date))
             .filter(TI.task_id.in_(task_ids))
             .filter(TI.dag_id.in_(dag_ids))
-            .filter(or_(
-                RunningDagRun.c.dag_id != None,
-                LastDagRun.c.dag_id != None
-            ))
-            .group_by(TI.dag_id, TI.state)
+        )
+        RunningTI = (
+            session.query(TI.dag_id.label('dag_id'), TI.state.label('state'))
+            .join(RunningDagRun, and_(
+                RunningDagRun.c.dag_id == TI.dag_id,
+                RunningDagRun.c.execution_date == TI.execution_date))
+            .filter(TI.task_id.in_(task_ids))
+            .filter(TI.dag_id.in_(dag_ids))
+        )
+
+        UnionTI = union_all(LastTI, RunningTI).alias('union_ti')
+        qry = (
+            session.query(UnionTI.c.dag_id, UnionTI.c.state, sqla.func.count())
+            .group_by(UnionTI.c.dag_id, UnionTI.c.state)
         )
 
         data = {}
