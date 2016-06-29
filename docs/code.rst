@@ -90,13 +90,13 @@ Community-contributed Operators
 .. automodule:: airflow.contrib.operators
     :show-inheritance:
     :members:
-        BigQueryOperator,
-        BigQueryToCloudStorageOperator,
-        GoogleCloudStorageDownloadOperator,
         SSHExecuteOperator,
         VerticaOperator,
         VerticaToHiveTransfer
 
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
+.. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.QuboleOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
@@ -235,6 +235,8 @@ Community contributed hooks
         SSHHook,
         CloudantHook
 
+.. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+
 Executors
 ---------
 Executors are the mechanism by which task instances get run.
@@ -246,7 +248,4 @@ Executors are the mechanism by which task instances get run.
 Community-contributed executors
 '''''''''''''''''''''''''''''''
 
-.. automodule:: airflow.contrib.executors
-    :show-inheritance:
-    :members:
-        MesosExecutor
+.. autoclass:: airflow.contrib.executors.mesos_executor.MesosExecutor
