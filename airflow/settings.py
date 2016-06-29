@@ -23,6 +23,7 @@ import sys
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
 
@@ -77,6 +78,7 @@ if 'sqlite' not in SQL_ALCHEMY_CONN:
                                               'SQL_ALCHEMY_POOL_RECYCLE')
 
 engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
+
 Session = scoped_session(
     sessionmaker(autocommit=False, autoflush=False, bind=engine))
 

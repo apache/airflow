@@ -1150,7 +1150,7 @@ class TaskInstance(Base):
         to be retried.
         """
         return self.state == State.UP_FOR_RETRY and \
-            self.end_date + self.task.retry_delay < datetime.now()
+            self.end_date + self.task.retry_delay < datetime.now() + self.task.retry_overrun
 
     @provide_session
     def pool_full(self, session):
@@ -1710,6 +1710,11 @@ class BaseOperator(object):
     :type start_date: datetime
     :param end_date: if specified, the scheduler won't go beyond this date
     :type end_date: datetime
+    :param retry_overrun: task instances may be dynamically allocated an
+        end_date in certain circumstances. In general, this may prevent
+        retries from occurring. Setting this parameter will allow that
+        end date to be overrun by this amount. 
+    :type retry_overrun: timedelta
     :param depends_on_past: when set to true, task instances will run
         sequentially while relying on the previous task's schedule to
         succeed. The task instance for the start_date is allowed to run.
@@ -1788,6 +1793,7 @@ class BaseOperator(object):
             email_on_failure=True,
             retries=0,
             retry_delay=timedelta(seconds=300),
+            retry_overrun=timedelta(seconds=0),
             start_date=None,
             end_date=None,
             schedule_interval=None,  # not hooked as of now
@@ -1863,6 +1869,7 @@ class BaseOperator(object):
         else:
             logging.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
+        self.retry_overrun = retry_overrun
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
         self.priority_weight = priority_weight
