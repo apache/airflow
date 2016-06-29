@@ -664,6 +664,7 @@ configuration files, it allows you to expose the configuration that led
 to the related tasks in Airflow.
 
 .. code:: python
+
     """
     ### My great DAG
     """

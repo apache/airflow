@@ -836,8 +836,8 @@ class TaskInstance(Base):
         Refreshes the task instance from the database based on the primary key
 
         :param lock_for_update: if True, indicates that the database should
-        lock the TaskInstance (issuing a FOR UPDATE clause) until the session
-        is committed.
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
         """
         TI = TaskInstance
 
