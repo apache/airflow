@@ -98,6 +98,11 @@
     <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
     <script src="{{ url_for('static', filename='dagre-d3.js') }}"></script>
     <script>
+
+    var highlight_color = "#000000";
+    var upstream_color = "#2020A0";
+    var downstream_color = "#0000FF";
+
     var nodes = {{ nodes|safe }};
     var edges = {{ edges|safe }};
     var tasks = {{ tasks|safe }};
@@ -114,6 +119,7 @@
     var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);
     var renderer = new dagreD3.Renderer();
     renderer.layout(layout).run(g, d3.select("#dig"));
+    inject_node_ids(tasks);
     update_nodes_states(task_instances);
 
     d3.selectAll("g.node").on("click", function(d){
@@ -123,6 +129,28 @@
         else
             call_modal(d, execution_date);
     });
+
+
+    function highlight_nodes(nodes, color) {
+        nodes.forEach (function (nodeid) {
+            my_node = d3.select('#' + nodeid + ' rect');
+            my_node.style("stroke", color) ;
+        })
+    }
+
+    d3.selectAll("g.node").on("mouseover", function(d){
+        d3.select(this).selectAll("rect").style("stroke", highlight_color) ;
+        highlight_nodes(g.predecessors(d), upstream_color)
+        highlight_nodes(g.successors(d), downstream_color)
+
+    });
+
+    d3.selectAll("g.node").on("mouseout", function(d){
+        d3.select(this).selectAll("rect").style("stroke", null) ;
+        highlight_nodes(g.predecessors(d), null)
+        highlight_nodes(g.successors(d), null)
+    });
+
 
     {% if blur %}
     d3.selectAll("text").attr("class", "blur");
@@ -220,6 +248,19 @@
             renderer.zoom_obj.scale(1);
         }
     });
+
+
+    // Injecting ids to be used for parent/child highlighting
+    // Separated from update_node_states since it must work even
+    // when there is no valid task instance available
+    function inject_node_ids(tasks) {
+        $.each(tasks, function(task_id, task) {
+            $('tspan').filter(function(index) { return $(this).text() === task_id; })
+                    .parent().parent().parent()
+                    .attr("id", task_id);
+        });
+    }
+
 
     // Assigning css classes based on state to nodes
     function update_nodes_states(task_instances) {
