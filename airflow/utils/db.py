@@ -255,7 +255,7 @@ def initdb():
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
-    now = datetime.now()
+    now = datetime.utcnow()
     for dag in dagbag.dags.values():
         models.DAG.sync_to_db(dag, dag.owner, now)
     # Deactivate the unknown ones

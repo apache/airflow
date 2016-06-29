@@ -168,7 +168,7 @@ class CoreTest(unittest.TestCase):
                           execution_date=DEFAULT_DATE,
                           state=State.SUCCESS,
                           external_trigger=True)
-        dag_run = scheduler.schedule_dag(dag)
+        dag_run = scheduler.create_dag_run(dag)
         assert dag_run is not None
         assert dag_run.dag_id == dag.dag_id
         assert dag_run.run_id is not None
@@ -217,7 +217,7 @@ class CoreTest(unittest.TestCase):
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
-            dag_runs.append(scheduler.schedule_dag(dag))
+            dag_runs.append(scheduler.create_dag_run(dag))
 
         additional_dag_run = scheduler.create_dag_run(dag)
 
@@ -252,7 +252,7 @@ class CoreTest(unittest.TestCase):
         dag_runs = []
         scheduler = jobs.SchedulerJob(**self.default_scheduler_args)
         for i in range(runs):
-            dag_run = scheduler.schedule_dag(dag)
+            dag_run = scheduler.create_dag_run(dag)
             dag_runs.append(dag_run)
 
             # Mark the DagRun as complete

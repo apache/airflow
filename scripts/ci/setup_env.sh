@@ -126,7 +126,19 @@ tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
 echo "Downloading and unpacking minicluster"
 curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+ls -l ${TRAVIS_CACHE}/minicluster/minicluster.zip
 unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+if [ $? != 0 ] ; then
+    # Try downloading w/o cache if there's a failure
+    curl -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+    ls -l ${TRAVIS_CACHE}/minicluster/minicluster.zip
+    unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+    if [ $? != 0 ] ; then
+        echo "Failed twice in downloading and unpacking minicluster!" >&2
+        exit 1
+    fi
+    exit 1
+fi
 
 echo "Path = ${PATH}"
 

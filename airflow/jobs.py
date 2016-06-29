@@ -20,8 +20,7 @@ from __future__ import unicode_literals
 from past.builtins import basestring
 from collections import defaultdict, Counter
 
-from datetime import datetime, timedelta
-from itertools import product
+from datetime import datetime
 
 import getpass
 import logging
@@ -43,7 +42,7 @@ from tabulate import tabulate
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun, TaskInstance
+from airflow.models import DagRun
 from airflow.settings import Stats
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
@@ -280,7 +279,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
             # Re-direct stdout and stderr to a separate log file. Otherwise,
             # the main log becomes too hard to read. No buffering to enable
             # responsive file tailing
-            parent_dir, filename = os.path.split(log_file)
+            parent_dir, _ = os.path.split(log_file)
 
             # Create the parent directory for the log file if necessary.
             if not os.path.isdir(parent_dir):
@@ -290,9 +289,8 @@ class DagFileProcessor(AbstractDagFileProcessor):
             original_stdout = sys.stdout
             original_stderr = sys.stderr
 
-            # TODO: Uncomment
-            #sys.stdout = f
-            #sys.stderr = f
+            sys.stdout = f
+            sys.stderr = f
 
             try:
                 # Re-configure logging to use the new output streams
@@ -318,6 +316,10 @@ class DagFileProcessor(AbstractDagFileProcessor):
                 logging.info("Processing %s took %.3f seconds",
                              file_path,
                              end_time - start_time)
+            except:
+                # Log exceptions through the logging framework.
+                logging.exception("Got an exception! Propagating...")
+                raise
             finally:
                 sys.stdout = original_stdout
                 sys.stderr = original_stderr
@@ -491,14 +493,14 @@ class SchedulerJob(BaseJob):
         self.do_pickle = do_pickle
         super(SchedulerJob, self).__init__(*args, **kwargs)
 
-        self.logger.error("Executor is {}".format(self.executor.__class__))
-
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = min(conf.getint('scheduler', 'max_threads'), multiprocessing.cpu_count())
+        self.using_sqlite = False
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
             if self.max_threads > 1:
                 self.logger.error("Cannot use more than 1 thread when using sqlite. Setting max_threads to 1")
             self.max_threads = 1
+            self.using_sqlite = True
 
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
         self.dag_dir_list_interval = conf.getint('scheduler',
@@ -565,7 +567,8 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.email_sent.is_(False) or SlaMiss.notification_sent.is_(False))
+            .filter(or_(SlaMiss.email_sent == False,
+                        SlaMiss.notification_sent == False))
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -639,12 +642,35 @@ class SchedulerJob(BaseJob):
             session.commit()
             session.close()
 
-    def import_errors(self, dagbag):
-        session = settings.Session()
-        session.query(models.ImportError).delete()
+    @staticmethod
+    def record_import_errors(session, dagbag):
+        """
+        For the DAGs in the given DagBag, record any associated import errors.
+        These are usually displayed through the Airflow UI so that users know
+        that there are issues parsing DAGs.
+
+        :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
+        :param dagbag: DagBag containing DAGs with import errors
+        :type dagbag: models.Dagbag
+        """
         for filename, stacktrace in list(dagbag.import_errors.items()):
+            session.query(models.ImportError).filter(
+                models.ImportError.filename == filename
+            ).delete()
             session.add(models.ImportError(
                 filename=filename, stacktrace=stacktrace))
+        session.commit()
+
+    @staticmethod
+    def clear_import_errors(session):
+        """
+        Remove all the known import errors from the DB.
+
+        :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
+        """
+        session.query(models.ImportError).delete()
         session.commit()
 
     @provide_session
@@ -745,8 +771,9 @@ class SchedulerJob(BaseJob):
 
     def _process_task_instances(self, dag, queue):
         """
-        This method schedules a single DAG by looking at the latest
-        run for each task and attempting to schedule the following run.
+        This method schedules the tasks for a single DAG by looking at the
+        active DAG runs and adding task instances that should run to the
+        queue.
         """
         DagModel = models.DagModel
         session = settings.Session()
@@ -758,6 +785,8 @@ class SchedulerJob(BaseJob):
             self.logger.info("Examining DAG run {}".format(run))
             # do not consider runs that are executed in the future
             if run.execution_date > datetime.now():
+                self.logging.error("Execution date is in future: {}"
+                                   .format(run.execution_date))
                 continue
 
             # todo: run.dag is transient but needs to be set
@@ -770,7 +799,7 @@ class SchedulerJob(BaseJob):
                 active_dag_runs.append(run)
 
         for run in active_dag_runs:
-            self.logger.info("Examining active DAG run {}".format(run))
+            self.logger.debug("Examining active DAG run {}".format(run))
             # this needs a fresh session sometimes tis get detached
             tis = run.get_task_instances(state=(State.NONE,
                                                 State.UP_FOR_RETRY))
@@ -790,7 +819,7 @@ class SchedulerJob(BaseJob):
 
                 if ti.is_runnable(flag_upstream_failed=True):
                     self.logger.debug('Queuing task: {}'.format(ti))
-                    queue.put(ti.key)
+                    queue.append(ti.key)
 
         session.close()
 
@@ -802,15 +831,16 @@ class SchedulerJob(BaseJob):
                                              session=None):
         """
         For all DAG IDs in the SimpleDagBag, look for task instances in the
-        old_state state and set them to new_state if the corresponding DagRun
-        exists but is not in the running state.
+        old_states and set them to new_state if the corresponding DagRun
+        exists but is not in the running state. This normally should not
+        happen, but it can if the state of DagRuns are changed manually.
 
         :param old_states: examine TaskInstances in this state
         :type old_state: list[State]
         :param new_state: set TaskInstances to this state
         :type new_state: State
         :param simple_dag_bag: TaskInstances associated with DAGs in the
-        simple_dag_bag and in the UP_FOR_RETRY state will be examined.
+        simple_dag_bag and with states in the old_state will be examined
         :type simple_dag_bag: SimpleDagBag
         """
 
@@ -824,24 +854,39 @@ class SchedulerJob(BaseJob):
         """:type: list[TaskInstance]"""
 
         for task_instance in task_instances_to_change:
-            dag_run = DagRun.get_run(session,
-                                     task_instance.dag_id,
-                                     task_instance.execution_date)
-            if dag_run is None:
+            dag_runs = DagRun.find(dag_id=task_instance.dag_id,
+                                   execution_date=task_instance.execution_date,
+                                   )
+
+            if len(dag_runs) == 0:
                 self.logger.warn("DagRun for %s %s does not exist",
                                  task_instance.dag_id,
                                  task_instance.execution_date)
-            elif dag_run.state != State.RUNNING:
-                self.logger.warn("Setting %s to state=%s as the state of "
-                                 "%s is not %s",
-                                 task_instance,
-                                 new_state,
-                                 dag_run,
-                                 State.RUNNING)
+                continue
+
+            # There should only be one DAG run. Add some logging info if this
+            # is not the case for later debugging.
+            if len(dag_runs) > 1:
+                self.logger.warn("Multiple DagRuns found for {} {}: {}"
+                                 .format(task_instance.dag_id,
+                                         task_instance.execution_date,
+                                         dag_runs))
+
+            dag_is_running = True
+            for dag_run in dag_runs:
+                if dag_run.state == State.RUNNING:
+                    dag_is_running = True
+                    break
+
+            if not dag_is_running:
+                self.logger.warn("Setting {} to state={} as it does not have "
+                                 "a DagRun in the {} state"
+                                 .format(task_instance,
+                                         new_state,
+                                         State.RUNNING))
                 task_instance.state = new_state
                 session.merge(task_instance)
         session.commit()
-
 
     @provide_session
     def _execute_task_instances(self,
@@ -967,17 +1012,30 @@ class SchedulerJob(BaseJob):
                 self.logger.info("Sending to executor {} with priority {} and queue {}"
                                  .format(task_instance.key, priority, queue))
 
+                # Set the state to queued
+                self.logger.info("Setting state of {} to {}".format(
+                    task_instance.key, State.QUEUED))
+                task_instance.state = State.QUEUED
+                task_instance.queued_dttm = (datetime.now()
+                                             if not task_instance.queued_dttm
+                                             else task_instance.queued_dttm)
+                session.merge(task_instance)
+                session.commit()
+
+                # These attributes will be lost after the object expires, so save them.
+                task_id_ = task_instance.task_id
+                dag_id_ = task_instance.dag_id
+                execution_date_ = task_instance.execution_date
+                make_transient(task_instance)
+                task_instance.task_id = task_id_
+                task_instance.dag_id = dag_id_
+                task_instance.execution_date = execution_date_
+
                 self.executor.queue_command(
                     task_instance,
                     command,
                     priority=priority,
                     queue=queue)
-
-                self.logger.info("Setting state of {} to {}".format(
-                    task_instance.key, State.QUEUED))
-                task_instance.state = State.QUEUED
-                task_instance.queued_dttm = datetime.now()
-                session.merge(task_instance)
 
                 open_slots -= 1
 
@@ -990,7 +1048,7 @@ class SchedulerJob(BaseJob):
         3. Send emails for tasks that have missed SLAs.
 
         :param dagbag: a collection of DAGs to process
-        :type dagbag: DagBag
+        :type dagbag: models.DagBag
         :param dags: the DAGs from the DagBag to process
         :type dags: DAG
         :param tis_out: A queue to add generated TaskInstance objects
@@ -1179,7 +1237,8 @@ class SchedulerJob(BaseJob):
                 # First try SIGTERM
                 this_process = psutil.Process(os.getpid())
                 # Only check child processes to ensure that we don't have a case
-                # where a child process died but the PID got reused.
+                # where we kill the wrong process because a child process died
+                # but the PID got reused.
                 child_processes = [x for x in this_process.children(recursive=True)
                                    if x.is_running() and x.pid in pids_to_kill]
                 for child in child_processes:
@@ -1203,8 +1262,7 @@ class SchedulerJob(BaseJob):
                         child.kill()
                         child.wait()
 
-    @provide_session
-    def _execute_helper(self, processor_manager, session=None):
+    def _execute_helper(self, processor_manager):
         """
         :param processor_manager: manager to use
         :type processor_manager: DagFileProcessorManager
@@ -1212,6 +1270,7 @@ class SchedulerJob(BaseJob):
         """
         self.executor.start()
 
+        session = settings.Session()
         self.logger.info("Resetting state for orphaned tasks")
         # grab orphaned tasks and make sure to reset their state
         active_runs = DagRun.find(
@@ -1223,6 +1282,10 @@ class SchedulerJob(BaseJob):
             self.logger.info("Resetting {} {}".format(dr.dag_id,
                                                       dr.execution_date))
             self._reset_state_for_orphaned_tasks(dr, session=session)
+
+        self.logger.info("Removing old import errors")
+        self.clear_import_errors(session)
+        session.close()
 
         execute_start_time = datetime.now()
 
@@ -1259,6 +1322,13 @@ class SchedulerJob(BaseJob):
             # Kick of new processes and collect results from finished ones
             self.logger.info("Heartbeating the process manager")
             simple_dags = processor_manager.heartbeat()
+
+            if self.using_sqlite:
+                # For the sqlite case w/ 1 thread, wait until the processor
+                # is finished to avoid concurrent access to the DB.
+                self.logger.debug("Waiting for processors to finish since we're "
+                                  "using sqlite")
+                processor_manager.wait_until_finished()
 
             # Send tasks for execution if available
             if len(simple_dags) > 0:
@@ -1422,12 +1492,14 @@ class SchedulerJob(BaseJob):
                     if not dag.parent_dag and
                     dag.dag_id not in paused_dag_ids]
 
-        tis_q = multiprocessing.Queue()
+        # Not using multiprocessing.Queue() since it's no longer a separate
+        # process and due to some unusual behavior. (empty() incorrectly
+        # returns true?)
+        ti_keys_to_schedule = []
 
-        self._process_dags(dagbag, dags, tis_q)
+        self._process_dags(dagbag, dags, ti_keys_to_schedule)
 
-        while not tis_q.empty():
-            ti_key = tis_q.get()
+        for ti_key in ti_keys_to_schedule:
             dag = dagbag.dags[ti_key[0]]
             task = dag.get_task(ti_key[1])
             ti = models.TaskInstance(task, ti_key[2])
@@ -1442,7 +1514,7 @@ class SchedulerJob(BaseJob):
 
         # Record import errors into the ORM
         try:
-            self.import_errors(dagbag)
+            self.record_import_errors(session, dagbag)
         except Exception:
             self.logger.exception("Error logging import errors!")
         try:

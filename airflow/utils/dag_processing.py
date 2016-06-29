@@ -17,17 +17,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import logging
+import os
+import re
+import time
+
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
 from datetime import datetime
 
-import logging
-import os
-import re
-
 from airflow.exceptions import AirflowException
+from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.utils.logging import LoggingMixin
-from airflow.utils.models import BaseDag, BaseDagBag
 
 
 class SimpleDag(BaseDag):
@@ -493,6 +494,14 @@ class DagFileProcessorManager(LoggingMixin):
         :rtype: int
         """
         return len(self._processors)
+
+    def wait_until_finished(self):
+        """
+        Sleeps until all the processors are done.
+        """
+        for file_path, processor in self._processors.items():
+            while not processor.done:
+                time.sleep(0.1)
 
     def heartbeat(self):
         """
