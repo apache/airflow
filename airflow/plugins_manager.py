@@ -60,6 +60,7 @@ if plugins_folder not in sys.path:
 plugins = []
 
 norm_pattern = re.compile(r'[/|.]')
+plugin_import_timeout = configuration.getint('core', 'plugin_import_timeout')
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(plugins_folder, followlinks=True):
@@ -77,7 +78,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
-            with timeout(configuration.getint('core', 'pluging_import_timeout')):
+            with timeout(plugin_import_timeout):
                 m = imp.load_source(namespace, filepath)
                 for obj in list(m.__dict__.values()):
                     if (

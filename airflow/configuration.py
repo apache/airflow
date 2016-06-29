@@ -107,7 +107,7 @@ defaults = {
         'sql_alchemy_pool_recycle': 3600,
         'dagbag_import_timeout': 30,
         'non_pooled_task_slot_count': 128,
-        'pluging_import_timeout': 15,
+        'plugin_import_timeout': 15,
     },
     'operators': {
         'default_owner': 'airflow'
@@ -251,7 +251,7 @@ donot_pickle = False
 dagbag_import_timeout = 30
 
 # How long before giving up on importing files in the plugins folder
-pluging_import_timeout = 15
+plugin_import_timeout = 15
 
 
 [operators]
