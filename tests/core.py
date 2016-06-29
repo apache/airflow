@@ -36,8 +36,17 @@ from airflow.executors import SequentialExecutor, LocalExecutor
 from airflow.models import Variable
 
 configuration.test_mode()
-from airflow import jobs, models, DAG, operators, hooks, utils, macros, settings, exceptions
-from airflow.hooks import BaseHook
+from airflow import jobs, models, DAG, utils, macros, settings, exceptions
+from airflow.models import BaseOperator
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.http_operator import SimpleHttpOperator
+from airflow.operators import sensors
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
@@ -85,7 +94,7 @@ def reset(dag_id=TEST_DAG_ID):
 reset()
 
 
-class OperatorSubclass(operators.BaseOperator):
+class OperatorSubclass(BaseOperator):
     """
     An operator to test template substitution
     """
@@ -305,7 +314,7 @@ class CoreTest(unittest.TestCase):
         assert hash(self.dag) != hash(dag_subclass)
 
     def test_time_sensor(self):
-        t = operators.sensors.TimeSensor(
+        t = sensors.TimeSensor(
             task_id='time_sensor_check',
             target_time=time(0),
             dag=self.dag)
@@ -319,14 +328,14 @@ class CoreTest(unittest.TestCase):
         captainHook.run("CREATE TABLE operator_test_table (a, b)")
         captainHook.run("insert into operator_test_table values (1,2)")
 
-        t = operators.CheckOperator(
+        t = CheckOperator(
             task_id='check',
             sql="select count(*) from operator_test_table",
             conn_id=conn_id,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
-        t = operators.ValueCheckOperator(
+        t = ValueCheckOperator(
             task_id='value_check',
             pass_value=95,
             tolerance=0.1,
@@ -350,7 +359,7 @@ class CoreTest(unittest.TestCase):
         Tests that Operators reject illegal arguments
         """
         with warnings.catch_warnings(record=True) as w:
-            t = operators.BashOperator(
+            t = BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
                 dag=self.dag,
@@ -362,14 +371,14 @@ class CoreTest(unittest.TestCase):
                 w[0].message.args[0])
 
     def test_bash_operator(self):
-        t = operators.BashOperator(
+        t = BashOperator(
             task_id='time_sensor_check',
             bash_command="echo success",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_bash_operator_multi_byte_output(self):
-        t = operators.BashOperator(
+        t = BashOperator(
             task_id='test_multi_byte_bash_operator',
             bash_command=u"echo \u2600",
             dag=self.dag,
@@ -381,7 +390,7 @@ class CoreTest(unittest.TestCase):
             if True:
                 return obj
 
-        t = operators.TriggerDagRunOperator(
+        t = TriggerDagRunOperator(
             task_id='test_trigger_dagrun',
             trigger_dag_id='example_bash_operator',
             python_callable=trigga,
@@ -389,7 +398,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_dryrun(self):
-        t = operators.BashOperator(
+        t = BashOperator(
             task_id='time_sensor_check',
             bash_command="echo success",
             dag=self.dag)
@@ -404,14 +413,14 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_timedelta_sensor(self):
-        t = operators.sensors.TimeDeltaSensor(
+        t = sensors.TimeDeltaSensor(
             task_id='timedelta_sensor_check',
             delta=timedelta(seconds=2),
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_external_task_sensor(self):
-        t = operators.sensors.ExternalTaskSensor(
+        t = sensors.ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -419,7 +428,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_external_task_sensor_delta(self):
-        t = operators.sensors.ExternalTaskSensor(
+        t = sensors.ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -429,7 +438,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
     def test_timeout(self):
-        t = operators.PythonOperator(
+        t = PythonOperator(
             task_id='test_timeout',
             execution_timeout=timedelta(seconds=1),
             python_callable=lambda: sleep(5),
@@ -444,7 +453,7 @@ class CoreTest(unittest.TestCase):
             if not templates_dict['ds'] == ds:
                 raise Exception("failure")
 
-        t = operators.PythonOperator(
+        t = PythonOperator(
             task_id='test_py_op',
             provide_context=True,
             python_callable=test_py_op,
@@ -460,7 +469,7 @@ class CoreTest(unittest.TestCase):
             task_id='test_complex_template',
             some_templated_field={
                 'foo': '123',
-                'bar': ['baz', ' {{ ds }}']
+                'bar': ['baz', '{{ ds }}']
             },
             on_success_callback=verify_templated_field,
             dag=self.dag)
@@ -698,7 +707,7 @@ class CoreTest(unittest.TestCase):
 
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
-            operators.DummyOperator(
+            DummyOperator(
                 task_id='test_bad_trigger',
                 trigger_rule="non_existant",
                 dag=self.dag)
@@ -1228,7 +1237,7 @@ class HttpOpSensorTest(unittest.TestCase):
 
     @mock.patch('requests.Session', FakeSession)
     def test_get(self):
-        t = operators.SimpleHttpOperator(
+        t = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
@@ -1239,7 +1248,7 @@ class HttpOpSensorTest(unittest.TestCase):
 
     @mock.patch('requests.Session', FakeSession)
     def test_get_response_check(self):
-        t = operators.SimpleHttpOperator(
+        t = SimpleHttpOperator(
             task_id='get_op',
             method='GET',
             endpoint='/search',
@@ -1251,7 +1260,7 @@ class HttpOpSensorTest(unittest.TestCase):
 
     @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):
-        sensor = operators.sensors.HttpSensor(
+        sensor = sensors.HttpSensor(
             task_id='http_sensor_check',
             conn_id='http_default',
             endpoint='/search',
@@ -1289,7 +1298,7 @@ class ConnectionTest(unittest.TestCase):
                 del os.environ[ev]
 
     def test_using_env_var(self):
-        c = hooks.SqliteHook.get_connection(conn_id='test_uri')
+        c = SqliteHook.get_connection(conn_id='test_uri')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login == 'username'
@@ -1297,7 +1306,7 @@ class ConnectionTest(unittest.TestCase):
         assert c.port == 5432
 
     def test_using_unix_socket_env_var(self):
-        c = hooks.SqliteHook.get_connection(conn_id='test_uri_no_creds')
+        c = SqliteHook.get_connection(conn_id='test_uri_no_creds')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login is None
@@ -1315,12 +1324,12 @@ class ConnectionTest(unittest.TestCase):
         assert c.port is None
 
     def test_env_var_priority(self):
-        c = hooks.SqliteHook.get_connection(conn_id='airflow_db')
+        c = SqliteHook.get_connection(conn_id='airflow_db')
         assert c.host != 'ec2.compute.com'
 
         os.environ['AIRFLOW_CONN_AIRFLOW_DB'] = \
             'postgres://username:password@ec2.compute.com:5432/the_database'
-        c = hooks.SqliteHook.get_connection(conn_id='airflow_db')
+        c = SqliteHook.get_connection(conn_id='airflow_db')
         assert c.host == 'ec2.compute.com'
         assert c.schema == 'the_database'
         assert c.login == 'username'
@@ -1344,15 +1353,21 @@ class WebHDFSHookTest(unittest.TestCase):
         assert c.proxy_user == 'someone'
 
 
-@unittest.skipUnless("S3Hook" in dir(hooks),
-                     "Skipping test because S3Hook is not installed")
+try:
+    from airflow.hooks.S3_hook import S3Hook
+except ImportError:
+    S3Hook = None
+
+
+@unittest.skipIf(S3Hook is None,
+                 "Skipping test because S3Hook is not installed")
 class S3HookTest(unittest.TestCase):
     def setUp(self):
         configuration.test_mode()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):
-        parsed = hooks.S3Hook.parse_s3_url(self.s3_test_url)
+        parsed = S3Hook.parse_s3_url(self.s3_test_url)
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")

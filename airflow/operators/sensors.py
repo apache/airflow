@@ -25,7 +25,7 @@ import airflow
 from airflow import hooks, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
 from airflow.models import BaseOperator, TaskInstance, Connection as DB
-from airflow.hooks import BaseHook
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 
@@ -519,7 +519,7 @@ class HttpSensor(BaseSensorOperator):
         self.extra_options = extra_options or {}
         self.response_check = response_check
 
-        self.hook = hooks.HttpHook(method='GET', http_conn_id=http_conn_id)
+        self.hook = hooks.http_hook.HttpHook(method='GET', http_conn_id=http_conn_id)
 
     def poke(self, context):
         logging.info('Poking: ' + self.endpoint)

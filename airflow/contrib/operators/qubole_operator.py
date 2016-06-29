@@ -14,7 +14,7 @@
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.hooks import QuboleHook
+from airflow.contrib.hooks.qubole_hook import QuboleHook
 
 
 class QuboleOperator(BaseOperator):

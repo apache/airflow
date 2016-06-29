@@ -13,7 +13,7 @@
 # limitations under the License.
 from __future__ import print_function
 from builtins import range
-from airflow.operators import PythonOperator
+from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
 

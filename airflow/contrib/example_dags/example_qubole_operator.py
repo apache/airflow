@@ -13,8 +13,9 @@
 # limitations under the License.
 
 from airflow import DAG
-from airflow.operators import DummyOperator, PythonOperator, BranchPythonOperator
-from airflow.contrib.operators import QuboleOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.contrib.operators.qubole_operator import QuboleOperator
 from datetime import datetime, timedelta
 import filecmp
 import random

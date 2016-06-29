@@ -15,7 +15,7 @@
 import logging
 
 from airflow.exceptions import AirflowException
-from airflow.hooks import HttpHook
+from airflow.hooks.http_hook import HttpHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

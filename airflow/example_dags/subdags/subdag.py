@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator
+from airflow.operators.dummy_operator import DummyOperator
 
 
 def subdag(parent_dag_name, child_dag_name, args):
