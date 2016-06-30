@@ -503,17 +503,20 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     else:
         default_fix_versions = []
 
-    for v in default_fix_versions:
-        # Handles the case where we have forked a release branch but not yet made the release.
-        # In this case, if the PR is committed to the master branch and the release branch, we
-        # only consider the release branch to be the fix version. E.g. it is not valid to have
-        # both 1.1.0 and 1.0.0 as fix versions.
-        (major, minor, patch) = v.split(".")
-        if patch == "0":
-            previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
-            if previous in default_fix_versions:
-                default_fix_versions = list(filter(
-                    lambda x: x != v, default_fix_versions))
+    # TODO Airflow versions vary from two to four decimal places (2.0, 1.7.1.3)
+    # The following logic can be reintroduced if/when a standard emerges.
+
+    # for v in default_fix_versions:
+    #     # Handles the case where we have forked a release branch but not yet made the release.
+    #     # In this case, if the PR is committed to the master branch and the release branch, we
+    #     # only consider the release branch to be the fix version. E.g. it is not valid to have
+    #     # both 1.1.0 and 1.0.0 as fix versions.
+    #     (major, minor, patch) = v.split(".")
+    #     if patch == "0":
+    #         previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
+    #         if previous in default_fix_versions:
+    #             default_fix_versions = list(filter(
+    #                 lambda x: x != v, default_fix_versions))
     default_fix_versions = ",".join(default_fix_versions)
 
     fix_versions = click.prompt(
