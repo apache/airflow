@@ -897,7 +897,7 @@ class BackfillJob(BaseJob):
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
                 if key not in started:
-                    if ti.state == State.SUCCESS:
+                    if ti.state == State.SUCCESS or ti.state == State.FUTURE_SUCCEEDED:
                         succeeded.add(key)
                         tasks_to_run.pop(key)
                         session.commit()
@@ -978,7 +978,7 @@ class BackfillJob(BaseJob):
                 elif state == State.SUCCESS:
 
                     # task reports success
-                    if ti.state == State.SUCCESS:
+                    if ti.state == State.SUCCESS or ti.state == State.FUTURE_SUCCEEDED:
                         self.logger.info(
                             'Task instance {} succeeded'.format(key))
                         succeeded.add(key)

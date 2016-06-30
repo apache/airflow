@@ -40,6 +40,7 @@ class State(object):
     UP_FOR_RETRY = "up_for_retry"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
+    FUTURE_SUCCEEDED = "future_succeeded"
 
     state_color = {
         QUEUED: 'gray',
@@ -50,6 +51,7 @@ class State(object):
         UP_FOR_RETRY: 'gold',
         UPSTREAM_FAILED: 'orange',
         SKIPPED: 'pink',
+        FUTURE_SUCCEEDED: 'darkgreen'
         REMOVED: 'lightgrey',
         SCHEDULED: 'white',
     }
@@ -90,6 +92,7 @@ class State(object):
         """
         return [
             cls.SUCCESS,
+            cls.FUTURE_SUCCEEDED,
             cls.SHUTDOWN,
             cls.FAILED,
             cls.SKIPPED,

@@ -928,9 +928,28 @@ class TaskInstance(Base):
                 self.state in State.runnable() and
                 self.are_dependencies_met(
                     ignore_depends_on_past=ignore_depends_on_past,
-                    flag_upstream_failed=flag_upstream_failed)):
+                    flag_upstream_failed=flag_upstream_failed) and
+                not self.is_superceded_by_future()):
             return True
         # anything else
+        else:
+            return False
+
+    @provide_session
+    def is_superceded_by_future(self, session):
+        if not self.task.only_run_latest:
+            return False
+        TI = TaskInstance
+        ti = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.task_id == self.task_id,
+            TI.state == State.SUCCESS,
+            TI.execution_date > self.execution_date,
+        ).first()
+        if ti:
+            if self.state in State.runnable():
+                self.set_state(State.FUTURE_SUCCEEDED, session)
+            return True
         else:
             return False
 
@@ -983,7 +1002,7 @@ class TaskInstance(Base):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.execution_date == self.execution_date,
-            TaskInstance.state == State.SUCCESS,
+            TaskInstance.state.in_([State.SUCCESS, State.FUTURE_SUCCEEDED]),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -1020,7 +1039,7 @@ class TaskInstance(Base):
         upstream_done = done >= upstream
 
         # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
+        if flag_upstream_failed and self.state != State.FUTURE_SUCCEEDED:
             if tr == TR.ALL_SUCCESS:
                 if upstream_failed or failed:
                     self.set_state(State.UPSTREAM_FAILED, session)
@@ -1108,7 +1127,7 @@ class TaskInstance(Base):
             session
             .query(
                 func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
+                    case([(TI.state.in_([State.SUCCESS, State.FUTURE_SUCCEEDED]), 1)], else_=0)), 0),
                 func.coalesce(func.sum(
                     case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
                 func.coalesce(func.sum(
@@ -1122,7 +1141,7 @@ class TaskInstance(Base):
                 TI.task_id.in_(task.upstream_task_ids),
                 TI.execution_date == self.execution_date,
                 TI.state.in_([
-                    State.SUCCESS, State.FAILED,
+                    State.SUCCESS, State.FUTURE_SUCCEEDED, State.FAILED,
                     State.UPSTREAM_FAILED, State.SKIPPED]),
             )
         )
@@ -1227,6 +1246,8 @@ class TaskInstance(Base):
                 " on {self.end_date}".format(**locals())
             )
             Stats.incr('previously_succeeded', 1, 1)
+        elif not force and self.state == State.FUTURE_SUCCEEDED:
+            logging.info("Task {self} has had a later instance succeed".format(**locals()))
         elif (
                 not ignore_dependencies and
                 not self.are_dependencies_met(
@@ -1329,6 +1350,8 @@ class TaskInstance(Base):
 
                     task_copy.post_execute(context=context)
                 self.state = State.SUCCESS
+                if self.task.only_run_latest:
+                    self.mark_past_future_succeeded(session=session)
             except AirflowSkipException:
                 self.state = State.SKIPPED
             except (Exception, KeyboardInterrupt) as e:
@@ -1352,6 +1375,37 @@ class TaskInstance(Base):
                 logging.exception(e3)
 
         session.commit()
+
+    def mark_past_future_succeeded(self, session, activate_dag_runs=True):
+        """
+        Goes through past TaskInstances of this Task and changes their state
+        to FUTURE_SUCCEEDED (excepting if their state is already SUCCESS).
+        Downstream TaskInstances of those past TaskInstances are then cleared
+        and previously blocked DAG runs are allowed to proceed.
+
+        :param activate_dag_runs: passed through to clear_task_instances()
+        If True, DAG runs for cleared tasks are returned to State.RUNNING
+        and allowed to schedule now unblocked tasks.
+        :type activate_dag_runs: boolean
+        """
+        TI = TaskInstance
+        tis = session.query(TI).filter(TI.dag_id == self.dag_id,
+                                       TI.task_id == self.task_id,
+                                       TI.state != State.SUCCESS,
+                                       TI.execution_date < self.execution_date)
+
+        downstream_list = [t.task_id for t in self.task.get_flat_relatives(upstream=False)]
+        for ti in tis:
+            ti.state = State.FUTURE_SUCCEEDED
+            session.merge(ti)
+            downstream = session.query(TI).filter(TI.dag_id == self.dag_id,
+                                                  TI.task_id.in_(downstream_list),
+                                                  TI.state == State.UPSTREAM_FAILED,
+                                                  TI.execution_date == ti.execution_date
+                                                  )
+            clear_task_instances(downstream, session, activate_dag_runs)
+        session.commit()
+        session.close()
 
     def dry_run(self):
         task = self.task
@@ -1714,6 +1768,14 @@ class BaseOperator(object):
         sequentially while relying on the previous task's schedule to
         succeed. The task instance for the start_date is allowed to run.
     :type depends_on_past: bool
+    :param only_run_latest: when set to true, task instances will only run
+        if there has been no successful run from a later execution date.
+        Otherwise execution will be skipped and the task state will be marked
+        as future_succeeded. Upon a successful run of this task, all prior task
+        instances that did not succeed will have their state changed to
+        future_succeeded, and unblock their downstream tasks. Note that you cannot
+        have only_run_latest and depends_on_past set to True at the same time.
+    :type only_run_latest: bool
     :param wait_for_downstream: when set to true, an instance of task
         X will wait for tasks immediately downstream of the previous instance
         of task X to finish successfully before it runs. This is useful if the
@@ -1792,6 +1854,7 @@ class BaseOperator(object):
             end_date=None,
             schedule_interval=None,  # not hooked as of now
             depends_on_past=False,
+            only_run_latest=False,
             wait_for_downstream=False,
             dag=None,
             params=None,
@@ -1840,9 +1903,12 @@ class BaseOperator(object):
 
         self.trigger_rule = trigger_rule
         self.depends_on_past = depends_on_past
+        self.only_run_latest = only_run_latest
         self.wait_for_downstream = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
+        if self.depends_on_past and self.only_run_latest:
+            raise AirflowException("A task cannot both depend on past and only run latest")
 
         if schedule_interval:
             logging.warning(

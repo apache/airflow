@@ -192,7 +192,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             execution_delta=None,
             *args, **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
-        self.allowed_states = allowed_states or [State.SUCCESS]
+        self.allowed_states = allowed_states or [State.SUCCESS, State.FUTURE_SUCCEEDED]
         self.execution_delta = execution_delta
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id

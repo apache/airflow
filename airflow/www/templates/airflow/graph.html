@@ -68,6 +68,7 @@
     <div class="legend_item state" style="border-color:red;">failed</div>
     <div class="legend_item state" style="border-color:lime;">running</div>
     <div class="legend_item state" style="border-color:green;">success</div>
+    <div class="legend_item state" style="border-color:darkgreen;">future_succeeded</div>
     </div>
     <div style="clear:both;"></div>
 </div>
@@ -113,7 +114,7 @@
     var duration = 500;
     var stateFocusMap = {
         'no status':false, 'failed':false, 'running':false,
-        'queued': false, 'success': false};
+        'queued': false, 'success': false, 'future_succeeded': false};
 
 
     var layout = dagreD3.layout().rankDir(arrange).nodeSep(15).rankSep(15);

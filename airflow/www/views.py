@@ -467,6 +467,7 @@ class Airflow(BaseView):
     def dag_stats(self):
         states = [
             State.SUCCESS,
+            State.FUTURE_SUCCEEDED,
             State.RUNNING,
             State.FAILED,
             State.UPSTREAM_FAILED,
