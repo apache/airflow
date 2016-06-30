@@ -125,6 +125,40 @@ class PostgresTest(unittest.TestCase):
             end_date=DEFAULT_DATE,
             force=True)
 
+    def postgres_operator_test_multi(self):
+        sql = [
+            "TRUNCATE TABLE test_airflow",
+            "INSERT INTO test_airflow VALUES ('X')",
+        ]
+        import airflow.operators.postgres_operator
+        t = operators.postgres_operator.PostgresOperator(
+            task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_postgres_to_postgres(self):
+        sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
+        import airflow.operators.generic_transfer
+        t = operators.generic_transfer.GenericTransfer(
+            task_id='test_p2p',
+            preoperator=[
+                "DROP TABLE IF EXISTS test_postgres_to_postgres",
+                "CREATE TABLE IF NOT EXISTS "
+                "test_postgres_to_postgres (LIKE INFORMATION_SCHEMA.TABLES)"
+            ],
+            source_conn_id='postgres_default',
+            destination_conn_id='postgres_default',
+            destination_table="test_postgres_to_postgres",
+            sql=sql,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+    def test_sql_sensor(self):
+        t = operators.sensors.SqlSensor(
+            task_id='sql_sensor_check',
+            conn_id='postgres_default',
+            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
 @skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')

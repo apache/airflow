@@ -23,6 +23,7 @@ addons:
       - slapd
       - ldap-utils
       - openssh-server
+  postgresql: "9.2"
 python:
   - "2.7"
   - "3.4"
