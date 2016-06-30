@@ -229,12 +229,6 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
                 'Committer: %s <%s>' % (committer_name, committer_email))
             merge_message_flags.extend(["-m", message])
 
-        # The string "Closes #%s" string is required for GitHub to correctly
-        # close the PR. GitHub will mark the PR as closed, not merged
-        close_msg = "closes #{}".format(pr_num)
-        merge_message_flags.extend(["-m", "{} from {}".format(
-            close_msg.capitalize(), pr_repo_desc)])
-
         # -- add individual commit messages to squash commit
         msg = click.style(
             'Would you like to include the individual commit messages '
@@ -243,6 +237,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if pr_commits and click.confirm(msg, default=True, prompt_suffix=''):
             for commit in pr_commits:
                 merge_message_flags.extend(['-m', commit['commit']['message']])
+
+        # The string "Closes #%s" string is required for GitHub to correctly
+        # close the PR. GitHub will mark the PR as closed, not merged
+        close_msg = "closes #{}".format(pr_num)
+        merge_message_flags.extend(["-m", "{} from {}".format(
+            close_msg.capitalize(), pr_repo_desc)])
+
     else:
         # This will mark the PR as merged
         merge_message_flags.extend([
