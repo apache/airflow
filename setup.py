@@ -115,6 +115,7 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
+emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
     'google-api-python-client>=1.5.0, <1.6.0',
@@ -156,7 +157,7 @@ qds = ['qds-sdk>=1.9.0']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
-devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira']
+devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira', 'moto']
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
@@ -228,6 +229,7 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
+            'emr': emr,
             'samba': samba,
             'slack': slack,
             'statsd': statsd,
