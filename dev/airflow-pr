@@ -769,7 +769,7 @@ def main(pr_num, local=False):
     if click.confirm('Would you like to resolve another JIRA issue?'):
         resolve_jira_issues_loop(
             comment=jira_comment,
-            merged_branches=merged_refs)
+            merge_branches=merged_refs)
 
 
 @click.group()
