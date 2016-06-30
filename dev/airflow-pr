@@ -295,8 +295,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         return
     else:
         continue_maybe(
-            'The local merge is complete (%s). Push to Apache (%s)?' % (
-            target_branch_name, APACHE_REMOTE_NAME))
+            'The local merge is complete ({}). '.format(target_branch_name) +
+            click.style(
+                'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
 
     try:
         run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, target_branch_name, target_ref))
@@ -766,7 +767,9 @@ def main(pr_num, local=False):
             comment=jira_comment,
             merge_branches=merged_refs)
 
-    if click.confirm('Would you like to resolve another JIRA issue?'):
+    if click.confirm(click.style(
+            'Would you like to resolve another JIRA issue?',
+            fg='blue', bold=True)):
         resolve_jira_issues_loop(
             comment=jira_comment,
             merge_branches=merged_refs)
