@@ -557,7 +557,7 @@ class TaskInstanceTest(unittest.TestCase):
         ti.xcom_push(key=key, value=value)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
         ti.run()
-        exec_date = exec_date.replace(day=exec_date.day + 1)
+        exec_date += datetime.timedelta(days=1)
         ti = TI(
             task=task, execution_date=exec_date)
         ti.run()
