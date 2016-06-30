@@ -715,6 +715,7 @@ class TaskInstance(Base):
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
+        Index('ti_state', state),
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
     )
