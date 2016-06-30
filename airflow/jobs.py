@@ -33,12 +33,13 @@ from sqlalchemy.orm.session import make_transient
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowTaskTimeout
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
+from airflow.utils.timeout import timeout
 from airflow.settings import Stats
 
 DagRun = models.DagRun
@@ -1109,7 +1110,8 @@ class LocalTaskJob(BaseJob):
 
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
-    def _execute(self):
+    @provide_session
+    def _execute(self, session=None):
         command = self.task_instance.command(
             raw=True,
             ignore_dependencies=self.ignore_dependencies,
@@ -1122,9 +1124,26 @@ class LocalTaskJob(BaseJob):
         )
         self.process = subprocess.Popen(['bash', '-c', command])
         return_code = None
+        last_heartbeat = datetime.now()
+        print("running faster version")
         while return_code is None:
-            self.heartbeat()
+            time_since_last_heartbeat = (datetime.now() -
+                                         last_heartbeat).total_seconds()
+            time_until_next_heartbeat = \
+                int(max(0, self.heartrate - time_since_last_heartbeat))
+
+            # Wait for task to finish running, up until we need to heartbeat.
+            try:
+                with timeout(time_until_next_heartbeat):
+                    self.process.wait()
+            except AirflowTaskTimeout:
+                pass
+
             return_code = self.process.poll()
+            # If the task finished, there's no need to heartbeat.
+            if return_code is not None:
+                break
+            self.heartbeat()
 
     def on_kill(self):
         self.process.terminate()

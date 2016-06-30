@@ -56,6 +56,7 @@ from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException
+from airflow.utils.timeout import timeout
 
 import six
 
@@ -554,6 +555,20 @@ class CoreTest(unittest.TestCase):
             task=self.runme_0, execution_date=DEFAULT_DATE)
         job = jobs.LocalTaskJob(task_instance=ti, force=True)
         job.run()
+
+    def test_local_task_job_with_long_heartrate(self):
+        """
+        Even though the heartrate is long, the job should still complete
+        quickly.
+        """
+        TI = models.TaskInstance
+        ti = TI(
+            task=self.runme_0, execution_date=DEFAULT_DATE)
+        job = jobs.LocalTaskJob(task_instance=ti,
+                                force=True,
+                                heartrate=9999)
+        with timeout(30):
+            job.run()
 
     def test_scheduler_job(self):
         job = jobs.SchedulerJob(dag_id='example_bash_operator', test_mode=True)
