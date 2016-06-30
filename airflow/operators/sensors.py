@@ -179,8 +179,14 @@ class ExternalTaskSensor(BaseSensorOperator):
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same execution_date as the current task.
-        For yesterday, use [positive!] datetime.timedelta(days=1)
+        For yesterday, use [positive!] datetime.timedelta(days=1). Either
+        execution_delta or execution_date_fn can be passed to
+        ExternalTaskSensor, but not both.
     :type execution_delta: datetime.timedelta
+    :param execution_date_fn: function that receives the current execution date
+        and returns the desired execution date to query. Either execution_delta
+        or execution_date_fn can be passed to ExternalTaskSensor, but not both.
+    :type execution_date_fn: callable
     """
 
     @apply_defaults
@@ -190,16 +196,25 @@ class ExternalTaskSensor(BaseSensorOperator):
             external_task_id,
             allowed_states=None,
             execution_delta=None,
+            execution_date_fn=None,
             *args, **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
+        if execution_delta is not None and execution_date_fn is not None:
+            raise ValueError(
+                'Only one of `execution_date` or `execution_date_fn` may'
+                'be provided to ExternalTaskSensor; not both.')
+
         self.execution_delta = execution_delta
+        self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
 
     def poke(self, context):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
+        elif self.execution_date_fn:
+            dttm = self.execution_date_fn(context['execution_date'])
         else:
             dttm = context['execution_date']
 

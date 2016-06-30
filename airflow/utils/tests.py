@@ -16,7 +16,10 @@ import unittest
 
 def skipUnlessImported(module, obj):
     import importlib
-    m = importlib.import_module(module)
+    try:
+        m = importlib.import_module(module)
+    except ImportError:
+        m = None
     return unittest.skipUnless(
         obj in dir(m),
         "Skipping test because {} could not be imported from {}".format(
