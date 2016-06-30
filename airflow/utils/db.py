@@ -186,6 +186,57 @@ def initdb():
         models.Connection(
             conn_id='fs_default', conn_type='fs',
             extra='{"path": "/"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='aws_default', conn_type='aws',
+            extra='{"region_name": "us-east-1"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='emr_default', conn_type='emr',
+            extra='''
+                {   "Name": "default_job_flow_name",
+                    "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
+                    "ReleaseLabel": "emr-4.6.0",
+                    "Instances": {
+                        "InstanceGroups": [
+                            {
+                                "Name": "Master nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "MASTER",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            },
+                            {
+                                "Name": "Slave nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "CORE",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            }
+                        ]
+                    },
+                    "Ec2KeyName": "mykey",
+                    "KeepJobFlowAliveWhenNoSteps": false,
+                    "TerminationProtected": false,
+                    "Ec2SubnetId": "somesubnet",
+                    "Applications":[
+                        { "Name": "Spark" }
+                    ],
+                    "VisibleToAllUsers": true,
+                    "JobFlowRole": "EMR_EC2_DefaultRole",
+                    "ServiceRole": "EMR_DefaultRole",
+                    "Tags": [
+                        {
+                            "Key": "app",
+                            "Value": "analytics"
+                        },
+                        {
+                            "Key": "environment",
+                            "Value": "development"
+                        }
+                    ]
+                }
+            '''))
 
     # Known event types
     KET = models.KnownEventType
