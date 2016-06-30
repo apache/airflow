@@ -155,14 +155,21 @@ class BaseJob(Base, LoggingMixin):
         if job.state == State.SHUTDOWN:
             self.kill()
 
+        # Figure out how long to sleep for
+        sleep_for = 0
         if job.latest_heartbeat:
             sleep_for = self.heartrate - (
                 datetime.now() - job.latest_heartbeat).total_seconds()
-            if sleep_for > 0:
-                sleep(sleep_for)
 
+        # Don't keep session open while sleeping as it leaves a connection open
+        session.close()
+        if sleep_for > 0:
+            sleep(sleep_for)
+
+        # Update last heartbeat time
+        session = settings.Session()
+        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.latest_heartbeat = datetime.now()
-
         session.merge(job)
         session.commit()
         session.close()
@@ -180,11 +187,13 @@ class BaseJob(Base, LoggingMixin):
         id_ = self.id
         make_transient(self)
         self.id = id_
+        session.close()
 
         # Run
         self._execute()
 
         # Marking the success in the DB
+        session = settings.Session()
         self.end_date = datetime.now()
         self.state = State.SUCCESS
         session.merge(self)
