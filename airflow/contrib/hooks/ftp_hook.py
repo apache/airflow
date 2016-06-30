@@ -22,8 +22,8 @@ from past.builtins import basestring
 
 
 def mlsd(conn, path="", facts=None):
-    '''
-    BACKPORT FROM PYTHON3 FTPLIB
+    """
+    BACKPORT FROM PYTHON3 FTPLIB.
 
     List a directory in a standardized format by using MLSD
     command (RFC-3659). If path is omitted the current directory
@@ -35,7 +35,7 @@ def mlsd(conn, path="", facts=None):
     First element is the file name, the second one is a dictionary
     including a variable number of "facts" depending on the server
     and whether "facts" argument has been provided.
-    '''
+    """
     facts = facts or []
     if facts:
         conn.sendcmd("OPTS MLST " + ";".join(facts) + ";")
@@ -55,7 +55,6 @@ def mlsd(conn, path="", facts=None):
 
 
 class FTPHook(BaseHook):
-
     """
     Interact with FTP.
 
@@ -66,6 +65,13 @@ class FTPHook(BaseHook):
     def __init__(self, ftp_conn_id='ftp_default'):
         self.ftp_conn_id = ftp_conn_id
         self.conn = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.conn is not None:
+            self.close_conn()
 
     def get_conn(self):
         """
@@ -80,7 +86,7 @@ class FTPHook(BaseHook):
     def close_conn(self):
         """
         Closes the connection. An error will occur if the
-        connection wasnt ever opened.
+        connection wasn't ever opened.
         """
         conn = self.conn
         conn.quit()
@@ -162,7 +168,7 @@ class FTPHook(BaseHook):
         conn.cwd(remote_path)
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
-        logging.info('Finished etrieving file from FTP: {}'.format(
+        logging.info('Finished retrieving file from FTP: {}'.format(
             remote_full_path))
 
         if is_path:
@@ -199,7 +205,7 @@ class FTPHook(BaseHook):
 
     def delete_file(self, path):
         """
-        Removes a file on the FTP Server
+        Removes a file on the FTP Server.
 
         :param path: full path to the remote file
         :type path: str
@@ -217,7 +223,7 @@ class FTPSHook(FTPHook):
 
     def get_conn(self):
         """
-        Returns a FTPS connection object
+        Returns a FTPS connection object.
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
