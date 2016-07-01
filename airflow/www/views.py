@@ -1500,7 +1500,7 @@ class Airflow(BaseView):
 
         dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
-        return redirect('/')
+        return redirect(request.referrer)
 
     @expose('/refresh_all')
     @login_required
