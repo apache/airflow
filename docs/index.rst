@@ -7,10 +7,10 @@
 Apache Airflow (incubating) Documentation
 =========================================
 
-.. note ::
+.. important::
 
-    Apache Airflow is an effort undergoing incubation at The Apache
-    Software Foundation (ASF), sponsored by Chris Riccomini.
+    **Disclaimer**: Apache Airflow is an effort undergoing incubation at The
+    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
     Incubation is required of all newly accepted projects until a further
     review indicates that the infrastructure, communications, and
     decision making process have stabilized in a manner consistent with
@@ -18,6 +18,7 @@ Apache Airflow (incubating) Documentation
     necessarily a reflection of the completeness or stability of
     the code, it does indicate that the project has yet to be fully
     endorsed by the ASF.
+
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
