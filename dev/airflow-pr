@@ -184,6 +184,70 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     merge_message_flags = []
 
     if squash:
+
+        # -- create commit message subject
+        # if there is only one commit, take the squash commit message from it
+        if len(pr_commits) == 1:
+            click.echo(click.style(
+                'This squash contains only one commit, so we will use its\n'
+                'commit message for the squash commit message. You will have\n'
+                'an opportunity to edit it later.', bold=True))
+            commit_message = pr_commits[0]['commit']['message']
+            merge_message_flags.extend(["-m", commit_message])
+        # if there is are multiple commits, take the squash commit message from
+        # the PR title
+        else:
+            click.echo(click.style(
+                'This squash contains more than one commit, so we will use\n'
+                'the PR title as the squash commit subject. You will have an\n'
+                'opportunity to edit it later.', bold=True))
+            merge_message_flags.extend(["-m", title])
+
+        commit_subject = merge_message_flags[-1].split('\n')[0]
+        if not re.findall("AIRFLOW-[0-9]{1,6}", commit_subject):
+            click.echo(click.style(
+                'Note that the commit subject does not reference a '
+                'JIRA issue!', fg='red', bold=True))
+
+        # -- Note conflicts
+        if had_conflicts:
+            committer_name = run_cmd(
+                "git config --get user.name", echo_cmd=False)
+            committer_email = run_cmd(
+                "git config --get user.email", echo_cmd=False)
+            message = (
+                'This patch had conflicts when merged, resolved by '
+                'Committer: %s <%s>' % (committer_name, committer_email))
+            merge_message_flags.extend(["-m", message])
+
+        # -- Add PR body to commit message
+        msg = click.style(
+            'Would you like to include the PR body in the squash '
+            'commit message?',
+            fg='blue', bold=True)
+        if body and click.confirm(msg, default=False, prompt_suffix=''):
+            # We remove @ symbols from the body to avoid triggering e-mails
+            # to people every time someone creates a public fork of Airflow.
+            merge_message_flags += ["-m", body.replace("@", "")]
+
+        # -- add individual commit messages to squash commit
+        if len(pr_commits) > 1:
+            m = click.style(
+                'Would you like to include the individual commit messages '
+                'in the squash commit message?',
+                fg='blue', bold=True)
+            if pr_commits and click.confirm(m, default=True, prompt_suffix=''):
+                for commit in pr_commits:
+                    merge_message_flags.extend(
+                        ['-m', commit['commit']['message']])
+
+        # The string "Closes #%s" string is required for GitHub to correctly
+        # close the PR. GitHub will mark the PR as closed, not merged
+        close_msg = "closes #{}".format(pr_num)
+        merge_message_flags.extend(["-m", "{} from {}".format(
+            close_msg.capitalize(), pr_repo_desc)])
+
+        # -- set authors and add authors to commit message
         commit_authors = run_cmd(
             ['git', 'log', 'HEAD..{}'.format(pr_branch_name),
              '--pretty=format:%an <%ae>'], echo_cmd=False).split("\n")
@@ -199,50 +263,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        commits = run_cmd(
-            ['git', 'log', 'HEAD..%s' % pr_branch_name,
-             '--pretty=format:%h [%an] %s'], echo_cmd=False).split("\n\n")
-
-        # -- set authors and add authors to commit message
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
 
-        # -- Add PR to commit message
-        merge_message_flags.extend(["-m", title])
-        msg = click.style(
-            'Would you like to include the PR body in the squash '
-            'commit message?',
-            fg='blue', bold=True)
-        if body and click.confirm(msg, default=False, prompt_suffix=''):
-            # We remove @ symbols from the body to avoid triggering e-mails
-            # to people every time someone creates a public fork of Airflow.
-            merge_message_flags += ["-m", body.replace("@", "")]
-
-
-        if had_conflicts:
-            committer_name = run_cmd(
-                "git config --get user.name", echo_cmd=False)
-            committer_email = run_cmd(
-                "git config --get user.email", echo_cmd=False)
-            message = (
-                'This patch had conflicts when merged, resolved by '
-                'Committer: %s <%s>' % (committer_name, committer_email))
-            merge_message_flags.extend(["-m", message])
-
-        # -- add individual commit messages to squash commit
-        msg = click.style(
-            'Would you like to include the individual commit messages '
-            'in the squash commit message?',
-            fg='blue', bold=True)
-        if pr_commits and click.confirm(msg, default=True, prompt_suffix=''):
-            for commit in pr_commits:
-                merge_message_flags.extend(['-m', commit['commit']['message']])
-
-        # The string "Closes #%s" string is required for GitHub to correctly
-        # close the PR. GitHub will mark the PR as closed, not merged
-        close_msg = "closes #{}".format(pr_num)
-        merge_message_flags.extend(["-m", "{} from {}".format(
-            close_msg.capitalize(), pr_repo_desc)])
 
     else:
         # This will mark the PR as merged
