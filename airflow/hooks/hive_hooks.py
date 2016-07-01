@@ -527,22 +527,22 @@ class HiveServer2Hook(BaseHook):
                 'data': [],
                 'header': [],
             }
+            cur = conn.cursor()
             for statement in hql:
-                with conn.cursor() as cur:
-                    cur.execute(statement)
-                    records = []
-                    try:
-                        # impala Lib raises when no results are returned
-                        # we're silencing here as some statements in the list
-                        # may be `SET` or DDL
-                        records = cur.fetchall()
-                    except ProgrammingError:
-                        logging.debug("get_results returned no records")
-                    if records:
-                        results = {
-                            'data': records,
-                            'header': cur.description,
-                        }
+                cur.execute(statement)
+                records = []
+                try:
+                    # impala Lib raises when no results are returned
+                    # we're silencing here as some statements in the list
+                    # may be `SET` or DDL
+                    records = cur.fetchall()
+                except ProgrammingError:
+                    logging.debug("get_results returned no records")
+                if records:
+                    results = {
+                        'data': records,
+                        'header': cur.description,
+                    }
             return results
 
     def to_csv(
