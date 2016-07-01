@@ -524,7 +524,8 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
 
     if versions:
         default_fix_versions = map(
-            lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+            lambda x: fix_version_from_branch(x, versions), merge_branches)
+        default_fix_versions = [v.name for v in default_fix_versions if v]
     else:
         default_fix_versions = []
 
