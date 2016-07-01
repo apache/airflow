@@ -555,11 +555,14 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         fix_versions = None
 
     def get_version_json(version_str):
-        return list(filter(lambda v: v.name == version_str, versions))[0].raw
+        version_list = list(filter(lambda v: v.name == version_str, versions))
+        if version_list:
+            return version_list[0].raw
+        else:
+            return ''
 
     if fix_versions and fix_versions != ['']:
-        jira_fix_versions = list(
-            map(lambda v: get_version_json(v), fix_versions))
+        jira_fix_versions = list(map(get_version_json, fix_versions))
     else:
         jira_fix_versions = None
 
