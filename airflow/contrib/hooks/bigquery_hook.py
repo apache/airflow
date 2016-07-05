@@ -513,29 +513,34 @@ class BigQueryBaseCursor(object):
         """
         # check to see if the table exists
         table_id = table_resource['tableReference']['tableId']
-        table_exists = False
         project_id = project_id if project_id is not None else self.project_id
         tables_list_resp = self.service.tables().list(projectId=project_id,
                                                       datasetId=dataset_id).execute()
-        if 'tables' in tables_list_resp:
-            for table in tables_list_resp['tables']:
+        while True:
+            for table in tables_list_resp.get('tables', []):
                 if table['tableReference']['tableId'] == table_id:
-                    table_exists = True
-                    break
-
-        # do update if table exists
-        if table_exists:
-            logging.info('table %s:%s.%s exists, updating.', project_id, dataset_id, table_id)
-            return self.service.tables().update(projectId=project_id,
-                                                datasetId=dataset_id,
-                                                tableId=table_id,
-                                                body=table_resource).execute()
-        # do insert if table does not exist
-        else:
-            logging.info('table %s:%s.%s does not exist. creating.', project_id, dataset_id, table_id)
-            return self.service.tables().insert(projectId=project_id,
-                                                datasetId=dataset_id,
-                                                body=table_resource).execute()
+                    # found the table, do update
+                    logging.info('table %s:%s.%s exists, updating.',
+                                 project_id, dataset_id, table_id)
+                    return self.service.tables().update(projectId=project_id,
+                                                        datasetId=dataset_id,
+                                                        tableId=table_id,
+                                                        body=table_resource).execute()
+            # If there is a next page, we need to check the next page.
+            if 'nextPageToken' in tables_list_resp:
+                tables_list_resp = self.service.tables()\
+                    .list(projectId=project_id,
+                          datasetId=dataset_id,
+                          pageToken=tables_list_resp['nextPageToken'])\
+                    .execute()
+            # If there is no next page, then the table doesn't exist.
+            else:
+                # do insert
+                logging.info('table %s:%s.%s does not exist. creating.',
+                             project_id, dataset_id, table_id)
+                return self.service.tables().insert(projectId=project_id,
+                                                    datasetId=dataset_id,
+                                                    body=table_resource).execute()
 
     def run_grant_dataset_view_access(self,
                                       source_dataset,
