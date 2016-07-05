@@ -59,7 +59,7 @@ class SqoopHook(BaseHook):
     def get_conn(self):
         pass
 
-    def Popen(self, cmd, export=False, **kwargs):
+    def Popen(self, cmd, export=False, **kwargs):  # noqa
         """
         Remote Popen
 
@@ -68,13 +68,9 @@ class SqoopHook(BaseHook):
         :return: handle to subprocess
         """
         prefixed_cmd = self._prepare_command(cmd, export=export)
-        print prefixed_cmd
         return subprocess.Popen(prefixed_cmd, **kwargs)
 
     def _prepare_command(self, cmd, export=False):
-
-        connection_cmd = ""
-
         if export:
             connection_cmd = ["sqoop", "export", "--verbose"]
         else:
@@ -96,7 +92,8 @@ class SqoopHook(BaseHook):
         if self.archives:
             connection_cmd += ["-archives", self.archives]
 
-        connection_cmd += ["--connect", "{}:{}/{}".format(self.conn.host, self.conn.port, self.conn.schema)]
+        connection_cmd += ["--connect", "{}:{}/{}".format(self.conn.host, self.conn.port,
+                                                          self.conn.schema)]
         connection_cmd += cmd
 
         return connection_cmd
@@ -155,7 +152,8 @@ class SqoopHook(BaseHook):
         output, stderr = p.communicate()
 
         if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host, output=output)
+            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
+            # output=output)
             raise AirflowException("Cannot execute {} on {}. Error code is: "
                                    "{}. Output: {}, Stderr: {}"
                                    .format(cmd, self.conn.host,
@@ -189,7 +187,8 @@ class SqoopHook(BaseHook):
         output, stderr = p.communicate()
 
         if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host, output=output)
+            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
+            # output=output)
             raise AirflowException("Cannot execute {} on {}. Error code is: "
                                    "{}. Output: {}, Stderr: {}"
                                    .format(cmd, self.conn.host,
@@ -216,7 +215,8 @@ class SqoopHook(BaseHook):
         output, stderr = p.communicate()
 
         if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host, output=output)
+            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
+            # output=output)
             raise AirflowException("Cannot execute {} on {}. Error code is: "
                                    "{}. Output: {}, Stderr: {}"
                                    .format(cmd, self.conn.host,
