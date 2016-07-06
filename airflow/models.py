@@ -402,12 +402,12 @@ class DagBag(LoggingMixin):
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
-            patterns = []
+            ignore_patterns = []
             for root, dirs, files in os.walk(dag_folder, followlinks=True):
                 ignore_file = [f for f in files if f == '.airflowignore']
                 if ignore_file:
                     f = open(os.path.join(root, ignore_file[0]), 'r')
-                    patterns += [p for p in f.read().split('\n') if p]
+                    ignore_patterns += [p for p in f.read().split('\n') if p]
                     f.close()
                 for f in files:
                     try:
@@ -418,22 +418,22 @@ class DagBag(LoggingMixin):
                             os.path.split(filepath)[-1])
                         if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
-                        if not any(
-                                [re.findall(p, filepath) for p in patterns]):
-                            ts = datetime.now()
-                            found_dags = self.process_file(
-                                filepath, only_if_updated=only_if_updated)
+                        if any(re.findall(p, filepath) for p in ignore_patterns):
+                            continue
+                        ts = datetime.now()
+                        found_dags = self.process_file(
+                            filepath, only_if_updated=only_if_updated)
 
-                            td = datetime.now() - ts
-                            td = td.total_seconds() + (
-                                float(td.microseconds) / 1000000)
-                            stats.append(FileLoadStat(
-                                filepath.replace(dag_folder, ''),
-                                td,
-                                len(found_dags),
-                                sum([len(dag.tasks) for dag in found_dags]),
-                                str([dag.dag_id for dag in found_dags]),
-                            ))
+                        td = datetime.now() - ts
+                        td = td.total_seconds() + (
+                            float(td.microseconds) / 1000000)
+                        stats.append(FileLoadStat(
+                            filepath.replace(dag_folder, ''),
+                            td,
+                            len(found_dags),
+                            sum([len(dag.tasks) for dag in found_dags]),
+                            str([dag.dag_id for dag in found_dags]),
+                        ))
                     except Exception as e:
                         logging.warning(e)
         Stats.gauge(
