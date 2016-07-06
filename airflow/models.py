@@ -2559,7 +2559,7 @@ class DAG(LoggingMixin):
             all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
                 for c in self._comps))
 
-    def __neq__(self, other):
+    def __ne__(self, other):
         return not self == other
 
     def __lt__(self, other):
