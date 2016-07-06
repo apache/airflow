@@ -1145,13 +1145,26 @@ class TaskInstance(Base):
             "{ti.execution_date} [{ti.state}]>"
         ).format(ti=self)
 
+    def next_retry_datetime(self):
+        """
+        Get datetime of the next retry if the task instance fails. For exponential
+        backoff, retry_delay is used as base and will be converted to seconds.
+        """
+        delay = self.task.retry_delay
+        if self.task.retry_exponential_backoff:
+            delay_backoff_in_seconds = delay.total_seconds() ** self.try_number
+            delay = timedelta(seconds=delay_backoff_in_seconds)
+            if self.task.max_retry_delay:
+                delay = min(self.task.max_retry_delay, delay)
+        return self.end_date + delay
+
+
     def ready_for_retry(self):
         """
         Checks on whether the task instance is in the right state and timeframe
         to be retried.
         """
-        return self.state == State.UP_FOR_RETRY and \
-            self.end_date + self.task.retry_delay < datetime.now()
+        return self.state == State.UP_FOR_RETRY and self.next_retry_datetime() < datetime.now()
 
     @provide_session
     def pool_full(self, session):
@@ -1239,7 +1252,7 @@ class TaskInstance(Base):
             # todo: move this to the scheduler
                 self.state == State.UP_FOR_RETRY and
                 not self.ready_for_retry()):
-            next_run = (self.end_date + task.retry_delay).isoformat()
+            next_run = self.next_retry_datetime().isoformat()
             logging.info(
                 "Not ready for retry yet. " +
                 "Next run after {0}".format(next_run)
@@ -1692,6 +1705,12 @@ class BaseOperator(object):
     :type retries: int
     :param retry_delay: delay between retries
     :type retry_delay: timedelta
+    :param retry_exponential_backoff: allow progressive longer waits between
+        retries by using exponential backoff algorithm on retry delay (delay
+        will be converted into seconds)
+    :type retry_exponential_backoff: bool
+    :param max_retry_delay: maximum delay interval between retries
+    :type max_retry_delay: timedelta
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -1789,6 +1808,8 @@ class BaseOperator(object):
             email_on_failure=True,
             retries=0,
             retry_delay=timedelta(seconds=300),
+            retry_exponential_backoff=False,
+            max_retry_delay=None,
             start_date=None,
             end_date=None,
             schedule_interval=None,  # not hooked as of now
@@ -1864,6 +1885,8 @@ class BaseOperator(object):
         else:
             logging.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
+        self.retry_exponential_backoff = retry_exponential_backoff
+        self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
         self.priority_weight = priority_weight
@@ -1884,6 +1907,8 @@ class BaseOperator(object):
             'email',
             'email_on_retry',
             'retry_delay',
+            'retry_exponential_backoff',
+            'max_retry_delay',
             'start_date',
             'schedule_interval',
             'depends_on_past',
