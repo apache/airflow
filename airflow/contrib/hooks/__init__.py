@@ -41,6 +41,7 @@ _hooks = {
     'gcs_hook': ['GoogleCloudStorageHook'],
     'datastore_hook': ['DatastoreHook'],
     'gcp_dataproc_hook': ['DataProcHook'],
+    'gcp_dataflow_hook': ['DataFlowHook'],
     'cloudant_hook': ['CloudantHook'],
     'fs_hook': ['FSHook']
 }
