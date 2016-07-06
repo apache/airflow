@@ -96,10 +96,20 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
 
+        def test_hive_queues(self):
+            import airflow.operators.hive_operator
+            t = operators.hive_operator.HiveOperator(
+                task_id='test_hive_queues', hql=self.hql,
+                mapred_queue='default', mapred_queue_priority='HIGH',
+                mapred_job_name='airflow.test_hive_queues',
+                dag=self.dag)
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+
+
         def test_hive_dryrun(self):
             import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
-                task_id='basic_hql', hql=self.hql, dag=self.dag)
+                task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
         def test_beeline(self):

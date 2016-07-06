@@ -104,6 +104,16 @@ def as_tuple(obj):
         return tuple([obj])
 
 
+def as_flattened_list(iterable):
+    """
+    Return an iterable with one level flattened
+
+    >>> as_flattened_list((('blue', 'red'), ('green', 'yellow', 'pink')))
+    ['blue', 'red', 'green', 'yellow', 'pink']
+    """
+    return [e for i in iterable for e in i]
+
+
 def chain(*tasks):
     """
     Given a number of tasks, builds a dependency chain.
