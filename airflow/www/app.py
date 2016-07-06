@@ -37,6 +37,7 @@ csrf = CsrfProtect()
 def update_dags():
     while True:
         shared.dagbag.refresh_dags()
+        print(shared.dagbag.dagbag_report())
         time.sleep(1)
 
 def create_app(config=None):
