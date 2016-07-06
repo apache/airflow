@@ -163,7 +163,7 @@ or a single test method:
 For more information on how to run a subset of the tests, take a look at the
 nosetests docs.
 
-See also the the list of test classes and methods in `tests/code.py`.
+See also the list of test classes and methods in `tests/core.py`.
 
 ### Changing the Metadata Database
 
