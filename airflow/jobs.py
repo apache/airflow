@@ -896,17 +896,16 @@ class BackfillJob(BaseJob):
                     ti.execution_date == (start_date or ti.start_date))
                 # The task was already marked successful or skipped by a
                 # different Job. Don't rerun it.
-                if key not in started:
-                    if ti.state == State.SUCCESS:
-                        succeeded.add(key)
-                        tasks_to_run.pop(key)
-                        session.commit()
-                        continue
-                    elif ti.state == State.SKIPPED:
-                        skipped.add(key)
-                        tasks_to_run.pop(key)
-                        session.commit()
-                        continue
+                if ti.state == State.SUCCESS:
+                    succeeded.add(key)
+                    tasks_to_run.pop(key)
+                    session.commit()
+                    continue
+                elif ti.state == State.SKIPPED:
+                    skipped.add(key)
+                    tasks_to_run.pop(key)
+                    session.commit()
+                    continue
 
                 # Is the task runnable? -- then run it
                 if ti.is_queueable(
