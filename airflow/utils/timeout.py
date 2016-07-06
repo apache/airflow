@@ -64,10 +64,16 @@ class timeout(object):
     def enter_settrace(self):
 
         self.start_time = datetime.datetime.now()
+        self.counter = 0
 
         def trace(frame, event, arg):
-            if datetime.datetime.now() - self.start_time > datetime.timedelta(seconds=self.seconds_before_timeout):
-                raise AirflowTaskTimeout(self.error_message)
+            self.counter += 1
+
+            if self.counter == 1000:
+                self.counter = 0
+                if datetime.datetime.now() - self.start_time > datetime.timedelta(seconds=self.seconds_before_timeout):
+                    raise AirflowTaskTimeout(self.error_message)
+
             return trace
 
         sys.settrace(trace)
