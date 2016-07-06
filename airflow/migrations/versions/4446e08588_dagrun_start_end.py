@@ -29,6 +29,7 @@ depends_on = None
 from alembic import op
 import sqlalchemy as sa
 
+
 def upgrade():
     op.add_column('dag_run', sa.Column('end_date', sa.DateTime(), nullable=True))
     op.add_column('dag_run', sa.Column('start_date', sa.DateTime(), nullable=True))

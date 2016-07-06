@@ -43,6 +43,7 @@ login_manager.login_message = None
 LOG = logging.getLogger(__name__)
 PY3 = version_info[0] == 3
 
+
 class AuthenticationError(Exception):
     pass
 

@@ -20,6 +20,7 @@ from airflow.operators.sensors import BaseSensorOperator
 from airflow.contrib.hooks.fs_hook import FSHook
 from airflow.utils.decorators import apply_defaults
 
+
 class FileSensor(BaseSensorOperator):
     """
     Waits for a file or folder to land in a filesystem

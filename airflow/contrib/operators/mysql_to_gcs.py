@@ -26,6 +26,7 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 
+
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
     """
     Copy data from MySQL to Google cloud storage in JSON format.

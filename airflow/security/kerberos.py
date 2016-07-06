@@ -101,6 +101,7 @@ def detect_conf_var():
     finally:
         f.close()
 
+
 def run():
     if configuration.get('kerberos','keytab') is None:
         LOG.debug("Keytab renewer not starting, no keytab configured")

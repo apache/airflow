@@ -71,6 +71,7 @@ def get_fqdn(hostname_or_ip=None):
 
     return fqdn
 
+
 def principal_from_username(username):
     realm = conf.get("security", "default_realm")
     if '@' not in username and realm:

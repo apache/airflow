@@ -24,6 +24,7 @@ import logging
 from airflow import configuration
 from airflow.exceptions import AirflowException
 
+
 class LoggingMixin(object):
     """
     Convenience super-class to have a logger configured with the class name
@@ -79,7 +80,6 @@ class S3Log(object):
         err = 'Could not read logs from {}'.format(remote_log_location)
         logging.error(err)
         return err if return_error else ''
-
 
     def write(self, log, remote_log_location, append=False):
         """

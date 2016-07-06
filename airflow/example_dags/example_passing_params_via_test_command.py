@@ -26,6 +26,7 @@ dag = DAG("example_passing_params_via_test_command",
           dagrun_timeout=timedelta(minutes=4)
           )
 
+
 def my_py_command(ds, **kwargs):
     # Print out the "foo" param passed in via
     # `airflow test example_passing_params_via_test_command run_this <date>

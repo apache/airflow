@@ -1795,6 +1795,7 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
         'timestamp': {'disabled': True},
     }
 
+
 class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "chart"
     verbose_name_plural = "charts"

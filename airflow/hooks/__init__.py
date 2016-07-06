@@ -61,6 +61,7 @@ if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
     from airflow.utils.helpers import AirflowImporter
     airflow_importer = AirflowImporter(sys.modules[__name__], _hooks)
 
+
 def _integrate_plugins():
     """Integrate plugins to the context"""
     import sys

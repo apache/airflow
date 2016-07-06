@@ -29,8 +29,10 @@ merge = chain.from_iterable
 
 from airflow import configuration
 
+
 class AirflowPluginException(Exception):
     pass
+
 
 class AirflowPlugin(object):
     name = None
@@ -88,6 +90,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
         except Exception as e:
             logging.exception(e)
             logging.error('Failed to import plugin ' + filepath)
+
 
 def make_module(name, objects):
     name = name.lower()

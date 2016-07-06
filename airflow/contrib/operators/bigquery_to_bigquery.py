@@ -18,6 +18,7 @@ from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+
 class BigQueryToBigQueryOperator(BaseOperator):
     """
     Copy a BigQuery table to another BigQuery table.

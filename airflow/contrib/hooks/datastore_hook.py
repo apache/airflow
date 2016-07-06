@@ -16,6 +16,7 @@
 from apiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
+
 class DatastoreHook(GoogleCloudBaseHook):
     """
     Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform
