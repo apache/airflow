@@ -88,6 +88,12 @@
           Code
         </a>
       </li>
+      <li>
+        <a href="{{ url_for("airflow.refresh", dag_id=dag.dag_id) }}" title="Refresh">
+          <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+          Refresh
+        </a>
+      </li>
     </ul>
   </div>
   <hr>
