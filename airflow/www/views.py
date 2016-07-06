@@ -75,7 +75,7 @@ from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = airflow.shared.dagbag
+from airflow import shared
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
