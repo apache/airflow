@@ -75,12 +75,15 @@ the `doc` extra. In that case you can generate the doc by running:
 
 ### Setting up a development environment
 
-It is usually best to work in a virtualenv. Install development requirements:
+Please install python(2.7.x or 3.4.x), mysql, and libxml by using system-level package
+managers like yum, apt-get for Linux, or homebrew for Mac OS at first.
+It is usually best to work in a virtualenv and tox. Install development requirements:
 
     cd $AIRFLOW_HOME
     virtualenv env
     source env/bin/activate
     pip install -e .[devel]
+    tox
 
 Feel free to customize based on the extras available in [setup.py](./setup.py)
 
