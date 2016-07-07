@@ -475,7 +475,7 @@ class Airflow(BaseView):
         ]
         task_ids = []
         dag_ids = []
-        for dag in dagbag.dags.values():
+        for dag in shared.dagbag.dags.values():
             task_ids += dag.task_ids
             if not dag.is_subdag:
                 dag_ids.append(dag.dag_id)
