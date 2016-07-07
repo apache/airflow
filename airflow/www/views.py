@@ -475,7 +475,7 @@ class Airflow(BaseView):
         ]
         task_ids = []
         dag_ids = []
-        for dag in dagbag.dags.values():
+        for dag in shared.dagbag.dags.values():
             task_ids += dag.task_ids
             if not dag.is_subdag:
                 dag_ids.append(dag.dag_id)
@@ -529,7 +529,7 @@ class Airflow(BaseView):
         session.close()
 
         payload = {}
-        for dag in dagbag.dags.values():
+        for dag in shared.dagbag.dags.values():
             payload[dag.safe_dag_id] = []
             for state in states:
                 try:
@@ -550,7 +550,7 @@ class Airflow(BaseView):
     @login_required
     def code(self):
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         title = dag_id
         try:
             m = importlib.import_module(dag.module_name)
@@ -569,7 +569,7 @@ class Airflow(BaseView):
     @login_required
     def dag_details(self):
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         title = "DAG details"
 
         session = settings.Session()
@@ -637,7 +637,7 @@ class Airflow(BaseView):
     def pickle_info(self):
         d = {}
         dag_id = request.args.get('dag_id')
-        dags = [dagbag.dags.get(dag_id)] if dag_id else dagbag.dags.values()
+        dags = [shared.dagbag.dags.get(dag_id)] if dag_id else shared.dagbag.dags.values()
         for dag in dags:
             if not dag.is_subdag:
                 d[dag.dag_id] = dag.pickle_info()
@@ -662,7 +662,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         task = copy.copy(dag.get_task(task_id))
         ti = models.TaskInstance(task=task, execution_date=dttm)
         try:
@@ -697,7 +697,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         log_relative = "{dag_id}/{task_id}/{execution_date}".format(
             **locals())
         loc = os.path.join(BASE_LOG_FOLDER, log_relative)
@@ -784,7 +784,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         if not dag or task_id not in dag.task_ids:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
@@ -831,7 +831,7 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         if not dag or task_id not in dag.task_ids:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
@@ -866,7 +866,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
         execution_date = request.args.get('execution_date')
@@ -903,7 +903,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
         execution_date = request.args.get('execution_date')
@@ -965,8 +965,8 @@ class Airflow(BaseView):
         payload = []
         for dag_id, active_dag_runs in dags:
             max_active_runs = 0
-            if dag_id in dagbag.dags:
-                max_active_runs = dagbag.dags[dag_id].max_active_runs
+            if dag_id in shared.dagbag.dags:
+                max_active_runs = shared.dagbag.dags[dag_id].max_active_runs
             payload.append({
                 'dag_id': dag_id,
                 'active_dag_run': active_dag_runs,
@@ -982,7 +982,7 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
 
         execution_date = request.args.get('execution_date')
@@ -1104,7 +1104,7 @@ class Airflow(BaseView):
     def tree(self):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
@@ -1230,8 +1230,8 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         arrange = request.args.get('arrange', "LR")
-        dag = dagbag.get_dag(dag_id)
-        if dag_id not in dagbag.dags:
+        dag = shared.dagbag.get_dag(dag_id)
+        if dag_id not in shared.dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/admin/')
 
@@ -1339,7 +1339,7 @@ class Airflow(BaseView):
     def duration(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else 25
@@ -1404,7 +1404,7 @@ class Airflow(BaseView):
     def landing_times(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
         num_runs = int(num_runs) if num_runs else 25
@@ -1479,7 +1479,7 @@ class Airflow(BaseView):
         session.commit()
         session.close()
 
-        dagbag.get_dag(dag_id)
+        shared.dagbag.get_dag(dag_id)
         return "OK"
 
     @expose('/refresh')
@@ -1498,7 +1498,7 @@ class Airflow(BaseView):
         session.commit()
         session.close()
 
-        dagbag.get_dag(dag_id)
+        shared.dagbag.get_dag(dag_id)
         flash("DAG [{}] is now fresh as a daisy".format(dag_id))
         return redirect(request.referrer)
 
@@ -1506,7 +1506,7 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def refresh_all(self):
-        dagbag.collect_dags(only_if_updated=False)
+        shared.dagbag.collect_dags(only_if_updated=False)
         flash("All DAGs are now up to date")
         return redirect('/')
 
@@ -1516,7 +1516,7 @@ class Airflow(BaseView):
     def gantt(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
         demo_mode = conf.getboolean('webserver', 'demo_mode')
 
         root = request.args.get('root')
@@ -1579,7 +1579,7 @@ class Airflow(BaseView):
     def task_instances(self):
         session = settings.Session()
         dag_id = request.args.get('dag_id')
-        dag = dagbag.get_dag(dag_id)
+        dag = shared.dagbag.get_dag(dag_id)
 
         dttm = request.args.get('execution_date')
         if dttm:
@@ -1656,7 +1656,7 @@ class HomeView(AdminIndexView):
         session.expunge_all()
         session.commit()
         session.close()
-        dags = dagbag.dags.values()
+        dags = shared.dagbag.dags.values()
         if do_filter:
             if owner_mode == 'ldapgroup':
                 dags = {
