@@ -72,8 +72,8 @@ class S3Log(object):
                 s3_key = self.hook.get_key(remote_log_location)
                 if s3_key:
                     return s3_key.get_contents_as_string()
-            except Exception as e:
-                logging.debug(e)
+            except:
+                pass
 
         # raise/return error if we get here
         err = 'Could not read logs from {}'.format(remote_log_location)
