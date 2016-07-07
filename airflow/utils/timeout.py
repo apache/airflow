@@ -19,6 +19,9 @@ from __future__ import unicode_literals
 
 import logging
 import signal
+import threading
+import datetime
+import sys
 
 from builtins import object
 
@@ -30,24 +33,64 @@ class timeout(object):
     To be used in a ``with`` block and timeout its content.
     """
     def __init__(self, seconds=1, error_message='Timeout'):
-        self.seconds = seconds
+        self.seconds_before_timeout = seconds
         self.error_message = error_message
+        self.use_signal = isinstance(
+            threading.current_thread(), threading._MainThread)
 
     def handle_timeout(self, signum, frame):
         logging.error("Process timed out")
         raise AirflowTaskTimeout(self.error_message)
 
-    def __enter__(self):
+    # Signal-based implementation
+
+    def enter_signal(self):
         try:
             signal.signal(signal.SIGALRM, self.handle_timeout)
-            signal.alarm(self.seconds)
+            signal.alarm(self.seconds_before_timeout)
         except ValueError as e:
             logging.warning("timeout can't be used in the current context")
             logging.exception(e)
 
-    def __exit__(self, type, value, traceback):
+    def exit_signal(self):
         try:
             signal.alarm(0)
         except ValueError as e:
             logging.warning("timeout can't be used in the current context")
             logging.exception(e)
+
+    # Settrace-based implementation
+
+    def enter_settrace(self):
+
+        self.start_time = datetime.datetime.now()
+        self.counter = 0
+
+        def trace(frame, event, arg):
+            self.counter += 1
+
+            if self.counter == 1000:
+                self.counter = 0
+                if datetime.datetime.now() - self.start_time > datetime.timedelta(seconds=self.seconds_before_timeout):
+                    raise AirflowTaskTimeout(self.error_message)
+
+            return trace
+
+        sys.settrace(trace)
+
+    def exit_settrace(self):
+        sys.settrace(None)
+
+    # Dispatch
+
+    def __enter__(self):
+        if self.use_signal:
+            self.enter_signal()
+        else:
+            self.enter_settrace()
+
+    def __exit__(self, type, value, traceback):
+        if self.use_signal:
+            self.exit_signal()
+        else:
+            self.exit_settrace()

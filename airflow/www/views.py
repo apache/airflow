@@ -75,7 +75,7 @@ from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
+from airflow import shared
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user
@@ -475,7 +475,7 @@ class Airflow(BaseView):
         ]
         task_ids = []
         dag_ids = []
-        for dag in dagbag.dags.values():
+        for dag in shared.dagbag.dags.values():
             task_ids += dag.task_ids
             if not dag.is_subdag:
                 dag_ids.append(dag.dag_id)

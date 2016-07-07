@@ -28,8 +28,18 @@ from airflow import jobs
 from airflow import settings
 from airflow import configuration
 
+from airflow import shared
+
+import threading, time, os
+
 csrf = CsrfProtect()
 
+def update_dags():
+    while True:
+        shared.dagbag.refresh_dags()
+        if sum([o.dag_num for o in shared.dagbag.dagbag_stats]):
+            print(shared.dagbag.dagbag_report())
+        time.sleep(1)
 
 def create_app(config=None):
     app = Flask(__name__)
@@ -37,6 +47,10 @@ def create_app(config=None):
     app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
 
     csrf.init_app(app)
+
+    t = threading.Thread(target=update_dags)
+    t.daemon = True
+    t.start()
 
     #app.config = config
     airflow.load_login()

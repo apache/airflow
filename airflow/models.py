@@ -165,12 +165,10 @@ class DagBag(LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
-        if include_examples:
-            example_dag_folder = os.path.join(
-                os.path.dirname(__file__),
-                'example_dags')
-            self.collect_dags(example_dag_folder)
-        self.collect_dags(dag_folder)
+        self.include_examples = include_examples
+
+        self.refresh_dags()
+
         if sync_to_db:
             self.deactivate_inactive_dags()
 
@@ -179,6 +177,14 @@ class DagBag(LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    def refresh_dags(self):
+        if self.include_examples:
+            example_dag_folder = os.path.join(
+                os.path.dirname(__file__),
+                'example_dags')
+            self.collect_dags(example_dag_folder)
+        self.collect_dags(self.dag_folder)
 
     def get_dag(self, dag_id):
         """
@@ -396,12 +402,12 @@ class DagBag(LoggingMixin):
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
-            patterns = []
+            ignore_patterns = []
             for root, dirs, files in os.walk(dag_folder, followlinks=True):
                 ignore_file = [f for f in files if f == '.airflowignore']
                 if ignore_file:
                     f = open(os.path.join(root, ignore_file[0]), 'r')
-                    patterns += [p for p in f.read().split('\n') if p]
+                    ignore_patterns += [p for p in f.read().split('\n') if p]
                     f.close()
                 for f in files:
                     try:
@@ -412,22 +418,22 @@ class DagBag(LoggingMixin):
                             os.path.split(filepath)[-1])
                         if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
-                        if not any(
-                                [re.findall(p, filepath) for p in patterns]):
-                            ts = datetime.now()
-                            found_dags = self.process_file(
-                                filepath, only_if_updated=only_if_updated)
+                        if any(re.findall(p, filepath) for p in ignore_patterns):
+                            continue
+                        ts = datetime.now()
+                        found_dags = self.process_file(
+                            filepath, only_if_updated=only_if_updated)
 
-                            td = datetime.now() - ts
-                            td = td.total_seconds() + (
-                                float(td.microseconds) / 1000000)
-                            stats.append(FileLoadStat(
-                                filepath.replace(dag_folder, ''),
-                                td,
-                                len(found_dags),
-                                sum([len(dag.tasks) for dag in found_dags]),
-                                str([dag.dag_id for dag in found_dags]),
-                            ))
+                        td = datetime.now() - ts
+                        td = td.total_seconds() + (
+                            float(td.microseconds) / 1000000)
+                        stats.append(FileLoadStat(
+                            filepath.replace(dag_folder, ''),
+                            td,
+                            len(found_dags),
+                            sum([len(dag.tasks) for dag in found_dags]),
+                            str([dag.dag_id for dag in found_dags]),
+                        ))
                     except Exception as e:
                         logging.warning(e)
         Stats.gauge(
@@ -476,7 +482,6 @@ class DagBag(LoggingMixin):
         session.commit()
         session.close()
         return dag_ids
-
 
 class User(Base):
     __tablename__ = "users"
