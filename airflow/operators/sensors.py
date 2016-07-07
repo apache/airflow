@@ -300,7 +300,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     def poke(self, context):
 
         if not hasattr(self, 'hook'):
-            self.hook = airflow.hooks.hive_hooks.HiveMetastoreHook(
+            self.hook = hooks.HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
 
         def poke_partition(partition):
@@ -369,7 +369,7 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
-            self.hook = airflow.hooks.hive_hooks.HiveMetastoreHook(
+            self.hook = hooks.HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return self.hook.check_for_partition(
             self.schema, self.table, self.partition)
