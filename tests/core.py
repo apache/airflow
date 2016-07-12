@@ -980,6 +980,9 @@ class WebUiTests(unittest.TestCase):
             'execution_date={}'.format(DEFAULT_DATE_DS))
         assert "Attributes" in response.data.decode('utf-8')
         response = self.app.get(
+            '/admin/airflow/task_stats')
+        assert "example_bash_operator" in response.data.decode('utf-8')
+        response = self.app.get(
             '/admin/airflow/dag_stats')
         assert "example_bash_operator" in response.data.decode('utf-8')
         url = (
