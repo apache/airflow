@@ -213,6 +213,16 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.delete(path)
 
+    def rename(self, from_name, to_name):
+        """
+        Rename a file.
+
+        :param from_name: rename file from name
+        :param to_name: rename file to name
+        """
+        conn = self.get_conn()
+        return conn.rename(from_name, to_name)
+
     def get_mod_time(self, path):
         conn = self.get_conn()
         ftp_mdtm = conn.sendcmd('MDTM ' + path)
