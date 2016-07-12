@@ -184,6 +184,70 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     merge_message_flags = []
 
     if squash:
+
+        # -- create commit message subject
+        # if there is only one commit, take the squash commit message from it
+        if len(pr_commits) == 1:
+            click.echo(click.style(
+                'This squash contains only one commit, so we will use its\n'
+                'commit message for the squash commit message. You will have\n'
+                'an opportunity to edit it later.', bold=True))
+            commit_message = pr_commits[0]['commit']['message']
+            merge_message_flags.extend(["-m", commit_message])
+        # if there is are multiple commits, take the squash commit message from
+        # the PR title
+        else:
+            click.echo(click.style(
+                'This squash contains more than one commit, so we will use\n'
+                'the PR title as the squash commit subject. You will have an\n'
+                'opportunity to edit it later.', bold=True))
+            merge_message_flags.extend(["-m", title])
+
+        commit_subject = merge_message_flags[-1].split('\n')[0]
+        if not re.findall("AIRFLOW-[0-9]{1,6}", commit_subject):
+            click.echo(click.style(
+                'Note that the commit subject does not reference a '
+                'JIRA issue!', fg='red', bold=True))
+
+        # -- Note conflicts
+        if had_conflicts:
+            committer_name = run_cmd(
+                "git config --get user.name", echo_cmd=False)
+            committer_email = run_cmd(
+                "git config --get user.email", echo_cmd=False)
+            message = (
+                'This patch had conflicts when merged, resolved by '
+                'Committer: %s <%s>' % (committer_name, committer_email))
+            merge_message_flags.extend(["-m", message])
+
+        # -- Add PR body to commit message
+        msg = click.style(
+            'Would you like to include the PR body in the squash '
+            'commit message?',
+            fg='blue', bold=True)
+        if body and click.confirm(msg, default=False, prompt_suffix=''):
+            # We remove @ symbols from the body to avoid triggering e-mails
+            # to people every time someone creates a public fork of Airflow.
+            merge_message_flags += ["-m", body.replace("@", "")]
+
+        # -- add individual commit messages to squash commit
+        if len(pr_commits) > 1:
+            m = click.style(
+                'Would you like to include the individual commit messages '
+                'in the squash commit message?',
+                fg='blue', bold=True)
+            if pr_commits and click.confirm(m, default=True, prompt_suffix=''):
+                for commit in pr_commits:
+                    merge_message_flags.extend(
+                        ['-m', commit['commit']['message']])
+
+        # The string "Closes #%s" string is required for GitHub to correctly
+        # close the PR. GitHub will mark the PR as closed, not merged
+        close_msg = "closes #{}".format(pr_num)
+        merge_message_flags.extend(["-m", "{} from {}".format(
+            close_msg.capitalize(), pr_repo_desc)])
+
+        # -- set authors and add authors to commit message
         commit_authors = run_cmd(
             ['git', 'log', 'HEAD..{}'.format(pr_branch_name),
              '--pretty=format:%an <%ae>'], echo_cmd=False).split("\n")
@@ -199,50 +263,10 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        commits = run_cmd(
-            ['git', 'log', 'HEAD..%s' % pr_branch_name,
-             '--pretty=format:%h [%an] %s'], echo_cmd=False).split("\n\n")
-
-        # -- set authors and add authors to commit message
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
 
-        # -- Add PR to commit message
-        merge_message_flags.extend(["-m", title])
-        msg = click.style(
-            'Would you like to include the PR body in the squash '
-            'commit message?',
-            fg='blue', bold=True)
-        if body and click.confirm(msg, default=False, prompt_suffix=''):
-            # We remove @ symbols from the body to avoid triggering e-mails
-            # to people every time someone creates a public fork of Airflow.
-            merge_message_flags += ["-m", body.replace("@", "")]
 
-
-        if had_conflicts:
-            committer_name = run_cmd(
-                "git config --get user.name", echo_cmd=False)
-            committer_email = run_cmd(
-                "git config --get user.email", echo_cmd=False)
-            message = (
-                'This patch had conflicts when merged, resolved by '
-                'Committer: %s <%s>' % (committer_name, committer_email))
-            merge_message_flags.extend(["-m", message])
-
-        # The string "Closes #%s" string is required for GitHub to correctly
-        # close the PR. GitHub will mark the PR as closed, not merged
-        close_msg = "closes #{}".format(pr_num)
-        merge_message_flags.extend(["-m", "{} from {}".format(
-            close_msg.capitalize(), pr_repo_desc)])
-
-        # -- add individual commit messages to squash commit
-        msg = click.style(
-            'Would you like to include the individual commit messages '
-            'in the squash commit message?',
-            fg='blue', bold=True)
-        if pr_commits and click.confirm(msg, default=True, prompt_suffix=''):
-            for commit in pr_commits:
-                merge_message_flags.extend(['-m', commit['commit']['message']])
     else:
         # This will mark the PR as merged
         merge_message_flags.extend([
@@ -294,8 +318,9 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         return
     else:
         continue_maybe(
-            'The local merge is complete (%s). Push to Apache (%s)?' % (
-            target_branch_name, APACHE_REMOTE_NAME))
+            'The local merge is complete ({}). '.format(target_branch_name) +
+            click.style(
+                'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
 
     try:
         run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, target_branch_name, target_ref))
@@ -473,13 +498,18 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     else:
         cur_assignee = cur_assignee.displayName
 
+    # check if issue was already closed
     if cur_status == "Resolved" or cur_status == "Closed":
+        click.echo("JIRA issue {} already has status '{}'".format(
+            jira_id, cur_status))
+        return
 
-        fail("JIRA issue %s already has status '%s'" % (jira_id, cur_status))
     click.echo(click.style("\n === JIRA %s ===" % jira_id, bold=True))
     click.echo("summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
         cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
-    continue_maybe('Proceed with AIRFLOW-{}?'.format(jira_id))
+    if not click.confirm(click.style(
+            'Proceed with AIRFLOW-{}?'.format(jira_id), fg='blue', bold=True)):
+        return
 
     if comment is None:
         comment = click.prompt(
@@ -499,7 +529,8 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
 
     if versions:
         default_fix_versions = map(
-            lambda x: fix_version_from_branch(x, versions).name, merge_branches)
+            lambda x: fix_version_from_branch(x, versions), merge_branches)
+        default_fix_versions = [v.name for v in default_fix_versions if v]
     else:
         default_fix_versions = []
 
@@ -530,11 +561,14 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         fix_versions = None
 
     def get_version_json(version_str):
-        return list(filter(lambda v: v.name == version_str, versions))[0].raw
+        version_list = list(filter(lambda v: v.name == version_str, versions))
+        if version_list:
+            return version_list[0].raw
+        else:
+            return ''
 
     if fix_versions and fix_versions != ['']:
-        jira_fix_versions = list(
-            map(lambda v: get_version_json(v), fix_versions))
+        jira_fix_versions = list(map(get_version_json, fix_versions))
     else:
         jira_fix_versions = None
 
@@ -765,10 +799,12 @@ def main(pr_num, local=False):
             comment=jira_comment,
             merge_branches=merged_refs)
 
-    if click.confirm('Would you like to resolve another JIRA issue?'):
+    if click.confirm(click.style(
+            'Would you like to resolve another JIRA issue?',
+            fg='blue', bold=True)):
         resolve_jira_issues_loop(
             comment=jira_comment,
-            merged_branches=merged_refs)
+            merge_branches=merged_refs)
 
 
 @click.group()

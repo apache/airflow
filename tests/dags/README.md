@@ -6,5 +6,5 @@ To access a DAG in this folder, use the following code inside a unit test. Note 
 
 ```python
 dagbag = DagBag()
-dag = dagbag.get(dag_id)
+dag = dagbag.get_dag(dag_id)
 ```
