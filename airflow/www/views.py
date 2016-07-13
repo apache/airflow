@@ -463,16 +463,44 @@ class Airflow(BaseView):
             embed=embed)
 
     @expose('/dag_stats')
-    #@login_required
     def dag_stats(self):
-        states = [
-            State.SUCCESS,
-            State.RUNNING,
-            State.FAILED,
-            State.UPSTREAM_FAILED,
-            State.UP_FOR_RETRY,
-            State.QUEUED,
-        ]
+        TI = models.TaskInstance
+        DagRun = models.DagRun
+        session = Session()
+
+        qry = (
+            session.query(DagRun.dag_id, DagRun.state, sqla.func.count('*'))
+            .group_by(DagRun.dag_id, DagRun.state)
+        )
+
+        data = {}
+        for dag_id, state, count in qry:
+            if dag_id not in data:
+                data[dag_id] = {}
+            data[dag_id][state] = count
+        session.commit()
+        session.close()
+
+        payload = {}
+        for dag in dagbag.dags.values():
+            payload[dag.safe_dag_id] = []
+            for state in State.dag_states:
+                try:
+                    count = data[dag.dag_id][state]
+                except:
+                    count = 0
+                d = {
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag.dag_id,
+                    'color': State.color(state)
+                }
+                payload[dag.safe_dag_id].append(d)
+        return wwwutils.json_response(payload)
+
+    @expose('/task_stats')
+    #@login_required
+    def task_stats(self):
         task_ids = []
         dag_ids = []
         for dag in dagbag.dags.values():
@@ -531,7 +559,7 @@ class Airflow(BaseView):
         payload = {}
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
-            for state in states:
+            for state in State.task_states:
                 try:
                     count = data[dag.dag_id][state]
                 except:
