@@ -26,6 +26,7 @@ from airflow.exceptions import AirflowException
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
+
 class AirflowDruidLoadException(AirflowException):
     pass
 

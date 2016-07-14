@@ -44,6 +44,7 @@ LOG = logging.getLogger(__name__)
 class AuthenticationError(Exception):
     pass
 
+
 class LdapException(Exception):
     pass
 

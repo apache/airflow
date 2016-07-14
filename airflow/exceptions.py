@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-#
-# Any AirflowException raised is expected to cause the TaskInstance to be marked in an ERROR state
-#
+# Note: Any AirflowException raised is expected to cause the TaskInstance
+#       to be marked in an ERROR state
+
+
 class AirflowException(Exception):
     pass
 
@@ -27,9 +28,5 @@ class AirflowTaskTimeout(AirflowException):
     pass
 
 
-#
-# Any AirflowSkipException raised is expected to cause the TaskInstance to be marked in an SKIPPED state
-#
 class AirflowSkipException(AirflowException):
     pass
-

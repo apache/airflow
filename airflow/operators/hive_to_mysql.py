@@ -21,6 +21,7 @@ from airflow.utils.decorators import apply_defaults
 
 from tempfile import NamedTemporaryFile
 
+
 class HiveToMySqlTransfer(BaseOperator):
     """
     Moves data from Hive to MySQL, note that for now the data is loaded

@@ -23,6 +23,7 @@ from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+
 class VerticaToHiveTransfer(BaseOperator):
     """
     Moves data from Vertia to Hive. The operator runs

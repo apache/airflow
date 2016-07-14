@@ -31,6 +31,7 @@ from airflow.configuration import AirflowConfigException
 
 _log = logging.getLogger(__name__)
 
+
 def get_config_param(param):
     return str(configuration.get('github_enterprise', param))
 

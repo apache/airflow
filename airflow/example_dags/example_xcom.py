@@ -33,13 +33,16 @@ dag = airflow.DAG(
 value_1 = [1, 2, 3]
 value_2 = {'a': 'b'}
 
+
 def push(**kwargs):
     # pushes an XCom without a specific target
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
+
 def push_by_returning(**kwargs):
     # pushes an XCom without a specific target, just by returning it
     return value_2
+
 
 def puller(**kwargs):
     ti = kwargs['ti']

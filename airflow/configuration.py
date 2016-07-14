@@ -37,6 +37,7 @@ warnings.filterwarnings(
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
 
+
 class AirflowConfigException(Exception):
     pass
 

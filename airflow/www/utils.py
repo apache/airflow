@@ -185,6 +185,7 @@ def json_response(obj):
         status=200,
         mimetype="application/json")
 
+
 def gzipped(f):
     '''
     Decorator to make a view compressed

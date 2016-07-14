@@ -127,6 +127,8 @@ def create_app(config=None):
         return app
 
 app = None
+
+
 def cached_app(config=None):
     global app
     if not app:

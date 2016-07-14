@@ -17,6 +17,7 @@ import MySQLdb.cursors
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
+
 class MySqlHook(DbApiHook):
     '''
     Interact with MySQL.

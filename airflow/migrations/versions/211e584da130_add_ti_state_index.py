@@ -33,5 +33,6 @@ import sqlalchemy as sa
 def upgrade():
     op.create_index('ti_state', 'task_instance', ['state'], unique=False)
 
+
 def downgrade():
     op.drop_index('ti_state', table_name='task_instance')
