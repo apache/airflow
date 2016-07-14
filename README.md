@@ -85,6 +85,7 @@ Currently **officially** using Airflow:
 * [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 * [Bellhops](https://github.com/bellhops)
 * BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
+* [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
 * [Clairvoyant] (https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
 * [Clover Health] (https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
 * Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
