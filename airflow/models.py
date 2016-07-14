@@ -1466,17 +1466,25 @@ class TaskInstance(Base):
             {var.variable_name}.
             """
             def __init__(self):
-                pass
+                self.var = None
 
             def __getattr__(self, item):
-                return Variable.get(item)
+                self.var = Variable.get(item)
+                return self.var
+
+            def __repr__(self):
+                return str(self.var)
 
         class VariableJsonAccessor:
             def __init__(self):
-                pass
+                self.var = None
 
             def __getattr__(self, item):
-                return Variable.get(item, deserialize_json=True)
+                self.var =  Variable.get(item, deserialize_json=True)
+                return self.var
+
+            def __repr__(self):
+                return str(self.var)
 
         return {
             'dag': task.dag,
