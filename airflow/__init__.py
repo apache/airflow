@@ -78,6 +78,7 @@ from airflow import hooks
 from airflow import executors
 from airflow import macros
 from airflow import contrib
+from airflow import version_control
 
 operators._integrate_plugins()
 hooks._integrate_plugins()

@@ -809,8 +809,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_reschedule(self):
         """
-        Checks if tasks that are not taken up by the executor
-        get rescheduled
+        Checks if tasks that are not taken up by the executor get rescheduled
         """
         executor = TestExecutor()
 

@@ -55,6 +55,7 @@ from sqlalchemy.orm import relationship, synonym
 from croniter import croniter
 import six
 
+import airflow
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
@@ -140,7 +141,7 @@ class DagBag(BaseDagBag, LoggingMixin):
     settings are now dagbag level so that one system can run multiple,
     independent settings sets.
 
-    :param dag_folder: the folder to scan to find DAGs
+    :param dag_folder: the folder or file to scan to find DAGs
     :type dag_folder: unicode
     :param executor: the executor to use when executing task instances
         in this DagBag
@@ -293,8 +294,15 @@ class DagBag(BaseDagBag, LoggingMixin):
         for m in mods:
             for dag in list(m.__dict__.values()):
                 if isinstance(dag, DAG):
+
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
+
+                    dag.version_control_hash = \
+                        airflow.version_control.get_version_control_hash_of(
+                            filepath
+                        )
+
                     dag.is_subdag = False
                     dag.module_name = m.__name__
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
@@ -400,8 +408,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                             os.path.split(filepath)[-1])
                         if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
-                        if not any(
-                                [re.findall(p, filepath) for p in patterns]):
+                        if not any([re.findall(p, filepath) for p in patterns]):
                             ts = datetime.now()
                             found_dags = self.process_file(
                                 filepath, only_if_updated=only_if_updated)
@@ -418,6 +425,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                             ))
                     except Exception as e:
                         logging.warning(e)
+                        import traceback
+                        traceback.print_exc()
         Stats.gauge(
             'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
         Stats.gauge(
@@ -701,6 +710,7 @@ class TaskInstance(Base):
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(DateTime)
+    dag_version = Column(String(1000))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -734,7 +744,8 @@ class TaskInstance(Base):
             pickle_id=None,
             raw=False,
             job_id=None,
-            pool=None):
+            pool=None,
+            dag_version=None):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -763,7 +774,9 @@ class TaskInstance(Base):
             file_path=path,
             raw=raw,
             job_id=job_id,
-            pool=pool)
+            pool=pool,
+            dag_version=dag_version
+        )
 
     @staticmethod
     def generate_command(dag_id,
@@ -778,7 +791,8 @@ class TaskInstance(Base):
                          file_path=None,
                          raw=False,
                          job_id=None,
-                         pool=None
+                         pool=None,
+                         dag_version=None
                          ):
         """
         Generates the shell command required to execute this task instance.
@@ -813,6 +827,7 @@ class TaskInstance(Base):
         """
         iso = execution_date.isoformat()
         cmd = "airflow run {dag_id} {task_id} {iso} "
+        cmd += "--dag-version={dag_version} " if dag_version else " "
         cmd += "--mark_success " if mark_success else ""
         cmd += "--pickle {pickle_id} " if pickle_id else ""
         cmd += "--job_id {job_id} " if job_id else ""
@@ -911,6 +926,7 @@ class TaskInstance(Base):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+            self.dag_version = ti.dag_version
         else:
             self.state = None
 
@@ -1394,7 +1410,9 @@ class TaskInstance(Base):
                     self.render_templates()
                     task_copy.pre_execute(context=context)
 
-                    # If a timeout is specified for the task, make it fail
+                    print('eggsecuting!', type(task_copy))
+
+                    # If a timout is specified for the task, make it fail
                     # if it goes beyond
                     result = None
                     if task_copy.execution_timeout:
@@ -3287,7 +3305,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # create the associated task instances
         # state is None at the moment of creation
-        run.verify_integrity(session=session)
+        run.ensure_integrity(session=session)
 
         run.refresh_from_db()
         return run
@@ -3847,10 +3865,10 @@ class DagRun(Base):
         return self.state
 
     @provide_session
-    def verify_integrity(self, session=None):
+    def ensure_integrity(self, session=None):
         """
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
-        database yet. It will set state to removed or add the task if required.
+        database yet. Set state to removed or add the task if required.
         """
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
@@ -3872,6 +3890,9 @@ class DagRun(Base):
 
             if task.task_id not in task_ids:
                 ti = TaskInstance(task, self.execution_date)
+                # Sometimes this is not set, eg in tests
+                if hasattr(dag, 'version_control_hash'):
+                    ti.dag_version = dag.version_control_hash
                 session.add(ti)
 
         session.commit()

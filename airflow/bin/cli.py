@@ -97,21 +97,43 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 
 def process_subdir(subdir):
+    """
+    Expand a path like DAGS_FOLDER/abc
+    """
+
     dags_folder = conf.get("core", "DAGS_FOLDER")
     dags_folder = os.path.expanduser(dags_folder)
-    if subdir:
-        if "DAGS_FOLDER" in subdir:
-            subdir = subdir.replace("DAGS_FOLDER", dags_folder)
-        subdir = os.path.abspath(os.path.expanduser(subdir))
-        return subdir
+
+    if "DAGS_FOLDER" in subdir:
+        subdir = subdir.replace("DAGS_FOLDER", dags_folder)
+    subdir = os.path.abspath(os.path.expanduser(subdir))
+    return subdir
 
 
-def get_dag(args):
-    dagbag = DagBag(process_subdir(args.subdir))
-    if args.dag_id not in dagbag.dags:
+def get_dag_from_args(args):
+    return get_dag(args.dag_id, args.subdir, args.dag_version)
+
+
+def get_dag(dag_id, subdir, dag_version):
+
+    if dag_version:
+        assert("DAGS_FOLDER" in subdir)
+
+        versioned_dags_folder_path = \
+            airflow.version_control.checkout_dags_folder(dag_version)
+        path_to_dag = subdir.replace("DAGS_FOLDER", versioned_dags_folder_path)
+
+        path_to_dag = os.path.abspath(os.path.expanduser(path_to_dag))
+
+    else:
+        path_to_dag = process_subdir(subdir)
+
+    dagbag = DagBag(path_to_dag)
+
+    if dag_id not in dagbag.dags:
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(args.dag_id))
+            'parse.'.format(dag_id))
     return dagbag.dags[args.dag_id]
 
 
@@ -120,7 +142,7 @@ def backfill(args, dag=None):
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
 
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -156,7 +178,7 @@ def backfill(args, dag=None):
 
 
 def trigger_dag(args):
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
 
     if not dag:
         logging.error("Cannot find dag {}".format(args.dag_id))
@@ -267,7 +289,7 @@ def unpause(args, dag=None):
 
 
 def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     session = settings.Session()
     dm = session.query(DagModel).filter(
@@ -280,8 +302,13 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
+
+    print('airflow run called with args=', args)
+
     db_utils.pessimistic_connection_handling()
     if dag:
+        print('noo')
+        sys.exit(0)
         args.dag_id = dag.dag_id
 
     # Setting up logging
@@ -299,7 +326,7 @@ def run(args, dag=None):
         format=settings.LOG_FORMAT)
 
     if not args.pickle and not dag:
-        dag = get_dag(args)
+        dag = get_dag_from_args(args)
     elif not dag:
         session = settings.Session()
         logging.info('Loading pickle id {args.pickle}'.format(**locals()))
@@ -412,7 +439,7 @@ def task_state(args):
     >>> airflow task_state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     print(ti.current_state())
@@ -425,7 +452,7 @@ def dag_state(args):
     >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
     running
     """
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     print(dr[0].state if len(dr) > 0 else None)
 
@@ -445,7 +472,7 @@ def list_dags(args):
 
 
 def list_tasks(args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
     if args.tree:
         dag.tree_view()
     else:
@@ -454,7 +481,7 @@ def list_tasks(args, dag=None):
 
 
 def test(args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
@@ -470,7 +497,7 @@ def test(args, dag=None):
 
 
 def render(args):
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.render_templates()
@@ -487,7 +514,7 @@ def clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
 
     if args.task_regex:
         dag = dag.sub_dag(
@@ -1004,6 +1031,10 @@ class CLIFactory(object):
         'force': Arg(
             ("-f", "--force"),
             "Force a run regardless of previous success", "store_true"),
+        'dag_version': Arg(
+            ("--dag-version",),
+            "Dag version",
+        ),
         'raw': Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true"),
         'ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
@@ -1162,7 +1193,7 @@ class CLIFactory(object):
             'help': "Run a single task instance",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool',
+                'mark_success', 'force', 'pool', 'dag_version',
                 'local', 'raw', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
