@@ -95,8 +95,8 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
         connection_record.connection = connection_proxy.connection = None
         raise exc.DisconnectionError(
             "Connection record belongs to pid {}, "
-            "attempting to check out in pid {}".format(
-            connection_record.info['pid'], pid))
+            "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
+        )
 
 
 def initdb():

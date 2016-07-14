@@ -221,5 +221,6 @@ class GHEAuthBackend(object):
 
 login_manager = GHEAuthBackend()
 
+
 def login(self, request):
     return login_manager.login(request)

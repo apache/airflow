@@ -177,8 +177,8 @@ class LdapUser(models.User):
 
         conn.unbind()
 
-        if not 'dn' in entry:
-            # The search fitler for the user did not return any values, so an
+        if 'dn' not in entry:
+            # The search filter for the user did not return any values, so an
             # invalid user was used for credentials.
             raise AuthenticationError("Invalid username or password")
 

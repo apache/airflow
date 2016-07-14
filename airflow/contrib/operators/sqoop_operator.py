@@ -43,7 +43,7 @@ class SqoopOperator(BaseOperator):
                  **kwargs):
         """
         :param conn_id: str
-	:param type_cmd: str specify command to execute "export" or "import"
+        :param type_cmd: str specify command to execute "export" or "import"
         :param table: Table to read
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS

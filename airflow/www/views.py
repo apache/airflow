@@ -2172,7 +2172,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
     # extra__{conn_type}__name. You can also hide form elements and rename
     # others from the connection_form.js file
     form_extra_fields = {
-        'extra__jdbc__drv_path' : StringField('Driver Path'),
+        'extra__jdbc__drv_path': StringField('Driver Path'),
         'extra__jdbc__drv_clsname': StringField('Driver Class'),
         'extra__google_cloud_platform__project': StringField('Project Id'),
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
@@ -2223,7 +2223,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         return fk is None
 
     @classmethod
-    def is_secure(self):
+    def is_secure(cls):
         """
         Used to display a message in the Connection list view making it clear
         that the passwords and `extra` field can't be encrypted.

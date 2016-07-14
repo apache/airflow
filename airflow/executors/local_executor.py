@@ -84,7 +84,9 @@ class LocalExecutor(BaseExecutor):
 
     def end(self):
         # Sending poison pill to all worker
-        [self.queue.put((None, None)) for w in self.workers]
+        for _ in self.workers:
+            self.queue.put((None, None))
+
         # Wait for commands to finish
         self.queue.join()
         self.sync()

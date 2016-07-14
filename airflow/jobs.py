@@ -296,7 +296,7 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.email_sent == False or SlaMiss.notification_sent == False)
+            .filter(SlaMiss.email_sent.is_(False) or SlaMiss.notification_sent.is_(False))
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
