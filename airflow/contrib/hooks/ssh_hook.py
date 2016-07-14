@@ -73,7 +73,7 @@ class SSHHook(BaseHook):
         if self.sshpass:
             connection_cmd = ["sshpass", "-e"] + connection_cmd
         else:
-            connection_cmd += ["-o", "BatchMode=yes"] # no password prompts
+            connection_cmd += ["-o", "BatchMode=yes"]  # no password prompts
 
         if self.conn.port:
             connection_cmd += ["-p", str(self.conn.port)]
@@ -142,8 +142,7 @@ class SSHHook(BaseHook):
         """
         tunnel_host = "{0}:{1}:{2}".format(local_port, remote_host, remote_port)
         proc = self.Popen(["-L", tunnel_host, "echo -n ready && cat"],
-                           stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                           )
+                          stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
         ready = proc.stdout.read(5)
         assert ready == b"ready", "Did not get 'ready' from remote"

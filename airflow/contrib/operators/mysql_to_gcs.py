@@ -77,7 +77,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             delegation enabled.
         """
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
-        self.sql = sql;
+        self.sql = sql
         self.bucket = bucket
         self.filename = filename
         self.schema_filename = schema_filename
@@ -125,7 +125,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         schema = map(lambda schema_tuple: schema_tuple[0], cursor.description)
         file_no = 0
         tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = { self.filename.format(file_no): tmp_file_handle }
+        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
 
         for row in cursor:
             # Convert datetime objects to utc seconds, and decimals to floats

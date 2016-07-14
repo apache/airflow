@@ -35,7 +35,7 @@ def renew_from_kt():
     principal = configuration.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
     cmdv = [configuration.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
-            "-k", # host ticket
+            "-k",  # host ticket
             "-t", configuration.get('kerberos', 'keytab'),   # specify keytab
             "-c", configuration.get('kerberos', 'ccache'),   # specify credentials cache
             principal]

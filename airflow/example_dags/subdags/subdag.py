@@ -18,9 +18,9 @@ from airflow.operators.dummy_operator import DummyOperator
 
 def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
-      dag_id='%s.%s' % (parent_dag_name, child_dag_name),
-      default_args=args,
-      schedule_interval="@daily",
+        dag_id='%s.%s' % (parent_dag_name, child_dag_name),
+        default_args=args,
+        schedule_interval="@daily",
     )
 
     for i in range(5):

@@ -301,10 +301,10 @@ class BigQueryBaseCursor(object):
                 self._split_project_dataset_table_input(
                     'source_project_dataset_table', source_project_dataset_table)
             source_project_dataset_tables_fixup.append({
-                    'projectId': source_project,
-                    'datasetId': source_dataset,
-                    'tableId': source_table
-                })
+                'projectId': source_project,
+                'datasetId': source_dataset,
+                'tableId': source_table
+            })
 
         assert 3 == len(destination_project_dataset_table.split('.')), (
             'Expected destination_project_dataset_table in the format of '

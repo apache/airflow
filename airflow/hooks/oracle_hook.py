@@ -83,7 +83,7 @@ class OracleHook(DbApiHook):
                     l.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     l.append('NULL')
-                elif type(cell) == float and numpy.isnan(cell): #coerce numpy NaN to NULL
+                elif type(cell) == float and numpy.isnan(cell):  # coerce numpy NaN to NULL
                     l.append('NULL')
                 elif isinstance(cell, numpy.datetime64):
                     l.append("'" + str(cell) + "'")
@@ -110,10 +110,10 @@ class OracleHook(DbApiHook):
         cursor = conn.cursor()
         values = ', '.join(':%s' % i for i in range(1, len(target_fields) + 1))
         prepared_stm = 'insert into {tablename} ({columns}) values ({values})'.format(
-                tablename=table,
-                columns=', '.join(target_fields),
-                values=values
-            )
+            tablename=table,
+            columns=', '.join(target_fields),
+            values=values,
+        )
         row_count = 0
         # Chunk the rows
         row_chunk = []

@@ -3420,7 +3420,7 @@ class DagRun(Base):
             external_trigger=self.external_trigger)
 
     @classmethod
-    def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
+    def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
 
     @provide_session

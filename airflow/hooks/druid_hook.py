@@ -122,10 +122,10 @@ class DruidHook(BaseHook):
                         "mapreduce.map.output.compress": "false",
                         "mapreduce.output.fileoutputformat.compress": "false",
                     },
-                    "partitionsSpec" : {
-                        "type" : "hashed",
-                        "targetPartitionSize" : target_partition_size,
-                        "numShards" : num_shards,
+                    "partitionsSpec": {
+                        "type": "hashed",
+                        "targetPartitionSize": target_partition_size,
+                        "numShards": num_shards,
                     },
                 },
                 "ioConfig": {
