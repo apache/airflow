@@ -66,6 +66,7 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import (
     as_tuple, is_container, is_in, validate_key, pprinttable)
 from airflow.utils.logging import LoggingMixin
+from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
@@ -1796,6 +1797,9 @@ class BaseOperator(object):
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
     :type trigger_rule: str
+    :param resources: A map of resource parameter names (the argument names of the
+        Resources constructor) to their values.
+    :type resources: dict
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1836,6 +1840,7 @@ class BaseOperator(object):
             on_success_callback=None,
             on_retry_callback=None,
             trigger_rule=TriggerRule.ALL_SUCCESS,
+            resources=None,
             *args,
             **kwargs):
 
@@ -1898,6 +1903,7 @@ class BaseOperator(object):
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
         self.priority_weight = priority_weight
+        self.resources = Resources(**(resources or {}))
 
         # Private attributes
         self._upstream_task_ids = []

@@ -110,7 +110,11 @@ defaults = {
         'non_pooled_task_slot_count': 128,
     },
     'operators': {
-        'default_owner': 'airflow'
+        'default_owner': 'airflow',
+        'default_cpus': 1,
+        'default_ram': 512,
+        'default_disk': 512,
+        'default_gpus': 0,
     },
     'webserver': {
         'base_url': 'http://localhost:8080',
@@ -255,6 +259,10 @@ dagbag_import_timeout = 30
 # The default owner assigned to each new operator, unless
 # provided explicitly or passed via `default_args`
 default_owner = Airflow
+default_cpus: 1,
+default_ram: 512,
+default_disk: 512,
+default_gpu: 0,
 
 
 [webserver]
