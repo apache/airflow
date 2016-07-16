@@ -256,12 +256,14 @@ backend. In order to setup an application:
 Impersonation
 '''''''''''''
 
-Airflow has the ability to impersonate unix user to while running task
-instances based on the task's ``run_as_user`` parameter. Here are a few
-requirements for this to work properly.
+Airflow has the ability to impersonate a unix user while running task
+instances based on the task's ``run_as_user`` parameter.
 
-- the unix user needs to exist on the worker (duh), Airflow just assumes that
-  it can ``sudo su`` into that user
-- the user should be able to read the ``airflow.cfg`` file
-- the user needs to be able to write logs in the folder specified in the
-  ``airflow.cfg``
+*NOTE* The unix user needs to exist on the worker as Airflow assumes that
+it can ``sudo -u USER``.
+
+In terms of logging, the order of preference for a logging directory is:
+
+1. The ``log_dir`` parameter passed to a subprocess/operator. If not provided,
+2. The ``base_log_dir`` in AIRFLOW_CONFIG. If ``run_as_user`` doesn't have permission to read,
+3. `~/airflow/logs`, where the home directory is based on ``run_as_user``

@@ -1912,6 +1912,17 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
+        airflow_cfg = None
+        popen_prepend = []
+        if self.task_instance.run_as_user:
+            cfg_dict = conf.as_dict()
+            airflow_cfg = {
+                'core': cfg_dict.get('core', {}),
+                'smtp': cfg_dict.get('smtp', {}),
+                'scheduler': cfg_dict.get('scheduler', {}),
+            }
+            popen_prepend = ['sudo', '-H', '-u', self.task_instance.run_as_user]
+
         command = self.task_instance.command(
             raw=True,
             ignore_dependencies=self.ignore_dependencies,
@@ -1921,10 +1932,10 @@ class LocalTaskJob(BaseJob):
             mark_success=self.mark_success,
             job_id=self.id,
             pool=self.pool,
+            airflow_cfg=airflow_cfg,
+            try_log_dir=True,
         )
-        # TODO alter the command to impersonate (sudo su)
-        # note that `self.task_instance.run_as_user` is in scope here
-        self.process = subprocess.Popen(['bash', '-c', command])
+        self.process = subprocess.Popen(popen_prepend + ['bash', '-c', command])
         return_code = None
         while return_code is None:
             self.heartbeat()

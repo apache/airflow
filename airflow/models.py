@@ -724,6 +724,7 @@ class TaskInstance(Base):
         self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
+        self.log_dir = task.log_dir
         if state:
             self.state = state
 
@@ -737,7 +738,9 @@ class TaskInstance(Base):
             pickle_id=None,
             raw=False,
             job_id=None,
-            pool=None):
+            pool=None,
+            airflow_cfg=None,
+            try_log_dir=False):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -815,7 +818,7 @@ class TaskInstance(Base):
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
-        cmd = "airflow run {dag_id} {task_id} {iso} "
+        pickled_cfg = "".join(pickle.dumps(airflow_cfg)) if airflow_cfg else None
         cmd += "--mark_success " if mark_success else ""
         cmd += "--pickle {pickle_id} " if pickle_id else ""
         cmd += "--job_id {job_id} " if job_id else ""
@@ -826,6 +829,8 @@ class TaskInstance(Base):
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
         cmd += "-sd {file_path}" if file_path else ""
+        cmd += "--airflow_cfg \"{pickled_cfg}\" " if airflow_cfg else ""
+        cmd += "--log_dir \"{self.log_dir}\" " if try_log_dir and self.log_dir else ""
         return cmd.format(**locals())
 
     @property
@@ -1892,14 +1897,15 @@ class BaseOperator(object):
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
     :type trigger_rule: str
-<<<<<<< 348f25f08af2c02627cec04453564edd2fb69fa3
     :param resources: A map of resource parameter names (the argument names of the
         Resources constructor) to their values.
     :type resources: dict
-=======
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
->>>>>>> Unix user impersonation based on new BaseOperator.run_as_user
+    :param log_dir: custom logging directory only used if run_as_user is set.
+        The home directory (~) will be based on the user running the task.
+        If unset, the log_dir will default to ~/airflow/logs.
+    :type log_dir: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1940,11 +1946,9 @@ class BaseOperator(object):
             on_success_callback=None,
             on_retry_callback=None,
             trigger_rule=TriggerRule.ALL_SUCCESS,
-<<<<<<< 348f25f08af2c02627cec04453564edd2fb69fa3
             resources=None,
-=======
             run_as_user=None,
->>>>>>> Unix user impersonation based on new BaseOperator.run_as_user
+            log_dir=None,
             *args,
             **kwargs):
 
@@ -1998,6 +2002,7 @@ class BaseOperator(object):
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
         self.run_as_user = run_as_user
+        self.log_dir = log_dir
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:

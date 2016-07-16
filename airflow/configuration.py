@@ -703,6 +703,17 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
     with open(AIRFLOW_CONFIG, 'w') as f:
         f.write(parameterized_config(DEFAULT_CONFIG))
+else:
+    # If current AIRFLOW_CONFIG is not readable, create another config file
+    try:
+        f = open(AIRFLOW_CONFIG, 'r')
+        f.close()
+    except IOError:
+        logging.info("Cannot read config file in: " + AIRFLOW_CONFIG)
+        AIRFLOW_CONFIG = AIRFLOW_HOME + '/airflow_readable.cfg'
+        logging.info("Creating readable airflow config file in: " + AIRFLOW_CONFIG)
+        with open(AIRFLOW_CONFIG, 'w') as f:
+            f.write(parameterized_config(DEFAULT_CONFIG))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
