@@ -299,10 +299,10 @@ def run(args, dag=None):
         for section, config in conf_dict.items():
             for option, value in config.items():
                 conf.set(section, option, value)
-    if args.log_dir:
-        conf.set('core', 'BASE_LOG_FOLDER', args.log_dir)
-    settings.configure_vars()
-    settings.configure_orm()
+        if args.log_dir:
+            conf.set('core', 'BASE_LOG_FOLDER', args.log_dir)
+        settings.configure_vars()
+        settings.configure_orm()
 
     # Setting up logging
     log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
