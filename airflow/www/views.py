@@ -1104,9 +1104,11 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def tree(self):
         dag_id = request.args.get('dag_id')
-        # todo: do stuff in '/refresh'
         force_refresh_dag = request.args.get('force_refresh_dag')
         blur = conf.getboolean('webserver', 'demo_mode')
+        dag = dagbag.get_dag(dag_id)
+
+        dagbag.process_file(dag.full_filepath)
         dag = dagbag.get_dag(dag_id)
 
         if not dag:

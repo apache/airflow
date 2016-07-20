@@ -209,9 +209,11 @@ class DagBag(LoggingMixin):
                 return self.dags[dag_id]
             elif dag_id in self.dags:
                 del self.dags[dag_id]
+
         return self.dags.get(dag_id)
 
     def process_file(self, filepath, only_if_updated=True, safe_mode=True):
+        print('process_file', filepath, '*'*100)
         """
         Given a path to a python module or zip file, this method imports
         the module and look for dag objects within it.
@@ -229,6 +231,7 @@ class DagBag(LoggingMixin):
             if only_if_updated \
                     and filepath in self.file_last_changed \
                     and dttm == self.file_last_changed[filepath]:
+                print('returning cached copy')
                 return found_dags
 
         except Exception as e:
