@@ -71,9 +71,12 @@
                         {{ dag_id }}
                     </a>
                     {% else %}
-                        {{ dag_id }}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
+                    <a href="{{ url_for('airflow.tree', dag_id=dag_id, force_refresh_dag='1') }}">
+                        {{ dag_id }} hi
+                    </a>
+                    <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
                     {% endif %}
+
                     {% if dag_id not in orm_dags %}
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
                     {% endif %}
