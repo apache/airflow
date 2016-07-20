@@ -1677,7 +1677,7 @@ class HomeView(AdminIndexView):
         all_dag_ids = sorted(set(orm_dags.keys()) | set(dags.keys()))
         return self.render(
             'airflow/dags.html',
-            dags=dags,
+            webserver_dags=dags,
             orm_dags=orm_dags,
             all_dag_ids=all_dag_ids)
 
