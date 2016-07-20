@@ -106,7 +106,6 @@ def _integrate_plugins():
         sys.modules[_operator_module.__name__] = _operator_module
         globals()[_operator_module._name] = _operator_module
 
-
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 

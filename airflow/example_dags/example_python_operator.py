@@ -34,7 +34,7 @@ dag = DAG(
 
 
 def my_sleeping_function(random_base):
-    '''This is a function that will run within the DAG execution'''
+    """This is a function that will run within the DAG execution"""
     time.sleep(random_base)
 
 
@@ -49,15 +49,12 @@ run_this = PythonOperator(
     python_callable=print_context,
     dag=dag)
 
+# Generate 10 sleeping tasks, sleeping from 0 to 9 seconds respectively
 for i in range(10):
-    '''
-    Generating 10 sleeping task, sleeping from 0 to 9 seconds
-    respectively
-    '''
     task = PythonOperator(
-        task_id='sleep_for_'+str(i),
+        task_id='sleep_for_' + str(i),
         python_callable=my_sleeping_function,
-        op_kwargs={'random_base': float(i)/10},
+        op_kwargs={'random_base': float(i) / 10},
         dag=dag)
 
     task.set_upstream(run_this)

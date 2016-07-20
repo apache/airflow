@@ -70,7 +70,6 @@ def _integrate_plugins():
         sys.modules[_hook_module.__name__] = _hook_module
         globals()[_hook_module._name] = _hook_module
 
-
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 

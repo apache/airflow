@@ -1159,7 +1159,6 @@ class TaskInstance(Base):
                 delay = min(self.task.max_retry_delay, delay)
         return self.end_date + delay
 
-
     def ready_for_retry(self):
         """
         Checks on whether the task instance is in the right state and timeframe
@@ -2842,11 +2841,11 @@ class DAG(LoggingMixin):
             include_subdags=True,
             reset_dag_runs=True,
             dry_run=False):
-        session = settings.Session()
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
         """
+        session = settings.Session()
         TI = TaskInstance
         tis = session.query(TI)
         if include_subdags:
@@ -3223,6 +3222,7 @@ class Variable(Base):
     def val(cls):
         return synonym('_val',
                        descriptor=property(cls.get_val, cls.set_val))
+
     @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):

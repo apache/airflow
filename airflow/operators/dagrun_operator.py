@@ -46,6 +46,7 @@ class TriggerDagRunOperator(BaseOperator):
     template_fields = tuple()
     template_ext = tuple()
     ui_color = '#ffefeb'
+
     @apply_defaults
     def __init__(
             self,

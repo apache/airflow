@@ -28,9 +28,9 @@ def TemporaryDirectory(suffix='', prefix=None, dir=None):
     try:
         yield name
     finally:
-            try:
-                shutil.rmtree(name)
-            except OSError as e:
-                # ENOENT - no such file or directory
-                if e.errno != errno.ENOENT:
-                    raise e
+        try:
+            shutil.rmtree(name)
+        except OSError as e:
+            # ENOENT - no such file or directory
+            if e.errno != errno.ENOENT:
+                raise e

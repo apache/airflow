@@ -661,10 +661,9 @@ def mkdir_p(path):
         else:
             raise AirflowConfigException('Had trouble creating a directory')
 
-"""
-Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
-"~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
-"""
+
+# Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
+# "~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
 
 if 'AIRFLOW_HOME' not in os.environ:
     AIRFLOW_HOME = expand_env_var('~/airflow')

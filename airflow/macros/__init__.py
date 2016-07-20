@@ -70,7 +70,6 @@ def _integrate_plugins():
         sys.modules[_macro_module.__name__] = _macro_module
         globals()[_macro_module._name] = _macro_module
 
-
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 

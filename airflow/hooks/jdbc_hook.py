@@ -27,8 +27,6 @@ class JdbcHook(DbApiHook):
     Raises an airflow error if the given connection id doesn't exist.
     Otherwise host, port, schema, username and password can be specified on the fly.
 
-
-
     :param jdbc_url: jdbc connection url
     :type jdbc_url: string
     :param jdbc_driver_name: jdbc driver name
@@ -41,7 +39,6 @@ class JdbcHook(DbApiHook):
     :type sql: string or string pointing to a template file. File must have
         a '.sql' extensions.
     """
-
 
     conn_name_attr = 'jdbc_conn_id'
     default_conn_name = 'jdbc_default'
@@ -56,13 +53,14 @@ class JdbcHook(DbApiHook):
         jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
         conn = jaydebeapi.connect(jdbc_driver_name,
-                           [str(host), str(login), str(psw)],
+                                  [str(host), str(login), str(psw)],
                                   jdbc_driver_loc,)
         return conn
 
     def set_autocommit(self, conn, autocommit):
         """
-        Enable or disable autocommit for the given connection
+        Enable or disable autocommit for the given connection.
+
         :param conn: The connection
         :return:
         """
