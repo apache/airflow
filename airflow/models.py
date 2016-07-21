@@ -339,6 +339,7 @@ class DagBag(LoggingMixin):
                     ti.handle_failure("{} killed as zombie".format(ti))
                     self.logger.info(
                         'Marked zombie job {} as failed'.format(ti))
+                    Stats.incr('zombies_killed')
         session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):
