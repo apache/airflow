@@ -2444,8 +2444,7 @@ class DagModel(Base):
     last_scheduler_run = Column(DateTime)
     # Last time this DAG was pickled
     last_pickled = Column(DateTime)
-    # When the DAG received a refreshed signal last, used to know when
-    # we need to force refresh
+    # The last time someone clicked on refresh
     last_expired = Column(DateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
     scheduler_lock = Column(Boolean)
