@@ -608,6 +608,10 @@ def flower(args):
     if args.broker_api:
         api = '--broker_api=' + args.broker_api
 
+    flower_conf = ''
+    if args.flower_conf:
+        flower_conf = '--conf=' + args.flower_conf
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
         stdout = open(stdout, 'w+')
@@ -620,7 +624,7 @@ def flower(args):
         )
 
         with ctx:
-            os.execvp("flower", ['flower', '-b', broka, address, port, api])
+            os.execvp("flower", ['flower', '-b', broka, address, port, api, flower_conf])
 
         stdout.close()
         stderr.close()
@@ -628,7 +632,7 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        os.execvp("flower", ['flower', '-b', broka, address, port, api])
+        os.execvp("flower", ['flower', '-b', broka, address, port, api, flower_conf])
 
 
 def kerberos(args):  # noqa
@@ -880,6 +884,9 @@ class CLIFactory(object):
             default=conf.get('celery', 'FLOWER_PORT'),
             type=int,
             help="The port on which to run the server"),
+        'flower_conf': Arg(
+            ("-fc", "--flower_conf"),
+            help="Configuration file for flower"),
         'task_params': Arg(
             ("-tp", "--task_params"),
             help="Sends a JSON params dict to the task"),
@@ -992,7 +999,7 @@ class CLIFactory(object):
         }, {
             'func': flower,
             'help': "Start a Celery Flower",
-            'args': ('flower_hostname', 'flower_port', 'broker_api',
+            'args': ('flower_hostname', 'flower_port', 'flower_conf', 'broker_api',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': version,
