@@ -67,16 +67,20 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     auth_backend = airflow.contrib.auth.backends.ldap_auth
 
     [ldap]
+    # set a connection without encryption: uri = ldap://<your.ldap.server>:<port>
     uri = ldaps://<your.ldap.server>:<port>
     user_filter = objectClass=*
-    user_name_attr = uid # in case of Active Directory you would use sAMAccountName
+    # in case of Active Directory you would use: user_name_attr = sAMAccountName
+    user_name_attr = uid
     superuser_filter = memberOf=CN=airflow-super-users,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     data_profiler_filter = memberOf=CN=airflow-data-profilers,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     bind_user = cn=Manager,dc=example,dc=com
     bind_password = insecure
     basedn = dc=example,dc=com
     cacert = /etc/ca/ldap_ca.crt
-    search_scope = LEVEL # Set this to SUBTREE if using Active Directory, and not specifying an Organizational Unit
+    # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
+    # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
+    search_scope = LEVEL
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
