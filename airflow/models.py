@@ -163,6 +163,7 @@ class DagBag(LoggingMixin):
         self.dag_folder = dag_folder
         self.dags = {}
         self.sync_to_db = sync_to_db
+        # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
@@ -192,7 +193,7 @@ class DagBag(LoggingMixin):
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
-        # If the root_dag_id is absent or expired
+        # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
         if orm_dag and (
                 root_dag_id not in self.dags or
@@ -201,10 +202,11 @@ class DagBag(LoggingMixin):
                     dag.last_loaded < orm_dag.last_expired
                 )
         ):
-            # Reprocessing source file
+            # Reprocess source file
             found_dags = self.process_file(
                 filepath=orm_dag.fileloc, only_if_updated=False)
 
+            # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [dag.dag_id for dag in found_dags]:
                 return self.dags[dag_id]
             elif dag_id in self.dags:
@@ -225,10 +227,10 @@ class DagBag(LoggingMixin):
         try:
             # This failed before in what may have been a git sync
             # race condition
-            dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
+            file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
             if only_if_updated \
                     and filepath in self.file_last_changed \
-                    and dttm == self.file_last_changed[filepath]:
+                    and file_last_changed_on_disk == self.file_last_changed[filepath]:
                 return found_dags
 
         except Exception as e:
@@ -257,7 +259,7 @@ class DagBag(LoggingMixin):
                 except Exception as e:
                     self.logger.exception("Failed to import: " + filepath)
                     self.import_errors[filepath] = str(e)
-                    self.file_last_changed[filepath] = dttm
+                    self.file_last_changed[filepath] = file_last_changed_on_disk
 
         else:
             zip_file = zipfile.ZipFile(filepath)
@@ -288,7 +290,7 @@ class DagBag(LoggingMixin):
                     except Exception as e:
                         self.logger.exception("Failed to import: " + filepath)
                         self.import_errors[filepath] = str(e)
-                        self.file_last_changed[filepath] = dttm
+                        self.file_last_changed[filepath] = file_last_changed_on_disk
 
         for m in mods:
             for dag in list(m.__dict__.values()):
@@ -301,7 +303,7 @@ class DagBag(LoggingMixin):
                     found_dags.append(dag)
                     found_dags += dag.subdags
 
-        self.file_last_changed[filepath] = dttm
+        self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
     @provide_session
@@ -2441,8 +2443,8 @@ class DagModel(Base):
     last_scheduler_run = Column(DateTime)
     # Last time this DAG was pickled
     last_pickled = Column(DateTime)
-    # When the DAG received a refreshed signal last, used to know when
-    # we need to force refresh
+    # Time when the DAG last received a refresh signal
+    # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(DateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
     scheduler_lock = Column(Boolean)

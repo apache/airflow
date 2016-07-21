@@ -1656,30 +1656,28 @@ class HomeView(AdminIndexView):
         session.commit()
         session.close()
 
-        # read webserver_dags from local dagbag
+        # get a list of all non-subdag dags visible to everyone
+        unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if not dag.parent_dag]
 
-        webserver_dags = dagbag.dags.values()
-        # remove subdags
-        webserver_dags = [dag for dag in webserver_dags if not dag.parent_dag]
-
+        # optionally filter to get only dags that the user should see
         if do_filter and owner_mode == 'ldapgroup':
             # only show dags owned by someone in @current_user.ldap_groups
             webserver_dags = {
                 dag.dag_id: dag
-                for dag in webserver_dags
+                for dag in unfiltered_webserver_dags
                 if dag.owner in current_user.ldap_groups
             }
         elif do_filter and owner_mode == 'user':
             # only show dags owned by @current_user.user.username
             webserver_dags = {
                 dag.dag_id: dag
-                for dag in webserver_dags
+                for dag in unfiltered_webserver_dags
                 if dag.owner == current_user.user.username
             }
         else:
             webserver_dags = {
                 dag.dag_id: dag
-                for dag in webserver_dags
+                for dag in unfiltered_webserver_dags
             }
 
         all_dag_ids = sorted(set(orm_dags.keys()) | set(webserver_dags.keys()))
