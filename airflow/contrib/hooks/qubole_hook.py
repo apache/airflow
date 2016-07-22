@@ -84,7 +84,6 @@ class QuboleHook(BaseHook):
         if self.cmd.status != 'done':
             raise AirflowException('Command Id: {0} failed with Status: {1}'.format(self.cmd.id, self.cmd.status))
 
-
     def kill(self, ti):
         """
         Kill (cancel) a Qubole commmand

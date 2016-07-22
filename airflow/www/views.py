@@ -304,7 +304,6 @@ class Airflow(BaseView):
         session.commit()
         session.close()
 
-
         payload = {}
         payload['state'] = 'ERROR'
         payload['error'] = ''
@@ -423,7 +422,6 @@ class Airflow(BaseView):
                     payload['htmlcontent'] = nvd3_chart.htmlcontent
                 except Exception as e:
                     payload['error'] = str(e)
-
 
             payload['state'] = 'SUCCESS'
             payload['request_dict'] = request_dict
@@ -545,7 +543,6 @@ class Airflow(BaseView):
                 }
                 payload[dag.safe_dag_id].append(d)
         return wwwutils.json_response(payload)
-
 
     @expose('/code')
     @login_required
@@ -857,7 +854,7 @@ class Airflow(BaseView):
             task_id=task_id,
             execution_date=execution_date,
             form=form,
-            dag=dag, title=title)\
+            dag=dag, title=title)
 
     @expose('/run')
     @login_required
@@ -1924,19 +1921,18 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
 class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
     pass
 
-'''
-# For debugging / troubleshooting
-mv = KnowEventTypeView(
-    models.KnownEventType,
-    Session, name="Known Event Types", category="Manage")
-admin.add_view(mv)
-class DagPickleView(SuperUserMixin, ModelView):
-    pass
-mv = DagPickleView(
-    models.DagPickle,
-    Session, name="Pickles", category="Manage")
-admin.add_view(mv)
-'''
+
+# NOTE: For debugging / troubleshooting
+# mv = KnowEventTypeView(
+#     models.KnownEventType,
+#     Session, name="Known Event Types", category="Manage")
+# admin.add_view(mv)
+# class DagPickleView(SuperUserMixin, ModelView):
+#     pass
+# mv = DagPickleView(
+#     models.DagPickle,
+#     Session, name="Pickles", category="Manage")
+# admin.add_view(mv)
 
 
 class VariableView(wwwutils.LoginMixin, AirflowModelView):

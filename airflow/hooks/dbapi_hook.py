@@ -56,9 +56,8 @@ class DbApiHook(BaseHook):
             username=db.login,
             schema=db.schema)
 
-
     def get_pandas_df(self, sql, parameters=None):
-        '''
+        """
         Executes the sql and returns a pandas dataframe
 
         :param sql: the sql statement to be executed (str) or a list of
@@ -66,7 +65,7 @@ class DbApiHook(BaseHook):
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
-        '''
+        """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         import pandas.io.sql as psql
@@ -76,7 +75,7 @@ class DbApiHook(BaseHook):
         return df
 
     def get_records(self, sql, parameters=None):
-        '''
+        """
         Executes the sql and returns a set of records.
 
         :param sql: the sql statement to be executed (str) or a list of
@@ -84,7 +83,7 @@ class DbApiHook(BaseHook):
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
-        '''
+        """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         conn = self.get_conn()
@@ -99,7 +98,7 @@ class DbApiHook(BaseHook):
         return rows
 
     def get_first(self, sql, parameters=None):
-        '''
+        """
         Executes the sql and returns the first resulting row.
 
         :param sql: the sql statement to be executed (str) or a list of
@@ -107,7 +106,7 @@ class DbApiHook(BaseHook):
         :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
-        '''
+        """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         conn = self.get_conn()
@@ -141,7 +140,7 @@ class DbApiHook(BaseHook):
             sql = [sql]
 
         if self.supports_autocommit:
-           self.set_autocommit(conn, autocommit)
+            self.set_autocommit(conn, autocommit)
 
         cur = conn.cursor()
         for s in sql:
