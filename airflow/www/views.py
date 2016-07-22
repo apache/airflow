@@ -76,6 +76,7 @@ from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
+print('recreating dagbag')
 dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
 
 login_required = airflow.login.login_required
@@ -1103,16 +1104,18 @@ class Airflow(BaseView):
     @wwwutils.gzipped
     @wwwutils.action_logging
     def tree(self):
+
         dag_id = request.args.get('dag_id')
         force_refresh_dag = request.args.get('force_refresh_dag')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
 
+        if not dag:
+            return 'Dag not found in dagbag :('
+
         dagbag.process_file(dag.full_filepath)
         dag = dagbag.get_dag(dag_id)
 
-        if not dag:
-            return 'Dag not found in dagbag :('
 
         root = request.args.get('root')
         if root:
@@ -1670,10 +1673,12 @@ class HomeView(AdminIndexView):
         # read webserver_dags from local dagbag
 
         webserver_dags = dagbag.dags.values()
+        print(id(webserver_dags), webserver_dags)
+
         # remove subdags
         webserver_dags = [dag for dag in webserver_dags if not dag.parent_dag]
 
-        if len(set(dag.dag_id for dag_id in webserver_dags)) > len(webserver_dags):
+        if len(set(dag.dag_id for dag in webserver_dags)) > len(webserver_dags):
             flash("Warning: multiple dags with the same dag_id found")
 
         if do_filter and owner_mode == 'ldapgroup':
