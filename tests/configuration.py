@@ -38,15 +38,9 @@ class ConfTest(unittest.TestCase):
         # test env vars
         self.assertEqual(cfg_dict['testsection']['testkey'], '< hidden >')
 
-        # test defaults
-        conf.remove_option('core', 'load_examples')
-        cfg_dict = conf.as_dict()
-        self.assertEqual(cfg_dict['core']['load_examples'], 'True')
-
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         self.assertEqual(cfg_dict['core']['unit_test_mode'][1], 'airflow.cfg')
-        self.assertEqual(cfg_dict['core']['load_examples'][1], 'default')
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('< hidden >', 'env var'))
 
