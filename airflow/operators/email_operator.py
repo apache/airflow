@@ -30,6 +30,10 @@ class EmailOperator(BaseOperator):
     :type html_content: string
     :param files: file names to attach in email
     :type files: list
+    :param cc: list of recipients to be added in CC field
+    :type cc: list or string (comma or semicolon delimited)
+    :param bcc: list of recipients to be added in BCC field
+    :type bcc: list or string (comma or semicolon delimited)
     """
 
     template_fields = ('subject', 'html_content')
@@ -43,12 +47,16 @@ class EmailOperator(BaseOperator):
             subject,
             html_content,
             files=None,
+            cc=None,
+            bcc=None,
             *args, **kwargs):
         super(EmailOperator, self).__init__(*args, **kwargs)
         self.to = to
         self.subject = subject
         self.html_content = html_content
         self.files = files or []
+        self.cc = cc
+        self.bcc = bcc
 
     def execute(self, context):
-        send_email(self.to, self.subject, self.html_content, files=self.files)
+        send_email(self.to, self.subject, self.html_content, files=self.files, cc=self.cc, bcc=self.bcc)

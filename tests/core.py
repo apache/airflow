@@ -1481,7 +1481,7 @@ class EmailTest(unittest.TestCase):
     def test_custom_backend(self, mock_send_email):
         configuration.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
         utils.email.send_email('to', 'subject', 'content')
-        send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False)
+        send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False, cc=None, bcc=None)
         assert not mock_send_email.called
 
 
@@ -1505,6 +1505,24 @@ class EmailSmtpTest(unittest.TestCase):
         assert len(msg.get_payload()) == 2
         mimeapp = MIMEApplication('attachment')
         assert msg.get_payload()[-1].get_payload() == mimeapp.get_payload()
+
+    @mock.patch('airflow.utils.email.send_MIME_email')
+    def test_send_bcc_smtp(self, mock_send_mime):
+        attachment = tempfile.NamedTemporaryFile()
+        attachment.write(b'attachment')
+        attachment.seek(0)
+        utils.email.send_email_smtp('to', 'subject', 'content', files=[attachment.name], cc='cc', bcc='bcc')
+        assert mock_send_mime.called
+        call_args = mock_send_mime.call_args[0]
+        assert call_args[0] == configuration.get('smtp', 'SMTP_MAIL_FROM')
+        assert call_args[1] == ['to', 'cc', 'bcc']
+        msg = call_args[2]
+        assert msg['Subject'] == 'subject'
+        assert msg['From'] == configuration.get('smtp', 'SMTP_MAIL_FROM')
+        assert len(msg.get_payload()) == 2
+        mimeapp = MIMEApplication('attachment')
+        assert msg.get_payload()[-1].get_payload() == mimeapp.get_payload()
+
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')

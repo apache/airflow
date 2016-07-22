@@ -33,17 +33,17 @@ from email.utils import formatdate
 from airflow import configuration
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False):
+def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
     path, attr = configuration.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
     module = importlib.import_module(path)
     backend = getattr(module, attr)
-    return backend(to, subject, html_content, files=files, dryrun=dryrun)
+    return backend(to, subject, html_content, files=files, dryrun=dryrun, cc=cc, bcc=bcc)
 
 
-def send_email_smtp(to, subject, html_content, files=None, dryrun=False):
+def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None):
     """
     Send an email with html content
 
@@ -51,18 +51,23 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False):
     """
     SMTP_MAIL_FROM = configuration.get('smtp', 'SMTP_MAIL_FROM')
 
-    if isinstance(to, basestring):
-        if ',' in to:
-            to = to.split(',')
-        elif ';' in to:
-            to = to.split(';')
-        else:
-            to = [to]
+    to = get_email_address_list(to)
 
     msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = SMTP_MAIL_FROM
     msg['To'] = ", ".join(to)
+    recipients = to
+    if cc:
+        cc = get_email_address_list(cc)
+        msg['CC'] = ", ".join(cc)
+        recipients = recipients + cc
+
+    if bcc:
+        # don't add bcc in header
+        bcc = get_email_address_list(bcc)
+        recipients = recipients + bcc
+
     msg['Date'] = formatdate(localtime=True)
     mime_text = MIMEText(html_content, 'html')
     msg.attach(mime_text)
@@ -76,7 +81,7 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False):
                 Name=basename
             ))
 
-    send_MIME_email(SMTP_MAIL_FROM, to, msg, dryrun)
+    send_MIME_email(SMTP_MAIL_FROM, recipients, msg, dryrun)
 
 
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
@@ -96,3 +101,15 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
         logging.info("Sent an alert email to " + str(e_to))
         s.sendmail(e_from, e_to, mime_msg.as_string())
         s.quit()
+
+
+def get_email_address_list(address_string):
+    if isinstance(address_string, basestring):
+        if ',' in address_string:
+            address_string = address_string.split(',')
+        elif ';' in address_string:
+            address_string = address_string.split(';')
+        else:
+            address_string = [address_string]
+
+    return address_string
