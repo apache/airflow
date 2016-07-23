@@ -907,6 +907,21 @@ class CliTests(unittest.TestCase):
         cli.variables(self.parser.parse_args([
             'variables']))
 
+    def test_connections(self):
+        cli.connections(self.parser.parse_args([
+            'connections', '-a', '-c', 'postgres_local', '-t', 'postgres',
+            '-hn', 'localhost', '-p', '10000']))
+        cli.connections(self.parser.parse_args([
+            'connections', '-a', '-c', 'bq_local', '-t', 'bigquery',
+            '-hn', 'localhost', '-p', '3340', '-l', 'root', '-pw', 'pass',
+            '-e', '{"foo":"bar"}']))
+        cli.connections(self.parser.parse_args([
+            'connections']))
+        self.assertRaises(
+            AirflowException,
+            cli.connections,
+            self.parser.parse_args(['connections', '-a', '-c', 'postgres_local']))
+
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):

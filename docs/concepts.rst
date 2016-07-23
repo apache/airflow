@@ -312,11 +312,11 @@ Connections
 ===========
 
 The connection information to external systems is stored in the Airflow
-metadata database and managed in the UI (``Menu -> Admin -> Connections``)
-A ``conn_id`` is defined there and hostname / login / password / schema
-information attached to it. Airflow pipelines can simply refer to the
-centrally managed ``conn_id`` without having to hard code any of this
-information anywhere.
+metadata database and managed in the UI (``Menu -> Admin -> Connections``).
+It can also be viewed and added from the CLI. A ``conn_id`` is defined
+there and hostname / login / password / schema information attached to it.
+Airflow pipelines can simply refer to the centrally managed ``conn_id``
+without having to hard code any of this information anywhere.
 
 Many connections with the same ``conn_id`` can be defined and when that
 is the case, and when the **hooks** uses the ``get_connection`` method
