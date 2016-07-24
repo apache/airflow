@@ -14,7 +14,7 @@ flake8
 flask
 flask-admin
 flask-cache
-flask-login
+flask-login==0.2.11
 flower
 future
 gunicorn
