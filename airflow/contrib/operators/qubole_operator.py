@@ -42,20 +42,28 @@ class QuboleOperator(BaseOperator):
             :script_location: s3 location containing query statement
             :macros: macro values which were used in query
         hadoopcmd:
-            :sub_commnad: must be one these ["jar", "s3distcp", "streaming"] followed by 1 or more args
+            :sub_commnad: must be one these ["jar", "s3distcp", "streaming"] followed by
+                1 or more args
         shellcmd:
             :script: inline command with args
             :script_location: s3 location containing query statement
-            :files: list of files in s3 bucket as file1,file2 format. These files will be copied into the working directory where the qubole command is being executed.
-            :archives: list of archives in s3 bucket as archive1,archive2 format. These will be unarchived intothe working directory where the qubole command is being executed
-            :parameters: any extra args which need to be passed to script (only when script_location is supplied)
+            :files: list of files in s3 bucket as file1,file2 format. These files will be
+                copied into the working directory where the qubole command is being
+                executed.
+            :archives: list of archives in s3 bucket as archive1,archive2 format. These
+                will be unarchived intothe working directory where the qubole command is
+                being executed
+            :parameters: any extra args which need to be passed to script (only when
+                script_location is supplied)
         pigcmd:
             :script: inline query statement (latin_statements)
             :script_location: s3 location containing pig query
-            :parameters: any extra args which need to be passed to script (only when script_location is supplied
+            :parameters: any extra args which need to be passed to script (only when
+                script_location is supplied
         sparkcmd:
             :program: the complete Spark Program in Scala, SQL, Command, R, or Python
-            :cmdline: spark-submit command line, all required information must be specify in cmdline itself.
+            :cmdline: spark-submit command line, all required information must be specify
+                in cmdline itself.
             :sql: inline sql query
             :script_location: s3 location containing query statement
             :language: language of the program, Scala, SQL, Command, R, or Python
@@ -76,7 +84,7 @@ class QuboleOperator(BaseOperator):
             :db_update_mode: allowinsert or updateonly
             :db_update_keys: columns used to determine the uniqueness of rows
             :export_dir: HDFS/S3 location from which data will be exported.
-            :fields_terminated_by: hex of the char used as column separator in the dataset.
+            :fields_terminated_by: hex of the char used as column separator in the dataset
         dbimportcmd:
             :mode: 1 (simple), 2 (advance)
             :hive_table: Name of the hive table
@@ -84,17 +92,26 @@ class QuboleOperator(BaseOperator):
             :db_table: name of the db table
             :where_clause: where clause, if any
             :parallelism: number of parallel db connections to use for extracting data
-            :extract_query: SQL query to extract data from db. $CONDITIONS must be part of the where clause.
+            :extract_query: SQL query to extract data from db. $CONDITIONS must be part
+                of the where clause.
             :boundary_query: Query to be used get range of row IDs to be extracted
             :split_column: Column used as row ID to split data into ranges (mode 2)
 
-    .. note:: Following fields are template-supported : ``query``, ``script_location``, ``sub_command``, ``script``, ``files``,
-        ``archives``, ``program``, ``cmdline``, ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``, ``tags``,
-        ``name``, ``parameters``. You can also use ``.txt`` files for template driven use cases.
+    .. note:: Following fields are template-supported : ``query``, ``script_location``,
+        ``sub_command``, ``script``, ``files``, ``archives``, ``program``, ``cmdline``,
+        ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``,
+        ``tags``, ``name``, ``parameters``. You can also use ``.txt`` files for template
+        driven use cases.
+
+    .. note:: In QuboleOperator there is a default handler for task failures and retries,
+        which generally kills the command running at QDS for the corresponding task
+        instance. You can override this behavior by providing your own failure and retry
+        handler in task definition.
     """
 
-    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files', 'archives', 'program', 'cmdline',
-                       'sql', 'where_clause', 'extract_query', 'boundary_query', 'macros', 'tags', 'name', 'parameters')
+    template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
+                       'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
+                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters')
     template_ext = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
@@ -106,6 +123,12 @@ class QuboleOperator(BaseOperator):
         self.kwargs['qubole_conn_id'] = qubole_conn_id
         self.hook = QuboleHook(*self.args, **self.kwargs)
         super(QuboleOperator, self).__init__(*args, **kwargs)
+
+        if self.on_failure_callback is None:
+            self.on_failure_callback = QuboleHook.handle_failure_retry
+
+        if self.on_retry_callback is None:
+            self.on_retry_callback = QuboleHook.handle_failure_retry
 
     def execute(self, context):
         # Reinitiating the hook, as some template fields might have changed
@@ -138,6 +161,3 @@ class QuboleOperator(BaseOperator):
             self.kwargs[name] = value
         else:
             object.__setattr__(self, name, value)
-
-
-
