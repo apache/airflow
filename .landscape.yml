@@ -15,12 +15,18 @@ max-line-length: 90
 strictness: medium
 pep8:
   full: true
+  disable:
+    - E402  # module level import not at top of file
 uses:
   - flask
 pylint:
   disable:
+    - broad-except
     - cyclic-import
     - invalid-name
+    - locally-disabled
     - super-on-old-class
+    - wrong-import-order
+    - wrong-import-position
   options:
     docstring-min-length: 10
