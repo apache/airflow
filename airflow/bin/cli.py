@@ -33,16 +33,19 @@ import signal
 import sys
 import threading
 import traceback
+import time
+import psutil
 
 import airflow
 from airflow import jobs, settings
 from airflow import configuration as conf
+from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
-from airflow.exceptions import AirflowException
+from airflow.www.app import cached_app
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -500,14 +503,80 @@ def clear(args):
         include_subdags=not args.exclude_subdags)
 
 
+def restart_workers(gunicorn_master_proc, num_workers_expected):
+    """
+    Runs forever, monitoring the child processes of @gunicorn_master_proc
+    and restarting workers occasionally.
+
+    Each iteration of the loop traverses one edge of this state transition
+    diagram, where each state (node) represents
+    [ num_ready_workers_running / num_workers_running ]. We expect most time
+    to be spent in [n / n].
+
+    The horizontal transition at ? happens after the
+    new worker parses all the dags (so it could take a while!)
+
+       V ─────────────────────────────────────────────────────────────┐
+    [n / n] ──TTIN──> [n / n + 1]  ─────?────> [n + 1 / n + 1] ──TTOU─┘
+       ^                 ^──────────────┘
+       │
+       │      ┌─────────────v
+       └──────┴────── [ < n / n ] <─── start
+
+    We change the number of workers by sending TTIN and TTOU to the gunicorn
+    master process, which increases and decreases the number of child workers
+    respectively. Gunicorn guarantees that on TTOU workers are terminated
+    gracefully and that the oldest worker is terminated.
+    """
+
+    while True:
+
+        workers = psutil.Process(gunicorn_master_proc.pid).children()
+        ready_workers = [
+            proc for proc in workers
+            if settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]
+        ]
+
+        num_workers_running = len(workers)
+        num_ready_workers_running = len(ready_workers)
+
+        state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+
+        # Whenever some workers are not ready, wait until all workers are ready
+        if num_ready_workers_running < num_workers_running:
+            logging.debug('%s some workers are starting up, waiting...', state)
+            time.sleep(5)
+            continue
+
+        # Kill a worker gracefully by asking gunicorn to reduce number of workers
+        if num_workers_running > num_workers_expected:
+            logging.debug('%s killing a worker', state)
+            gunicorn_master_proc.send_signal(signal.SIGTTOU)
+            time.sleep(1)
+            continue
+
+        # Start a new worker by asking gunicorn to increase number of workers
+        if num_workers_running == num_workers_expected:
+            logging.debug(
+                '%s sleeping for %ss before doing a refresh...',
+                state, settings.GUNICORN_WORKER_RESTART_INTERVAL
+            )
+            time.sleep(settings.GUNICORN_WORKER_RESTART_INTERVAL)
+            logging.debug('%s doing a refresh', state)
+            gunicorn_master_proc.send_signal(signal.SIGTTIN)
+            continue
+
+        time.sleep(1)
+
+
 def webserver(args):
+
     print(settings.HEADER)
 
-    from airflow.www.app import cached_app
     app = cached_app(conf)
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
-    workers = args.workers or conf.get('webserver', 'workers')
+    num_workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
     if args.debug:
@@ -520,7 +589,7 @@ def webserver(args):
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
-                Workers: {workers} {args.workerclass}
+                Workers: {num_workers} {args.workerclass}
                 Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
@@ -529,12 +598,13 @@ def webserver(args):
 
         run_args = [
             'gunicorn',
-            '-w ' + str(args.workers),
-            '-k ' + str(args.workerclass),
-            '-t ' + str(args.worker_timeout),
-            '-b ' + args.hostname + ':' + str(args.port),
-            '-n ' + 'airflow-webserver',
-            '-p ' + str(pid),
+            '-w', str(num_workers),
+            '-k', str(args.workerclass),
+            '-t', str(worker_timeout),
+            '-b', args.hostname + ':' + str(args.port),
+            '-n', 'airflow-webserver',
+            '-p', str(pid),
+            '-c', 'airflow.www.gunicorn_config'
         ]
 
         if args.access_logfile:
@@ -546,11 +616,20 @@ def webserver(args):
         if args.daemon:
             run_args += ["-D"]
 
-        module = "airflow.www.app:cached_app()".encode()
-        run_args += [module]
-        os.execvp(
-            'gunicorn', run_args
-        )
+        run_args += ["airflow.www.app:cached_app()"]
+
+        gunicorn_master_proc = subprocess.Popen(run_args)
+
+        def kill_proc(dummy_signum, dummy_frame):
+            gunicorn_master_proc.terminate()
+            gunicorn_master_proc.wait()
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, kill_proc)
+        signal.signal(signal.SIGTERM, kill_proc)
+
+        # This runs forever until SIG{INT, TERM, KILL, ...} signal is sent
+        restart_workers(gunicorn_master_proc, num_workers)
 
 
 def scheduler(args):
