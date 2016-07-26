@@ -19,7 +19,8 @@ import flask_login
 # pylint: disable=unused-import
 from flask_login import (current_user,
                          logout_user,
-                         login_required)
+                         login_required,
+                         login_user)
 # pylint: enable=unused-import
 
 from flask import url_for, redirect, request
