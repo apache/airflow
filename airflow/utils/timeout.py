@@ -34,7 +34,6 @@ class timeout(object):
         self.error_message = error_message
 
     def handle_timeout(self, signum, frame):
-        logging.error("Process timed out")
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
