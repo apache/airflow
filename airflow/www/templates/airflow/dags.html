@@ -1,13 +1,13 @@
-{# 
+{#
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
   this work for additional information regarding copyright ownership.
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  
+
     http://www.apache.org/licenses/LICENSE-2.0
-  
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,22 +46,27 @@
         </thead>
         <tbody>
         {% for dag_id in all_dag_ids %}
-            {% set dag = dags[dag_id] if dag_id in dags else None %}
+            {% set dag = webserver_dags[dag_id] if dag_id in webserver_dags else None %}
             <tr>
+                <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
                     <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
-                        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                        <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
                     {% endif %}
                 </td>
+
+                <!-- Column 2: Turn dag on/off -->
                 <td>
                   {% if dag_id in orm_dags %}
                     <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini">
                   {% endif %}
                 </td>
+
+                <!-- Column 3: Name -->
                 <td>
-                    {% if dag %}
+                    {% if dag_id in webserver_dags %}
                     <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id) }}">
                         {{ dag_id }}
                     </a>
@@ -69,47 +74,75 @@
                         {{ dag_id }}
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
                     {% endif %}
-                    {% if dag_id not in orm_dags and False %}
+                    {% if dag_id not in orm_dags %}
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
                     {% endif %}
                 </td>
+
+                <!-- Column 4: Dag Schedule -->
                 <td>
-                  <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
-                      {{ dag.schedule_interval }}</a></td>
-                <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
+                    {% if dag_id in webserver_dags %}
+                    <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                        {{ dag.schedule_interval }}
+                    </a>
+                    {% endif %}
+                </td>
+
+                <!-- Column 5: Dag Owners -->
+                <td>
+                  {{ dag.owner if dag else orm_dags[dag_id].owners }}
+                </td>
+
+                <!-- Column 6: Recent Statuses -->
                 <td style="padding:0px; width:200px; height:10px;">
                     <svg height="10" width="10" id='dag-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
-                <td class="text-center" style="width:160px;"><nobr>
+
+                <!-- Column 7: Links -->
+                <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
                 {% if dag %}
-    <a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
-        <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
-    </a>
-    <a href="{{ url_for("airflow.graph", dag_id=dag.dag_id) }}" title="Graph View">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
-      </a>
-    <a href="{{ url_for("airflow.duration", dag_id=dag.dag_id) }}" title="Tasks Duration">
-        <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
-    </a>
-      <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}" title="Landing Times">
-        <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
-      </a>
-      <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id) }}" title="Gantt View">
-        <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
-        <i class="icon-align-left"></i>
-      </a>
-      <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}" title="Code View">
-        <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
-      </a>
-      <a href="/admin/log/?sort=1&desc=1&flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
-         <i class="icon-list"></i>
-         <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
-      </a>
+
+                <!-- Tree -->
+                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
+                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
+                </a>
+
+                <!-- Graph -->
+                <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}" title="Graph View">
+                    <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+                </a>
+
+                <!-- Duration -->
+                <a href="{{ url_for('airflow.duration', dag_id=dag.dag_id) }}" title="Tasks Duration">
+                    <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
+                </a>
+
+                <!-- Landing Times -->
+                <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}" title="Landing Times">
+                    <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
+                </a>
+
+                <!-- Gantt -->
+                <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id) }}" title="Gantt View">
+                    <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
+                </a>
+
+                <!-- Code -->
+                <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}" title="Code View">
+                    <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
+                </a>
+
+                <!-- Logs -->
+                <a href="/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
+                    <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
+                </a>
                 {% endif %}
-                    <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
-                      <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
-                    </a>
-                    </nobr>
+
+                <!-- Refresh -->
+                <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
+                  <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+                </a>
+
                 </td>
             </tr>
         {% endfor %}

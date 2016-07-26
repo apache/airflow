@@ -1620,32 +1620,33 @@ class HomeView(AdminIndexView):
         session = Session()
         DM = models.DagModel
         qry = None
-        # filter the dags if filter_by_owner and current user is not superuser
+
+        # restrict the dags shown if filter_by_owner and current user is not superuser
         do_filter = FILTER_BY_OWNER and (not current_user.is_superuser())
         owner_mode = conf.get('webserver', 'OWNER_MODE').strip().lower()
+
+        # read orm_dags from the db
 
         qry = session.query(DM)
         qry_fltr = []
 
-        if do_filter:
-            if owner_mode == 'ldapgroup':
-                qry_fltr = (
-                    qry.filter(
-                        ~DM.is_subdag, DM.is_active,
-                        DM.owners.in_(current_user.ldap_groups))
-                    .all()
-                )
-            elif owner_mode == 'user':
-                qry_fltr = (
-                    qry.filter(
-                        ~DM.is_subdag, DM.is_active,
-                        DM.owners == current_user.user.username)
-                    .all()
-                )
+        if do_filter and owner_mode == 'ldapgroup':
+            qry_fltr = qry.filter(
+                ~DM.is_subdag, DM.is_active,
+                DM.owners.in_(current_user.ldap_groups)
+            ).all()
+        elif do_filter and owner_mode == 'user':
+            qry_fltr = qry.filter(
+                ~DM.is_subdag, DM.is_active,
+                DM.owners == current_user.user.username
+            ).all()
         else:
-            qry_fltr = qry.filter(~DM.is_subdag, DM.is_active).all()
+            qry_fltr = qry.filter(
+                ~DM.is_subdag, DM.is_active
+            ).all()
 
         orm_dags = {dag.dag_id: dag for dag in qry_fltr}
+
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
             flash(
@@ -1654,30 +1655,35 @@ class HomeView(AdminIndexView):
         session.expunge_all()
         session.commit()
         session.close()
-        dags = dagbag.dags.values()
-        if do_filter:
-            if owner_mode == 'ldapgroup':
-                dags = {
-                    dag.dag_id: dag
-                    for dag in dags
-                    if (
-                        dag.owner in current_user.ldap_groups and (not dag.parent_dag)
-                    )
-                }
-            elif owner_mode == 'user':
-                dags = {
-                    dag.dag_id: dag
-                    for dag in dags
-                    if (
-                        dag.owner == current_user.user.username and (not dag.parent_dag)
-                    )
-                }
+
+        # get a list of all non-subdag dags visible to everyone
+        unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if not dag.parent_dag]
+
+        # optionally filter to get only dags that the user should see
+        if do_filter and owner_mode == 'ldapgroup':
+            # only show dags owned by someone in @current_user.ldap_groups
+            webserver_dags = {
+                dag.dag_id: dag
+                for dag in unfiltered_webserver_dags
+                if dag.owner in current_user.ldap_groups
+            }
+        elif do_filter and owner_mode == 'user':
+            # only show dags owned by @current_user.user.username
+            webserver_dags = {
+                dag.dag_id: dag
+                for dag in unfiltered_webserver_dags
+                if dag.owner == current_user.user.username
+            }
         else:
-            dags = {dag.dag_id: dag for dag in dags if not dag.parent_dag}
-        all_dag_ids = sorted(set(orm_dags.keys()) | set(dags.keys()))
+            webserver_dags = {
+                dag.dag_id: dag
+                for dag in unfiltered_webserver_dags
+            }
+
+        all_dag_ids = sorted(set(orm_dags.keys()) | set(webserver_dags.keys()))
         return self.render(
             'airflow/dags.html',
-            dags=dags,
+            webserver_dags=webserver_dags,
             orm_dags=orm_dags,
             all_dag_ids=all_dag_ids)
 
