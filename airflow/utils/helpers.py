@@ -17,6 +17,8 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import psutil
+
 from builtins import input
 from past.builtins import basestring
 from datetime import datetime
@@ -29,6 +31,9 @@ import warnings
 
 from airflow.exceptions import AirflowException
 
+# When killing processes, time to wait after issuing a SIGTERM before issuing a
+# SIGKILL.
+TIME_TO_WAIT_AFTER_SIGTERM = 5
 
 def validate_key(k, max_length=250):
     if not isinstance(k, basestring):
@@ -172,6 +177,62 @@ def pprinttable(rows):
         s += pattern % tuple(f(t) for t in line) + '\n'
     s += separator + '\n'
     return s
+
+
+def kill_descendant_processes(logger, pids_to_kill=None):
+    """
+    Kills all descendant processes of this process.
+
+    :param logger: logger
+    :type logger: logging.Logger
+    :param pids_to_kill: if specified, kill only these PIDs
+    :type pids_to_kill: list[int]
+    """
+    # First try SIGTERM
+    this_process = psutil.Process(os.getpid())
+
+    # Only check child processes to ensure that we don't have a case
+    # where a child process died but the PID got reused.
+    descendant_processes = [x for x in this_process.children(recursive=True)
+                            if x.is_running()]
+    if pids_to_kill:
+        descendant_processes = [x for x in descendant_processes
+                                if x.pid in pids_to_kill]
+
+    if len(descendant_processes) == 0:
+        logger.debug("There are no descendant processes that can be killed")
+        return
+    logger.warn("Terminating descendant processes of {} PID: {}"
+                .format(this_process.cmdline(),
+                        this_process.pid))
+    for descendant in descendant_processes:
+        logger.warn("Terminating descendant process {} PID: {}"
+                    .format(descendant.cmdline(), descendant.pid))
+        descendant.terminate()
+    logger.warn("Waiting up to {}s for processes to exit..."
+                .format(TIME_TO_WAIT_AFTER_SIGTERM))
+    try:
+        psutil.wait_procs(descendant_processes, TIME_TO_WAIT_AFTER_SIGTERM)
+        logger.warn("Done waiting")
+    except psutil.TimeoutExpired:
+        logger.warn("Ran out of time while waiting for "
+                    "processes to exit")
+    # Then SIGKILL
+    descendant_processes = [x for x in this_process.children(recursive=True)
+                            if x.is_running()]
+    if pids_to_kill:
+        descendant_processes = [x for x in descendant_processes
+                                if x.pid in pids_to_kill]
+
+    if len(descendant_processes) > 0:
+        for descendant in descendant_processes:
+            logger.warn("Killing descendant process {} PID: {}"
+                        .format(descendant.cmdline(), descendant.pid))
+            descendant.kill()
+            descendant.wait()
+        logger.warn("Killed all descendant processes of {} PID: {}"
+                    .format(this_process.cmdline(),
+                            this_process.pid))
 
 
 class AirflowImporter(object):

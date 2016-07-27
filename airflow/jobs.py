@@ -36,6 +36,7 @@ from time import sleep
 
 import psutil
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
 
@@ -53,6 +54,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           SimpleDagBag,
                                           list_py_file_paths)
 from airflow.utils.email import send_email
+from airflow.utils.helpers import kill_descendant_processes
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
 
@@ -1967,22 +1969,53 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
-        command = self.task_instance.command(
-            raw=True,
-            ignore_all_deps=self.ignore_all_deps,
-            ignore_depends_on_past=self.ignore_depends_on_past,
-            ignore_task_deps=self.ignore_task_deps,
-            ignore_ti_state=self.ignore_ti_state,
-            pickle_id=self.pickle_id,
-            mark_success=self.mark_success,
-            job_id=self.id,
-            pool=self.pool,
-        )
-        self.process = subprocess.Popen(['bash', '-c', command])
-        return_code = None
-        while return_code is None:
-            self.heartbeat()
-            return_code = self.process.poll()
+        try:
+            command = self.task_instance.command(
+                raw=True,
+                ignore_dependencies=self.ignore_dependencies,
+                ignore_depends_on_past=self.ignore_depends_on_past,
+                force=self.force,
+                pickle_id=self.pickle_id,
+                mark_success=self.mark_success,
+                job_id=self.id,
+                pool=self.pool,
+            )
+            self.process = subprocess.Popen(['bash', '-c', command])
+            self.logger.info("Subprocess PID is {}".format(self.process.pid))
+
+            last_heartbeat_time = time.time()
+            heartbeat_time_limit = conf.getint('scheduler',
+                                               'scheduler_zombie_task_threshold')
+            while True:
+                # Monitor the task to see if it's done
+                return_code = self.process.poll()
+                if return_code is not None:
+                    return
+
+                # Periodically heartbeat so that the scheduler doesn't think this
+                # is a zombie
+                try:
+                    self.heartbeat()
+                    last_heartbeat_time = time.time()
+                except OperationalError:
+                    Stats.incr('local_task_job_heartbeat_failure', 1, 1)
+                    self.logger.exception("Exception while trying to heartbeat! "
+                                          "Sleeping for {}s".format(self.heartrate))
+                    time.sleep(self.heartrate)
+
+                # If it's been too long since we've heartbeat, then it's possible that
+                # the scheduler rescheduled this task, so kill launched processes.
+                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                if time_since_last_heartbeat > heartbeat_time_limit:
+                    Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
+                    self.logger.error("Heartbeat time limited exceeded!")
+                    raise AirflowException("Time since last heartbeat({:.2f}s) "
+                                           "exceeded limit ({}s)."
+                                           .format(time_since_last_heartbeat,
+                                                   heartbeat_time_limit))
+        finally:
+            # Kill processes that were left running
+            kill_descendant_processes(self.logger)
 
     def on_kill(self):
         self.process.terminate()

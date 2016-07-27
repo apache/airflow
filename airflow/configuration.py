@@ -350,6 +350,11 @@ print_stats_interval = 30
 
 child_process_log_directory = /tmp/airflow/scheduler/logs
 
+# Local task jobs periodically heartbeat to the DB. If the job has
+# not heartbeat in this many seconds, the scheduler will mark the
+# associated task instance as failed and will re-schedule the task.
+scheduler_zombie_task_threshold = 5 * 60
+
 # Statsd (https://github.com/etsy/statsd) integration settings
 statsd_on = False
 statsd_host = localhost

@@ -321,7 +321,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.logger.info("Finding 'running' jobs without a recent heartbeat")
         TI = TaskInstance
         secs = (
-            configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
         limit_dttm = datetime.now() - timedelta(seconds=secs)
         self.logger.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
