@@ -161,6 +161,7 @@ def trigger_dag(args):
 
 
 def variables(args):
+
     if args.get:
         try:
             var = Variable.get(args.get,
@@ -169,15 +170,69 @@ def variables(args):
             print(var)
         except ValueError as e:
             print(e)
+    if args.delete:
+        session = settings.Session()
+        session.query(Variable).filter_by(key=args.delete).delete()
+        session.commit()
+        session.close()
     if args.set:
         Variable.set(args.set[0], args.set[1])
-    if not args.set and not args.get:
+    # Work around 'import' as a reserved keyword
+    imp = getattr(args, 'import')
+    if imp:
+        if os.path.exists(imp):
+            import_helper(imp)
+        else:
+            print("Missing variables file.")
+    if args.export:
+        export_helper(args.export)
+    if not (args.set or args.get or imp or args.export or args.delete):
         # list all variables
         session = settings.Session()
         vars = session.query(Variable)
         msg = "\n".join(var.key for var in vars)
         print(msg)
 
+def import_helper(filepath):
+    with open(filepath, 'r') as varfile:
+        var = varfile.read()
+
+    try:
+        d = json.loads(var)
+    except Exception:
+        print("Invalid variables file.")
+    else:
+        try:
+            n = 0
+            for k, v in d.items():
+                if isinstance(v, dict):
+                    Variable.set(k, v, serialize_json=True)
+                else:
+                    Variable.set(k, v)
+                n += 1
+        except Exception:
+            pass
+        finally:
+            print("{} of {} variables successfully updated.".format(n, len(d)))
+
+def export_helper(filepath):
+    session = settings.Session()
+    qry = session.query(Variable).all()
+    session.close()
+
+    var_dict = {}
+    d = json.JSONDecoder()
+    for var in qry:
+        val = None
+        try:
+            val = d.decode(var.val)
+        except Exception:
+            val = var.val
+        var_dict[var.key] = val
+
+    with open(filepath, 'w') as varfile:
+        varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
+    print("{} variables successfully exported to {}".format(len(var_dict), filepath))
 
 def pause(args, dag=None):
     set_is_paused(True, args, dag)
@@ -776,6 +831,18 @@ class CLIFactory(object):
             ("-j", "--json"),
             help="Deserialize JSON variable",
             action="store_true"),
+        'var_import': Arg(
+            ("-i", "--import"),
+            metavar="FILEPATH",
+            help="Import variables from JSON file"),
+        'var_export': Arg(
+            ("-e", "--export"),
+            metavar="FILEPATH",
+            help="Export variables to JSON file"),
+        'var_delete': Arg(
+            ("-x", "--delete"),
+            metavar="KEY",
+            help="Delete a variable"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal",
@@ -926,7 +993,7 @@ class CLIFactory(object):
         }, {
             'func': variables,
             'help': "List all variables",
-            "args": ('set', 'get', 'json', 'default'),
+            "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
