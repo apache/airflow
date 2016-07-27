@@ -34,7 +34,7 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    redirect, url_for, request, Markup, Response, current_app, render_template)
+    redirect, url_for, request, Markup, Response, current_app, render_template, make_response)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
@@ -1612,6 +1612,20 @@ class Airflow(BaseView):
             return ("Error: form airflow/variables/{}.html "
                     "not found.").format(form), 404
 
+    @expose('/varimport', methods=["GET", "POST"])
+    @login_required
+    @wwwutils.action_logging
+    def varimport(self):
+        try:
+            out = str(request.files['file'].read())
+            d = json.loads(out)
+        except Exception:
+            flash("Missing file or syntax error.")
+        else:
+            for k, v in d.items():
+                models.Variable.set(k, v, serialize_json=isinstance(v, dict))
+            flash("{} variable(s) successfully updated.".format(len(d)))
+        return redirect('/admin/variable')
 
 class HomeView(AdminIndexView):
     @expose("/")
@@ -1944,6 +1958,7 @@ class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
 class VariableView(wwwutils.LoginMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
+    list_template = 'airflow/variable_list.html'
 
     def hidden_field_formatter(view, context, model, name):
         if should_hide_value_for_key(model.key):
@@ -1971,6 +1986,28 @@ class VariableView(wwwutils.LoginMixin, AirflowModelView):
     column_formatters = {
         'val': hidden_field_formatter
     }
+
+    # Default flask-admin export functionality doesn't handle serialized json
+    @action('varexport', 'Export', None)
+    def action_varexport(self, ids):
+        V = models.Variable
+        session = settings.Session()
+        qry = session.query(V).filter(V.id.in_(ids)).all()
+        session.close()
+
+        var_dict = {}
+        d = json.JSONDecoder()
+        for var in qry:
+            val = None
+            try:
+                val = d.decode(var.val)
+            except:
+                val = var.val
+            var_dict[var.key] = val
+
+        response = make_response(json.dumps(var_dict, sort_keys=True, indent=4))
+        response.headers["Content-Disposition"] = "attachment; filename=variables.json"
+        return response
 
     def on_form_prefill(self, form, id):
         if should_hide_value_for_key(form.key.data):
