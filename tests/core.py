@@ -898,6 +898,7 @@ class CliTests(unittest.TestCase):
         )
 
     def test_variables(self):
+        # Checks if all subcommands are properly received
         cli.variables(self.parser.parse_args([
             'variables', '-s', 'foo', '{"foo":"bar"}']))
         cli.variables(self.parser.parse_args([
@@ -906,7 +907,54 @@ class CliTests(unittest.TestCase):
             'variables', '-g', 'baz', '-d', 'bar']))
         cli.variables(self.parser.parse_args([
             'variables']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-x', 'bar']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-i', DEV_NULL]))
+        cli.variables(self.parser.parse_args([
+            'variables', '-e', DEV_NULL]))
 
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'bar', 'original']))
+        # First export
+        cli.variables(self.parser.parse_args([
+            'variables', '-e', 'variables1.json']))
+
+        first_exp = open('variables1.json', 'r')
+
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'bar', 'updated']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-s', 'foo', '{"foo":"oops"}']))
+        cli.variables(self.parser.parse_args([
+            'variables', '-x', 'foo']))
+        # First import
+        cli.variables(self.parser.parse_args([
+            'variables', '-i', 'variables1.json']))
+
+        assert models.Variable.get('bar') == 'original'
+        assert models.Variable.get('foo') == '{"foo": "bar"}'
+        # Second export
+        cli.variables(self.parser.parse_args([
+            'variables', '-e', 'variables2.json']))
+
+        second_exp = open('variables2.json', 'r')
+        assert second_exp.read() == first_exp.read()
+        second_exp.close()
+        first_exp.close()
+        # Second import
+        cli.variables(self.parser.parse_args([
+            'variables', '-i', 'variables2.json']))
+
+        assert models.Variable.get('bar') == 'original'
+        assert models.Variable.get('foo') == '{"foo": "bar"}'
+
+        session = settings.Session()
+        session.query(Variable).delete()
+        session.commit()
+        session.close()
+        os.remove('variables1.json')
+        os.remove('variables2.json')
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
