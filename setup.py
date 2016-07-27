@@ -196,7 +196,7 @@ def do_setup():
             'python-dateutil>=2.3, <3',
             'python-nvd3==0.14.2',
             'requests>=2.5.1, <3',
-            'setproctitle>=1.1.8, <2',
+            'setproctitle>=1.1.10, <2',
             'sqlalchemy>=0.9.8',
             'thrift>=0.9.2, <0.10',
             'zope.deprecation>=4.0, <5.0',
