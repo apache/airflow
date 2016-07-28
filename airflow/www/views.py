@@ -48,7 +48,7 @@ import markdown
 import nvd3
 
 from wtforms import (
-    Form, SelectField, TextAreaField, PasswordField, StringField)
+    Form, SelectField, TextAreaField, PasswordField, StringField, validators)
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -2044,6 +2044,9 @@ class DagRunModelView(ModelViewOnly):
             ('failed', 'failed'),
         ],
     }
+    form_args = dict(
+        dag_id=dict(validators=[validators.DataRequired()])
+    )
     column_list = (
         'state', 'dag_id', 'execution_date', 'run_id', 'external_trigger')
     column_filters = column_list
