@@ -18,6 +18,9 @@ This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
 
+from builtins import range
+from past.builtins import basestring
+
 import logging
 import time
 
@@ -717,7 +720,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         if size is None:
             size = self.arraysize
         result = []
-        for _ in xrange(size):
+        for _ in range(size):
             one = self.fetchone()
             if one is None:
                 break

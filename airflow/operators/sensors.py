@@ -16,6 +16,8 @@ from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
+from past.builtins import basestring
+
 from datetime import datetime
 import logging
 from urllib.parse import urlparse
