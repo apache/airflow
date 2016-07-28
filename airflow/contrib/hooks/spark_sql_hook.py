@@ -90,13 +90,13 @@ class SparkSqlHook(BaseHook):
             for conf_el in self._conf.split(","):
                 connection_cmd += ["--conf", conf_el]
         if self._executor_cores:
-            connection_cmd += ["--executor-cores", self._executor_cores]
+            connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:
             connection_cmd += ["--executor-memory", self._executor_memory]
         if self._keytab:
             connection_cmd += ["--keytab", self._keytab]
         if self._num_executors:
-            connection_cmd += ["--num_executors", self._num_executors]
+            connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
             if self._sql.endswith('.sql'):
                 connection_cmd += ["-f", self._sql]
