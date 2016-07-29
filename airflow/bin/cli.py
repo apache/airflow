@@ -529,44 +529,80 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
     gracefully and that the oldest worker is terminated.
     """
 
-    while True:
+    def wait_until_true(fn):
+        """
+        Sleeps until fn is true
+        """
+        while not fn():
+            time.sleep(1)
 
+
+    def start_refresh(gunicorn_master_proc):
+        logging.info('%s doing a refresh', state)
+        gunicorn_master_proc.send_signal(signal.SIGTTIN)
+
+        wait_until_true(lambda: num_workers_running + 1 == len(
+            psutil.Process(gunicorn_master_proc.pid).children()
+        ))
+
+
+    def get_num_workers_running(gunicorn_master_proc):
+        workers = psutil.Process(gunicorn_master_proc.pid).children()
+        return len(workers)
+
+
+    def get_num_ready_workers_running(gunicorn_master_proc):
         workers = psutil.Process(gunicorn_master_proc.pid).children()
         ready_workers = [
             proc for proc in workers
             if settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]
         ]
+        return len(ready_workers)
 
-        num_workers_running = len(workers)
-        num_ready_workers_running = len(ready_workers)
+
+    wait_until_true(lambda: num_workers_expected ==
+        get_num_workers_running(gunicorn_master_proc)
+    )
+
+
+    while True:
+
+        num_workers_running = get_num_workers_running(gunicorn_master_proc)
+        num_ready_workers_running = get_num_ready_workers_running(gunicorn_master_proc)
 
         state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
 
         # Whenever some workers are not ready, wait until all workers are ready
         if num_ready_workers_running < num_workers_running:
-            logging.debug('%s some workers are starting up, waiting...', state)
+            logging.info('%s some workers are starting up, waiting...', state)
             time.sleep(5)
-            continue
 
         # Kill a worker gracefully by asking gunicorn to reduce number of workers
-        if num_workers_running > num_workers_expected:
-            logging.debug('%s killing a worker', state)
+        elif num_workers_running > num_workers_expected:
+            logging.info('%s killing a worker', state)
             gunicorn_master_proc.send_signal(signal.SIGTTOU)
-            time.sleep(1)
-            continue
+
+            wait_until_true(lambda: num_workers_running - 1 == len(
+                psutil.Process(gunicorn_master_proc.pid).children()
+            ))
 
         # Start a new worker by asking gunicorn to increase number of workers
-        if num_workers_running == num_workers_expected:
-            logging.debug(
-                '%s sleeping for %ss before doing a refresh...',
+        elif num_workers_running == num_workers_expected:
+            logging.info(
+                '%s sleeping for %ss starting doing a refresh...',
                 state, settings.GUNICORN_WORKER_RESTART_INTERVAL
             )
             time.sleep(settings.GUNICORN_WORKER_RESTART_INTERVAL)
-            logging.debug('%s doing a refresh', state)
-            gunicorn_master_proc.send_signal(signal.SIGTTIN)
-            continue
+            start_refresh(gunicorn_master_proc)
 
-        time.sleep(1)
+        else:
+            # num_ready_workers_running == num_workers_running < num_workers_expected
+            logging.error("%s some workers seem to have died and gunicorn did not restart them as expected", state)
+            time.sleep(10)
+            if len(
+                psutil.Process(gunicorn_master_proc.pid).children()
+            ) < num_workers_expected:
+                start_refresh(gunicorn_master_proc)
 
 
 def webserver(args):
