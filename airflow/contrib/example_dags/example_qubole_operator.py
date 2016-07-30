@@ -47,8 +47,7 @@ t1 = QuboleOperator(
     command_type='hivecmd',
     query='show tables',
     cluster_label='default',
-    fetch_logs=True,
-    # If true, will fetch qubole command logs and concatenate them into corresponding airflow task logs
+    fetch_logs=True, # If true, will fetch qubole command logs and concatenate them into corresponding airflow task logs
     tags='aiflow_example_run',  # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
     qubole_conn_id='qubole_default',  # Connection id to submit commands inside QDS, if not set "qubole_default" is used
     dag=dag)
