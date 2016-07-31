@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from datetime import datetime
 from functools import wraps
 import logging
 import os
@@ -252,7 +253,13 @@ def initdb():
         session.add(KET(know_event_type='Marketing Campaign'))
     session.commit()
 
-    models.DagBag(sync_to_db=True)
+    dagbag = models.DagBag()
+    # Save individual DAGs in the ORM
+    now = datetime.utcnow()
+    for dag in dagbag.dags.values():
+        models.DAG.sync_to_db(dag, dag.owner, now)
+    # Deactivate the unknown ones
+    models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     Chart = models.Chart
     chart_label = "Airflow task instance by type"
