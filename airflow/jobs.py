@@ -435,6 +435,10 @@ class SchedulerJob(BaseJob):
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
+            # if start_date is not defined for the dag, take if from default_args
+            if not dag.start_date and 'start_date' in dag.default_args:
+                dag.start_date = dag.default_args['start_date']
+
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
                 next_run_date = (dag.start_date if not next_run_date
