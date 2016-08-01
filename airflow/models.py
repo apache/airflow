@@ -739,9 +739,36 @@ class TaskInstance(Base):
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
+        return " ".join(self.command_as_list(mark_success,
+                                             ignore_dependencies,
+                                             ignore_depends_on_past,
+                                             force,
+                                             local,
+                                             pickle_id,
+                                             raw,
+                                             job_id,
+                                             pool))
+
+    def command_as_list(
+            self,
+            mark_success=False,
+            ignore_dependencies=False,
+            ignore_depends_on_past=False,
+            force=False,
+            local=False,
+            pickle_id=None,
+            raw=False,
+            job_id=None,
+            pool=None):
+        """
+        Returns a command that can be executed anywhere where airflow is
+        installed. This command is part of the message sent to executors by
+        the orchestrator.
+        """
         dag = self.task.dag
 
         # Keeping existing logic, but not entirely sure why this is here.
+        path = None
         if not pickle_id and dag:
             if dag.full_filepath != dag.filepath:
                 path = "DAGS_FOLDER/{}".format(dag.filepath)
@@ -810,18 +837,19 @@ class TaskInstance(Base):
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
-        cmd = "airflow run {dag_id} {task_id} {iso} "
-        cmd += "--mark_success " if mark_success else ""
-        cmd += "--pickle {pickle_id} " if pickle_id else ""
-        cmd += "--job_id {job_id} " if job_id else ""
-        cmd += "-i " if ignore_dependencies else ""
-        cmd += "-I " if ignore_depends_on_past else ""
-        cmd += "--force " if force else ""
-        cmd += "--local " if local else ""
-        cmd += "--pool {pool} " if pool else ""
-        cmd += "--raw " if raw else ""
-        cmd += "-sd {file_path}"
-        return cmd.format(**locals())
+
+        cmd = ["airflow", "run", str(dag_id), str(task_id), str(iso)]
+        cmd.extend(["--mark_success"]) if mark_success else None
+        cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
+        cmd.extend(["--job_id", str(job_id)]) if job_id else None
+        cmd.extend(["-i"]) if ignore_dependencies else None
+        cmd.extend(["-I"]) if ignore_depends_on_past else None
+        cmd.extend(["--force"]) if force else None
+        cmd.extend(["--local"]) if local else None
+        cmd.extend(["--pool"]) if pool else None
+        cmd.extend(["--raw"]) if raw else None
+        cmd.extend(["-sd", file_path]) if file_path else None
+        return cmd
 
     @property
     def log_filepath(self):

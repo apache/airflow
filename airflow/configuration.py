@@ -108,6 +108,7 @@ defaults = {
         'sql_alchemy_pool_recycle': 3600,
         'dagbag_import_timeout': 30,
         'non_pooled_task_slot_count': 128,
+        'task_runner': 'BashTaskRunner',
     },
     'operators': {
         'default_owner': 'airflow',
@@ -259,6 +260,8 @@ donot_pickle = False
 # How long before timing out a python file import while filling the DagBag
 dagbag_import_timeout = 30
 
+# The class to use for running task instances in a subprocess
+task_runner = BashTaskRunner
 
 [operators]
 # The default owner assigned to each new operator, unless
