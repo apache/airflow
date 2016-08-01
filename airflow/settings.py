@@ -74,8 +74,6 @@ DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
-# how long to wait before doing a gunicorn refresh when eligible
-GUNICORN_WORKER_RESTART_INTERVAL = 30
 
 # can't move this to conf due to ConfigParser interpolation
 LOG_FORMAT = (

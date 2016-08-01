@@ -121,6 +121,8 @@ defaults = {
         'web_server_host': '0.0.0.0',
         'web_server_port': '8080',
         'web_server_worker_timeout': 120,
+        'worker_refresh_batch_size': 1,
+        'worker_refresh_interval': 30,
         'authenticate': False,
         'filter_by_owner': False,
         'owner_mode': 'user',
@@ -282,8 +284,16 @@ web_server_host = 0.0.0.0
 # The port on which to run the web server
 web_server_port = 8080
 
-# The time the gunicorn webserver waits before timing out on a worker
+# Number of seconds the gunicorn webserver waits before timing out on a worker
 web_server_worker_timeout = 120
+
+# Number of workers to refresh at a time. When set to 0, worker refresh is
+# disabled. When nonzero, airflow periodically refreshes webserver workers by
+# bringing up new ones and killing old ones.
+worker_refresh_batch_size = 1
+
+# Number of seconds to wait before refreshing a batch of workers.
+worker_refresh_interval = 30
 
 # Secret key used to run your flask app
 secret_key = temporary_key

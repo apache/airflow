@@ -505,23 +505,23 @@ def clear(args):
 
 def restart_workers(gunicorn_master_proc, num_workers_expected):
     """
-    Runs forever, monitoring the child processes of @gunicorn_master_proc
-    and restarting workers occasionally.
+    Runs forever, monitoring the child processes of @gunicorn_master_proc and
+    restarting workers occasionally.
 
     Each iteration of the loop traverses one edge of this state transition
     diagram, where each state (node) represents
-    [ num_ready_workers_running / num_workers_running ]. We expect most time
-    to be spent in [n / n].
+    [ num_ready_workers_running / num_workers_running ]. We expect most time to
+    be spent in [n / n]. `bs` is the setting webserver.worker_refresh_batch_size.
 
-    The horizontal transition at ? happens after the
-    new worker parses all the dags (so it could take a while!)
+    The horizontal transition at ? happens after the new worker parses all the
+    dags (so it could take a while!)
 
-       V ─────────────────────────────────────────────────────────────┐
-    [n / n] ──TTIN──> [n / n + 1]  ─────?────> [n + 1 / n + 1] ──TTOU─┘
-       ^                 ^──────────────┘
+       V ────────────────────────────────────────────────────────────────────────┐
+    [n / n] ──TTIN──> [ [n, n+bs) / n + bs ]  ────?───> [n + bs / n + bs] ──TTOU─┘
+       ^                          ^───────────────┘
        │
-       │      ┌─────────────v
-       └──────┴────── [ < n / n ] <─── start
+       │      ┌────────────────v
+       └──────┴────── [ [0, n) / n ] <─── start
 
     We change the number of workers by sending TTIN and TTOU to the gunicorn
     master process, which increases and decreases the number of child workers
@@ -534,22 +534,11 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
         Sleeps until fn is true
         """
         while not fn():
-            time.sleep(1)
-
-
-    def start_refresh(gunicorn_master_proc):
-        logging.info('%s doing a refresh', state)
-        gunicorn_master_proc.send_signal(signal.SIGTTIN)
-
-        wait_until_true(lambda: num_workers_running + 1 == len(
-            psutil.Process(gunicorn_master_proc.pid).children()
-        ))
-
+            time.sleep(0.1)
 
     def get_num_workers_running(gunicorn_master_proc):
         workers = psutil.Process(gunicorn_master_proc.pid).children()
         return len(workers)
-
 
     def get_num_ready_workers_running(gunicorn_master_proc):
         workers = psutil.Process(gunicorn_master_proc.pid).children()
@@ -559,11 +548,23 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
         ]
         return len(ready_workers)
 
+    def start_refresh(gunicorn_master_proc):
+        batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
+        logging.debug('%s doing a refresh of %s workers',
+            state, batch_size)
+        sys.stdout.flush()
+        sys.stderr.flush()
+
+        excess = 0
+        for _ in range(batch_size):
+            gunicorn_master_proc.send_signal(signal.SIGTTIN)
+            excess += 1
+            wait_until_true(lambda: num_workers_expected + excess ==
+                get_num_workers_running(gunicorn_master_proc))
+
 
     wait_until_true(lambda: num_workers_expected ==
-        get_num_workers_running(gunicorn_master_proc)
-    )
-
+        get_num_workers_running(gunicorn_master_proc))
 
     while True:
 
@@ -574,30 +575,37 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
         # Whenever some workers are not ready, wait until all workers are ready
         if num_ready_workers_running < num_workers_running:
-            logging.info('%s some workers are starting up, waiting...', state)
-            time.sleep(5)
+            logging.debug('%s some workers are starting up, waiting...', state)
+            sys.stdout.flush()
+            time.sleep(1)
 
         # Kill a worker gracefully by asking gunicorn to reduce number of workers
         elif num_workers_running > num_workers_expected:
-            logging.info('%s killing a worker', state)
-            gunicorn_master_proc.send_signal(signal.SIGTTOU)
+            excess = num_workers_running - num_workers_expected
+            logging.debug('%s killing %s workers', state, excess)
 
-            wait_until_true(lambda: num_workers_running - 1 == len(
-                psutil.Process(gunicorn_master_proc.pid).children()
-            ))
+            for _ in range(excess):
+                gunicorn_master_proc.send_signal(signal.SIGTTOU)
+                excess -= 1
+                wait_until_true(lambda: num_workers_expected + excess ==
+                    get_num_workers_running(gunicorn_master_proc))
 
         # Start a new worker by asking gunicorn to increase number of workers
         elif num_workers_running == num_workers_expected:
-            logging.info(
+            refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
+            logging.debug(
                 '%s sleeping for %ss starting doing a refresh...',
-                state, settings.GUNICORN_WORKER_RESTART_INTERVAL
+                state, refresh_interval
             )
-            time.sleep(settings.GUNICORN_WORKER_RESTART_INTERVAL)
+            time.sleep(refresh_interval)
             start_refresh(gunicorn_master_proc)
 
         else:
             # num_ready_workers_running == num_workers_running < num_workers_expected
-            logging.error("%s some workers seem to have died and gunicorn did not restart them as expected", state)
+            logging.error((
+                "%s some workers seem to have died and gunicorn"
+                "did not restart them as expected"
+            ), state)
             time.sleep(10)
             if len(
                 psutil.Process(gunicorn_master_proc.pid).children()
@@ -664,8 +672,11 @@ def webserver(args):
         signal.signal(signal.SIGINT, kill_proc)
         signal.signal(signal.SIGTERM, kill_proc)
 
-        # This runs forever until SIG{INT, TERM, KILL, ...} signal is sent
-        restart_workers(gunicorn_master_proc, num_workers)
+        # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
+        if conf.getint('webserver', 'worker_refresh_interval') > 0:
+            restart_workers(gunicorn_master_proc, num_workers)
+        else:
+            while True: time.sleep(1)
 
 
 def scheduler(args):
