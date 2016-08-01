@@ -101,7 +101,7 @@ class GHEAuthBackend(object):
             consumer_key=get_config_param('client_id'),
             consumer_secret=get_config_param('client_secret'),
             # need read:org to get team member list
-            request_token_params={'scope': 'user,read:org'},
+            request_token_params={'scope': 'user:email,read:org'},
             base_url=self.ghe_host,
             request_token_url=None,
             access_token_method='POST',
