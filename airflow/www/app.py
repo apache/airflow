@@ -47,6 +47,9 @@ def create_app(config=None):
 
     app.register_blueprint(routes)
 
+    log_format = airflow.settings.LOG_FORMAT_WITH_PID
+    airflow.settings.configure_logging(log_format=log_format)
+
     with app.app_context():
         from airflow.www import views
 
