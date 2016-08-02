@@ -13,6 +13,9 @@
 # limitations under the License.
 #
 
+from past.utils import old_div
+from past.builtins import basestring, unicode
+
 import os
 import pkg_resources
 import socket
@@ -23,9 +26,6 @@ import dateutil.parser
 import copy
 from itertools import chain, product
 import json
-
-from past.utils import old_div
-from past.builtins import basestring
 
 import inspect
 import traceback

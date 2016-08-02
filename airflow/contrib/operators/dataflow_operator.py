@@ -63,8 +63,8 @@ class DataFlowJavaOperator(BaseOperator):
     def __init__(
             self,
             jar,
-            dataflow_default_options={},
-            options={},
+            dataflow_default_options=None,
+            options=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             *args,
@@ -90,6 +90,10 @@ class DataFlowJavaOperator(BaseOperator):
         :type delegate_to: string
         """
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
+
+        dataflow_default_options = dataflow_default_options or {}
+        options = options or {}
+
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar

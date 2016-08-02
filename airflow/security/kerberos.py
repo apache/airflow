@@ -93,13 +93,8 @@ def detect_conf_var():
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.
     """
-    f = file(configuration.get('kerberos', 'ccache'), "rb")
-
-    try:
-        data = f.read()
-        return "X-CACHECONF:" in data
-    finally:
-        f.close()
+    with open(configuration.get('kerberos', 'ccache'), "rb") as f:
+        return "X-CACHECONF:" in f.read()
 
 
 def run():

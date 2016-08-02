@@ -100,7 +100,6 @@ if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
 
 def _integrate_plugins():
     """Integrate plugins to the context"""
-    import sys
     from airflow.plugins_manager import operators as _operators
     for _operator_module in _operators:
         sys.modules[_operator_module.__name__] = _operator_module
