@@ -117,6 +117,11 @@
                     <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
                 </a>
 
+                <!-- Retries -->
+                <a href="{{ url_for('airflow.tries', dag_id=dag.dag_id) }}" title="Task Tries">
+                    <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
+                </a>
+
                 <!-- Landing Times -->
                 <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}" title="Landing Times">
                     <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>

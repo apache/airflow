@@ -1007,6 +1007,9 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')
         response = self.app.get(
+            '/admin/airflow/tries?days=30&dag_id=example_bash_operator')
+        assert "example_bash_operator" in response.data.decode('utf-8')
+        response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')

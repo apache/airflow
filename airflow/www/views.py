@@ -1396,6 +1396,71 @@ class Airflow(BaseView):
             chart=chart,
         )
 
+    @expose('/tries')
+    @login_required
+    @wwwutils.action_logging
+    def tries(self):
+        session = settings.Session()
+        dag_id = request.args.get('dag_id')
+        dag = dagbag.get_dag(dag_id)
+        base_date = request.args.get('base_date')
+        num_runs = request.args.get('num_runs')
+        num_runs = int(num_runs) if num_runs else 25
+
+        if base_date:
+            base_date = dateutil.parser.parse(base_date)
+        else:
+            base_date = dag.latest_execution_date or datetime.now()
+
+        dates = dag.date_range(base_date, num=-abs(num_runs))
+        min_date = dates[0] if dates else datetime(2000, 1, 1)
+
+        root = request.args.get('root')
+        if root:
+            dag = dag.sub_dag(
+                task_regex=root,
+                include_upstream=True,
+                include_downstream=False)
+
+        max_duration = 0
+        chart = nvd3.lineChart(
+            name="lineChart", x_is_date=True, y_axis_format='d', height=600, width="1200")
+
+        for task in dag.tasks:
+            y = []
+            x = []
+            for ti in task.get_task_instances(session, start_date=min_date,
+                                              end_date=base_date):
+                if ti.duration:
+                    if max_duration < ti.duration:
+                        max_duration = ti.duration
+
+                    dttm = wwwutils.epoch(ti.execution_date)
+                    x.append(dttm)
+                    y.append(ti.try_number)
+            if x:
+                chart.add_serie(name=task.task_id, x=x, y=y)
+
+        tis = dag.get_task_instances(
+            session, start_date=min_date, end_date=base_date)
+        tries = sorted(list({ti.try_number for ti in tis}))
+        max_date = max([ti.execution_date for ti in tis]) if tries else None
+
+        session.commit()
+        session.close()
+
+        form = DateTimeWithNumRunsForm(data={'base_date': max_date,
+                                             'num_runs': num_runs})
+        chart.buildhtml()
+        return self.render(
+            'airflow/chart.html',
+            dag=dag,
+            demo_mode=conf.getboolean('webserver', 'demo_mode'),
+            root=root,
+            form=form,
+            chart=chart,
+        )
+
     @expose('/landing_times')
     @login_required
     @wwwutils.action_logging
