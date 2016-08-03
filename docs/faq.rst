@@ -82,7 +82,7 @@ an hour after now as ``now()`` moves along.
 Previously we also recommended using rounded ``start_date`` in relation to your
 ``schedule_interval``. This meant an ``@hourly`` would be at ``00:00``
 minutes:seconds, a ``@daily`` job at midnight, a ``@monthly`` job on the
-first of the month. This is no longer required. Airflow will not auto align
+first of the month. This is no longer required. Airflow will now auto align
 the ``start_date`` and the ``schedule_interval``, by using the ``start_date``
 as the moment to start looking.
 
