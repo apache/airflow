@@ -1434,6 +1434,9 @@ class TaskInstance(Base):
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
+        # Log failure duration
+        session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
+
         # Let's go deeper
         try:
             if task.retries and self.try_number % (task.retries + 1) != 0:
@@ -1685,6 +1688,29 @@ class TaskInstance(Base):
             return tuple(pull_fn(task_id=t) for t in task_ids)
         else:
             return pull_fn(task_id=task_ids)
+
+
+class TaskFail(Base):
+    """
+    TaskFail tracks the failed run durations of each task instance.
+    """
+
+    __tablename__ = "task_fail"
+
+    task_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(DateTime, primary_key=True)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    duration = Column(Float)
+
+    def __init__(self, task, execution_date, start_date, end_date):
+        self.dag_id = task.dag_id
+        self.task_id = task.task_id
+        self.execution_date = execution_date
+        self.start_date = start_date
+        self.end_date = end_date
+        self.duration = (self.end_date - self.start_date).total_seconds()
 
 
 class Log(Base):

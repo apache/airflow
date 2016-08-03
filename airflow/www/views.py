@@ -26,6 +26,7 @@ import dateutil.parser
 import copy
 from itertools import chain, product
 import json
+from lxml import html
 
 import inspect
 import traceback
@@ -1357,24 +1358,30 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        max_duration = 0
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=600, width="1200")
+        cum_chart = nvd3.lineChart(
+            name="cumLineChart", x_is_date=True, height=600, width="1200")
 
         for task in dag.tasks:
             y = []
             x = []
+            cum_y = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 if ti.duration:
-                    if max_duration < ti.duration:
-                        max_duration = ti.duration
-
                     dttm = wwwutils.epoch(ti.execution_date)
                     x.append(dttm)
                     y.append(float(ti.duration) / (60*60))
+                    fails = session.query(models.TaskFail).filter_by(
+                        task_id=ti.task_id,
+                        dag_id=ti.dag_id,
+                        execution_date=ti.execution_date).all()
+                    fails_total = sum([f.duration for f in fails])
+                    cum_y.append(float(ti.duration + fails_total) / (60*60))
             if x:
                 chart.add_serie(name=task.task_id, x=x, y=y)
+                cum_chart.add_serie(name=task.task_id, x=x, y=cum_y)
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
@@ -1387,13 +1394,22 @@ class Airflow(BaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
         chart.buildhtml()
+        cum_chart.buildhtml()
+        cum_chart_body = html.document_fromstring(str(cum_chart)).find('body')
+        cum_chart_script = cum_chart_body.find('script')
+        s_index = cum_chart_script.text.rfind('});')
+        cum_chart_script.text = cum_chart_script.text[:s_index]\
+            + "$( document ).trigger('chartload')"\
+            + cum_chart_script.text[s_index:]
+
         return self.render(
-            'airflow/chart.html',
+            'airflow/duration_chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
             chart=chart,
+            cum_chart=html.tostring(cum_chart_body)
         )
 
     @expose('/tries')
@@ -1422,7 +1438,6 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        max_duration = 0
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, y_axis_format='d', height=600, width="1200")
 
@@ -1431,13 +1446,9 @@ class Airflow(BaseView):
             x = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
-                if ti.duration:
-                    if max_duration < ti.duration:
-                        max_duration = ti.duration
-
-                    dttm = wwwutils.epoch(ti.execution_date)
-                    x.append(dttm)
-                    y.append(ti.try_number)
+                dttm = wwwutils.epoch(ti.execution_date)
+                x.append(dttm)
+                y.append(ti.try_number)
             if x:
                 chart.add_serie(name=task.task_id, x=x, y=y)
 
@@ -1451,14 +1462,16 @@ class Airflow(BaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
+
         chart.buildhtml()
+
         return self.render(
             'airflow/chart.html',
             dag=dag,
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart,
+            chart=chart
         )
 
     @expose('/landing_times')

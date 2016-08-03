@@ -797,6 +797,42 @@ class CoreTest(unittest.TestCase):
         assert State.FAILED == ti.state
         session.close()
 
+    def test_task_fail_duration(self):
+        """If a task fails, the duration should be recorded in TaskFail"""
+
+        p = BashOperator(
+            task_id='pass_sleepy',
+            bash_command='sleep 3',
+            dag=self.dag)
+        f = BashOperator(
+            task_id='fail_sleepy',
+            bash_command='sleep 5',
+            execution_timeout=timedelta(seconds=3),
+            retry_delay=timedelta(seconds=0),
+            dag=self.dag)
+        session = settings.Session()
+        try:
+            p.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        except:
+            pass
+        try:
+            f.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+        except:
+            pass
+        p_fails = session.query(models.TaskFail).filter_by(
+            task_id='pass_sleepy',
+            dag_id=self.dag.dag_id,
+            execution_date=DEFAULT_DATE).all()
+        f_fails = session.query(models.TaskFail).filter_by(
+            task_id='fail_sleepy',
+            dag_id=self.dag.dag_id,
+            execution_date=DEFAULT_DATE).all()
+        print(f_fails)
+        assert len(p_fails) == 0
+        assert len(f_fails) == 1
+        # C
+        assert sum([f.duration for f in f_fails]) >= 3
+
 
 class CliTests(unittest.TestCase):
     def setUp(self):
