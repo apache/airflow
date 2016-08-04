@@ -92,7 +92,7 @@ defaults = {
     'core': {
         'unit_test_mode': False,
         'parallelism': 32,
-        'load_examples': False,
+        'load_examples': True,
         'plugins_folder': None,
         'security': None,
         'donot_pickle': False,
