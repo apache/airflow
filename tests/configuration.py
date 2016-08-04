@@ -41,7 +41,7 @@ class ConfTest(unittest.TestCase):
         # test defaults
         conf.remove_option('core', 'load_examples')
         cfg_dict = conf.as_dict()
-        self.assertEqual(cfg_dict['core']['load_examples'], 'True')
+        self.assertEqual(cfg_dict['core']['load_examples'], 'False')
 
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
