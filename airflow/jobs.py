@@ -1013,8 +1013,6 @@ class SchedulerJob(BaseJob):
 
                 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
-                print('TI.generate_command', '*'*50)
-
                 command = TI.generate_command(
                     task_instance.dag_id,
                     task_instance.task_id,
@@ -1029,6 +1027,8 @@ class SchedulerJob(BaseJob):
                     pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id,
                     dag_version=task_instance.dag_version
                 )
+
+                print('TI.generate_command', command, '*'*50)
 
                 priority = task_instance.priority_weight
                 queue = task_instance.queue
@@ -1931,7 +1931,6 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
-        print('running raw')
         command = self.task_instance.command(
             raw=True,
             ignore_dependencies=self.ignore_dependencies,

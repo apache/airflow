@@ -338,6 +338,7 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
 
     ti = TaskInstance(task, args.execution_date)
+    ti.dag_version = args.dag_version
 
     if args.local:
         print("Logging into: " + filename)
