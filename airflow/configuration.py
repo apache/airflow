@@ -264,10 +264,10 @@ dagbag_import_timeout = 30
 # The default owner assigned to each new operator, unless
 # provided explicitly or passed via `default_args`
 default_owner = Airflow
-default_cpus: 1,
-default_ram: 512,
-default_disk: 512,
-default_gpu: 0,
+default_cpus: 1
+default_ram: 512
+default_disk: 512
+default_gpu: 0
 
 
 [webserver]
