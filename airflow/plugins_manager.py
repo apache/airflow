@@ -28,6 +28,7 @@ from itertools import chain
 merge = chain.from_iterable
 
 from airflow import configuration
+from airflow.utils.timeout import timeout
 
 
 class AirflowPluginException(Exception):
@@ -61,9 +62,11 @@ if plugins_folder not in sys.path:
 plugins = []
 
 norm_pattern = re.compile(r'[/|.]')
+plugin_import_timeout = configuration.getint('core', 'plugin_import_timeout')
 
 # Crawl through the plugins folder to find AirflowPlugin derivatives
 for root, dirs, files in os.walk(plugins_folder, followlinks=True):
+    logging.debug('Loading plugin located in {}'.format(root))
     for f in files:
         try:
             filepath = os.path.join(root, f)
@@ -77,15 +80,16 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
-            m = imp.load_source(namespace, filepath)
-            for obj in list(m.__dict__.values()):
-                if (
-                        inspect.isclass(obj) and
-                        issubclass(obj, AirflowPlugin) and
-                        obj is not AirflowPlugin):
-                    obj.validate()
-                    if obj not in plugins:
-                        plugins.append(obj)
+            with timeout(plugin_import_timeout):
+                m = imp.load_source(namespace, filepath)
+                for obj in list(m.__dict__.values()):
+                    if (
+                            inspect.isclass(obj) and
+                            issubclass(obj, AirflowPlugin) and
+                            obj is not AirflowPlugin):
+                        obj.validate()
+                        if obj not in plugins:
+                            plugins.append(obj)
 
         except Exception as e:
             logging.exception(e)
