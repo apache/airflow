@@ -38,7 +38,7 @@ dag = DAG('example_http_operator', default_args=default_args)
 
 dag.doc_md = __doc__
 
-# t1, t2 and t3 are examples of tasks created by instatiating operators
+# t1, t2 and t3 are examples of tasks created by instantiating operators
 t1 = SimpleHttpOperator(
     task_id='post_op',
     endpoint='api/v1.0/nodes',

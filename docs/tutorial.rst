@@ -39,7 +39,7 @@ complicated, a line by line explanation follows below.
 
     dag = DAG('tutorial', default_args=default_args)
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',
@@ -292,7 +292,7 @@ something like this:
     dag = DAG(
         'tutorial', default_args=default_args, schedule_interval=timedelta(1))
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',
