@@ -64,7 +64,6 @@ if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
 
 def _integrate_plugins():
     """Integrate plugins to the context"""
-    import sys
     from airflow.plugins_manager import hooks as _hooks
     for _hook_module in _hooks:
         sys.modules[_hook_module.__name__] = _hook_module
