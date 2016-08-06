@@ -2919,7 +2919,7 @@ class DAG(BaseDag, LoggingMixin):
         dates = utils_date_range(start_date, end_date)
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
         for dr in drs:
-            dr.state = State.RUNNING
+            dr.state = state
 
     def clear(
             self, start_date=None, end_date=None,
