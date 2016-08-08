@@ -131,6 +131,8 @@ defaults = {
         'worker_class': 'sync',
         'access_logfile': '',
         'error_logfile': '',
+        'ssl_certfile': None,
+        'ssl_keyfile': None,
     },
     'scheduler': {
         'statsd_on': False,
@@ -298,6 +300,10 @@ worker_class = sync
 # Log files for the gunicorn webserver. '-' means log to stderr.
 access_logfile = -
 error_logfile = -
+
+# Ssl key-certificate path
+# ssl_certfile = /path/2/certfile
+# ssl_keyfile = /path/2/keyfile
 
 # Expose the configuration file in the web server
 expose_config = true

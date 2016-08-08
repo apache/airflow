@@ -517,6 +517,11 @@ def webserver(args):
         app.run(debug=True, port=args.port, host=args.hostname)
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
+        ssl_certfile = conf.get('webserver', 'ssl_certfile')
+        ssl_keyfile = conf.get('webserver', 'ssl_keyfile')
+        sec_params = ['--certfile=' + ssl_certfile, '--keyfile=' + ssl_keyfile] \
+            if ssl_certfile and ssl_keyfile else []
+
         print(
             textwrap.dedent('''\
                 Running the Gunicorn Server with:
@@ -524,6 +529,7 @@ def webserver(args):
                 Host: {args.hostname}:{args.port}
                 Timeout: {worker_timeout}
                 Logfiles: {access_logfile} {error_logfile}
+                Ssl params: {sec_params}
                 =================================================================\
             '''.format(**locals())))
 
@@ -534,8 +540,7 @@ def webserver(args):
             '-t ' + str(args.worker_timeout),
             '-b ' + args.hostname + ':' + str(args.port),
             '-n ' + 'airflow-webserver',
-            '-p ' + str(pid),
-        ]
+            '-p ' + str(pid)] + sec_params
 
         if args.access_logfile:
             run_args += ['--access-logfile', str(args.access_logfile)]
