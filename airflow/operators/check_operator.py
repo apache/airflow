@@ -30,8 +30,9 @@ class CheckOperator(BaseOperator):
     values return ``False`` the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
-    * False
-    * 0
+
+    * ``False``
+    * ``0``
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)

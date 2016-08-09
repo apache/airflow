@@ -245,10 +245,11 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
     :param partition_names: List of fully qualified names of the
         partitions to wait for. A fully qualified name is of the
-        form schema.table/pk1=pv1/pk2=pv2, for example,
+        form ``schema.table/pk1=pv1/pk2=pv2``, for example,
         default.users/ds=2016-01-01. This is passed as is to the metastore
-        Thrift client "get_partitions_by_name" method. Note that
-        you cannot use logical operators as in HivePartitionSensor.
+        Thrift client ``get_partitions_by_name`` method. Note that
+        you cannot use logical or comparison operators as in
+        HivePartitionSensor.
     :type partition_names: list of strings
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
@@ -312,7 +313,7 @@ class HivePartitionSensor(BaseSensorOperator):
     """
     Waits for a partition to show up in Hive.
 
-    Note: Because @partition supports general logical operators, it
+    Note: Because ``partition`` supports general logical operators, it
     can be inefficient. Consider using NamedHivePartitionSensor instead if
     you don't need the full flexibility of HivePartitionSensor.
 
@@ -320,9 +321,9 @@ class HivePartitionSensor(BaseSensorOperator):
         notation (my_database.my_table)
     :type table: string
     :param partition: The partition clause to wait for. This is passed as
-        is to the metastore Thrift client "get_partitions_by_filter" method,
-        and apparently supports SQL like notation as in `ds='2015-01-01'
-        AND type='value'` and > < sings as in "ds>=2015-01-01"
+        is to the metastore Thrift client ``get_partitions_by_filter`` method,
+        and apparently supports SQL like notation as in ``ds='2015-01-01'
+        AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
     :type partition: string
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
