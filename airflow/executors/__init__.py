@@ -39,9 +39,9 @@ elif _EXECUTOR == 'MesosExecutor':
     DEFAULT_EXECUTOR = MesosExecutor()
 else:
     # Loading plugins
-    from airflow.plugins_manager import executors as _executors
-    for _executor in _executors:
-        globals()[_executor.__name__] = _executor
+    from airflow.plugins_manager import executors_modules
+    for executors_module in executors_modules:
+        globals()[executors_module.__name__] = executors_module
     if _EXECUTOR in globals():
         DEFAULT_EXECUTOR = globals()[_EXECUTOR]()
     else:
