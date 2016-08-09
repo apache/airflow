@@ -66,6 +66,7 @@ Operator API
         MsSqlToHiveTransfer,
         MySqlOperator,
         MySqlToHiveTransfer,
+        NamedHivePartitionSensor,
         PostgresOperator,
         PrestoCheckOperator,
         PrestoIntervalCheckOperator,

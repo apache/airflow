@@ -271,9 +271,6 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         if isinstance(partition_names, basestring):
             raise TypeError('partition_names must be an array of strings')
 
-        for partition_name in partition_names:
-            self.parse_partition_name(partition_name)
-
         self.metastore_conn_id = metastore_conn_id
         self.partition_names = partition_names
         self.next_poke_idx = 0
