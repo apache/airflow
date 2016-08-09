@@ -123,6 +123,17 @@ echo "Downloading and unpacking hive"
 curl -z ${TRAVIS_CACHE}/hive/hive.tar.gz -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
 tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
+if [ $? != 0 ]; then
+    echo "Failed to extract hive from ${TRAVIS_CACHE}/hive/hive.tar.gz" >&2
+    echo "Trying again..." >&2
+    # dont use cache
+    curl -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
+    tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
+    if [ $? != 0 ]; then
+        echo "Failed twice in downloading and unpacking hive!" >&2
+        exit 1
+    fi
+fi
 
 echo "Downloading and unpacking minicluster"
 curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
