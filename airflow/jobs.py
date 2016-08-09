@@ -1063,7 +1063,8 @@ class SchedulerJob(BaseJob):
                 continue
 
             if not dag:
-                self.logger.error("DAG ID {} was not found in the DagBag")
+                self.logger.error("DAG ID {} was not found in the DagBag"
+                                  .format(dag.dag_id))
                 continue
 
             self.logger.info("Processing {}".format(dag.dag_id))

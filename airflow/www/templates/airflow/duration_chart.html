@@ -27,6 +27,10 @@
 
 {% block body %}
 {{ super() }}
+<div>
+  <label for="isCumulative">Cumulative Duration</label>
+  <input id="isCumulative" type="checkbox" value="1">
+</div>
 <div style="float: left" class="form-inline">
     <form method="get" style="float:left;">
         Base date: {{ form.base_date(class_="form-control") }}
@@ -38,15 +42,30 @@
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
     </form>
 </div>
-<div style="clear: both;">{{ chart |safe }}</div>
+<div id="dur_chart" style="clear: both;">{{ chart |safe }}</div>
+<div id="cum_dur_chart" style="clear: both;">{{ cum_chart | safe}}</div>
 <hr/>
 {% endblock %}
 
 {% block tail %}
-    {{ super() }}
-    <div class="container"></div>
-
-      <script src="{{ admin_static.url(
-        filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}">
-      </script>
+  <script>
+    function handleCheck() {
+      if ($('#isCumulative').is(':checked')) {
+        $('#dur_chart').hide();
+        $('#cum_dur_chart').show();
+      } else {
+        $('#dur_chart').show();
+        $('#cum_dur_chart').hide();
+      };
+    };
+    $( document ).on('chartload', function() {
+      handleCheck();
+    });
+    $('#isCumulative').click(function() {
+      handleCheck();
+    });
+  </script>
+  <script src="{{ admin_static.url(
+    filename='vendor/bootstrap-daterangepicker/daterangepicker.js') }}"></script>
+  {{ super() }}
 {% endblock %}
