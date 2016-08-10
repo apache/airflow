@@ -2879,6 +2879,15 @@ class DAG(BaseDag, LoggingMixin):
                 l += task.subdag.subdags
         return l
 
+    @property
+    def reached_max_runs(self):
+        active_runs = DagRun.find(
+            dag_id=self.dag_id,
+            state=State.RUNNING,
+            external_trigger=False
+        )
+        return len(active_runs) >= self.max_active_runs
+
     def resolve_template_files(self):
         for t in self.tasks:
             t.resolve_template_files()
