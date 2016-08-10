@@ -66,7 +66,7 @@ def sigquit_handler(sig, frame):
                     .format(id_to_name.get(thread_id, ""), thread_id))
         for filename, line_number, name, line in traceback.extract_stack(stack):
             code.append('File: "{}", line {}, in {}'
-                        .format((filename, line_number, name)))
+                        .format(filename, line_number, name))
             if line:
                 code.append("  {}".format(line.strip()))
     print("\n".join(code))
