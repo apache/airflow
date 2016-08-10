@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from builtins import str
+
 from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
 from airflow.exceptions import AirflowException
@@ -27,7 +29,6 @@ class HipChatAPIOperator(BaseOperator):
     at https://www.hipchat.com/docs/apiv2. Before using any HipChat API operators you need
     to get an authentication token at https://www.hipchat.com/docs/apiv2/auth.
     In the future additional HipChat operators will be derived from this class as well.
-
     :param token: HipChat REST API authentication token
     :type token: str
     :param base_url: HipChat REST API base url.
@@ -50,7 +51,6 @@ class HipChatAPIOperator(BaseOperator):
         """
         Used by the execute function. Set the request method, url, and body of HipChat's
         REST API call.
-
         Override in child class. Each HipChatAPI child operator is responsible for having
         a prepare_request method call which sets self.method, self.url, and self.body.
         """
@@ -76,7 +76,6 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     """
     Send notification to a specific HipChat room.
     More info: https://www.hipchat.com/docs/apiv2/method/send_room_notification
-
     :param room_id: Room in which to send notification on HipChat
     :type room_id: str
     :param message: The message body
@@ -110,7 +109,7 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
             'notify': False,
             'card': None
         }
-        for (prop, default) in default_options.iteritems():
+        for (prop, default) in default_options.items():
             setattr(self, prop, kwargs.get(prop, default))
 
     def prepare_request(self):
@@ -127,4 +126,4 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
         self.method = 'POST'
         self.url = '%s/room/%s/notification' % (self.base_url, self.room_id)
         self.body = json.dumps(dict(
-            (k.encode('utf-8'), v.encode('utf-8')) for k, v in params.iteritems() if v))
+            (str(k), str(v)) for k, v in params.items() if v))
