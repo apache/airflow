@@ -44,6 +44,7 @@ from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
 from airflow.settings import Stats
+from airflow.task_runner import get_task_runner
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
@@ -994,7 +995,7 @@ class SchedulerJob(BaseJob):
                                              task_concurrency_limit))
                     continue
 
-                command = TI.generate_command(
+                command = " ".join(TI.generate_command(
                     task_instance.dag_id,
                     task_instance.task_id,
                     task_instance.execution_date,
@@ -1005,7 +1006,7 @@ class SchedulerJob(BaseJob):
                     ignore_depends_on_past=False,
                     pool=task_instance.pool,
                     file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
-                    pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id)
+                    pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id))
 
                 priority = task_instance.priority_weight
                 queue = task_instance.queue
@@ -1832,24 +1833,20 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
-        command = self.task_instance.command(
-            raw=True,
-            ignore_dependencies=self.ignore_dependencies,
-            ignore_depends_on_past=self.ignore_depends_on_past,
-            force=self.force,
-            pickle_id=self.pickle_id,
-            mark_success=self.mark_success,
-            job_id=self.id,
-            pool=self.pool,
-        )
-        self.process = subprocess.Popen(['bash', '-c', command])
+
+        self.task_runner = get_task_runner(self)
         return_code = None
-        while return_code is None:
-            self.heartbeat()
-            return_code = self.process.poll()
+        try:
+            self.task_runner.start()
+            while return_code is None:
+                self.heartbeat()
+                return_code = self.task_runner.return_code()
+        finally:
+            self.task_runner.on_finish()
 
     def on_kill(self):
-        self.process.terminate()
+        self.task_runner.terminate()
+        self.task_runner.on_finish()
 
     @provide_session
     def heartbeat_callback(self, session=None):
