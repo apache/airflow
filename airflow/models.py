@@ -741,12 +741,13 @@ class TaskInstance(Base):
         """
         dag = self.task.dag
 
-        # Keeping existing logic, but not entirely sure why this is here.
-        if not pickle_id and dag:
-            if dag.full_filepath != dag.filepath:
-                path = "DAGS_FOLDER/{}".format(dag.filepath)
-            elif dag.full_filepath:
-                path = dag.full_filepath
+        should_pass_filepath = not pickle_id and dag
+        if should_pass_filepath and dag.full_filepath != dag.filepath:
+            path = "DAGS_FOLDER/{}".format(dag.filepath)
+        elif should_pass_filepath and dag.full_filepath:
+            path = dag.full_filepath
+        else:
+            path = None
 
         return TaskInstance.generate_command(
             self.dag_id,
@@ -820,7 +821,7 @@ class TaskInstance(Base):
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
-        cmd += "-sd {file_path}"
+        cmd += "-sd {file_path}" if file_path else ""
         return cmd.format(**locals())
 
     @property
