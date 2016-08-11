@@ -259,7 +259,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     """
 
     template_fields = ('partition_names', )
-    ui_color = '#2b2d42'
+    ui_color = '#8d99ae'
 
     @apply_defaults
     def __init__(
