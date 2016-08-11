@@ -31,6 +31,9 @@ class BashOperator(BaseOperator):
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
     :type bash_command: string
+    :param xcom_push: If xcom_push is True, the last line written to stdout
+        will also be pushed to an XCom when the bash command completes.
+    :type xcom_push: bool
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default
@@ -50,10 +53,7 @@ class BashOperator(BaseOperator):
             env=None,
             output_encoding='utf-8',
             *args, **kwargs):
-        """
-        If xcom_push is True, the last line written to stdout will also
-        be pushed to an XCom when the bash command completes.
-        """
+
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env

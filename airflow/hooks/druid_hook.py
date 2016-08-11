@@ -165,8 +165,9 @@ class DruidHook(BaseHook):
             intervals, num_shards, target_partition_size, metric_spec=None, hadoop_dependency_coordinates=None):
         """
         load data to druid from hdfs
-        :params ts_dim: The column name to use as a timestamp
-        :params metric_spec: A list of dictionaries
+
+        :param ts_dim: The column name to use as a timestamp
+        :param metric_spec: A list of dictionaries
         """
         task_id = self.send_ingest_query(
             datasource, static_path, ts_dim, columns, metric_spec,

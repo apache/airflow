@@ -177,12 +177,14 @@ def pprinttable(rows):
 class AirflowImporter(object):
     """
     Importer that dynamically loads a class and module from its parent. This
-    allows Airflow to support `from airflow.operators.bash_operator import
-    BashOperator` even though BashOperator is actually in
-    airflow.operators.bash_operator.
+    allows Airflow to support ``from airflow.operators import BashOperator``
+    even though BashOperator is actually in
+    ``airflow.operators.bash_operator``.
 
     The importer also takes over for the parent_module by wrapping it. This is
     required to support attribute-based usage:
+
+    .. code:: python
 
         from airflow import operators
         operators.BashOperator(...)
