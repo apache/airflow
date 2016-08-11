@@ -541,7 +541,8 @@ class Connection(Base):
         if self._password and self.is_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt, configuration is missing")
+                    "Can't decrypt encrypted password for login={}, \
+                    FERNET_KEY configuration is missing".format(self.login))
             return FERNET.decrypt(bytes(self._password, 'utf-8')).decode()
         else:
             return self._password
@@ -564,7 +565,8 @@ class Connection(Base):
         if self._extra and self.is_extra_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt `extra`, configuration is missing")
+                    "Can't decrypt `extra` params for login={},\
+                    FERNET_KEY configuration is missing".format(self.login))
             return FERNET.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
             return self._extra
@@ -3402,7 +3404,8 @@ class Variable(Base):
         if self._val and self.is_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt _val, configuration is missing")
+                    "Can't decrypt _val for key={}, FERNET_KEY configuration \
+                    missing".format(self.key))
             return FERNET.decrypt(bytes(self._val, 'utf-8')).decode()
         else:
             return self._val
