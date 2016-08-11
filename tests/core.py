@@ -833,6 +833,69 @@ class CoreTest(unittest.TestCase):
         # C
         assert sum([f.duration for f in f_fails]) >= 3
 
+    def test_dag_stats(self):
+        """Correctly sets/dirties/cleans rows of DagStat table"""
+
+        session = settings.Session()
+
+        session.query(models.DagRun).delete()
+        session.query(models.DagStat).delete()
+        session.commit()
+
+        run1 = self.dag_bash.create_dagrun(
+            run_id="run1",
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING)
+
+        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+
+        qry = session.query(models.DagStat).all()
+
+        assert len(qry) == 1
+        assert qry[0].dag_id == self.dag_bash.dag_id and\
+                qry[0].state == State.RUNNING and\
+                qry[0].count == 1 and\
+                qry[0].dirty == False
+
+        run2 = self.dag_bash.create_dagrun(
+            run_id="run2",
+            execution_date=DEFAULT_DATE+timedelta(days=1),
+            state=State.RUNNING)
+
+        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+
+        qry = session.query(models.DagStat).all()
+
+        assert len(qry) == 1
+        assert qry[0].dag_id == self.dag_bash.dag_id and\
+                qry[0].state == State.RUNNING and\
+                qry[0].count == 2 and\
+                qry[0].dirty == False
+
+        session.query(models.DagRun).first().state = State.SUCCESS
+        session.commit()
+
+        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+
+        qry = session.query(models.DagStat).filter(models.DagStat.state == State.SUCCESS).all()
+        assert len(qry) == 1
+        assert qry[0].dag_id == self.dag_bash.dag_id and\
+                qry[0].state == State.SUCCESS and\
+                qry[0].count == 1 and\
+                qry[0].dirty == False
+
+        qry = session.query(models.DagStat).filter(models.DagStat.state == State.RUNNING).all()
+        assert len(qry) == 1
+        assert qry[0].dag_id == self.dag_bash.dag_id and\
+                qry[0].state == State.RUNNING and\
+                qry[0].count == 1 and\
+                qry[0].dirty == False
+
+        session.query(models.DagRun).delete()
+        session.query(models.DagStat).delete()
+        session.commit()
+        session.close()
+
 
 class CliTests(unittest.TestCase):
     def setUp(self):
@@ -1077,6 +1140,9 @@ class WebUiTests(unittest.TestCase):
         assert "Attributes" in response.data.decode('utf-8')
         response = self.app.get(
             '/admin/airflow/dag_stats')
+        assert "example_bash_operator" in response.data.decode('utf-8')
+        response = self.app.get(
+            '/admin/airflow/task_stats')
         assert "example_bash_operator" in response.data.decode('utf-8')
         url = (
             "/admin/airflow/success?task_id=run_this_last&"

@@ -41,11 +41,14 @@ from airflow import jobs, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
+from airflow.models import (DagModel, DagBag, TaskInstance,
+                            DagPickle, DagRun, Variable, DagStat)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
 from airflow.www.app import cached_app
+
+from sqlalchemy import func
 
 DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
@@ -615,7 +618,6 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
 
 def webserver(args):
-
     print(settings.HEADER)
 
     app = cached_app(conf)
@@ -800,6 +802,17 @@ def upgradedb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
     db_utils.upgradedb()
 
+    # Populate DagStats table
+    session = settings.Session()
+    ds_rows = session.query(DagStat).count()
+    if not ds_rows:
+        qry = (
+            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
+            .group_by(DagRun.dag_id, DagRun.state)
+        )
+        for dag_id, state, count in qry:
+            session.add(DagStat(dag_id=dag_id, state=state, count=count))
+        session.commit()
 
 def version(args):  # noqa
     print(settings.HEADER + "  v" + airflow.__version__)

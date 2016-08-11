@@ -1250,9 +1250,9 @@ class TaskInstance(Base):
         :return: DagRun
         """
         dr = session.query(DagRun).filter(
-            DagRun.dag_id==self.dag_id,
-            DagRun.execution_date==self.execution_date,
-            DagRun.start_date==self.start_date
+            DagRun.dag_id == self.dag_id,
+            DagRun.execution_date == self.execution_date,
+            DagRun.start_date == self.start_date
         ).first()
 
         return dr
@@ -2990,8 +2990,11 @@ class DAG(BaseDag, LoggingMixin):
             self, start_date, end_date, state=State.RUNNING, session=None):
         dates = utils_date_range(start_date, end_date)
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
+        dirty_ids = []
         for dr in drs:
             dr.state = state
+            dirty_ids.append(dr.dag_id)
+        DagStat.clean_dirty(dirty_ids, session=session)
 
     def clear(
             self, start_date=None, end_date=None,
@@ -3248,8 +3251,8 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def create_dagrun(self,
                       run_id,
-                      execution_date,
                       state,
+                      execution_date=None,
                       start_date=None,
                       external_trigger=False,
                       conf=None,
@@ -3290,6 +3293,12 @@ class DAG(BaseDag, LoggingMixin):
         run.verify_integrity(session=session)
 
         run.refresh_from_db()
+        DagStat.set_dirty(self.dag_id, session=session)
+
+        # add a placeholder row into DagStat table
+        if not session.query(DagStat).filter(DagStat.dag_id == self.dag_id).first():
+            session.add(DagStat(dag_id=self.dag_id, state=State.RUNNING, count=0, dirty=True))
+        session.commit()
         return run
 
     @staticmethod
@@ -3626,6 +3635,62 @@ class XCom(Base):
         session.commit()
 
 
+class DagStat(Base):
+    __tablename__ = "dag_stats"
+
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    state = Column(String(50), primary_key=True)
+    count = Column(Integer, default=0)
+    dirty = Column(Boolean, default=False)
+
+    def __init__(self, dag_id, state, count, dirty=False):
+        self.dag_id = dag_id
+        self.state = state
+        self.count = count
+        self.dirty = dirty
+
+    @staticmethod
+    @provide_session
+    def set_dirty(dag_id, session=None):
+        for dag in session.query(DagStat).filter(DagStat.dag_id == dag_id):
+            dag.dirty = True
+        session.commit()
+
+    @staticmethod
+    @provide_session
+    def clean_dirty(dag_ids, session=None):
+        """
+        Cleans out the dirty/out-of-sync rows from dag_stats table
+
+        :param dag_ids: dag_ids that may be dirty
+        :type dag_ids: list
+        :param full_query: whether to check dag_runs for new drs not in dag_stats
+        :type full_query: bool
+        """
+        dag_ids = set(dag_ids)
+        ds_ids = set(session.query(DagStat.dag_id).all())
+
+        qry = (
+            session.query(DagStat)
+            .filter(and_(DagStat.dag_id.in_(dag_ids), DagStat.dirty == True))
+        )
+
+        dirty_ids = {dag.dag_id for dag in qry.all()}
+        qry.delete(synchronize_session='fetch')
+        session.commit()
+
+        qry = (
+            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
+            .filter(DagRun.dag_id.in_(dirty_ids))
+            .group_by(DagRun.dag_id, DagRun.state)
+        )
+
+        for dag_id, state, count in qry:
+            session.add(DagStat(dag_id=dag_id, state=state, count=count))
+
+        session.commit()
+
+
 class DagRun(Base):
     """
     DagRun describes an instance of a Dag. It can be created
@@ -3641,7 +3706,7 @@ class DagRun(Base):
     execution_date = Column(DateTime, default=func.now())
     start_date = Column(DateTime, default=func.now())
     end_date = Column(DateTime)
-    state = Column(String(50), default=State.RUNNING)
+    _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
@@ -3662,6 +3727,20 @@ class DagRun(Base):
             run_id=self.run_id,
             external_trigger=self.external_trigger)
 
+    def get_state(self):
+        return self._state
+
+    def set_state(self, state):
+        if self._state != state:
+            self._state = state
+            session = settings.Session()
+            DagStat.set_dirty(self.dag_id, session=session)
+
+    @declared_attr
+    def state(self):
+        return synonym('_state',
+                       descriptor=property(self.get_state, self.set_state))
+
     @classmethod
     def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
@@ -3678,7 +3757,7 @@ class DagRun(Base):
             DR.dag_id == self.dag_id,
             DR.execution_date == self.execution_date,
             DR.run_id == self.run_id
-        ).one()
+        ).first()
         if dr:
             self.id = dr.id
             self.state = dr.state
@@ -3802,7 +3881,6 @@ class DagRun(Base):
             session=session
         )
         none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
-
         # small speed up
         if unfinished_tasks and none_depends_on_past:
             # todo: this can actually get pretty slow: one task costs between 0.01-015s
