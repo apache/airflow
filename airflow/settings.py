@@ -111,11 +111,14 @@ def policy(task_instance):
     """
     pass
 
+handler = logging.StreamHandler(sys.stdout)
+handler.setLevel(LOGGING_LEVEL)
+
 
 def configure_logging(log_format=LOG_FORMAT):
-    logging.root.handlers = []
-    logging.basicConfig(
-        format=log_format, stream=sys.stdout, level=LOGGING_LEVEL)
+    handler.setFormatter(logging.Formatter(log_format))
+    logging.getLogger().addHandler(handler)
+
 
 engine = None
 Session = None
