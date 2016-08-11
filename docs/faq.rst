@@ -125,18 +125,18 @@ simple dictionary.
         globals()[dag_id] = DAG(dag_id)
         # or better, call a function that returns a DAG object!
 
-What's are all the ``airflow run`` commands in my process list?
+What are all the ``airflow run`` commands in my process list?
 ---------------------------------------------------------------
 
-There's many layers of ``airflow run`` commands, meaning it can call itself.
+There are many layers of ``airflow run`` commands, meaning it can call itself.
 
 - Basic ``airflow run``: fires up an executor, and tell it to run an
-  ``airlfow run --local`` command. if using Celery, this means it puts a
+  ``airflow run --local`` command. if using Celery, this means it puts a
   command in the queue for it to run remote, on the worker. If using
   LocalExecutor, that translates into running it in a subprocess pool.
 - Local ``airflow run --local``: starts an ``airflow run --raw``
   command (described bellow) as a subprocess and is in charge of
   emitting heartbeats, listening for external kill signals
-  and insures some cleanup takes place if the subprocess fails
+  and ensures some cleanup takes place if the subprocess fails
 - Raw ``airflow run --raw`` runs the actual operator's execute method and
   performs the actual work
