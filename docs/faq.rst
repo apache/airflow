@@ -1,7 +1,8 @@
 FAQ
 ========
 
-**Why isn't my task getting scheduled?**
+Why isn't my task getting scheduled?
+------------------------------------
 
 There are very many reasons why your task might not be getting scheduled.
 Here are some of the common causes:
@@ -51,17 +52,20 @@ You may also want to read the Scheduler section of the docs and make
 sure you fully understand how it proceeds.
 
 
-**How do I trigger tasks based on another task's failure?**
+How do I trigger tasks based on another task's failure?
+-------------------------------------------------------
 
 Check out the ``Trigger Rule`` section in the Concepts section of the
 documentation
 
-**Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]**?
+Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
+------------------------------------------------------------------------------------------------------
 
 - Verify that the ``fernet_key`` defined in ``$AIRFLOW_HOME/airflow.cfg`` is a valid Fernet key. It must be a base64-encoded 32-byte key. You need to restart the webserver after you update the key
 - For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it
 
-**What's the deal with ``start_date``?**
+What's the deal with ``start_date``?
+------------------------------------
 
 ``start_date`` is partly legacy from the pre-DagRun era, but it is still
 relevant in many ways. When creating a new DAG, you probably want to set
@@ -103,3 +107,36 @@ Also important to note is that the tasks ``start_date``, in the context of a
 backfill CLI command, get overridden by the backfill's command ``start_date``.
 This allows for a backfill on tasks that have ``depends_on_past=True`` to
 actually start, if it wasn't the case, the backfill just wouldn't start.
+
+How can I create DAGs dynamically?
+----------------------------------
+
+Airflow looks in you ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
+in their global namespace, and adds the objects it finds in the
+``DagBag``. Knowing this all we need is a way to dynamically assign
+variable in the global namespace, which is easily done in python using the
+``globals()`` function for the standard library which behaves like a
+simple dictionary.
+
+.. code:: python
+
+    for i in range(10):
+        dag_id = 'foo_{}'.format(i)
+        globals()[dag_id] = DAG(dag_id)
+        # or better, call a function that returns a DAG object!
+
+What are all the ``airflow run`` commands in my process list?
+---------------------------------------------------------------
+
+There are many layers of ``airflow run`` commands, meaning it can call itself.
+
+- Basic ``airflow run``: fires up an executor, and tell it to run an
+  ``airflow run --local`` command. if using Celery, this means it puts a
+  command in the queue for it to run remote, on the worker. If using
+  LocalExecutor, that translates into running it in a subprocess pool.
+- Local ``airflow run --local``: starts an ``airflow run --raw``
+  command (described bellow) as a subprocess and is in charge of
+  emitting heartbeats, listening for external kill signals
+  and ensures some cleanup takes place if the subprocess fails
+- Raw ``airflow run --raw`` runs the actual operator's execute method and
+  performs the actual work
