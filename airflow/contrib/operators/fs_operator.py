@@ -33,6 +33,7 @@ class FileSensor(BaseSensorOperator):
     :type fs_conn_id: string
     """
     template_fields = ('filepath',)
+    ui_color = '#91818a'
 
     @apply_defaults
     def __init__(

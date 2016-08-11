@@ -25,6 +25,7 @@ class EmrBaseSensor(BaseSensorOperator):
     Subclasses should implement get_emr_response() and state_from_response() methods.
     Subclasses should also implment NON_TERMINAL_STATES and FAILED_STATE constants.
     """
+    ui_color = '#66c3ff'
 
     @apply_defaults
     def __init__(

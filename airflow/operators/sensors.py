@@ -92,6 +92,7 @@ class SqlSensor(BaseSensorOperator):
     """
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
+    ui_color = '#7c7287'
 
     @apply_defaults
     def __init__(self, conn_id, sql, *args, **kwargs):
@@ -135,6 +136,7 @@ class MetastorePartitionSensor(SqlSensor):
     :type mysql_conn_id: str
     """
     template_fields = ('partition_name', 'table', 'schema')
+    ui_color = '#8da7be'
 
     @apply_defaults
     def __init__(
@@ -190,6 +192,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
     :type execution_date_fn: callable
     """
+    ui_color = '#19647e'
 
     @apply_defaults
     def __init__(
@@ -257,6 +260,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
     """
 
     template_fields = ('partition_names', )
+    ui_color = '#8d99ae'
 
     @apply_defaults
     def __init__(
@@ -330,6 +334,7 @@ class HivePartitionSensor(BaseSensorOperator):
     :type metastore_conn_id: str
     """
     template_fields = ('schema', 'table', 'partition',)
+    ui_color = '#2b2d42'
 
     @apply_defaults
     def __init__(
@@ -366,6 +371,7 @@ class HdfsSensor(BaseSensorOperator):
     Waits for a file or folder to land in HDFS
     """
     template_fields = ('filepath',)
+    ui_color = '#4d9de0'
 
     @apply_defaults
     def __init__(
