@@ -133,6 +133,7 @@ defaults = {
         'worker_class': 'sync',
         'access_logfile': '',
         'error_logfile': '',
+        'dag_orientation': 'LR',
     },
     'scheduler': {
         'statsd_on': False,
@@ -326,6 +327,10 @@ filter_by_owner = False
 # in order to user the ldapgroup mode.
 owner_mode = user
 
+# Default DAG orientation. Valid values are: LR (Left->Right), TB (Top->Bottom),
+# RL (Right->Left), BT (Bottom->Top).
+dag_orientation = LR
+
 [email]
 email_backend = airflow.utils.email.send_email_smtp
 
@@ -466,6 +471,7 @@ default_owner = airflow
 base_url = http://localhost:8080
 web_server_host = 0.0.0.0
 web_server_port = 8080
+dag_orientation = LR
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp

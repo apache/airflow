@@ -2606,6 +2606,8 @@ class DAG(BaseDag, LoggingMixin):
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
     :type sla_miss_callback: types.FunctionType
+    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
+    :type orientation: string
     """
 
     def __init__(
@@ -2621,6 +2623,7 @@ class DAG(BaseDag, LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
+            orientation=configuration.get('webserver', 'dag_orientation'),
             params=None):
 
         self.user_defined_macros = user_defined_macros
@@ -2659,6 +2662,7 @@ class DAG(BaseDag, LoggingMixin):
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
+        self.orientation = orientation
 
         self._comps = {
             'dag_id',
