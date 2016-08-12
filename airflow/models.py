@@ -1243,6 +1243,21 @@ class TaskInstance(Base):
         return open_slots <= 0
 
     @provide_session
+    def get_dagrun(self, session):
+        """
+        Returns the DagRun for this TaskInstance
+        :param session:
+        :return: DagRun
+        """
+        dr = session.query(DagRun).filter(
+            DagRun.dag_id==self.dag_id,
+            DagRun.execution_date==self.execution_date,
+            DagRun.start_date==self.start_date
+        ).first()
+
+        return dr
+
+    @provide_session
     def run(
             self,
             verbose=True,
@@ -2757,6 +2772,21 @@ class DAG(BaseDag, LoggingMixin):
 
         return dttm
 
+    @provide_session
+    def get_last_dagrun(self, session=None):
+        """
+        Returns the last dag run for this dag, None if there was none.
+        Last dag run can be any type of run eg. scheduled or backfilled.
+        Overriden DagRuns are ignored
+        """
+        DR = DagRun
+        last = session.query(DR).filter(
+            DR.dag_id == self.dag_id,
+            DR.external_trigger == False
+        ).order_by(DR.execution_date.desc()).first()
+
+        return last
+
     @property
     def dag_id(self):
         return self._dag_id
@@ -3881,6 +3911,13 @@ class DagRun(Base):
             DagRun.execution_date == execution_date,
         )
         return qry.first()
+
+    @property
+    def is_backfill(self):
+        if "backfill" in self.run_id:
+            return True
+
+        return False
 
 
 class Pool(Base):

@@ -95,5 +95,4 @@ class SubDagOperatorTests(unittest.TestCase):
         self.assertRaisesRegexp(AirflowException, 'deadlocked', subdag.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         # now make sure dag picks up the subdag error
-        subdag.clear()
         self.assertRaises(AirflowException, dag.run, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)

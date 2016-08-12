@@ -57,6 +57,64 @@ class BackfillJobTest(unittest.TestCase):
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
+    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+                     "concurrent access not supported in sqlite")
+    def test_trigger_controller_dag(self):
+        dag = self.dagbag.get_dag('example_trigger_controller_dag')
+        target_dag = self.dagbag.get_dag('example_trigger_target_dag')
+        dag.clear()
+        target_dag.clear()
+
+        scheduler = SchedulerJob()
+        queue = mock.Mock()
+        scheduler._process_task_instances(target_dag, queue=queue)
+        self.assertFalse(queue.append.called)
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_first_depends_on_past=True
+        )
+        job.run()
+
+        scheduler = SchedulerJob()
+        queue = mock.Mock()
+        scheduler._process_task_instances(target_dag, queue=queue)
+
+        self.assertTrue(queue.append.called)
+        target_dag.clear()
+        dag.clear()
+
+    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+                     "concurrent access not supported in sqlite")
+    def test_backfill_multi_dates(self):
+        dag = self.dagbag.get_dag('example_bash_operator')
+        dag.clear()
+
+        job = BackfillJob(
+            dag=dag,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE+datetime.timedelta(days=1),
+            ignore_first_depends_on_past=True
+        )
+        job.run()
+
+        session = settings.Session()
+        drs = session.query(DagRun).filter(
+            DagRun.dag_id=='example_bash_operator'
+        ).order_by(DagRun.execution_date).all()
+
+        self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
+        self.assertTrue(drs[0].state == State.SUCCESS)
+        self.assertTrue(drs[1].execution_date == DEFAULT_DATE+datetime.timedelta(days=1))
+        self.assertTrue(drs[1].state == State.SUCCESS)
+
+        dag.clear()
+        session.close()
+
+    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+                     "concurrent access not supported in sqlite")
     def test_backfill_examples(self):
         """
         Test backfilling example dags
@@ -66,6 +124,9 @@ class BackfillJobTest(unittest.TestCase):
         skip_dags = [
             'example_http_operator',
             'example_twitter_dag',
+            'example_trigger_target_dag',
+            'example_trigger_controller_dag',  # tested above
+            'test_utils',  # sleeps forever
         ]
 
         logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
@@ -121,7 +182,7 @@ class BackfillJobTest(unittest.TestCase):
 
     def test_backfill_depends_on_past(self):
         """
-        Test that backfill resects ignore_depends_on_past
+        Test that backfill respects ignore_depends_on_past
         """
         dag = self.dagbag.get_dag('test_depends_on_past')
         dag.clear()
@@ -226,12 +287,6 @@ class SchedulerJobTest(unittest.TestCase):
         dr = dr[0]
         dr.dag = dag
 
-        # dagrun is running
-        self.assertEqual(dr.state, State.RUNNING)
-
-        dr.update_state()
-
-        # dagrun failed
         self.assertEqual(dr.state, dagrun_state)
 
     def test_dagrun_fail(self):
