@@ -38,7 +38,7 @@ rect.state {
     shape-rendering: crispEdges;
     cursor: pointer;
 }
-rect.undefined {
+rect.null, rect.undefined {
     fill: white;
 }
 rect.success {
