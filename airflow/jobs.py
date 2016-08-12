@@ -729,6 +729,12 @@ class SchedulerJob(BaseJob):
             else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
 
+            # make sure backfills are also considered
+            last_run = dag.get_last_dagrun(session=session)
+            if last_run and next_run_date:
+                while next_run_date <= last_run.execution_date:
+                    next_run_date = dag.following_schedule(next_run_date)
+
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
                 next_run_date = (dag.start_date if not next_run_date
@@ -787,6 +793,10 @@ class SchedulerJob(BaseJob):
             if run.execution_date > datetime.now():
                 self.logging.error("Execution date is in future: {}"
                                    .format(run.execution_date))
+                continue
+
+            # skip backfill dagruns for now as long as they are not really scheduled
+            if run.is_backfill:
                 continue
 
             # todo: run.dag is transient but needs to be set
@@ -966,6 +976,11 @@ class SchedulerJob(BaseJob):
                 if simple_dag_bag.get_dag(task_instance.dag_id).is_paused:
                     self.logger.info("Not executing queued {} since {} is paused"
                                      .format(task_instance, task_instance.dag_id))
+                    continue
+
+                # todo: remove this logic when backfills will be part of the scheduler
+                dag_run = task_instance.get_dagrun()
+                if dag_run and dag_run.is_backfill:
                     continue
 
                 # Check to make sure that the task concurrency of the DAG hasn't been
@@ -1571,6 +1586,23 @@ class BackfillJob(BaseJob):
         Runs a dag for a specified date range.
         """
         session = settings.Session()
+        DagRun = models.DagRun
+
+        # consider max_active_runs but ignore when running subdags
+        # "parent.child" as a dag_id is by convention a subdag
+        if self.dag.schedule_interval and not "." in self.dag.dag_id:
+            active_runs = DagRun.find(
+                dag_id=self.dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+
+            # return if already reached maximum active runs
+            if len(active_runs) >= self.dag.max_active_runs:
+                self.logger.info("Dag {} has reached maximum amount of {} dag runs"
+                                 .format(self.dag.dag_id, self.dag.max_active_runs))
+                return
 
         start_date = self.bf_start_date
         end_date = self.bf_end_date
@@ -1597,177 +1629,225 @@ class BackfillJob(BaseJob):
         not_ready = set()
         deadlocked = set()
 
-        for task in self.dag.tasks:
-            if (not self.include_adhoc) and task.adhoc:
-                continue
+        # create dag runs
+        dr_start_date = start_date or min([t.start_date for t in self.dag.tasks])
+        next_run_date = self.dag.normalize_schedule(dr_start_date)
+        end_date = end_date or datetime.now()
 
-            start_date = start_date or task.start_date
-            end_date = end_date or task.end_date or datetime.now()
-            for dttm in self.dag.date_range(start_date, end_date=end_date):
-                ti = models.TaskInstance(task, dttm)
+        active_dag_runs = []
+        while next_run_date and next_run_date <= end_date:
+            run_id = 'backfill_' + next_run_date.isoformat()
+
+            # check if we are scheduling on top of a already existing dag_run
+            # we could find a "scheduled" run instead of a "backfill"
+            run = DagRun.find(dag_id=self.dag.dag_id,
+                              execution_date=next_run_date,
+                              session=session)
+            if not run:
+                run = self.dag.create_dagrun(
+                    run_id=run_id,
+                    execution_date=next_run_date,
+                    start_date=datetime.now(),
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    session=session,
+                )
+            else:
+                run = run[0]
+
+            # set required transient field
+            run.dag = self.dag
+
+            # explictely mark running as we can fill gaps
+            run.state = State.RUNNING
+            run.verify_integrity(session=session)
+
+            # for some reason if we dont refresh the reference to run is lost
+            run.refresh_from_db()
+            make_transient(run)
+            active_dag_runs.append(run)
+
+            next_run_date = self.dag.following_schedule(next_run_date)
+
+        run_count = 0
+        for run in active_dag_runs:
+            logging.info("Checking run {}".format(run))
+            run_count = run_count + 1
+            # this needs a fresh session sometimes tis get detached
+            # can be more finegrained (excluding success or skipped)
+            for ti in run.get_task_instances():
                 tasks_to_run[ti.key] = ti
-                session.merge(ti)
-        session.commit()
 
-        # Triggering what is ready to get triggered
-        while tasks_to_run and not deadlocked:
-            not_ready.clear()
-            for key, ti in list(tasks_to_run.items()):
-                ti.refresh_from_db(session=session, lock_for_update=True)
-                ignore_depends_on_past = (
-                    self.ignore_first_depends_on_past and
-                    ti.execution_date == (start_date or ti.start_date))
-                # The task was already marked successful or skipped by a
-                # different Job. Don't rerun it.
-                if ti.state == State.SUCCESS:
-                    succeeded.add(key)
-                    tasks_to_run.pop(key)
-                    session.commit()
-                    continue
-                elif ti.state == State.SKIPPED:
-                    skipped.add(key)
-                    tasks_to_run.pop(key)
-                    session.commit()
-                    continue
+            # Triggering what is ready to get triggered
+            while tasks_to_run and not deadlocked:
+                not_ready.clear()
 
-                # Is the task runnable? -- then run it
-                if ti.is_queueable(
-                        include_queued=True,
-                        ignore_depends_on_past=ignore_depends_on_past,
-                        flag_upstream_failed=True):
-                    self.logger.debug('Sending {} to executor'.format(ti))
-                    if ti.state == State.NONE:
-                        ti.state = State.SCHEDULED
-                        session.merge(ti)
-                    session.commit()
-                    executor.queue_task_instance(
-                        ti,
-                        mark_success=self.mark_success,
-                        pickle_id=pickle_id,
-                        ignore_dependencies=self.ignore_dependencies,
-                        ignore_depends_on_past=ignore_depends_on_past,
-                        pool=self.pool)
-                    started.add(key)
+                for key, ti in list(tasks_to_run.items()):
+                    ti.refresh_from_db(session=session, lock_for_update=True)
+                    task = self.dag.get_task(ti.task_id)
+                    ti.task = task
 
-                # Mark the task as not ready to run
-                elif ti.state in (State.NONE, State.UPSTREAM_FAILED):
-                    not_ready.add(key)
-
-                session.commit()
-
-            self.heartbeat()
-            executor.heartbeat()
-
-            # If the set of tasks that aren't ready ever equals the set of
-            # tasks to run, then the backfill is deadlocked
-            if not_ready and not_ready == set(tasks_to_run):
-                deadlocked.update(tasks_to_run.values())
-                tasks_to_run.clear()
-
-            # Reacting to events
-            for key, state in list(executor.get_event_buffer().items()):
-                dag_id, task_id, execution_date = key
-                if key not in tasks_to_run:
-                    continue
-                ti = tasks_to_run[key]
-                ti.refresh_from_db()
-
-                # executor reports failure
-                if state == State.FAILED:
-
-                    # task reports running
-                    if ti.state == State.RUNNING:
-                        msg = (
-                            'Executor reports that task instance {} failed '
-                            'although the task says it is running.'.format(key))
-                        self.logger.error(msg)
-                        ti.handle_failure(msg)
-                        tasks_to_run.pop(key)
-
-                    # task reports skipped
-                    elif ti.state == State.SKIPPED:
-                        self.logger.error("Skipping {} ".format(key))
-                        skipped.add(key)
-                        tasks_to_run.pop(key)
-
-                    # anything else is a failure
-                    else:
-                        self.logger.error("Task instance {} failed".format(key))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-
-                # executor reports success
-                elif state == State.SUCCESS:
-
-                    # task reports success
+                    ignore_depends_on_past = (
+                        self.ignore_first_depends_on_past and
+                        ti.execution_date == (start_date or ti.start_date))
+                    # The task was already marked successful or skipped by a
+                    # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
-                        self.logger.info(
-                            'Task instance {} succeeded'.format(key))
                         succeeded.add(key)
                         tasks_to_run.pop(key)
-
-                    # task reports failure
-                    elif ti.state == State.FAILED:
-                        self.logger.error("Task instance {} failed".format(key))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-
-                    # task reports skipped
+                        session.commit()
+                        continue
                     elif ti.state == State.SKIPPED:
-                        self.logger.info("Task instance {} skipped".format(key))
                         skipped.add(key)
                         tasks_to_run.pop(key)
+                        session.commit()
+                        continue
 
-                    # this probably won't ever be triggered
-                    elif ti in not_ready:
-                        self.logger.info(
-                            "{} wasn't expected to run, but it did".format(ti))
+                    # Is the task runnable? -- then run it
+                    if ti.is_queueable(
+                            include_queued=True,
+                            ignore_depends_on_past=ignore_depends_on_past,
+                            flag_upstream_failed=True):
+                        self.logger.debug('Sending {} to executor'.format(ti))
+                        if ti.state == State.NONE:
+                            ti.state = State.SCHEDULED
+                            session.merge(ti)
+                        session.commit()
+                        executor.queue_task_instance(
+                            ti,
+                            mark_success=self.mark_success,
+                            pickle_id=pickle_id,
+                            ignore_dependencies=self.ignore_dependencies,
+                            ignore_depends_on_past=ignore_depends_on_past,
+                            pool=self.pool)
+                        started.add(key)
 
-                    # executor reports success but task does not - this is weird
-                    elif ti.state not in (
-                            State.SCHEDULED,
-                            State.QUEUED,
-                            State.UP_FOR_RETRY):
-                        self.logger.error(
-                            "The airflow run command failed "
-                            "at reporting an error. This should not occur "
-                            "in normal circumstances. Task state is '{}',"
-                            "reported state is '{}'. TI is {}"
-                            "".format(ti.state, state, ti))
+                    # Mark the task as not ready to run
+                    elif ti.state in (State.NONE, State.UPSTREAM_FAILED):
+                        not_ready.add(key)
 
-                        # if the executor fails 3 or more times, stop trying to
-                        # run the task
-                        executor_fails[key] += 1
-                        if executor_fails[key] >= 3:
+                    session.commit()
+
+                self.heartbeat()
+                executor.heartbeat()
+
+                # If the set of tasks that aren't ready ever equals the set of
+                # tasks to run, then the backfill is deadlocked
+                if not_ready and not_ready == set(tasks_to_run):
+                    deadlocked.update(tasks_to_run.values())
+                    tasks_to_run.clear()
+
+                # Reacting to events
+                for key, state in list(executor.get_event_buffer().items()):
+                    if key not in tasks_to_run:
+                        continue
+                    ti = tasks_to_run[key]
+                    ti.refresh_from_db()
+                    logging.info("Executor state: {} task {}".format(state, ti))
+                    # executor reports failure
+                    if state == State.FAILED:
+
+                        # task reports running
+                        if ti.state == State.RUNNING:
                             msg = (
-                                'The airflow run command failed to report an '
-                                'error for task {} three or more times. The '
-                                'task is being marked as failed. This is very '
-                                'unusual and probably means that an error is '
-                                'taking place before the task even '
-                                'starts.'.format(key))
+                                'Executor reports that task instance {} failed '
+                                'although the task says it is running.'.format(key))
                             self.logger.error(msg)
                             ti.handle_failure(msg)
                             tasks_to_run.pop(key)
 
-            msg = ' | '.join([
-                "[backfill progress]",
-                "waiting: {0}",
-                "succeeded: {1}",
-                "kicked_off: {2}",
-                "failed: {3}",
-                "skipped: {4}",
-                "deadlocked: {5}"
-            ]).format(
-                len(tasks_to_run),
-                len(succeeded),
-                len(started),
-                len(failed),
-                len(skipped),
-                len(deadlocked))
-            self.logger.info(msg)
+                        # task reports skipped
+                        elif ti.state == State.SKIPPED:
+                            self.logger.error("Skipping {} ".format(key))
+                            skipped.add(key)
+                            tasks_to_run.pop(key)
+
+                        # anything else is a failure
+                        else:
+                            self.logger.error("Task instance {} failed".format(key))
+                            failed.add(key)
+                            tasks_to_run.pop(key)
+
+                    # executor reports success
+                    elif state == State.SUCCESS:
+
+                        # task reports success
+                        if ti.state == State.SUCCESS:
+                            self.logger.info(
+                                'Task instance {} succeeded'.format(key))
+                            succeeded.add(key)
+                            tasks_to_run.pop(key)
+
+                        # task reports failure
+                        elif ti.state == State.FAILED:
+                            self.logger.error("Task instance {} failed".format(key))
+                            failed.add(key)
+                            tasks_to_run.pop(key)
+
+                        # task reports skipped
+                        elif ti.state == State.SKIPPED:
+                            self.logger.info("Task instance {} skipped".format(key))
+                            skipped.add(key)
+                            tasks_to_run.pop(key)
+
+                        # this probably won't ever be triggered
+                        elif ti in not_ready:
+                            self.logger.info(
+                                "{} wasn't expected to run, but it did".format(ti))
+
+                        # executor reports success but task does not - this is weird
+                        elif ti.state not in (
+                                State.SCHEDULED,
+                                State.QUEUED,
+                                State.UP_FOR_RETRY):
+                            self.logger.error(
+                                "The airflow run command failed "
+                                "at reporting an error. This should not occur "
+                                "in normal circumstances. Task state is '{}',"
+                                "reported state is '{}'. TI is {}"
+                                "".format(ti.state, state, ti))
+
+                            # if the executor fails 3 or more times, stop trying to
+                            # run the task
+                            executor_fails[key] += 1
+                            if executor_fails[key] >= 3:
+                                msg = (
+                                    'The airflow run command failed to report an '
+                                    'error for task {} three or more times. The '
+                                    'task is being marked as failed. This is very '
+                                    'unusual and probably means that an error is '
+                                    'taking place before the task even '
+                                    'starts.'.format(key))
+                                self.logger.error(msg)
+                                ti.handle_failure(msg)
+                                tasks_to_run.pop(key)
+
+                msg = ' | '.join([
+                    "[backfill progress]",
+                    "dag run {6} of {7}",
+                    "tasks waiting: {0}",
+                    "succeeded: {1}",
+                    "kicked_off: {2}",
+                    "failed: {3}",
+                    "skipped: {4}",
+                    "deadlocked: {5}"
+                ]).format(
+                    len(tasks_to_run),
+                    len(succeeded),
+                    len(started),
+                    len(failed),
+                    len(skipped),
+                    len(deadlocked),
+                    run_count,
+                    len(active_dag_runs))
+                self.logger.info(msg)
+
+            # update dag run state
+            run.update_state(session=session)
 
         executor.end()
+
+        session.commit()
         session.close()
 
         err = ''
