@@ -200,6 +200,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
     pr_commits = get_json("{}/pulls/{}/commits".format(GITHUB_API_BASE, pr_num))
 
+    # find all JIRA issues mentioned in the text
+    all_text = title + body
+    if pr_commits:
+        all_text += ' '.join(c['commit']['message'] for c in pr_commits)
+    all_jira_refs = standardize_jira_ref(all_text, only_jira=True)
+    all_jira_issues = re.findall("AIRFLOW-[0-9]{1,6}", all_jira_refs)
+
     merge_message_flags = []
 
     if squash:
@@ -207,30 +214,41 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         # -- create commit message subject
         # if there is only one commit, take the squash commit message from it
         if len(pr_commits) == 1:
-            click.echo(click.style(reflow(
+            click.echo(click.style('\n' + reflow(
                 """
                 This squash contains only one commit, so we will use its
-                commit message for the squash commit message. You will have
-                an opportunity to edit it later.
+                commit message for the squash commit message. We will
+                automatically add references to every JIRA issue
+                mentioned in the PR. You will have an opportunity to edit
+                it later.
                 """), bold=True))
             commit_message = pr_commits[0]['commit']['message']
             merge_message_flags.extend(["-m", commit_message])
         # if there is are multiple commits, take the squash commit message from
         # the PR title
         else:
-            click.echo(click.style(reflow(
+            click.echo(click.style('\n' + reflow(
                 """
                 This squash contains more than one commit, so we will use
-                the PR title as the squash commit subject. You will have an
-                opportunity to edit it later.
+                the PR title as the squash commit subject. We will
+                automatically add references to every JIRA issue mentioned in
+                the PR. You will have an opportunity to edit it later.
                 """), bold=True))
             merge_message_flags.extend(["-m", title])
 
-        commit_subject = merge_message_flags[-1].split('\n')[0]
-        if not re.findall("AIRFLOW-[0-9]{1,6}", commit_subject):
-            click.echo(click.style(
-                'Note that the commit subject does not reference a '
-                'JIRA issue!', fg='red', bold=True))
+        # add all JIRA refs to the commit subject and then standardize it
+        # to get a clean reference to every JIRA issue mentioned in the PR
+        first_commit_msg = merge_message_flags[-1].split('\n')
+        first_commit_msg[0] = standardize_jira_ref(
+            first_commit_msg[0] + all_jira_refs)
+        if not re.findall("AIRFLOW-[0-9]{1,6}", first_commit_msg[0]):
+            continue_maybe(click.style('\n' + reflow(
+                """
+                This PR doesn't reference any JIRA issues!!
+
+                Are you sure you want to continue?
+                """), fg='red', bold=True))
+        merge_message_flags[-1] = '\n'.join(first_commit_msg)
 
         # -- Note conflicts
         if had_conflicts:
@@ -245,7 +263,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
         # -- Add PR body to commit message
         msg = click.style(
-            'Would you like to include the PR body in the squash '
+            '\nWould you like to include the PR body in the squash '
             'commit message?',
             fg='blue', bold=True)
         if body and click.confirm(msg, default=False, prompt_suffix=''):
@@ -648,7 +666,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         ))
 
 
-def standardize_jira_ref(text):
+def standardize_jira_ref(text, only_jira=False):
     """
     Standardize the [AIRFLOW-XXXXX] [MODULE] prefix
     Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
@@ -671,20 +689,30 @@ def standardize_jira_ref(text):
     '[AIRFLOW-6250][AIRFLOW-6146][AIRFLOW-5911][SQL] Types are now reserved words in DDL parser.'
     >>> standardize_jira_ref("Additional information for users building from source code")
     'Additional information for users building from source code'
+    >>> standardize_jira_ref('AIRFLOW 35 AIRFLOW--36 AIRFLOW  37 test', only_jira=True)
+    '[AIRFLOW-35][AIRFLOW-36][AIRFLOW-37]'
     """
     jira_refs = []
     components = []
 
-    # If the string is compliant, no need to process any further
-    if (re.search(r'^\[AIRFLOW-[0-9]{1,6}\](\[[A-Z0-9_\s,]+\] )+\S+', text)):
-        return text
-
-    # Extract JIRA ref(s):
-    pattern = re.compile(r'(AIRFLOW[-\s]*[0-9]{1,6})+', re.IGNORECASE)
+    pattern = re.compile(r'([\[]*AIRFLOW[-\s]*[0-9]{1,6}[\]]*)', re.IGNORECASE)
     for ref in pattern.findall(text):
-        # Add brackets, replace spaces with a dash, & convert to uppercase
-        jira_refs.append('[' + re.sub(r'\s+', '-', ref.upper()) + ']')
-        text = text.replace(ref, '')
+
+        orig_ref = ref
+        if not re.findall("[AIRFLOW-[0-9]{1,6}]", ref):
+            # convert to uppercase
+            ref = ref.upper()
+            # replace 0+ spaces with a dash
+            ref = re.sub(r'(AIRFLOW)[-\s]*([0-9]{1,6})', r'\1-\2', ref.upper())
+
+            # and add brackets if needed
+            if not ref.startswith('['):
+                ref = '[' + ref
+            if not ref.endswith(']'):
+                ref = ref + ']'
+
+        jira_refs.append(ref)
+        text = text.replace(orig_ref, '')
 
     # Extract Airflow component(s):
     # Look for alphanumeric chars, spaces, dashes, periods, and/or commas
@@ -698,11 +726,18 @@ def standardize_jira_ref(text):
     if (pattern.search(text) is not None):
         text = pattern.search(text).groups()[0]
 
+    def unique(seq):
+        new_seq = []
+        for s in seq:
+            if s not in new_seq:
+                new_seq.append(s)
+        return new_seq
+
     # Assemble full text (JIRA ref(s), module(s), remaining text)
-    clean_text = (
-        ''.join(jira_refs).strip()
-        + ''.join(components).strip()
-        + " " + text.strip())
+    clean_text = ''.join(unique(jira_refs)).strip()
+    if not only_jira:
+         clean_text += (
+             ''.join(unique(components)).strip() + " " + text.strip())
 
     # Replace multiple spaces with a single space, e.g. if no jira refs
     # and/or components were included
