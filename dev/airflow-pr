@@ -171,15 +171,16 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             """
             We recommend that you do!
 
-            Squashing will give you an opportunity to edit the new commit message,
-            but the squashed commit will still be attributed to the PR author.
-            GitHub will show that you merged the squash commit but will mark the PR
-            as closed rather than merged (the distinction is purely cosmetic).
+            Squashing will give you an opportunity to edit the new commit
+            message, but the squashed commit will still be attributed to the PR
+            author. GitHub will show that you merged the squash commit but will
+            mark the PR as closed rather than merged (the distinction is purely
+            cosmetic).
 
-            If you don't squash, a merge commit will be created in addition to the
-            PR commits, but GitHub will properly show the PR as "merged". We suggest
-            you do this only if the PR commits are logically distinct and should
-            remain separate.
+            If you don't squash, a merge commit will be created in addition to
+            the PR commits, but GitHub will properly show the PR as "merged".
+            We suggest you do this only if the PR commits are logically
+            distinct and should remain separate.
             """),
         click.style('Squash?', fg='blue', bold=True)]),
         default=True)
@@ -359,12 +360,14 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         return
     else:
         continue_maybe(
-            'The local merge is complete ({}). '.format(target_branch_name) +
-            click.style(
+            '\n\nThe local merge is complete ({}).\n'.format(
+                target_branch_name)
+            + click.style(
                 'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
 
     try:
-        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, target_branch_name, target_ref))
+        run_cmd('git push %s %s:%s' % (
+            APACHE_REMOTE_NAME, target_branch_name, target_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -383,24 +386,32 @@ def cherry_pick(pr_num, merge_hash, default_branch):
     if pick_ref == "":
         pick_ref = default_branch
 
-    pick_branch_name = "%s_PICK_PR_%s_%s" % (BRANCH_PREFIX, pr_num, pick_ref.upper())
+    pick_branch_name = "%s_PICK_PR_%s_%s" % (
+        BRANCH_PREFIX, pr_num, pick_ref.upper())
 
-    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
+    run_cmd("git fetch %s %s:%s" % (
+        APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
     run_cmd("git checkout %s" % pick_branch_name)
 
     try:
         run_cmd("git cherry-pick -sx %s" % merge_hash)
     except Exception as e:
-        msg = "Error cherry-picking: %s\nWould you like to manually fix-up this merge?" % e
+        msg = (
+            "Error cherry-picking: {}\n"
+            "Would you like to manually fix-up this merge?".format(e))
         continue_maybe(msg)
-        msg = "Okay, please fix any conflicts and finish the cherry-pick. Finished?"
+        msg = (
+            "Okay, please fix any conflicts and finish the cherry-pick. "
+            "Finished?")
         continue_maybe(msg)
 
     continue_maybe("Pick complete (local ref %s). Push to %s?" % (
         pick_branch_name, APACHE_REMOTE_NAME))
 
     try:
-        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
+        run_cmd(
+            'git push %s %s:%s' % (
+                APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -414,7 +425,8 @@ def cherry_pick(pr_num, merge_hash, default_branch):
 
 
 def fix_version_from_branch(branch, versions):
-    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
+    # Note: Assumes this is a sorted (newest->oldest) list of un-released
+    # versions
     if branch == "master":
         return versions[0]
     else:
@@ -502,14 +514,14 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
             click.style('Username for Airflow JIRA', fg='blue', bold=True),
             type=str)
         click.echo(
-            'Set the JIRA_USERNAME env var to avoid this prompt in the future.')
+            'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
     if not JIRA_PASSWORD:
         JIRA_PASSWORD = click.prompt(
             click.style('Password for Airflow JIRA', fg='blue', bold=True),
             type=str,
             hide_input=True)
         click.echo(
-            'Set the JIRA_PASSWORD env var to avoid this prompt in the future.')
+            'Set a JIRA_PASSWORD env var to avoid this prompt in the future.')
 
     try:
         asf_jira = jira.client.JIRA(
@@ -546,8 +558,9 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         return
 
     click.echo(click.style("\n === JIRA %s ===" % jira_id, bold=True))
-    click.echo("summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
-        cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
+    click.echo(
+        "summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
+            cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
     if not click.confirm(click.style(
             'Proceed with AIRFLOW-{}?'.format(jira_id), fg='blue', bold=True)):
         return
@@ -579,10 +592,13 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     # The following logic can be reintroduced if/when a standard emerges.
 
     # for v in default_fix_versions:
-    #     # Handles the case where we have forked a release branch but not yet made the release.
-    #     # In this case, if the PR is committed to the master branch and the release branch, we
-    #     # only consider the release branch to be the fix version. E.g. it is not valid to have
-    #     # both 1.1.0 and 1.0.0 as fix versions.
+
+    #     Handles the case where we have forked a release branch but not yet
+    #     made the release. In this case, if the PR is committed to the master
+    #     branch and the release branch, we only consider the release branch to
+    #     be the fix version. E.g. it is not valid to have both 1.1.0 and 1.0.0
+    #     as fix versions.
+
     #     (major, minor, patch) = v.split(".")
     #     if patch == "0":
     #         previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
@@ -628,7 +644,8 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
 
     click.echo("Successfully resolved {id}{fv}!".format(
         id=jira_id,
-        fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''))
+        fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''
+        ))
 
 
 def standardize_jira_ref(text):
@@ -682,9 +699,13 @@ def standardize_jira_ref(text):
         text = pattern.search(text).groups()[0]
 
     # Assemble full text (JIRA ref(s), module(s), remaining text)
-    clean_text = ''.join(jira_refs).strip() + ''.join(components).strip() + " " + text.strip()
+    clean_text = (
+        ''.join(jira_refs).strip()
+        + ''.join(components).strip()
+        + " " + text.strip())
 
-    # Replace multiple spaces with a single space, e.g. if no jira refs and/or components were included
+    # Replace multiple spaces with a single space, e.g. if no jira refs
+    # and/or components were included
     clean_text = re.sub(r'\s+', ' ', clean_text.strip())
 
     return clean_text
@@ -764,7 +785,7 @@ def main(pr_num, local=False):
     # Decide whether to use the modified title or not
     modified_title = standardize_jira_ref(pr["title"])
     if modified_title != pr["title"]:
-        click.echo("I've re-written the title as follows to match the standard format:")
+        click.echo("I've re-written the title to match the standard format:")
         click.echo("Original: %s" % pr["title"])
         click.echo("Modified: %s" % modified_title)
         result = click.confirm(click.style(
@@ -793,22 +814,28 @@ def main(pr_num, local=False):
 
     if merge_commits and False:
         merge_hash = merge_commits[0]["commit_id"]
-        message = get_json("%s/commits/%s" % (GITHUB_API_BASE, merge_hash))["commit"]["message"]
+        message = get_json(
+            "%s/commits/%s" % (GITHUB_API_BASE, merge_hash)
+            )["commit"]["message"]
 
         continue_maybe(
-            "Pull request %s has already been merged. Do you want to backport?" % pr_num)
+            "Pull request %s has already been merged. "
+            "Do you want to backport?" % pr_num)
         commit_is_downloaded = run_cmd(
-            ['git', 'rev-parse', '--quiet', '--verify', "%s^{commit}" % merge_hash]) != ""
+            ['git', 'rev-parse', '--quiet', '--verify',
+             "%s^{commit}" % merge_hash]) != ""
         if not commit_is_downloaded:
-            fail("Couldn't find any merge commit for #%s, you may need to update HEAD." % pr_num)
+            fail(
+                "Couldn't find any merge commit for #%s, "
+                "you may need to update HEAD." % pr_num)
 
         click.echo("Found commit %s:\n%s" % (merge_hash, message))
         cherry_pick(pr_num, merge_hash, latest_branch)
         sys.exit(0)
 
     if not bool(pr["mergeable"]):
-        msg = "Pull request %s is not mergeable in its current form.\n" % pr_num + \
-            "Continue? (experts only!)"
+        msg = ('Pull request {} is not mergeable in its current form.\n'
+               'Continue anyway? (experts only!)'.format(pr_num))
         continue_maybe(msg)
 
     click.echo(click.style("\n=== Pull Request #%s ===" % pr_num, bold=True))
@@ -825,22 +852,33 @@ def main(pr_num, local=False):
 
     msg = "Would you like to pick {} into another branch?".format(merge_hash)
     while click.confirm(click.style(msg, fg='blue', bold=True)):
-        merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
+        merged_refs = merged_refs + [
+            cherry_pick(pr_num, merge_hash, latest_branch)]
 
-    msg = "Would you like to update associated JIRA issues?"
+    jira_ids = set(re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None])
+
+    msg = reflow(
+        """
+        We found {n} JIRA issue{s} referenced in the PR. Would you
+        like to update{it}{them} any other JIRA issues?
+        """.format(
+            n=len(jira_ids) if jira_ids else 'no',
+            s='s' if len(jira_ids) != 1 else '',
+            it=' it or' if len(jira_ids) == 1 else '',
+            them=' them or' if len(jira_ids) > 1 else ''))
     if not click.confirm(click.style(msg, fg='blue', bold=True), default=True):
         fail("Okay, exiting.")
+
     jira_comment = "Issue resolved by pull request #{}\n[{}/{}]".format(
         pr_num, GITHUB_BASE, pr_num)
 
-    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None]
     for jira_id in set(jira_ids):
         resolve_jira_issue(
             jira_id=jira_id,
             comment=jira_comment,
             merge_branches=merged_refs)
 
-    if click.confirm(click.style(
+    if not jira_ids or click.confirm(click.style(
             'Would you like to resolve another JIRA issue?',
             fg='blue', bold=True)):
         resolve_jira_issues_loop(
