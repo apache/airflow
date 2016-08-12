@@ -80,46 +80,46 @@ Committers:
 
 Currently **officially** using Airflow:
 
-* [Airbnb](http://airbnb.io/) [[@mistercrunch](https://github.com/mistercrunch), [@artwr](https://github.com/artwr)]
-* [Agari] (https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
-* [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
-* [Bellhops](https://github.com/bellhops)
-* BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
-* [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
-* [Clairvoyant] (https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
-* [Clover Health] (https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
-* Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
-* [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
-* Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
-* [FreshBooks](https://github.com/freshbooks) [[@DinoCow](https://github.com/DinoCow)]
-* [Gentner Lab](http://github.com/gentnerlab) [[@neuromusic](https://github.com/neuromusic)]
-* [Glassdoor](https://github.com/Glassdoor) [[@syvineckruyk](https://github.com/syvineckruyk)]
-* [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
-* [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
-* [Hootsuite](https://github.com/hootsuite)
-* [ING](http://www.ing.com/)
-* [Jampp](https://github.com/jampp)
-* [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
-* [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
-* [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
-* [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
-* [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
-* [Lyft](https://www.lyft.com/)[[@SaurabhBajaj](https://github.com/SaurabhBajaj)]
-* [Nerdwallet](https://www.nerdwallet.com)
-* [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
-* [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
-* [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
-* [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
-* [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
-* [SmartNews](https://www.smartnews.com/) [[@takus](https://github.com/takus)]
-* Stripe [@jbalogh]
-* [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
-* [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
-* Wooga
-* Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
-* [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
-* Yahoo!
-* [Zendesk](https://www.github.com/zendesk)
+1. [Airbnb](http://airbnb.io/) [[@mistercrunch](https://github.com/mistercrunch), [@artwr](https://github.com/artwr)]
+1. [Agari] (https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
+1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
+1. [Bellhops](https://github.com/bellhops)
+1. BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
+1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
+1. [Clairvoyant] (https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
+1. [Clover Health] (https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
+1. Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
+1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
+1. Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
+1. [FreshBooks](https://github.com/freshbooks) [[@DinoCow](https://github.com/DinoCow)]
+1. [Gentner Lab](http://github.com/gentnerlab) [[@neuromusic](https://github.com/neuromusic)]
+1. [Glassdoor](https://github.com/Glassdoor) [[@syvineckruyk](https://github.com/syvineckruyk)]
+1. [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
+1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
+1. [Hootsuite](https://github.com/hootsuite)
+1. [ING](http://www.ing.com/)
+1. [Jampp](https://github.com/jampp)
+1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
+1. [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
+1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
+1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
+1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
+1. [Lyft](https://www.lyft.com/)[[@SaurabhBajaj](https://github.com/SaurabhBajaj)]
+1. [Nerdwallet](https://www.nerdwallet.com)
+1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
+1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
+1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
+1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
+1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
+1. [SmartNews](https://www.smartnews.com/) [[@takus](https://github.com/takus)]
+1. Stripe [@jbalogh]
+1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
+1. [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
+1. Wooga
+1. Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
+1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
+1. Yahoo!
+1. [Zendesk](https://www.github.com/zendesk)
 
 ## Links
 
