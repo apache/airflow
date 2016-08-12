@@ -52,7 +52,10 @@ except ImportError:
     sys.exit(-1)
 
 # Location of your Airflow git development area
-AIRFLOW_GIT_LOCATION = os.environ.get("AIRFLOW_GIT", os.getcwd())
+AIRFLOW_GIT_LOCATION = os.environ.get(
+    "AIRFLOW_GIT",
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 # Remote name which points to the Gihub site
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # Remote name which points to Apache git
@@ -935,6 +938,7 @@ def cli():
 
         airflow-pr merge --help
     """
+    os.chdir(AIRFLOW_GIT_LOCATION)
     status = run_cmd('git status --porcelain', echo_cmd=False)
     if status:
         msg = (
@@ -1038,6 +1042,7 @@ def setup_git_remotes():
             'run `git remote remove github` to delete it.', fg='red')))
         error = True
     click.echo('Done setting up git remotes. Run git remote -v to see them.')
+
 
 if __name__ == "__main__":
     import doctest
