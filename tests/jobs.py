@@ -37,7 +37,7 @@ from airflow.utils.timeout import timeout
 from tests.executor.test_executor import TestExecutor
 
 from airflow import configuration
-configuration.test_mode()
+configuration.load_test_config()
 
 try:
     from unittest import mock

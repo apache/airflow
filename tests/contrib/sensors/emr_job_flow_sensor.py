@@ -87,7 +87,7 @@ DESCRIBE_CLUSTER_TERMINATED_RETURN = {
 
 class TestEmrJobFlowSensor(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
 
         # Mock out the emr_client (moto has incorrect response)
         self.mock_emr_client = MagicMock()

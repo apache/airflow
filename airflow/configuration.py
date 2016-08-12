@@ -170,6 +170,10 @@ dagbag_import_timeout = 30
 # What security module to use (for example kerberos):
 security =
 
+# Turn unit test mode on (overwrites many configuration options with test
+# values at runtime)
+unit_test_mode = False
+
 
 [operators]
 # The default owner assigned to each new operator, unless
@@ -390,12 +394,12 @@ hide_sensitive_variable_fields = True
 
 TEST_CONFIG = """\
 [core]
+unit_test_mode = True
 airflow_home = {AIRFLOW_HOME}
 dags_folder = {TEST_DAGS_FOLDER}
 base_log_folder = {AIRFLOW_HOME}/logs
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
-unit_test_mode = True
 load_examples = True
 donot_pickle = False
 dag_concurrency = 16
@@ -549,12 +553,14 @@ class AirflowConfigParser(ConfigParser):
         val = str(self.get(section, key)).lower().strip()
         if '#' in val:
             val = val.split('#')[0].strip()
-        if val.lower() == 'true':
+        if val.lower() in ('t', 'true', '1'):
             return True
-        elif val.lower() == 'false':
+        elif val.lower() in ('f', 'false', '0'):
             return False
         else:
-            raise AirflowConfigException("Not a boolean.")
+            raise AirflowConfigException(
+                'The value for configuration option "{}:{}" is not a '
+                'boolean (received "{}").'.format(section, key, val))
 
     def getint(self, section, key):
         return int(self.get(section, key))
@@ -588,7 +594,7 @@ class AirflowConfigParser(ConfigParser):
         if display_source:
             for section in cfg:
                 for k, v in cfg[section].items():
-                    cfg[section][k] = (v, 'airflow.cfg')
+                    cfg[section][k] = (v, 'airflow config')
 
         # add env vars and overwrite because they have priority
         for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
@@ -598,7 +604,9 @@ class AirflowConfigParser(ConfigParser):
             except ValueError:
                 opt = None
             if opt:
-                if not display_sensitive:
+                if (
+                        not display_sensitive
+                        and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
                     opt = '< hidden >'
                 if display_source:
                     opt = (opt, 'env var')
@@ -616,6 +624,19 @@ class AirflowConfigParser(ConfigParser):
                 cfg.setdefault(section, OrderedDict()).update({key: opt})
 
         return cfg
+
+    def load_test_config(self):
+        """
+        Load the unit test configuration.
+
+        Note: this is not reversible.
+        """
+        # override any custom settings with defaults
+        self.read_string(parameterized_config(DEFAULT_CONFIG))
+        # then read test config
+        self.read_string(parameterized_config(TEST_CONFIG))
+        # then read any "custom" test settings
+        self.read(TEST_CONFIG_FILE)
 
 
 def mkdir_p(path):
@@ -686,12 +707,20 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
 
-def test_mode():
-    conf = AirflowConfigParser()
-    conf.read(TEST_CONFIG)
-
 conf = AirflowConfigParser()
 conf.read(AIRFLOW_CONFIG)
+
+
+def load_test_config():
+    """
+    Load the unit test configuration.
+
+    Note: this is not reversible.
+    """
+    conf.load_test_config()
+
+if conf.getboolean('core', 'unit_test_mode'):
+    load_test_config()
 
 
 def get(section, key, **kwargs):

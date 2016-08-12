@@ -58,6 +58,10 @@ class LogUtilsTest(unittest.TestCase):
             ('bucket', ''))
 
 class OperatorResourcesTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+
     def test_all_resources_specified(self):
         resources = Resources(cpus=1, ram=2, disk=3, gpus=4)
         self.assertEqual(resources.cpus.qty, 1)

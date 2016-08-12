@@ -23,7 +23,7 @@ from airflow.contrib.operators.fs_operator import FileSensor
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
-configuration.test_mode()
+configuration.load_test_config()
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -37,7 +37,7 @@ reset()
 
 class FileSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         from airflow.contrib.hooks.fs_hook import FSHook
         hook = FSHook()
         args = {

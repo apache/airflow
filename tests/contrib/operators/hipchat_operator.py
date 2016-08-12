@@ -31,7 +31,7 @@ except ImportError:
 
 class HipChatOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('requests.request')
