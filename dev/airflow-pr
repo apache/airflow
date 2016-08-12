@@ -72,8 +72,26 @@ JIRA_API_BASE = "https://issues.apache.org/jira"
 # Prefix added to temporary branches
 BRANCH_PREFIX = "PR_TOOL"
 
+
 class PRToolError(Exception):
     pass
+
+
+def reflow(text, width=80):
+    """
+    Reformats text so that each line does not exceed `width` characters.
+
+    Preserves any whitespace that follows a newline, such as paragraph breaks
+    and indentation.
+    """
+    new_text = textwrap.dedent(text).strip()
+    split = re.split('(\n+\s*)', new_text)
+    paragraphs, whitespace = split[::2], split[1::2]
+    reformatted = [textwrap.fill(p, width=width) for p in paragraphs]
+    result = reformatted + whitespace
+    result[::2] = reformatted
+    result[1::2] = whitespace
+    return ''.join(result)
 
 
 def get_json(url):
@@ -89,10 +107,10 @@ def get_json(url):
         if (
                 "X-RateLimit-Remaining" in e.headers and
                 e.headers["X-RateLimit-Remaining"] == '0'):
-            click.echo(
+            click.echo(reflow(
                 "Exceeded the GitHub API rate limit; set the environment "
                 "variable GITHUB_OAUTH_KEY in order to make authenticated "
-                "GitHub requests.")
+                "GitHub requests."))
         else:
             click.echo("Unable to fetch URL, exiting: %s" % url)
         sys.exit(-1)
@@ -148,8 +166,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
     had_conflicts = False
     squash = click.confirm('\n'.join([
-        click.style('\nDo you want to squash the PR?', bold=True),
-        textwrap.dedent(
+        click.style('\nDo you want to squash the PR?\n', bold=True),
+        reflow(
             """
             We recommend that you do!
 
@@ -188,19 +206,23 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         # -- create commit message subject
         # if there is only one commit, take the squash commit message from it
         if len(pr_commits) == 1:
-            click.echo(click.style(
-                'This squash contains only one commit, so we will use its\n'
-                'commit message for the squash commit message. You will have\n'
-                'an opportunity to edit it later.', bold=True))
+            click.echo(click.style(reflow(
+                """
+                This squash contains only one commit, so we will use its
+                commit message for the squash commit message. You will have
+                an opportunity to edit it later.
+                """), bold=True))
             commit_message = pr_commits[0]['commit']['message']
             merge_message_flags.extend(["-m", commit_message])
         # if there is are multiple commits, take the squash commit message from
         # the PR title
         else:
-            click.echo(click.style(
-                'This squash contains more than one commit, so we will use\n'
-                'the PR title as the squash commit subject. You will have an\n'
-                'opportunity to edit it later.', bold=True))
+            click.echo(click.style(reflow(
+                """
+                This squash contains more than one commit, so we will use
+                the PR title as the squash commit subject. You will have an
+                opportunity to edit it later.
+                """), bold=True))
             merge_message_flags.extend(["-m", title])
 
         commit_subject = merge_message_flags[-1].split('\n')[0]
@@ -266,12 +288,25 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
 
-
     else:
         # This will mark the PR as merged
         merge_message_flags.extend([
             '-m',
             'Merge pull request #{} from {}'.format(pr_num, pr_repo_desc)])
+
+    # reflow commit message
+    seen_first_line = False
+    for i in range(1, len(merge_message_flags)):
+        if merge_message_flags[i-1] == '-m':
+            # let the first line be as long as the user wants
+            if not seen_first_line:
+                if '\n\n' in merge_message_flags[i]:
+                    title, body = merge_message_flags[i].split('\n\n', 1)
+                    body = reflow(body, 50)
+                    merge_message_flags[i] = title + '\n\n' + body
+                seen_first_line = True
+            else:
+                merge_message_flags[i] = reflow(merge_message_flags[i], 50)
 
     run_cmd(['git', 'commit'] + merge_message_flags, echo_cmd=False)
 
@@ -280,22 +315,27 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         click.echo(click.style('\n=== Current Squash Commit ===', bold=True))
         click.echo(run_cmd('git log -1 --pretty=%B', echo_cmd=False))
         click.echo(click.style('=== End of Squash Commit ===\n', bold=True))
-        msg = (
-            'If you would like to edit the commit message, open a new '
-            'terminal and run:\n\n'
-            '  git commit --amend\n\n'
-            'When you have finished, return here and press any key to '
-            'continue.')
+        msg = reflow(
+            """
+            If you would like to edit the commit message, open a new
+            terminal and run:
+
+                git commit --amend
+
+            When you have finished, return here and press any key to
+            continue.
+            """)
         click.pause(click.style(msg, fg='blue', bold=True))
 
         # The user might have removed "Closes #XXXX" from the commit message
         # so we add it back to make sure GitHub closes the PR.
         commit_msg = run_cmd('git log -1 --pretty=%B', echo_cmd=False)
         if close_msg not in commit_msg.lower():
-            click.echo(
-                'Your commit message does not contain the phrase "{}".\n'
-                'Without it, GitHub can\'t link this commit to the PR. We\n'
-                'will automatically add it to the end of your commit ' 'message.'.format(close_msg))
+            click.echo(reflow("""
+                Your commit message does not contain the phrase "{}".
+                Without it, GitHub can\'t link this commit to the PR. We
+                will automatically add it to the end of your commit
+                message.""".format(close_msg)))
             commit_flags = []
             commit_flags.append('--author="{}"'.format(primary_author))
             commit_flags.extend(['-m', commit_msg])
@@ -306,11 +346,12 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             run_cmd(['git', 'commit'] + commit_flags, echo_cmd=False)
 
     if local:
-        msg =(
-            '\nThe PR has been merged locally in branch {}.\n'
-            'You may leave this program running while you work on it. When\n'
-            'you are finished, press any key to delete the PR branch and\n'
-            'restore your original environment.'.format(target_branch_name))
+        msg ='\n' + reflow("""
+            The PR has been merged locally in branch {}.
+            You may leave this program running while you work on it. When
+            you are finished, press any key to delete the PR branch and
+            restore your original environment.
+            """.format(target_branch_name))
 
         click.pause(click.style(msg, fg='blue', bold=True))
 
@@ -893,32 +934,35 @@ def close_jira():
 
 @cli.command(short_help='Set up default git remotes')
 def setup_git_remotes():
-    click.echo(
-        'This command will create git remotes to mirror the following\n'
-        'structure. If you do not want to use these names, you must set the\n'
-        'GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:\n\n'
-        '  git remote -v\n'
-        '  apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)\n'
-        '  apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)\n'
-        '  github https://github.com/apache/incubator-airflow.git (fetch)\n'
-        '  github https://github.com/apache/incubator-airflow.git (push)\n\n'
-        'If these remotes already exist, the tool will display an error.')
+    click.echo(reflow("""
+        This command will create git remotes to mirror the following
+        structure. If you do not want to use these names, you must set the
+        GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:
+
+          git remote -v
+          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
+          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
+          github https://github.com/apache/incubator-airflow.git (fetch)
+          github https://github.com/apache/incubator-airflow.git (push)
+
+        If these remotes already exist, the tool will display an error.
+        """))
     continue_maybe('Do you want to continue?')
 
     error = False
     try:
         run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
     except:
-        click.echo(click.style(
-            '>>ERROR: Could not create apache remote. If it already exists,\n'
-            'run `git remote remove apache` to delete it.', fg='red'))
+        click.echo(click.style(reflow(
+            '>>ERROR: Could not create apache remote. If it already exists, '
+            'run `git remote remove apache` to delete it.', fg='red')))
         error = True
     try:
         run_cmd('git remote add github https://github.com/apache/incubator-airflow.git')
     except:
-        click.echo(click.style(
-            '>>ERROR: Could not create github remote. If it already exists,\n'
-            'run `git remote remove github` to delete it.', fg='red'))
+        click.echo(click.style(reflow(
+            '>>ERROR: Could not create github remote. If it already exists, '
+            'run `git remote remove github` to delete it.', fg='red')))
         error = True
     click.echo('Done setting up git remotes. Run git remote -v to see them.')
 
