@@ -28,7 +28,7 @@ ADD_STEPS_SUCCESS_RETURN = {
 
 class TestEmrAddStepsOperator(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
 
         # Mock out the emr_client (moto has incorrect response)
         mock_emr_client = MagicMock()

@@ -21,7 +21,7 @@ import six
 
 from airflow import DAG, configuration, operators, utils
 from airflow.utils.tests import skipUnlessImported
-configuration.test_mode()
+configuration.load_test_config()
 
 import os
 import unittest
@@ -36,7 +36,7 @@ TEST_DAG_ID = 'unit_test_dag'
 @skipUnlessImported('airflow.operators.mysql_operator', 'MySqlOperator')
 class MySqlTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         args = {
             'owner': 'airflow',
             'mysql_conn_id': 'airflow_db',
@@ -99,7 +99,7 @@ class MySqlTest(unittest.TestCase):
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
 class PostgresTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -166,7 +166,7 @@ class TransferTests(unittest.TestCase):
     cluster = None
 
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag

@@ -16,7 +16,7 @@
 
 # environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~/airflow}
-export AIRFLOW_CONFIG=$AIRFLOW_HOME/unittests.cfg
+export AIRFLOW__CORE__UNIT_TEST_MODE=True
 
 # configuration test
 export AIRFLOW__TESTSECTION__TESTKEY=testvalue

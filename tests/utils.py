@@ -57,8 +57,11 @@ class LogUtilsTest(unittest.TestCase):
             glog.parse_gcs_url('gs://bucket/'),
             ('bucket', ''))
 
-
 class OperatorResourcesTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+
     def test_all_resources_specified(self):
         resources = Resources(cpus=1, ram=2, disk=3, gpus=4)
         self.assertEqual(resources.cpus.qty, 1)
@@ -70,21 +73,21 @@ class OperatorResourcesTest(unittest.TestCase):
         resources = Resources(cpus=0, disk=1)
         self.assertEqual(resources.cpus.qty, 0)
         self.assertEqual(resources.ram.qty,
-                         configuration.defaults['operators']['default_ram'])
+                         configuration.getint('operators', 'default_ram'))
         self.assertEqual(resources.disk.qty, 1)
         self.assertEqual(resources.gpus.qty,
-                         configuration.defaults['operators']['default_gpus'])
+                         configuration.getint('operators', 'default_gpus'))
 
     def test_no_resources_specified(self):
         resources = Resources()
         self.assertEqual(resources.cpus.qty,
-                         configuration.defaults['operators']['default_cpus'])
+                         configuration.getint('operators', 'default_cpus'))
         self.assertEqual(resources.ram.qty,
-                         configuration.defaults['operators']['default_ram'])
+                         configuration.getint('operators', 'default_ram'))
         self.assertEqual(resources.disk.qty,
-                         configuration.defaults['operators']['default_disk'])
+                         configuration.getint('operators', 'default_disk'))
         self.assertEqual(resources.gpus.qty,
-                         configuration.defaults['operators']['default_gpus'])
+                         configuration.getint('operators', 'default_gpus'))
 
     def test_negative_resource_qty(self):
         with self.assertRaises(AirflowException):

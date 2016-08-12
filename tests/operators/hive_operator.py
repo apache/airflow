@@ -20,7 +20,7 @@ import unittest
 import six
 
 from airflow import DAG, configuration, operators, utils
-configuration.test_mode()
+configuration.load_test_config()
 
 import os
 import unittest
@@ -39,7 +39,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
     class HiveServer2Test(unittest.TestCase):
         def setUp(self):
-            configuration.test_mode()
+            configuration.load_test_config()
 
         def test_select_conn(self):
             from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -71,7 +71,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     class HivePrestoTest(unittest.TestCase):
 
         def setUp(self):
-            configuration.test_mode()
+            configuration.load_test_config()
             args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
             dag = DAG('test_dag_id', default_args=args)
             self.dag = dag

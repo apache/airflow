@@ -35,7 +35,7 @@ from airflow import configuration
 from airflow.executors import SequentialExecutor, LocalExecutor
 from airflow.models import Variable
 
-configuration.test_mode()
+configuration.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
@@ -116,7 +116,7 @@ class CoreTest(unittest.TestCase):
                               "num_runs": 1}
 
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
@@ -836,7 +836,7 @@ class CoreTest(unittest.TestCase):
 
 class CliTests(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         app = application.create_app()
         app.config['TESTING'] = True
         self.parser = cli.CLIFactory.get_parser()
@@ -1003,7 +1003,7 @@ class CliTests(unittest.TestCase):
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         app = application.create_app()
         app.config['TESTING'] = True
@@ -1226,7 +1226,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
 
     def tearDown(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
@@ -1310,7 +1310,7 @@ class WebLdapAuthTest(unittest.TestCase):
         assert 'Connections' in response.data.decode('utf-8')
 
     def tearDown(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         session = Session()
         session.query(models.User).delete()
         session.commit()
@@ -1346,7 +1346,7 @@ class LdapGroupTest(unittest.TestCase):
             assert set(auth.ldap_groups) == set(users[user])
 
     def tearDown(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
 
 
@@ -1365,7 +1365,7 @@ class FakeSession(object):
 
 class HttpOpSensorTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
@@ -1419,7 +1419,7 @@ class FakeWebHDFSHook(object):
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         utils.db.initdb()
         os.environ['AIRFLOW_CONN_TEST_URI'] = (
             'postgres://username:password@ec2.compute.com:5432/the_database')
@@ -1475,7 +1475,7 @@ class ConnectionTest(unittest.TestCase):
 
 class WebHDFSHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
 
     def test_simple_init(self):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
@@ -1498,7 +1498,7 @@ except ImportError:
                  "Skipping test because S3Hook is not installed")
 class S3HookTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
 
     def test_parse_s3_url(self):
@@ -1523,7 +1523,7 @@ conn.sendall(b'hello')
 
 class SSHHookTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         self.hook = SSHHook()
         self.hook.no_host_key_check = True

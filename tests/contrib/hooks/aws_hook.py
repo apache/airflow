@@ -29,7 +29,7 @@ except ImportError:
 class TestAwsHook(unittest.TestCase):
     @mock_emr
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
 
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr

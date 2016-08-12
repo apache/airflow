@@ -23,7 +23,7 @@ from airflow.contrib.operators.ssh_execute_operator import SSHExecuteOperator
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
-configuration.test_mode()
+configuration.load_test_config()
 
 
 def reset(dag_id=TEST_DAG_ID):
@@ -38,7 +38,7 @@ reset()
 
 class SSHExecuteOperatorTest(unittest.TestCase):
     def setUp(self):
-        configuration.test_mode()
+        configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
         hook = SSHHook()
         hook.no_host_key_check = True
