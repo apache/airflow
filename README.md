@@ -120,6 +120,7 @@ Currently **officially** using Airflow:
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. Yahoo!
 1. [Zendesk](https://www.github.com/zendesk)
+1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
 
 ## Links
 
