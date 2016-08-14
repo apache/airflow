@@ -642,6 +642,34 @@ class Connection(Base):
 
         return obj
 
+    @staticmethod
+    @provide_session
+    def create(conn_id=None, conn_type=None, host=None, login=None, password=None,
+               schema=None, port=None, extra=None, uri=None, session=None):
+        con = Connection(
+            conn_id=conn_id, conn_type=conn_type, host=host, login=login,
+            password=password, schema=schema, port=port, extra=extra, uri=uri)
+        session.add(con)
+        session.commit()
+
+    @staticmethod
+    @provide_session
+    def find(session=None, **filters):
+        query = session.query(Connection)
+        for attr, value in filters.items():
+            if attr and hasattr(Connection, attr) and value is not None:
+                query = query.filter(getattr(Connection, attr) == value)
+        return query.all()
+
+    @staticmethod
+    @provide_session
+    def delete(connection, session=None):
+        if not isinstance(connection, Connection):
+            raise AirflowException(
+                "{} is not an instance of a Connection".format(connection))
+        session.delete(connection)
+        session.commit()
+
 
 class DagPickle(Base):
     """

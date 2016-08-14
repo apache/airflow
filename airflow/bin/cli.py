@@ -37,11 +37,12 @@ import time
 import psutil
 
 import airflow
-from airflow import jobs, settings
+from airflow import jobs, settings, utils
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
+from airflow.models import (
+    DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable, Connection)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
@@ -216,6 +217,59 @@ def variables(args):
         vars = session.query(Variable)
         msg = "\n".join(var.key for var in vars)
         print(msg)
+
+
+def connections(args):
+    if args.create:
+        Connection.create(
+            conn_id=args.conn_id,
+            conn_type=args.conn_type,
+            host=args.conn_host,
+            login=args.conn_login,
+            password=args.conn_password,
+            schema=args.conn_schema,
+            port=args.conn_port,
+            extra=args.conn_extra,
+            uri=args.conn_uri)
+        print("Connection created with id {}".format(args.conn_id))
+    elif args.delete:
+        connections = Connection.find(
+            conn_id=args.conn_id,
+            conn_type=args.conn_type,
+            host=args.conn_host,
+            login=args.conn_login,
+            schema=args.conn_schema,
+            port=args.conn_port)
+        if connections:
+            con_list = "\n".join([str(c.conn_id) for c in connections])
+            do_it = True
+            if not args.no_prompt:
+                question = (
+                    "You are about to delete these connections:\n"
+                    "{con_list}\n\n"
+                    "Are you sure? (yes/no): ").format(**locals())
+                do_it = utils.helpers.ask_yesno(question)
+            if do_it:
+                for con in connections:
+                    Connection.delete(con)
+            else:
+                print("Bail. Nothing was deleted.")
+        else:
+            print("The connection criteria you specified could not be matched.")
+    elif args.long:
+        cons = Connection.find()
+        headings = ["CONN_ID", "CONN_TYPE", "HOST", "PORT", "LOGIN", "SCHEMA"]
+        rows = [[str(c.conn_id), str(c.conn_type), str(c.host),
+                 str(c.port), str(c.login), str(c.schema)] for c in cons]
+        col_width = max(len(elem) for row in rows for elem in row) + 2
+        print("".join(h.ljust(col_width) for h in headings))
+        for row in rows:
+            print("".join(col.ljust(col_width) for col in row))
+    else:
+        cons = Connection.find()
+        con_list = "\n".join([str(c.conn_id) for c in cons])
+        print(con_list)
+
 
 def import_helper(filepath):
     with open(filepath, 'r') as varfile:
@@ -993,6 +1047,38 @@ class CLIFactory(object):
             ("-x", "--delete"),
             metavar="KEY",
             help="Delete a variable"),
+        # connections
+        'create': Arg(
+            ("-c", "--create"), "Create a new connection", "store_true"),
+        'delete': Arg(
+            ("-d", "--delete"), "Delete one or more connections", "store_true"),
+        'long': Arg(
+            ("-l", "--long"), "Display connection info in details", "store_true"),
+        'no_prompt': Arg(
+            ("-np", "--no_prompt"), "Do not prompt to confirm connection deletion",
+            "store_true"),
+        'conn_id': Arg(
+            ("-ci", "--conn_id"), "Set/filter by the connection identifier"),
+        'conn_type': Arg(
+            ("-ct", "--conn_type"),
+            choices=['bigquery', 'cloudant', 'google_cloud_platform', 'hive_cli',
+                     'hiveserver2', 'jdbc', 'mssql', 'mysql', 'oracle', 'postgres',
+                     'presto', 'sqlite', 'vertica'],
+            help="Set/filter by the connection type"),
+        'conn_host': Arg(
+            ("-ch", "--conn_host"), "Set/filter by the connection hostname"),
+        'conn_port': Arg(
+            ("-cp", "--conn_port"), type=int, help="Set/filter by the connection port"),
+        'conn_login': Arg(
+            ("-cl", "--conn_login"), "Set/filter by the connection login"),
+        'conn_password': Arg(
+            ("-cw", "--conn_password"), "Set the connection password"),
+        'conn_schema': Arg(
+            ("-cs", "--conn_schema"), "Set/fitler by the connection schema"),
+        'conn_extra': Arg(
+            ("-ce", "--conn_extra"), "Set additional json values for the connection"),
+        'conn_uri': Arg(
+            ("-cu", "--conn_uri"), "Set the connection uri"),
         # kerberos
         'principal': Arg(
             ("principal",), "kerberos principal",
@@ -1148,6 +1234,12 @@ class CLIFactory(object):
             'func': variables,
             'help': "List all variables",
             "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
+        }, {
+            'func': connections,
+            'help': "List or add connections",
+            "args": ('create', 'delete', 'long', 'no_prompt', 'conn_id', 'conn_type',
+                     'conn_host', 'conn_port', 'conn_login', 'conn_password',
+                     'conn_schema', 'conn_extra', 'conn_uri'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",

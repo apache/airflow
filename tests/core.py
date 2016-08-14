@@ -1001,6 +1001,28 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+    def test_connections(self):
+        # test list connections
+        cli.connections(self.parser.parse_args(['connections']))
+        cli.connections(self.parser.parse_args(['connections', '-l']))
+        # test create connections
+        cli.connections(self.parser.parse_args([
+            'connections', '-c', '-ci', 'postgres_local', '-ct', 'postgres',
+            '-ch', 'localhost', '-cp', '10000']))
+        cli.connections(self.parser.parse_args([
+            'connections', '-c', '-ci', 'bq_local', '-ct', 'bigquery', '-ch', 'localhost',
+            '-cp', '3340', '-cl', 'root', '-cw', 'pass', '-cs', 'foo', '-ce', '{"foo":"bar"}']))
+        cli.connections(self.parser.parse_args([
+            'connections', '-c', '-cu', 'postgres://user:password@localhost:5432/master']))
+        #test delete connections
+        answer = 'yes'
+        cli.connections(self.parser.parse_args([
+            'connections', '-d', '-np', '-ci', 'bg_local', '-ct', 'bigquery',
+            '-ch', 'localhost', '-cp', '3340', '-cl', 'root', '-cs', 'foo']))
+        cli.connections(self.parser.parse_args(['connections', '-d', '-np', '-ci', 'bg_local']))
+        cli.connections(self.parser.parse_args(['connections', '-d', '-np']))
+
+
 class WebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
