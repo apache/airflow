@@ -52,7 +52,10 @@ except ImportError:
     sys.exit(-1)
 
 # Location of your Airflow git development area
-AIRFLOW_GIT_LOCATION = os.environ.get("AIRFLOW_GIT", os.getcwd())
+AIRFLOW_GIT_LOCATION = os.environ.get(
+    "AIRFLOW_GIT",
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+
 # Remote name which points to the Gihub site
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # Remote name which points to Apache git
@@ -72,8 +75,26 @@ JIRA_API_BASE = "https://issues.apache.org/jira"
 # Prefix added to temporary branches
 BRANCH_PREFIX = "PR_TOOL"
 
+
 class PRToolError(Exception):
     pass
+
+
+def reflow(text, width=80):
+    """
+    Reformats text so that each line does not exceed `width` characters.
+
+    Preserves any whitespace that follows a newline, such as paragraph breaks
+    and indentation.
+    """
+    new_text = textwrap.dedent(text).strip()
+    split = re.split('(\n+\s*)', new_text)
+    paragraphs, whitespace = split[::2], split[1::2]
+    reformatted = [textwrap.fill(p, width=width) for p in paragraphs]
+    result = reformatted + whitespace
+    result[::2] = reformatted
+    result[1::2] = whitespace
+    return ''.join(result)
 
 
 def get_json(url):
@@ -89,10 +110,10 @@ def get_json(url):
         if (
                 "X-RateLimit-Remaining" in e.headers and
                 e.headers["X-RateLimit-Remaining"] == '0'):
-            click.echo(
+            click.echo(reflow(
                 "Exceeded the GitHub API rate limit; set the environment "
                 "variable GITHUB_OAUTH_KEY in order to make authenticated "
-                "GitHub requests.")
+                "GitHub requests."))
         else:
             click.echo("Unable to fetch URL, exiting: %s" % url)
         sys.exit(-1)
@@ -148,20 +169,21 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
     had_conflicts = False
     squash = click.confirm('\n'.join([
-        click.style('\nDo you want to squash the PR?', bold=True),
-        textwrap.dedent(
+        click.style('\nDo you want to squash the PR?\n', bold=True),
+        reflow(
             """
             We recommend that you do!
 
-            Squashing will give you an opportunity to edit the new commit message,
-            but the squashed commit will still be attributed to the PR author.
-            GitHub will show that you merged the squash commit but will mark the PR
-            as closed rather than merged (the distinction is purely cosmetic).
+            Squashing will give you an opportunity to edit the new commit
+            message, but the squashed commit will still be attributed to the PR
+            author. GitHub will show that you merged the squash commit but will
+            mark the PR as closed rather than merged (the distinction is purely
+            cosmetic).
 
-            If you don't squash, a merge commit will be created in addition to the
-            PR commits, but GitHub will properly show the PR as "merged". We suggest
-            you do this only if the PR commits are logically distinct and should
-            remain separate.
+            If you don't squash, a merge commit will be created in addition to
+            the PR commits, but GitHub will properly show the PR as "merged".
+            We suggest you do this only if the PR commits are logically
+            distinct and should remain separate.
             """),
         click.style('Squash?', fg='blue', bold=True)]),
         default=True)
@@ -181,6 +203,13 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
     pr_commits = get_json("{}/pulls/{}/commits".format(GITHUB_API_BASE, pr_num))
 
+    # find all JIRA issues mentioned in the text
+    all_text = title + body
+    if pr_commits:
+        all_text += ' '.join(c['commit']['message'] for c in pr_commits)
+    all_jira_refs = standardize_jira_ref(all_text, only_jira=True)
+    all_jira_issues = re.findall("AIRFLOW-[0-9]{1,6}", all_jira_refs)
+
     merge_message_flags = []
 
     if squash:
@@ -188,26 +217,41 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         # -- create commit message subject
         # if there is only one commit, take the squash commit message from it
         if len(pr_commits) == 1:
-            click.echo(click.style(
-                'This squash contains only one commit, so we will use its\n'
-                'commit message for the squash commit message. You will have\n'
-                'an opportunity to edit it later.', bold=True))
+            click.echo(click.style('\n' + reflow(
+                """
+                This squash contains only one commit, so we will use its
+                commit message for the squash commit message. We will
+                automatically add references to every JIRA issue
+                mentioned in the PR. You will have an opportunity to edit
+                it later.
+                """), bold=True))
             commit_message = pr_commits[0]['commit']['message']
             merge_message_flags.extend(["-m", commit_message])
         # if there is are multiple commits, take the squash commit message from
         # the PR title
         else:
-            click.echo(click.style(
-                'This squash contains more than one commit, so we will use\n'
-                'the PR title as the squash commit subject. You will have an\n'
-                'opportunity to edit it later.', bold=True))
+            click.echo(click.style('\n' + reflow(
+                """
+                This squash contains more than one commit, so we will use
+                the PR title as the squash commit subject. We will
+                automatically add references to every JIRA issue mentioned in
+                the PR. You will have an opportunity to edit it later.
+                """), bold=True))
             merge_message_flags.extend(["-m", title])
 
-        commit_subject = merge_message_flags[-1].split('\n')[0]
-        if not re.findall("AIRFLOW-[0-9]{1,6}", commit_subject):
-            click.echo(click.style(
-                'Note that the commit subject does not reference a '
-                'JIRA issue!', fg='red', bold=True))
+        # add all JIRA refs to the commit subject and then standardize it
+        # to get a clean reference to every JIRA issue mentioned in the PR
+        first_commit_msg = merge_message_flags[-1].split('\n')
+        first_commit_msg[0] = standardize_jira_ref(
+            first_commit_msg[0] + all_jira_refs)
+        if not re.findall("AIRFLOW-[0-9]{1,6}", first_commit_msg[0]):
+            continue_maybe(click.style('\n' + reflow(
+                """
+                This PR doesn't reference any JIRA issues!!
+
+                Are you sure you want to continue?
+                """), fg='red', bold=True))
+        merge_message_flags[-1] = '\n'.join(first_commit_msg)
 
         # -- Note conflicts
         if had_conflicts:
@@ -222,7 +266,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
 
         # -- Add PR body to commit message
         msg = click.style(
-            'Would you like to include the PR body in the squash '
+            '\nWould you like to include the PR body in the squash '
             'commit message?',
             fg='blue', bold=True)
         if body and click.confirm(msg, default=False, prompt_suffix=''):
@@ -266,12 +310,25 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append('--author="{}"'.format(primary_author))
 
-
     else:
         # This will mark the PR as merged
         merge_message_flags.extend([
             '-m',
             'Merge pull request #{} from {}'.format(pr_num, pr_repo_desc)])
+
+    # reflow commit message
+    seen_first_line = False
+    for i in range(1, len(merge_message_flags)):
+        if merge_message_flags[i-1] == '-m':
+            # let the first line be as long as the user wants
+            if not seen_first_line:
+                if '\n\n' in merge_message_flags[i]:
+                    title, body = merge_message_flags[i].split('\n\n', 1)
+                    body = reflow(body, 50)
+                    merge_message_flags[i] = title + '\n\n' + body
+                seen_first_line = True
+            else:
+                merge_message_flags[i] = reflow(merge_message_flags[i], 50)
 
     run_cmd(['git', 'commit'] + merge_message_flags, echo_cmd=False)
 
@@ -280,22 +337,27 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         click.echo(click.style('\n=== Current Squash Commit ===', bold=True))
         click.echo(run_cmd('git log -1 --pretty=%B', echo_cmd=False))
         click.echo(click.style('=== End of Squash Commit ===\n', bold=True))
-        msg = (
-            'If you would like to edit the commit message, open a new '
-            'terminal and run:\n\n'
-            '  git commit --amend\n\n'
-            'When you have finished, return here and press any key to '
-            'continue.')
+        msg = reflow(
+            """
+            If you would like to edit the commit message, open a new
+            terminal and run:
+
+                git commit --amend
+
+            When you have finished, return here and press any key to
+            continue.
+            """)
         click.pause(click.style(msg, fg='blue', bold=True))
 
         # The user might have removed "Closes #XXXX" from the commit message
         # so we add it back to make sure GitHub closes the PR.
         commit_msg = run_cmd('git log -1 --pretty=%B', echo_cmd=False)
         if close_msg not in commit_msg.lower():
-            click.echo(
-                'Your commit message does not contain the phrase "{}".\n'
-                'Without it, GitHub can\'t link this commit to the PR. We\n'
-                'will automatically add it to the end of your commit ' 'message.'.format(close_msg))
+            click.echo(reflow("""
+                Your commit message does not contain the phrase "{}".
+                Without it, GitHub can\'t link this commit to the PR. We
+                will automatically add it to the end of your commit
+                message.""".format(close_msg)))
             commit_flags = []
             commit_flags.append('--author="{}"'.format(primary_author))
             commit_flags.extend(['-m', commit_msg])
@@ -306,11 +368,12 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             run_cmd(['git', 'commit'] + commit_flags, echo_cmd=False)
 
     if local:
-        msg =(
-            '\nThe PR has been merged locally in branch {}.\n'
-            'You may leave this program running while you work on it. When\n'
-            'you are finished, press any key to delete the PR branch and\n'
-            'restore your original environment.'.format(target_branch_name))
+        msg ='\n' + reflow("""
+            The PR has been merged locally in branch {}.
+            You may leave this program running while you work on it. When
+            you are finished, press any key to delete the PR branch and
+            restore your original environment.
+            """.format(target_branch_name))
 
         click.pause(click.style(msg, fg='blue', bold=True))
 
@@ -318,12 +381,14 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         return
     else:
         continue_maybe(
-            'The local merge is complete ({}). '.format(target_branch_name) +
-            click.style(
+            '\n\nThe local merge is complete ({}).\n'.format(
+                target_branch_name)
+            + click.style(
                 'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
 
     try:
-        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, target_branch_name, target_ref))
+        run_cmd('git push %s %s:%s' % (
+            APACHE_REMOTE_NAME, target_branch_name, target_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -342,24 +407,32 @@ def cherry_pick(pr_num, merge_hash, default_branch):
     if pick_ref == "":
         pick_ref = default_branch
 
-    pick_branch_name = "%s_PICK_PR_%s_%s" % (BRANCH_PREFIX, pr_num, pick_ref.upper())
+    pick_branch_name = "%s_PICK_PR_%s_%s" % (
+        BRANCH_PREFIX, pr_num, pick_ref.upper())
 
-    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
+    run_cmd("git fetch %s %s:%s" % (
+        APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
     run_cmd("git checkout %s" % pick_branch_name)
 
     try:
         run_cmd("git cherry-pick -sx %s" % merge_hash)
     except Exception as e:
-        msg = "Error cherry-picking: %s\nWould you like to manually fix-up this merge?" % e
+        msg = (
+            "Error cherry-picking: {}\n"
+            "Would you like to manually fix-up this merge?".format(e))
         continue_maybe(msg)
-        msg = "Okay, please fix any conflicts and finish the cherry-pick. Finished?"
+        msg = (
+            "Okay, please fix any conflicts and finish the cherry-pick. "
+            "Finished?")
         continue_maybe(msg)
 
     continue_maybe("Pick complete (local ref %s). Push to %s?" % (
         pick_branch_name, APACHE_REMOTE_NAME))
 
     try:
-        run_cmd('git push %s %s:%s' % (APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
+        run_cmd(
+            'git push %s %s:%s' % (
+                APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -373,7 +446,8 @@ def cherry_pick(pr_num, merge_hash, default_branch):
 
 
 def fix_version_from_branch(branch, versions):
-    # Note: Assumes this is a sorted (newest->oldest) list of un-released versions
+    # Note: Assumes this is a sorted (newest->oldest) list of un-released
+    # versions
     if branch == "master":
         return versions[0]
     else:
@@ -461,14 +535,14 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
             click.style('Username for Airflow JIRA', fg='blue', bold=True),
             type=str)
         click.echo(
-            'Set the JIRA_USERNAME env var to avoid this prompt in the future.')
+            'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
     if not JIRA_PASSWORD:
         JIRA_PASSWORD = click.prompt(
             click.style('Password for Airflow JIRA', fg='blue', bold=True),
             type=str,
             hide_input=True)
         click.echo(
-            'Set the JIRA_PASSWORD env var to avoid this prompt in the future.')
+            'Set a JIRA_PASSWORD env var to avoid this prompt in the future.')
 
     try:
         asf_jira = jira.client.JIRA(
@@ -505,8 +579,9 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         return
 
     click.echo(click.style("\n === JIRA %s ===" % jira_id, bold=True))
-    click.echo("summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
-        cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
+    click.echo(
+        "summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
+            cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
     if not click.confirm(click.style(
             'Proceed with AIRFLOW-{}?'.format(jira_id), fg='blue', bold=True)):
         return
@@ -538,10 +613,13 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     # The following logic can be reintroduced if/when a standard emerges.
 
     # for v in default_fix_versions:
-    #     # Handles the case where we have forked a release branch but not yet made the release.
-    #     # In this case, if the PR is committed to the master branch and the release branch, we
-    #     # only consider the release branch to be the fix version. E.g. it is not valid to have
-    #     # both 1.1.0 and 1.0.0 as fix versions.
+
+    #     Handles the case where we have forked a release branch but not yet
+    #     made the release. In this case, if the PR is committed to the master
+    #     branch and the release branch, we only consider the release branch to
+    #     be the fix version. E.g. it is not valid to have both 1.1.0 and 1.0.0
+    #     as fix versions.
+
     #     (major, minor, patch) = v.split(".")
     #     if patch == "0":
     #         previous = "%s.%s.%s" % (major, int(minor) - 1, 0)
@@ -587,10 +665,11 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
 
     click.echo("Successfully resolved {id}{fv}!".format(
         id=jira_id,
-        fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''))
+        fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''
+        ))
 
 
-def standardize_jira_ref(text):
+def standardize_jira_ref(text, only_jira=False):
     """
     Standardize the [AIRFLOW-XXXXX] [MODULE] prefix
     Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
@@ -613,20 +692,30 @@ def standardize_jira_ref(text):
     '[AIRFLOW-6250][AIRFLOW-6146][AIRFLOW-5911][SQL] Types are now reserved words in DDL parser.'
     >>> standardize_jira_ref("Additional information for users building from source code")
     'Additional information for users building from source code'
+    >>> standardize_jira_ref('AIRFLOW 35 AIRFLOW--36 AIRFLOW  37 test', only_jira=True)
+    '[AIRFLOW-35][AIRFLOW-36][AIRFLOW-37]'
     """
     jira_refs = []
     components = []
 
-    # If the string is compliant, no need to process any further
-    if (re.search(r'^\[AIRFLOW-[0-9]{1,6}\](\[[A-Z0-9_\s,]+\] )+\S+', text)):
-        return text
-
-    # Extract JIRA ref(s):
-    pattern = re.compile(r'(AIRFLOW[-\s]*[0-9]{1,6})+', re.IGNORECASE)
+    pattern = re.compile(r'([\[]*AIRFLOW[-\s]*[0-9]{1,6}[\]]*)', re.IGNORECASE)
     for ref in pattern.findall(text):
-        # Add brackets, replace spaces with a dash, & convert to uppercase
-        jira_refs.append('[' + re.sub(r'\s+', '-', ref.upper()) + ']')
-        text = text.replace(ref, '')
+
+        orig_ref = ref
+        if not re.findall("[AIRFLOW-[0-9]{1,6}]", ref):
+            # convert to uppercase
+            ref = ref.upper()
+            # replace 0+ spaces with a dash
+            ref = re.sub(r'(AIRFLOW)[-\s]*([0-9]{1,6})', r'\1-\2', ref.upper())
+
+            # and add brackets if needed
+            if not ref.startswith('['):
+                ref = '[' + ref
+            if not ref.endswith(']'):
+                ref = ref + ']'
+
+        jira_refs.append(ref)
+        text = text.replace(orig_ref, '')
 
     # Extract Airflow component(s):
     # Look for alphanumeric chars, spaces, dashes, periods, and/or commas
@@ -640,10 +729,21 @@ def standardize_jira_ref(text):
     if (pattern.search(text) is not None):
         text = pattern.search(text).groups()[0]
 
-    # Assemble full text (JIRA ref(s), module(s), remaining text)
-    clean_text = ''.join(jira_refs).strip() + ''.join(components).strip() + " " + text.strip()
+    def unique(seq):
+        new_seq = []
+        for s in seq:
+            if s not in new_seq:
+                new_seq.append(s)
+        return new_seq
 
-    # Replace multiple spaces with a single space, e.g. if no jira refs and/or components were included
+    # Assemble full text (JIRA ref(s), module(s), remaining text)
+    clean_text = ''.join(unique(jira_refs)).strip()
+    if not only_jira:
+         clean_text += (
+             ''.join(unique(components)).strip() + " " + text.strip())
+
+    # Replace multiple spaces with a single space, e.g. if no jira refs
+    # and/or components were included
     clean_text = re.sub(r'\s+', ' ', clean_text.strip())
 
     return clean_text
@@ -723,7 +823,7 @@ def main(pr_num, local=False):
     # Decide whether to use the modified title or not
     modified_title = standardize_jira_ref(pr["title"])
     if modified_title != pr["title"]:
-        click.echo("I've re-written the title as follows to match the standard format:")
+        click.echo("I've re-written the title to match the standard format:")
         click.echo("Original: %s" % pr["title"])
         click.echo("Modified: %s" % modified_title)
         result = click.confirm(click.style(
@@ -752,22 +852,28 @@ def main(pr_num, local=False):
 
     if merge_commits and False:
         merge_hash = merge_commits[0]["commit_id"]
-        message = get_json("%s/commits/%s" % (GITHUB_API_BASE, merge_hash))["commit"]["message"]
+        message = get_json(
+            "%s/commits/%s" % (GITHUB_API_BASE, merge_hash)
+            )["commit"]["message"]
 
         continue_maybe(
-            "Pull request %s has already been merged. Do you want to backport?" % pr_num)
+            "Pull request %s has already been merged. "
+            "Do you want to backport?" % pr_num)
         commit_is_downloaded = run_cmd(
-            ['git', 'rev-parse', '--quiet', '--verify', "%s^{commit}" % merge_hash]) != ""
+            ['git', 'rev-parse', '--quiet', '--verify',
+             "%s^{commit}" % merge_hash]) != ""
         if not commit_is_downloaded:
-            fail("Couldn't find any merge commit for #%s, you may need to update HEAD." % pr_num)
+            fail(
+                "Couldn't find any merge commit for #%s, "
+                "you may need to update HEAD." % pr_num)
 
         click.echo("Found commit %s:\n%s" % (merge_hash, message))
         cherry_pick(pr_num, merge_hash, latest_branch)
         sys.exit(0)
 
     if not bool(pr["mergeable"]):
-        msg = "Pull request %s is not mergeable in its current form.\n" % pr_num + \
-            "Continue? (experts only!)"
+        msg = ('Pull request {} is not mergeable in its current form.\n'
+               'Continue anyway? (experts only!)'.format(pr_num))
         continue_maybe(msg)
 
     click.echo(click.style("\n=== Pull Request #%s ===" % pr_num, bold=True))
@@ -784,22 +890,33 @@ def main(pr_num, local=False):
 
     msg = "Would you like to pick {} into another branch?".format(merge_hash)
     while click.confirm(click.style(msg, fg='blue', bold=True)):
-        merged_refs = merged_refs + [cherry_pick(pr_num, merge_hash, latest_branch)]
+        merged_refs = merged_refs + [
+            cherry_pick(pr_num, merge_hash, latest_branch)]
 
-    msg = "Would you like to update associated JIRA issues?"
+    jira_ids = set(re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None])
+
+    msg = reflow(
+        """
+        We found {n} JIRA issue{s} referenced in the PR. Would you
+        like to update{it}{them} any other JIRA issues?
+        """.format(
+            n=len(jira_ids) if jira_ids else 'no',
+            s='s' if len(jira_ids) != 1 else '',
+            it=' it or' if len(jira_ids) == 1 else '',
+            them=' them or' if len(jira_ids) > 1 else ''))
     if not click.confirm(click.style(msg, fg='blue', bold=True), default=True):
         fail("Okay, exiting.")
+
     jira_comment = "Issue resolved by pull request #{}\n[{}/{}]".format(
         pr_num, GITHUB_BASE, pr_num)
 
-    jira_ids = re.findall("AIRFLOW-[0-9]{1,6}", title + body) or [None]
     for jira_id in set(jira_ids):
         resolve_jira_issue(
             jira_id=jira_id,
             comment=jira_comment,
             merge_branches=merged_refs)
 
-    if click.confirm(click.style(
+    if not jira_ids or click.confirm(click.style(
             'Would you like to resolve another JIRA issue?',
             fg='blue', bold=True)):
         resolve_jira_issues_loop(
@@ -821,6 +938,7 @@ def cli():
 
         airflow-pr merge --help
     """
+    os.chdir(AIRFLOW_GIT_LOCATION)
     status = run_cmd('git status --porcelain', echo_cmd=False)
     if status:
         msg = (
@@ -893,34 +1011,38 @@ def close_jira():
 
 @cli.command(short_help='Set up default git remotes')
 def setup_git_remotes():
-    click.echo(
-        'This command will create git remotes to mirror the following\n'
-        'structure. If you do not want to use these names, you must set the\n'
-        'GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:\n\n'
-        '  git remote -v\n'
-        '  apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)\n'
-        '  apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)\n'
-        '  github https://github.com/apache/incubator-airflow.git (fetch)\n'
-        '  github https://github.com/apache/incubator-airflow.git (push)\n\n'
-        'If these remotes already exist, the tool will display an error.')
+    click.echo(reflow("""
+        This command will create git remotes to mirror the following
+        structure. If you do not want to use these names, you must set the
+        GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:
+
+          git remote -v
+          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
+          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
+          github https://github.com/apache/incubator-airflow.git (fetch)
+          github https://github.com/apache/incubator-airflow.git (push)
+
+        If these remotes already exist, the tool will display an error.
+        """))
     continue_maybe('Do you want to continue?')
 
     error = False
     try:
         run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
     except:
-        click.echo(click.style(
-            '>>ERROR: Could not create apache remote. If it already exists,\n'
-            'run `git remote remove apache` to delete it.', fg='red'))
+        click.echo(click.style(reflow(
+            '>>ERROR: Could not create apache remote. If it already exists, '
+            'run `git remote remove apache` to delete it.', fg='red')))
         error = True
     try:
         run_cmd('git remote add github https://github.com/apache/incubator-airflow.git')
     except:
-        click.echo(click.style(
-            '>>ERROR: Could not create github remote. If it already exists,\n'
-            'run `git remote remove github` to delete it.', fg='red'))
+        click.echo(click.style(reflow(
+            '>>ERROR: Could not create github remote. If it already exists, '
+            'run `git remote remove github` to delete it.', fg='red')))
         error = True
     click.echo('Done setting up git remotes. Run git remote -v to see them.')
+
 
 if __name__ == "__main__":
     import doctest
