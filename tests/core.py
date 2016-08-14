@@ -909,6 +909,16 @@ class CliTests(unittest.TestCase):
             'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
+    def test_mark_success(self):
+        args = self.parser.parse_args([
+            'mark_success', 'example_bash_operator', '--no_confirm'])
+        cli.mark_success(args)
+        args = self.parser.parse_args([
+            'mark_success', 'example_bash_operator', '-s', '2016-06-01T00:00:00',
+            '-e', '2016-06-18T00:00:00', '-t', 'runme_0', '--upstream', '--downstream',
+            '--exclude_subdags', '--no_confirm'])
+        cli.mark_success(args)
+
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
@@ -1009,10 +1019,21 @@ class WebUiTests(unittest.TestCase):
         app.config['TESTING'] = True
         self.app = app.test_client()
 
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
+        self.clearDb()
+
+        self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
+        self.dag_subdag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.run_this_last = self.dag_bash.get_task('run_this_last')
+
+    def clearDb(self):
+        session = Session()
+        session.query(models.DagRun).delete()
+        session.commit()
+        session.query(models.TaskInstance).delete()
+        session.commit()
+        session.close()
 
     def test_index(self):
         response = self.app.get('/', follow_redirects=True)
@@ -1033,6 +1054,12 @@ class WebUiTests(unittest.TestCase):
         assert 'The server is healthy!' in response.data.decode('utf-8')
 
     def test_dag_views(self):
+        # set up dagruns
+        self.dag_bash.create_dagrun(run_id="run_bash", execution_date=DEFAULT_DATE, state=State.FAILED)
+        self.dag_subdag.create_dagrun(run_id="run_subdag", execution_date=DEFAULT_DATE, state=State.FAILED)
+        for dag in self.dag_subdag.subdags:
+            dag.create_dagrun(run_id="run_"+dag.dag_id, execution_date=DEFAULT_DATE, state=State.FAILED)
+
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         assert "runme_0" in response.data.decode('utf-8')
@@ -1085,6 +1112,7 @@ class WebUiTests(unittest.TestCase):
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         assert "Wait a minute" in response.data.decode('utf-8')
+        assert "run_this_last" in response.data.decode('utf-8')
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
             '/admin/airflow/clear?task_id=run_this_last&'
@@ -1162,9 +1190,6 @@ class WebUiTests(unittest.TestCase):
 
         response = self.app.get(url)
         assert "runme_0" in response.data.decode('utf-8')
-
-    def tearDown(self):
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
 
 
 class WebPasswordAuthTest(unittest.TestCase):

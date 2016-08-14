@@ -92,6 +92,7 @@ class State(object):
             cls.SUCCESS,
             cls.SHUTDOWN,
             cls.FAILED,
+            cls.UPSTREAM_FAILED,
             cls.SKIPPED,
         ]
 
@@ -108,3 +109,7 @@ class State(object):
             cls.RUNNING,
             cls.UP_FOR_RETRY
         ]
+
+    @classmethod
+    def all(cls):
+        return cls.finished() + cls.unfinished()

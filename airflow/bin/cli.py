@@ -37,7 +37,7 @@ import time
 import psutil
 
 import airflow
-from airflow import jobs, settings
+from airflow import jobs, settings, utils
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
@@ -503,6 +503,44 @@ def clear(args):
         confirm_prompt=not args.no_confirm,
         include_subdags=not args.exclude_subdags)
 
+def mark_success(args):
+    dag = get_dag(args)
+    runs = dag.get_dagruns(start_date=args.start_date,
+                           end_date=args.end_date,
+                           include_subdags=not args.exclude_subdags)
+
+    tis = []
+    for run in runs:
+        tis += run.mark_success(task_regex=args.task_regex,
+                                include_downstream=args.downstream,
+                                include_upstream=args.upstream,
+                                dry_run=True)
+
+    if len(tis) == 0:
+        print("No task instances to mark as successful")
+        return
+    if len(tis) > 1000:
+        print("Too many tasks (>1000)")
+        return
+
+    do_it = True
+    if not args.no_confirm:
+        ti_list = "\n".join([str(t) for t in tis])
+        count = len(tis)
+        question = (
+            "You are about to mark these {count} tasks success:\n"
+            "{ti_list}\n\n"
+            "Are you sure? (yes/no): ").format(**locals())
+        do_it = utils.helpers.ask_yesno(question)
+    if do_it:
+        count = 0
+        for run in runs:
+            count += run.mark_success(task_regex=args.task_regex,
+                                      include_downstream=args.downstream,
+                                      include_upstream=args.upstream)
+        print("{} task instances have been marked success".format(count))
+    else:
+        print("Bail. Nothing was marked success.")
 
 def restart_workers(gunicorn_master_proc, num_workers_expected):
     """
@@ -942,7 +980,7 @@ class CLIFactory(object):
         # list_dags
         'report': Arg(
             ("-r", "--report"), "Show DagBag loading report", "store_true"),
-        # clear
+        # clear, mark_success
         'upstream': Arg(
             ("-u", "--upstream"), "Include upstream tasks", "store_true"),
         'only_failed': Arg(
@@ -1132,6 +1170,12 @@ class CLIFactory(object):
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
                 'only_running', 'exclude_subdags'),
+        }, {
+            'func': mark_success,
+            'help': "Mark success a set of task instances",
+            'args': (
+                'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
+                'upstream', 'downstream', 'no_confirm', 'exclude_subdags'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
