@@ -81,13 +81,13 @@ Committers:
 Currently **officially** using Airflow:
 
 1. [Airbnb](http://airbnb.io/) [[@mistercrunch](https://github.com/mistercrunch), [@artwr](https://github.com/artwr)]
-1. [Agari] (https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
+1. [Agari](https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
 1. [Bellhops](https://github.com/bellhops)
 1. BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
-1. [Clairvoyant] (https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
-1. [Clover Health] (https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
+1. [Clairvoyant](https://clairvoyantsoft.com) [@shekharv](https://github.com/shekharv)
+1. [Clover Health](https://www.cloverhealth.com) [[@gwax](https://github.com/gwax) & [@vansivallab](https://github.com/vansivallab)]
 1. Chartboost [[@cgelman](https://github.com/cgelman) & [@dclubb](https://github.com/dclubb)]
 1. [Cotap](https://github.com/cotap/) [[@maraca](https://github.com/maraca) & [@richardchew](https://github.com/richardchew)]
 1. Easy Taxi [[@caique-lima](https://github.com/caique-lima)]
@@ -112,13 +112,14 @@ Currently **officially** using Airflow:
 1. [Sidecar](https://hello.getsidecar.com/) [[@getsidecar](https://github.com/getsidecar)]
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
 1. [SmartNews](https://www.smartnews.com/) [[@takus](https://github.com/takus)]
-1. Stripe [@jbalogh]
+1. Stripe [[@jbalogh](https://github.com/jbalogh)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
+1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
 1. Wooga
 1. Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
-1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. Yahoo!
+1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
 1. [Zendesk](https://www.github.com/zendesk)
 
 ## Links
