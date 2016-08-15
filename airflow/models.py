@@ -427,7 +427,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                             ))
                     except Exception as e:
                         logging.warning(e)
-                        import traceback
                         traceback.print_exc()
         Stats.gauge(
             'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)

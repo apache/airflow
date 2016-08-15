@@ -4,7 +4,6 @@ import errno
 import os
 import subprocess
 
-from airflow import configuration as conf
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
 
@@ -16,6 +15,7 @@ def mkdir_p(path):
             pass
         else:
             raise
+
 
 class GitDagFolderVersionManager(DagFolderVersionManager):
 
@@ -37,7 +37,7 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
-        out, err = proc.communicate()
+        _, err = proc.communicate()
         if err:
             if 'already exists and is not an empty directory' in err:
                 pass
@@ -53,9 +53,9 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
         return dags_folder_path
 
-
     def get_version_control_hash_of(self, filepath):
-        # TODO(xuanji): check for dirty (https://github.com/oohlaf/oh-my-zsh/blob/master/lib/git.zsh#L11)
+        # TODO(xuanji): check for dirty
+        # (https://github.com/oohlaf/oh-my-zsh/blob/master/lib/git.zsh#L11)
 
         proc = subprocess.Popen(
             ['git', 'rev-parse', 'HEAD'],
