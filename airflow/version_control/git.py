@@ -71,4 +71,4 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
     def on_worker_start(self):
         while True:
             print('collecting garbage...')
-            time.sleep(10)
+            time.sleep(1)

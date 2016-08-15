@@ -1338,7 +1338,7 @@ class SchedulerJob(BaseJob):
         # For the execute duration, parse and schedule DAGs
         while (datetime.now() - execute_start_time).total_seconds() < \
                 self.run_duration:
-            self.logger.debug("Starting Loop...")
+            self.logger.info("Starting Loop...")
             loop_start_time = time.time()
 
             # Traverse the DAG directory for Python files containing DAGs
@@ -1391,6 +1391,8 @@ class SchedulerJob(BaseJob):
                 self._execute_task_instances(simple_dag_bag,
                                              (State.SCHEDULED,
                                               State.UP_FOR_RETRY))
+            else:
+                self.logger.info('no dags')
 
             # Call hearbeats
             self.logger.info("Heartbeating the executor")

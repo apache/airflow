@@ -133,7 +133,7 @@ def get_dag(dag_id, subdir, dag_version):
         raise AirflowException(
             'dag_id could not be found: {}. Either the dag did not exist or it failed to '
             'parse.'.format(dag_id))
-    return dagbag.dags[args.dag_id]
+    return dagbag.dags[dag_id]
 
 
 def backfill(args, dag=None):
@@ -301,8 +301,6 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
-
-    print('airflow run called with args=', args)
 
     db_utils.pessimistic_connection_handling()
     if dag:
@@ -810,10 +808,16 @@ def worker(args):
             # don't inherit stdin, so that Ctrl-C is not handled twice
             stdin=subprocess.PIPE
         )
+        vc_proc = subprocess.Popen(
+            ['airflow', 'vc_collect_garbage'],
+            env=env,
+            stdin=subprocess.PIPE
+        )
 
 
-        def kill_proc(dummy_signum, dummy_frame):
+        def kill_procs(dummy_signum, dummy_frame):
             serve_logs_proc.terminate()
+            vc_proc.terminate()
 
             print('killing celery')
             # 1. Send SIGTERM to celery, warm shutdown (celery will quit when all tasks finish)
@@ -842,8 +846,8 @@ def worker(args):
 
             sys.exit(0)
 
-        signal.signal(signal.SIGINT, kill_proc)
-        signal.signal(signal.SIGTERM, kill_proc)
+        signal.signal(signal.SIGINT, kill_procs)
+        signal.signal(signal.SIGTERM, kill_procs)
 
         while True:
             pass
@@ -936,7 +940,7 @@ def kerberos(args):  # noqa
 
 
 def vc_collect_garbage(args):
-    print('vc_collect_garbage')
+    airflow.version_control.on_worker_start()
 
 
 Arg = namedtuple(
