@@ -724,7 +724,6 @@ class TaskInstance(Base):
         self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
-        self.log_dir = task.log_dir
         if state:
             self.state = state
 
@@ -739,8 +738,7 @@ class TaskInstance(Base):
             raw=False,
             job_id=None,
             pool=None,
-            airflow_cfg=None,
-            try_log_dir=False):
+            cfg_path=None,):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -769,7 +767,8 @@ class TaskInstance(Base):
             file_path=path,
             raw=raw,
             job_id=job_id,
-            pool=pool)
+            pool=pool,
+            cfg_path=cfg_path,)
 
     @staticmethod
     def generate_command(dag_id,
@@ -784,7 +783,8 @@ class TaskInstance(Base):
                          file_path=None,
                          raw=False,
                          job_id=None,
-                         pool=None
+                         pool=None,
+                         cfg_path=None
                          ):
         """
         Generates the shell command required to execute this task instance.
@@ -815,10 +815,13 @@ class TaskInstance(Base):
         :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :type pool: unicode
+        :param cfg_path: absolute path to a temporary config file that the subtask
+            will read from. Used to pass custom credentials.
+        :type cfg_path: str
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
-        pickled_cfg = "".join(pickle.dumps(airflow_cfg)) if airflow_cfg else None
+        cmd = "airflow run {dag_id} {task_id} {iso} "
         cmd += "--mark_success " if mark_success else ""
         cmd += "--pickle {pickle_id} " if pickle_id else ""
         cmd += "--job_id {job_id} " if job_id else ""
@@ -828,9 +831,8 @@ class TaskInstance(Base):
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
-        cmd += "-sd {file_path}" if file_path else ""
-        cmd += "--airflow_cfg \"{pickled_cfg}\" " if airflow_cfg else ""
-        cmd += "--log_dir \"{self.log_dir}\" " if try_log_dir and self.log_dir else ""
+        cmd += "-sd {file_path} " if file_path else ""
+        cmd += "--cfg_path \"{cfg_path}\" " if cfg_path else ""
         return cmd.format(**locals())
 
     @property
@@ -1902,10 +1904,6 @@ class BaseOperator(object):
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
-    :param log_dir: custom logging directory only used if run_as_user is set.
-        The home directory (~) will be based on the user running the task.
-        If unset, the log_dir will default to ~/airflow/logs.
-    :type log_dir: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1948,7 +1946,6 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
-            log_dir=None,
             *args,
             **kwargs):
 
@@ -2002,7 +1999,6 @@ class BaseOperator(object):
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
         self.run_as_user = run_as_user
-        self.log_dir = log_dir
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:

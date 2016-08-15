@@ -19,7 +19,6 @@ import os
 import subprocess
 import textwrap
 import warnings
-import pickle
 from datetime import datetime
 
 import argparse
@@ -280,43 +279,32 @@ def set_is_paused(is_paused, args, dag=None):
     print(msg)
 
 
-def get_logging_filename(args, log_base):
-    directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    iso = args.execution_date.isoformat()
-    return "{directory}/{iso}".format(**locals())
-
 def run(args, dag=None):
     db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
 
     # Load custom airflow config
-    if args.airflow_cfg:
-        global pickle
-        conf_dict = pickle.loads(args.airflow_cfg)
+    if args.cfg_path:
+        with open(args.cfg_path, 'r') as conf_file:
+            conf_dict = json.load(conf_file)
+
+        if os.path.exists(args.cfg_path):
+            os.remove(args.cfg_path)
+
         for section, config in conf_dict.items():
             for option, value in config.items():
                 conf.set(section, option, value)
-        if args.log_dir:
-            conf.set('core', 'BASE_LOG_FOLDER', args.log_dir)
         settings.configure_vars()
         settings.configure_orm()
 
     # Setting up logging
     log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-    filename = get_logging_filename(args, log_base)
-
-    try:
-        f = open(filename, 'a')
-        f.close()
-    except IOError:
-        # If current logging file is not writable, default to `~/airflow/logs`
-        logging.info("Cannot write to logging file: " + filename)
-        conf.set('core', 'BASE_LOG_FOLDER', '~/airflow/logs')
-        log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-        filename = get_logging_filename(args, log_base)
+    directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+    iso = args.execution_date.isoformat()
+    filename = "{directory}/{iso}".format(**locals())
 
     logging.root.handlers = []
     logging.basicConfig(
@@ -1047,10 +1035,8 @@ class CLIFactory(object):
             ("-p", "--pickle"),
             "Serialized pickle object of the entire dag (used internally)"),
         'job_id': Arg(("-j", "--job_id"), argparse.SUPPRESS),
-        'airflow_cfg': Arg(
-            ("--airflow_cfg", ), "Custom picked config to use instead of airflow.cfg"),
-        'log_dir': Arg(
-            ("--log_dir", ), "Custom logging directory"),
+        'cfg_path': Arg(
+            ("--cfg_path", ), "Path to config file to use instead of airflow.cfg"),
         # webserver
         'port': Arg(
             ("-p", "--port"),
@@ -1192,8 +1178,8 @@ class CLIFactory(object):
             'help': "Run a single task instance",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool', 'airflow_cfg',
-                'local', 'raw', 'ignore_dependencies', 'log_dir',
+                'mark_success', 'force', 'pool', 'cfg_path',
+                'local', 'raw', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
             'func': initdb,

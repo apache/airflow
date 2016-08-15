@@ -15,14 +15,14 @@
 """runas
 
 Revision ID: 13f0be67a6da
-Revises: 211e584da130
-Create Date: 2016-07-18 22:34:09.923825
+Revises: 64de9cddf6c9
+Create Date: 2016-08-12 16:44:09.295102
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '13f0be67a6da'
-down_revision = '211e584da130'
+down_revision = '64de9cddf6c9'
 branch_labels = None
 depends_on = None
 
