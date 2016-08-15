@@ -251,3 +251,13 @@ backend. In order to setup an application:
 5. Fill in the required information (the 'Authorization callback URL' must be fully qualifed e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+
+
+Impersonation
+'''''''''''''
+
+Airflow has the ability to impersonate a unix user while running task
+instances based on the task's ``run_as_user`` parameter.
+
+*NOTE* The unix user needs to exist on the worker as Airflow assumes that
+it can ``sudo -u USER``.

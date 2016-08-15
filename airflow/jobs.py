@@ -23,6 +23,7 @@ from collections import defaultdict, Counter
 from datetime import datetime
 
 import getpass
+import json
 import logging
 import socket
 import subprocess
@@ -35,9 +36,11 @@ import time
 from time import sleep
 
 import psutil
+from pwd import getpwnam
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
+from tempfile import mkstemp
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
@@ -1912,6 +1915,27 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
+        popen_prepend = []
+        cfg_path = None
+        if self.task_instance.run_as_user:
+            cfg_dict = conf.as_dict(display_sensitive=True)
+            cfg_subset = {
+                'core': cfg_dict.get('core', {}),
+                'smtp': cfg_dict.get('smtp', {}),
+                'scheduler': cfg_dict.get('scheduler', {}),
+            }
+            temp_fd, cfg_path = mkstemp()
+
+            # Give ownership of file to user; only they can read and write
+            uid = getpwnam(self.task_instance.run_as_user).pw_uid
+            os.fchown(temp_fd, uid, -1)
+            os.fchmod(temp_fd, 0o600)
+
+            with os.fdopen(temp_fd, 'w') as temp_file:
+                json.dump(cfg_subset, temp_file)
+
+            popen_prepend = ['sudo', '-H', '-u', self.task_instance.run_as_user]
+
         command = self.task_instance.command(
             raw=True,
             ignore_dependencies=self.ignore_dependencies,
@@ -1921,12 +1945,16 @@ class LocalTaskJob(BaseJob):
             mark_success=self.mark_success,
             job_id=self.id,
             pool=self.pool,
+            cfg_path=cfg_path,
         )
-        self.process = subprocess.Popen(['bash', '-c', command])
+        self.process = subprocess.Popen(popen_prepend + ['bash', '-c', command])
         return_code = None
         while return_code is None:
             self.heartbeat()
             return_code = self.process.poll()
+
+        if cfg_path and os.path.isfile(cfg_path):
+            os.remove(cfg_path)
 
     def on_kill(self):
         self.process.terminate()

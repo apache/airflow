@@ -25,6 +25,7 @@ import argparse
 from builtins import input
 from collections import namedtuple
 from dateutil.parser import parse as parsedate
+from pwd import getpwnam
 import json
 
 import daemon
@@ -284,6 +285,20 @@ def run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
+    # Load custom airflow config
+    if args.cfg_path:
+        with open(args.cfg_path, 'r') as conf_file:
+            conf_dict = json.load(conf_file)
+
+        if os.path.exists(args.cfg_path):
+            os.remove(args.cfg_path)
+
+        for section, config in conf_dict.items():
+            for option, value in config.items():
+                conf.set(section, option, value)
+        settings.configure_vars()
+        settings.configure_orm()
+
     # Setting up logging
     log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
     directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
@@ -311,6 +326,13 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
 
     ti = TaskInstance(task, args.execution_date)
+
+    # If task uses impersonation, give write perm to log file to the user
+    if ti.run_as_user and not args.cfg_path:
+        uid = getpwnam(ti.run_as_user).pw_uid
+        fd = os.open(filename, os.O_RDWR)
+        os.fchown(fd, uid, -1)
+        os.fchmod(fd, 0o644)
 
     if args.local:
         print("Logging into: " + filename)
@@ -1021,6 +1043,8 @@ class CLIFactory(object):
             ("-p", "--pickle"),
             "Serialized pickle object of the entire dag (used internally)"),
         'job_id': Arg(("-j", "--job_id"), argparse.SUPPRESS),
+        'cfg_path': Arg(
+            ("--cfg_path", ), "Path to config file to use instead of airflow.cfg"),
         # webserver
         'port': Arg(
             ("-p", "--port"),
@@ -1162,7 +1186,7 @@ class CLIFactory(object):
             'help': "Run a single task instance",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool',
+                'mark_success', 'force', 'pool', 'cfg_path',
                 'local', 'raw', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {

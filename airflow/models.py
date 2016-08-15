@@ -701,6 +701,7 @@ class TaskInstance(Base):
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(DateTime)
+    run_as_user = Column(String(1000))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -721,6 +722,7 @@ class TaskInstance(Base):
         self.test_mode = False  # can be changed when calling 'run'
         self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
+        self.run_as_user = task.run_as_user
         if state:
             self.state = state
 
@@ -734,7 +736,8 @@ class TaskInstance(Base):
             pickle_id=None,
             raw=False,
             job_id=None,
-            pool=None):
+            pool=None,
+            cfg_path=None,):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
@@ -763,7 +766,8 @@ class TaskInstance(Base):
             file_path=path,
             raw=raw,
             job_id=job_id,
-            pool=pool)
+            pool=pool,
+            cfg_path=cfg_path,)
 
     @staticmethod
     def generate_command(dag_id,
@@ -778,7 +782,8 @@ class TaskInstance(Base):
                          file_path=None,
                          raw=False,
                          job_id=None,
-                         pool=None
+                         pool=None,
+                         cfg_path=None
                          ):
         """
         Generates the shell command required to execute this task instance.
@@ -809,6 +814,9 @@ class TaskInstance(Base):
         :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :type pool: unicode
+        :param cfg_path: absolute path to a temporary config file that the subtask
+            will read from. Used to pass custom credentials.
+        :type cfg_path: str
         :return: shell command that can be used to run the task instance
         """
         iso = execution_date.isoformat()
@@ -822,7 +830,8 @@ class TaskInstance(Base):
         cmd += "--local " if local else ""
         cmd += "--pool {pool} " if pool else ""
         cmd += "--raw " if raw else ""
-        cmd += "-sd {file_path}" if file_path else ""
+        cmd += "-sd {file_path} " if file_path else ""
+        cmd += "--cfg_path \"{cfg_path}\" " if cfg_path else ""
         return cmd.format(**locals())
 
     @property
@@ -1892,6 +1901,8 @@ class BaseOperator(object):
     :param resources: A map of resource parameter names (the argument names of the
         Resources constructor) to their values.
     :type resources: dict
+    :param run_as_user: unix username to impersonate while running the task
+    :type run_as_user: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1933,6 +1944,7 @@ class BaseOperator(object):
             on_retry_callback=None,
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
+            run_as_user=None,
             *args,
             **kwargs):
 
@@ -1985,6 +1997,7 @@ class BaseOperator(object):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.run_as_user = run_as_user
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
