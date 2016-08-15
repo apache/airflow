@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Pool
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.db import provide_session
-from airflow.executors import DEFAULT_EXECUTOR
 
 
 class SubDagOperator(BaseOperator):
@@ -30,7 +30,7 @@ class SubDagOperator(BaseOperator):
     def __init__(
             self,
             subdag,
-            executor=DEFAULT_EXECUTOR,
+            executor=airflow.executors.DEFAULT_EXECUTOR,
             *args, **kwargs):
         """
         Yo dawg. This runs a sub dag. By convention, a sub dag's dag_id

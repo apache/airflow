@@ -42,3 +42,9 @@ class DagFolderVersionManager():
         Return the version control version of @filepath.
         """
         raise NotImplementedError()
+
+    def on_worker_start(self):
+        """
+        Called when worker starts
+        """
+        pass

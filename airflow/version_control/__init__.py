@@ -36,3 +36,7 @@ def checkout_dags_folder(git_sha_hash):
 
 def get_version_control_hash_of(filepath):
     return dagFolderVersionManager.get_version_control_hash_of(filepath)
+
+
+def on_worker_start():
+	return dagFolderVersionManager.on_worker_start()

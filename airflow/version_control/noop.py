@@ -13,3 +13,6 @@ class NoopDagFolderVersionManager(DagFolderVersionManager):
 
     def checkout_dags_folder(self, _):
         return self.master_dags_folder
+
+    def on_worker_start(self):
+        return

@@ -37,10 +37,9 @@ import time
 import psutil
 
 import airflow
-from airflow import jobs, settings
+from airflow import jobs, settings, executors
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
@@ -378,7 +377,7 @@ def run(args, dag=None):
                 print(e)
                 raise e
 
-        executor = DEFAULT_EXECUTOR
+        executor = airflow.executors.DEFAULT_EXECUTOR
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(
@@ -892,6 +891,10 @@ def kerberos(args):  # noqa
         airflow.security.kerberos.run()
 
 
+def vc_collect_garbage(args):
+    print('vc_collect_garbage')
+
+
 Arg = namedtuple(
     'Arg', ['flags', 'help', 'action', 'default', 'nargs', 'type', 'choices', 'metavar'])
 Arg.__new__.__defaults__ = (None, None, None, None, None, None, None)
@@ -1245,6 +1248,10 @@ class CLIFactory(object):
             'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
+        }, {
+            'func': vc_collect_garbage,
+            'help': "Run the custom version control function that collects garbage",
+            'args': tuple(),
         }, {
             'func': worker,
             'help': "Start a Celery worker node",

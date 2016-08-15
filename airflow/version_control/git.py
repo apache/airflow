@@ -3,6 +3,7 @@
 import errno
 import os
 import subprocess
+import time
 
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
@@ -66,3 +67,8 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
         assert err is None
 
         return out.replace('\n', '')
+
+    def on_worker_start(self):
+        while True:
+            print('collecting garbage...')
+            time.sleep(10)
