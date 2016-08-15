@@ -1953,7 +1953,7 @@ class LocalTaskJob(BaseJob):
             self.heartbeat()
             return_code = self.process.poll()
 
-        if os.path.isfile(cfg_path):
+        if cfg_path and os.path.isfile(cfg_path):
             os.remove(cfg_path)
 
     def on_kill(self):

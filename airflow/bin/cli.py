@@ -25,6 +25,7 @@ import argparse
 from builtins import input
 from collections import namedtuple
 from dateutil.parser import parse as parsedate
+from pwd import getpwnam
 import json
 
 import daemon
@@ -325,6 +326,13 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
 
     ti = TaskInstance(task, args.execution_date)
+
+    # If task uses impersonation, give write perm to log file to the user
+    if ti.run_as_user and not args.cfg_path:
+        uid = getpwnam(ti.run_as_user).pw_uid
+        fd = os.open(filename, os.O_RDWR)
+        os.fchown(fd, uid, -1)
+        os.fchmod(fd, 0o644)
 
     if args.local:
         print("Logging into: " + filename)
