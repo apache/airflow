@@ -97,6 +97,7 @@ Currently **officially** using Airflow:
 1. [Handy](http://www.handy.com/careers/73115?gh_jid=73115&gh_src=o5qcxn) [[@marcintustin](https://github.com/marcintustin) / [@mtustin-handy](https://github.com/mtustin-handy)]
 1. [Holimetrix](http://holimetrix.com/) [[@thibault-ketterer](https://github.com/thibault-ketterer)]
 1. [Hootsuite](https://github.com/hootsuite)
+1. [iHeartRadio](http://www.iheart.com/)[[@yiwang](https://github.com/yiwang)]
 1. [ING](http://www.ing.com/)
 1. [Jampp](https://github.com/jampp)
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
