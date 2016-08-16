@@ -35,6 +35,7 @@ import threading
 import traceback
 import time
 import psutil
+import multiprocessing
 
 import airflow
 from airflow import jobs, settings, executors
@@ -114,6 +115,8 @@ def get_dag_from_args(args):
 
 
 def get_dag(dag_id, subdir, dag_version):
+
+    print('get_dag', dag_id, subdir, dag_version)
 
     if dag_version:
         assert("DAGS_FOLDER" in subdir)
@@ -794,6 +797,7 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
+        print('I am', os.getpid())
         serve_logs_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env)
         celery_proc = subprocess.Popen(
             [
@@ -808,11 +812,11 @@ def worker(args):
             # don't inherit stdin, so that Ctrl-C is not handled twice
             stdin=subprocess.PIPE
         )
-        vc_proc = subprocess.Popen(
-            ['airflow', 'vc_collect_garbage'],
-            env=env,
-            stdin=subprocess.PIPE
+        vc_proc = multiprocessing.Process(
+            target=airflow.version_control.on_worker_start,
+            args=(celery_proc.pid,)
         )
+        vc_proc.start()
 
 
         def kill_procs(dummy_signum, dummy_frame):
@@ -937,10 +941,6 @@ def kerberos(args):  # noqa
         stderr.close()
     else:
         airflow.security.kerberos.run()
-
-
-def vc_collect_garbage(args):
-    airflow.version_control.on_worker_start()
 
 
 Arg = namedtuple(
@@ -1296,10 +1296,6 @@ class CLIFactory(object):
             'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
-        }, {
-            'func': vc_collect_garbage,
-            'help': "Run the custom version control function that collects garbage",
-            'args': tuple(),
         }, {
             'func': worker,
             'help': "Supervise or daemonize a Celery worker node",

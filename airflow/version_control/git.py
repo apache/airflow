@@ -4,6 +4,8 @@ import errno
 import os
 import subprocess
 import time
+import psutil
+import shutil
 
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
@@ -33,6 +35,7 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
         dags_folder_path = self.dags_folder_container + "/" + git_sha_hash
 
         # todo(xuanji): maybe check the return code
+        # todo(xuanji): retry if another git operation is in progress
         proc = subprocess.Popen(
             ['git', 'clone', '-q', master_dags_folder_path, dags_folder_path],
             stdout=subprocess.PIPE,
@@ -68,7 +71,27 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
         return out.replace('\n', '')
 
-    def on_worker_start(self):
+    def on_worker_start(self, celery_pid):
         while True:
-            print('collecting garbage...')
+            print('collecting garbage for', celery_pid, 'I am', os.getpid())
+            celery_workers = psutil.Process(celery_pid).children()
+
+            dag_versions_in_use = set()
+
+            for celery_worker in celery_workers:
+                for celery_child in psutil.Process(celery_worker.pid).children():
+                    cmdline = ' '.join(celery_child.cmdline()).split(' ')
+                    for arg in cmdline:
+                        if arg.startswith('--dag-version='):
+                            dag_versions_in_use.add(arg[len('--dag-version='):])
+
+            checked_out_dags = set(os.listdir(self.dags_folder_container))
+
+            shas_to_reap =checked_out_dags - dag_versions_in_use
+
+            for sha in shas_to_reap:
+                directory_to_reap = self.dags_folder_container + '/' + sha
+
+                shutil.rmtree(directory_to_reap)
+
             time.sleep(1)
