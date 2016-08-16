@@ -1028,8 +1028,6 @@ class SchedulerJob(BaseJob):
                     dag_version=task_instance.dag_version
                 )
 
-                print('TI.generate_command', command, '*'*50)
-
                 priority = task_instance.priority_weight
                 queue = task_instance.queue
                 self.logger.info("Sending to executor {} with priority {} and queue {}"
@@ -1377,16 +1375,18 @@ class SchedulerJob(BaseJob):
                 # If a task instance is up for retry but the corresponding DAG run
                 # isn't running, mark the task instance as FAILED so we don't try
                 # to re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.UP_FOR_RETRY],
-                                                          State.FAILED)
+                self._change_state_for_tis_without_dagrun(
+                    simple_dag_bag,
+                    [State.UP_FOR_RETRY],
+                    State.FAILED)
                 # If a task instance is scheduled or queued, but the corresponding
                 # DAG run isn't running, set the state to NONE so we don't try to
                 # re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.QUEUED,
-                                                           State.SCHEDULED],
-                                                          State.NONE)
+                self._change_state_for_tis_without_dagrun(
+                    simple_dag_bag,
+                    [State.QUEUED,
+                    State.SCHEDULED],
+                    State.NONE)
 
                 self._execute_task_instances(simple_dag_bag,
                                              (State.SCHEDULED,
