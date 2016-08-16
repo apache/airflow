@@ -313,6 +313,8 @@ Connections
 
 The connection information to external systems is stored in the Airflow
 metadata database and managed in the UI (``Menu -> Admin -> Connections``)
+It can also be viewed/added/deleted from the CLI via 'airflow connections'.
+
 A ``conn_id`` is defined there and hostname / login / password / schema
 information attached to it. Airflow pipelines can simply refer to the
 centrally managed ``conn_id`` without having to hard code any of this
