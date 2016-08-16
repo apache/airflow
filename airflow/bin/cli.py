@@ -42,7 +42,8 @@ from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import (DagModel, DagBag, TaskInstance,
-                            DagPickle, DagRun, Variable, DagStat)
+                            DagPickle, DagRun, Variable, DagStat,
+                            Pool)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.state import State
@@ -187,6 +188,39 @@ def trigger_dag(args):
     logging.info("Created {}".format(trigger))
 
 
+def pool(args):
+    session = settings.Session()
+    if args.get or (args.set and args.set[0]) or args.delete:
+        name = args.get or args.delete or args.set[0]
+    pool = (
+        session.query(Pool)
+        .filter(Pool.pool == name)
+        .first())
+    if pool and args.get:
+        print("{} ".format(pool))
+        return
+    elif not pool and (args.get or args.delete):
+        print("No pool named {} found".format(name))
+    elif not pool and args.set:
+        pool = Pool(
+            pool=name,
+            slots=args.set[1],
+            description=args.set[2])
+        session.add(pool)
+        session.commit()
+        print("{} ".format(pool))
+    elif pool and args.set:
+        pool.slots = args.set[1]
+        pool.description = args.set[2]
+        session.commit()
+        print("{} ".format(pool))
+        return
+    elif pool and args.delete:
+        session.query(Pool).filter_by(pool=args.delete).delete()
+        session.commit()
+        print("Pool {} deleted".format(name))
+
+
 def variables(args):
 
     if args.get:
@@ -220,6 +254,7 @@ def variables(args):
         msg = "\n".join(var.key for var in vars)
         print(msg)
 
+
 def import_helper(filepath):
     with open(filepath, 'r') as varfile:
         var = varfile.read()
@@ -241,6 +276,7 @@ def import_helper(filepath):
             pass
         finally:
             print("{} of {} variables successfully updated.".format(n, len(d)))
+
 
 def export_helper(filepath):
     session = settings.Session()
@@ -571,7 +607,6 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
         get_num_workers_running(gunicorn_master_proc))
 
     while True:
-
         num_workers_running = get_num_workers_running(gunicorn_master_proc)
         num_ready_workers_running = get_num_ready_workers_running(gunicorn_master_proc)
 
@@ -975,6 +1010,20 @@ class CLIFactory(object):
         'conf': Arg(
             ('-c', '--conf'),
             "JSON string that gets pickled into the DagRun's conf attribute"),
+        # pool
+        'pool_set': Arg(
+            ("-s", "--set"),
+            nargs=3,
+            metavar=('NAME', 'SLOT_COUNT', 'POOL_DESCRIPTION'),
+            help="Set pool slot count and description, respectively"),
+        'pool_get': Arg(
+            ("-g", "--get"),
+            metavar='NAME',
+            help="Get pool info"),
+        'pool_delete': Arg(
+            ("-x", "--delete"),
+            metavar="NAME",
+            help="Delete a pool"),
         # variables
         'set': Arg(
             ("-s", "--set"),
@@ -1158,8 +1207,12 @@ class CLIFactory(object):
             'help': "Trigger a DAG run",
             'args': ('dag_id', 'subdir', 'run_id', 'conf'),
         }, {
+            'func': pool,
+            'help': "CRUD operations on pools",
+            "args": ('pool_set', 'pool_get', 'pool_delete'),
+        }, {
             'func': variables,
-            'help': "List all variables",
+            'help': "CRUD operations on variables",
             "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
         }, {
             'func': kerberos,

@@ -1005,6 +1005,15 @@ class CliTests(unittest.TestCase):
                 '-c', 'NOT JSON'])
         )
 
+    def test_pool(self):
+        # Checks if all subcommands are properly received
+        cli.pool(self.parser.parse_args([
+            'pool', '-s', 'foo', '1', '"my foo pool"']))
+        cli.pool(self.parser.parse_args([
+            'pool', '-g', 'foo']))
+        cli.pool(self.parser.parse_args([
+            'pool', '-x', 'foo']))
+
     def test_variables(self):
         # Checks if all subcommands are properly received
         cli.variables(self.parser.parse_args([
