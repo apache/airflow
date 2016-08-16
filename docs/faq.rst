@@ -15,7 +15,7 @@ Here are some of the common causes:
   as where the worker runs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
-  task soon after the ``start_date + scheduler_interval`` is passed.
+  task soon after the ``start_date + schedule_interval`` is passed.
 
 - Is your ``start_date`` beyond where you can see it in the UI? If you
   set your it to some time say 3 months ago, you won't be able to see
