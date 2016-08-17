@@ -7,6 +7,8 @@ import time
 import psutil
 import shutil
 import sys
+import errno
+import fcntl
 
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
@@ -76,6 +78,23 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
     def checkout_dags_folder(self, git_sha_hash):
         mkdir_p(self.dags_folder_container)
 
+        dags_folder_container_lock = self.dags_folder_container + '/lock'
+
+        try:
+            file_handle = os.open(
+                dags_folder_container_lock,
+                os.O_CREAT | os.O_EXCL | os.O_WRONLY
+            )
+        except OSError as e:
+            if e.errno == errno.EEXIST:
+                pass
+            else:
+                raise
+
+        lock_fh = open(dags_folder_container_lock, 'w+')
+
+        fcntl.flock(lock_fh, fcntl.LOCK_EX)
+
         master_dags_folder_path = os.path.expanduser(self.master_dags_folder_path)
 
         dags_folder_path = self.dags_folder_container + "/" + git_sha_hash
@@ -88,6 +107,9 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
         git_checkout_retry(dags_folder_path, git_sha_hash)
         print(os.getpid(), 'checked out', git_sha_hash)
         sys.stdout.flush()
+
+        fcntl.flock(lock_fh, fcntl.LOCK_UN)
+        lock_fh.close()
 
         return dags_folder_path
 
