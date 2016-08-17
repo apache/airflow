@@ -343,10 +343,15 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
                     task = dag.get_task(ti.task_id)
+
+                    # now set non db backed vars on ti
                     ti.task = task
-                    ti.handle_failure("{} killed as zombie".format(ti))
+                    ti.test_mode = False
+
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      False, ti.get_template_context())
                     self.logger.info(
-                        'Marked zombie job {} as failed'.format(ti))
+                        'Marked zombie job %s as %s', ti, ti.state)
                     Stats.incr('zombies_killed')
         session.commit()
 
