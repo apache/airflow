@@ -874,9 +874,10 @@ class Airflow(BaseView):
         deps = request.args.get('deps') == "true"
 
         try:
-            from airflow.executors import DEFAULT_EXECUTOR as executor
-            from airflow.executors import CeleryExecutor
-            if not isinstance(executor, CeleryExecutor):
+            if not isinstance(
+                    airflow.executors.DEFAULT_EXECUTOR,
+                    airflow.executors.CeleryExecutor
+            ):
                 flash("Only works with the CeleryExecutor, sorry", "error")
                 return redirect(origin)
         except ImportError:

@@ -518,6 +518,8 @@ class DagFileProcessorManager(LoggingMixin):
         running_processors = {}
         """:type : dict[unicode, AbstractDagFileProcessor]"""
 
+        print('processors', self._processors, 'finished_processors', finished_processors, 'file_path_queue', self._file_path_queue)
+
         for file_path, processor in self._processors.items():
             if processor.done:
                 self.logger.info("Processor for {} finished".format(file_path))
@@ -567,6 +569,10 @@ class DagFileProcessorManager(LoggingMixin):
                                         set(file_paths_in_progress) -
                                         set(file_paths_recently_processed) -
                                         set(files_paths_at_run_limit))
+
+            print('files_paths_to_queue', files_paths_to_queue)
+            print(self._file_paths, file_paths_in_progress, file_paths_recently_processed, files_paths_at_run_limit)
+            print(self._process_file_interval)
 
             for file_path, processor in self._processors.items():
                 self.logger.debug("File path {} is still being processed (started: {})"

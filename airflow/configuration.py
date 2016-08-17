@@ -109,10 +109,12 @@ base_log_folder = {AIRFLOW_HOME}/logs
 # location.
 remote_base_log_folder =
 remote_log_conn_id =
+
 # Use server-side encryption for logs stored in S3
 encrypt_s3_logs = False
-# DEPRECATED option for remote log storage, use remote_base_log_folder instead!
-s3_log_folder =
+
+# deprecated option for remote log storage, use remote_base_log_folder instead!
+# s3_log_folder =
 
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
@@ -173,6 +175,9 @@ security =
 # Turn unit test mode on (overwrites many configuration options with test
 # values at runtime)
 unit_test_mode = False
+
+# Version control strategy
+version_control_strategy = noop
 
 
 [operators]

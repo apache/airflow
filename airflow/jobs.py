@@ -66,7 +66,7 @@ class BaseJob(Base, LoggingMixin):
     """
     Abstract class to be derived for jobs. Jobs are processing items with state
     and duration that aren't task instances. For instance a BackfillJob is
-    a collection of task instance runs, but should have it's own state, start
+    a collection of task instance runs, but should have its own state, start
     and end time.
     """
 
@@ -487,7 +487,9 @@ class SchedulerJob(BaseJob):
         self.subdir = subdir
 
         self.num_runs = num_runs
-        self.run_duration = run_duration
+        self.run_duration = run_duration or conf.getint(
+            'scheduler', 'run_duration'
+        )
         self._processor_poll_interval = processor_poll_interval
 
         self.do_pickle = do_pickle
@@ -503,26 +505,25 @@ class SchedulerJob(BaseJob):
             self.using_sqlite = True
 
         # How often to scan the DAGs directory for new files. Default to 5 minutes.
-        self.dag_dir_list_interval = conf.getint('scheduler',
-                                                 'dag_dir_list_interval')
-        # How often to print out DAG file processing stats to the log. Default to
+        self.dag_dir_list_interval = conf.getint('scheduler', 'dag_dir_list_interval')
+
+        # How often to print out DAG file processing stats to the log. Defaults to
         # 30 seconds.
-        self.print_stats_interval = conf.getint('scheduler',
-                                                'print_stats_interval')
+        self.print_stats_interval = conf.getint('scheduler', 'print_stats_interval')
+
         # Parse and schedule each file no faster than this interval. Default
         # to 3 minutes.
         self.file_process_interval = file_process_interval
+
         # Directory where log files for the processes that scheduled the DAGs reside
-        self.child_process_log_directory = conf.get('scheduler',
-                                                    'child_process_log_directory')
-        if run_duration is None:
-            self.run_duration = conf.getint('scheduler',
-                                            'run_duration')
+        self.child_process_log_directory = conf.get(
+            'scheduler', 'child_process_log_directory'
+        )
 
     @provide_session
     def manage_slas(self, dag, session=None):
         """
-        Finding all tasks that have SLAs defined, and sending alert emails
+        Find all tasks that have SLAs defined, and sending alert emails
         where needed. New SLA misses are also recorded in the database.
 
         Where assuming that the scheduler runs often, so we only check for
@@ -802,7 +803,7 @@ class SchedulerJob(BaseJob):
             # todo: run.dag is transient but needs to be set
             run.dag = dag
             # todo: preferably the integrity check happens at dag collection time
-            run.verify_integrity(session=session)
+            run.ensure_integrity(session=session)
             run.update_state(session=session)
             if run.state == State.RUNNING:
                 make_transient(run)
@@ -818,6 +819,7 @@ class SchedulerJob(BaseJob):
             # every task (in ti.is_runnable). This is also called in
             # update_state above which has already checked these tasks
             for ti in tis:
+
                 task = dag.get_task(ti.task_id)
 
                 # fixme: ti.task is transient but needs to be set
@@ -1009,6 +1011,8 @@ class SchedulerJob(BaseJob):
                                              task_concurrency_limit))
                     continue
 
+                DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+
                 command = TI.generate_command(
                     task_instance.dag_id,
                     task_instance.task_id,
@@ -1019,8 +1023,10 @@ class SchedulerJob(BaseJob):
                     ignore_dependencies=False,
                     ignore_depends_on_past=False,
                     pool=task_instance.pool,
-                    file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
-                    pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id)
+                    file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath.replace(DAGS_FOLDER, 'DAGS_FOLDER'),
+                    pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id,
+                    dag_version=task_instance.dag_version
+                )
 
                 priority = task_instance.priority_weight
                 queue = task_instance.queue
@@ -1072,10 +1078,6 @@ class SchedulerJob(BaseJob):
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.reached_max_runs:
-                self.logger.info("Not processing DAG {} since its max runs has been reached"
-                                .format(dag.dag_id))
-                continue
             if dag.is_paused:
                 self.logger.info("Not processing DAG {} since it's paused"
                                  .format(dag.dag_id))
@@ -1214,22 +1216,29 @@ class SchedulerJob(BaseJob):
         # DAGs in parallel. By processing them in separate processes,
         # we can get parallelism and isolation from potentially harmful
         # user code.
-        self.logger.info("Processing files using up to {} processes at a time "
-                         .format(self.max_threads))
-        self.logger.info("Running execute loop for {} seconds"
-                         .format(self.run_duration))
-        self.logger.info("Processing each file at most {} times"
-                         .format(self.num_runs))
-        self.logger.info("Process each file at most once every {} seconds"
-                         .format(self.file_process_interval))
-        self.logger.info("Checking for new files in {} every {} seconds"
-                         .format(self.subdir, self.dag_dir_list_interval))
+        self.logger.info(
+            "Processing files using up to %s processes at a time", self.max_threads
+        )
+        self.logger.info(
+            "Running execute loop for %s seconds", self.run_duration
+        )
+        self.logger.info(
+            "Processing each file at most %s times", self.num_runs
+        )
+        self.logger.info(
+            "Process each file at most once every %s seconds", self.file_process_interval
+        )
+        self.logger.info(
+            "Checking for new files in %s every %s seconds",
+            self.subdir, self.dag_dir_list_interval
+        )
 
         # Build up a list of Python files that could contain DAGs
         self.logger.info("Searching for files in {}".format(self.subdir))
         known_file_paths = list_py_file_paths(self.subdir)
-        self.logger.info("There are {} files in {}"
-                         .format(len(known_file_paths), self.subdir))
+        self.logger.info("There are %s files in %s",
+            len(known_file_paths), self.subdir
+        )
 
         def processor_factory(file_path, log_file_path):
             return DagFileProcessor(file_path,
@@ -1270,8 +1279,9 @@ class SchedulerJob(BaseJob):
                 try:
                     psutil.wait_procs(child_processes, timeout)
                 except psutil.TimeoutExpired:
-                    self.logger.debug("Ran out of time while waiting for "
-                                      "processes to exit")
+                    self.logger.debug(
+                        "Ran out of time while waiting for processes to exit"
+                    )
 
                 # Then SIGKILL
                 child_processes = [x for x in this_process.children(recursive=True)
@@ -1322,7 +1332,7 @@ class SchedulerJob(BaseJob):
         # For the execute duration, parse and schedule DAGs
         while (datetime.now() - execute_start_time).total_seconds() < \
                 self.run_duration:
-            self.logger.debug("Starting Loop...")
+            self.logger.info("Starting Loop...")
             loop_start_time = time.time()
 
             # Traverse the DAG directory for Python files containing DAGs
@@ -1361,20 +1371,24 @@ class SchedulerJob(BaseJob):
                 # If a task instance is up for retry but the corresponding DAG run
                 # isn't running, mark the task instance as FAILED so we don't try
                 # to re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.UP_FOR_RETRY],
-                                                          State.FAILED)
+                self._change_state_for_tis_without_dagrun(
+                    simple_dag_bag,
+                    [State.UP_FOR_RETRY],
+                    State.FAILED)
                 # If a task instance is scheduled or queued, but the corresponding
                 # DAG run isn't running, set the state to NONE so we don't try to
                 # re-run it.
-                self._change_state_for_tis_without_dagrun(simple_dag_bag,
-                                                          [State.QUEUED,
-                                                           State.SCHEDULED],
-                                                          State.NONE)
+                self._change_state_for_tis_without_dagrun(
+                    simple_dag_bag,
+                    [State.QUEUED,
+                    State.SCHEDULED],
+                    State.NONE)
 
                 self._execute_task_instances(simple_dag_bag,
                                              (State.SCHEDULED,
                                               State.UP_FOR_RETRY))
+            else:
+                self.logger.info('no dags')
 
             # Call hearbeats
             self.logger.info("Heartbeating the executor")
@@ -1431,6 +1445,7 @@ class SchedulerJob(BaseJob):
         self.executor.end()
 
         settings.Session.remove()
+
 
     @provide_session
     def process_file(self, file_path, pickle_dags=False, session=None):
@@ -1878,6 +1893,11 @@ class BackfillJob(BaseJob):
 
 
 class LocalTaskJob(BaseJob):
+    """
+    Spawns and supervises an ``airflow run --raw`` command as a subprocess.
+    Emits heartbeats, listens for external kill signals and ensures some
+    cleanup tasks take place if the subprocess fails.
+    """
 
     __mapper_args__ = {
         'polymorphic_identity': 'LocalTaskJob'
@@ -1892,6 +1912,7 @@ class LocalTaskJob(BaseJob):
             mark_success=False,
             pickle_id=None,
             pool=None,
+            dag_version=None,
             *args, **kwargs):
         self.task_instance = task_instance
         self.ignore_dependencies = ignore_dependencies
@@ -1900,6 +1921,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.dag_version = dag_version
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -1923,6 +1945,14 @@ class LocalTaskJob(BaseJob):
             pool=self.pool,
         )
         self.process = subprocess.Popen(['bash', '-c', command])
+
+        def kill_proc(dummy_signum, dummy_frame):
+            print('LocalTaskJob received sigterm')
+            self.process.terminate()
+            # todo: sigkill after timeout
+
+        signal.signal(signal.SIGTERM, kill_proc)
+
         return_code = None
         while return_code is None:
             self.heartbeat()
@@ -1943,8 +1973,10 @@ class LocalTaskJob(BaseJob):
         TI = models.TaskInstance
         ti = self.task_instance
         state = session.query(TI.state).filter(
-            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
-            TI.execution_date==ti.execution_date).scalar()
+            TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
+            TI.execution_date == ti.execution_date
+        ).scalar()
+
         if state == State.RUNNING:
             self.was_running = True
         elif self.was_running and hasattr(self, 'process'):

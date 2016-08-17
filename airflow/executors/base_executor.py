@@ -60,6 +60,7 @@ class BaseExecutor(LoggingMixin):
             ignore_depends_on_past=False,
             pool=None):
         pool = pool or task_instance.pool
+
         command = task_instance.command(
             local=True,
             mark_success=mark_success,
@@ -67,7 +68,8 @@ class BaseExecutor(LoggingMixin):
             ignore_dependencies=ignore_dependencies,
             ignore_depends_on_past=ignore_depends_on_past,
             pool=pool,
-            pickle_id=pickle_id)
+            pickle_id=pickle_id,
+            dag_version=task_instance.dag_version)
         self.queue_command(
             task_instance,
             command,

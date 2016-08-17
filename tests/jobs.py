@@ -23,10 +23,8 @@ import os
 import time
 import unittest
 
-from airflow import AirflowException, settings
-from airflow import models
+from airflow import AirflowException, executors, models, settings
 from airflow.bin import cli
-from airflow.executors import DEFAULT_EXECUTOR
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -362,7 +360,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler2 = SchedulerJob(
             dag_id,
             num_runs=5,
-            executor=DEFAULT_EXECUTOR.__class__(),
+            executor=airlfow.executors.DEFAULT_EXECUTOR.__class__(),
             **self.default_scheduler_args)
         scheduler2.run()
 
@@ -809,8 +807,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_scheduler_reschedule(self):
         """
-        Checks if tasks that are not taken up by the executor
-        get rescheduled
+        Checks if tasks that are not taken up by the executor get rescheduled
         """
         executor = TestExecutor()
 

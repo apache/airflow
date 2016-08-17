@@ -35,12 +35,12 @@ import threading
 import traceback
 import time
 import psutil
+import multiprocessing
 
 import airflow
-from airflow import jobs, settings
+from airflow import jobs, settings, executors
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import DagModel, DagBag, TaskInstance, DagPickle, DagRun, Variable
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
@@ -97,22 +97,52 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 
 def process_subdir(subdir):
+    """
+    Expand a path like DAGS_FOLDER/abc
+    """
+
     dags_folder = conf.get("core", "DAGS_FOLDER")
     dags_folder = os.path.expanduser(dags_folder)
-    if subdir:
-        if "DAGS_FOLDER" in subdir:
-            subdir = subdir.replace("DAGS_FOLDER", dags_folder)
-        subdir = os.path.abspath(os.path.expanduser(subdir))
-        return subdir
+
+    if "DAGS_FOLDER" in subdir:
+        subdir = subdir.replace("DAGS_FOLDER", dags_folder)
+    subdir = os.path.abspath(os.path.expanduser(subdir))
+    return subdir
 
 
-def get_dag(args):
-    dagbag = DagBag(process_subdir(args.subdir))
-    if args.dag_id not in dagbag.dags:
+def get_dag_from_args(args):
+    return get_dag(args.dag_id, args.subdir, args.dag_version)
+
+
+def get_dag(dag_id, subdir, dag_version):
+
+    print(os.getpid(), 'get_dag', dag_id, subdir, dag_version)
+
+    if dag_version:
+        assert("DAGS_FOLDER" in subdir)
+
+        print(os.getpid(), 'calling vc.checkout_dags_folder')
+        versioned_dags_folder_path = \
+            airflow.version_control.checkout_dags_folder(dag_version)
+        path_to_dag = subdir.replace("DAGS_FOLDER", versioned_dags_folder_path)
+
+        path_to_dag = os.path.abspath(os.path.expanduser(path_to_dag))
+
+    else:
+        path_to_dag = process_subdir(subdir)
+
+    dagbag = DagBag(path_to_dag)
+
+    if dag_id not in dagbag.dags:
+        # todo: check if it's checked out
+
         raise AirflowException(
-            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(args.dag_id))
-    return dagbag.dags[args.dag_id]
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to parse subdir={} dag_version={} path_to_dag={} file_exists={}'.format(
+                dag_id, subdir, dag_version, path_to_dag,
+                os.path.isfile(path_to_dag)
+            )
+        )
+    return dagbag.dags[dag_id]
 
 
 def backfill(args, dag=None):
@@ -120,7 +150,7 @@ def backfill(args, dag=None):
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
 
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
@@ -156,7 +186,7 @@ def backfill(args, dag=None):
 
 
 def trigger_dag(args):
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
 
     if not dag:
         logging.error("Cannot find dag {}".format(args.dag_id))
@@ -267,7 +297,7 @@ def unpause(args, dag=None):
 
 
 def set_is_paused(is_paused, args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     session = settings.Session()
     dm = session.query(DagModel).filter(
@@ -280,8 +310,11 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
+
     db_utils.pessimistic_connection_handling()
     if dag:
+        print('noo')
+        sys.exit(0)
         args.dag_id = dag.dag_id
 
     # Setting up logging
@@ -299,7 +332,7 @@ def run(args, dag=None):
         format=settings.LOG_FORMAT)
 
     if not args.pickle and not dag:
-        dag = get_dag(args)
+        dag = get_dag_from_args(args)
     elif not dag:
         session = settings.Session()
         logging.info('Loading pickle id {args.pickle}'.format(**locals()))
@@ -311,6 +344,7 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
 
     ti = TaskInstance(task, args.execution_date)
+    ti.dag_version = args.dag_version
 
     if args.local:
         print("Logging into: " + filename)
@@ -350,7 +384,7 @@ def run(args, dag=None):
                 print(e)
                 raise e
 
-        executor = DEFAULT_EXECUTOR
+        executor = airflow.executors.DEFAULT_EXECUTOR
         executor.start()
         print("Sending to executor.")
         executor.queue_task_instance(
@@ -412,7 +446,7 @@ def task_state(args):
     >>> airflow task_state tutorial sleep 2015-01-01
     success
     """
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     print(ti.current_state())
@@ -425,7 +459,7 @@ def dag_state(args):
     >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
     running
     """
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
     print(dr[0].state if len(dr) > 0 else None)
 
@@ -445,7 +479,7 @@ def list_dags(args):
 
 
 def list_tasks(args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
     if args.tree:
         dag.tree_view()
     else:
@@ -454,7 +488,7 @@ def list_tasks(args, dag=None):
 
 
 def test(args, dag=None):
-    dag = dag or get_dag(args)
+    dag = dag or get_dag_from_args(args)
 
     task = dag.get_task(task_id=args.task_id)
     # Add CLI provided task_params to task.params
@@ -470,7 +504,7 @@ def test(args, dag=None):
 
 
 def render(args):
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.render_templates()
@@ -487,7 +521,7 @@ def clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dag = get_dag(args)
+    dag = get_dag_from_args(args)
 
     if args.task_regex:
         dag = dag.sub_dag(
@@ -769,13 +803,64 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
+        print('I am', os.getpid())
+        serve_logs_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+        celery_proc = subprocess.Popen(
+            [
+                'celery',
+                'worker',
+                '-A', 'airflow.executors.celery_executor',
+                '-O', 'fair',
+                '-Q', str(args.queues),
+                '-c', str(args.concurrency)
+            ],
+            env=env,
+            # don't inherit stdin, so that Ctrl-C is not handled twice
+            stdin=subprocess.PIPE
+        )
+        vc_proc = multiprocessing.Process(
+            target=airflow.version_control.on_worker_start,
+            args=(celery_proc.pid,)
+        )
+        vc_proc.start()
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
 
-        worker.run(**options)
-        sp.kill()
+        def kill_procs(dummy_signum, dummy_frame):
+            serve_logs_proc.terminate()
+            vc_proc.terminate()
+
+            print('killing celery')
+            # 1. Send SIGTERM to celery, warm shutdown (celery will quit when all tasks finish)
+            celery_proc.terminate()
+
+            # 2. Send SIGTERM to each child of celery - give up on task.
+            # We go two levels deep in the process tree
+            #
+            # - celery master process
+            #   \- celery worker process
+            #      \- airflow run --local    <------- terminate
+            #         \- airflow run --raw
+            #   \- celery worker process
+            #      \- airflow run --local    <------- terminate
+            #         \- airflow run --raw
+            #   \- celery worker process
+            #   \- celery worker process
+            celery_workers = psutil.Process(celery_proc.pid).children()
+            for celery_worker in celery_workers:
+                for celery_child in psutil.Process(celery_worker.pid).children():
+                    print('sending SIGTERM to ', celery_worker.cmdline()[0])
+                    celery_child.send_signal(signal.SIGTERM)
+
+            # 3. Wait for warm shutdown to finish
+            celery_proc.wait()
+
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, kill_procs)
+        signal.signal(signal.SIGTERM, kill_procs)
+
+        while True:
+            pass
 
 
 def initdb(args):  # noqa
@@ -1004,6 +1089,10 @@ class CLIFactory(object):
         'force': Arg(
             ("-f", "--force"),
             "Force a run regardless of previous success", "store_true"),
+        'dag_version': Arg(
+            ("--dag-version",),
+            "Dag version",
+        ),
         'raw': Arg(("-r", "--raw"), argparse.SUPPRESS, "store_true"),
         'ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
@@ -1162,7 +1251,7 @@ class CLIFactory(object):
             'help': "Run a single task instance",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool',
+                'mark_success', 'force', 'pool', 'dag_version',
                 'local', 'raw', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
@@ -1215,7 +1304,7 @@ class CLIFactory(object):
                      'log_file'),
         }, {
             'func': worker,
-            'help': "Start a Celery worker node",
+            'help': "Supervise or daemonize a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {

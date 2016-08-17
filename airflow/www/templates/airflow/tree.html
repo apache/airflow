@@ -1,13 +1,13 @@
-{# 
+{#
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
   this work for additional information regarding copyright ownership.
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  
+
     http://www.apache.org/licenses/LICENSE-2.0
-  
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -248,8 +248,12 @@ function update(source) {
       .style("stroke-width", function(d) {return (d.run_id != undefined)? "2": "1"})
       .style("stroke-opacity", function(d) {return d.external_trigger ? "0": "1"})
       .attr("title", function(d){
-        s =  "Task_id: " + d.task_id + "<br>";
+        s = "";
+        s +=  "Task_id: " + d.task_id + "<br>";
         s += "Run: " + d.execution_date + "<br>";
+        if (d.dag_version && d.dag_version.slice) {
+          s += "Dag version: " + d.dag_version.slice(0, 5) + "<br>";
+        }
         if(d.run_id != undefined){
           s += "run_id: <nobr>" + d.run_id + "</nobr><br>";
         }
