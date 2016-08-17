@@ -573,7 +573,7 @@ class HiveServer2Hook(BaseHook):
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
-    def get_conn(self):
+    def get_conn(self, schema=None):
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'PLAIN')
         kerberos_service_name = None
@@ -594,11 +594,11 @@ class HiveServer2Hook(BaseHook):
             auth_mechanism=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             user=db.login,
-            database=db.schema or 'default')
+            database=schema or db.schema or 'default')
 
     def get_results(self, hql, schema='default', arraysize=1000):
         from impala.error import ProgrammingError
-        with self.get_conn() as conn:
+        with self.get_conn(schema) as conn:
             if isinstance(hql, basestring):
                 hql = [hql]
             results = {
@@ -633,7 +633,7 @@ class HiveServer2Hook(BaseHook):
             output_header=True,
             fetch_size=1000):
         schema = schema or 'default'
-        with self.get_conn() as conn:
+        with self.get_conn(schema) as conn:
             with conn.cursor() as cur:
                 logging.info("Running query: " + hql)
                 cur.execute(hql)
