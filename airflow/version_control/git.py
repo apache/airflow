@@ -20,6 +20,47 @@ def mkdir_p(path):
             raise
 
 
+def git_clone_retry(source, target):
+    """
+    Run `git clone source target` and retry if another
+    git operation is in progress. Ignores errors if
+    target already exist. Raises otherwise.
+    """
+
+    proc = subprocess.Popen(
+        ['git', 'clone', '-q', source, target],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+    # todo(xuanji): maybe check the return code
+    _, err = proc.communicate()
+    if err:
+        if 'already exists and is not an empty directory' in err:
+            return
+        elif 'Another git process seems to be running in this repository' in err:
+            time.sleep(1)
+            return git_clone_retry(source, target)
+        else:
+            raise ValueError('oops')
+
+
+def git_checkout_retry(source, git_sha_hash):
+    proc = subprocess.Popen(
+        ['git', 'checkout', git_sha_hash],
+        cwd=source,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    _, err = proc.communicate()
+    if err:
+        if 'HEAD is now at' in err:
+            return
+        else:
+            print('git checkout failed with', err)
+            raise ValueError('oops')
+
+
 class GitDagFolderVersionManager(DagFolderVersionManager):
 
 
@@ -34,26 +75,8 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
         dags_folder_path = self.dags_folder_container + "/" + git_sha_hash
 
-        # todo(xuanji): maybe check the return code
-        # todo(xuanji): retry if another git operation is in progress
-        proc = subprocess.Popen(
-            ['git', 'clone', '-q', master_dags_folder_path, dags_folder_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
-        )
-        _, err = proc.communicate()
-        if err:
-            if 'already exists and is not an empty directory' in err:
-                pass
-            else:
-                print(err)
-                raise ValueError('oops')
-
-        proc = subprocess.Popen(
-            ['git', 'checkout', git_sha_hash],
-            cwd=dags_folder_path,
-            stdout=subprocess.PIPE
-        )
+        git_clone_retry(master_dags_folder_path, dags_folder_path)
+        git_checkout_retry(master_dags_folder_path, git_sha_hash)
 
         return dags_folder_path
 
