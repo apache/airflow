@@ -116,11 +116,12 @@ def get_dag_from_args(args):
 
 def get_dag(dag_id, subdir, dag_version):
 
-    print('get_dag', dag_id, subdir, dag_version)
+    print(os.getpid(), 'get_dag', dag_id, subdir, dag_version)
 
     if dag_version:
         assert("DAGS_FOLDER" in subdir)
 
+        print(os.getpid(), 'calling vc.checkout_dags_folder')
         versioned_dags_folder_path = \
             airflow.version_control.checkout_dags_folder(dag_version)
         path_to_dag = subdir.replace("DAGS_FOLDER", versioned_dags_folder_path)
@@ -133,9 +134,14 @@ def get_dag(dag_id, subdir, dag_version):
     dagbag = DagBag(path_to_dag)
 
     if dag_id not in dagbag.dags:
+        # todo: check if it's checked out
+
         raise AirflowException(
-            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
-            'parse.'.format(dag_id))
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to parse subdir={} dag_version={} path_to_dag={} file_exists={}'.format(
+                dag_id, subdir, dag_version, path_to_dag,
+                os.path.isfile(path_to_dag)
+            )
+        )
     return dagbag.dags[dag_id]
 
 

@@ -6,6 +6,7 @@ import subprocess
 import time
 import psutil
 import shutil
+import sys
 
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
@@ -41,6 +42,7 @@ def git_clone_retry(source, target):
             time.sleep(1)
             return git_clone_retry(source, target)
         else:
+            print(os.getpid(), 'git clone failed with ', err)
             raise ValueError('oops')
 
 
@@ -56,8 +58,11 @@ def git_checkout_retry(source, git_sha_hash):
     if err:
         if 'HEAD is now at' in err:
             return
+        elif 'Another git process seems to be running' in err:
+            time.sleep(1)
+            return git_checkout_retry(source, git_sha_hash)
         else:
-            print('git checkout failed with', err)
+            print(os.getpid(), 'git checkout failed with', err, source, git_sha_hash)
             raise ValueError('oops')
 
 
@@ -75,8 +80,14 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
         dags_folder_path = self.dags_folder_container + "/" + git_sha_hash
 
+        print(os.getpid(), 'calling git_clone')
         git_clone_retry(master_dags_folder_path, dags_folder_path)
-        git_checkout_retry(master_dags_folder_path, git_sha_hash)
+        print(os.getpid(), 'cloned', dags_folder_path)
+        sys.stdout.flush()
+        print(os.getpid(), 'calling git_checkout')
+        git_checkout_retry(dags_folder_path, git_sha_hash)
+        print(os.getpid(), 'checked out', git_sha_hash)
+        sys.stdout.flush()
 
         return dags_folder_path
 
@@ -96,7 +107,6 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
     def on_worker_start(self, celery_pid):
         while True:
-            print('collecting garbage for', celery_pid, 'I am', os.getpid())
             celery_workers = psutil.Process(celery_pid).children()
 
             dag_versions_in_use = set()
@@ -114,7 +124,7 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
             for sha in shas_to_reap:
                 directory_to_reap = self.dags_folder_container + '/' + sha
-
-                shutil.rmtree(directory_to_reap)
+                print('reaping ', directory_to_reap)
+                # shutil.rmtree(directory_to_reap)
 
             time.sleep(1)
