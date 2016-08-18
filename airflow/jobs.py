@@ -1930,7 +1930,7 @@ class LocalTaskJob(BaseJob):
         self.process = subprocess.Popen(['bash', '-c', command])
 
         def kill_proc(dummy_signum, dummy_frame):
-            print('LocalTaskJob received sigterm')
+            logging.debug('LocalTaskJob received sigterm')
             self.process.terminate()
             time.sleep(10)
             self.process.kill()

@@ -808,7 +808,7 @@ def worker(args):
             celery_workers = psutil.Process(celery_proc.pid).children()
             for celery_worker in celery_workers:
                 for celery_child in psutil.Process(celery_worker.pid).children():
-                    print('sending SIGTERM to ', celery_worker.cmdline()[0])
+                    logging.debug('sending SIGTERM to ', celery_worker.cmdline()[0])
                     celery_child.send_signal(signal.SIGTERM)
 
             # 3. Wait for warm shutdown to finish
