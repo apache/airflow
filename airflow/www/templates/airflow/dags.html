@@ -37,8 +37,12 @@
                 <th>DAG</th>
                 <th>Schedule</th>
                 <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Statuses
+                <th style="padding-left: 5px;">Recent Tasks
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
+                  <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                </th>
+                <th style="padding-left: 5px;">DAG Runs
+                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
                 <th class="text-center">Links</th>
@@ -93,12 +97,17 @@
                   {{ dag.owner if dag else orm_dags[dag_id].owners }}
                 </td>
 
-                <!-- Column 6: Recent Statuses -->
+                <!-- Column 6: Recent Tasks -->
                 <td style="padding:0px; width:200px; height:10px;">
-                    <svg height="10" width="10" id='dag-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                    <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
-                <!-- Column 7: Links -->
+                <!-- Column 7: Dag Runs -->
+                <td style="padding:0px; width:120px; height:10px;">
+                    <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                </td>
+
+                <!-- Column 8: Links -->
                 <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
                 {% if dag %}
 
@@ -198,7 +207,86 @@
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#dag-' + dag_id)
+            g = d3.select('svg#dag-run-' + dag_id)
+              .attr('height', diameter + (stroke_width_hover * 2))
+              .attr('width', '110px')
+              .selectAll("g")
+              .data(states)
+              .enter()
+              .append('g')
+              .attr('transform', function(d, i) {
+                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+                y = (diameter/2) + stroke_width_hover;
+                return 'translate(' + x + ',' + y + ')';
+              });
+
+            g.append('text')
+              .attr('fill', 'black')
+              .attr('text-anchor', 'middle')
+              .attr('vertical-align', 'middle')
+              .attr('font-size', 8)
+              .attr('y', 3)
+              .text(function(d){ return d.count > 0 ? d.count : ''; });
+
+            g.append('circle')
+              .attr('stroke-width', function(d) {
+                  if (d.count > 0)
+                    return stroke_width;
+                  else {
+                    return 1;
+                  }
+              })
+              .attr('stroke', function(d) {
+                  if (d.count > 0)
+                    return d.color;
+                  else {
+                    return 'gainsboro';
+                  }
+              })
+              .attr('fill-opacity', 0)
+              .attr('r', diameter/2)
+              .attr('title', function(d) {return d.state})
+              .attr('style', function(d) {
+                if (d.count > 0)
+                    return"cursor:pointer;"
+              })
+              .on('click', function(d, i) {
+                  if (d.count > 0)
+                    window.location = "/admin/dagrun/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+              })
+              .on('mouseover', function(d, i) {
+                if (d.count > 0) {
+                    d3.select(this).transition().duration(400)
+                      .attr('fill-opacity', 0.3)
+                      .style("stroke-width", stroke_width_hover);
+                }
+              })
+              .on('mouseout', function(d, i) {
+                if (d.count > 0) {
+                    d3.select(this).transition().duration(400)
+                      .attr('fill-opacity', 0)
+                      .style("stroke-width", stroke_width);
+                }
+              })
+              .style("opacity", 0)
+              .transition()
+              .duration(500)
+              .delay(function(d, i){return i*50;})
+              .style("opacity", 1);
+            d3.select("#loading").remove();
+        }
+        $("#pause_header").tooltip();
+        $("#statuses_info").tooltip();
+
+        $("circle").tooltip({
+          html: true,
+          container: "body",
+        });
+      });
+      d3.json("{{ url_for('airflow.task_stats') }}", function(error, json) {
+        for(var dag_id in json) {
+            states = json[dag_id];
+            g = d3.select('svg#task-run-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '180px')
               .selectAll("g")
@@ -273,6 +361,6 @@
           html: true,
           container: "body",
         });
-    });
+      });
   </script>
 {% endblock %}

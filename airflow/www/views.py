@@ -463,16 +463,39 @@ class Airflow(BaseView):
             embed=embed)
 
     @expose('/dag_stats')
-    #@login_required
     def dag_stats(self):
-        states = [
-            State.SUCCESS,
-            State.RUNNING,
-            State.FAILED,
-            State.UPSTREAM_FAILED,
-            State.UP_FOR_RETRY,
-            State.QUEUED,
-        ]
+        ds = models.DagStat
+        session = Session()
+
+        qry = (
+            session.query(ds.dag_id, ds.state, ds.count)
+        )
+
+        data = {}
+        for dag_id, state, count in qry:
+            if dag_id not in data:
+                data[dag_id] = {}
+            data[dag_id][state] = count
+
+        payload = {}
+        for dag in dagbag.dags.values():
+            payload[dag.safe_dag_id] = []
+            for state in State.dag_states:
+                try:
+                    count = data[dag.dag_id][state]
+                except Exception:
+                    count = 0
+                d = {
+                    'state': state,
+                    'count': count,
+                    'dag_id': dag.dag_id,
+                    'color': State.color(state)
+                }
+                payload[dag.safe_dag_id].append(d)
+        return wwwutils.json_response(payload)
+
+    @expose('/task_stats')
+    def task_stats(self):
         task_ids = []
         dag_ids = []
         for dag in dagbag.dags.values():
@@ -531,7 +554,7 @@ class Airflow(BaseView):
         payload = {}
         for dag in dagbag.dags.values():
             payload[dag.safe_dag_id] = []
-            for state in states:
+            for state in State.task_states:
                 try:
                     count = data[dag.dag_id][state]
                 except:
@@ -2110,7 +2133,6 @@ class JobModelView(ModelViewOnly):
 
 class DagRunModelView(ModelViewOnly):
     verbose_name_plural = "DAG Runs"
-    can_delete = True
     can_edit = True
     can_create = True
     column_editable_list = ('state',)
@@ -2136,6 +2158,23 @@ class DagRunModelView(ModelViewOnly):
         start_date=datetime_f,
         dag_id=dag_link)
 
+    @action('new_delete', "Delete", "Are you sure you want to delete selected records?")
+    def action_new_delete(self, ids):
+        session = settings.Session()
+        deleted = set(session.query(models.DagRun)
+            .filter(models.DagRun.id.in_(ids))
+            .all())
+        session.query(models.DagRun)\
+            .filter(models.DagRun.id.in_(ids))\
+            .delete(synchronize_session='fetch')
+        session.commit()
+        dirty_ids = []
+        for row in deleted:
+            models.DagStat.set_dirty(row.dag_id, session=session)
+            dirty_ids.append(row.dag_id)
+        models.DagStat.clean_dirty(dirty_ids, session=session)
+        session.close()
+
     @action('set_running', "Set state to 'running'", None)
     def action_set_running(self, ids):
         self.set_dagrun_state(ids, State.RUNNING)
@@ -2153,7 +2192,9 @@ class DagRunModelView(ModelViewOnly):
         try:
             DR = models.DagRun
             count = 0
+            dirty_ids = []
             for dr in session.query(DR).filter(DR.id.in_(ids)).all():
+                dirty_ids.append(dr.dag_id)
                 count += 1
                 dr.state = target_state
                 if target_state == State.RUNNING:
@@ -2161,6 +2202,7 @@ class DagRunModelView(ModelViewOnly):
                 else:
                     dr.end_date = datetime.now()
             session.commit()
+            models.DagStat.clean_dirty(dirty_ids, session=session)
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))
         except Exception as ex:
