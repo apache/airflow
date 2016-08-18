@@ -50,19 +50,21 @@ def release_lock(path, lock_type):
 
 def is_lock_held(path):
     """
-    Returns true when path is held by any lock (either sh or ex) by
+    First element is true when path is held by any lock (either sh or ex) by
     any process, including this one
     """
     if path in sh_lock_fh or path in ex_lock_fh:
-        return True
+        return (True, None)
 
     # local variable - lock will be released once this fh is closes
     fh = open(path, 'w+')
     try:
         fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return False
+        # while fh is in caller scope, the lock is not held
+        return (False, fh)
     except IOError:
-        return True
+        fh.close()
+        return (True, None)
 
 def mkdir_p(path):
     try:
@@ -194,14 +196,19 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
             checked_out_dags = set(d for d in os.listdir(self.dags_folder_container) if (not d.endswith('locks')) and (not d.endswith('lock')))
 
-            print('Checked out DAG folders:')
             for checked_out_dag in checked_out_dags:
-                sha_is_in_use = is_in_use(self.dags_folder_container, checked_out_dag)
-                print(checked_out_dag, sha_is_in_use)
+                (sha_is_in_use, sha_is_in_use_fh) = is_in_use(self.dags_folder_container, checked_out_dag)
                 if not sha_is_in_use:
                     directory_to_reap = self.dags_folder_container + '/' + checked_out_dag
+                    print('reaping {}', directory_to_reap)
+
+                    dags_folder_container_lock = self.dags_folder_container + '/lock'
+
+                    acquire_lock(dags_folder_container_lock, 'ex')
                     print('reaping...')
-                    # todo: lock this operation
                     shutil.rmtree(directory_to_reap)
+
+                    sha_is_in_use_fh.close()
+                    release_lock(dags_folder_container_lock, 'ex')
 
             time.sleep(1)
