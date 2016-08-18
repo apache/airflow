@@ -12,6 +12,57 @@ import fcntl
 
 from airflow.version_control.dag_folder_version_manager import DagFolderVersionManager
 
+# these must be a module-level variable so that the file handles are not
+# garbage collected
+sh_lock_fh = {}
+ex_lock_fh = {}
+
+def acquire_lock(path, lock_type):
+    """
+    Acquire a shared or exclusive flock, and block until the lock is taken
+    Not thread-safe
+    The same process can acquire a lock on the same file twice
+    """
+    assert lock_type in ['sh', 'ex']
+
+    if lock_type == 'ex':
+        if path in ex_lock_fh:
+            return
+        fh = open(path, 'w+')
+        ex_lock_fh[path] = fh
+        fcntl.flock(fh, fcntl.LOCK_EX)
+    else:
+        if path in sh_lock_fh:
+            return
+        fh = open(path, 'w+')
+        sh_lock_fh[path] = fh
+        fcntl.flock(fh, fcntl.LOCK_SH)
+
+
+def release_lock(path, lock_type):
+    assert lock_type in ['sh', 'ex']
+
+    if lock_type == 'ex':
+        del ex_lock_fh[path]
+    else:
+        del sh_lock_fh[path]
+
+
+def is_lock_held(path):
+    """
+    Returns true when path is held by any lock (either sh or ex) by
+    any process, including this one
+    """
+    if path in sh_lock_fh or path in ex_lock_fh:
+        return True
+
+    # local variable - lock will be released once this fh is closes
+    fh = open(path, 'w+')
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return False
+    except IOError:
+        return True
 
 def mkdir_p(path):
     try:
@@ -22,6 +73,20 @@ def mkdir_p(path):
         else:
             raise
 
+def creat(path):
+
+    """Creates a file if it does not exist and opens it"""
+
+    try:
+        file_handle = os.open(
+            path,
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY
+        )
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            pass
+        else:
+            raise
 
 def git_clone_retry(source, target):
     """
@@ -68,6 +133,10 @@ def git_checkout_retry(source, git_sha_hash):
             raise ValueError('oops')
 
 
+def is_in_use(dags_folder_container, git_sha_hash):
+    lock_path = dags_folder_container + '/locks/' + git_sha_hash
+    return is_lock_held(lock_path)
+
 class GitDagFolderVersionManager(DagFolderVersionManager):
 
 
@@ -79,37 +148,30 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
         mkdir_p(self.dags_folder_container)
 
         dags_folder_container_lock = self.dags_folder_container + '/lock'
+        checked_out_dag_locks_dir = self.dags_folder_container + '/locks'
 
-        try:
-            file_handle = os.open(
-                dags_folder_container_lock,
-                os.O_CREAT | os.O_EXCL | os.O_WRONLY
-            )
-        except OSError as e:
-            if e.errno == errno.EEXIST:
-                pass
-            else:
-                raise
+        mkdir_p(checked_out_dag_locks_dir)
 
-        lock_fh = open(dags_folder_container_lock, 'w+')
-
-        fcntl.flock(lock_fh, fcntl.LOCK_EX)
+        creat(dags_folder_container_lock)
+        acquire_lock(dags_folder_container_lock, 'ex') # lock for git checkout/clone
 
         master_dags_folder_path = os.path.expanduser(self.master_dags_folder_path)
 
         dags_folder_path = self.dags_folder_container + "/" + git_sha_hash
 
-        print(os.getpid(), 'calling git_clone')
         git_clone_retry(master_dags_folder_path, dags_folder_path)
-        print(os.getpid(), 'cloned', dags_folder_path)
         sys.stdout.flush()
-        print(os.getpid(), 'calling git_checkout')
         git_checkout_retry(dags_folder_path, git_sha_hash)
-        print(os.getpid(), 'checked out', git_sha_hash)
         sys.stdout.flush()
 
-        fcntl.flock(lock_fh, fcntl.LOCK_UN)
-        lock_fh.close()
+        release_lock(dags_folder_container_lock, 'ex')   # done with git, release lock
+
+        checked_out_dag_lock = checked_out_dag_locks_dir + '/' + git_sha_hash
+
+        creat(checked_out_dag_lock)
+        acquire_lock(checked_out_dag_lock, 'sh')
+
+        # hold lock until process exit
 
         return dags_folder_path
 
@@ -127,26 +189,19 @@ class GitDagFolderVersionManager(DagFolderVersionManager):
 
         return out.replace('\n', '')
 
-    def on_worker_start(self, celery_pid):
+    def on_worker_start(self):
         while True:
-            celery_workers = psutil.Process(celery_pid).children()
 
-            dag_versions_in_use = set()
+            checked_out_dags = set(d for d in os.listdir(self.dags_folder_container) if (not d.endswith('locks')) and (not d.endswith('lock')))
 
-            for celery_worker in celery_workers:
-                for celery_child in psutil.Process(celery_worker.pid).children():
-                    cmdline = ' '.join(celery_child.cmdline()).split(' ')
-                    for arg in cmdline:
-                        if arg.startswith('--dag-version='):
-                            dag_versions_in_use.add(arg[len('--dag-version='):])
-
-            checked_out_dags = set(os.listdir(self.dags_folder_container))
-
-            shas_to_reap =checked_out_dags - dag_versions_in_use
-
-            for sha in shas_to_reap:
-                directory_to_reap = self.dags_folder_container + '/' + sha
-                print('reaping ', directory_to_reap)
-                # shutil.rmtree(directory_to_reap)
+            print('Checked out DAG folders:')
+            for checked_out_dag in checked_out_dags:
+                sha_is_in_use = is_in_use(self.dags_folder_container, checked_out_dag)
+                print(checked_out_dag, sha_is_in_use)
+                if not sha_is_in_use:
+                    directory_to_reap = self.dags_folder_container + '/' + checked_out_dag
+                    print('reaping...')
+                    # todo: lock this operation
+                    shutil.rmtree(directory_to_reap)
 
             time.sleep(1)

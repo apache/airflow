@@ -121,7 +121,6 @@ def get_dag(dag_id, subdir, dag_version):
     if dag_version:
         assert("DAGS_FOLDER" in subdir)
 
-        print(os.getpid(), 'calling vc.checkout_dags_folder')
         versioned_dags_folder_path = \
             airflow.version_control.checkout_dags_folder(dag_version)
         path_to_dag = subdir.replace("DAGS_FOLDER", versioned_dags_folder_path)
@@ -820,7 +819,6 @@ def worker(args):
         )
         vc_proc = multiprocessing.Process(
             target=airflow.version_control.on_worker_start,
-            args=(celery_proc.pid,)
         )
         vc_proc.start()
 
