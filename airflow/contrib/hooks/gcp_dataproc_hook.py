@@ -107,6 +107,14 @@ class _DataProcJobBuilder:
         if archives is not None:
             self.job["job"][self.job_type]["archiveUris"] = archives
 
+    def add_file_uris(self, files):
+        if files is not None:
+            self.job["job"][self.job_type]["fileUris"] = files
+
+    def add_python_file_uris(self, pyfiles):
+        if pyfiles is not None:
+            self.job["job"][self.job_type]["pythonFileUris"] = pyfiles
+
     def set_main(self, main_jar, main_class):
         if main_class is not None and main_jar is not None:
             raise Exception("Set either main_jar or main_class")

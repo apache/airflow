@@ -256,6 +256,7 @@ class DataProcSparkOperator(BaseOperator):
             main_class=None,
             arguments=None,
             archives=None,
+            files=None,
             dataproc_cluster='cluster-1',
             dataproc_spark_properties=None,
             dataproc_spark_jars=None,
@@ -277,6 +278,8 @@ class DataProcSparkOperator(BaseOperator):
         :param archives: List of archived files that will be unpacked in the work
             directory. Should be stored in Cloud Storage.
         :type archives: list
+        :param files: List of files to be copied to the working directory
+        :type files: list
         :param dataproc_cluster: The id of the DataProc cluster.
         :type dataproc_cluster: string
         :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
@@ -299,6 +302,7 @@ class DataProcSparkOperator(BaseOperator):
         self.main_class = main_class
         self.arguments = arguments
         self.archives = archives
+        self.files = files
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_spark_properties
         self.dataproc_jars = dataproc_spark_jars
@@ -313,6 +317,7 @@ class DataProcSparkOperator(BaseOperator):
         job.add_args(self.arguments)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
+        job.add_file_uris(self.files)
 
         hook.submit(hook.project_id, job.build())
 
@@ -332,6 +337,7 @@ class DataProcHadoopOperator(BaseOperator):
             main_class=None,
             arguments=None,
             archives=None,
+            files=None,
             dataproc_cluster='cluster-1',
             dataproc_hadoop_properties=None,
             dataproc_hadoop_jars=None,
@@ -353,6 +359,8 @@ class DataProcHadoopOperator(BaseOperator):
         :param archives: List of archived files that will be unpacked in the work
             directory. Should be stored in Cloud Storage.
         :type archives: list
+        :param files: List of files to be copied to the working directory
+        :type files: list
         :param dataproc_cluster: The id of the DataProc cluster.
         :type dataproc_cluster: string
         :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
@@ -375,6 +383,7 @@ class DataProcHadoopOperator(BaseOperator):
         self.main_class = main_class
         self.arguments = arguments
         self.archives = archives
+        self.files = files
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_hadoop_properties
         self.dataproc_jars = dataproc_hadoop_jars
@@ -389,6 +398,7 @@ class DataProcHadoopOperator(BaseOperator):
         job.add_args(self.arguments)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
+        job.add_file_uris(self.files)
 
         hook.submit(hook.project_id, job.build())
 
@@ -407,6 +417,8 @@ class DataProcPySparkOperator(BaseOperator):
             main,
             arguments=None,
             archives=None,
+            pyfiles=None,
+            files=None,
             dataproc_cluster='cluster-1',
             dataproc_pyspark_properties=None,
             dataproc_pyspark_jars=None,
@@ -425,6 +437,11 @@ class DataProcPySparkOperator(BaseOperator):
          :param archives: List of archived files that will be unpacked in the work
             directory. Should be stored in Cloud Storage.
          :type archives: list
+         :param files: List of files to be copied to the working directory
+         :type files: list
+         :param pyfiles: List of Python files to pass to the PySpark framework.
+            Supported file types: .py, .egg, and .zip
+         :type pyfiles: list
          :param dataproc_cluster: The id of the DataProc cluster.
          :type dataproc_cluster: string
          :param dataproc_pyspark_properties: Map for the Pig properties. Ideal to put in
@@ -446,6 +463,8 @@ class DataProcPySparkOperator(BaseOperator):
         self.main = main
         self.arguments = arguments
         self.archives = archives
+        self.files = files
+        self.pyfiles = pyfiles
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_pyspark_properties
         self.dataproc_jars = dataproc_pyspark_jars
@@ -460,5 +479,7 @@ class DataProcPySparkOperator(BaseOperator):
         job.add_args(self.arguments)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
+        job.add_file_uris(self.files)
+        job.add_python_file_uris(self.pyfiles)
 
         hook.submit(hook.project_id, job.build())
