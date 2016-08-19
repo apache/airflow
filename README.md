@@ -83,6 +83,7 @@ Currently **officially** using Airflow:
 1. [Airbnb](http://airbnb.io/) [[@mistercrunch](https://github.com/mistercrunch), [@artwr](https://github.com/artwr)]
 1. [Agari](https://github.com/agaridata) [[@r39132](https://github.com/r39132)]
 1. [allegro.pl](http://allegro.tech/) [[@kretes](https://github.com/kretes)]
+1. [Apigee](https://apigee.com) [[@btallman](https://github.com/btallman)]
 1. [Bellhops](https://github.com/bellhops)
 1. BlueApron [[@jasonjho](https://github.com/jasonjho) & [@matthewdavidhauser](https://github.com/matthewdavidhauser)]
 1. [Blue Yonder](http://www.blue-yonder.com) [[@blue-yonder](https://github.com/blue-yonder)]
