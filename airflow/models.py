@@ -42,6 +42,8 @@ import sys
 import textwrap
 import traceback
 import warnings
+import hashlib
+
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -245,7 +247,9 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             self.logger.debug("Importing {}".format(filepath))
             org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = 'unusual_prefix_' + org_mod_name
+            mod_name = ('unusual_prefix_'
+                        + hashlib.sha1(filepath.encode('utf-8')).hexdigest()
+                        + '_' + org_mod_name)
 
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
