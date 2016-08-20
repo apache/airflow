@@ -57,6 +57,7 @@ _operators = {
     'dummy_operator': ['DummyOperator'],
     'email_operator': ['EmailOperator'],
     'hive_to_samba_operator': ['Hive2SambaOperator'],
+    'latest_only_operator': ['LatestOnlyOperator'],
     'mysql_operator': ['MySqlOperator'],
     'sqlite_operator': ['SqliteOperator'],
     'mysql_to_hive': ['MySqlToHiveTransfer'],
