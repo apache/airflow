@@ -121,7 +121,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                                delegate_to=self.delegate_to)
 
         schema_fields = self.schema_fields if self.schema_fields else json.loads(gcs_hook.download(self.bucket, self.schema_object))
-        source_uris = map(lambda schema_object: 'gs://{}/{}'.format(self.bucket, schema_object), self.source_objects)
+        source_uris = ['gs://{}/{}'.format(self.bucket, schema_object) for schema_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
         cursor.run_load(
