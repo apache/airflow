@@ -1386,6 +1386,8 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             "/admin/airflow/paused?"
             "dag_id=example_python_operator&is_paused=false")
+        response = self.app.get("/admin/xcom", follow_redirects=True)
+        assert "Xcoms" in response.data.decode('utf-8')
 
     def test_charts(self):
         session = Session()

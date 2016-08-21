@@ -2161,6 +2161,27 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
             form.val.data = '*' * 8
 
 
+class XComView(wwwutils.LoginMixin, AirflowModelView):
+    verbose_name = "XCom"
+    verbose_name_plural = "XComs"
+    page_size = 20
+
+    form_columns = (
+        'key',
+        'value',
+        'execution_date',
+        'task_id',
+        'dag_id',
+    )
+
+    form_extra_fields = {
+        'value': StringField('Value'),
+    }
+
+    column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+
+
 class JobModelView(ModelViewOnly):
     verbose_name_plural = "jobs"
     verbose_name = "job"

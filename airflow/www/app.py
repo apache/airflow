@@ -89,6 +89,8 @@ def create_app(config=None):
             models.Connection, Session, name="Connections", category="Admin"))
         av(vs.VariableView(
             models.Variable, Session, name="Variables", category="Admin"))
+        av(vs.XComView(
+            models.XCom, Session, name="XComs", category="Admin"))
 
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
