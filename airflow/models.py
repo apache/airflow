@@ -3870,7 +3870,7 @@ class DagRun(Base):
         logging.info("Updating state for {} considering {} task(s)"
                      .format(self, len(tis)))
 
-        for ti in tis:
+        for ti in list(tis):
             # skip in db?
             if ti.state == State.REMOVED:
                 tis.remove(ti)
