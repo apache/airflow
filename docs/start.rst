@@ -13,7 +13,7 @@ The installation is quick and straightforward.
     # install from pypi using pip
     pip install airflow
 
-    # initialize the database
+    # initialize the sqlite database
     airflow initdb
 
     # start the web server, default port is 8080
