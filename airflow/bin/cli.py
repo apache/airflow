@@ -690,12 +690,21 @@ def webserver(args):
     num_workers = args.workers or conf.get('webserver', 'workers')
     worker_timeout = (args.worker_timeout or
                       conf.get('webserver', 'webserver_worker_timeout'))
+    ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
+    ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
+    if ssl_cert is None and ssl_key is not None:
+        raise AirflowException(
+            'An SSL certificate must also be provided for use with ' + ssl_key)
+    if ssl_cert is not None and ssl_key is None:
+        raise AirflowException(
+            'An SSL key must also be provided for use with ' + ssl_cert)
 
     if args.debug:
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app.run(debug=True, port=args.port, host=args.hostname)
+        app.run(debug=True, port=args.port, host=args.hostname,
+                ssl_context=(ssl_cert, ssl_key))
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
         print(
@@ -727,6 +736,8 @@ def webserver(args):
 
         if args.daemon:
             run_args += ["-D"]
+        if ssl_cert:
+            run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
         run_args += ["airflow.www.app:cached_app()"]
 
@@ -1137,6 +1148,14 @@ class CLIFactory(object):
             default=conf.get('webserver', 'WEB_SERVER_PORT'),
             type=int,
             help="The port on which to run the server"),
+        'ssl_cert': Arg(
+            ("--ssl_cert", ),
+            default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
+            help="Path to the SSL certificate for the webserver"),
+        'ssl_key': Arg(
+            ("--ssl_key", ),
+            default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
+            help="Path to the key to use with the SSL certificate"),
         'workers': Arg(
             ("-w", "--workers"),
             default=conf.get('webserver', 'WORKERS'),
@@ -1320,7 +1339,7 @@ class CLIFactory(object):
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
-                     'error_logfile', 'log_file', 'debug'),
+                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
