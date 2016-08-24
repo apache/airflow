@@ -1406,6 +1406,8 @@ class TaskInstance(Base):
 
                     # If the task returns a result, push an XCom containing it
                     if result is not None:
+                        logging.info("XCom pushing key={} value={}".format(
+                            XCOM_RETURN_KEY, value=result))
                         self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                     task_copy.post_execute(context=context)
