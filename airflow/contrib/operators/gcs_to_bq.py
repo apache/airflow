@@ -14,6 +14,7 @@
 
 import json
 import logging
+import six
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
@@ -25,29 +26,34 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     """
     Loads files from Google cloud storage into BigQuery.
     """
-    template_fields = ('bucket','source_objects','schema_object','destination_project_dataset_table')
+    template_fields = (
+            'bucket',
+            'source_objects',
+            'schema_object',
+            'destination_project_dataset_table')
     template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
     @apply_defaults
     def __init__(
-        self,
-        bucket,
-        source_objects,
-        destination_project_dataset_table,
-        schema_fields=False,
-        schema_object=False,
-        source_format='CSV',
-        create_disposition='CREATE_IF_NEEDED',
-        skip_leading_rows=0,
-        write_disposition='WRITE_EMPTY',
-        field_delimiter=',',
-        max_id_key=False,
-        bigquery_conn_id='bigquery_default',
-        google_cloud_storage_conn_id='google_cloud_storage_default',
-        delegate_to=None,
-        *args,
-        **kwargs):
+            self,
+            bucket,
+            source_objects,
+            destination_project_dataset_table,
+            schema_fields=None,
+            schema_object=None,
+            autodetect=False,
+            source_format='CSV',
+            create_disposition='CREATE_IF_NEEDED',
+            skip_leading_rows=0,
+            write_disposition='WRITE_EMPTY',
+            field_delimiter=',',
+            max_id_key=False,
+            bigquery_conn_id='bigquery_default',
+            google_cloud_storage_conn_id='google_cloud_storage_default',
+            delegate_to=None,
+            *args,
+            **kwargs):
         """
         The schema to be used for the BigQuery table may be specified in one of
         two ways. You may either directly pass the schema fields in, or you may
@@ -58,21 +64,29 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type bucket: string
         :param source_objects: List of Google cloud storage URIs to load from.
         :type object: list
-        :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table> BigQuery table to load data
-            into. If <project> is not included, project will be the project defined in the connection json.
+        :param destination_project_dataset_table: The dotted
+            (<project>.)<dataset>.<table> BigQuery table to load data
+            into. If <project> is not included, project will be the project
+            defined in the connection json.
         :type destination_project_dataset_table: string
         :param schema_fields: If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         :type schema_fields: list
-        :param schema_object: If set, a GCS object path pointing to a .json file that contains the schema for the table.
+        :param schema_object: If set, a GCS object path pointing to a .json
+            file that contains the schema for the table.
         :param schema_object: string
         :param source_format: File format to export.
         :type source_format: string
-        :param create_disposition: The create disposition if the table doesn't exist.
+        :param create_disposition: The create disposition if the table doesn't
+            exist.
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load.createDisposition
         :type create_disposition: string
-        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
+        :param skip_leading_rows: Number of rows to skip when loading from a
+            CSV.
         :type skip_leading_rows: int
-        :param write_disposition: The write disposition if the table already exists.
+        :param write_disposition: The write disposition if the table already
+            exists.
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load.writeDisposition
         :type write_disposition: string
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
@@ -80,8 +94,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             that's to be loaded. Thsi will be used to select the MAX value from
             BigQuery after the load occurs. The results will be returned by the
             execute() command, which in turn gets stored in XCom for future
-            operators to use. This can be helpful with incremental loads--during
-            future executions, you can pick up from the max ID.
+            operators to use. This can be helpful with incremental
+            loads--during future executions, you can pick up from the max ID.
         :type max_id_key: string
         :param bigquery_conn_id: Reference to a specific BigQuery hook.
         :type bigquery_conn_id: string
@@ -93,7 +107,21 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             delegation enabled.
         :type delegate_to: string
         """
-        super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
+
+        if (
+                schema_fields is None
+                and schema_object is None
+                and autodetect is False):
+            raise ValueError(
+                'At least one of `schema_fields`, `schema_object`, or '
+                '`autodetect` must be passed.')
+
+        if isinstance(source_objects, six.string_types):
+            raise ValueError(
+                'source_objects should be a list or tuple, not a string.')
+
+        super(GoogleCloudStorageToBigQueryOperator, self).__init__(
+            *args, **kwargs)
 
         # GCS config
         self.bucket = bucket
@@ -104,6 +132,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.destination_project_dataset_table = destination_project_dataset_table
         self.schema_fields = schema_fields
         self.source_format = source_format
+        self.autodetect = autodetect
+
         self.create_disposition = create_disposition
         self.skip_leading_rows = skip_leading_rows
         self.write_disposition = write_disposition
@@ -115,19 +145,30 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        gcs_hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                                          delegate_to=self.delegate_to)
-        bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                               delegate_to=self.delegate_to)
+        gcs_hook = GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            delegate_to=self.delegate_to)
+        bq_hook = BigQueryHook(
+            bigquery_conn_id=self.bigquery_conn_id,
+            delegate_to=self.delegate_to)
 
-        schema_fields = self.schema_fields if self.schema_fields else json.loads(gcs_hook.download(self.bucket, self.schema_object))
-        source_uris = ['gs://{}/{}'.format(self.bucket, schema_object) for schema_object in self.source_objects]
+        if not self.schema_fields and self.schema_object:
+            schema_fields = json.loads(
+                gcs_hook.download(self.bucket, self.schema_object))
+        else:
+            schema_fields = self.schema_fields
+
+        source_uris = [
+            'gs://{}/{}'.format(self.bucket, schema_object)
+            for schema_object in self.source_objects]
+
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
         cursor.run_load(
             destination_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
             source_uris=source_uris,
+            schema_fields=schema_fields,
+            autodetect=self.autodetect,
             source_format=self.source_format,
             create_disposition=self.create_disposition,
             skip_leading_rows=self.skip_leading_rows,
@@ -135,8 +176,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             field_delimiter=self.field_delimiter)
 
         if self.max_id_key:
-            cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, self.destination_project_dataset_table))
+            cursor.execute('SELECT MAX({}) FROM {}'.format(
+                self.max_id_key, self.destination_project_dataset_table))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
-            logging.info('Loaded BQ data with max {}.{}={}'.format(self.destination_project_dataset_table, self.max_id_key, max_id))
+            logging.info('Loaded BQ data with max {}.{}={}'.format(
+                self.destination_project_dataset_table,
+                self.max_id_key,
+                max_id))
             return max_id
