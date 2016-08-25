@@ -314,22 +314,29 @@ default_queue = default
 # listen (in seconds).
 job_heartbeat_sec = 5
 
-# The scheduler constantly tries to trigger new tasks (look at the
-# scheduler section in the docs for more information). This defines
-# how often the scheduler should run (in seconds).
+# When the scheduler is running, it periodically updates a timestamp in the DB
+# to indicate that it's running. This controls how often this timestamp is
+# updated.
 scheduler_heartbeat_sec = 5
 
 # after how much time should the scheduler terminate in seconds
 # -1 indicates to run continuously (see also num_runs)
 run_duration = -1
 
-# after how much time a new DAGs should be picked up from the filesystem
-min_file_process_interval = 0
+# On startup, the DAG directory is scanned for DAG definition files. After the
+# the initial scan, subsequent scans are performed with an interval of this
+# many seconds.
+dag_dir_list_interval = 180
 
-dag_dir_list_interval = 300
-
-# How often should stats be printed to the logs
+# To aid debugging, a text table containing a list of DAG definition file names
+# and the corresponding processing time is periodically printed to the log.
+# This controls how often this table should be printed.
 print_stats_interval = 30
+
+# The scheduler should schedule the DAGs in a DAG definition file no more than
+# once every (this many) seconds. 0 means that it should try to schedule a DAG
+# definition file as often as possible.
+min_file_process_interval = 0
 
 child_process_log_directory = /tmp/airflow/scheduler/logs
 
