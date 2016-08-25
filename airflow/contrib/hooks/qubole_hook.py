@@ -22,10 +22,12 @@ import six
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
+from airflow.utils.state import State
 
 from qds_sdk.qubole import Qubole
-from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, PigCommand, ShellCommand, \
-    SparkCommand, DbTapQueryCommand, DbExportCommand, DbImportCommand
+from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand, \
+    PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
+    DbImportCommand
 
 
 COMMAND_CLASSES = {
@@ -45,15 +47,24 @@ HYPHEN_ARGS = ['cluster_label', 'app_id']
 POSITIONAL_ARGS = ['sub_command', 'parameters']
 
 COMMAND_ARGS = {
-    "hivecmd": ['query', 'script_location', 'macros', 'tags', 'sample_size', 'cluster_label', 'name'],
+    "hivecmd": ['query', 'script_location', 'macros', 'tags', 'sample_size',
+                'cluster_label', 'name'],
     'prestocmd': ['query', 'script_location', 'macros', 'tags', 'cluster_label', 'name'],
     'hadoopcmd': ['sub_command', 'tags', 'cluster_label', 'name'],
-    'shellcmd': ['script', 'script_location', 'files', 'archives', 'parameters', 'tags', 'cluster_label', 'name'],
-    'pigcmd': ['script', 'script_location', 'parameters', 'tags', 'cluster_label', 'name'],
+    'shellcmd': ['script', 'script_location', 'files', 'archives', 'parameters', 'tags',
+                 'cluster_label', 'name'],
+    'pigcmd': ['script', 'script_location', 'parameters', 'tags', 'cluster_label',
+               'name'],
     'dbtapquerycmd': ['db_tap_id', 'query', 'macros', 'tags', 'name'],
-    'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags', 'cluster_label', 'language', 'app_id', 'name', 'arguments', 'user_program_arguments'],
-    'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table', 'db_update_mode', 'db_update_keys', 'export_dir', 'fields_terminated_by', 'tags', 'name'],
-    'dbimportcmd': ['mode', 'hive_table', 'dbtap_id', 'db_table', 'where_clause', 'parallelism', 'extract_query', 'boundary_query', 'split_column', 'tags', 'name']
+    'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags',
+                 'cluster_label', 'language', 'app_id', 'name', 'arguments',
+                 'user_program_arguments'],
+    'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
+                    'db_update_mode', 'db_update_keys', 'export_dir',
+                    'fields_terminated_by', 'tags', 'name'],
+    'dbimportcmd': ['mode', 'hive_table', 'dbtap_id', 'db_table', 'where_clause',
+                    'parallelism', 'extract_query', 'boundary_query', 'split_column',
+                    'tags', 'name']
 }
 
 
@@ -67,22 +78,41 @@ class QuboleHook(BaseHook):
         self.cls = COMMAND_CLASSES[self.kwargs['command_type']]
         self.cmd = None
 
+    @staticmethod
+    def handle_failure_retry(context):
+        ti = context['ti']
+        cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
+
+        if cmd_id is not None:
+            logger = logging.getLogger("QuboleHook")
+            cmd = Command.find(cmd_id)
+            if cmd is not None:
+                if cmd.status == 'done':
+                    logger.info('Command ID: %s has been succeeded, hence marking this '
+                                'TI as Success.', cmd_id)
+                    ti.state = State.SUCCESS
+                elif cmd.status == 'running':
+                    logger.info('Cancelling the Qubole Command Id: %s', cmd_id)
+                    cmd.cancel()
+
     def execute(self, context):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        logging.info("Qubole command created with Id: {0} and Status: {1}".format(str(self.cmd.id), self.cmd.status))
+        logging.info("Qubole command created with Id: %s and Status: %s",
+                     self.cmd.id, self.cmd.status)
 
         while not Command.is_done(self.cmd.status):
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)
-            logging.info("Command Id: {0} and Status: {1}".format(str(self.cmd.id), self.cmd.status))
+            logging.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
-            logging.info("Logs for Command Id: {0} \n{1}".format(str(self.cmd.id), self.cmd.get_log()))
+            logging.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
-            raise AirflowException('Command Id: {0} failed with Status: {1}'.format(self.cmd.id, self.cmd.status))
+            raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
+                                   self.cmd.id, self.cmd.status))
 
     def kill(self, ti):
         """
@@ -91,20 +121,20 @@ class QuboleHook(BaseHook):
         :return: response from Qubole
         """
         if self.cmd is None:
-            cmd_id = ti.xcom_pull(key="return_value", task_ids=self.task_id)
+            cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
-            logging.info('Sending KILL signal to Qubole Command Id: {0}'.format(self.cmd.id))
+            logging.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
         """
-        Get results (or just s3 locations) of a command from Qubole and save it into a file
+        Get results (or just s3 locations) of a command from Qubole and save into a file
         :param ti: Task Instance of the dag, used to determine the Quboles command id
         :param fp: Optional file pointer, will create one and return if None passed
         :param inline: True to download actual results, False to get s3 locations only
-        :param delim: Replaces the CTL-A chars with the given delim, defalt to ',' if None given
-        :param fetch: when inline is True, get results directly from s3 if results are large
+        :param delim: Replaces the CTL-A chars with the given delim, defaults to ','
+        :param fetch: when inline is True, get results directly from s3 (if large)
         :return: file location containing actual results or s3 locations of results
         """
         if fp is None:
