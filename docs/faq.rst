@@ -29,7 +29,7 @@ Here are some of the common causes:
   needs to have succeeded (except if it is the first run for that task).
   Also, if ``wait_for_downstream=True``, make sure you understand
   what it means.
-  You can view how these properties are set from the ``Task Details``
+  You can view how these properties are set from the ``Task Instance Details``
   page for your task.
 
 - Are the DagRuns you need created and active? A DagRun represents a specific

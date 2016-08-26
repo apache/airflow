@@ -22,7 +22,7 @@ import os
 import unittest
 import time
 
-from airflow import models, AirflowException
+from airflow import models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
@@ -30,6 +30,7 @@ from airflow.models import DagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
 from mock import patch
 from nose_parameterized import parameterized
@@ -288,11 +289,15 @@ class TaskInstanceTest(unittest.TestCase):
         dag >> op5
         self.assertIs(op5.dag, dag)
 
-    def test_run_pooling_task(self):
+    @patch.object(TI, 'pool_full')
+    def test_run_pooling_task(self, mock_pool_full):
         """
         test that running task with mark_success param update task state as
         SUCCESS without running task.
         """
+        # Mock the pool out with a full pool because the pool doesn't actually exist
+        mock_pool_full.return_value = True
+
         dag = models.DAG(dag_id='test_run_pooling_task')
         task = DummyOperator(task_id='test_run_pooling_task_op', dag=dag,
                              pool='test_run_pooling_task_pool', owner='airflow',
@@ -302,11 +307,15 @@ class TaskInstanceTest(unittest.TestCase):
         ti.run()
         self.assertEqual(ti.state, models.State.QUEUED)
 
-    def test_run_pooling_task_with_mark_success(self):
+    @patch.object(TI, 'pool_full')
+    def test_run_pooling_task_with_mark_success(self, mock_pool_full):
         """
         test that running task with mark_success param update task state as SUCCESS
         without running task.
         """
+        # Mock the pool out with a full pool because the pool doesn't actually exist
+        mock_pool_full.return_value = True
+
         dag = models.DAG(dag_id='test_run_pooling_task_with_mark_success')
         task = DummyOperator(
             task_id='test_run_pooling_task_with_mark_success_op',
@@ -339,7 +348,6 @@ class TaskInstanceTest(unittest.TestCase):
             task=task, execution_date=datetime.datetime.now())
         ti.run()
         self.assertTrue(ti.state == models.State.SKIPPED)
-
 
     def test_retry_delay(self):
         """
@@ -378,10 +386,14 @@ class TaskInstanceTest(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
 
-    def test_retry_handling(self):
+    @patch.object(TI, 'pool_full')
+    def test_retry_handling(self, mock_pool_full):
         """
         Test that task retries are handled properly
         """
+        # Mock the pool with a pool with slots open since the pool doesn't actually exist
+        mock_pool_full.return_value = False
+
         dag = models.DAG(dag_id='test_retry_handling')
         task = BashOperator(
             task_id='test_retry_handling_op',
@@ -410,6 +422,10 @@ class TaskInstanceTest(unittest.TestCase):
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
         self.assertEqual(ti.try_number, 2)
+
+        # Clear the TI state since you can't run a task with a FAILED state without
+        # clearing it first
+        ti.set_state(None, settings.Session())
 
         # third run -- up for retry
         run_with_error(ti)
@@ -534,10 +550,15 @@ class TaskInstanceTest(unittest.TestCase):
         run_date = task.start_date + datetime.timedelta(days=5)
 
         ti = TI(downstream, run_date)
-        completed = ti.evaluate_trigger_rule(
-            successes=successes, skipped=skipped, failed=failed,
-            upstream_failed=upstream_failed, done=done,
+        dep_results = TriggerRuleDep()._evaluate_trigger_rule(
+            ti=ti,
+            successes=successes,
+            skipped=skipped,
+            failed=failed,
+            upstream_failed=upstream_failed,
+            done=done,
             flag_upstream_failed=flag_upstream_failed)
+        completed = all([dep.passed for dep in dep_results])
 
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)

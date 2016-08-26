@@ -89,7 +89,7 @@ class SensorTimeoutTest(unittest.TestCase):
         self.assertRaises(
             AirflowSensorTimeout,
             t.run,
-            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, force=True)
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
 class HttpSensorTests(unittest.TestCase):

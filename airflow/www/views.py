@@ -29,6 +29,7 @@ import json
 from lxml import html
 
 import inspect
+from textwrap import dedent
 import traceback
 
 import sqlalchemy as sqla
@@ -61,6 +62,7 @@ from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
@@ -799,6 +801,8 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def task(self):
+        TI = models.TaskInstance
+
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         # Carrying execution_date through, even though it's irrelevant for
@@ -807,15 +811,17 @@ class Airflow(BaseView):
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+
         if not dag or task_id not in dag.task_ids:
             flash(
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
             return redirect('/admin/')
-        task = dag.get_task(task_id)
-        task = copy.copy(task)
+        task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
+        ti = TI(task=task, execution_date=dttm)
+        ti.refresh_from_db()
 
         attributes = []
         for attr_name in dir(task):
@@ -825,7 +831,6 @@ class Airflow(BaseView):
                                 attr_name not in attr_renderer:
                     attributes.append((attr_name, str(attr)))
 
-        title = "Task Details"
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
         for attr_name in attr_renderer:
@@ -833,9 +838,29 @@ class Airflow(BaseView):
                 source = getattr(task, attr_name)
                 special_attrs_rendered[attr_name] = attr_renderer[attr_name](source)
 
+        no_failed_deps_result = [(
+            "Unknown",
+            dedent("""\
+            All dependencies are met but the task instance is not running. In most cases this just means that the task will probably be scheduled soon unless:<br/>
+            - The scheduler is down or under heavy load<br/>
+            {}
+            <br/>
+            If this task instance does not start soon please contact your Airflow administrator for assistance."""
+                   .format(
+                       "- This task instance already ran and had it's state changed manually (e.g. cleared in the UI)<br/>"
+                       if ti.state == State.NONE else "")))]
+
+        # Use the scheduler's context to figure out which dependencies are not met
+        dep_context = DepContext(SCHEDULER_DEPS)
+        failed_dep_reasons = [(dep.dep_name, dep.reason) for dep in
+                              ti.get_failed_dep_statuses(
+                                  dep_context=dep_context)]
+
+        title = "Task Instance Details"
         return self.render(
             'airflow/task.html',
             attributes=attributes,
+            failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
             special_attrs_rendered=special_attrs_rendered,
@@ -893,8 +918,9 @@ class Airflow(BaseView):
 
         execution_date = request.args.get('execution_date')
         execution_date = dateutil.parser.parse(execution_date)
-        force = request.args.get('force') == "true"
-        deps = request.args.get('deps') == "true"
+        ignore_all_deps = request.args.get('ignore_all_deps') == "true"
+        ignore_task_deps = request.args.get('ignore_task_deps') == "true"
+        ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
         try:
             from airflow.executors import DEFAULT_EXECUTOR as executor
@@ -908,9 +934,29 @@ class Airflow(BaseView):
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
+        ti.refresh_from_db()
+
+        # Make sure the task instance can be queued
+        dep_context = DepContext(
+            deps=QUEUE_DEPS,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state)
+        failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
+        if failed_deps:
+            failed_deps_str = ", ".join(
+                ["{}: {}".format(dep.dep_name, dep.reason) for dep in failed_deps])
+            flash("Could not queue task instance for execution, dependencies not met: "
+                  "{}".format(failed_deps_str),
+                  "error")
+            return redirect(origin)
+
         executor.start()
         executor.queue_task_instance(
-            ti, force=force, ignore_dependencies=deps)
+            ti,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state)
         executor.heartbeat()
         flash(
             "Sent {} to the message queue, "
@@ -926,7 +972,6 @@ class Airflow(BaseView):
         task_id = request.args.get('task_id')
         origin = request.args.get('origin')
         dag = dagbag.get_dag(dag_id)
-        task = dag.get_task(task_id)
 
         execution_date = request.args.get('execution_date')
         execution_date = dateutil.parser.parse(execution_date)

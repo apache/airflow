@@ -125,7 +125,7 @@
               <hr/>
           </div>
           <button id="btn_task" type="button" class="btn btn-primary">
-            Task Details
+            Task Instance Details
           </button>
           <button id="btn_rendered" type="button" class="btn btn-primary">
             Rendered
@@ -142,14 +142,21 @@
             Run
           </button>
           <span class="btn-group">
-            <button id="btn_force"
+            <button id="btn_ignore_all_deps"
               type="button" class="btn" data-toggle="button"
-              title="Ignore previous success, re-run regardless"
-              >Force</button>
-            <button id="btn_deps"
+              title="Ignores all non-critical dependencies, including task state and task_deps"
+              >Ignore All Deps</button>
+          </span>
+          <span class="btn-group">
+            <button id="btn_ignore_ti_state"
               type="button" class="btn" data-toggle="button"
-              tittle="Disregard the status of upstream dependencies and depends_on_past"
-              >Ignore Dependencies</button>
+              title="Ignore previous success/failure"
+              >Ignore Task State</button>
+          </span>
+          <button id="btn_ignore_task_deps"
+            type="button" class="btn" data-toggle="button"
+            title="Disregard the task-specific dependencies, e.g. status of upstream task instances and depends_on_past"
+            >Ignore Task Deps</button>
           </span>
           <hr/>
           <button id="btn_clear" type="button" class="btn btn-primary"
@@ -300,8 +307,9 @@ function updateQueryStringParameter(uri, key, value) {
       url = "{{ url_for('airflow.run') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
         "&dag_id=" + encodeURIComponent(dag_id) +
-        "&force=" + $('#btn_force').hasClass('active') +
-        "&deps=" + $('#btn_deps').hasClass('active') +
+        "&ignore_all_deps=" + $('#btn_ignore_all_deps').hasClass('active') +
+        "&ignore_task_deps=" + $('#btn_ignore_task_deps').hasClass('active') +
+        "&ignore_ti_state=" + $('#btn_ignore_ti_state').hasClass('active') +
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
       window.location = url;
