@@ -11,8 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from __future__ import unicode_literals
 
-from datetime import datetime
 import logging
 import os
 
@@ -39,16 +39,17 @@ class TriggerDagRunOperator(BaseOperator):
     :param python_callable: a reference to a python function that will be
         called while passing it the ``context`` object and a placeholder
         object ``obj`` for your callable to fill and return if you want
-        a DagRun created. This ``obj`` object contains a ``run_id`` and
-        ``payload`` attribute that you can modify in your function.
+        a DagRun created. This ``obj`` object contains ``run_id``,
+        ``payload``, and ``execution_date`` attributes that you can modify in
+        your function.
         The ``run_id`` should be a unique identifier for that DAG run, and
         the payload has to be a picklable object that will be made available
         to your tasks while executing that DAG run. Your function header
         should look like ``def foo(context, dag_run_obj):``
     :type python_callable: python callable
-    :param execution_date: the date to run the dag for in 'YYYY-MM-DD' format.
-        Defaults to ``datetime.now()``
-    :type execution_date: str
+    :param execution_date: the ``datetime`` to run the dag for.  Defaults to
+     ``execution_date`` from ``context``.
+    :type execution_date: datetime
     """
     template_fields = tuple()
     template_ext = tuple()
@@ -59,20 +60,17 @@ class TriggerDagRunOperator(BaseOperator):
             self,
             trigger_dag_id,
             python_callable,
-            execution_date = None,
+            execution_date=None,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
-        if execution_date:
-            print("Setting execution date to: " + execution_date)
-            self.execution_date = datetime.strptime(execution_date, '%Y-%m-%d')
-        else:
-            self.execution_date = None
+        self.execution_date = execution_date
 
     def execute(self, context):
-        date = self.execution_date if self.execution_date else datetime.now()
-        dro = DagRunOrder(run_id='trig__' + date.isoformat(), execution_date=date)
+        date = self.execution_date or context['execution_date']
+        dro = DagRunOrder(run_id='trig__' + date.isoformat(),
+                          execution_date=date)
         dro = self.python_callable(context, dro)
         if dro:
             session = settings.Session()

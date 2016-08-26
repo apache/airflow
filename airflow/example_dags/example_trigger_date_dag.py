@@ -17,7 +17,7 @@ This example illustrates the following features :
 """
 
 from airflow import DAG
-from airflow.operators import TriggerDagRunOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime
 
 import pprint
@@ -42,14 +42,14 @@ dag = DAG(dag_id='example_trigger_date_dag',
 trigger = TriggerDagRunOperator(task_id='test_trigger_date_dagrun',
                                 trigger_dag_id="example_trigger_target_dag",
                                 python_callable=conditionally_trigger,
-                                execution_date="2015-01-01",
+                                execution_date=datetime(2015, 1, 1),
                                 params={'condition_param': True,
                                         'message': 'Hello World'},
                                 dag=dag)
 
 no_trigger = TriggerDagRunOperator(task_id='test_no_trigger_date_dagrun',
-                                trigger_dag_id="example_trigger_target_dag",
-                                python_callable=conditionally_trigger,
-                                params={'condition_param': True,
-                                        'message': 'Hello World'},
-                                dag=dag)
+                                   trigger_dag_id="example_trigger_target_dag",
+                                   python_callable=conditionally_trigger,
+                                   params={'condition_param': True,
+                                           'message': 'Hello World'},
+                                   dag=dag)

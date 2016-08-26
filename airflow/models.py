@@ -350,7 +350,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                     Stats.incr('zombies_killed')
         session.commit()
 
-    def bag_dag(self, dag, parent_dag, root_dag):
+    def bag_dag(self, dag, parent_dag=None, root_dag=None):
         """
         Adds the DAG into the bag, recurses into sub dags.
         """

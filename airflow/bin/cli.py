@@ -167,7 +167,7 @@ def trigger_dag(args):
         logging.error("Cannot find dag {}".format(args.dag_id))
         sys.exit(1)
 
-    execution_date = args.execution_date if args.execution_date else datetime.now()
+    execution_date = parsedate(args.execution_date) if args.execution_date else datetime.now()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
 
     dr = DagRun.find(dag_id=args.dag_id, run_id=run_id)
@@ -1050,9 +1050,10 @@ class CLIFactory(object):
         'conf': Arg(
             ('-c', '--conf'),
             "JSON string that gets pickled into the DagRun's conf attribute"),
-        'date': Arg(
-            ("-d", "--execution_date"), "Override execution_date YYYY-MM-DD",
-            type=parsedate),
+        'execution_date': Arg(
+            ('-e', '--execution_date'),
+            'Execution date of DAG run (defaults to the current time)'
+        ),
         # pool
         'pool_set': Arg(
             ("-s", "--set"),
@@ -1275,7 +1276,7 @@ class CLIFactory(object):
         }, {
             'func': trigger_dag,
             'help': "Trigger a DAG run",
-            'args': ('dag_id', 'subdir', 'run_id', 'conf', 'date'),
+            'args': ('dag_id', 'subdir', 'run_id', 'conf', 'execution_date'),
         }, {
             'func': pool,
             'help': "CRUD operations on pools",
