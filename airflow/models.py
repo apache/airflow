@@ -1341,8 +1341,9 @@ class TaskInstance(Base):
                 total=task.retries + 1)
             self.start_date = datetime.now()
 
+            concurrency_reached = self.task.dag.concurrency_reached
             if not mark_success and self.state != State.QUEUED and (
-                    self.pool or self.task.dag.concurrency_reached):
+                    self.pool or concurrency_reached):
                 # If a pool is set for this task, marking the task instance
                 # as QUEUED
                 self.state = State.QUEUED
@@ -1355,6 +1356,11 @@ class TaskInstance(Base):
                 session.merge(self)
                 session.commit()
                 logging.info("Queuing into pool {}".format(self.pool))
+                return
+
+            if not mark_success and self.state == State.QUEUED and concurrency_reached:
+                logging.warning('Job_id={} has to wait, since dag concurrency limit [{}] is reached'
+                                .format(self.job_id, self.task.dag.concurrency))
                 return
 
             # print status message
