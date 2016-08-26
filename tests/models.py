@@ -116,6 +116,7 @@ class DagTest(unittest.TestCase):
         self.assertEqual(dag.dag_id, 'creating_dag_in_cm')
         self.assertEqual(dag.tasks[0].task_id, 'op6')
 
+
 class DagRunTest(unittest.TestCase):
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
@@ -123,6 +124,34 @@ class DagRunTest(unittest.TestCase):
         assert run_id == 'scheduled__2015-01-02T03:04:05', (
             'Generated run_id did not match expectations: {0}'.format(run_id))
 
+    def test_mark_success(self):
+        dag = models.DAG(dag_id='fail_dag')
+        dagrun = dag.create_dagrun(
+            run_id='run_id',
+            execution_date=datetime.datetime(2016, 2, 1, 0, 0, 0),
+            state=State.RUNNING)
+        task = BashOperator(
+            task_id='fail_task',
+            bash_command='exit 1',
+            dag=dag,
+            owner='airflow',
+            start_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
+        ti = TI(task=task, execution_date=datetime.datetime(2016, 2, 1, 0, 0, 0))
+
+        def run_with_error(ti):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        run_with_error(ti)
+        self.assertEqual(ti.state, State.FAILED)
+
+        dagrun.mark_success()
+
+        ti.refresh_from_db()
+        self.assertEqual(ti.state, State.SUCCESS)
+        self.assertEqual(dagrun.state, State.SUCCESS)
 
 class DagBagTest(unittest.TestCase):
 

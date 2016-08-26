@@ -1062,15 +1062,15 @@ class TaskInstance(Base):
             path to add the feature
         :type flag_upstream_failed: boolean
         :param successes: Number of successful upstream tasks
-        :type successes: boolean
+        :type successes: int
         :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
+        :type skipped: int
         :param failed: Number of failed upstream tasks
-        :type failed: boolean
+        :type failed: int
         :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
+        :type upstream_failed: int
         :param done: Number of completed upstream tasks
-        :type done: boolean
+        :type done: int
         """
         TR = TriggerRule
 
@@ -3379,6 +3379,30 @@ class DAG(BaseDag, LoggingMixin):
             session.merge(dag)
             session.commit()
 
+    @provide_session
+    def get_dagruns(self, start_date=None, end_date=None, session=None, include_subdags=False):
+        """
+        Return a list of dag runs from this dag with execution date between
+        start_date and end_date
+        """
+        DR = DagRun
+        dr = session.query(DR).filter(DR.dag_id == self.dag_id)
+        if start_date:
+            dr = dr.filter(DR.execution_date >= start_date)
+        if end_date:
+            dr = dr.filter(DR.execution_date <= end_date)
+        dagruns = dr.all()
+        for run in dagruns:
+            run.dag = self
+
+        if include_subdags:
+            # recursively get all subdags' dagruns
+            for subdag in self.subdags:
+                dagruns += subdag.get_dagruns(start_date=start_date,
+                                              end_date=end_date,
+                                              include_subdags=include_subdags)
+        return dagruns
+
 
 class Chart(Base):
     __tablename__ = "chart"
@@ -4002,6 +4026,54 @@ class DagRun(Base):
             return True
 
         return False
+
+    @provide_session
+    def mark_success(self,
+                     task_regex=None,
+                     include_downstream=False,
+                     include_upstream=True,
+                     dry_run=False,
+                     session=None):
+        """
+        Mark success a list of task instances associated with the current dagrun
+        for a specific date range.
+
+        :param task_regex: regex pattern that task ids match to
+        :type task_regex string
+        :param include_downstream: set to true to include downstream tasks of matched tasks
+        :type include_downstream boolean
+        :param include_upstream: set to true to include upstream tasks of matched tasks
+        :type include_upstream boolean
+        :param dry_run: set to true to return the TIs without actually marking them as success
+        :type dry_run: boolean
+        :param session: database session
+        :type session: Session
+        """
+        states = State.all()
+        states.remove(State.SUCCESS)
+        tis = self.get_task_instances(state=states, session=session)
+        if task_regex:
+            dag = self.get_dag()
+            regex_match = [t for t in dag.tasks if re.findall(task_regex, t.task_id)]
+            include = []
+            for task in regex_match:
+                include.append(task.task_id)
+                if include_downstream:
+                    include += [t.task_id for t in task.get_flat_relatives(upstream=False)]
+                if include_upstream:
+                    include += [t.task_id for t in task.get_flat_relatives(upstream=True)]
+            tis = [ti for ti in tis if ti.task_id in include and ti.state != State.SUCCESS]
+
+        if dry_run:
+            return tis
+
+        session.expunge_all()
+        for ti in tis:
+            ti.state = State.SUCCESS
+            session.merge(ti)
+        session.commit()
+        self.update_state()
+        return len(tis)
 
 
 class Pool(Base):
