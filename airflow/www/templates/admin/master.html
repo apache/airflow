@@ -54,13 +54,12 @@
           <span class="icon-bar"></span>
           <span class="icon-bar"></span>
         </button>
-        <a class="navbar-brand" rel="home" href="#">
-          <img
-          style="float: left; width:35px; margin-top: -7px;"
-                src="{{ url_for("static", filename="pin_100.png") }}"
-                title="{{ current_user.username }}">
-          <span>Airflow</span>
-        </a>
+          <a class="navbar-brand" rel="home" href="{{ url_for('admin.index') }}" style="cursor: pointer;">
+              <img style="float: left; width:35px; margin-top: -7px;"
+                   src="{{ url_for("static", filename="pin_100.png") }}"
+                   title="{{ current_user.username }}">
+              <span>Airflow</span>
+          </a>
       </div>
       <!-- navbar content -->
       <div class="collapse navbar-collapse" id="admin-navbar-collapse">
