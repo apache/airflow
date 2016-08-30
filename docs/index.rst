@@ -83,5 +83,6 @@ Content
     scheduler
     plugins
     security
+    integration
     faq
     code
