@@ -66,6 +66,8 @@ class HiveToDruidTransfer(BaseOperator):
             intervals=None,
             num_shards=-1,
             target_partition_size=-1,
+            query_granularity=None,
+            segment_granularity=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -74,6 +76,8 @@ class HiveToDruidTransfer(BaseOperator):
         self.intervals = intervals or ['{{ ds }}/{{ tomorrow_ds }}']
         self.num_shards = num_shards
         self.target_partition_size = target_partition_size
+        self.query_granularity = query_granularity
+        self.segment_granularity = segment_granularity
         self.metric_spec = metric_spec or [{
             "name": "count",
             "type": "count"}]
@@ -122,6 +126,7 @@ class HiveToDruidTransfer(BaseOperator):
                 intervals=self.intervals,
                 static_path=static_path, ts_dim=self.ts_dim,
                 columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
+                query_granularity=self.query_granularity, segment_granularity=self.segment_granularity,
                 metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
             logging.info("Load seems to have succeeded!")
         finally:

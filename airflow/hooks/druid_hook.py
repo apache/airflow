@@ -67,7 +67,9 @@ class DruidHook(BaseHook):
 
     def construct_ingest_query(
             self, datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size,
+            query_granularity="NONE", segment_granularity="DAY",
+            hadoop_dependency_coordinates=None):
         """
         Builds an ingest query for an HDFS TSV load.
 
@@ -92,10 +94,10 @@ class DruidHook(BaseHook):
                 "dataSchema": {
                     "metricsSpec": metric_spec,
                     "granularitySpec": {
-                        "queryGranularity": "NONE",
+                        "queryGranularity": query_granularity,
                         "intervals": intervals,
                         "type": "uniform",
-                        "segmentGranularity": "DAY",
+                        "segmentGranularity": segment_granularity,
                     },
                     "parser": {
                         "type": "string",
@@ -145,10 +147,12 @@ class DruidHook(BaseHook):
 
     def send_ingest_query(
             self, datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size, query_granularity, segment_granularity,
+            hadoop_dependency_coordinates=None):
         query = self.construct_ingest_query(
             datasource, static_path, ts_dim, columns,
-            metric_spec, intervals, num_shards, target_partition_size, hadoop_dependency_coordinates)
+            metric_spec, intervals, num_shards, target_partition_size,
+            query_granularity, segment_granularity, hadoop_dependency_coordinates)
         r = requests.post(
             self.ingest_post_url, headers=self.header, data=query)
         logging.info(self.ingest_post_url)
@@ -162,7 +166,8 @@ class DruidHook(BaseHook):
 
     def load_from_hdfs(
             self, datasource, static_path,  ts_dim, columns,
-            intervals, num_shards, target_partition_size, metric_spec=None, hadoop_dependency_coordinates=None):
+            intervals, num_shards, target_partition_size, query_granularity, segment_granularity,
+            metric_spec=None, hadoop_dependency_coordinates=None):
         """
         load data to druid from hdfs
 
@@ -171,7 +176,8 @@ class DruidHook(BaseHook):
         """
         task_id = self.send_ingest_query(
             datasource, static_path, ts_dim, columns, metric_spec,
-            intervals, num_shards, target_partition_size, hadoop_dependency_coordinates)
+            intervals, num_shards, target_partition_size, query_granularity, segment_granularity,
+            hadoop_dependency_coordinates)
         status_url = self.get_ingest_status_url(task_id)
         while True:
             r = requests.get(status_url)
