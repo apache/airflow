@@ -1,2 +1,0 @@
-Copyright 2015 Maxime Beauchemin
-Copyright 2015 Airbnb, Inc.
