@@ -89,7 +89,7 @@ cache:
     - $HOME/.wheelhouse/
     - $HOME/.travis_cache/
 before_install:
-  - ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
+  - yes | ssh-keygen -t rsa -C your_email@youremail.com -P '' -f ~/.ssh/id_rsa
   - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*

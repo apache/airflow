@@ -2,6 +2,7 @@ alembic
 bcrypt
 boto
 celery
+cgroupspy
 chartkick
 cloudant
 coverage

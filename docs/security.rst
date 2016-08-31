@@ -310,3 +310,25 @@ standard port 443, you'll need to configure that too. Be aware that super user p
     # Optionally, set the server to listen on the standard SSL port.
     web_server_port = 443
     base_url = http://<hostname or IP>:443
+
+Impersonation
+'''''''''''''
+
+Airflow has the ability to impersonate a unix user while running task
+instances based on the task's ``run_as_user`` parameter, which takes a user's name.
+
+*NOTE* For impersonations to work, Airflow must be run with `sudo` as subtasks are run
+with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
+exist on the worker. Here is what a simple sudoers file entry could look like to achieve
+this, assuming as airflow is running as the `airflow` user. Note that this means that
+the airflow user must be trusted and treated the same way as the root user.
+
+.. code-block:: none
+    airflow ALL=(ALL) NOPASSWD: ALL
+
+Subtasks with impersonation will still log to the same folder, except that the files they
+log to will have permissions changed such that only the unix user can write to it.
+
+*Default impersonation* To prevent tasks that don't use impersonation to be run with
+`sudo` privileges, you can set the `default_impersonation` config in `core` which sets a
+default user impersonate if `run_as_user` is not set.

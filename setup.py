@@ -108,6 +108,9 @@ celery = [
     'celery>=3.1.17',
     'flower>=0.7.3'
 ]
+cgroups = [
+    'cgroupspy>=0.1.4',
+]
 crypto = ['cryptography>=0.9.3']
 datadog = ['datadog>=0.14.0']
 doc = [
@@ -227,6 +230,7 @@ def do_setup():
             'all_dbs': all_dbs,
             'async': async,
             'celery': celery,
+            'cgroups': cgroups,
             'cloudant': cloudant,
             'crypto': crypto,
             'datadog': datadog,
