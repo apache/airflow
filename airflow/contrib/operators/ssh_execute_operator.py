@@ -38,9 +38,9 @@ class SSHTempFileContent(object):
 
     :param ssh_hook: A SSHHook that indicates a remote host
                      where you want to create tempfile
-    :param content: Initial content of creating temprary file
+    :param content: Initial content of creating temporary file
     :type content: string
-    :param prefix: The prefix string you want to use for the temprary file
+    :param prefix: The prefix string you want to use for the temporary file
     :type prefix: string
     """
 
