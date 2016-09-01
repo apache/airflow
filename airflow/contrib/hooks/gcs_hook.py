@@ -30,8 +30,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
     def __init__(self,
                  google_cloud_storage_conn_id='google_cloud_storage_default',
-                 delegate_to=None):
+                 delegate_to=None, is_binary=False):
         super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id, delegate_to)
+        self.is_binary = is_binary
 
     def get_conn(self):
         """
@@ -59,7 +60,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
         # Write the file to local file path, if requested.
         if filename:
-            with open(filename, 'w') as file_fd:
+            write_argument = 'wb' if self.is_binary else 'w'
+            with open(filename, write_argument) as file_fd:
                 file_fd.write(downloaded_file_bytes)
 
         return downloaded_file_bytes
