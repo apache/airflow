@@ -101,21 +101,23 @@ if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
 
 def _integrate_plugins():
     """Integrate plugins to the context"""
-    from airflow.plugins_manager import operators as _operators
-    for _operator_module in _operators:
-        sys.modules[_operator_module.__name__] = _operator_module
-        globals()[_operator_module._name] = _operator_module
+    from airflow.plugins_manager import operators_modules
+    for operators_module in operators_modules:
+        sys.modules[operators_module.__name__] = operators_module
+        globals()[operators_module._name] = operators_module
 
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 
         if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
             from zope.deprecation import deprecated as _deprecated
-            for _operator in _operator_module._objects:
-                globals()[_operator.__name__] = _deprecated(
-                    _operator,
+            for _operator in operators_module._objects:
+                operator_name = _operator.__name__
+                globals()[operator_name] = _operator
+                _deprecated(
+                    operator_name,
                     "Importing plugin operator '{i}' directly from "
                     "'airflow.operators' has been deprecated. Please "
                     "import from 'airflow.operators.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
-                    "entirely in Airflow 2.0.".format(i=_operator))
+                    "entirely in Airflow 2.0.".format(i=operator_name))

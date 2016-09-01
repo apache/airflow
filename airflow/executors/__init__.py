@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import logging
+import sys
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
@@ -25,6 +26,14 @@ except:
     pass
 
 from airflow.exceptions import AirflowException
+
+
+def _integrate_plugins():
+    """Integrate plugins to the context."""
+    from airflow.plugins_manager import executors_modules
+    for executors_module in executors_modules:
+        sys.modules[executors_module.__name__] = executors_module
+        globals()[executors_module._name] = executors_module
 
 _EXECUTOR = configuration.get('core', 'EXECUTOR')
 
@@ -39,9 +48,7 @@ elif _EXECUTOR == 'MesosExecutor':
     DEFAULT_EXECUTOR = MesosExecutor()
 else:
     # Loading plugins
-    from airflow.plugins_manager import executors as _executors
-    for _executor in _executors:
-        globals()[_executor.__name__] = _executor
+    _integrate_plugins()
     if _EXECUTOR in globals():
         DEFAULT_EXECUTOR = globals()[_EXECUTOR]()
     else:
