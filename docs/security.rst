@@ -1,15 +1,15 @@
 Security
 ========
 
-Web Authentication
-------------------
-
 By default, all gates are opened. An easy way to restrict access
 to the web application is to do it at the network level, or by using
 SSH tunnels.
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or create your own.
+
+Web Authentication
+------------------
 
 Password
 ''''''''
@@ -110,6 +110,7 @@ created by itself.
 
 Kerberos
 --------
+
 Airflow has initial support for Kerberos. This means that airflow can renew kerberos
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
@@ -214,6 +215,9 @@ and in your DAG, when initializing the HiveOperator, specify
 
     run_as_owner=True
 
+OAuth Authentication
+--------------------
+
 GitHub Enterprise (GHE) Authentication
 ''''''''''''''''''''''''''''''''''''''
 
@@ -239,7 +243,7 @@ your GHE installation will be able to login to Airflow.
     allowed_teams = example_team_1, example_team_2
 
 Setting up GHE Authentication
-'''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An application must be setup in GHE before you can use the GHE authentication
 backend. In order to setup an application:
@@ -253,7 +257,7 @@ backend. In order to setup an application:
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
 
 Google Authentication
-''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''
 
 The Google authentication backend can be used to authenticate users
 against Google using OAuth2. You must specify a domain to restrict login
@@ -272,7 +276,7 @@ to only members of that domain.
     domain = example.com
 
 Setting up Google Authentication
-'''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An application must be setup in the Google API Console before you can use the Google authentication
 backend. In order to setup an application:
