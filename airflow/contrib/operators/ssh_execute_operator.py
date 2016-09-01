@@ -129,6 +129,8 @@ class SSHExecuteOperator(BaseOperator):
             logging.info("Temporary script "
                          "location : {0}:{1}".format(host, remote_file_path))
             logging.info("Running command: " + bash_command)
+            if self.env is not None:
+                logging.info("env: " + str(self.env))
 
             sp = hook.Popen(
                 ['-q', 'bash', remote_file_path],
