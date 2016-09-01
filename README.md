@@ -132,6 +132,8 @@ Currently **officially** using Airflow:
 
 ## Links
 
+
 * [Documentation](http://airflow.incubator.apache.org/)
 * [Chat](https://gitter.im/apache/incubator-airflow)
+* [Apache Airflow Incubation Status](http://incubator.apache.org/projects/airflow.html)
 * [More](https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links)
