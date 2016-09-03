@@ -333,7 +333,9 @@ class BigQueryBaseCursor(object):
 
     def run_load(self,
                  destination_project_dataset_table,
-                 schema_fields, source_uris,
+                 source_uris,
+                 schema_fields=None,
+                 autodetect=False,
                  source_format='CSV',
                  create_disposition='CREATE_IF_NEEDED',
                  skip_leading_rows=0,
@@ -348,42 +350,52 @@ class BigQueryBaseCursor(object):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.)<dataset>.<table> BigQuery table to load data into.
-            If <project> is not included, project will be the project defined in
-            the connection json.
+            The dotted (<project>.)<dataset>.<table> BigQuery table to load
+            data into. If <project> is not included, project will be the
+            project defined in the connection json.
         :type destination_project_dataset_table: string
-        :param schema_fields: The schema field list as defined here:
-            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
-        :type schema_fields: list
         :param source_uris: The source Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). A single wild
             per-object name can be used.
         :type source_uris: list
+        :param schema_fields: The schema field list as defined here:
+            https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+            Required if autodetect=False; optional if autodetect=True.
+        :type schema_fields: list
+        :param autodetect: Attempt to autodetect the schema for CSV and JSON
+            source files.
+        :type autodetect: bool
         :param source_format: File format to export.
         :type source_format: string
-        :param create_disposition: The create disposition if the table doesn't exist.
+        :param create_disposition: The create disposition if the table doesn't
+            exist.
         :type create_disposition: string
-        :param skip_leading_rows: Number of rows to skip when loading from a CSV.
+        :param skip_leading_rows: Number of rows to skip when loading from a
+            CSV.
         :type skip_leading_rows: int
-        :param write_disposition: The write disposition if the table already exists.
+        :param write_disposition: The write disposition if the table already
+            exists.
         :type write_disposition: string
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
         """
         destination_project, destination_dataset, destination_table = \
             self._split_project_dataset_table_input(
-                'destination_project_dataset_table', destination_project_dataset_table)
+                'destination_project_dataset_table',
+                destination_project_dataset_table)
+
+        if not schema_fields and not autodetect:
+            raise ValueError(
+                'You must either pass a schema or autodetect=True.')
 
         configuration = {
             'load': {
+                'autodetect': autodetect,
                 'createDisposition': create_disposition,
                 'destinationTable': {
                     'projectId': destination_project,
                     'datasetId': destination_dataset,
                     'tableId': destination_table,
-                },
-                'schema': {
-                    'fields': schema_fields
                 },
                 'sourceFormat': source_format,
                 'sourceUris': source_uris,
@@ -391,18 +403,27 @@ class BigQueryBaseCursor(object):
             }
         }
 
+        if schema_fields:
+            configuration['load']['schema'] = {'fields': schema_fields}
+
         if source_format == 'CSV':
             configuration['load']['skipLeadingRows'] = skip_leading_rows
             configuration['load']['fieldDelimiter'] = field_delimiter
 
         return self.run_with_configuration(configuration)
 
-    def _split_project_dataset_table_input(self, var_name, project_dataset_table):
+    def _split_project_dataset_table_input(
+                self,
+                var_name,
+                project_dataset_table):
         """
-        :param var_name: the name of the variable input, for logging and erroring purposes.
+        :param var_name: the name of the variable input, for logging and
+            erroring purposes.
         :type var_name: str
-        :param project_dataset_table: input string in (<project>.)<dataset>.<project> format.
-            if project is not included in the string, self.project_id will be returned in the tuple.
+        :param project_dataset_table: input string in
+            (<project>.)<dataset>.<project> format.
+            if project is not included in the string, self.project_id will be
+            returned in the tuple.
         :type project_dataset_table: str
         :return: (project, dataset, table) tuple
         """

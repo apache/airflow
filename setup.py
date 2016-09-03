@@ -200,6 +200,7 @@ def do_setup():
             'python-nvd3==0.14.2',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
+            'six>=1, <2',
             'sqlalchemy>=0.9.8',
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2, <0.10',
