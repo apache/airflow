@@ -192,7 +192,7 @@ def do_setup():
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <3.0',
             'markdown>=2.5.2, <3.0',
-            'pandas>=0.15.2, <1.0.0',
+            'pandas>=0.17.1, <1.0.0',
             'psutil>=4.2.0, <5.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
