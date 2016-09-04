@@ -192,13 +192,13 @@ class BigQueryBaseCursor(object):
             assert '.' in destination_dataset_table, (
                 'Expected destination_dataset_table in the format of '
                 '<dataset>.<table>. Got: {}').format(destination_dataset_table)
-            destination_dataset, destination_table = \
-                destination_dataset_table.split('.', 1)
+            destination_project, destination_dataset, destination_table = \
+                _split_tablename(destination_dataset_table, self.project_id)
             configuration['query'].update({
                 'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
                 'destinationTable': {
-                    'projectId': self.project_id,
+                    'projectId': destination_project,
                     'datasetId': destination_dataset,
                     'tableId': destination_table,
                 }
@@ -241,8 +241,9 @@ class BigQueryBaseCursor(object):
         :type print_header: boolean
         """
         source_project, source_dataset, source_table = \
-            self._split_project_dataset_table_input(
-                'source_project_dataset_table', source_project_dataset_table)
+            _split_tablename(
+                source_project_dataset_table, self.project_id,
+                'source_project_dataset_table')
         configuration = {
             'extract': {
                 'sourceTable': {
@@ -279,14 +280,14 @@ class BigQueryBaseCursor(object):
         For more details about these parameters.
 
         :param source_project_dataset_tables: One or more dotted
-            (<project>.)<dataset>.<table>
+            (project:|project.)<dataset>.<table>
             BigQuery tables to use as the source data. Use a list if there are
             multiple source tables.
             If <project> is not included, project will be the project defined
             in the connection json.
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
-            table. Format is: <project>.<dataset>.<table>
+            table. Format is: (project:|project.)<dataset>.<table>
         :type destination_project_dataset_table: string
         :param write_disposition: The write disposition if the table already exists.
         :type write_disposition: string
@@ -301,21 +302,17 @@ class BigQueryBaseCursor(object):
         source_project_dataset_tables_fixup = []
         for source_project_dataset_table in source_project_dataset_tables:
             source_project, source_dataset, source_table = \
-                self._split_project_dataset_table_input(
-                    'source_project_dataset_table', source_project_dataset_table)
+                _split_tablename(
+                    source_project_dataset_table, self.project_id,
+                    'source_project_dataset_table')
             source_project_dataset_tables_fixup.append({
                 'projectId': source_project,
                 'datasetId': source_dataset,
                 'tableId': source_table
             })
 
-        assert 3 == len(destination_project_dataset_table.split('.')), (
-            'Expected destination_project_dataset_table in the format of '
-            '<project>.<dataset>.<table>. '
-            'Got: {}').format(destination_project_dataset_table)
-
         destination_project, destination_dataset, destination_table = \
-            destination_project_dataset_table.split('.', 2)
+            _split_tablename(destination_project_dataset_table, self.project_id)
         configuration = {
             'copy': {
                 'createDisposition': create_disposition,
@@ -348,9 +345,9 @@ class BigQueryBaseCursor(object):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.)<dataset>.<table> BigQuery table to load data into.
-            If <project> is not included, project will be the project defined in
-            the connection json.
+            The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
+            data into. If <project> is not included, project will be the project defined
+            in the connection json.
         :type destination_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
@@ -371,8 +368,9 @@ class BigQueryBaseCursor(object):
         :type field_delimiter: string
         """
         destination_project, destination_dataset, destination_table = \
-            self._split_project_dataset_table_input(
-                'destination_project_dataset_table', destination_project_dataset_table)
+            _split_tablename(
+                destination_project_dataset_table, self.project_id,
+                'destination_project_dataset_table')
 
         configuration = {
             'load': {
@@ -396,28 +394,6 @@ class BigQueryBaseCursor(object):
             configuration['load']['fieldDelimiter'] = field_delimiter
 
         return self.run_with_configuration(configuration)
-
-    def _split_project_dataset_table_input(self, var_name, project_dataset_table):
-        """
-        :param var_name: the name of the variable input, for logging and erroring purposes.
-        :type var_name: str
-        :param project_dataset_table: input string in (<project>.)<dataset>.<project> format.
-            if project is not included in the string, self.project_id will be returned in the tuple.
-        :type project_dataset_table: str
-        :return: (project, dataset, table) tuple
-        """
-        table_split = project_dataset_table.split('.')
-        assert len(table_split) == 2 or len(table_split) == 3, (
-            'Expected {var} in the format of (<project.)<dataset>.<table>, '
-            'got {input}').format(var=var_name, input=project_dataset_table)
-
-        if len(table_split) == 2:
-            logging.info('project not included in {var}: {input}; using project "{project}"'.format(var=var_name, input=project_dataset_table, project=self.project_id))
-            dataset, table = table_split
-            return self.project_id, dataset, table
-        else:
-            project, dataset, table = table_split
-            return project, dataset, table
 
     def run_with_configuration(self, configuration):
         """
@@ -508,7 +484,8 @@ class BigQueryBaseCursor(object):
         atomic operation.
         :param dataset_id: the dataset to upsert the table into.
         :type dataset_id: str
-        :param table_resource: a table resource. see https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
+        :param table_resource: a table resource. see
+            https://cloud.google.com/bigquery/docs/reference/v2/tables#resource
         :type table_resource: dict
         :param project_id: the project to upsert the table into.  If None,
         project will be self.project_id.
@@ -802,3 +779,54 @@ def _bq_cast(string_field, bq_type):
         return string_field == 'true'
     else:
         return string_field
+
+
+def _split_tablename(table_input, default_project_id, var_name=None):
+    assert default_project_id is not None, "INTERNAL: No default project is specified"
+
+    def var_print(var_name):
+        if var_name is None:
+            return ""
+        else:
+            return "Format exception for {var}: ".format(var=var_name)
+
+    cmpt = table_input.split(':')
+    if len(cmpt) == 1:
+        project_id = None
+        rest = cmpt[0]
+    elif len(cmpt) == 2:
+        project_id = cmpt[0]
+        rest = cmpt[1]
+    else:
+        raise Exception((
+            '{var}Expect format of (<project:)<dataset>.<table>, '
+            'got {input}'
+        ).format(var=var_print(var_name), input=table_input))
+
+    cmpt = rest.split('.')
+    if len(cmpt) == 3:
+        assert project_id is None, (
+            "{var}Use either : or . to specify project"
+        ).format(var=var_print(var_name))
+        project_id = cmpt[0]
+        dataset_id = cmpt[1]
+        table_id = cmpt[2]
+
+    elif len(cmpt) == 2:
+        dataset_id = cmpt[0]
+        table_id = cmpt[1]
+    else:
+        raise Exception((
+            '{var}Expect format of (<project.|<project:)<dataset>.<table>, '
+            'got {input}'
+        ).format(var=var_print(var_name), input=table_input))
+
+    if project_id is None:
+        if var_name is not None:
+            logging.info(
+                'project not included in {var}: '
+                '{input}; using project "{project}"'.format(
+                    var=var_name, input=table_input, project=default_project_id))
+        project_id = default_project_id
+
+    return project_id, dataset_id, table_id

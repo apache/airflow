@@ -23,7 +23,7 @@ class BigQueryToCloudStorageOperator(BaseOperator):
     """
     Transfers a BigQuery table to a Google Cloud Storage bucket.
     """
-    template_fields = ('source_project_dataset_table','destination_cloud_storage_uris',)
+    template_fields = ('source_project_dataset_table', 'destination_cloud_storage_uris')
     template_ext = ('.sql',)
     ui_color = '#e4e6f0'
 
@@ -48,8 +48,10 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
         For more details about these parameters.
 
-        :param source_project_dataset_table: The dotted (<project>.)<dataset>.<table> BigQuery table to use as the
-            source data. If <project> is not included, project will be the project defined in the connection json.
+        :param source_project_dataset_table: The dotted
+            (<project>.|<project>:)<dataset>.<table> BigQuery table to use as the source
+            data. If <project> is not included, project will be the project defined in
+            the connection json.
         :type source_project_dataset_table: string
         :param destination_cloud_storage_uris: The destination Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
@@ -67,7 +69,8 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         :param bigquery_conn_id: reference to a specific BigQuery hook.
         :type bigquery_conn_id: string
         :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have domain-wide delegation enabled.
+            For this to work, the service account making the request must have domain-wide
+            delegation enabled.
         :type delegate_to: string
         """
         super(BigQueryToCloudStorageOperator, self).__init__(*args, **kwargs)
@@ -81,8 +84,11 @@ class BigQueryToCloudStorageOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Executing extract of %s into: %s', self.source_project_dataset_table, self.destination_cloud_storage_uris)
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id, delegate_to=self.delegate_to)
+        logging.info('Executing extract of %s into: %s',
+                     self.source_project_dataset_table,
+                     self.destination_cloud_storage_uris)
+        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                            delegate_to=self.delegate_to)
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_extract(
