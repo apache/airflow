@@ -513,6 +513,30 @@ class Connection(Base):
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
 
+    _types = [
+        ('fs', 'File (path)'),
+        ('ftp', 'FTP',),
+        ('google_cloud_platform', 'Google Cloud Platform'),
+        ('hdfs', 'HDFS',),
+        ('http', 'HTTP',),
+        ('hive_cli', 'Hive Client Wrapper',),
+        ('hive_metastore', 'Hive Metastore Thrift',),
+        ('hiveserver2', 'Hive Server 2 Thrift',),
+        ('jdbc', 'Jdbc Connection',),
+        ('mysql', 'MySQL',),
+        ('postgres', 'Postgres',),
+        ('oracle', 'Oracle',),
+        ('vertica', 'Vertica',),
+        ('presto', 'Presto',),
+        ('s3', 'S3',),
+        ('samba', 'Samba',),
+        ('sqlite', 'Sqlite',),
+        ('ssh', 'SSH',),
+        ('cloudant', 'IBM Cloudant',),
+        ('mssql', 'Microsoft SQL Server'),
+        ('mesos_framework-id', 'Mesos Framework ID'),
+    ]
+
     def __init__(
             self, conn_id=None, conn_type=None,
             host=None, login=None, password=None,
