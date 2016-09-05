@@ -65,10 +65,10 @@ def ds_format(ds, input_format, output_format):
 def _integrate_plugins():
     """Integrate plugins to the context"""
     import sys
-    from airflow.plugins_manager import macros as _macros
-    for _macro_module in _macros:
-        sys.modules[_macro_module.__name__] = _macro_module
-        globals()[_macro_module._name] = _macro_module
+    from airflow.plugins_manager import macros_modules
+    for macros_module in macros_modules:
+        sys.modules[macros_module.__name__] = macros_module
+        globals()[macros_module._name] = macros_module
 
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
@@ -76,11 +76,13 @@ def _integrate_plugins():
         import os as _os
         if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
             from zope.deprecation import deprecated as _deprecated
-            for _macro in _macro_module._objects:
-                globals()[_macro.__name__] = _deprecated(
-                    _macro,
+            for _macro in macros_module._objects:
+                macro_name = _macro.__name__
+                globals()[macro_name] = _macro
+                _deprecated(
+                    macro_name,
                     "Importing plugin macro '{i}' directly from "
                     "'airflow.macros' has been deprecated. Please "
                     "import from 'airflow.macros.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
-                    "entirely in Airflow 2.0.".format(i=_macro))
+                    "entirely in Airflow 2.0.".format(i=macro_name))

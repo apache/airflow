@@ -24,8 +24,6 @@ import logging
 import os
 import re
 import sys
-from itertools import chain
-merge = chain.from_iterable
 
 from airflow import configuration
 
@@ -100,18 +98,25 @@ def make_module(name, objects):
     module.__dict__.update((o.__name__, o) for o in objects)
     return module
 
-operators, hooks, executors, macros, admin_views = [], [], [], [], []
-flask_blueprints, menu_links = [], []
+# Plugin components to integrate as modules
+operators_modules = []
+hooks_modules = []
+executors_modules = []
+macros_modules = []
+
+# Plugin components to integrate directly
+admin_views = []
+flask_blueprints = []
+menu_links = []
 
 for p in plugins:
-    operators.append(make_module('airflow.operators.' + p.name, p.operators))
-    hooks.append(make_module('airflow.hooks.' + p.name, p.hooks))
-    executors.append(make_module('airflow.executors.' + p.name, p.executors))
-    macros.append(make_module('airflow.macros.' + p.name, p.macros))
-    admin_views.append(
-        make_module('airflow.www.admin_views' + p.name, p.admin_views))
-    flask_blueprints.append(
-        make_module(
-            'airflow.www.flask_blueprints' + p.name, p.flask_blueprints))
-    menu_links.append(
-        make_module('airflow.www.menu_links' + p.name, p.menu_links))
+    operators_modules.append(
+        make_module('airflow.operators.' + p.name, p.operators))
+    hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    executors_modules.append(
+        make_module('airflow.executors.' + p.name, p.executors))
+    macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
+
+    admin_views.extend(p.admin_views)
+    flask_blueprints.extend(p.flask_blueprints)
+    menu_links.extend(p.menu_links)
