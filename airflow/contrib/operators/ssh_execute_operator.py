@@ -55,7 +55,7 @@ class SSHTempFileContent(object):
         prefix = self._prefix
 
         pmktemp = ssh_hook.Popen(["-q",
-                                  "mktemp", "--tmpdir", prefix + "_XXXXXX"],
+                                  "mktemp", "-t", prefix + "_XXXXXX"],
                                  stdout=subprocess.PIPE,
                                  stderr=STDOUT)
         tempfile = pmktemp.communicate()[0].rstrip()
