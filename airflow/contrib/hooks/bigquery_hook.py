@@ -158,10 +158,11 @@ class BigQueryBaseCursor(object):
         self.project_id = project_id
 
     def run_query(
-            self, bql, destination_dataset_table = False,
-            write_disposition = 'WRITE_EMPTY',
+            self, bql, destination_dataset_table=False,
+            write_disposition='WRITE_EMPTY',
             allow_large_results=False,
-            udf_config = False):
+            udf_config=False,
+            use_query_cache=True):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -185,6 +186,7 @@ class BigQueryBaseCursor(object):
         configuration = {
             'query': {
                 'query': bql,
+                'useQueryCache': use_query_cache,
             }
         }
 
@@ -201,7 +203,7 @@ class BigQueryBaseCursor(object):
                     'projectId': destination_project,
                     'datasetId': destination_dataset,
                     'tableId': destination_table,
-                }
+                },
             })
         if udf_config:
             assert isinstance(udf_config, list)
