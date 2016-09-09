@@ -1268,6 +1268,8 @@ class TaskInstance(Base):
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 task_copy.post_execute(context=context)
+                Stats.incr('operator_successes_{}'.format(
+                    self.task.__class__.__name__), 1, 1)
             self.state = State.SUCCESS
         except AirflowSkipException:
             self.state = State.SKIPPED
@@ -1307,6 +1309,7 @@ class TaskInstance(Base):
         session = settings.Session()
         self.end_date = datetime.now()
         self.set_duration()
+        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
