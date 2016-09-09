@@ -1073,10 +1073,6 @@ class SchedulerJob(BaseJob):
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.reached_max_runs:
-                self.logger.info("Not processing DAG {} since its max runs has been reached"
-                                .format(dag.dag_id))
-                continue
             if dag.is_paused:
                 self.logger.info("Not processing DAG {} since it's paused"
                                  .format(dag.dag_id))

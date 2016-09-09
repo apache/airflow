@@ -20,7 +20,6 @@ from __future__ import unicode_literals
 import datetime
 import logging
 import os
-import time
 import unittest
 
 from airflow import AirflowException, settings
@@ -620,23 +619,14 @@ class SchedulerJobTest(unittest.TestCase):
         session.commit()
         session.close()
 
-        scheduler = SchedulerJob(dag.dag_id,
-                                run_duration=1)
+        scheduler = SchedulerJob()
+        dag.clear()
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
 
-        dr2 = scheduler.create_dag_run(dag)
-        self.assertIsNone(dr2)
-
-        dag.clear()
-
-        dag.max_active_runs = 0
-        scheduler.run()
-
-        session = settings.Session()
-        self.assertEqual(
-            len(session.query(TI).filter(TI.dag_id == dag.dag_id).all()), 0)
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNone(dr)
 
     def test_scheduler_fail_dagrun_timeout(self):
         """
