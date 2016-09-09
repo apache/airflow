@@ -121,11 +121,6 @@ class DataFlowHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
-        """
-        :param scope: The scope of the hook (read only, read write, etc). See:
-            https://cloud.google.com/storage/docs/authentication?hl=en#oauth-scopes
-        :type scope: string
-        """
         super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
@@ -139,7 +134,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         cmd = self._build_cmd(task_id, variables, dataflow, name)
         _DataflowJava(cmd).wait_for_done()
-        _DataflowJob(self.get_conn(), "vex-eu-cloud-sql-001", name).wait_for_done()
+        _DataflowJob(self.get_conn(), variables['project'], name).wait_for_done()
 
     def _build_cmd(self, task_id, variables, dataflow, name):
         command = ["java", "-jar",
