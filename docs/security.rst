@@ -240,7 +240,7 @@ your GHE installation will be able to login to Airflow.
     client_id = oauth_key_from_github_enterprise
     client_secret = oauth_secret_from_github_enterprise
     oauth_callback_route = /example/ghe_oauth/callback
-    allowed_teams = example_team_1, example_team_2
+    allowed_teams = 1, 345, 23
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
