@@ -156,6 +156,9 @@ class BaseJob(Base, LoggingMixin):
         '''
         session = settings.Session()
         job = session.query(BaseJob).filter_by(id=self.id).one()
+        make_transient(job)
+        session.commit()
+        session.close()
 
         if job.state == State.SHUTDOWN:
             self.kill()
@@ -168,6 +171,7 @@ class BaseJob(Base, LoggingMixin):
 
         job.latest_heartbeat = datetime.now()
 
+        session = settings.Session()
         session.merge(job)
         session.commit()
 
