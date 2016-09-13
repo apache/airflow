@@ -17,3 +17,4 @@ omit =
     tests/*
     scripts/*
     dev/*
+    airflow/migrations/*
