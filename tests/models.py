@@ -27,12 +27,13 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel
+from airflow.jobs import LocalTaskJob
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
-from mock import patch
+from mock import patch, ANY
 from nose_parameterized import parameterized
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
@@ -200,6 +201,25 @@ class DagBagTest(unittest.TestCase):
         assert dagbag.get_dag(dag_id) != None
         assert dagbag.process_file_calls == 1
 
+    @patch.object(TI,'handle_failure')
+    def test_kill_zombies(self, mock_ti):
+        """
+        Test that kill zombies call TIs failure handler with proper context
+        """
+        dagbag = models.DagBag()
+        session = settings.Session
+        LJ = LocalTaskJob
+        dag = dagbag.get_dag('example_branch_operator')
+        task = dag.get_task(task_id='run_this_first')
+
+        lj = session.query(LJ).filter(LJ.state == 'success').order_by(LJ.id).first()
+        ti = TI(task, datetime.datetime.now() - datetime.timedelta(1), 'running', lj.id)
+
+        session.add(ti)
+        session.commit()
+
+        dagbag.kill_zombies()
+        mock_ti.assert_called_with(ANY, False, ANY)
 
 class TaskInstanceTest(unittest.TestCase):
 
