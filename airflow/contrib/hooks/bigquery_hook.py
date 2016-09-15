@@ -23,7 +23,6 @@ from past.builtins import basestring
 
 import logging
 import time
-import httplib2
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -484,8 +483,8 @@ class BigQueryBaseCursor(object):
         If the table does not exist, return an error unless ignore_if_missing
         is set to True.
         :param deletion_dataset_table: A dotted
-            (<project>.|<project>:)<dataset>.<table> that indicates which table
-            will be deleted.
+        (<project>.|<project>:)<dataset>.<table> that indicates which table
+        will be deleted.
         :type deletion_dataset_table: str
         :param ignore_if_missing: if True, then return success even if the
         requested table does not exist.
@@ -505,12 +504,14 @@ class BigQueryBaseCursor(object):
                         datasetId=deletion_dataset,
                         tableId=deletion_table) \
                 .execute()
-            logging.info('deleted table %s:%s.%s.',
+            logging.info('Deleted table %s:%s.%s.',
                          deletion_project, deletion_dataset, deletion_table)
         except HttpError:
-            if ignore_if_missing == False:
+            if not ignore_if_missing:
                 raise Exception(
                     'Table deletion failed. Table does not exist.')
+            else:
+                logging.info('Table does not exist. Skipping.')
 
 
     def run_table_upsert(self, dataset_id, table_resource, project_id=None):
