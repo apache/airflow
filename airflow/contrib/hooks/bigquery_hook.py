@@ -26,7 +26,7 @@ import time
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
-from apiclient.discovery import build
+from apiclient.discovery import build, HttpError
 from pandas.io.gbq import GbqConnector, \
     _parse_data as gbq_parse_data, \
     _check_google_client_version as gbq_check_google_client_version, \
@@ -475,6 +475,43 @@ class BigQueryBaseCursor(object):
                 tableId=table_id, **optional_params)
             .execute()
         )
+
+    def run_table_delete(self, deletion_dataset_table, ignore_if_missing=False):
+        """
+        Delete an existing table from the dataset;
+        If the table does not exist, return an error unless ignore_if_missing
+        is set to True.
+        :param deletion_dataset_table: A dotted
+        (<project>.|<project>:)<dataset>.<table> that indicates which table
+        will be deleted.
+        :type deletion_dataset_table: str
+        :param ignore_if_missing: if True, then return success even if the
+        requested table does not exist.
+        :type ignore_if_missing: boolean
+        :return:
+        """
+
+        assert '.' in deletion_dataset_table, (
+            'Expected deletion_dataset_table in the format of '
+            '<dataset>.<table>. Got: {}').format(deletion_dataset_table)
+        deletion_project, deletion_dataset, deletion_table = \
+            _split_tablename(deletion_dataset_table, self.project_id)
+
+        try:
+            tables_resource = self.service.tables() \
+                .delete(projectId=deletion_project,
+                        datasetId=deletion_dataset,
+                        tableId=deletion_table) \
+                .execute()
+            logging.info('Deleted table %s:%s.%s.',
+                         deletion_project, deletion_dataset, deletion_table)
+        except HttpError:
+            if not ignore_if_missing:
+                raise Exception(
+                    'Table deletion failed. Table does not exist.')
+            else:
+                logging.info('Table does not exist. Skipping.')
+
 
     def run_table_upsert(self, dataset_id, table_resource, project_id=None):
         """
