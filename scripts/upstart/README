@@ -10,7 +10,7 @@ upon system boot. If service process dies, upstart will automatically re-spawn i
 set in a *.conf file)
 
 You may have to adjust `start on` & `stop on` stanzas to make it work on other upstart systems. Some of the possible
-options are listed bellow
+options are listed below
 
 # This should work on most Linux distributions that support upstart
 start on started network-services
