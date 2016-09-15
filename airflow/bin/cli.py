@@ -35,6 +35,11 @@ import threading
 import traceback
 import time
 import psutil
+try:
+    from subprocess import DEVNULL # py3k
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
 
 import airflow
 from airflow import jobs, settings
@@ -727,7 +732,11 @@ def webserver(args):
 
         run_args += ["airflow.www.app:cached_app()"]
 
-        gunicorn_master_proc = subprocess.Popen(run_args)
+        if args.daemon:
+            # throw away gunicorn's stdout and stderr
+            gunicorn_master_proc = subprocess.Popen(run_args, stdout=DEVNULL, stderr=DEVNULL)
+        else:
+            gunicorn_master_proc = subprocess.Popen(run_args)
 
         def kill_proc(dummy_signum, dummy_frame):
             gunicorn_master_proc.terminate()
