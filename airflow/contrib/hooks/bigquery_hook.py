@@ -26,8 +26,7 @@ import time
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
-from apiclient.discovery import build
-from apiclient.discovery import HttpError
+from apiclient.discovery import build, HttpError
 from pandas.io.gbq import GbqConnector, \
     _parse_data as gbq_parse_data, \
     _check_google_client_version as gbq_check_google_client_version, \
