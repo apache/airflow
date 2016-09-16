@@ -33,7 +33,7 @@ from airflow import configuration
 import logging
 
 login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() bellow
+login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
 
