@@ -2102,7 +2102,7 @@ class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
 # admin.add_view(mv)
 
 
-class VariableView(wwwutils.LoginMixin, AirflowModelView):
+class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
     list_template = 'airflow/variable_list.html'
