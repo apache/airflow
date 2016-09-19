@@ -75,6 +75,10 @@ class DockerOperator(BaseOperator):
     :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
+    :param dockercfg_path: Path for the .dockercfg file
+    :type dockercfg_path: str
+    :param registry_username: username to the docker-registry.
+    :type registry_username: str
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -101,6 +105,8 @@ class DockerOperator(BaseOperator):
             volumes=None,
             xcom_push=False,
             xcom_all=False,
+            dockercfg_path=None,
+            registry_username=None,
             *args,
             **kwargs):
 
@@ -124,6 +130,8 @@ class DockerOperator(BaseOperator):
         self.volumes = volumes or []
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
+        self.dockercfg_path = dockercfg_path
+        self.registry_username = registry_username
 
         self.cli = None
         self.container = None
@@ -134,11 +142,11 @@ class DockerOperator(BaseOperator):
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
             tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')
 
@@ -151,7 +159,7 @@ class DockerOperator(BaseOperator):
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
             logging.info('Pulling docker image ' + image)
-            for l in self.cli.pull(image, stream=True):
+            for l in self.cli.pull(image, stream=True, auth_config=self.get_auth_config()):
                 output = json.loads(l.decode('utf-8'))
                 logging.info("{}".format(output['status']))
 
@@ -162,20 +170,20 @@ class DockerOperator(BaseOperator):
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
-                    command=self.get_command(),
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user
+                command=self.get_command(),
+                cpu_shares=cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(binds=self.volumes,
+                                                        network_mode=self.network_mode),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user
             )
             self.cli.start(self.container['Id'])
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                logging.info("%r", line.strip())
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -195,3 +203,11 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             logging.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+
+    def get_auth_config(self):
+        auth_config = None
+        if self.registry_username is not None and "/" in self.image:
+            registry = self.image.split("/")[0]
+            auth_config = self.cli.login(registry=registry, username=self.registry_username,
+                                         dockercfg_path=self.dockercfg_path)
+        return auth_config
