@@ -35,6 +35,11 @@ import threading
 import traceback
 import time
 import psutil
+try:
+    from subprocess import DEVNULL # py3k
+except ImportError:
+    import os
+    DEVNULL = open(os.devnull, 'wb')
 
 import airflow
 from airflow import jobs, settings
@@ -725,12 +730,13 @@ def webserver(args):
         if args.error_logfile:
             run_args += ['--error-logfile', str(args.error_logfile)]
 
-        if args.daemon:
-            run_args += ["-D"]
-
         run_args += ["airflow.www.app:cached_app()"]
 
-        gunicorn_master_proc = subprocess.Popen(run_args)
+        if args.daemon:
+            # throw away gunicorn's stdout and stderr
+            gunicorn_master_proc = subprocess.Popen(run_args, stdout=DEVNULL, stderr=DEVNULL)
+        else:
+            gunicorn_master_proc = subprocess.Popen(run_args)
 
         def kill_proc(dummy_signum, dummy_frame):
             gunicorn_master_proc.terminate()
@@ -740,11 +746,21 @@ def webserver(args):
         signal.signal(signal.SIGINT, kill_proc)
         signal.signal(signal.SIGTERM, kill_proc)
 
-        # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
-        if conf.getint('webserver', 'worker_refresh_interval') > 0:
-            restart_workers(gunicorn_master_proc, num_workers)
+        def restart_workers_or_sleep():
+            # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
+            if conf.getint('webserver', 'worker_refresh_interval') > 0:
+                restart_workers(gunicorn_master_proc, num_workers)
+            else:
+                while True: time.sleep(1)
+
+        if args.daemon:
+            # this throws away stdout and stderr
+            with daemon.DaemonContext():
+                restart_workers_or_sleep()
         else:
-            while True: time.sleep(1)
+            restart_workers_or_sleep()
+
+
 
 
 def scheduler(args):
