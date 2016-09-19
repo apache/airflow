@@ -70,7 +70,7 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           network_mode='bridge')
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.logs.assert_called_with(container='some_id', stream=True)
-        client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
+        client_mock.pull.assert_called_with('ubuntu:latest', auth_config=None, stream=True)
         client_mock.wait.assert_called_with('some_id')
 
     @unittest.skipIf(mock is None, 'mock package not present')
