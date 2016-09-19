@@ -12,14 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import ast
 import json
 import logging
+
+from docker import Client, tls
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import Client, tls
-import ast
 
 
 class DockerOperator(BaseOperator):
@@ -36,6 +38,8 @@ class DockerOperator(BaseOperator):
     :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
+    :param cpus: deprecated use cpu_shares instead.
+    :type cpus: float
     :param cpu_shares: CPU shares (relative weight)
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpu_shares: int
@@ -88,6 +92,7 @@ class DockerOperator(BaseOperator):
             image,
             api_version=None,
             command=None,
+            cpus=None,
             cpu_shares=None,
             docker_url='unix://var/run/docker.sock',
             environment=None,
@@ -135,8 +140,14 @@ class DockerOperator(BaseOperator):
         self.cli = None
         self.container = None
 
+        if cpus is not None:
+            logging.warning(
+                "Ignoring the cpus parameter. Use cpu_shares instead.",
+                DeprecationWarning
+            )
+
     def execute(self, context):
-        logging.info('Starting docker container from image ' + self.image)
+        logging.info("Starting docker container from image " + self.image)
 
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
