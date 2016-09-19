@@ -986,7 +986,7 @@ class CLIFactory(object):
         'dry_run': Arg(
             ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
         'pid': Arg(
-            ("--pid", ), "PID file location",
+            ("--pid", ), "File location to write PID of airflow process to, defaults to AIRFLOW_HOME/airflow-<command>.pid",
             nargs='?'),
         'daemon': Arg(
             ("-D", "--daemon"), "Daemonize instead of running "
