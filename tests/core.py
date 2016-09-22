@@ -15,29 +15,23 @@
 from __future__ import print_function
 
 import doctest
-import json
-import os
-import re
-import unittest
 import multiprocessing
-import mock
 import tempfile
+import unittest
 from datetime import datetime, time, timedelta
-from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-import signal
+from email.mime.multipart import MIMEMultipart
 from time import sleep
+
+import mock
+import os
 import warnings
-
-from dateutil.relativedelta import relativedelta
-
 from airflow import configuration
 from airflow.executors import SequentialExecutor, LocalExecutor
 from airflow.models import Variable
 from tests.test_utils.fake_datetime import FakeDatetime
 
 configuration.load_test_config()
-from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.models import BaseOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
@@ -48,6 +42,10 @@ from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.operators import sensors
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
+from dateutil.relativedelta import relativedelta
+from freezegun import freeze_time
+
+from airflow import jobs, models, DAG, utils, macros, settings, exceptions
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
@@ -57,8 +55,6 @@ from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException
-
-import six
 
 NUM_EXAMPLE_DAGS = 16
 DEV_NULL = '/dev/null'
@@ -173,6 +169,31 @@ class CoreTest(unittest.TestCase):
         assert dag_run.state == State.RUNNING
         assert dag_run.external_trigger == False
 
+    @freeze_time("2014-01-01", tz_offset=-4)
+    def test_schedule_dag_execution_timezone(self):
+        """
+        Test scheduling a dag when scheduler timezone is Eastern. Making sure,
+        execution time is set in utc time anyway.
+        """
+        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_execution_timezone',
+                  schedule_interval="@once")
+        dag.add_task(models.BaseOperator(
+            task_id="faketastic",
+            owner='Also fake',
+            start_date=datetime(2014, 1, 1, 0, 0)))
+
+        dag_run = jobs.SchedulerJob(**self.default_scheduler_args).create_dag_run(dag)
+        assert dag_run is not None
+        assert dag_run.dag_id == dag.dag_id
+        assert dag_run.run_id is not None
+        assert dag_run.run_id != ''
+        assert dag_run.execution_date == datetime.utcnow(), (
+            'dag_run.execution_date did not match expectation: {0}'
+                .format(dag_run.execution_date))
+        assert dag_run.state == State.RUNNING
+        assert dag_run.external_trigger == False
+        dag.clear()
+
     def test_schedule_dag_once(self):
         """
         Tests scheduling a dag scheduled for @once - should be scheduled the first time
@@ -231,7 +252,7 @@ class CoreTest(unittest.TestCase):
         2016-01-01 should be scheduled.
         """
         from datetime import datetime
-        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
 
         session = settings.Session()
         delta = timedelta(days=1)
@@ -1234,7 +1255,7 @@ class WebUiTests(unittest.TestCase):
         assert "runme_0" in response.data.decode('utf-8')
 
     def tearDown(self):
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
 
 
 class WebPasswordAuthTest(unittest.TestCase):

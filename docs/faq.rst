@@ -78,7 +78,7 @@ pay special attention to ``start_date``, and may want to reactivate
 inactive DagRuns to get the new task to get onboarded properly.
 
 We recommend against using dynamic values as ``start_date``, especially
-``datetime.now()`` as it can be quite confusing. The task is triggered
+``datetime.utcnow()`` as it can be quite confusing. The task is triggered
 once the period closes, and in theory an ``@hourly`` DAG would never get to
 an hour after now as ``now()`` moves along.
 

@@ -53,12 +53,12 @@ class TimeoutTestSensor(BaseSensorOperator):
         return self.return_value
 
     def execute(self, context):
-        started_at = datetime.now()
+        started_at = datetime.utcnow()
         time_jump = self.params.get('time_jump')
         while not self.poke(context):
             if time_jump:
                 started_at -= time_jump
-            if (datetime.now() - started_at).total_seconds() > self.timeout:
+            if (datetime.utcnow() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:

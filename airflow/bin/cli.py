@@ -167,7 +167,7 @@ def trigger_dag(args):
         logging.error("Cannot find dag {}".format(args.dag_id))
         sys.exit(1)
 
-    execution_date = datetime.now()
+    execution_date = datetime.utcnow()
     run_id = args.run_id or "manual__{0}".format(execution_date.isoformat())
 
     dr = DagRun.find(dag_id=args.dag_id, run_id=run_id)

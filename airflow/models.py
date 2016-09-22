@@ -133,7 +133,7 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
         ).all()
         for dr in drs:
             dr.state = State.RUNNING
-            dr.start_date = datetime.now()
+            dr.start_date = datetime.utcnow()
 
 
 class DagBag(BaseDagBag, LoggingMixin):
@@ -322,7 +322,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         TI = TaskInstance
         secs = (
             configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
-        limit_dttm = datetime.now() - timedelta(seconds=secs)
+        limit_dttm = datetime.utcnow() - timedelta(seconds=secs)
         self.logger.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
 
@@ -356,7 +356,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         self.dags[dag.dag_id] = dag
         dag.resolve_template_files()
-        dag.last_loaded = datetime.now()
+        dag.last_loaded = datetime.utcnow()
 
         for task in dag.tasks:
             settings.policy(task)
@@ -382,7 +382,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         ignoring files that match any of the regex patterns specified
         in the file.
         """
-        start_dttm = datetime.now()
+        start_dttm = datetime.utcnow()
         dag_folder = dag_folder or self.dag_folder
 
         # Used to store stats around DagBag processing
@@ -410,11 +410,11 @@ class DagBag(BaseDagBag, LoggingMixin):
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
-                            ts = datetime.now()
+                            ts = datetime.utcnow()
                             found_dags = self.process_file(
                                 filepath, only_if_updated=only_if_updated)
 
-                            td = datetime.now() - ts
+                            td = datetime.utcnow() - ts
                             td = td.total_seconds() + (
                                 float(td.microseconds) / 1000000)
                             stats.append(FileLoadStat(
@@ -427,7 +427,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                     except Exception as e:
                         logging.warning(e)
         Stats.gauge(
-            'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
+            'collect_dags', (datetime.utcnow() - start_dttm).total_seconds(), 1)
         Stats.gauge(
             'dagbag_size', len(self.dags), 1)
         Stats.gauge(
@@ -954,8 +954,8 @@ class TaskInstance(Base):
 
     def set_state(self, state, session):
         self.state = state
-        self.start_date = datetime.now()
-        self.end_date = datetime.now()
+        self.start_date = datetime.utcnow()
+        self.end_date = datetime.utcnow()
         session.merge(self)
         session.commit()
 
@@ -1079,7 +1079,7 @@ class TaskInstance(Base):
         to be retried.
         """
         return (self.state == State.UP_FOR_RETRY and
-                self.next_retry_datetime() < datetime.now())
+                self.next_retry_datetime() < datetime.utcnow())
 
     @provide_session
     def pool_full(self, session):
@@ -1182,7 +1182,7 @@ class TaskInstance(Base):
         msg = "Starting attempt {attempt} of {total}".format(
             attempt=self.try_number % (task.retries + 1) + 1,
             total=task.retries + 1)
-        self.start_date = datetime.now()
+        self.start_date = datetime.utcnow()
 
         dep_context = DepContext(
             deps=RUN_DEPS - QUEUE_DEPS,
@@ -1205,7 +1205,7 @@ class TaskInstance(Base):
                     total=task.retries + 1)
                 logging.info(hr + msg + hr)
 
-                self.queued_dttm = datetime.now()
+                self.queued_dttm = datetime.utcnow()
                 session.merge(self)
                 session.commit()
                 logging.info("Queuing into pool {}".format(self.pool))
@@ -1278,7 +1278,7 @@ class TaskInstance(Base):
             raise
 
         # Recording SUCCESS
-        self.end_date = datetime.now()
+        self.end_date = datetime.utcnow()
         self.set_duration()
         if not test_mode:
             session.add(Log(self.state, self))
@@ -1307,7 +1307,7 @@ class TaskInstance(Base):
         logging.exception(error)
         task = self.task
         session = settings.Session()
-        self.end_date = datetime.now()
+        self.end_date = datetime.utcnow()
         self.set_duration()
         Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
         if not test_mode:
@@ -1609,7 +1609,7 @@ class Log(Base):
     extra = Column(Text)
 
     def __init__(self, event, task_instance, owner=None, extra=None, **kwargs):
-        self.dttm = datetime.now()
+        self.dttm = datetime.utcnow()
         self.event = event
         self.extra = extra
 
@@ -2209,7 +2209,7 @@ class BaseOperator(object):
         range.
         """
         TI = TaskInstance
-        end_date = end_date or datetime.now()
+        end_date = end_date or datetime.utcnow()
         return session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
@@ -2256,7 +2256,7 @@ class BaseOperator(object):
         Run a set of task instances for a date range.
         """
         start_date = start_date or self.start_date
-        end_date = end_date or self.end_date or datetime.now()
+        end_date = end_date or self.end_date or datetime.utcnow()
 
         for dt in self.dag.date_range(start_date, end_date=end_date):
             TaskInstance(self, dt).run(
@@ -2545,7 +2545,7 @@ class DAG(BaseDag, LoggingMixin):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
-        self.last_loaded = datetime.now()
+        self.last_loaded = datetime.utcnow()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
@@ -2609,7 +2609,7 @@ class DAG(BaseDag, LoggingMixin):
 
     # /Context Manager ----------------------------------------------
 
-    def date_range(self, start_date, num=None, end_date=datetime.now()):
+    def date_range(self, start_date, num=None, end_date=datetime.utcnow()):
         if num:
             end_date = None
         return utils_date_range(
@@ -2833,7 +2833,7 @@ class DAG(BaseDag, LoggingMixin):
         if not start_date:
             start_date = (datetime.today()-timedelta(30)).date()
             start_date = datetime.combine(start_date, datetime.min.time())
-        end_date = end_date or datetime.now()
+        end_date = end_date or datetime.utcnow()
         tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.execution_date >= start_date,
@@ -2982,10 +2982,10 @@ class DAG(BaseDag, LoggingMixin):
         d = {}
         d['is_picklable'] = True
         try:
-            dttm = datetime.now()
+            dttm = datetime.utcnow()
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
-            d['pickling_duration'] = "{}".format(datetime.now() - dttm)
+            d['pickling_duration'] = "{}".format(datetime.utcnow() - dttm)
         except Exception as e:
             logging.exception(e)
             d['is_picklable'] = False
@@ -3003,7 +3003,7 @@ class DAG(BaseDag, LoggingMixin):
         if not dp or dp.pickle != self:
             dp = DagPickle(dag=self)
             session.add(dp)
-            self.last_pickled = datetime.now()
+            self.last_pickled = datetime.utcnow()
             session.commit()
             self.pickle_id = dp.id
 
@@ -3738,7 +3738,7 @@ class DagRun(Base):
 
         # pre-calculate
         # db is faster
-        start_dttm = datetime.now()
+        start_dttm = datetime.utcnow()
         unfinished_tasks = self.get_task_instances(
             state=State.unfinished(),
             session=session
@@ -3750,7 +3750,7 @@ class DagRun(Base):
             no_dependencies_met = all(not t.are_dependencies_met(session=session)
                                       for t in unfinished_tasks)
 
-        duration = (datetime.now() - start_dttm).total_seconds() * 1000
+        duration = (datetime.utcnow() - start_dttm).total_seconds() * 1000
         Stats.timing("dagrun.dependency-check.{}.{}".
                      format(self.dag_id, self.execution_date), duration)
 

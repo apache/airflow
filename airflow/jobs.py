@@ -101,22 +101,22 @@ class BaseJob(Base, LoggingMixin):
         self.hostname = socket.getfqdn()
         self.executor = executor
         self.executor_class = executor.__class__.__name__
-        self.start_date = datetime.now()
-        self.latest_heartbeat = datetime.now()
+        self.start_date = datetime.utcnow()
+        self.latest_heartbeat = datetime.utcnow()
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
         super(BaseJob, self).__init__(*args, **kwargs)
 
     def is_alive(self):
         return (
-            (datetime.now() - self.latest_heartbeat).seconds <
+            (datetime.utcnow() - self.latest_heartbeat).seconds <
             (conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1)
         )
 
     def kill(self):
         session = settings.Session()
         job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
-        job.end_date = datetime.now()
+        job.end_date = datetime.utcnow()
         try:
             self.on_kill()
         except:
@@ -165,11 +165,11 @@ class BaseJob(Base, LoggingMixin):
 
         if job.latest_heartbeat:
             sleep_for = self.heartrate - (
-                datetime.now() - job.latest_heartbeat).total_seconds()
+                datetime.utcnow() - job.latest_heartbeat).total_seconds()
             if sleep_for > 0:
                 sleep(sleep_for)
 
-        job.latest_heartbeat = datetime.now()
+        job.latest_heartbeat = datetime.utcnow()
 
         session = settings.Session()
         session.merge(job)
@@ -194,7 +194,7 @@ class BaseJob(Base, LoggingMixin):
         self._execute()
 
         # Marking the success in the DB
-        self.end_date = datetime.now()
+        self.end_date = datetime.utcnow()
         self.state = State.SUCCESS
         session.merge(self)
         session.commit()
@@ -347,7 +347,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
             self._dag_id_white_list,
             "DagFileProcessor{}".format(self._instance_id),
             self.log_file)
-        self._start_time = datetime.now()
+        self._start_time = datetime.utcnow()
 
     def terminate(self, sigkill=False):
         """
@@ -551,16 +551,16 @@ class SchedulerJob(BaseJob):
             TI.execution_date == sq.c.max_ti,
         ).all()
 
-        ts = datetime.now()
+        ts = datetime.utcnow()
         SlaMiss = models.SlaMiss
         for ti in max_tis:
             task = dag.get_task(ti.task_id)
             dttm = ti.execution_date
             if task.sla:
                 dttm = dag.following_schedule(dttm)
-                while dttm < datetime.now():
+                while dttm < datetime.utcnow():
                     following_schedule = dag.following_schedule(dttm)
-                    if following_schedule + task.sla < datetime.now():
+                    if following_schedule + task.sla < datetime.utcnow():
                         session.merge(models.SlaMiss(
                             task_id=ti.task_id,
                             dag_id=ti.dag_id,
@@ -697,9 +697,9 @@ class SchedulerJob(BaseJob):
             for dr in active_runs:
                 if (
                         dr.start_date and dag.dagrun_timeout and
-                        dr.start_date < datetime.now() - dag.dagrun_timeout):
+                        dr.start_date < datetime.utcnow() - dag.dagrun_timeout):
                     dr.state = State.FAILED
-                    dr.end_date = datetime.now()
+                    dr.end_date = datetime.utcnow()
                     timedout_runs += 1
             session.commit()
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
@@ -768,11 +768,11 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and period_end and period_end <= datetime.now():
+            if next_run_date and period_end and period_end <= datetime.utcnow():
                 next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
-                    start_date=datetime.now(),
+                    start_date=datetime.utcnow(),
                     state=State.RUNNING,
                     external_trigger=False
                 )
@@ -792,7 +792,7 @@ class SchedulerJob(BaseJob):
         for run in dag_runs:
             self.logger.info("Examining DAG run {}".format(run))
             # don't consider runs that are executed in the future
-            if run.execution_date > datetime.now():
+            if run.execution_date > datetime.utcnow():
                 self.logging.error("Execution date is in future: {}"
                                    .format(run.execution_date))
                 continue
@@ -1036,7 +1036,7 @@ class SchedulerJob(BaseJob):
                 self.logger.info("Setting state of {} to {}".format(
                     task_instance.key, State.QUEUED))
                 task_instance.state = State.QUEUED
-                task_instance.queued_dttm = (datetime.now()
+                task_instance.queued_dttm = (datetime.utcnow()
                                              if not task_instance.queued_dttm
                                              else task_instance.queued_dttm)
                 session.merge(task_instance)
@@ -1146,7 +1146,7 @@ class SchedulerJob(BaseJob):
             last_runtime = processor_manager.get_last_runtime(file_path)
             processor_pid = processor_manager.get_pid(file_path)
             processor_start_time = processor_manager.get_start_time(file_path)
-            runtime = ((datetime.now() - processor_start_time).total_seconds()
+            runtime = ((datetime.utcnow() - processor_start_time).total_seconds()
                        if processor_start_time else None)
             last_run = processor_manager.get_last_finish_time(file_path)
 
@@ -1310,34 +1310,34 @@ class SchedulerJob(BaseJob):
         self.clear_import_errors(session)
         session.close()
 
-        execute_start_time = datetime.now()
+        execute_start_time = datetime.utcnow()
 
         # Last time stats were printed
         last_stat_print_time = datetime(2000, 1, 1)
         # Last time that self.heartbeat() was called.
-        last_self_heartbeat_time = datetime.now()
+        last_self_heartbeat_time = datetime.utcnow()
         # Last time that the DAG dir was traversed to look for files
-        last_dag_dir_refresh_time = datetime.now()
+        last_dag_dir_refresh_time = datetime.utcnow()
 
         # Use this value initially
         known_file_paths = processor_manager.file_paths
 
         # For the execute duration, parse and schedule DAGs
-        while (datetime.now() - execute_start_time).total_seconds() < \
+        while (datetime.utcnow() - execute_start_time).total_seconds() < \
                 self.run_duration:
             self.logger.debug("Starting Loop...")
             loop_start_time = time.time()
 
             # Traverse the DAG directory for Python files containing DAGs
             # periodically
-            elapsed_time_since_refresh = (datetime.now() -
+            elapsed_time_since_refresh = (datetime.utcnow() -
                                           last_dag_dir_refresh_time).total_seconds()
 
             if elapsed_time_since_refresh > self.dag_dir_list_interval:
                 # Build up a list of Python files that could contain DAGs
                 self.logger.info("Searching for files in {}".format(self.subdir))
                 known_file_paths = list_py_file_paths(self.subdir)
-                last_dag_dir_refresh_time = datetime.now()
+                last_dag_dir_refresh_time = datetime.utcnow()
                 self.logger.info("There are {} files in {}"
                                  .format(len(known_file_paths), self.subdir))
                 processor_manager.set_file_paths(known_file_paths)
@@ -1387,20 +1387,20 @@ class SchedulerJob(BaseJob):
             self._process_executor_events()
 
             # Heartbeat the scheduler periodically
-            time_since_last_heartbeat = (datetime.now() -
+            time_since_last_heartbeat = (datetime.utcnow() -
                                          last_self_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > self.heartrate:
                 self.logger.info("Heartbeating the scheduler")
                 self.heartbeat()
-                last_self_heartbeat_time = datetime.now()
+                last_self_heartbeat_time = datetime.utcnow()
 
             # Occasionally print out stats about how fast the files are getting processed
-            if ((datetime.now() - last_stat_print_time).total_seconds() >
+            if ((datetime.utcnow() - last_stat_print_time).total_seconds() >
                     self.print_stats_interval):
                 if len(known_file_paths) > 0:
                     self._log_file_processing_stats(known_file_paths,
                                                     processor_manager)
-                last_stat_print_time = datetime.now()
+                last_stat_print_time = datetime.utcnow()
 
             loop_end_time = time.time()
             self.logger.debug("Ran scheduling loop in {:.2f}s"
@@ -1481,7 +1481,7 @@ class SchedulerJob(BaseJob):
             return []
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
-        sync_time = datetime.now()
+        sync_time = datetime.utcnow()
         for dag in dagbag.dags.values():
             models.DAG.sync_to_db(dag, dag.owner, sync_time)
 
@@ -1638,7 +1638,7 @@ class BackfillJob(BaseJob):
         # create dag runs
         dr_start_date = start_date or min([t.start_date for t in self.dag.tasks])
         next_run_date = self.dag.normalize_schedule(dr_start_date)
-        end_date = end_date or datetime.now()
+        end_date = end_date or datetime.utcnow()
 
         active_dag_runs = []
         while next_run_date and next_run_date <= end_date:
@@ -1653,7 +1653,7 @@ class BackfillJob(BaseJob):
                 run = self.dag.create_dagrun(
                     run_id=run_id,
                     execution_date=next_run_date,
-                    start_date=datetime.now(),
+                    start_date=datetime.utcnow(),
                     state=State.RUNNING,
                     external_trigger=False,
                     session=session,

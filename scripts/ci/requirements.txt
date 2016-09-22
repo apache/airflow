@@ -16,6 +16,7 @@ flask-admin
 flask-cache
 flask-login==0.2.11
 flower
+freezegun
 future
 gunicorn
 hive-thrift-py

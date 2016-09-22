@@ -69,9 +69,9 @@ class BaseSensorOperator(BaseOperator):
         raise AirflowException('Override me.')
 
     def execute(self, context):
-        started_at = datetime.now()
+        started_at = datetime.utcnow()
         while not self.poke(context):
-            if (datetime.now() - started_at).total_seconds() > self.timeout:
+            if (datetime.utcnow() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
@@ -547,7 +547,7 @@ class TimeSensor(BaseSensorOperator):
     def poke(self, context):
         logging.info(
             'Checking if the time ({0}) has come'.format(self.target_time))
-        return datetime.now().time() > self.target_time
+        return datetime.utcnow().time() > self.target_time
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -572,7 +572,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         target_dttm = dag.following_schedule(context['execution_date'])
         target_dttm += self.delta
         logging.info('Checking if the time ({0}) has come'.format(target_dttm))
-        return datetime.now() > target_dttm
+        return datetime.utcnow() > target_dttm
 
 
 class HttpSensor(BaseSensorOperator):

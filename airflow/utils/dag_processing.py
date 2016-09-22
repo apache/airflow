@@ -387,7 +387,7 @@ class DagFileProcessorManager(LoggingMixin):
         being processed
         """
         if file_path in self._processors:
-            return (datetime.now() - self._processors[file_path].start_time)\
+            return (datetime.utcnow() - self._processors[file_path].start_time)\
                 .total_seconds()
         return None
 
@@ -477,7 +477,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         # General approach is to put the log file under the same relative path
         # under the log directory as the DAG file in the DAG directory
-        now = datetime.now()
+        now = datetime.utcnow()
         log_directory = os.path.join(self._child_process_log_directory,
                                      now.strftime("%Y-%m-%d"))
         relative_dag_file_path = os.path.relpath(dag_file_path, start=self._dag_directory)
@@ -521,7 +521,7 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path, processor in self._processors.items():
             if processor.done:
                 self.logger.info("Processor for {} finished".format(file_path))
-                now = datetime.now()
+                now = datetime.utcnow()
                 finished_processors[file_path] = processor
                 self._last_runtime[file_path] = (now -
                                                  processor.start_time).total_seconds()
@@ -550,7 +550,7 @@ class DagFileProcessorManager(LoggingMixin):
             # If the file path is already being processed, or if a file was
             # processed recently, wait until the next batch
             file_paths_in_progress = self._processors.keys()
-            now = datetime.now()
+            now = datetime.utcnow()
             file_paths_recently_processed = []
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)

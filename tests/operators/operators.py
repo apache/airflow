@@ -174,7 +174,7 @@ class TransferTests(unittest.TestCase):
     def test_clear(self):
         self.dag.clear(
             start_date=DEFAULT_DATE,
-            end_date=datetime.datetime.now())
+            end_date=datetime.datetime.utcnow())
 
     def test_mysql_to_hive(self):
         # import airflow.operators
