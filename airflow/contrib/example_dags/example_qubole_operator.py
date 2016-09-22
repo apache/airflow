@@ -58,6 +58,8 @@ t2 = QuboleOperator(
     script_location="s3n://public-qubole/qbol-library/scripts/show_table.hql",
     notfiy=True,
     tags=['tag1', 'tag2'],
+    # If the script at s3 location has any qubole specific macros to be replaced
+    # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
     trigger_rule="all_done",
     dag=dag)
 
