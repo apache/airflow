@@ -100,59 +100,61 @@ def write_version(filename=os.path.join(*['airflow',
 
 
 async = [
-    'greenlet>=0.4.9',
-    'eventlet>= 0.9.7',
-    'gevent>=0.13'
+    'greenlet==0.4.10',
+    'eventlet==0.19.0',
+    'gevent==1.1.2',
 ]
 celery = [
-    'celery>=3.1.17',
-    'flower>=0.7.3'
+    'celery==3.1.23',
+    'flower==0.9.1',
 ]
-crypto = ['cryptography>=0.9.3']
+crypto = ['cryptography==1.5']
 doc = [
-    'sphinx>=1.2.3',
-    'sphinx-argparse>=0.1.13',
-    'sphinx-rtd-theme>=0.1.6',
-    'Sphinx-PyPI-upload>=0.2.1'
+    'sphinx==1.4.6',
+    'sphinx-argparse==0.1.15',
+    'sphinx-rtd-theme==0.1.9',
+    'Sphinx-PyPI-upload>=0.2.1',
 ]
-docker = ['docker-py>=1.6.0']
-druid = ['pydruid>=0.2.1']
-emr = ['boto3>=1.0.0']
+docker = ['docker-py==1.10.3']
+druid = ['pydruid==0.3.0']
+emr = ['boto3==1.4.0']
 gcp_api = [
-    'httplib2',
-    'google-api-python-client>=1.5.0, <1.6.0',
-    'oauth2client>=2.0.2, <2.1.0',
-    'PyOpenSSL',
+    'httplib2==0.9.2',
+    'google-api-python-client==1.5.3',
+    'oauth2client==2.0.2',
+    'PyOpenSSL==16.1.0',
 ]
-hdfs = ['snakebite>=2.7.8']
-webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+hdfs = ['snakebite==2.11.0']
+webhdfs = ['hdfs[dataframe,avro,kerberos]==2.0.11']
 hive = [
-    'hive-thrift-py>=0.0.1',
-    'pyhive>=0.1.3',
-    'impyla>=0.13.3',
-    'unicodecsv>=0.14.1'
+    'hive-thrift-py==0.0.1',
+    'pyhive==0.2.1',
+    'impyla==0.13.8',
+    'unicodecsv==0.14.1',
 ]
-jdbc = ['jaydebeapi>=0.2.0']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
-mysql = ['mysqlclient>=1.3.6']
-rabbitmq = ['librabbitmq>=1.6.1']
-oracle = ['cx_Oracle>=5.1.2']
-postgres = ['psycopg2>=2.6']
+jdbc = ['jaydebeapi==0.2.0']
+mssql = ['pymssql==2.1.3', 'unicodecsv==0.14.1']
+mysql = ['mysqlclient==1.3.7']
+rabbitmq = ['librabbitmq==1.6.1']
+oracle = ['cx_Oracle==5.2.1']
+postgres = ['psycopg2==2.6.2']
 s3 = [
-    'boto>=2.36.0',
-    'filechunkio>=1.6',
+    'boto==2.42.0',
+    'filechunkio==1.8',
 ]
-samba = ['pysmbclient>=0.1.3']
-slack = ['slackclient>=1.0.0']
-statsd = ['statsd>=3.0.1, <4.0']
-vertica = ['vertica-python>=0.5.1']
-ldap = ['ldap3>=0.9.9.1']
-kerberos = ['pykerberos>=1.1.8',
-            'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8']
+samba = ['pysmbclient==0.1.3']
+slack = ['slackclient==1.0.1']
+statsd = ['statsd==3.2.1']
+vertica = ['vertica-python==0.6.6']
+ldap = ['ldap3==1.4.0']
+kerberos = [
+    'pykerberos==1.1.13',
+    'thrift_sasl==0.2.1',
+    'snakebite[kerberos]==2.11.0',
+]
 password = [
-    'bcrypt>=2.0.0',
-    'flask-bcrypt>=0.7.1',
+    'bcrypt==3.1.1',
+    'flask-bcrypt==0.7.1',
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
@@ -178,33 +180,33 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
-            'alembic>=0.8.3, <0.9',
-            'croniter>=0.3.8, <0.4',
-            'dill>=0.2.2, <0.3',
-            'flask>=0.10.1, <0.11',
+            'alembic==0.8.8',
+            'croniter==0.3.12',
+            'dill==0.2.5',
+            'flask==0.11.1',
             'flask-admin==1.4.1',
-            'flask-cache>=0.13.1, <0.14',
+            'flask-cache==0.13.1',
             'flask-login==0.2.11',
             'flask-wtf==0.12',
-            'funcsigs>=0.4, <1',
-            'future>=0.15.0, <0.16',
-            'gitpython>=2.0.2',
-            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
-            'jinja2>=2.7.3, <3.0',
-            'markdown>=2.5.2, <3.0',
-            'pandas>=0.17.1, <1.0.0',
-            'psutil>=4.2.0, <5.0.0',
-            'pygments>=2.0.1, <3.0',
-            'python-daemon>=2.1.1, <2.2',
-            'python-dateutil>=2.3, <3',
+            'funcsigs==1.0.2',
+            'future==0.15.2',
+            'gitpython==2.0.8',
+            'gunicorn==19.3.0',  # 19.4.? seemed to have issues
+            'jinja2==2.8',
+            'markdown==2.6.6',
+            'pandas==0.18.1',
+            'psutil==4.3.1',
+            'pygments==2.1.3',
+            'python-daemon==2.1.1',
+            'python-dateutil==2.5.3',
             'python-nvd3==0.14.2',
-            'requests>=2.5.1, <3',
-            'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=0.9.8',
-            'tabulate>=0.7.5, <0.8.0',
-            'thrift>=0.9.2, <0.10',
-            'zope.deprecation>=4.0, <5.0',
-	    'lxml==3.6.0',
+            'requests==2.11.1',
+            'setproctitle==1.1.10',
+            'sqlalchemy==1.0.15',
+            'tabulate==0.7.5',
+            'thrift==0.9.3',
+            'zope.deprecation==4.1.2',
+            'lxml==3.6.0',
         ],
         extras_require={
             'all': devel_all,
