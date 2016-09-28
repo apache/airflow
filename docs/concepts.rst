@@ -329,10 +329,11 @@ variables from the operating system. The environment variable needs to be
 prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
 referencing the connection in the Airflow pipeline, the ``conn_id`` should
 be the name of the variable without the prefix. For example, if the ``conn_id``
-is named ``POSTGRES_MASTER`` the environment variable should be named
-``AIRFLOW_CONN_POSTGRES_MASTER``. Airflow assumes the value returned
-from the environment variable to be in a URI format
-(e.g. ``postgres://user:password@localhost:5432/master``).
+is named ``postgres_master`` the environment variable should be named
+``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
+all uppercase). Airflow assumes the value returned from the environment
+variable to be in a URI format (e.g.
+``postgres://user:password@localhost:5432/master``).
 
 Queues
 ======
