@@ -185,10 +185,10 @@ class DbApiHook(BaseHook):
         else:
             target_fields = ''
         conn = self.get_conn()
-        cur = conn.cursor()
         if self.supports_autocommit:
-            cur.execute('SET autocommit = 0')
+            self.set_autocommit(conn, False)
         conn.commit()
+        cur = conn.cursor()
         i = 0
         for row in rows:
             i += 1
