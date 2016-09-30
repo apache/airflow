@@ -129,6 +129,7 @@ Currently **officially** using Airflow:
 1. [WePay](http://www.wepay.com) [[@criccomini](https://github.com/criccomini) & [@mtagle](https://github.com/mtagle)]
 1. [WeTransfer](https://github.com/WeTransfer) [[@jochem](https://github.com/jochem)]
 1. [Whistle Labs](http://www.whistle.com) [[@ananya77041](https://github.com/ananya77041)]
+1. [WiseBanyan](https://wisebanyan.com/)
 1. Wooga
 1. Xoom [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 1. Yahoo!
