@@ -179,20 +179,24 @@ def do_setup():
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
+        setup_requires=[
+            'numpy==1.11.0',
+        ],
         install_requires=[
             'alembic==0.8.8',
             'croniter==0.3.12',
             'dill==0.2.5',
-            'flask==0.11.1',
             'flask-admin==1.4.1',
             'flask-cache==0.13.1',
             'flask-login==0.2.11',
             'flask-wtf==0.12',
+            'flask==0.11.1',
             'funcsigs==1.0.2',
             'future==0.15.2',
             'gitpython==2.0.8',
             'gunicorn==19.3.0',  # 19.4.? seemed to have issues
             'jinja2==2.8',
+            'lxml==3.6.0',
             'markdown==2.6.6',
             'pandas==0.18.1',
             'psutil==4.3.1',
@@ -206,7 +210,6 @@ def do_setup():
             'tabulate==0.7.5',
             'thrift==0.9.3',
             'zope.deprecation==4.1.2',
-            'lxml==3.6.0',
         ],
         extras_require={
             'all': devel_all,
