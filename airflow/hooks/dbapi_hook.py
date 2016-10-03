@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from builtins import str
 from past.builtins import basestring
-from datetime import datetime
-import numpy
 import logging
 import sys
 
@@ -192,10 +189,7 @@ class DbApiHook(BaseHook):
         i = 0
         for row in rows:
             i += 1
-            l = []
-            for cell in row:
-                l.append(self._serialize_cell(cell))
-            values = tuple(l)
+            values = [conn.literal(cell) for cell in row]
             sql = "INSERT INTO {0} {1} VALUES ({2});".format(
                 table,
                 target_fields,
@@ -210,19 +204,6 @@ class DbApiHook(BaseHook):
         conn.close()
         logging.info(
             "Done loading. Loaded a total of {i} rows".format(**locals()))
-
-    @staticmethod
-    def _serialize_cell(cell):
-        if isinstance(cell, basestring):
-            return "'" + str(cell).replace("'", "''") + "'"
-        elif cell is None:
-            return 'NULL'
-        elif isinstance(cell, numpy.datetime64):
-            return "'" + str(cell) + "'"
-        elif isinstance(cell, datetime):
-            return "'" + cell.isoformat() + "'"
-        else:
-            return str(cell)
 
     def bulk_dump(self, table, tmp_file):
         """
