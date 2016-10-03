@@ -23,6 +23,7 @@
 {% block head_css %}
   {{ lib.form_css() }}
   {{ super() }}
+  <link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
 {% endblock %}
 
 {% block body %}
@@ -31,6 +32,7 @@
       {% if dag.parent_dag %}
         <span style='color:#AAA;'>SUBDAG: </span> <span> {{ dag.dag_id }}</span>
       {% else %}
+        <input id="pause_resume" dag_id="{{ dag.dag_id }}" type="checkbox" {{ "checked" if not dag.is_paused else "" }} data-toggle="toggle" data-size="mini">
         <span style='color:#AAA;'>DAG: </span> <span> {{ dag.dag_id }}</span>
       {% endif %}
       {% if root %}
@@ -222,6 +224,7 @@
 {% block tail %}
   {{ lib.form_js() }}
   {{ super() }}
+  <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
 function updateQueryStringParameter(uri, key, value) {
   var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
@@ -356,6 +359,17 @@ function updateQueryStringParameter(uri, key, value) {
         "?dag_id=" + dag_id +
         "&execution_date=" + execution_date;
       window.location = url;
+    });
+
+    $("#pause_resume").change(function() {
+      var dag_id =  $(this).attr('dag_id');
+      if ($(this).prop('checked')) {
+        is_paused = 'true'
+      } else {
+        is_paused = 'false'
+      }
+      url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + dag_id;
+      $.ajax(url);
     });
 
   </script>
