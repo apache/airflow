@@ -161,7 +161,8 @@ class BigQueryBaseCursor(object):
             self, bql, destination_dataset_table = False,
             write_disposition = 'WRITE_EMPTY',
             allow_large_results=False,
-            udf_config = False):
+            udf_config = False,
+            use_legacy_sql=True):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -181,10 +182,13 @@ class BigQueryBaseCursor(object):
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
         :type udf_config: list
+        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+        :type use_legacy_sql: boolean
         """
         configuration = {
             'query': {
                 'query': bql,
+                'useLegacySql': use_legacy_sql
             }
         }
 
@@ -193,7 +197,8 @@ class BigQueryBaseCursor(object):
                 'Expected destination_dataset_table in the format of '
                 '<dataset>.<table>. Got: {}').format(destination_dataset_table)
             destination_project, destination_dataset, destination_table = \
-                _split_tablename(destination_dataset_table, self.project_id)
+                _split_tablename(table_input=destination_dataset_table,
+                                 default_project_id=self.project_id)
             configuration['query'].update({
                 'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
@@ -241,9 +246,9 @@ class BigQueryBaseCursor(object):
         :type print_header: boolean
         """
         source_project, source_dataset, source_table = \
-            _split_tablename(
-                source_project_dataset_table, self.project_id,
-                'source_project_dataset_table')
+            _split_tablename(table_input=source_project_dataset_table,
+                             default_project_id=self.project_id,
+                             var_name='source_project_dataset_table')
         configuration = {
             'extract': {
                 'sourceTable': {
@@ -302,9 +307,9 @@ class BigQueryBaseCursor(object):
         source_project_dataset_tables_fixup = []
         for source_project_dataset_table in source_project_dataset_tables:
             source_project, source_dataset, source_table = \
-                _split_tablename(
-                    source_project_dataset_table, self.project_id,
-                    'source_project_dataset_table')
+                _split_tablename(table_input=source_project_dataset_table,
+                                 default_project_id=self.project_id,
+                                 var_name='source_project_dataset_table')
             source_project_dataset_tables_fixup.append({
                 'projectId': source_project,
                 'datasetId': source_dataset,
@@ -312,7 +317,8 @@ class BigQueryBaseCursor(object):
             })
 
         destination_project, destination_dataset, destination_table = \
-            _split_tablename(destination_project_dataset_table, self.project_id)
+            _split_tablename(table_input=destination_project_dataset_table,
+                             default_project_id=self.project_id)
         configuration = {
             'copy': {
                 'createDisposition': create_disposition,
@@ -368,9 +374,9 @@ class BigQueryBaseCursor(object):
         :type field_delimiter: string
         """
         destination_project, destination_dataset, destination_table = \
-            _split_tablename(
-                destination_project_dataset_table, self.project_id,
-                'destination_project_dataset_table')
+            _split_tablename(table_input=destination_project_dataset_table,
+                             default_project_id=self.project_id,
+                             var_name='destination_project_dataset_table')
 
         configuration = {
             'load': {
@@ -495,7 +501,8 @@ class BigQueryBaseCursor(object):
             'Expected deletion_dataset_table in the format of '
             '<dataset>.<table>. Got: {}').format(deletion_dataset_table)
         deletion_project, deletion_dataset, deletion_table = \
-            _split_tablename(deletion_dataset_table, self.project_id)
+            _split_tablename(table_input=deletion_dataset_table,
+                             default_project_id=self.project_id)
 
         try:
             tables_resource = self.service.tables() \

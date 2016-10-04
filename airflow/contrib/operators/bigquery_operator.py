@@ -36,6 +36,7 @@ class BigQueryOperator(BaseOperator):
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  udf_config=False,
+                 use_legacy_sql=True,
                  *args,
                  **kwargs):
         """
@@ -58,6 +59,8 @@ class BigQueryOperator(BaseOperator):
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
         :type udf_config: list
+        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+        :type use_legacy_sql: boolean
         """
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
@@ -67,6 +70,7 @@ class BigQueryOperator(BaseOperator):
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.udf_config = udf_config
+        self.use_legacy_sql = use_legacy_sql
 
     def execute(self, context):
         logging.info('Executing: %s', str(self.bql))
@@ -75,4 +79,4 @@ class BigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config)
+                         self.allow_large_results, self.udf_config, self.use_legacy_sql)
