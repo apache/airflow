@@ -180,7 +180,6 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         setup_requires=[
             'numpy==1.11.0',
-            'python-daemon==1.5.1',
         ],
         install_requires=[
             'alembic==0.8.8',
@@ -201,7 +200,7 @@ def do_setup():
             'pandas==0.18.1',
             'psutil==4.3.1',
             'pygments==2.1.3',
-            'python-daemon==2.1.1',
+            'python-daemon==1.6.1',  # >2.0 < 2.1.1 has installation issues
             'python-dateutil==2.5.3',
             'python-nvd3==0.14.2',
             'requests==2.11.1',
