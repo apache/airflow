@@ -319,10 +319,17 @@ job_heartbeat_sec = 5
 # how often the scheduler should run (in seconds).
 scheduler_heartbeat_sec = 5
 
-run_duration = 1800
+# after how much time should the scheduler terminate in seconds
+# -1 indicates to run continuously (see also num_runs)
+run_duration = -1
+
+# after how much time a new DAGs should be picked up from the filesystem
+min_file_process_interval = 0
+
 dag_dir_list_interval = 300
+
+# How often should stats be printed to the logs
 print_stats_interval = 30
-min_file_process_interval = 180
 
 child_process_log_directory = /tmp/airflow/scheduler/logs
 

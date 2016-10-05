@@ -1324,7 +1324,7 @@ class SchedulerJob(BaseJob):
 
         # For the execute duration, parse and schedule DAGs
         while (datetime.now() - execute_start_time).total_seconds() < \
-                self.run_duration:
+                self.run_duration or self.run_duration < 0:
             self.logger.debug("Starting Loop...")
             loop_start_time = time.time()
 
