@@ -181,7 +181,7 @@ def do_setup():
             'alembic>=0.8.3, <0.9',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.10.1, <0.11',
+            'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
