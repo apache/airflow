@@ -692,10 +692,10 @@ def webserver(args):
                       conf.get('webserver', 'webserver_worker_timeout'))
     ssl_cert = args.ssl_cert or conf.get('webserver', 'web_server_ssl_cert')
     ssl_key = args.ssl_key or conf.get('webserver', 'web_server_ssl_key')
-    if ssl_cert is None and ssl_key is not None:
+    if not ssl_cert and ssl_key:
         raise AirflowException(
             'An SSL certificate must also be provided for use with ' + ssl_key)
-    if ssl_cert is not None and ssl_key is None:
+    if ssl_cert and not ssl_key:
         raise AirflowException(
             'An SSL key must also be provided for use with ' + ssl_cert)
 
