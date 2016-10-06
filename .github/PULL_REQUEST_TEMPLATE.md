@@ -15,6 +15,9 @@ Reminders for contributors (REQUIRED!):
 [Airflow's JIRA](https://issues.apache.org/jira/browse/AIRFLOW/). 
 For example, a PR called "[AIRFLOW-1] My Amazing PR" would close JIRA 
 issue #1. Please open a new issue if required!
+
+* For all PRs with UI changes, you must provide screenshots. If the UI changes are not obvious, either annotate the images or provide before/after screenshots.
+
 * Please squash your commits when possible and follow the [How to write a good git commit message](http://chris.beams.io/posts/git-commit/). 
 Summarized as follows:
   1. Separate subject from body with a blank line
@@ -23,3 +26,4 @@ Summarized as follows:
   4. Use the imperative mood in the subject line (add, not adding)
   5. Wrap the body at 72 characters
   6. Use the body to explain what and why vs. how
+
