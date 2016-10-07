@@ -851,3 +851,84 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+    def test_dag_backfill_option(self):
+        """
+        Test to check that a DAG with no backfill only schedules beginning now, not back to the start date
+        """
+
+        now = datetime.datetime.now()
+        three_hours_ago_to_the_hour = now.replace(hour=now.time().hour - 3, minute=0, second=0, microsecond=0)
+        now_minus_two_minutes = now - datetime.timedelta(minutes=2)
+
+        START_DATE = three_hours_ago_to_the_hour
+        DAG_NAME = 'no_backfill_test'
+        dag_id = DAG_NAME
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date': START_DATE
+
+        }
+        dag = DAG(DAG_NAME,
+                  schedule_interval='* * * * *',
+                  max_active_runs=1,
+                  default_args=default_args
+                  )
+
+        default_backfill = configuration.getboolean('scheduler', 'backfill_by_default')
+        # Test configs have backfill by default ON
+        if default_backfill == 'true':
+            default_backfill = True
+        elif default_backfill == 'false':
+            default_backfill = False
+
+        self.assertEqual(default_backfill, True)
+
+        # Correct default?
+        self.assertEqual(dag.backfill, True)
+
+        # Change the default to False and validate
+        configuration.set('scheduler', 'backfill_by_default', 'false')
+        default_backfill = configuration.getboolean('scheduler', 'backfill_by_default')
+        if default_backfill == 'true':
+            default_backfill = True
+        elif default_backfill == 'false':
+            default_backfill = False
+
+        # Test configs have backfill by default OFF
+        self.assertEqual(default_backfill, False)
+
+        dag = DAG(DAG_NAME,
+                  schedule_interval='* * * * *',
+                  max_active_runs=1,
+                  backfill=False,
+                  default_args=default_args
+                  )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        dr = scheduler.create_dag_run(dag)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
+        # The DR should be scheduled in the last 2 minutes, not 3 hours ago
+        self.assertGreater(dr.execution_date, now_minus_two_minutes)
+
+        # The DR should be scheduled BEFORE now
+        self.assertLess(dr.execution_date, datetime.datetime.now())

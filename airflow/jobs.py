@@ -721,6 +721,17 @@ class SchedulerJob(BaseJob):
             if dag.schedule_interval == '@once' and last_scheduled_run:
                 return None
 
+            # don't do backfill for dag's that don't have dag.backfill = True
+            if not dag.backfill:
+                # The logic is that we move start_date up until one period before, so that datetime.now()
+                # is AFTER the period end, and the job can be created...
+                new_start = dag.previous_schedule(datetime.now())
+                if dag.start_date:
+                    if new_start >= dag.start_date:
+                        dag.start_date = new_start
+                else:
+                    dag.start_date = new_start
+
             next_run_date = None
             if not last_scheduled_run:
                 # First run
@@ -747,6 +758,10 @@ class SchedulerJob(BaseJob):
 
                 self.logger.debug("Dag start date: {}. Next run date: {}"
                                   .format(dag.start_date, next_run_date))
+
+            # don't ever schedule in the future
+            if next_run_date > datetime.now():
+                return
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType

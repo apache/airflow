@@ -333,6 +333,8 @@ print_stats_interval = 30
 
 child_process_log_directory = /tmp/airflow/scheduler/logs
 
+backfill_by_default = true
+
 # Statsd (https://github.com/etsy/statsd) integration settings
 statsd_on = False
 statsd_host = localhost
@@ -454,6 +456,7 @@ job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
 max_threads = 2
+backfill_by_default = true
 """
 
 
