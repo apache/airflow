@@ -14,6 +14,7 @@
 #
 
 import logging
+import json
 
 import httplib2
 from oauth2client.client import GoogleCredentials
@@ -41,7 +42,7 @@ class GoogleCloudBaseHook(BaseHook):
 
     JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
 
-    JSON key dict: Specify 'Project Id' and 'Scope'.
+    JSON key dict: Specify 'Project Id', 'Key Dict' and 'Scope'.
 
     Legacy P12 key files are not supported.
     """
@@ -79,7 +80,7 @@ class GoogleCloudBaseHook(BaseHook):
             if key_dict:
                 logging.info('Getting connection using a JSON key dict.')
                 credentials = ServiceAccountCredentials\
-                    .from_json_keyfile_dict(key_path, scopes)
+                    .from_json_keyfile_dict(json.loads(key_dict), scopes)
             else:
                 if key_path.endswith('.json'):
                     logging.info('Getting connection using a JSON key file.')

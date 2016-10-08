@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 
+import json
 from mock import ANY, Mock, patch
 import tempfile
 import unittest
@@ -45,7 +46,7 @@ class TestGcpBaseHookOptions(unittest.TestCase):
         gcp_hook = hook.GoogleCloudBaseHook('gcp_default')
         gcp_hook.extras = {
             'extra__google_cloud_platform__project': 'foo_project',
-            'extra__google_cloud_platform__key_dict': dict(foo='bar'),
+            'extra__google_cloud_platform__key_dict': json.dumps(dict(foo='bar')),
             'extra__google_cloud_platform__scope': 's1,s2',
         }
         gcp_hook.delegate_to = None

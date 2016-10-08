@@ -2397,6 +2397,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__jdbc__drv_clsname',
         'extra__google_cloud_platform__project',
         'extra__google_cloud_platform__key_path',
+        'extra__google_cloud_platform__key_dict',
         'extra__google_cloud_platform__scope',
     )
     verbose_name = "Connection"
@@ -2418,6 +2419,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__jdbc__drv_clsname': StringField('Driver Class'),
         'extra__google_cloud_platform__project': StringField('Project Id'),
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
+        'extra__google_cloud_platform__key_dict': StringField('JSON-encoded Key Dictionary'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma seperated)'),
 
     }
