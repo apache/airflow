@@ -44,7 +44,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.create_host_config.return_value = host_config
         client_mock.images.return_value = []
         client_mock.logs.return_value = ['container log']
-        client_mock.pull.return_value = ['{"status":"pull log"}']
+        client_mock.pull.return_value = [b'{"status":"pull log"}']
         client_mock.wait.return_value = 0
 
         client_class_mock.return_value = client_mock

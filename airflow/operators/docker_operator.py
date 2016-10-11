@@ -152,7 +152,7 @@ class DockerOperator(BaseOperator):
         if self.force_pull or len(self.cli.images(name=image)) == 0:
             logging.info('Pulling docker image ' + image)
             for l in self.cli.pull(image, stream=True):
-                output = json.loads(l)
+                output = json.loads(l.decode('utf-8'))
                 logging.info("{}".format(output['status']))
 
         cpu_shares = int(round(self.cpus * 1024))
