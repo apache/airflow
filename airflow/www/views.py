@@ -511,6 +511,7 @@ class Airflow(BaseView):
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
+            .filter(DagRun.state != State.RUNNING)
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
