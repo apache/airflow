@@ -758,7 +758,7 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    response = requests.get(url)
+                    response = requests.get(url, timeout=5)
                     response.raise_for_status()
                     log += '\n' + response.text
                     log_loaded = True
