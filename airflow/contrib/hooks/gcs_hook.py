@@ -15,9 +15,11 @@
 
 import logging
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
+from googleapiclient import errors
+
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 logging.getLogger("google_cloud_storage").setLevel(logging.INFO)
 
@@ -31,7 +33,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def __init__(self,
                  google_cloud_storage_conn_id='google_cloud_storage_default',
                  delegate_to=None):
-        super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id, delegate_to)
+        super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id,
+                                                     delegate_to)
 
     def get_conn(self):
         """
@@ -84,3 +87,25 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             .objects() \
             .insert(bucket=bucket, name=object, media_body=media) \
             .execute()
+
+    def exists(self, bucket, object):
+        """
+        Checks for the existence of a file in Google Cloud Storage.
+
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        service = self.get_conn()
+        try:
+            service \
+                .objects() \
+                .get(bucket=bucket, object=object) \
+                .execute()
+            return True
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
