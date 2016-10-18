@@ -1964,6 +1964,7 @@ class LocalTaskJob(BaseJob):
         # Suicide pill
         TI = models.TaskInstance
         ti = self.task_instance
+        
         state = session.query(TI.state).filter(
             TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
             TI.execution_date==ti.execution_date).scalar()
