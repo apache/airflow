@@ -28,5 +28,6 @@ pylint:
     - super-on-old-class
     - wrong-import-order
     - wrong-import-position
+    - logging-format-interpolation
   options:
     docstring-min-length: 10
