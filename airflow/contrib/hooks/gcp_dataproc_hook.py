@@ -126,6 +126,9 @@ class _DataProcJobBuilder:
     def set_python_main(self, main):
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
 
+    def set_job_name(self, name):
+        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid1())[:8]
+
     def build(self):
         return self.job
 
