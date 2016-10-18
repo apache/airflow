@@ -26,7 +26,7 @@ from time import sleep
 import airflow
 from airflow import hooks, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
-from airflow.models import BaseOperator, TaskInstance, Connection as DB
+from airflow.models import BaseOperator, TaskInstance
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
@@ -446,10 +446,6 @@ class S3KeySensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3KeySensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
-        db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
-        if not db:
-            raise AirflowException("conn_id doesn't exist in the repository")
         # Parse
         if bucket_name is None:
             parsed_url = urlparse(bucket_key)
@@ -465,8 +461,6 @@ class S3KeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.s3_conn_id = s3_conn_id
-        session.commit()
-        session.close()
 
     def poke(self, context):
         import airflow.hooks.S3_hook
@@ -506,18 +500,12 @@ class S3PrefixSensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3PrefixSensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
-        db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
-        if not db:
-            raise AirflowException("conn_id doesn't exist in the repository")
         # Parse
         self.bucket_name = bucket_name
         self.prefix = prefix
         self.delimiter = delimiter
         self.full_url = "s3://" + bucket_name + '/' + prefix
         self.s3_conn_id = s3_conn_id
-        session.commit()
-        session.close()
 
     def poke(self, context):
         logging.info('Poking for prefix : {self.prefix}\n'
