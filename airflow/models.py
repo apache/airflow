@@ -1135,8 +1135,7 @@ class TaskInstance(Base):
         """
         dr = session.query(DagRun).filter(
             DagRun.dag_id == self.dag_id,
-            DagRun.execution_date == self.execution_date,
-            DagRun.start_date == self.start_date
+            DagRun.execution_date == self.execution_date
         ).first()
 
         return dr
