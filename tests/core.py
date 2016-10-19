@@ -597,10 +597,21 @@ class CoreTest(unittest.TestCase):
         job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
+    @mock.patch('airflow.utils.dag_processing.datetime', FakeDatetime)
     def test_scheduler_job(self):
+        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
         job = jobs.SchedulerJob(dag_id='example_bash_operator',
                                 **self.default_scheduler_args)
         job.run()
+        log_base_directory = configuration.conf.get("scheduler",
+            "child_process_log_directory")
+        latest_log_directory_path = os.path.join(log_base_directory, "latest")
+        # verify that the symlink to the latest logs exists
+        assert os.path.islink(latest_log_directory_path)
+
+        # verify that the symlink points to the correct log directory
+        log_directory = os.path.join(log_base_directory, "2016-01-01")
+        self.assertEqual(os.readlink(latest_log_directory_path), log_directory)
 
     def test_raw_job(self):
         TI = models.TaskInstance
