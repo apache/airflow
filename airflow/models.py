@@ -1195,6 +1195,7 @@ class TaskInstance(Base):
                 dep_context=queue_dep_context,
                 session=session,
                 verbose=True):
+            session.commit()
             return
 
         self.clear_xcom_data()
@@ -1230,9 +1231,18 @@ class TaskInstance(Base):
                 logging.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
+                msg = "Queuing into pool {}".format(self.pool)
+                logging.info(msg)
                 session.merge(self)
-                session.commit()
-                logging.info("Queuing into pool {}".format(self.pool))
+            session.commit()
+            return
+
+        # Another worker might have started running this task instance while
+        # the current worker process was blocked on refresh_from_db
+        if self.state == State.RUNNING:
+            msg = "Task Instance already running {}".format(self)
+            logging.warn(msg)
+            session.commit()
             return
 
         # print status message

@@ -1679,34 +1679,48 @@ class BackfillJob(BaseJob):
         for run in active_dag_runs:
             logging.info("Checking run {}".format(run))
             run_count = run_count + 1
-            # this needs a fresh session sometimes tis get detached
-            # can be more finegrained (excluding success or skipped)
-            for ti in run.get_task_instances():
-                tasks_to_run[ti.key] = ti
+
+            def get_task_instances_for_dag_run(dag_run):
+                # this needs a fresh session sometimes tis get detached
+                # can be more finegrained (excluding success or skipped)
+                tasks = {}
+                for ti in dag_run.get_task_instances():
+                    tasks[ti.key] = ti
+                return tasks
 
             # Triggering what is ready to get triggered
-            while tasks_to_run and not deadlocked:
+            while not deadlocked:
+                tasks_to_run = get_task_instances_for_dag_run(run)
+                self.logger.debug("Clearing out not_ready list")
                 not_ready.clear()
 
                 for key, ti in list(tasks_to_run.items()):
-                    ti.refresh_from_db(session=session, lock_for_update=True)
                     task = self.dag.get_task(ti.task_id)
                     ti.task = task
 
                     ignore_depends_on_past = (
                         self.ignore_first_depends_on_past and
                         ti.execution_date == (start_date or ti.start_date))
+                    self.logger.debug("Task instance to run {} state {}"
+                                      .format(ti, ti.state))
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
                         succeeded.add(key)
+                        self.logger.debug("Task instance {} succeeded. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
-                        session.commit()
                         continue
                     elif ti.state == State.SKIPPED:
                         skipped.add(key)
+                        self.logger.debug("Task instance {} skipped. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
-                        session.commit()
+                        continue
+                    elif ti.state == State.FAILED:
+                        self.logger.error("Task instance {} failed".format(ti))
+                        failed.add(key)
+                        tasks_to_run.pop(key)
                         continue
 
                     backfill_context = DepContext(
@@ -1735,6 +1749,7 @@ class BackfillJob(BaseJob):
 
                     # Mark the task as not ready to run
                     elif ti.state in (State.NONE, State.UPSTREAM_FAILED):
+                        self.logger.debug('Adding {} to not_ready'.format(ti))
                         not_ready.add(key)
 
                     session.commit()
@@ -1745,12 +1760,17 @@ class BackfillJob(BaseJob):
                 # If the set of tasks that aren't ready ever equals the set of
                 # tasks to run, then the backfill is deadlocked
                 if not_ready and not_ready == set(tasks_to_run):
+                    self.logger.warn("Deadlock discovered for tasks_to_run={}"
+                                     .format(tasks_to_run.values()))
                     deadlocked.update(tasks_to_run.values())
                     tasks_to_run.clear()
 
                 # Reacting to events
                 for key, state in list(executor.get_event_buffer().items()):
                     if key not in tasks_to_run:
+                        self.logger.warn("{} state {} not in tasks_to_run={}"
+                                         .format(key, state,
+                                                 tasks_to_run.values()))
                         continue
                     ti = tasks_to_run[key]
                     ti.refresh_from_db()
@@ -1762,20 +1782,20 @@ class BackfillJob(BaseJob):
                         if ti.state == State.RUNNING:
                             msg = (
                                 'Executor reports that task instance {} failed '
-                                'although the task says it is running.'.format(key))
+                                'although the task says it is running.'.format(ti))
                             self.logger.error(msg)
                             ti.handle_failure(msg)
                             tasks_to_run.pop(key)
 
                         # task reports skipped
                         elif ti.state == State.SKIPPED:
-                            self.logger.error("Skipping {} ".format(key))
+                            self.logger.error("Skipping {} ".format(ti))
                             skipped.add(key)
                             tasks_to_run.pop(key)
 
                         # anything else is a failure
                         else:
-                            self.logger.error("Task instance {} failed".format(key))
+                            self.logger.error("Task instance {} failed".format(ti))
                             failed.add(key)
                             tasks_to_run.pop(key)
 
@@ -1785,19 +1805,19 @@ class BackfillJob(BaseJob):
                         # task reports success
                         if ti.state == State.SUCCESS:
                             self.logger.info(
-                                'Task instance {} succeeded'.format(key))
+                                'Task instance {} succeeded'.format(ti))
                             succeeded.add(key)
                             tasks_to_run.pop(key)
 
                         # task reports failure
                         elif ti.state == State.FAILED:
-                            self.logger.error("Task instance {} failed".format(key))
+                            self.logger.error("Task instance {} failed".format(ti))
                             failed.add(key)
                             tasks_to_run.pop(key)
 
                         # task reports skipped
                         elif ti.state == State.SKIPPED:
-                            self.logger.info("Task instance {} skipped".format(key))
+                            self.logger.info("Task instance {} skipped".format(ti))
                             skipped.add(key)
                             tasks_to_run.pop(key)
 
@@ -1853,6 +1873,12 @@ class BackfillJob(BaseJob):
                     len(active_dag_runs))
                 self.logger.info(msg)
 
+                self.logger.debug("Finished dag run loop iteration. "
+                                  "Remaining tasks {}"
+                                  .format(tasks_to_run.values()))
+                if len(tasks_to_run) == 0:
+                    break
+
             # update dag run state
             run.update_state(session=session)
             if run.dag.is_paused:
@@ -1889,7 +1915,11 @@ class BackfillJob(BaseJob):
                     'backfill with the option '
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
                     'the command line.')
-            err += ' These tasks were unable to run:\n{}\n'.format(deadlocked)
+            err += ' These tasks have succeeded:\n{}\n'.format(succeeded)
+            err += ' These tasks have started:\n{}\n'.format(started)
+            err += ' These tasks have failed:\n{}\n'.format(failed)
+            err += ' These tasks are skipped:\n{}\n'.format(skipped)
+            err += ' These tasks are deadlocked:\n{}\n'.format(deadlocked)
         if err:
             raise AirflowException(err)
 
