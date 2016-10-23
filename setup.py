@@ -109,6 +109,7 @@ celery = [
     'flower>=0.7.3'
 ]
 crypto = ['cryptography>=0.9.3']
+datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
@@ -213,6 +214,7 @@ def do_setup():
             'celery': celery,
             'cloudant': cloudant,
             'crypto': crypto,
+            'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
