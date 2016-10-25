@@ -125,24 +125,11 @@ class DockerOperator(BaseOperator):
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
 
-        self.cli = None
+        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=self.get_tls_config())
         self.container = None
 
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
-
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
-            )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
-
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
         if ':' not in self.image:
             image = self.image + ':latest'
@@ -183,6 +170,19 @@ class DockerOperator(BaseOperator):
 
             if self.xcom_push:
                 return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line.strip())
+
+    def get_tls_config(self):
+        tls_config = None
+        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            tls_config = tls.TLSConfig(
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
+            )
+            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        return tls_config
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
