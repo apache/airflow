@@ -2164,8 +2164,9 @@ class BaseOperator(object):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if (content and isinstance(content, six.string_types) and
-                    any([content.endswith(ext) for ext in self.template_ext])):
+            if content is not None and \
+                    isinstance(content, six.string_types) and \
+                    any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
