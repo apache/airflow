@@ -3645,10 +3645,10 @@ class DagRun(Base):
             DR.dag_id == self.dag_id,
             DR.execution_date == self.execution_date,
             DR.run_id == self.run_id
-        ).first()
-        if dr:
-            self.id = dr.id
-            self.state = dr.state
+        ).one()
+
+        self.id = dr.id
+        self.state = dr.state
 
     @staticmethod
     @provide_session
