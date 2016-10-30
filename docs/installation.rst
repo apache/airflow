@@ -1,8 +1,15 @@
 Installation
 ------------
 
-Getting Airflow
-'''''''''''''''
+Installing Airflow
+''''''''''''''''''
+
+Some OS ship with old versions of python, pip and setuptools, here are some
+pre-installation commands that may help in some cases
+
+.. code-block:: bash
+
+    pip install --upgrade pip setuptools
 
 The easiest way to install the latest stable version of Airflow is with ``pip``:
 
