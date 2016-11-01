@@ -13,11 +13,13 @@
 # limitations under the License.
 
 from __future__ import print_function
-import os
+from __future__ import unicode_literals
 import unittest
 
 from airflow import configuration
 from airflow.configuration import conf
+from airflow.configuration import AirflowConfigParser
+from airflow.configuration import parameterized_config
 
 class ConfTest(unittest.TestCase):
 
@@ -52,3 +54,24 @@ class ConfTest(unittest.TestCase):
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+    def test_command_config(self):
+        TEST_CONFIG = '''[test]
+key1 = hello
+key2_cmd = printf cmd_result
+key3 = airflow
+'''
+        TEST_CONFIG_DEFAULT = '''[test]
+key1 = awesome
+key2 = airflow
+'''
+
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+        test_conf.as_command_stdout = test_conf.as_command_stdout | {
+            ('test', 'key2')
+        }
+        self.assertEqual('hello', test_conf.get('test', 'key1'))
+        self.assertEqual('cmd_result', test_conf.get('test', 'key2'))
+        self.assertEqual('airflow', test_conf.get('test', 'key3'))
