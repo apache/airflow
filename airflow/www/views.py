@@ -759,10 +759,10 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    timeout = None # No timeout
+                    timeout = None  # No timeout
                     try:
-                        timeout = conf.getint('webserver', 'handshake_timeout')
-                    except AirflowConfigException, ValueError:
+                        timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    except (AirflowConfigException, ValueError):
                         pass
 
                     response = requests.get(url, timeout=timeout)

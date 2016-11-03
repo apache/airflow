@@ -254,7 +254,7 @@ demo_mode = False
 
 # The amount of time (in secs) webserver will wait for initial handshake
 # while fetching logs from other worker machine
-handshake_timeout = 5
+log_fetch_timeout_sec = 5
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
@@ -425,7 +425,7 @@ base_url = http://localhost:8080
 web_server_host = 0.0.0.0
 web_server_port = 8080
 dag_orientation = LR
-handshake_timeout = 5
+log_fetch_timeout_sec = 5
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
