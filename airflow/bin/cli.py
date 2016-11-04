@@ -699,6 +699,7 @@ def webserver(args):
     if ssl_cert and not ssl_key:
         raise AirflowException(
             'An SSL key must also be provided for use with ' + ssl_cert)
+    forwarded_allow_ips = args.forwarded_allow_ips or conf.get('webserver', 'forwarded_allow_ips')
 
     if args.debug:
         print(
@@ -739,6 +740,9 @@ def webserver(args):
             run_args += ["-D"]
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
+
+        if args.forwarded_allow_ips:
+            run_args += ['--forwarded-allow-ips', args.forwarded_allow_ips]
 
         run_args += ["airflow.www.app:cached_app()"]
 
@@ -1294,6 +1298,10 @@ class CLIFactory(object):
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
                  "stderr."),
+        'forwarded_allow_ips': Arg(
+            ("--forwarded_allow_ips", ),
+            default=conf.get('webserver', 'FORWARDED_ALLOW_IPS'),
+            help="Pass gunicorn front-end IPs allowed to handle set secure headers."),
         # resetdb
         'yes': Arg(
             ("-y", "--yes"),
@@ -1469,7 +1477,8 @@ class CLIFactory(object):
             'help': "Start a Airflow webserver instance",
             'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
-                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
+                     'error_logfile', 'log_file', 'ssl_cert', 'ssl_key',
+                     'forwarded_allow_ips', 'debug'),
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
