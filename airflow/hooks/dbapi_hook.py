@@ -191,7 +191,7 @@ class DbApiHook(BaseHook):
             "Done loading. Loaded a total of {i} rows".format(**locals()))
 
     @staticmethod
-    def _serialize_cell(cell, conn):
+    def _serialize_cell(cell, conn=None):
         """
         Returns the SQL literal of the cell as a string.
 
