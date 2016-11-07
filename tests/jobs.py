@@ -32,7 +32,8 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-
+from airflow.utils.dag_processing import SimpleDagBag
+from mock import patch
 from tests.executor.test_executor import TestExecutor
 
 from airflow import configuration
@@ -739,6 +740,63 @@ class SchedulerJobTest(unittest.TestCase):
         queue.append.assert_called_with(
             (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
         )
+
+    @patch.object(TI, 'pool_full')
+    def test_scheduler_verify_pool_full(self, mock_pool_full):
+        """
+        Test task instances not queued when pool is full
+        """
+        mock_pool_full.return_value = False
+
+        dag = DAG(
+            dag_id='test_scheduler_verify_pool_full',
+            start_date=DEFAULT_DATE)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow',
+            pool='test_scheduler_verify_pool_full')
+
+        session = settings.Session()
+        pool = Pool(pool='test_scheduler_verify_pool_full', slots=1)
+        session.add(pool)
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.is_paused = False
+        session.merge(orm_dag)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        # Create 2 dagruns, which will create 2 task instances.
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEquals(dr.execution_date, DEFAULT_DATE)
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        queue = []
+        scheduler._process_task_instances(dag, queue=queue)
+        self.assertEquals(len(queue), 2)
+        dagbag = SimpleDagBag([dag])
+
+        # Recreated part of the scheduler here, to kick off tasks -> executor
+        for ti_key in queue:
+            task = dag.get_task(ti_key[1])
+            ti = models.TaskInstance(task, ti_key[2])
+            # Task starts out in the scheduled state. All tasks in the
+            # scheduled state will be sent to the executor
+            ti.state = State.SCHEDULED
+
+            # Also save this task instance to the DB.
+            session.merge(ti)
+            session.commit()
+
+        scheduler._execute_task_instances(dagbag,
+                                          (State.SCHEDULED,
+                                           State.UP_FOR_RETRY))
+
+        self.assertEquals(len(scheduler.executor.queued_tasks), 1)
 
     def test_scheduler_auto_align(self):
         """

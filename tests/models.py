@@ -292,8 +292,8 @@ class TaskInstanceTest(unittest.TestCase):
     @patch.object(TI, 'pool_full')
     def test_run_pooling_task(self, mock_pool_full):
         """
-        test that running task with mark_success param update task state as
-        SUCCESS without running task.
+        test that running task update task state as  without running task.
+        (no dependency check in ti_deps anymore, so also -> SUCCESS)
         """
         # Mock the pool out with a full pool because the pool doesn't actually exist
         mock_pool_full.return_value = True
@@ -305,7 +305,7 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run()
-        self.assertEqual(ti.state, models.State.QUEUED)
+        self.assertEqual(ti.state, models.State.SUCCESS)
 
     @patch.object(TI, 'pool_full')
     def test_run_pooling_task_with_mark_success(self, mock_pool_full):
