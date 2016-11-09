@@ -1694,13 +1694,14 @@ class Airflow(BaseView):
 
         tasks = []
         for ti in tis:
+            end_date = ti.end_date if ti.end_date else datetime.now()
             tasks.append({
                 'startDate': wwwutils.epoch(ti.start_date),
-                'endDate': wwwutils.epoch(ti.end_date or datetime.now()),
+                'endDate': wwwutils.epoch(end_date),
                 'isoStart': ti.start_date.isoformat()[:-4],
-                'isoEnd': ti.end_date.isoformat()[:-4],
+                'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
-                'duration': "{}".format(ti.end_date - ti.start_date)[:-4],
+                'duration': "{}".format(end_date - ti.start_date)[:-4],
                 'status': ti.state,
                 'executionDate': ti.execution_date.isoformat(),
             })
