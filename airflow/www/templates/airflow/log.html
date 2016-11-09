@@ -1,0 +1,76 @@
+{#
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to You under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+#}
+{% extends "airflow/task_instance.html" %}
+{% block title %}Airflow - DAGs{% endblock %}
+
+{% block body %}
+{{ super() }}
+
+<div id="error" style="display: none; margin-top: 10px;" class="alert alert-danger" role="alert">
+    <span class="glyphicon glyphicon-exclamation-sign" aria-hidden="true"></span>
+    <span id="error_msg">Oops.</span>
+</div>
+<button class="btn btn-default pull-right refresh_button" style="display: inline-flex;">
+    <span class="glyphicon glyphicon-refresh" aria-hidden="true" title="Refresh Logs"></span>
+</button>
+<h4>Log</h4>
+
+{% if log %}
+<pre id="log_block">{{ log }}</pre>
+<img id="loading" alt="spinner" src="{{ url_for('static', filename='loading.gif') }}"
+     style="margin: auto; display: none;">
+<button class="btn btn-default pull-right refresh_button" style="margin-bottom: 10px;">
+    <span class="glyphicon glyphicon-refresh" aria-hidden="true" title="Refresh Logs"></span>
+</button>
+{% endif %}
+{% endblock %}
+
+{% block tail %}
+{{ super() }}
+<script>
+    function error(msg) {
+        $('#error_msg').html(msg);
+        $('#error').show();
+        reset();
+    }
+
+    function reset() {
+        $('#loading').css('display', 'none');
+        $('pre#log_block').show();
+        $(".refresh_button").removeClass('disabled');
+    }
+
+    $(".refresh_button").on("click", function() {
+        $("#loading").css('display', 'block');
+        $("pre#log_block").hide();
+        $('#error').hide();
+        $(".refresh_button").addClass('disabled');
+        $.get(decodeURIComponent(window.location.href)
+        ).done(
+            function(data) {
+                $("pre#log_block").html(data);
+                reset();
+                window.scrollTo(0, document.body.scrollHeight);
+            }
+        ).fail(function(jqxhr, textStatus, err) {
+            error(textStatus + ': ' + err);
+        });
+    });
+
+</script>
+{% endblock %}
