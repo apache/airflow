@@ -246,7 +246,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             if safe_mode and os.path.isfile(filepath):
                 with open(filepath, 'rb') as f:
                     content = f.read()
-                    if not all([s in content for s in (b'DAG', b'airflow')]):
+                    if not all([s in content for s in (b'DAG', b'dag', b'airflow')]):
                         return found_dags
 
             self.logger.debug("Importing {}".format(filepath))
@@ -282,7 +282,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                             self.logger.debug("Reading {} from {}".
                                               format(mod.filename, filepath))
                             content = zf.read()
-                            if not all([s in content for s in (b'DAG', b'airflow')]):
+                            if not all([s in content for s in (b'DAG', b'dag', b'airflow')]):
                                 # todo: create ignore list
                                 return found_dags
 
