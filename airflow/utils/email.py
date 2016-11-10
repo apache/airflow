@@ -53,7 +53,7 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
 
     to = get_email_address_list(to)
 
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart()
     msg['Subject'] = subject
     msg['From'] = SMTP_MAIL_FROM
     msg['To'] = ", ".join(to)
