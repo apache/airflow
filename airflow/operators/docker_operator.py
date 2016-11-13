@@ -143,24 +143,14 @@ class DockerOperator(BaseOperator):
         self.cli = None
         self.container = None
 
-        if cpus is not None:
-            logging.warning("Ignoring the cpus parameter. Use cpu_shares instead.")
+        if cpus is not None and isinstance(cpus, float):
+            logging.warning("cpus is deprecated property. Use cpu_shares instead.")
+            self.cpu_shares = int(round(self.cpus * 1024))
 
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
 
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            tls_config = tls.TLSConfig(
-                ca_cert=self.tls_ca_cert,
-                client_cert=(self.tls_client_cert, self.tls_client_key),
-                verify=True,
-                ssl_version=self.tls_ssl_version,
-                assert_hostname=self.tls_hostname
-            )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
-
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=self.get_tls_config())
 
         if ':' not in self.image:
             image = self.image + ':latest'
@@ -202,6 +192,19 @@ class DockerOperator(BaseOperator):
 
         logging.info('Removing docker container')
         self.cli.remove_container(self.container['Id'], v=self.clear_volumes)
+
+    def get_tls_config(self):
+        tls_config = None
+        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            tls_config = tls.TLSConfig(
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
+            )
+            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        return tls_config
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
