@@ -36,6 +36,8 @@ These features are marked for deprecation. They may still work (and raise a `Dep
 
   Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
 
+- DockerOperator - Use cpu_shares instead of cpus (AIRFLOW-51)
+
 ## Airflow 1.7.1.2
 
 ### Changes to Configuration

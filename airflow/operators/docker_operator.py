@@ -14,6 +14,8 @@
 
 import json
 import logging
+import warnings
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -80,6 +82,9 @@ class DockerOperator(BaseOperator):
     :type dockercfg_path: str
     :param registry_username: username to the docker-registry.
     :type registry_username: str
+    :param clear_volumes: Remove related volumes on container teardown?
+        The default is False.
+    :type clear_volumes: bool
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -109,6 +114,7 @@ class DockerOperator(BaseOperator):
             xcom_all=False,
             dockercfg_path=None,
             registry_username=None,
+            clear_volumes=False,
             *args,
             **kwargs):
 
@@ -134,12 +140,13 @@ class DockerOperator(BaseOperator):
         self.xcom_all = xcom_all
         self.dockercfg_path = dockercfg_path
         self.registry_username = registry_username
+        self.clear_volumes = clear_volumes
 
         self.cli = None
         self.container = None
 
         if cpus is not None and isinstance(cpus, float):
-            logging.warning("cpus is deprecated property. Use cpu_shares instead.")
+            warnings.warn("cpus is deprecated property. Use cpu_shares instead.", DeprecationWarning)
             self.cpu_shares = int(round(self.cpus * 1024))
 
     def execute(self, context):
@@ -196,6 +203,9 @@ class DockerOperator(BaseOperator):
             if self.xcom_push:
                 return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line.strip())
 
+        logging.info('Removing docker container')
+        self.cli.remove_container(self.container['Id'], v=self.clear_volumes)
+
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
             commands = ast.literal_eval(self.command)
@@ -207,6 +217,8 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             logging.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+            logging.info('Removing docker container')
+            self.cli.remove_container(self.container['Id'], v=self.clear_volumes)
 
     def get_auth_config(self):
         auth_config = None
