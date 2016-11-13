@@ -138,8 +138,9 @@ class DockerOperator(BaseOperator):
         self.cli = None
         self.container = None
 
-        if cpus is not None:
-            logging.warning("Ignoring the cpus parameter. Use cpu_shares instead.")
+        if cpus is not None and isinstance(cpus, float):
+            logging.warning("cpus is deprecated property. Use cpu_shares instead.")
+            self.cpu_shares = int(round(self.cpus * 1024))
 
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
