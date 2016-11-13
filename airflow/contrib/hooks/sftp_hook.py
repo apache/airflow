@@ -18,6 +18,7 @@ import logging
 import datetime
 from airflow.hooks.base_hook import BaseHook
 
+
 class SFTPHook(BaseHook):
     """
     Interact with SFTP. Aims to be interchangeable with FTPHook.
@@ -41,7 +42,11 @@ class SFTPHook(BaseHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            self.conn = pysftp.Connection(host=params.host, port=params.port, username=params.login, password=params.password)
+            self.conn = pysftp.Connection(
+                host=params.host,
+                port=params.port,
+                username=params.login,
+                password=params.password)
 
         return self.conn
 
@@ -64,7 +69,8 @@ class SFTPHook(BaseHook):
         flist = conn.listdir_attr(path)
         files = {}
         for f in flist:
-            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime(
+                '%Y%m%d%H%M%S')
             files[f.filename] = {'size': f.st_size, 'modify': modify}
         return files
 
@@ -110,7 +116,8 @@ class SFTPHook(BaseHook):
         conn = self.get_conn()
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.get(remote_full_path, local_full_path)
-        logging.info('Finished retrieving file from FTP: {}'.format(remote_full_path))
+        logging.info('Finished retrieving file from FTP: {}'.format(
+            remote_full_path))
 
     def store_file(self, remote_full_path, local_full_path):
         """
@@ -137,5 +144,6 @@ class SFTPHook(BaseHook):
     def get_mod_time(self, path):
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
-        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
+        return datetime.datetime.fromtimestamp(ftp_mdtm).strftime(
+            '%Y%m%d%H%M%S')
 
