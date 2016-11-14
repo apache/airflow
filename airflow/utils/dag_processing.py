@@ -465,6 +465,18 @@ class DagFileProcessorManager(LoggingMixin):
         results.reverse()
         return results
 
+    def _get_log_directory(self):
+        """
+        Log output from processing DAGs for the current day should go into
+        this directory.
+
+        :return: the path to the corresponding log directory
+        :rtype: unicode
+        """
+        now = datetime.now()
+        return os.path.join(self._child_process_log_directory,
+            now.strftime("%Y-%m-%d"))
+
     def _get_log_file_path(self, dag_file_path):
         """
         Log output from processing the specified file should go to this
@@ -475,11 +487,9 @@ class DagFileProcessorManager(LoggingMixin):
         :return: the path to the corresponding log file
         :rtype: unicode
         """
+        log_directory = self._get_log_directory()
         # General approach is to put the log file under the same relative path
         # under the log directory as the DAG file in the DAG directory
-        now = datetime.now()
-        log_directory = os.path.join(self._child_process_log_directory,
-                                     now.strftime("%Y-%m-%d"))
         relative_dag_file_path = os.path.relpath(dag_file_path, start=self._dag_directory)
         path_elements = self._split_path(relative_dag_file_path)
 
@@ -487,6 +497,30 @@ class DagFileProcessorManager(LoggingMixin):
         path_elements[-1] += ".log"
 
         return os.path.join(log_directory, *path_elements)
+
+    def symlink_latest_log_directory(self):
+        """
+        Create symbolic link to the current day's log directory to
+        allow easy access to the latest scheduler log files.
+
+        :return: None
+        """
+        log_directory = self._get_log_directory()
+        latest_log_directory_path = os.path.join(
+            self._child_process_log_directory, "latest")
+        if (os.path.isdir(log_directory)):
+            # if symlink exists but is stale, update it
+            if (os.path.islink(latest_log_directory_path)):
+                if(os.readlink(latest_log_directory_path) != log_directory):
+                    os.unlink(latest_log_directory_path)
+                    os.symlink(log_directory, latest_log_directory_path)
+            elif (os.path.isdir(latest_log_directory_path) or
+                    os.path.isfile(latest_log_directory_path)):
+                self.logger.warn("{} already exists as a dir/file. "
+                                "Skip creating symlink."
+                                    .format(latest_log_directory_path))
+            else:
+                os.symlink(log_directory, latest_log_directory_path)
 
     def processing_count(self):
         """
@@ -591,6 +625,8 @@ class DagFileProcessorManager(LoggingMixin):
                              .format(processor.pid, file_path, log_file_path))
 
             self._processors[file_path] = processor
+
+        self.symlink_latest_log_directory()
 
         return simple_dags
 

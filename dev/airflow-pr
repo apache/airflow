@@ -75,6 +75,7 @@ JIRA_API_BASE = "https://issues.apache.org/jira"
 # Prefix added to temporary branches
 BRANCH_PREFIX = "PR_TOOL"
 
+TMP_CREDENTIALS = {}
 
 class PRToolError(Exception):
     pass
@@ -526,9 +527,13 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         merge_branches = []
 
     # ASF JIRA username
-    JIRA_USERNAME = os.environ.get("JIRA_USERNAME", "")
+    JIRA_USERNAME = os.environ.get("JIRA_USERNAME", '')
+    if not JIRA_USERNAME:
+        JIRA_USERNAME = TMP_CREDENTIALS.get('JIRA_USERNAME', '')
     # ASF JIRA password
-    JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", "")
+    JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", '')
+    if not JIRA_PASSWORD:
+        JIRA_PASSWORD = TMP_CREDENTIALS.get('JIRA_PASSWORD', '')
 
     if not JIRA_USERNAME:
         JIRA_USERNAME = click.prompt(
@@ -536,6 +541,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
             type=str)
         click.echo(
             'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
+        TMP_CREDENTIALS['JIRA_USERNAME'] = JIRA_USERNAME
     if not JIRA_PASSWORD:
         JIRA_PASSWORD = click.prompt(
             click.style('Password for Airflow JIRA', fg='blue', bold=True),
@@ -543,6 +549,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
             hide_input=True)
         click.echo(
             'Set a JIRA_PASSWORD env var to avoid this prompt in the future.')
+        TMP_CREDENTIALS['JIRA_PASSWORD'] = JIRA_PASSWORD
 
     try:
         asf_jira = jira.client.JIRA(
@@ -583,7 +590,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         "summary:\t%s\nassignee:\t%s\nstatus:\t\t%s\nurl:\t\t%s/%s\n" % (
             cur_summary, cur_assignee, cur_status, JIRA_BASE, jira_id))
     if not click.confirm(click.style(
-            'Proceed with AIRFLOW-{}?'.format(jira_id), fg='blue', bold=True)):
+            'Proceed with {}?'.format(jira_id), fg='blue', bold=True)):
         return
 
     if comment is None:

@@ -513,6 +513,30 @@ class Connection(Base):
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
 
+    _types = [
+        ('fs', 'File (path)'),
+        ('ftp', 'FTP',),
+        ('google_cloud_platform', 'Google Cloud Platform'),
+        ('hdfs', 'HDFS',),
+        ('http', 'HTTP',),
+        ('hive_cli', 'Hive Client Wrapper',),
+        ('hive_metastore', 'Hive Metastore Thrift',),
+        ('hiveserver2', 'Hive Server 2 Thrift',),
+        ('jdbc', 'Jdbc Connection',),
+        ('mysql', 'MySQL',),
+        ('postgres', 'Postgres',),
+        ('oracle', 'Oracle',),
+        ('vertica', 'Vertica',),
+        ('presto', 'Presto',),
+        ('s3', 'S3',),
+        ('samba', 'Samba',),
+        ('sqlite', 'Sqlite',),
+        ('ssh', 'SSH',),
+        ('cloudant', 'IBM Cloudant',),
+        ('mssql', 'Microsoft SQL Server'),
+        ('mesos_framework-id', 'Mesos Framework ID'),
+    ]
+
     def __init__(
             self, conn_id=None, conn_type=None,
             host=None, login=None, password=None,
@@ -1111,8 +1135,7 @@ class TaskInstance(Base):
         """
         dr = session.query(DagRun).filter(
             DagRun.dag_id == self.dag_id,
-            DagRun.execution_date == self.execution_date,
-            DagRun.start_date == self.start_date
+            DagRun.execution_date == self.execution_date
         ).first()
 
         return dr
@@ -1171,6 +1194,7 @@ class TaskInstance(Base):
                 dep_context=queue_dep_context,
                 session=session,
                 verbose=True):
+            session.commit()
             return
 
         self.clear_xcom_data()
@@ -1206,9 +1230,18 @@ class TaskInstance(Base):
                 logging.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
+                msg = "Queuing into pool {}".format(self.pool)
+                logging.info(msg)
                 session.merge(self)
-                session.commit()
-                logging.info("Queuing into pool {}".format(self.pool))
+            session.commit()
+            return
+
+        # Another worker might have started running this task instance while
+        # the current worker process was blocked on refresh_from_db
+        if self.state == State.RUNNING:
+            msg = "Task Instance already running {}".format(self)
+            logging.warn(msg)
+            session.commit()
             return
 
         # print status message
@@ -2140,8 +2173,9 @@ class BaseOperator(object):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if (content and isinstance(content, six.string_types) and
-                    any([content.endswith(ext) for ext in self.template_ext])):
+            if content is not None and \
+                    isinstance(content, six.string_types) and \
+                    any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
@@ -3616,14 +3650,16 @@ class DagRun(Base):
         """
         DR = DagRun
 
+        exec_date = func.cast(self.execution_date, DateTime)
+
         dr = session.query(DR).filter(
             DR.dag_id == self.dag_id,
-            DR.execution_date == self.execution_date,
+            func.cast(DR.execution_date, DateTime) == exec_date,
             DR.run_id == self.run_id
-        ).first()
-        if dr:
-            self.id = dr.id
-            self.state = dr.state
+        ).one()
+
+        self.id = dr.id
+        self.state = dr.state
 
     @staticmethod
     @provide_session

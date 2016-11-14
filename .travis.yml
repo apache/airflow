@@ -11,7 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-sudo: false
+sudo: true
+dist: trusty
 language: python
 jdk: oraclejdk7
 services:
@@ -23,6 +24,10 @@ addons:
       - slapd
       - ldap-utils
       - openssh-server
+      - mysql-server-5.6
+      - mysql-client-core-5.6
+      - mysql-client-5.6
+      - krb5-user
   postgresql: "9.2"
 python:
   - "2.7"
@@ -30,6 +35,9 @@ python:
 env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
+    # Travis on google cloud engine has a global /etc/boto.cfg that
+    # does not work with python 3
+    - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
     - TOX_ENV=py27-cdh-airflow_backend_mysql
     - TOX_ENV=py27-cdh-airflow_backend_sqlite

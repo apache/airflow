@@ -193,6 +193,16 @@ class S3Hook(BaseHook):
                                       profile_name=self.profile)
         return connection
 
+    def get_credentials(self):
+        if self._creds_in_config_file:
+            a_key, s_key, calling_format = _parse_s3_config(self.s3_config_file,
+                                                            self.s3_config_format,
+                                                            self.profile)
+        elif self._creds_in_conn:
+            a_key = self._a_key
+            s_key = self._s_key
+        return a_key, s_key
+
     def check_for_bucket(self, bucket_name):
         """
         Check if bucket_name exists.

@@ -373,6 +373,19 @@ class BigQueryBaseCursor(object):
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
         """
+
+        # bigquery only allows certain source formats
+        # we check to make sure the passed source format is valid
+        # if it's not, we raise a ValueError
+        # Refer to this link for more details: 
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
+        source_format = source_format.upper()
+        allowed_formats = ["CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS"]
+        if source_format not in allowed_formats:
+            raise ValueError("{0} is not a valid source format. " 
+                    "Please use one of the following types: {1}"
+                    .format(source_format, allowed_formats))
+
         destination_project, destination_dataset, destination_table = \
             _split_tablename(table_input=destination_project_dataset_table,
                              default_project_id=self.project_id,
@@ -435,7 +448,10 @@ class BigQueryBaseCursor(object):
         # Check if job had errors.
         if 'errorResult' in job['status']:
             raise Exception(
-                'BigQuery job failed. Final error was: %s', job['status']['errorResult'])
+                'BigQuery job failed. Final error was: {}. The job was: {}'.format(
+                    job['status']['errorResult'], job
+                )
+            )
 
         return job_id
 

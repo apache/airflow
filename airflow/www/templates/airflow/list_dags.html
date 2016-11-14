@@ -198,7 +198,7 @@
 
 {% block tail %}
     {{ super() }}
-    <script src="{{ admin_static.url(filename='admin/js/filters-1.0.0.js') }}"></script>
+    <script src="{{ admin_static.url(filename='admin/js/filters.js') }}"></script>
     {{ lib.form_js() }}
 
     {{ actionlib.script(_gettext('Please select at least one record.'),

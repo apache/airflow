@@ -75,6 +75,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils import logging as log_utils
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -511,6 +512,7 @@ class Airflow(BaseView):
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
+            .filter(DagRun.state != State.RUNNING)
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
@@ -758,7 +760,13 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    response = requests.get(url)
+                    timeout = None  # No timeout
+                    try:
+                        timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    except (AirflowConfigException, ValueError):
+                        pass
+
+                    response = requests.get(url, timeout=timeout)
                     response.raise_for_status()
                     log += '\n' + response.text
                     log_loaded = True
@@ -1686,13 +1694,14 @@ class Airflow(BaseView):
 
         tasks = []
         for ti in tis:
+            end_date = ti.end_date if ti.end_date else datetime.now()
             tasks.append({
                 'startDate': wwwutils.epoch(ti.start_date),
-                'endDate': wwwutils.epoch(ti.end_date or datetime.now()),
+                'endDate': wwwutils.epoch(end_date),
                 'isoStart': ti.start_date.isoformat()[:-4],
-                'isoEnd': ti.end_date.isoformat()[:-4],
+                'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
-                'duration': "{}".format(ti.end_date - ti.start_date)[:-4],
+                'duration': "{}".format(end_date - ti.start_date)[:-4],
                 'status': ti.state,
                 'executionDate': ti.execution_date.isoformat(),
             })
@@ -2102,7 +2111,7 @@ class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
 # admin.add_view(mv)
 
 
-class VariableView(wwwutils.LoginMixin, AirflowModelView):
+class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
     list_template = 'airflow/variable_list.html'
@@ -2159,6 +2168,27 @@ class VariableView(wwwutils.LoginMixin, AirflowModelView):
     def on_form_prefill(self, form, id):
         if should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
+
+
+class XComView(wwwutils.LoginMixin, AirflowModelView):
+    verbose_name = "XCom"
+    verbose_name_plural = "XComs"
+    page_size = 20
+
+    form_columns = (
+        'key',
+        'value',
+        'execution_date',
+        'task_id',
+        'dag_id',
+    )
+
+    form_extra_fields = {
+        'value': StringField('Value'),
+    }
+
+    column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
 
 
 class JobModelView(ModelViewOnly):
@@ -2422,29 +2452,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     }
     form_choices = {
-        'conn_type': [
-            ('fs', 'File (path)'),
-            ('ftp', 'FTP',),
-            ('google_cloud_platform', 'Google Cloud Platform'),
-            ('hdfs', 'HDFS',),
-            ('http', 'HTTP',),
-            ('hive_cli', 'Hive Client Wrapper',),
-            ('hive_metastore', 'Hive Metastore Thrift',),
-            ('hiveserver2', 'Hive Server 2 Thrift',),
-            ('jdbc', 'Jdbc Connection',),
-            ('mysql', 'MySQL',),
-            ('postgres', 'Postgres',),
-            ('oracle', 'Oracle',),
-            ('vertica', 'Vertica',),
-            ('presto', 'Presto',),
-            ('s3', 'S3',),
-            ('samba', 'Samba',),
-            ('sqlite', 'Sqlite',),
-            ('ssh', 'SSH',),
-            ('cloudant', 'IBM Cloudant',),
-            ('mssql', 'Microsoft SQL Server'),
-            ('mesos_framework-id', 'Mesos Framework ID'),
-        ]
+        'conn_type': models.Connection._types
     }
 
     def on_model_change(self, form, model, is_created):
@@ -2533,10 +2541,15 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
         if conf.getboolean("webserver", "expose_config"):
             with open(conf.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+
         else:
             config = (
                 "# You Airflow administrator chose not to expose the "
                 "configuration, most likely for security reasons.")
+            table = None
         if raw:
             return Response(
                 response=config,
@@ -2549,9 +2562,10 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 HtmlFormatter(noclasses=True))
             )
             return self.render(
-                'airflow/code.html',
+                'airflow/config.html',
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                code_html=code_html, title=title, subtitle=subtitle)
+                code_html=code_html, title=title, subtitle=subtitle,
+                table=table)
 
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):

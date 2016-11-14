@@ -44,6 +44,8 @@ class OracleHook(DbApiHook):
         conn = self.get_connection(self.oracle_conn_id)
         dsn = conn.extra_dejson.get('dsn', None)
         sid = conn.extra_dejson.get('sid', None)
+        mod = conn.extra_dejson.get('module', None)
+
         service_name = conn.extra_dejson.get('service_name', None)
         if dsn and sid and not service_name:
             dsn = cx_Oracle.makedsn(dsn, conn.port, sid)
@@ -53,9 +55,13 @@ class OracleHook(DbApiHook):
             conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
         else:
             conn = cx_Oracle.connect(conn.login, conn.password, conn.host)
+
+        if mod is not None:
+            conn.module = mod
+
         return conn
 
-    def insert_rows(self, table, rows, target_fields = None, commit_every = 1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         """
         A generic way to insert a set of tuples into a table,
         the whole set of inserts is treated as one transaction

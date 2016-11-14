@@ -43,10 +43,10 @@ def create_app(config=None):
     airflow.load_login()
     airflow.login.login_manager.init_app(app)
 
+    app.register_blueprint(routes)
+
     cache = Cache(
         app=app, config={'CACHE_TYPE': 'filesystem', 'CACHE_DIR': '/tmp'})
-
-    app.register_blueprint(routes)
 
     log_format = airflow.settings.LOG_FORMAT_WITH_PID
     airflow.settings.configure_logging(log_format=log_format)
@@ -89,6 +89,8 @@ def create_app(config=None):
             models.Connection, Session, name="Connections", category="Admin"))
         av(vs.VariableView(
             models.Variable, Session, name="Variables", category="Admin"))
+        av(vs.XComView(
+            models.XCom, Session, name="XComs", category="Admin"))
 
         admin.add_link(base.MenuLink(
             category='Docs', name='Documentation',
@@ -120,6 +122,9 @@ def create_app(config=None):
                 admin.add_link(ml)
 
         integrate_plugins()
+
+        from airflow.www.api.experimental.endpoints import api_experimental
+        app.register_blueprint(api_experimental, url_prefix='/api/experimental')
 
         @app.context_processor
         def jinja_globals():

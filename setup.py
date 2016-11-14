@@ -109,6 +109,7 @@ celery = [
     'flower>=0.7.3'
 ]
 crypto = ['cryptography>=0.9.3']
+datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
@@ -181,12 +182,12 @@ def do_setup():
             'alembic>=0.8.3, <0.9',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.10.1, <0.11',
+            'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
             'flask-wtf==0.12',
-            'funcsigs>=0.4, <1',
+            'funcsigs>=1.0.2, <1.1',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
@@ -213,6 +214,7 @@ def do_setup():
             'celery': celery,
             'cloudant': cloudant,
             'crypto': crypto,
+            'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
             'doc': doc,

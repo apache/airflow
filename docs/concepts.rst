@@ -333,7 +333,7 @@ is named ``postgres_master`` the environment variable should be named
 ``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
 all uppercase). Airflow assumes the value returned from the environment
 variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master``).
+``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
 
 Queues
 ======

@@ -111,14 +111,14 @@
                 <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
                 {% if dag %}
 
-                <!-- Tree -->
-                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
-                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" title="Tree View"></span>
-                </a>
-
                 <!-- Graph -->
                 <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}" title="Graph View">
                     <span class="glyphicon glyphicon-certificate" aria-hidden="true" title="Graph View"></span>
+                </a>
+
+                <!-- Tree -->
+                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
+                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true" title="Tree View"></span>
                 </a>
 
                 <!-- Duration -->

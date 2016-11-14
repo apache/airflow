@@ -80,3 +80,18 @@ class MySqlHook(DbApiHook):
             INTO TABLE {table}
             """.format(**locals()))
         conn.commit()
+
+    @staticmethod
+    def _serialize_cell(cell, conn):
+        """
+        Returns the MySQL literal of the cell as a string.
+
+        :param cell: The cell to insert into the table
+        :type cell: object
+        :param conn: The database connection
+        :type conn: connection object
+        :return: The serialized cell
+        :rtype: str
+        """
+
+        return conn.literal(cell)

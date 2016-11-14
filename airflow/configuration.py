@@ -32,15 +32,14 @@ from builtins import str
 from collections import OrderedDict
 from configparser import ConfigParser
 
+from .exceptions import AirflowConfigException
+
 # show Airflow's deprecation warnings
 warnings.filterwarnings(
     action='default', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
 
-
-class AirflowConfigException(Exception):
-    pass
 
 try:
     from cryptography.fernet import Fernet
@@ -252,6 +251,10 @@ dag_orientation = LR
 # privacy.
 demo_mode = False
 
+# The amount of time (in secs) webserver will wait for initial handshake
+# while fetching logs from other worker machine
+log_fetch_timeout_sec = 5
+
 [email]
 email_backend = airflow.utils.email.send_email_smtp
 
@@ -319,10 +322,17 @@ job_heartbeat_sec = 5
 # how often the scheduler should run (in seconds).
 scheduler_heartbeat_sec = 5
 
-run_duration = 1800
+# after how much time should the scheduler terminate in seconds
+# -1 indicates to run continuously (see also num_runs)
+run_duration = -1
+
+# after how much time a new DAGs should be picked up from the filesystem
+min_file_process_interval = 0
+
 dag_dir_list_interval = 300
+
+# How often should stats be printed to the logs
 print_stats_interval = 30
-min_file_process_interval = 180
 
 child_process_log_directory = /tmp/airflow/scheduler/logs
 
@@ -421,6 +431,7 @@ base_url = http://localhost:8080
 web_server_host = 0.0.0.0
 web_server_port = 8080
 dag_orientation = LR
+log_fetch_timeout_sec = 5
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp

@@ -24,6 +24,8 @@ from datetime import datetime, timedelta
 seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
                                   datetime.min.time())
 
+# these args will get passed on to each operator
+# you can override them on a per-task basis during operator initialization
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
@@ -36,11 +38,19 @@ default_args = {
     # 'queue': 'bash_queue',
     # 'pool': 'backfill',
     # 'priority_weight': 10,
-    # 'schedule_interval': timedelta(1),
     # 'end_date': datetime(2016, 1, 1),
+    # 'wait_for_downstream': False,
+    # 'dag': dag,
+    # 'adhoc':False,
+    # 'sla': timedelta(hours=2),
+    # 'execution_timeout': timedelta(seconds=300),
+    # 'on_failure_callback': some_function,
+    # 'on_success_callback': some_other_function,
+    # 'on_retry_callback': another_function,
+    # 'trigger_rule': u'all_success'
 }
 
-dag = DAG('tutorial', default_args=default_args)
+dag = DAG('tutorial', default_args=default_args, schedule_interval=timedelta(days=1))
 
 # t1, t2 and t3 are examples of tasks created by instantiating operators
 t1 = BashOperator(

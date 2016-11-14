@@ -38,7 +38,7 @@ class PostgresHook(DbApiHook):
             port=conn.port)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl']:
+            if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl', 'application_name']:
                 conn_args[arg_name] = arg_val
         psycopg2_conn = psycopg2.connect(**conn_args)
         if psycopg2_conn.server_version < 70400:
@@ -46,5 +46,16 @@ class PostgresHook(DbApiHook):
         return psycopg2_conn
 
     @staticmethod
-    def _serialize_cell(cell):
+    def _serialize_cell(cell, conn):
+        """
+        Returns the Postgres literal of the cell as a string.
+
+        :param cell: The cell to insert into the table
+        :type cell: object
+        :param conn: The database connection
+        :type conn: connection object
+        :return: The serialized cell
+        :rtype: str
+        """
+
         return psycopg2.extensions.adapt(cell).getquoted().decode('utf-8')
