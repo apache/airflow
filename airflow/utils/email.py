@@ -33,17 +33,17 @@ from email.utils import formatdate
 from airflow import configuration
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None):
+def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
     path, attr = configuration.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
     module = importlib.import_module(path)
     backend = getattr(module, attr)
-    return backend(to, subject, html_content, files=files, dryrun=dryrun, cc=cc, bcc=bcc)
+    return backend(to, subject, html_content, files=files, dryrun=dryrun, cc=cc, bcc=bcc, mime_subtype=mime_subtype)
 
 
-def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None):
+def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
     """
     Send an email with html content
 
@@ -53,7 +53,7 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
 
     to = get_email_address_list(to)
 
-    msg = MIMEMultipart('alternative')
+    msg = MIMEMultipart(mime_subtype)
     msg['Subject'] = subject
     msg['From'] = SMTP_MAIL_FROM
     msg['To'] = ", ".join(to)
