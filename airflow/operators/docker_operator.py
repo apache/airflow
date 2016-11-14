@@ -36,10 +36,11 @@ class DockerOperator(BaseOperator):
     :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
-    :param cpus: Number of CPUs to assign to the container.
-        This value gets multiplied with 1024. See
-        https://docs.docker.com/engine/reference/run/#cpu-share-constraint
+    :param cpus: deprecated use cpu_shares instead.
     :type cpus: float
+    :param cpu_shares: CPU shares (relative weight)
+        https://docs.docker.com/engine/reference/run/#cpu-share-constraint
+    :type cpu_shares: int
     :param docker_url: URL of the host running the docker daemon.
     :type docker_url: str
     :param environment: Environment variables to set in the container.
@@ -75,6 +76,13 @@ class DockerOperator(BaseOperator):
     :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
+    :param dockercfg_path: Path for the .dockercfg file
+    :type dockercfg_path: str
+    :param registry_username: username to the docker-registry.
+    :type registry_username: str
+    :param clear_volumes: Remove related volumes on container teardown?
+           The default is False.
+    :type clear_volumes: bool
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -85,7 +93,8 @@ class DockerOperator(BaseOperator):
             image,
             api_version=None,
             command=None,
-            cpus=1.0,
+            cpus=None,
+            cpu_shares=None,
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
@@ -101,13 +110,16 @@ class DockerOperator(BaseOperator):
             volumes=None,
             xcom_push=False,
             xcom_all=False,
+            dockercfg_path=None,
+            registry_username=None,
+            clear_volumes=False,
             *args,
             **kwargs):
 
         super(DockerOperator, self).__init__(*args, **kwargs)
         self.api_version = api_version
         self.command = command
-        self.cpus = cpus
+        self.cpu_shares = cpu_shares
         self.docker_url = docker_url
         self.environment = environment or {}
         self.force_pull = force_pull
@@ -124,25 +136,21 @@ class DockerOperator(BaseOperator):
         self.volumes = volumes or []
         self.xcom_push = xcom_push
         self.xcom_all = xcom_all
+        self.dockercfg_path = dockercfg_path
+        self.registry_username = registry_username
+        self.clear_volumes = clear_volumes
 
         self.cli = None
         self.container = None
 
+        if cpus is not None and isinstance(cpus, float):
+            logging.warning("cpus is deprecated property. Use cpu_shares instead.")
+            self.cpu_shares = int(round(self.cpus * 1024))
+
     def execute(self, context):
         logging.info('Starting docker container from image ' + self.image)
 
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
-            )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
-
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=self.get_tls_config())
 
         if ':' not in self.image:
             image = self.image + ':latest'
@@ -151,31 +159,29 @@ class DockerOperator(BaseOperator):
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
             logging.info('Pulling docker image ' + image)
-            for l in self.cli.pull(image, stream=True):
+            for l in self.cli.pull(image, stream=True, auth_config=self.get_auth_config()):
                 output = json.loads(l)
                 logging.info("{}".format(output['status']))
-
-        cpu_shares = int(round(self.cpus * 1024))
 
         with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
-                    command=self.get_command(),
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user
+                command=self.get_command(),
+                cpu_shares=self.cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(binds=self.volumes,
+                                                        network_mode=self.network_mode),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user
             )
             self.cli.start(self.container['Id'])
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                logging.info("%r", line.strip())
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -183,6 +189,22 @@ class DockerOperator(BaseOperator):
 
             if self.xcom_push:
                 return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line.strip())
+
+        logging.info('Removing docker container')
+        self.cli.remove_container(self.container['Id'], v=self.clear_volumes)
+
+    def get_tls_config(self):
+        tls_config = None
+        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            tls_config = tls.TLSConfig(
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
+            )
+            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        return tls_config
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
@@ -195,3 +217,13 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             logging.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+            logging.info('Removing docker container')
+            self.cli.remove_container(self.container['Id'], v=self.clear_volumes)
+
+    def get_auth_config(self):
+        auth_config = None
+        if self.registry_username is not None and "/" in self.image:
+            registry = self.image.split("/")[0]
+            auth_config = self.cli.login(registry=registry, username=self.registry_username,
+                                         dockercfg_path=self.dockercfg_path)
+        return auth_config
