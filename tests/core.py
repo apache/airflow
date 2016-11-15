@@ -1912,7 +1912,7 @@ class EmailTest(unittest.TestCase):
     def test_custom_backend(self, mock_send_email):
         configuration.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
         utils.email.send_email('to', 'subject', 'content')
-        send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False, cc=None, bcc=None)
+        send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed')
         assert not mock_send_email.called
 
 
