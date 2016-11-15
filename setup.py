@@ -139,6 +139,7 @@ mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.6']
+salesforce = ['simple-salesforce>=0.72']
 s3 = [
     'boto>=2.36.0',
     'filechunkio>=1.6',
@@ -236,6 +237,7 @@ def do_setup():
             'rabbitmq': rabbitmq,
             's3': s3,
             'emr': emr,
+            'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
             'statsd': statsd,
