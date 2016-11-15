@@ -130,6 +130,7 @@ Currently **officially** using Airflow:
 1. [SimilarWeb](https://www.similarweb.com/) [[@similarweb](https://github.com/similarweb)]
 1. [SmartNews](https://www.smartnews.com/) [[@takus](https://github.com/takus)]
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
+1. [Stackspace](https://beta.stackspace.io/)
 1. Stripe [[@jbalogh](https://github.com/jbalogh)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
