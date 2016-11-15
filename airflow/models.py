@@ -753,6 +753,7 @@ class TaskInstance(Base):
         self.unixname = getpass.getuser()
         if state:
             self.state = state
+        self.hostname = ''
         self.init_on_load()
 
     @reconstructor
@@ -954,6 +955,7 @@ class TaskInstance(Base):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+            self.hostname = ti.hostname
         else:
             self.state = None
 
