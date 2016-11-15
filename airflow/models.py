@@ -3366,6 +3366,36 @@ class Variable(Base):
                        descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
+    def setdefault(cls, key, default, deserialize_json=False):
+        """
+        Like a Python builtin dict object, setdefault returns the current value
+        for a key, and if it isn't there, stores the default value and returns it.
+
+        :param key: Dict key for this Variable
+        :type key: String
+        :param: default: Default value to set and return if the variable
+        isn't already in the DB
+        :type: default: Mixed
+        :param: deserialize_json: Store this as a JSON encoded value in the DB
+         and un-encode it when retrieving a value
+        :return: Mixed
+        """
+        default_sentinel = object()
+        obj = Variable.get(key, default_var=default_sentinel, deserialize_json=False)
+        if obj is default_sentinel:
+            if default is not None:
+                Variable.set(key, default, serialize_json=deserialize_json)
+                return default
+            else:
+                raise ValueError('Default Value must be set')
+        else:
+            if deserialize_json:
+                return json.loads(obj.val)
+            else:
+                return obj.val
+
+
+    @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
         obj = session.query(cls).filter(cls.key == key).first()
@@ -3373,7 +3403,7 @@ class Variable(Base):
             if default_var is not None:
                 return default_var
             else:
-                raise ValueError('Variable {} does not exist'.format(key))
+                raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
                 return json.loads(obj.val)

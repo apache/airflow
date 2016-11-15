@@ -691,6 +691,18 @@ class CoreTest(unittest.TestCase):
                                              default_var=default_value,
                                              deserialize_json=True)
 
+    def test_variable_setdefault_round_trip(self):
+        key = "tested_var_setdefault_1_id"
+        value = "Monday morning breakfast in Paris"
+        Variable.setdefault(key, value)
+        assert value == Variable.get(key)
+
+    def test_variable_setdefault_round_trip_json(self):
+        key = "tested_var_setdefault_2_id"
+        value = {"city": 'Paris', "Hapiness": True}
+        Variable.setdefault(key, value, deserialize_json=True)
+        assert value == Variable.get(key, deserialize_json=True)
+
     def test_parameterized_config_gen(self):
 
         cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
