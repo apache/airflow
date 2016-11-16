@@ -111,3 +111,7 @@ class State(object):
             cls.RUNNING,
             cls.UP_FOR_RETRY
         ]
+
+    @classmethod
+    def unsuccessful(cls):
+        return [cls.FAILED, cls.UP_FOR_RETRY]

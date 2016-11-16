@@ -26,7 +26,7 @@ from airflow import AirflowException, settings
 from airflow import models
 from airflow.bin import cli
 from airflow.executors import DEFAULT_EXECUTOR
-from airflow.jobs import BackfillJob, SchedulerJob
+from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.db import provide_session
@@ -851,3 +851,22 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+
+class LocalTaskJobTest(unittest.TestCase):
+    """
+        Test whether a task_instance.handle_failure will be called when a process
+        return code is non zero
+    """
+
+    @mock.patch('airflow.jobs.LocalTaskJob.heartbeat_callback', return_value=True)
+    def testInvalidReturnCode(self, heartbeat_callback):
+        ti = mock.MagicMock()
+        ti.command.return_value = "\"ls -l not_exists\""
+        ti.handle_failure.return_value = True
+        ti.state = State.RUNNING
+        local_task_job = LocalTaskJob(ti)
+        local_task_job.run()
+        self.assertTrue(local_task_job.task_instance.handle_failure.called)
+        self.assertTrue(local_task_job.state, State.FAILED)
+

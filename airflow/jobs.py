@@ -132,6 +132,13 @@ class BaseJob(Base, LoggingMixin):
         '''
         pass
 
+    def on_failure(self, e):
+        '''
+        Will be called when an exception happens during _execute
+        default just raise exception again
+        '''
+        raise e
+
     def heartbeat_callback(self, session=None):
         pass
 
@@ -191,11 +198,16 @@ class BaseJob(Base, LoggingMixin):
         self.id = id_
 
         # Run
-        self._execute()
+        try:
+            self._execute()
+            self.state = State.SUCCESS
+        except Exception as e:
+            self.state = State.FAILED
+            logging.exception(e)
+            self.on_failure(e)
 
         # Marking the success in the DB
         self.end_date = datetime.now()
-        self.state = State.SUCCESS
         session.merge(self)
         session.commit()
         session.close()
@@ -793,8 +805,8 @@ class SchedulerJob(BaseJob):
             self.logger.info("Examining DAG run {}".format(run))
             # don't consider runs that are executed in the future
             if run.execution_date > datetime.now():
-                self.logging.error("Execution date is in future: {}"
-                                   .format(run.execution_date))
+                self.logger.error("Execution date is in future: {}"
+                                  .format(run.execution_date))
                 continue
 
             # skip backfill dagruns for now as long as they are not really scheduled
@@ -1975,13 +1987,25 @@ class LocalTaskJob(BaseJob):
             pool=self.pool,
         )
         self.process = subprocess.Popen(['bash', '-c', command])
+
         return_code = None
         while return_code is None:
             self.heartbeat()
             return_code = self.process.poll()
 
+        if return_code != 0:
+            msg = ("LocalTaskJob process exited with non zero status "
+                   "{return_code}".format(**locals()))
+            raise AirflowException(msg)
+
     def on_kill(self):
         self.process.terminate()
+
+    def on_failure(self, e):
+        # Only handle the failure if the state is not already set to unsuccessful states
+        self.task_instance.refresh_from_db()
+        if self.task_instance.state not in State.unsuccessful():
+            self.task_instance.handle_failure(e)
 
     @provide_session
     def heartbeat_callback(self, session=None):
