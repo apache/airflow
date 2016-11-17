@@ -320,7 +320,8 @@ class S3Hook(BaseHook):
             key,
             bucket_name=None,
             replace=False,
-            multipart_bytes=5 * (1024 ** 3)):
+            multipart_bytes=5 * (1024 ** 3),
+            encrypt=False):
         """
         Loads a local file to S3
 
@@ -340,6 +341,9 @@ class S3Hook(BaseHook):
             the file is smaller than the specified limit, the option will be
             ignored.
         :type multipart_bytes: int
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -353,7 +357,8 @@ class S3Hook(BaseHook):
         if multipart_bytes and key_size >= multipart_bytes:
             # multipart upload
             from filechunkio import FileChunkIO
-            mp = bucket.initiate_multipart_upload(key_name=key)
+            mp = bucket.initiate_multipart_upload(key_name=key,
+                                                  encrypt_key=encrypt)
             total_chunks = int(math.ceil(key_size / multipart_bytes))
             sent_bytes = 0
             try:
@@ -374,7 +379,8 @@ class S3Hook(BaseHook):
             if not key_obj:
                 key_obj = bucket.new_key(key_name=key)
             key_size = key_obj.set_contents_from_filename(filename,
-                                                      replace=replace)
+                                                          replace=replace,
+                                                          encrypt_key=encrypt)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
 
@@ -398,6 +404,10 @@ class S3Hook(BaseHook):
         :param replace: A flag to decide whether or not to overwrite the key
             if it already exists
         :type replace: bool
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
+
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
