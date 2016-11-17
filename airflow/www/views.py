@@ -159,7 +159,7 @@ def duration_f(v, c, m, p):
 
 def datetime_f(v, c, m, p):
     attr = getattr(m, p)
-    dttm = attr.isoformat() if attr else ''
+    dttm = attr.isoformat()[:16] if attr else ''
     if datetime.now().isoformat()[:4] == dttm[:4]:
         dttm = dttm[5:]
     return Markup("<nobr>{}</nobr>".format(dttm))
