@@ -341,7 +341,8 @@ class BigQueryBaseCursor(object):
                  create_disposition='CREATE_IF_NEEDED',
                  skip_leading_rows=0,
                  write_disposition='WRITE_EMPTY',
-                 field_delimiter=','):
+                 field_delimiter=',',
+                 schema_update_options=[]):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -372,19 +373,37 @@ class BigQueryBaseCursor(object):
         :type write_disposition: string
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
+        :param schema_update_options: Allows the schema of the desitination
+            table to be updated as a side effect of the load job.
+        :type schema_update_options: list
         """
 
         # bigquery only allows certain source formats
         # we check to make sure the passed source format is valid
         # if it's not, we raise a ValueError
-        # Refer to this link for more details: 
+        # Refer to this link for more details:
         #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.query.tableDefinitions.(key).sourceFormat
         source_format = source_format.upper()
         allowed_formats = ["CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS"]
         if source_format not in allowed_formats:
-            raise ValueError("{0} is not a valid source format. " 
+            raise ValueError("{0} is not a valid source format. "
                     "Please use one of the following types: {1}"
                     .format(source_format, allowed_formats))
+
+        # bigquery also allows you to define how you want a table's schema to change
+        # as a side effect of a load
+        # for more details:
+        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
+        allowed_schema_update_options = [
+            'ALLOW_FIELD_ADDITION',
+            "ALLOW_FIELD_RELAXATION"
+        ]
+        if not set(allowed_schema_update_options).issuperset(set(schema_update_options)):
+            raise ValueError(
+                "{0} contains invalid schema update options. "
+                "Please only use one or more of the following options: {1}"
+                .format(schema_update_options, allowed_schema_update_options)
+            )
 
         destination_project, destination_dataset, destination_table = \
             _split_tablename(table_input=destination_project_dataset_table,
@@ -407,6 +426,20 @@ class BigQueryBaseCursor(object):
                 'writeDisposition': write_disposition,
             }
         }
+
+        if schema_update_options:
+            if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
+                raise ValueError(
+                    "schema_update_options is only "
+                    "allowed if write_disposition is "
+                    "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
+                )
+            else:
+                logging.info(
+                    "Adding experimental "
+                    "'schemaUpdateOptions': {0}".format(schema_update_options)
+                )
+                configuration['load']['schemaUpdateOptions'] = schema_update_options
 
         if source_format == 'CSV':
             configuration['load']['skipLeadingRows'] = skip_leading_rows

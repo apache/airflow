@@ -46,6 +46,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
         delegate_to=None,
+        schema_update_options=[],
         *args,
         **kwargs):
         """
@@ -92,6 +93,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param schema_update_options: Allows the schema of the desitination 
+            table to be updated as a side effect of the load job.
+        :type schema_update_options: list
         """
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
@@ -114,6 +118,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
+        self.schema_update_options = schema_update_options
+
     def execute(self, context):
         gcs_hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                                           delegate_to=self.delegate_to)
@@ -132,7 +138,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             create_disposition=self.create_disposition,
             skip_leading_rows=self.skip_leading_rows,
             write_disposition=self.write_disposition,
-            field_delimiter=self.field_delimiter)
+            field_delimiter=self.field_delimiter,
+            schema_update_options=self.schema_update_options)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(self.max_id_key, self.destination_project_dataset_table))
