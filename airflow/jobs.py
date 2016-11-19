@@ -1133,9 +1133,13 @@ class SchedulerJob(BaseJob):
 
             self.logger.info("Processing {}".format(dag.dag_id))
 
-            dag_run = self.create_dag_run(dag)
-            if dag_run:
-                self.logger.info("Created {}".format(dag_run))
+            # create all valid DAG runs in a single scheduler invocation
+            while True:
+                dag_run = self.create_dag_run(dag)
+                if dag_run:
+                    self.logger.info("Created DAG run {}".format(dag_run))
+                else:
+                    break
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 

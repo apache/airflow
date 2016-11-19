@@ -37,6 +37,7 @@ from airflow.utils.timeout import timeout
 from airflow.utils.dag_processing import SimpleDagBag
 from mock import patch
 from tests.executor.test_executor import TestExecutor
+from tests.test_utils.fake_datetime import FakeDatetime
 
 from airflow import configuration
 configuration.load_test_config()
@@ -851,6 +852,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNotNone(dr)
         self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 1, 10, 10))
 
+    @mock.patch('airflow.jobs.datetime', FakeDatetime)
     def test_scheduler_reschedule(self):
         """
         Checks if tasks that are not taken up by the executor
@@ -894,10 +896,14 @@ class SchedulerJobTest(unittest.TestCase):
             scheduler.heartrate = 0
             scheduler.run()
 
+        FakeDatetime.now = classmethod(
+            lambda cls: DEFAULT_DATE+datetime.timedelta(days=1))
         do_schedule()
         self.assertEquals(1, len(executor.queued_tasks))
         executor.queued_tasks.clear()
 
+        FakeDatetime.now = classmethod(
+            lambda cls: DEFAULT_DATE+datetime.timedelta(days=2))
         do_schedule()
         self.assertEquals(2, len(executor.queued_tasks))
 
@@ -1027,11 +1033,15 @@ class SchedulerJobTest(unittest.TestCase):
                      expected_run_duration)
         assert run_duration - expected_run_duration < 5.0
 
+    @mock.patch('airflow.jobs.datetime', FakeDatetime)
     def test_dag_with_system_exit(self):
         """
-        Test to check that a DAG with a system.exit() doesn't break the scheduler.
+        Test to check that a DAG with a system.exit() doesn't break the
+        scheduler.
         """
 
+        FakeDatetime.now = classmethod(
+            lambda cls: datetime.datetime(2000, 1, 2))
         dag_id = 'exit_test_dag'
         dag_ids = [dag_id]
         dag_directory = os.path.join(models.DAGS_FOLDER,
@@ -1209,3 +1219,29 @@ class SchedulerJobTest(unittest.TestCase):
 
         # The DR should be scheduled BEFORE now
         self.assertLess(dr.execution_date, datetime.datetime.now())
+
+    @mock.patch('airflow.jobs.datetime', FakeDatetime)
+    def test_schedule_multiple_dag_runs(self):
+        """
+        Test to check that multiple valid DAG runs are scheduled in a single
+        scheduler loop.
+        """
+        # The start date for test_start_date_scheduling is 2100-1-1. If we mock
+        # datetime.now() as 2100-1-8, DAG runs for 2100-1-1 to 2100-1-7 should
+        # get scheduled in a single scheduler loop
+        FakeDatetime.now = classmethod(
+            lambda cls: datetime.datetime(2100, 1, 8))
+        dag_id = 'test_start_date_scheduling'
+        dag_ids = [dag_id]
+        dag_directory = os.path.join(models.DAGS_FOLDER,
+                                     "..",
+                                     "dags")
+
+        scheduler = SchedulerJob(dag_ids=dag_ids,
+                                 subdir= dag_directory,
+                                 num_runs=1,
+                                 **self.default_scheduler_args)
+        scheduler.run()
+        session = settings.Session()
+        self.assertEqual(
+            len(session.query(TI).filter(TI.dag_id == dag_id).all()), 7)
