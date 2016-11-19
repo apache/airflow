@@ -278,7 +278,7 @@ class HiveCliHook(BaseHook):
             field_dict=None,
             delimiter=',',
             encoding='utf8',
-            pandas_kwargs={}, **kwargs):
+            pandas_kwargs=None, **kwargs):
         """
         Loads a pandas DataFrame into hive.
 
@@ -316,6 +316,9 @@ class HiveCliHook(BaseHook):
             }
 
             return dict((col, DTYPE_KIND_HIVE_TYPE[dtype.kind]) for col, dtype in df.dtypes.iteritems())
+
+        if pandas_kwargs is None:
+            pandas_kwargs = {}
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:

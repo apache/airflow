@@ -149,7 +149,7 @@ class MetastorePartitionSensor(SqlSensor):
         self.schema = schema
         self.first_poke = True
         self.conn_id = mysql_conn_id
-        super(SqlSensor, self).__init__(*args, **kwargs)
+        super(MetastorePartitionSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
         if self.first_poke:
