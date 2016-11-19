@@ -1221,10 +1221,11 @@ class Airflow(BaseView):
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
+        dates = sorted(list(dag_runs.keys()))
+        max_date = max(dates) if dates else None
+
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
-        max_date = max([ti.execution_date for ti in tis]) if dates else None
         task_instances = {}
         for ti in tis:
             tid = alchemy_to_dict(ti)
