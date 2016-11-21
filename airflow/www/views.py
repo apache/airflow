@@ -61,7 +61,7 @@ from airflow import models
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
-from airflow.models import XCom
+from airflow.models import XCom, DagRun
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
 from airflow.models import BaseOperator
@@ -979,6 +979,42 @@ class Airflow(BaseView):
             "it should start any moment now.".format(ti))
         return redirect(origin)
 
+    @expose('/trigger')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def trigger(self):
+        dag_id = request.args.get('dag_id')
+        origin = request.args.get('origin') or "/admin/"
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag:
+            flash("Cannot find dag {}".format(dag_id))
+            return redirect(origin)
+
+        execution_date = datetime.now()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+
+        dr = DagRun.find(dag_id=dag_id, run_id=run_id)
+        if dr:
+            flash("This run_id {} already exists".format(run_id))
+            return redirect(origin)
+
+        run_conf = {}
+
+        dag.create_dagrun(
+            run_id=run_id,
+            execution_date=execution_date,
+            state=State.RUNNING,
+            conf=run_conf,
+            external_trigger=True
+        )
+
+        flash(
+            "Triggered {}, "
+            "it should start any moment now.".format(dag_id))
+        return redirect(origin)
+
     @expose('/clear')
     @login_required
     @wwwutils.action_logging
@@ -1804,8 +1840,19 @@ class HomeView(AdminIndexView):
         do_filter = FILTER_BY_OWNER and (not current_user.is_superuser())
         owner_mode = conf.get('webserver', 'OWNER_MODE').strip().lower()
 
-        # read orm_dags from the db
+        hide_paused_dags_by_default = conf.getboolean('webserver',
+                                                      'hide_paused_dags_by_default')
+        show_paused_arg = request.args.get('showPaused', 'None')
+        if show_paused_arg.strip().lower() == 'false':
+            hide_paused = True
 
+        elif show_paused_arg.strip().lower() == 'true':
+            hide_paused = False
+
+        else:
+            hide_paused = hide_paused_dags_by_default
+
+        # read orm_dags from the db
         qry = session.query(DM)
         qry_fltr = []
 
@@ -1824,7 +1871,12 @@ class HomeView(AdminIndexView):
                 ~DM.is_subdag, DM.is_active
             ).all()
 
-        orm_dags = {dag.dag_id: dag for dag in qry_fltr}
+        # optionally filter out "paused" dags
+        if hide_paused:
+            orm_dags = {dag.dag_id: dag for dag in qry_fltr if not dag.is_paused}
+
+        else:
+            orm_dags = {dag.dag_id: dag for dag in qry_fltr}
 
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
@@ -1836,7 +1888,14 @@ class HomeView(AdminIndexView):
         session.close()
 
         # get a list of all non-subdag dags visible to everyone
-        unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if not dag.parent_dag]
+        # optionally filter out "paused" dags
+        if hide_paused:
+            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
+                                         not dag.parent_dag and not dag.is_paused]
+
+        else:
+            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
+                                         not dag.parent_dag]
 
         # optionally filter to get only dags that the user should see
         if do_filter and owner_mode == 'ldapgroup':
@@ -1864,6 +1923,7 @@ class HomeView(AdminIndexView):
             'airflow/dags.html',
             webserver_dags=webserver_dags,
             orm_dags=orm_dags,
+            hide_paused=hide_paused,
             all_dag_ids=all_dag_ids)
 
 

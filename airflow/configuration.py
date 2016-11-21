@@ -255,6 +255,10 @@ demo_mode = False
 # while fetching logs from other worker machine
 log_fetch_timeout_sec = 5
 
+# By default, the webserver shows paused DAGs. Flip this to hide paused
+# DAGs by default
+hide_paused_dags_by_default = False
+
 [email]
 email_backend = airflow.utils.email.send_email_smtp
 
@@ -432,6 +436,7 @@ web_server_host = 0.0.0.0
 web_server_port = 8080
 dag_orientation = LR
 log_fetch_timeout_sec = 5
+hide_paused_dags_by_default = False
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp

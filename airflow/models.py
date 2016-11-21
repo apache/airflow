@@ -2682,17 +2682,22 @@ class DAG(BaseDag, LoggingMixin):
         return dttm
 
     @provide_session
-    def get_last_dagrun(self, session=None):
+    def get_last_dagrun(self, session=None, include_externally_triggered=False):
         """
         Returns the last dag run for this dag, None if there was none.
         Last dag run can be any type of run eg. scheduled or backfilled.
         Overriden DagRuns are ignored
         """
         DR = DagRun
-        last = session.query(DR).filter(
+        qry = session.query(DR).filter(
             DR.dag_id == self.dag_id,
-            DR.external_trigger == False
-        ).order_by(DR.execution_date.desc()).first()
+        )
+        if not include_externally_triggered:
+            qry = qry.filter(DR.external_trigger.is_(False))
+
+        qry = qry.order_by(DR.execution_date.desc())
+
+        last = qry.first()
 
         return last
 
