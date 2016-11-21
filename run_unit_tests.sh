@@ -33,6 +33,7 @@ if [ -z "$nose_args" ]; then
 --cover-html \
 --cover-package=airflow \
 --cover-html-dir=airflow/www/static/coverage \
+--with-ignore-docstrings \
 -s \
 -v \
 --logging-level=DEBUG "

@@ -34,6 +34,7 @@ mock
 mysqlclient
 nose
 nose-exclude
+nose-ignore-docstring==0.2
 nose-parameterized
 pandas
 psutil>=4.2.0, <5.0.0
