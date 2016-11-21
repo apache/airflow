@@ -50,6 +50,8 @@ class DockerOperator(BaseOperator):
         represents the limit in bytes, or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
     :param network_mode: Network mode for the container.
+    :param privileged: Run container in privileged mode.
+    :type privileged: bool
     :type network_mode: str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority to secure the docker connection.
     :type tls_ca_cert: str
@@ -91,6 +93,7 @@ class DockerOperator(BaseOperator):
             force_pull=False,
             mem_limit=None,
             network_mode=None,
+            privileged=False,
             tls_ca_cert=None,
             tls_client_cert=None,
             tls_client_key=None,
@@ -114,6 +117,7 @@ class DockerOperator(BaseOperator):
         self.image = image
         self.mem_limit = mem_limit
         self.network_mode = network_mode
+        self.privileged = privileged
         self.tls_ca_cert = tls_ca_cert
         self.tls_client_cert = tls_client_cert
         self.tls_client_key = tls_client_key
@@ -166,7 +170,8 @@ class DockerOperator(BaseOperator):
                     cpu_shares=cpu_shares,
                     environment=self.environment,
                     host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
+                                                            network_mode=self.network_mode,
+                                                            privileged=self.privileged),
                     image=image,
                     mem_limit=self.mem_limit,
                     user=self.user
