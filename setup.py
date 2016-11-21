@@ -193,6 +193,7 @@ def do_setup():
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <3.0',
+            'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'psutil>=4.2.0, <5.0.0',
@@ -206,7 +207,6 @@ def do_setup():
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2, <0.10',
             'zope.deprecation>=4.0, <5.0',
-	    'lxml>=3.6.0, <4.0',
         ],
         extras_require={
             'all': devel_all,
@@ -221,6 +221,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
             'hdfs': hdfs,
@@ -236,7 +237,6 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
-            'emr': emr,
             'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
