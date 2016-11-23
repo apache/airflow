@@ -54,7 +54,8 @@ class DataProcPigOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self,
-            query,
+            query=None,
+            query_uri=None,
             variables=None,
             job_name='{{task.task_id}}_{{ds_nodash}}',
             dataproc_cluster='cluster-1',
@@ -73,6 +74,8 @@ class DataProcPigOperator(BaseOperator):
 
         :param query: The query or reference to the query file (pg or pig extension).
         :type query: string
+        :param query_uri: The uri of a pig script on Cloud Storage.
+        :type query_uri: string
         :param variables: Map of named parameters for the query.
         :type variables: dict
         :param job_name: The job name used in the DataProc cluster. This name by default
@@ -98,6 +101,7 @@ class DataProcPigOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.query = query
+        self.query_uri = query_uri
         self.variables = variables
         self.job_name = job_name
         self.dataproc_cluster = dataproc_cluster
@@ -110,7 +114,10 @@ class DataProcPigOperator(BaseOperator):
         job = hook.create_job_template(self.task_id, self.dataproc_cluster, "pigJob",
                                        self.dataproc_properties)
 
-        job.add_query(self.query)
+        if self.query is None:
+            job.add_query_uri(self.query_uri)
+        else:
+            job.add_query(self.query)
         job.add_variables(self.variables)
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
