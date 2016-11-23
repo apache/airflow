@@ -207,6 +207,7 @@ def do_setup():
             'thrift>=0.9.2, <0.10',
             'zope.deprecation>=4.0, <5.0',
 	    'lxml>=3.6.0, <4.0',
+	    'unicodecsv'>='0.14.1',  # used in the hive_hook.py
         ],
         extras_require={
             'all': devel_all,
