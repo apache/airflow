@@ -15,17 +15,13 @@
 from __future__ import print_function
 
 import datetime
-import os
-import unittest
-import six
 
-from airflow import DAG, configuration, operators, utils
+from airflow import DAG, configuration, operators
 from airflow.utils.tests import skipUnlessImported
+
 configuration.load_test_config()
 
-import os
 import unittest
-
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -95,6 +91,7 @@ class MySqlTest(unittest.TestCase):
             sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
 
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
 class PostgresTest(unittest.TestCase):
@@ -170,6 +167,7 @@ class PostgresTest(unittest.TestCase):
         t = operators.postgres_operator.PostgresOperator(
             task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
 
 @skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
