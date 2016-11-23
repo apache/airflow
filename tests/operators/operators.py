@@ -165,7 +165,10 @@ class PostgresTest(unittest.TestCase):
 
         sql = "VACUUM ANALYZE;"
         t = operators.postgres_operator.PostgresOperator(
-            task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag)
+            task_id='postgres_operator_test_vacuum',
+            sql=sql,
+            dag=self.dag,
+            autocommit=True)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
