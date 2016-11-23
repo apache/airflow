@@ -2799,6 +2799,27 @@ class DAG(BaseDag, LoggingMixin):
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
 
+    @provide_session
+    def get_active_runs(self, session=None):
+        """
+        Returns a list of "running" tasks
+        :param session:
+        :return: List of execution dates
+        """
+        runs = (
+           session.query(DagRun)
+           .filter(
+           DagRun.dag_id == self.dag_id,
+           DagRun.state == State.RUNNING)
+           .order_by(DagRun.execution_date)
+           .all())
+
+        active_dates = []
+        for run in runs:
+            active_dates.append(run.execution_date)
+
+        return active_dates
+
     @property
     def latest_execution_date(self):
         """

@@ -890,3 +890,57 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+    def test_dag_get_active_runs(self):
+        """
+        Test to check that a DAG returns it's active runs
+        """
+
+        now = datetime.datetime.now()
+        six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
+
+        START_DATE = six_hours_ago_to_the_hour
+        DAG_NAME1 = 'get_active_runs_test'
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date': START_DATE
+
+        }
+        dag1 = DAG(DAG_NAME1,
+                   schedule_interval='* * * * *',
+                   max_active_runs=1,
+                   default_args=default_args
+                   )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag1)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag1)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag1)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag1.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag1.clear()
+
+        dr = scheduler.create_dag_run(dag1)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
+        execution_date = dr.execution_date
+
+        running_dates = dag1.get_active_runs()
+
+        try:
+            running_date = running_dates[0]
+        except:
+            running_date = 'Except'
+
+        self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')
