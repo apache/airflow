@@ -160,6 +160,17 @@ class PostgresTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_vacuum(self):
+        """
+        Verifies the VACUUM operation runs well with the PostgresOperator
+        """
+        import airflow.operators.postgres_operator
+
+        sql = "VACUUM ANALYZE;"
+        t = operators.postgres_operator.PostgresOperator(
+            task_id='postgres_operator_test_vacuum', sql=sql, dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
 @skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
 class TransferTests(unittest.TestCase):
