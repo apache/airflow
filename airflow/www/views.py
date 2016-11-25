@@ -624,23 +624,6 @@ class Airflow(BaseView):
             nukular=ascii_.nukular,
             info=traceback.format_exc()), 500
 
-    @expose('/sandbox')
-    @login_required
-    def sandbox(self):
-        title = "Sandbox Suggested Configuration"
-        cfg_loc = conf.AIRFLOW_CONFIG + '.sandbox'
-        f = open(cfg_loc, 'r')
-        config = f.read()
-        f.close()
-        code_html = Markup(highlight(
-            config,
-            lexers.IniLexer(),  # Lexer call
-            HtmlFormatter(noclasses=True))
-        )
-        return self.render(
-            'airflow/code.html',
-            code_html=code_html, title=title, subtitle=cfg_loc)
-
     @expose('/noaccess')
     def noaccess(self):
         return self.render('airflow/noaccess.html')
