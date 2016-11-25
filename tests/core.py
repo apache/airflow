@@ -1356,6 +1356,18 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get('/health')
         assert 'The server is healthy!' in response.data.decode('utf-8')
 
+    def test_headers(self):
+        response = self.app.get('/admin/airflow/headers')
+        assert '"headers":' in response.data.decode('utf-8')
+
+    def test_noaccess(self):
+        response = self.app.get('/admin/airflow/noaccess')
+        assert "You don't seem to have access." in response.data.decode('utf-8')
+
+    def test_pickle_info(self):
+        response = self.app.get('/admin/airflow/pickle_info')
+        assert '{' in response.data.decode('utf-8')
+
     def test_dag_views(self):
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
