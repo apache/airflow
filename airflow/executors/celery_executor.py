@@ -15,6 +15,7 @@
 from builtins import object
 import logging
 import subprocess
+import ssl
 import time
 
 from celery import Celery
@@ -43,6 +44,10 @@ class CeleryConfig(object):
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
+    BROKER_USE_SSL = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
+                      'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
+                      'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
+                      'cert_reqs': ssl.CERT_REQUIRED}
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
