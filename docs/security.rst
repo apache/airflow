@@ -321,6 +321,17 @@ standard port 443, you'll need to configure that too. Be aware that super user p
     web_server_port = 443
     base_url = http://<hostname or IP>:443
 
+Enable CeleryExecutor with SSL. Ensure you properly generate client and server
+certs and keys.
+
+.. code-block:: bash
+
+    [celery]
+    CELERY_SSL_ACTIVE = True
+    CELERY_SSL_KEY = <path to key>
+    CELERY_SSL_CERT = <path to cert>
+    CELERY_SSL_CACERT = <path to cacert>
+
 Impersonation
 -------------
 

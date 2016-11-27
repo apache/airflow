@@ -15,6 +15,7 @@
 from builtins import object
 import logging
 import subprocess
+import ssl
 import time
 
 from celery import Celery
@@ -46,6 +47,18 @@ class CeleryConfig(object):
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
+    if configuration.get('celery', 'CELERY_SSL_ACTIVE'):
+        try:
+            BROKER_USE_SSL = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
+                              'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
+                              'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
+                              'cert_reqs': ssl.CERT_REQUIRED}
+        except ValueError:
+            raise AirflowException('ValueError: CELERY_SSL_ACTIVE is True, please ensure CELERY_SSL_KEY, '
+                                   'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
+        except Exception as e:
+            raise AirflowException('Exception: There was an unknown Celery SSL Error.  Please ensure you want to use '
+                                   'SSL and/or have all necessary certs and key.')
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
