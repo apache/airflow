@@ -702,7 +702,7 @@ def webserver(args):
     try:
         forwarded_allow_ips = (args.forwarded_allow_ips or
                                conf.get('webserver', 'forwarded_allow_ips'))
-    except AirflowConfigException as _e:
+    except AirflowConfigException:
         forwarded_allow_ips = None
 
     if args.debug:
