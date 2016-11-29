@@ -2532,6 +2532,8 @@ class DAG(BaseDag, LoggingMixin):
     :type sla_miss_callback: types.FunctionType
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
     :type orientation: string
+    :param backfill: Perform backfills (or only run latest)? Defaults to True
+    "type backfill: bool"
     """
 
     def __init__(
@@ -2548,6 +2550,7 @@ class DAG(BaseDag, LoggingMixin):
             dagrun_timeout=None,
             sla_miss_callback=None,
             orientation=configuration.get('webserver', 'dag_orientation'),
+            backfill=configuration.getboolean('scheduler', 'backfill_by_default'),
             params=None):
 
         self.user_defined_macros = user_defined_macros
@@ -2587,6 +2590,7 @@ class DAG(BaseDag, LoggingMixin):
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
         self.orientation = orientation
+        self.backfill = backfill
 
         self._comps = {
             'dag_id',
