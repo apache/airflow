@@ -699,7 +699,8 @@ def webserver(args):
     if ssl_cert and not ssl_key:
         raise AirflowException(
             'An SSL key must also be provided for use with ' + ssl_cert)
-    forwarded_allow_ips = args.forwarded_allow_ips or conf.get('webserver', 'forwarded_allow_ips')
+    forwarded_allow_ips = (args.forwarded_allow_ips or 
+                           conf.get('webserver', 'forwarded_allow_ips'))
 
     if args.debug:
         print(
@@ -741,8 +742,8 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        if args.forwarded_allow_ips:
-            run_args += ['--forwarded-allow-ips', args.forwarded_allow_ips]
+        if forwarded_allow_ips:
+            run_args += ['--forwarded-allow-ips', forwarded_allow_ips]
 
         run_args += ["airflow.www.app:cached_app()"]
 
