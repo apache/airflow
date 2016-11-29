@@ -46,7 +46,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
         delegate_to=None,
-        schema_update_options=[],
+        schema_update_options=(),
         *args,
         **kwargs):
         """

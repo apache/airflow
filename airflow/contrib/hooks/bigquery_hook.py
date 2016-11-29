@@ -342,7 +342,7 @@ class BigQueryBaseCursor(object):
                  skip_leading_rows=0,
                  write_disposition='WRITE_EMPTY',
                  field_delimiter=',',
-                 schema_update_options=[]):
+                 schema_update_options=()):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
