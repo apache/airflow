@@ -3448,6 +3448,10 @@ class XCom(Base):
     task_id = Column(String(ID_LEN), nullable=False)
     dag_id = Column(String(ID_LEN), nullable=False)
 
+    __table_args__ = (
+        Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
+    )
+
     def __repr__(self):
         return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
             key=self.key,
