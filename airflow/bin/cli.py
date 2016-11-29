@@ -1304,7 +1304,7 @@ class CLIFactory(object):
                  "stderr."),
         'forwarded_allow_ips': Arg(
             ("--forwarded_allow_ips", ),
-            default=conf.get('webserver', 'FORWARDED_ALLOW_IPS'),
+            default=None,
             help="Pass gunicorn front-end IPs allowed to handle set secure headers."),
         # resetdb
         'yes': Arg(
