@@ -214,6 +214,7 @@ web_server_ssl_key =
 # Pass gunicorn front-end IPs allowed to handle set secure headers.
 # Multiple IPs should be comma separated.  Set to * to disable checking.
 # Useful if you are running gunicorn behind a load balancer.
+# See http://docs.gunicorn.org/en/stable/settings.html#forwarded-allow-ips
 # forwarded_allow_ips = *
 
 # Number of seconds the gunicorn webserver waits before timing out on a worker
@@ -459,6 +460,7 @@ web_server_port = 8080
 dag_orientation = LR
 log_fetch_timeout_sec = 5
 hide_paused_dags_by_default = False
+forwarded_allow_ips = *
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
