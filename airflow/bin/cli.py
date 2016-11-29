@@ -45,7 +45,7 @@ import airflow
 from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowConfigException
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
@@ -699,8 +699,11 @@ def webserver(args):
     if ssl_cert and not ssl_key:
         raise AirflowException(
             'An SSL key must also be provided for use with ' + ssl_cert)
-    forwarded_allow_ips = (args.forwarded_allow_ips or
-                           conf.get('webserver', 'forwarded_allow_ips'))
+    try:
+        forwarded_allow_ips = (args.forwarded_allow_ips or
+                               conf.get('webserver', 'forwarded_allow_ips'))
+    except AirflowConfigException as _e:
+        forwarded_allow_ips = None
 
     if args.debug:
         print(
