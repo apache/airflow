@@ -1611,6 +1611,7 @@ class TaskFail(Base):
 
     __tablename__ = "task_fail"
 
+    id = Column(Integer, primary_key=True, autoincrement=True)
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
     execution_date = Column(DateTime, primary_key=True)
