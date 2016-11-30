@@ -319,8 +319,13 @@ worker_log_server_port = 8793
 # information.
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 
-# Another key Celery setting
+# The backend used by Celery for storing task results known as tombstones.
+# Refer to the Celery documentation for more information.
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
+# When using RabbitMQ as the celery result backend the default tombstone
+# lifetime is 24 hours. This setting allows you to control that. The value
+# is in minutes, so 3600 matches the default.
+celery_task_result_expires = 3600
 
 # Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
 # it `airflow flower`. This defines the IP that Celery Flower runs on
