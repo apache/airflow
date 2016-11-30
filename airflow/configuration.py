@@ -261,6 +261,11 @@ dag_orientation = LR
 # privacy.
 demo_mode = False
 
+# Rate at which to automatically refresh the task states in the graph view in
+# milliseconds. If not set or set to 0, the graph will require refreshing
+# manually. Otherwise the manual refresh button will not be displayed.
+graph_refresh_rate = 0
+
 # The amount of time (in secs) webserver will wait for initial handshake
 # while fetching logs from other worker machine
 log_fetch_timeout_sec = 5
