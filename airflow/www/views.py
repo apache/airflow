@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 
-from past.utils import old_div
 from past.builtins import basestring, unicode
 
 import os
@@ -73,6 +72,7 @@ from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils import logging as log_utils
+from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.configuration import AirflowConfigException
@@ -1468,25 +1468,41 @@ class Airflow(BaseView):
         cum_chart = nvd3.lineChart(
             name="cumLineChart", x_is_date=True, height=600, width="1200")
 
+        y = {}
+        x = {}
+        cum_y = {}
         for task in dag.tasks:
-            y = []
-            x = []
-            cum_y = []
+            y[task.task_id] = []
+            x[task.task_id] = []
+            cum_y[task.task_id] = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 if ti.duration:
                     dttm = wwwutils.epoch(ti.execution_date)
-                    x.append(dttm)
-                    y.append(float(ti.duration) / (60*60))
+                    x[ti.task_id].append(dttm)
+                    y[ti.task_id].append(float(ti.duration))
                     fails = session.query(models.TaskFail).filter_by(
                         task_id=ti.task_id,
                         dag_id=ti.dag_id,
                         execution_date=ti.execution_date).all()
                     fails_total = sum([f.duration for f in fails])
-                    cum_y.append(float(ti.duration + fails_total) / (60*60))
-            if x:
-                chart.add_serie(name=task.task_id, x=x, y=y)
-                cum_chart.add_serie(name=task.task_id, x=x, y=cum_y)
+                    cum_y[ti.task_id].append(float(ti.duration + fails_total))
+        # determine the most relevant time unit for the set of task instance
+        # durations for the DAG
+        y_unit = infer_time_unit([d for t in y.values() for d in t])
+        cum_y_unit = infer_time_unit([d for t in cum_y.values() for d in t])
+        # update the y Axis on both charts to have the correct time units
+        chart.create_y_axis('yAxis', format='.02f', custom_format=False,
+                            label='Duration ({})'.format(y_unit))
+        cum_chart.create_y_axis('yAxis', format='.02f', custom_format=False,
+                                label='Duration ({})'.format(cum_y_unit))
+        for task in dag.tasks:
+            if x[task.task_id]:
+                chart.add_serie(name=task.task_id, x=x[task.task_id],
+                                y=scale_time_units(y[task.task_id], y_unit))
+                cum_chart.add_serie(name=task.task_id, x=x[task.task_id],
+                                    y=scale_time_units(cum_y[task.task_id],
+                                    cum_y_unit))
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
@@ -1607,9 +1623,11 @@ class Airflow(BaseView):
 
         chart = nvd3.lineChart(
             name="lineChart", x_is_date=True, height=600, width="1200")
+        y = {}
+        x = {}
         for task in dag.tasks:
-            y = []
-            x = []
+            y[task.task_id] = []
+            x[task.task_id] = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 ts = ti.execution_date
@@ -1617,11 +1635,20 @@ class Airflow(BaseView):
                     ts = dag.following_schedule(ts)
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)
-                    secs = old_div((ti.end_date - ts).total_seconds(), 60*60)
-                    x.append(dttm)
-                    y.append(secs)
-            if x:
-                chart.add_serie(name=task.task_id, x=x, y=y)
+                    secs = (ti.end_date - ts).total_seconds()
+                    x[ti.task_id].append(dttm)
+                    y[ti.task_id].append(secs)
+
+        # determine the most relevant time unit for the set of landing times
+        # for the DAG
+        y_unit = infer_time_unit([d for t in y.values() for d in t])
+        # update the y Axis to have the correct time units
+        chart.create_y_axis('yAxis', format='.02f', custom_format=False,
+                            label='Landing Time ({})'.format(y_unit))
+        for task in dag.tasks:
+            if x[task.task_id]:
+                chart.add_serie(name=task.task_id, x=x[task.task_id],
+                                y=scale_time_units(y[task.task_id], y_unit))
 
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)

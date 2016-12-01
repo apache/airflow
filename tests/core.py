@@ -21,6 +21,7 @@ import re
 import unittest
 import multiprocessing
 import mock
+from numpy.testing import assert_array_almost_equal
 import tempfile
 from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -54,7 +55,7 @@ from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils.state import State
-from airflow.utils.dates import round_time
+from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
@@ -809,6 +810,33 @@ class CoreTest(unittest.TestCase):
         rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(
             2015, 9, 14, 0, 0))
         assert rt6 == datetime(2015, 9, 14, 0, 0)
+
+    def test_infer_time_unit(self):
+
+        assert infer_time_unit([130, 5400, 10]) == 'minutes'
+
+        assert infer_time_unit([110, 50, 10, 100]) == 'seconds'
+
+        assert infer_time_unit([100000, 50000, 10000, 20000]) == 'hours'
+
+        assert infer_time_unit([200000, 100000]) == 'days'
+
+    def test_scale_time_units(self):
+
+        # use assert_almost_equal from numpy.testing since we are comparing
+        # floating point arrays
+        arr1 = scale_time_units([130, 5400, 10], 'minutes')
+        assert_array_almost_equal(arr1, [2.167, 90.0, 0.167], decimal=3)
+
+        arr2 = scale_time_units([110, 50, 10, 100], 'seconds')
+        assert_array_almost_equal(arr2, [110.0, 50.0, 10.0, 100.0], decimal=3)
+
+        arr3 = scale_time_units([100000, 50000, 10000, 20000], 'hours')
+        assert_array_almost_equal(arr3, [27.778, 13.889, 2.778, 5.556],
+                                  decimal=3)
+
+        arr4 = scale_time_units([200000, 100000], 'days')
+        assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
     def test_duplicate_dependencies(self):
 
