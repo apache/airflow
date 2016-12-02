@@ -75,11 +75,12 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
     for fname in files or []:
         basename = os.path.basename(fname)
         with open(fname, "rb") as f:
-            msg.attach(MIMEApplication(
+            part = MIMEApplication(
                 f.read(),
-                Content_Disposition='attachment; filename="%s"' % basename,
                 Name=basename
-            ))
+            )
+            part['Content-Disposition'] = 'attachment; filename="%s"' % basename
+            msg.attach(part)
 
     send_MIME_email(SMTP_MAIL_FROM, recipients, msg, dryrun)
 
