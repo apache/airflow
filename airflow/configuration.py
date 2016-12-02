@@ -76,7 +76,7 @@ def run_command(command):
     Runs command and returns stdout
     """
     process = subprocess.Popen(
-        command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
     output, stderr = process.communicate()
 
     if process.returncode != 0:
