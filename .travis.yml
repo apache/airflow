@@ -10,11 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+#
 sudo: true
 dist: trusty
 language: python
-jdk: oraclejdk7
+jdk:
+  - oraclejdk8
 services:
   - mysql
   - postgresql
@@ -30,6 +31,7 @@ addons:
       - krb5-user
       - krb5-kdc
       - krb5-admin-server
+      - oracle-java8-installer
       - python-selinux
   postgresql: "9.2"
 python:
@@ -91,6 +93,7 @@ before_install:
   - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*
+  - jdk_switcher use oraclejdk8
 install:
   - pip install --upgrade pip
   - pip install tox
