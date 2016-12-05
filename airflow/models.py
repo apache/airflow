@@ -2483,6 +2483,8 @@ class DAG(BaseDag, LoggingMixin):
 
     :param dag_id: The id of the DAG
     :type dag_id: string
+    :param description: The description for the DAG to e.g. be shown on the webserver
+    :type description: string
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
         execution_date to figure out the next schedule
@@ -2536,6 +2538,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def __init__(
             self, dag_id,
+            description='',
             schedule_interval=timedelta(days=1),
             start_date=None, end_date=None,
             full_filepath=None,
@@ -2567,6 +2570,7 @@ class DAG(BaseDag, LoggingMixin):
         self._concurrency = concurrency
         self._pickle_id = None
 
+        self._description = description
         self.task_dict = dict()
         self.start_date = start_date
         self.end_date = end_date
@@ -2724,6 +2728,10 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def description(self):
+        return self._description
 
     @property
     def pickle_id(self):
