@@ -81,17 +81,13 @@ QUEUEABLE_STATES = {
     State.UP_FOR_RETRY,
 }
 
-# The minimum execution context for task instances to be executed.
-MIN_EXEC_DEPS = {
+# Context to get the dependencies that need to be met in order for a task instance to
+# be backfilled.
+QUEUE_DEPS = {
     NotRunningDep(),
     NotSkippedDep(),
     RunnableExecDateDep(),
-}
-
-# Context to get the dependencies that need to be met in order for a task instance to
-# be backfilled.
-QUEUE_DEPS = MIN_EXEC_DEPS | {
-    ValidStateDep(QUEUEABLE_STATES)
+    ValidStateDep(QUEUEABLE_STATES),
 }
 
 # Dependencies that need to be met for a given task instance to be able to get run by an
