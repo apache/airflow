@@ -2620,6 +2620,36 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 table=table)
 
 
+class ErrorLogView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/')
+    def error_log(self):
+        raw = request.args.get('raw') == "true"
+        title = "Airflow Error Log"
+        log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        error_log_path = os.path.normpath(log_base + "/error.log")
+        subtitle = "Error log path: " + error_log_path
+        post_subtitle = None
+        error_log = None
+
+        if not (os.path.isfile(error_log_path)):
+            post_subtitle = "The error log file does not exist."
+        elif os.stat(error_log_path).st_size == 0:
+            post_subtitle = "The error log file is empty."
+        else:
+            with open(error_log_path, 'r') as f:
+                error_log = f.read()
+
+        if raw:
+            return Response(
+                response=error_log,
+                status=200,
+                mimetype="application/text")
+        else:
+            return self.render(
+                'airflow/log.html', log=error_log, title=title, subtitle=subtitle,
+                post_subtitle=post_subtitle)
+
+
 class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_list = ('dag_id', 'owners')
     column_editable_list = ('is_paused',)

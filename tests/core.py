@@ -1398,6 +1398,10 @@ class WebUiTests(unittest.TestCase):
         assert "Airflow Configuration" in response.data.decode('utf-8')
         assert "Running Configuration" in response.data.decode('utf-8')
         response = self.app.get(
+            '/admin/errorlogview/')
+        assert "Airflow Error Log" in response.data.decode('utf-8')
+        assert "Error log path" in response.data.decode('utf-8')
+        response = self.app.get(
             '/admin/airflow/rendered?'
             'task_id=runme_1&dag_id=example_bash_operator&'
             'execution_date={}'.format(DEFAULT_DATE_ISO))
