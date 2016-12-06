@@ -20,6 +20,8 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.operator_helpers import context_to_airflow_vars
 
+_log = logging.getLogger(__name__)
+
 
 class HiveOperator(BaseOperator):
     """
@@ -95,7 +97,7 @@ class HiveOperator(BaseOperator):
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
     def execute(self, context):
-        logging.info('Executing: ' + self.hql)
+        _log.info('Executing: ' + self.hql)
         self.hook = self.get_hook()
         self.hook.run_cli(hql=self.hql, schema=self.schema,
                           hive_conf=context_to_airflow_vars(context))

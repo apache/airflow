@@ -20,6 +20,8 @@ from airflow.hooks.samba_hook import SambaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class Hive2SambaOperator(BaseOperator):
     """
@@ -55,7 +57,7 @@ class Hive2SambaOperator(BaseOperator):
         samba = SambaHook(samba_conn_id=self.samba_conn_id)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         tmpfile = tempfile.NamedTemporaryFile()
-        logging.info("Fetching file from Hive")
+        _log.info("Fetching file from Hive")
         hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name)
-        logging.info("Pushing to samba")
+        _log.info("Pushing to samba")
         samba.push_from_local(self.destination_filepath, tmpfile.name)

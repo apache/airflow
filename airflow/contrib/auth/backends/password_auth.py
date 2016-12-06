@@ -40,7 +40,7 @@ login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
-LOG = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 PY3 = version_info[0] == 3
 
 
@@ -94,7 +94,7 @@ class PasswordUser(models.User):
 
 @login_manager.user_loader
 def load_user(userid):
-    LOG.debug("Loading user %s", userid)
+    _log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -137,7 +137,8 @@ def login(self, request):
         if not user.authenticate(password):
             session.close()
             raise AuthenticationError()
-        LOG.info("User %s successfully authenticated", username)
+
+        _log.info("User %s successfully authenticated", username)
 
         flask_login.login_user(user)
         session.commit()

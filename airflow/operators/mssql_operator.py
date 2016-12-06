@@ -18,6 +18,8 @@ from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class MsSqlOperator(BaseOperator):
     """
@@ -43,6 +45,6 @@ class MsSqlOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        _log.info('Executing: ' + str(self.sql))
         hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
         hook.run(self.sql, parameters=self.parameters)

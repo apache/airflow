@@ -62,6 +62,7 @@ DagRun = models.DagRun
 ID_LEN = models.ID_LEN
 Stats = settings.Stats
 
+_log = logging.getLogger(__name__)
 
 class BaseJob(Base, LoggingMixin):
     """
@@ -298,9 +299,12 @@ class DagFileProcessor(AbstractDagFileProcessor):
             sys.stderr = f
 
             try:
-                # Re-configure logging to use the new output streams
-                log_format = settings.LOG_FORMAT_WITH_THREAD_NAME
-                settings.configure_logging(log_format=log_format)
+                # Update the logging configuration to include thread name.
+                thread_formatter = logging.Formatter(
+                    settings.LOG_FORMAT_WITH_THREAD_NAME)
+                for handler in logging.getLogger('airflow').handlers:
+                    handler.setFormatter(thread_formatter)
+
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
@@ -310,20 +314,20 @@ class DagFileProcessor(AbstractDagFileProcessor):
                 threading.current_thread().name = thread_name
                 start_time = time.time()
 
-                logging.info("Started process (PID=%s) to work on %s",
-                             os.getpid(),
-                             file_path)
+                _log.info("Started process (PID=%s) to work on %s",
+                          os.getpid(),
+                          file_path)
                 scheduler_job = SchedulerJob(dag_ids=dag_id_white_list)
                 result = scheduler_job.process_file(file_path,
                                                     pickle_dags)
                 result_queue.put(result)
                 end_time = time.time()
-                logging.info("Processing %s took %.3f seconds",
-                             file_path,
-                             end_time - start_time)
+                _log.info("Processing %s took %.3f seconds",
+                          file_path,
+                          end_time - start_time)
             except:
                 # Log exceptions through the logging framework.
-                logging.exception("Got an exception! Propagating...")
+                _log.exception("Got an exception! Propagating...")
                 raise
             finally:
                 sys.stdout = original_stdout
@@ -363,7 +367,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
         # Arbitrarily wait 5s for the process to die
         self._process.join(5)
         if sigkill and self._process.is_alive():
-            logging.warn("Killing PID %s", self._process.pid)
+            _log.warn("Killing PID %s", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
 
     @property
@@ -403,7 +407,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
         if not self._result_queue.empty():
             self._result = self._result_queue.get_nowait()
             self._done = True
-            logging.debug("Waiting for %s", self._process)
+            _log.debug("Waiting for %s", self._process)
             self._process.join()
             return True
 
@@ -413,7 +417,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
             # Get the object from the queue or else join() can hang.
             if not self._result_queue.empty():
                 self._result = self._result_queue.get_nowait()
-            logging.debug("Waiting for %s", self._process)
+            _log.debug("Waiting for %s", self._process)
             self._process.join()
             return True
 
@@ -1209,8 +1213,6 @@ class SchedulerJob(BaseJob):
         self.logger.info("Starting the scheduler")
         pessimistic_connection_handling()
 
-        logging.basicConfig(level=logging.DEBUG)
-
         # DAGs can be pickled for easier remote execution by some executors
         pickle_dags = False
         if self.do_pickle and self.executor.__class__ not in \
@@ -1681,7 +1683,7 @@ class BackfillJob(BaseJob):
 
         run_count = 0
         for run in active_dag_runs:
-            logging.info("Checking run {}".format(run))
+            self.logger.info("Checking run {}".format(run))
             run_count = run_count + 1
 
             def get_task_instances_for_dag_run(dag_run):
@@ -1778,7 +1780,7 @@ class BackfillJob(BaseJob):
                         continue
                     ti = tasks_to_run[key]
                     ti.refresh_from_db()
-                    logging.info("Executor state: {} task {}".format(state, ti))
+                    self.logger.info("Executor state: {} task {}".format(state, ti))
                     # executor reports failure
                     if state == State.FAILED:
 
@@ -2004,7 +2006,7 @@ class LocalTaskJob(BaseJob):
         if state == State.RUNNING:
             self.was_running = True
         elif self.was_running and hasattr(self, 'process'):
-            logging.warning(
+            self.logger.warning(
                 "State of this instance has been externally set to "
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))

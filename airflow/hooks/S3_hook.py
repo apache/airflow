@@ -33,6 +33,8 @@ logging.getLogger("boto").setLevel(logging.INFO)
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
+_log = logging.getLogger(__name__)
+
 
 def _parse_s3_config(config_file_name, config_format='boto', profile=None):
     """
@@ -84,7 +86,7 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
             if Config.has_option(cred_section, 'calling_format'):
                 calling_format = Config.get(cred_section, 'calling_format')
         except:
-            logging.warning("Option Error in parsing s3 config file")
+            _log.warning("Option Error in parsing s3 config file")
             raise
         return (access_key, secret_key, calling_format)
 
@@ -367,7 +369,7 @@ class S3Hook(BaseHook):
                     bytes = min(multipart_bytes, key_size - offset)
                     with FileChunkIO(
                             filename, 'r', offset=offset, bytes=bytes) as fp:
-                        logging.info('Sending chunk {c} of {tc}...'.format(
+                        _log.info('Sending chunk {c} of {tc}...'.format(
                             c=chunk + 1, tc=total_chunks))
                         mp.upload_part_from_file(fp, part_num=chunk + 1)
             except:
@@ -381,8 +383,8 @@ class S3Hook(BaseHook):
             key_size = key_obj.set_contents_from_filename(filename,
                                                           replace=replace,
                                                           encrypt_key=encrypt)
-        logging.info("The key {key} now contains"
-                     " {key_size} bytes".format(**locals()))
+        _log.info("The key {key} now contains"
+                  " {key_size} bytes".format(**locals()))
 
     def load_string(self, string_data,
                     key, bucket_name=None,
@@ -421,5 +423,5 @@ class S3Hook(BaseHook):
         key_size = key_obj.set_contents_from_string(string_data,
                                                     replace=replace,
                                                     encrypt_key=encrypt)
-        logging.info("The key {key} now contains"
-                     " {key_size} bytes".format(**locals()))
+        _log.info("The key {key} now contains"
+                  " {key_size} bytes".format(**locals()))

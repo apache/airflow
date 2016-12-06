@@ -23,6 +23,8 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 
+_log = logging.getLogger(__name__)
+
 
 class BashOperator(BaseOperator):
     """
@@ -66,7 +68,7 @@ class BashOperator(BaseOperator):
         which will be cleaned afterwards
         """
         bash_command = self.bash_command
-        logging.info("tmp dir root location: \n" + gettempdir())
+        _log.info("tmp dir root location: \n" + gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 
@@ -74,9 +76,9 @@ class BashOperator(BaseOperator):
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
-                logging.info("Temporary script "
-                             "location :{0}".format(script_location))
-                logging.info("Running command: " + bash_command)
+                _log.info("Temporary script "
+                          "location :{0}".format(script_location))
+                _log.info("Running command: " + bash_command)
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
@@ -84,14 +86,14 @@ class BashOperator(BaseOperator):
 
                 self.sp = sp
 
-                logging.info("Output:")
+                _log.info("Output:")
                 line = ''
                 for line in iter(sp.stdout.readline, b''):
                     line = line.decode(self.output_encoding).strip()
-                    logging.info(line)
+                    _log.info(line)
                 sp.wait()
-                logging.info("Command exited with "
-                             "return code {0}".format(sp.returncode))
+                _log.info("Command exited with "
+                          "return code {0}".format(sp.returncode))
 
                 if sp.returncode:
                     raise AirflowException("Bash command failed")
@@ -100,5 +102,5 @@ class BashOperator(BaseOperator):
             return line
 
     def on_kill(self):
-        logging.info('Sending SIGTERM signal to bash subprocess')
+        _log.info('Sending SIGTERM signal to bash subprocess')
         self.sp.terminate()

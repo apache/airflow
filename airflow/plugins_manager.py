@@ -27,6 +27,8 @@ import sys
 
 from airflow import configuration
 
+_log = logging.getLogger(__name__)
+
 
 class AirflowPluginException(Exception):
     pass
@@ -72,7 +74,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             if file_ext != '.py':
                 continue
 
-            logging.info('Importing plugin module ' + filepath)
+            _log.info('Importing plugin module ' + filepath)
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
@@ -87,12 +89,12 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
                         plugins.append(obj)
 
         except Exception as e:
-            logging.exception(e)
-            logging.error('Failed to import plugin ' + filepath)
+            _log.exception(e)
+            _log.error('Failed to import plugin ' + filepath)
 
 
 def make_module(name, objects):
-    logging.info('Creating module ' + name)
+    _log.info('Creating module ' + name)
     name = name.lower()
     module = imp.new_module(name)
     module._name = name.split('.')[-1]

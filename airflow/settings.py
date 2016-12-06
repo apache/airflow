@@ -26,6 +26,8 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 from airflow import configuration as conf
 
+_log = logging.getLogger(__name__)
+
 
 class DummyStatsLogger(object):
 
@@ -66,7 +68,6 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
  """
 
-BASE_LOG_URL = '/admin/airflow/log'
 AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
 SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
 LOGGING_LEVEL = logging.INFO
@@ -112,11 +113,6 @@ def policy(task_instance):
     pass
 
 
-def configure_logging(log_format=LOG_FORMAT):
-    logging.root.handlers = []
-    logging.basicConfig(
-        format=log_format, stream=sys.stdout, level=LOGGING_LEVEL)
-
 engine = None
 Session = None
 
@@ -138,9 +134,8 @@ def configure_orm():
 
 try:
     from airflow_local_settings import *
-    logging.info("Loaded airflow_local_settings.")
+    _log.info("Loaded airflow_local_settings.")
 except:
     pass
 
-configure_logging()
 configure_orm()

@@ -40,6 +40,7 @@ if DAGS_FOLDER not in sys.path:
 
 login = None
 
+_log = logging.getLogger(__name__)
 
 def load_login():
     auth_backend = 'airflow.default_login'
@@ -48,7 +49,7 @@ def load_login():
             auth_backend = conf.get('webserver', 'auth_backend')
     except conf.AirflowConfigException:
         if conf.getboolean('webserver', 'AUTHENTICATE'):
-            logging.warning(
+            _log.warning(
                 "auth_backend not found in webserver config reverting to "
                 "*deprecated*  behavior of importing airflow_login")
             auth_backend = "airflow_login"
@@ -57,7 +58,7 @@ def load_login():
         global login
         login = import_module(auth_backend)
     except ImportError as err:
-        logging.critical(
+        _log.critical(
             "Cannot import authentication module %s. "
             "Please correct your authentication backend or disable authentication: %s",
             auth_backend, err

@@ -19,6 +19,8 @@ from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class HiveToDruidTransfer(BaseOperator):
     """
@@ -88,7 +90,7 @@ class HiveToDruidTransfer(BaseOperator):
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
-        logging.info("Extracting data from Hive")
+        _log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
         hql = """\
@@ -102,7 +104,7 @@ class HiveToDruidTransfer(BaseOperator):
         AS
         {sql}
         """.format(**locals())
-        logging.info("Running command:\n {}".format(hql))
+        _log.info("Running command:\n {}".format(hql))
         hive.run_cli(hql)
 
         m = HiveMetastoreHook(self.metastore_conn_id)
@@ -117,8 +119,8 @@ class HiveToDruidTransfer(BaseOperator):
         schema, table = hive_table.split('.')
 
         druid = DruidHook(druid_ingest_conn_id=self.druid_ingest_conn_id)
-        logging.info("Inserting rows into Druid")
-        logging.info("HDFS path: " + static_path)
+        _log.info("Inserting rows into Druid")
+        _log.info("HDFS path: " + static_path)
 
         try:
             druid.load_from_hdfs(
@@ -128,9 +130,9 @@ class HiveToDruidTransfer(BaseOperator):
                 columns=columns, num_shards=self.num_shards, target_partition_size=self.target_partition_size,
                 query_granularity=self.query_granularity, segment_granularity=self.segment_granularity,
                 metric_spec=self.metric_spec, hadoop_dependency_coordinates=self.hadoop_dependency_coordinates)
-            logging.info("Load seems to have succeeded!")
+            _log.info("Load seems to have succeeded!")
         finally:
-            logging.info(
+            _log.info(
                 "Cleaning up by dropping the temp "
                 "Hive table {}".format(hive_table))
             hql = "DROP TABLE IF EXISTS {}".format(hive_table)

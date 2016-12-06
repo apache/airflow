@@ -18,6 +18,8 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook
 
+_log = logging.getLogger(__name__)
+
 
 class GenericTransfer(BaseOperator):
     """
@@ -64,15 +66,15 @@ class GenericTransfer(BaseOperator):
     def execute(self, context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
 
-        logging.info("Extracting data from {}".format(self.source_conn_id))
-        logging.info("Executing: \n" + self.sql)
+        _log.info("Extracting data from {}".format(self.source_conn_id))
+        _log.info("Executing: \n" + self.sql)
         results = source_hook.get_records(self.sql)
 
         destination_hook = BaseHook.get_hook(self.destination_conn_id)
         if self.preoperator:
-            logging.info("Running preoperator")
-            logging.info(self.preoperator)
+            _log.info("Running preoperator")
+            _log.info(self.preoperator)
             destination_hook.run(self.preoperator)
 
-        logging.info("Inserting rows into {}".format(self.destination_conn_id))
+        _log.info("Inserting rows into {}".format(self.destination_conn_id))
         destination_hook.insert_rows(table=self.destination_table, rows=results)

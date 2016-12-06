@@ -20,6 +20,8 @@ from airflow.utils import apply_defaults
 
 from airflow.contrib.hooks.aws_hook import AwsHook
 
+_log = logging.getLogger(__name__)
+
 
 class ECSOperator(BaseOperator):
 
@@ -57,11 +59,11 @@ class ECSOperator(BaseOperator):
 
     def execute(self, context):
 
-        logging.info('Running ECS Task - Task definition: {} - on cluster {}'.format(
+        _log.info('Running ECS Task - Task definition: {} - on cluster {}'.format(
             self.task_definition,
             self.cluster
         ))
-        logging.info('ECSOperator overrides: {}'.format(self.overrides))
+        _log.info('ECSOperator overrides: {}'.format(self.overrides))
 
         self.client = self.hook.get_client_type(
             'ecs',
@@ -78,13 +80,13 @@ class ECSOperator(BaseOperator):
         failures = response['failures']
         if (len(failures) > 0):
             raise AirflowException(response)
-        logging.info('ECS Task started: {}'.format(response))
+        _log.info('ECS Task started: {}'.format(response))
 
         self.arn = response['tasks'][0]['taskArn']
         self._wait_for_task_ended()
 
         self._check_success_task()
-        logging.info('ECS Task has been successfully executed: {}'.format(response))
+        _log.info('ECS Task has been successfully executed: {}'.format(response))
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
@@ -99,7 +101,7 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             tasks=[self.arn]
         )
-        logging.info('ECS Task stopped, check status: {}'.format(response))
+        _log.info('ECS Task stopped, check status: {}'.format(response))
 
         if (len(response.get('failures', [])) > 0):
             raise AirflowException(response)
@@ -124,4 +126,4 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             task=self.arn,
             reason='Task killed by the user')
-        logging.info(response)
+        _log.info(response)

@@ -21,6 +21,8 @@ from importlib import import_module
 
 api_auth = None
 
+_log = logging.getLogger(__name__)
+
 
 def load_auth():
     auth_backend = 'airflow.api.auth.backend.default'
@@ -33,6 +35,6 @@ def load_auth():
         global api_auth
         api_auth = import_module(auth_backend)
     except ImportError as err:
-        logging.critical("Cannot import {} for API authentication due to: {}"
+        _log.critical("Cannot import {} for API authentication due to: {}"
                          .format(auth_backend, err))
         raise AirflowException(err)

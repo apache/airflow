@@ -18,6 +18,8 @@ from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class BigQueryToBigQueryOperator(BaseOperator):
     """
@@ -74,7 +76,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Executing copy of %s into: %s', self.source_project_dataset_tables,
+        _log.info('Executing copy of %s into: %s', self.source_project_dataset_tables,
                      self.destination_project_dataset_table)
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)

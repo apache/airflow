@@ -18,6 +18,8 @@ from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class SqliteOperator(BaseOperator):
     """
@@ -44,6 +46,6 @@ class SqliteOperator(BaseOperator):
         self.parameters = parameters or []
 
     def execute(self, context):
-        logging.info('Executing: ' + self.sql)
+        _log.info('Executing: ' + self.sql)
         hook = SqliteHook(sqlite_conn_id=self.sqlite_conn_id)
         hook.run(self.sql, parameters=self.parameters)

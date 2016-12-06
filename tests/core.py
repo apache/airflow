@@ -15,17 +15,16 @@
 from __future__ import print_function
 
 import doctest
-import json
 import os
-import re
 import unittest
+import logging
 import multiprocessing
 import mock
+import re
 import tempfile
 from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-import signal
 from time import sleep
 import warnings
 
@@ -970,6 +969,16 @@ class CliTests(unittest.TestCase):
             dag_folder=DEV_NULL, include_examples=True)
         # Persist DAGs
 
+    def _add_null_handler(self):
+        """Adds a null handler to the root logger.  We check this is still
+        around on tests that modify the logger."""
+        self.null_handler = logging.NullHandler()
+        logging.getLogger().addHandler(self.null_handler)
+
+    def _assert_null_handler(self):
+        """Ensures the NullHandler from `_add_null_handler` is still around."""
+        self.assertIn(self.null_handler, logging.getLogger().handlers)
+
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
@@ -1216,6 +1225,8 @@ class CliTests(unittest.TestCase):
         assert self.dagbag.dags['example_bash_operator'].is_paused in [False, 0]
 
     def test_subdag_clear(self):
+        self._add_null_handler()
+
         args = self.parser.parse_args([
             'clear', 'example_subdag_operator', '--no_confirm'])
         cli.clear(args)
@@ -1223,7 +1234,11 @@ class CliTests(unittest.TestCase):
             'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
+        self._assert_null_handler()
+
     def test_backfill(self):
+        self._add_null_handler()
+
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
             '-s', DEFAULT_DATE.isoformat()]))
@@ -1239,6 +1254,8 @@ class CliTests(unittest.TestCase):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator', '-l',
             '-s', DEFAULT_DATE.isoformat()]))
+
+        self._assert_null_handler()
 
     def test_process_subdir_path_with_placeholder(self):
         assert cli.process_subdir('DAGS_FOLDER/abc') == os.path.join(configuration.get_dags_folder(), 'abc')

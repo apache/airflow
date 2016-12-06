@@ -19,6 +19,8 @@ from airflow.exceptions import AirflowException
 import json
 import logging
 
+_log = logging.getLogger(__name__)
+
 
 class SlackAPIOperator(BaseOperator):
     """
@@ -66,7 +68,7 @@ class SlackAPIOperator(BaseOperator):
         sc = SlackClient(self.token)
         rc = sc.api_call(self.method, **self.api_params)
         if not rc['ok']:
-            logging.error("Slack API call failed ({})".format(rc['error']))
+            _log.error("Slack API call failed ({})".format(rc['error']))
             raise AirflowException("Slack API call failed: ({})".format(rc['error']))
 
 

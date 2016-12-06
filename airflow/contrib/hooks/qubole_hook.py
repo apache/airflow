@@ -29,6 +29,8 @@ from qds_sdk.commands import Command, HiveCommand, PrestoCommand, HadoopCommand,
     PigCommand, ShellCommand, SparkCommand, DbTapQueryCommand, DbExportCommand, \
     DbImportCommand
 
+_log = logging.getLogger(__name__)
+
 
 COMMAND_CLASSES = {
     "hivecmd": HiveCommand,
@@ -84,7 +86,7 @@ class QuboleHook(BaseHook):
         cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
 
         if cmd_id is not None:
-            logger = logging.getLogger("QuboleHook")
+            logger = logging.getLogger('airflow').getChild("QuboleHook")
             cmd = Command.find(cmd_id)
             if cmd is not None:
                 if cmd.status == 'done':
@@ -99,16 +101,16 @@ class QuboleHook(BaseHook):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        logging.info("Qubole command created with Id: %s and Status: %s",
+        _log.info("Qubole command created with Id: %s and Status: %s",
                      self.cmd.id, self.cmd.status)
 
         while not Command.is_done(self.cmd.status):
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)
-            logging.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
+            _log.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
-            logging.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
+            _log.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
             raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
@@ -124,7 +126,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
-            logging.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
+            _log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):

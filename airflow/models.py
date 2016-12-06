@@ -86,6 +86,8 @@ XCOM_RETURN_KEY = 'return_value'
 
 Stats = settings.Stats
 
+_log = logging.getLogger(__name__)
+
 ENCRYPTION_ON = False
 try:
     from cryptography.fernet import Fernet
@@ -238,7 +240,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return found_dags
 
         except Exception as e:
-            logging.exception(e)
+            self.logger.exception(e)
             return found_dags
 
         mods = []
@@ -425,7 +427,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                                 str([dag.dag_id for dag in found_dags]),
                             ))
                     except Exception as e:
-                        logging.warning(e)
+                        _log.warning(e)
         Stats.gauge(
             'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
         Stats.gauge(
@@ -669,8 +671,8 @@ class Connection(Base):
             try:
                 obj = json.loads(self.extra)
             except Exception as e:
-                logging.exception(e)
-                logging.error("Failed parsing the json for conn_id %s", self.conn_id)
+                _log.exception(e)
+                _log.error("Failed parsing the json for conn_id %s", self.conn_id)
 
         return obj
 
@@ -925,7 +927,7 @@ class TaskInstance(Base):
         """
         Forces the task instance's state to FAILED in the database.
         """
-        logging.error("Recording the task instance as FAILED")
+        _log.error("Recording the task instance as FAILED")
         self.state = State.FAILED
         session.merge(self)
         session.commit()
@@ -1053,12 +1055,12 @@ class TaskInstance(Base):
                 dep_context=dep_context,
                 session=session):
             if verbose:
-                logging.warning(
+                _log.warning(
                     "Dependencies not met for %s, dependency '%s' FAILED: %s",
                     self, dep_status.dep_name, dep_status.reason)
             return False
         if verbose:
-            logging.info("Dependencies all met for %s", self)
+            _log.info("Dependencies all met for %s", self)
         return True
 
     @provide_session
@@ -1073,7 +1075,7 @@ class TaskInstance(Base):
                     session,
                     dep_context):
                 if dep_status.passed:
-                    logging.debug("%s dependency '%s' PASSED: %s",
+                    _log.debug("%s dependency '%s' PASSED: %s",
                                   self,
                                   dep_status.dep_name,
                                   dep_status.reason)
@@ -1229,11 +1231,11 @@ class TaskInstance(Base):
                 msg = "Queuing attempt {attempt} of {total}".format(
                     attempt=self.try_number % (task.retries + 1) + 1,
                     total=task.retries + 1)
-                logging.info(hr + msg + hr)
+                _log.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
                 msg = "Queuing into pool {}".format(self.pool)
-                logging.info(msg)
+                _log.info(msg)
                 session.merge(self)
             session.commit()
             return
@@ -1242,12 +1244,12 @@ class TaskInstance(Base):
         # the current worker process was blocked on refresh_from_db
         if self.state == State.RUNNING:
             msg = "Task Instance already running {}".format(self)
-            logging.warn(msg)
+            _log.warn(msg)
             session.commit()
             return
 
         # print status message
-        logging.info(hr + msg + hr)
+        _log.info(hr + msg + hr)
         self.try_number += 1
 
         if not test_mode:
@@ -1270,7 +1272,7 @@ class TaskInstance(Base):
 
         context = {}
         try:
-            logging.info(msg.format(self=self))
+            _log.info(msg.format(self=self))
             if not mark_success:
                 context = self.get_template_context()
 
@@ -1279,7 +1281,7 @@ class TaskInstance(Base):
 
                 def signal_handler(signum, frame):
                     '''Setting kill signal handler'''
-                    logging.error("Killing subprocess")
+                    _log.error("Killing subprocess")
                     task_copy.on_kill()
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
@@ -1325,8 +1327,8 @@ class TaskInstance(Base):
             if task.on_success_callback:
                 task.on_success_callback(context)
         except Exception as e3:
-            logging.error("Failed when executing success callback")
-            logging.exception(e3)
+            _log.error("Failed when executing success callback")
+            _log.exception(e3)
 
         session.commit()
 
@@ -1339,7 +1341,7 @@ class TaskInstance(Base):
         task_copy.dry_run()
 
     def handle_failure(self, error, test_mode=False, context=None):
-        logging.exception(error)
+        _log.exception(error)
         task = self.task
         session = settings.Session()
         self.end_date = datetime.now()
@@ -1355,21 +1357,21 @@ class TaskInstance(Base):
         try:
             if task.retries and self.try_number % (task.retries + 1) != 0:
                 self.state = State.UP_FOR_RETRY
-                logging.info('Marking task as UP_FOR_RETRY')
+                _log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
                     self.email_alert(error, is_retry=True)
             else:
                 self.state = State.FAILED
                 if task.retries:
-                    logging.info('All retries failed; marking task as FAILED')
+                    _log.info('All retries failed; marking task as FAILED')
                 else:
-                    logging.info('Marking task as FAILED.')
+                    _log.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
                     self.email_alert(error, is_retry=False)
         except Exception as e2:
-            logging.error(
+            _log.error(
                 'Failed to send email to: ' + str(task.email))
-            logging.exception(e2)
+            _log.exception(e2)
 
         # Handling callbacks pessimistically
         try:
@@ -1378,13 +1380,13 @@ class TaskInstance(Base):
             if self.state == State.FAILED and task.on_failure_callback:
                 task.on_failure_callback(context)
         except Exception as e3:
-            logging.error("Failed at executing callback")
-            logging.exception(e3)
+            _log.error("Failed at executing callback")
+            _log.exception(e3)
 
         if not test_mode:
             session.merge(self)
         session.commit()
-        logging.error(str(error))
+        _log.error(str(error))
 
     @provide_session
     def get_template_context(self, session=None):
@@ -1852,7 +1854,7 @@ class BaseOperator(object):
         self.email_on_failure = email_on_failure
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
-            logging.warning(
+            _log.warning(
                 "start_date for {} isn't datetime.datetime".format(self))
         self.end_date = end_date
         if not TriggerRule.is_valid(trigger_rule):
@@ -1869,7 +1871,7 @@ class BaseOperator(object):
             self.depends_on_past = True
 
         if schedule_interval:
-            logging.warning(
+            _log.warning(
                 "schedule_interval is used for {}, though it has "
                 "been deprecated as a task parameter, you need to "
                 "specify it as a DAG parameter instead".format(self))
@@ -1885,7 +1887,7 @@ class BaseOperator(object):
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
-            logging.debug("retry_delay isn't timedelta object, assuming secs")
+            _log.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
@@ -2182,7 +2184,7 @@ class BaseOperator(object):
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
-                    logging.exception(e)
+                    _log.exception(e)
         self.prepare_template()
 
     @property
@@ -2302,12 +2304,12 @@ class BaseOperator(object):
                 ignore_ti_state=ignore_ti_state)
 
     def dry_run(self):
-        logging.info('Dry run')
+        _log.info('Dry run')
         for attr in self.template_fields:
             content = getattr(self, attr)
             if content and isinstance(content, six.string_types):
-                logging.info('Rendering template for {0}'.format(attr))
-                logging.info(content)
+                _log.info('Rendering template for {0}'.format(attr))
+                _log.info(content)
 
     def get_direct_relatives(self, upstream=False):
         """
@@ -3049,7 +3051,7 @@ class DAG(BaseDag, LoggingMixin):
             d['pickle_len'] = len(pickled)
             d['pickling_duration'] = "{}".format(datetime.now() - dttm)
         except Exception as e:
-            logging.exception(e)
+            _log.exception(e)
             d['is_picklable'] = False
             d['stacktrace'] = traceback.format_exc()
         return d
@@ -3245,7 +3247,7 @@ class DAG(BaseDag, LoggingMixin):
             DagModel).filter(DagModel.dag_id == dag.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=dag.dag_id)
-            logging.info("Creating ORM DAG for %s",
+            _log.info("Creating ORM DAG for %s",
                          dag.dag_id)
         orm_dag.fileloc = dag.full_filepath
         orm_dag.is_subdag = dag.is_subdag
@@ -3292,7 +3294,7 @@ class DAG(BaseDag, LoggingMixin):
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
-            logging.info("Deactivating DAG ID %s since it was last touched "
+            _log.info("Deactivating DAG ID %s since it was last touched "
                          "by the scheduler at %s",
                          dag.dag_id,
                          dag.last_scheduler_run.isoformat())
@@ -3824,7 +3826,7 @@ class DagRun(Base):
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
-        logging.info("Updating state for {} considering {} task(s)"
+        _log.info("Updating state for {} considering {} task(s)"
                      .format(self, len(tis)))
 
         for ti in list(tis):
@@ -3860,18 +3862,18 @@ class DagRun(Base):
 
             if any(r.state in (State.FAILED, State.UPSTREAM_FAILED)
                    for r in roots):
-                logging.info('Marking run {} failed'.format(self))
+                _log.info('Marking run {} failed'.format(self))
                 self.state = State.FAILED
 
             # if all roots succeeded, the run succeeded
             elif all(r.state in (State.SUCCESS, State.SKIPPED)
                      for r in roots):
-                logging.info('Marking run {} successful'.format(self))
+                _log.info('Marking run {} successful'.format(self))
                 self.state = State.SUCCESS
 
             # if *all tasks* are deadlocked, the run failed
             elif unfinished_tasks and none_depends_on_past and no_dependencies_met:
-                logging.info(
+                _log.info(
                     'Deadlock; marking run {} failed'.format(self))
                 self.state = State.FAILED
 

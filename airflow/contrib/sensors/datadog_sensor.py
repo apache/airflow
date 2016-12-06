@@ -20,6 +20,8 @@ from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 from datadog import api
 
+_log = logging.getLogger(__name__)
+
 
 class DatadogSensor(BaseSensorOperator):
     """
@@ -70,7 +72,7 @@ class DatadogSensor(BaseSensorOperator):
             tags=self.tags)
 
         if isinstance(response, dict) and response.get('status', 'ok') != 'ok':
-            logging.error("Unexpected datadog result: %s" % (response))
+            _log.error("Unexpected datadog result: %s" % (response))
             raise AirflowException("Datadog returned unexpected result")
 
         if self.response_check:

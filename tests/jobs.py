@@ -50,6 +50,8 @@ except ImportError:
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 
+_log = logging.getLogger('airflow')
+
 
 class BackfillJobTest(unittest.TestCase):
 
@@ -917,7 +919,7 @@ class SchedulerJobTest(unittest.TestCase):
         end_time = datetime.datetime.now()
 
         run_duration = (end_time - start_time).total_seconds()
-        logging.info("Test ran in %.2fs, expected %.2fs",
+        _log.info("Test ran in %.2fs, expected %.2fs",
                      run_duration,
                      expected_run_duration)
         assert run_duration - expected_run_duration < 5.0

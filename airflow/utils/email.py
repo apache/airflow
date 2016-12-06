@@ -32,6 +32,8 @@ from email.utils import formatdate
 
 from airflow import configuration
 
+_log = logging.getLogger(__name__)
+
 
 def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
     """
@@ -98,7 +100,7 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
             s.starttls()
         if SMTP_USER and SMTP_PASSWORD:
             s.login(SMTP_USER, SMTP_PASSWORD)
-        logging.info("Sent an alert email to " + str(e_to))
+        _log.info("Sent an alert email to " + str(e_to))
         s.sendmail(e_from, e_to, mime_msg.as_string())
         s.quit()
 

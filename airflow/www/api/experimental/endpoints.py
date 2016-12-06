@@ -27,6 +27,9 @@ requires_authentication = airflow.api.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
 
+_log = logging.getLogger(__name__)
+
+
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
@@ -47,13 +50,13 @@ def trigger_dag(dag_id):
     try:
         dr = trigger.trigger_dag(dag_id, run_id, conf)
     except AirflowException as err:
-        logging.error(err)
+        _log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = 404
         return response
 
     if getattr(g, 'user', None):
-        logging.info("User {} created {}".format(g.user, dr))
+        _log.info("User {} created {}".format(g.user, dr))
 
     response = jsonify(message="Created {}".format(dr))
     return response

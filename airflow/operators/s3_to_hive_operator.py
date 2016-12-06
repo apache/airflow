@@ -23,6 +23,8 @@ from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class S3ToHiveTransfer(BaseOperator):
     """
@@ -109,7 +111,7 @@ class S3ToHiveTransfer(BaseOperator):
     def execute(self, context):
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
-        logging.info("Downloading S3 file")
+        _log.info("Downloading S3 file")
         if self.wildcard_match:
             if not self.s3.check_for_wildcard_key(self.s3_key):
                 raise AirflowException("No key matches {0}".format(self.s3_key))
@@ -120,13 +122,13 @@ class S3ToHiveTransfer(BaseOperator):
                     "The key {0} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
         with NamedTemporaryFile("w") as f:
-            logging.info("Dumping S3 key {0} contents to local"
-                         " file {1}".format(s3_key_object.key, f.name))
+            _log.info("Dumping S3 key {0} contents to local"
+                      " file {1}".format(s3_key_object.key, f.name))
             s3_key_object.get_contents_to_file(f)
             f.flush()
             self.s3.connection.close()
             if not self.headers:
-                logging.info("Loading file into Hive")
+                _log.info("Loading file into Hive")
                 self.hive.load_file(
                     f.name,
                     self.hive_table,
@@ -145,10 +147,10 @@ class S3ToHiveTransfer(BaseOperator):
                         test_field_match = [h1.lower() == h2.lower() for h1, h2
                                             in zip(header_list, field_names)]
                         if not all(test_field_match):
-                            logging.warning("Headers do not match field names"
-                                            "File headers:\n {header_list}\n"
-                                            "Field names: \n {field_names}\n"
-                                            "".format(**locals()))
+                            _log.warning("Headers do not match field names"
+                                         "File headers:\n {header_list}\n"
+                                         "Field names: \n {field_names}\n"
+                                         "".format(**locals()))
                             raise AirflowException("Headers do not match the "
                                             "field_dict keys")
                     with NamedTemporaryFile("w") as f_no_headers:
@@ -157,7 +159,7 @@ class S3ToHiveTransfer(BaseOperator):
                         for line in tmpf:
                             f_no_headers.write(line)
                         f_no_headers.flush()
-                        logging.info("Loading file without headers into Hive")
+                        _log.info("Loading file without headers into Hive")
                         self.hive.load_file(
                             f_no_headers.name,
                             self.hive_table,
