@@ -847,13 +847,58 @@ def worker(args):
         stdout.close()
         stderr.close()
     else:
-        signal.signal(signal.SIGINT, sigint_handler)
-        signal.signal(signal.SIGTERM, sigint_handler)
+        serve_logs_proc = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+        celery_proc = subprocess.Popen(
+            [
+                'celery',
+                'worker',
+                '-A', 'airflow.executors.celery_executor',
+                '-O', 'fair',
+                '-Q', str(args.queues),
+                '-c', str(args.concurrency)
+            ],
+            env=env,
+            # don't inherit stdin, so that Ctrl-C is not handled twice
+            stdin=subprocess.PIPE
+        )
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
 
-        worker.run(**options)
-        sp.kill()
+        def kill_proc(dummy_signum, dummy_frame):
+            serve_logs_proc.terminate()
+
+            # 1. Celery responsd to SIGTERM with warm shutdown quit when all
+            #    tasks finish
+            logging.debug('Sending SIGTERM to Celery')
+            celery_proc.terminate()
+
+            # 2. Send SIGTERM to each child of celery - give up on task.
+            # We go two levels deep in the process tree
+            #
+            # - celery master process
+            #   \- celery worker process
+            #      \- airflow run --local    <------- terminate
+            #         \- airflow run --raw
+            #   \- celery worker process
+            #      \- airflow run --local    <------- terminate
+            #         \- airflow run --raw
+            #   \- celery worker process
+            #   \- celery worker process
+            celery_workers = psutil.Process(celery_proc.pid).children()
+            for celery_worker in celery_workers:
+                for celery_child in psutil.Process(celery_worker.pid).children():
+                    logging.debug('sending SIGTERM to ', celery_worker.cmdline()[0])
+                    celery_child.send_signal(signal.SIGTERM)
+
+            # 3. Wait for warm shutdown to finish
+            celery_proc.wait()
+
+            sys.exit(0)
+
+        signal.signal(signal.SIGINT, kill_proc)
+        signal.signal(signal.SIGTERM, kill_proc)
+
+        while True:
+            pass
 
 
 def initdb(args):  # noqa
@@ -1486,7 +1531,7 @@ class CLIFactory(object):
                      'log_file'),
         }, {
             'func': worker,
-            'help': "Start a Celery worker node",
+            'help': "Supervise or daemonize a Celery worker node",
             'args': ('do_pickle', 'queues', 'concurrency',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {

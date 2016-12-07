@@ -1931,6 +1931,11 @@ class BackfillJob(BaseJob):
 
 
 class LocalTaskJob(BaseJob):
+    """
+    Spawns and supervises an ``airflow run --raw`` command as a subprocess.
+    Emits heartbeats, listens for external kill signals and ensures some
+    cleanup tasks take place if the subprocess fails.
+    """
 
     __mapper_args__ = {
         'polymorphic_identity': 'LocalTaskJob'
@@ -1979,6 +1984,15 @@ class LocalTaskJob(BaseJob):
             pool=self.pool,
         )
         self.process = subprocess.Popen(['bash', '-c', command])
+
+        def kill_proc(dummy_signum, dummy_frame):
+            logging.debug('LocalTaskJob received sigterm')
+            self.process.terminate()
+            time.sleep(10)
+            self.process.kill()
+
+        signal.signal(signal.SIGTERM, kill_proc)
+
         return_code = None
         while return_code is None:
             self.heartbeat()
@@ -1999,8 +2013,10 @@ class LocalTaskJob(BaseJob):
         TI = models.TaskInstance
         ti = self.task_instance
         state = session.query(TI.state).filter(
-            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
-            TI.execution_date==ti.execution_date).scalar()
+            TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
+            TI.execution_date == ti.execution_date
+        ).scalar()
+
         if state == State.RUNNING:
             self.was_running = True
         elif self.was_running and hasattr(self, 'process'):
