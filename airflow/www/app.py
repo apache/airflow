@@ -20,6 +20,7 @@ from flask import Flask
 from flask_admin import Admin, base
 from flask_cache import Cache
 from flask_wtf.csrf import CsrfProtect
+
 csrf = CsrfProtect()
 
 import airflow
@@ -30,7 +31,6 @@ from airflow.www.blueprints import routes
 from airflow import jobs
 from airflow import settings
 from airflow import configuration
-
 
 def create_app(config=None, testing=False):
     app = Flask(__name__)
@@ -67,50 +67,78 @@ def create_app(config=None, testing=False):
         )
         av = admin.add_view
         vs = views
+
+        # DAGs required views
         av(vs.Airflow(name='DAGs', category='DAGs'))
 
-        av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
-        av(vs.ChartModelView(
-            models.Chart, Session, name="Charts", category="Data Profiling"))
+        # Data Profiling required view
         av(vs.KnowEventView(
-            models.KnownEvent,
-            Session, name="Known Events", category="Data Profiling"))
-        av(vs.SlaMissModelView(
-            models.SlaMiss,
-            Session, name="SLA Misses", category="Browse"))
-        av(vs.TaskInstanceModelView(models.TaskInstance,
-            Session, name="Task Instances", category="Browse"))
-        av(vs.LogModelView(
-            models.Log, Session, name="Logs", category="Browse"))
-        av(vs.JobModelView(
-            jobs.BaseJob, Session, name="Jobs", category="Browse"))
-        av(vs.PoolModelView(
-            models.Pool, Session, name="Pools", category="Admin"))
-        av(vs.ConfigurationView(
-            name='Configuration', category="Admin"))
-        av(vs.UserModelView(
-            models.User, Session, name="Users", category="Admin"))
-        av(vs.ConnectionModelView(
-            models.Connection, Session, name="Connections", category="Admin"))
-        av(vs.VariableView(
-            models.Variable, Session, name="Variables", category="Admin"))
-        av(vs.XComView(
-            models.XCom, Session, name="XComs", category="Admin"))
+            models.KnownEvent, Session, name="Known Events", category="Data Profiling"))
 
-        admin.add_link(base.MenuLink(
-            category='Docs', name='Documentation',
-            url='http://pythonhosted.org/airflow/'))
-        admin.add_link(
-            base.MenuLink(category='Docs',
-                name='Github',url='https://github.com/airbnb/airflow'))
+        # Data Profiling optional views
+        if not configuration.has_expected_value('suppressible_default_views', 'data_profiling.ad_hoc_query', 'F'):
+            av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
 
-        av(vs.VersionView(name='Version', category="About"))
+        if not configuration.has_expected_value('suppressible_default_views', 'data_profiling.charts', 'F'):
+            av(vs.ChartModelView(models.Chart, Session, name="Charts", category="Data Profiling"))
 
-        av(vs.DagRunModelView(
-            models.DagRun, Session, name="DAG Runs", category="Browse"))
+        # Browse required views
+        av(vs.DagRunModelView(models.DagRun, Session, name="DAG Runs", category="Browse"))
+
+        # Browse optional views
+        if not configuration.has_expected_value('suppressible_default_views', 'browse.sla_misses', 'F'):
+            av(vs.SlaMissModelView(models.SlaMiss, Session, name="SLA Misses", category="Browse"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'browse.task_instances', 'F'):
+            av(vs.TaskInstanceModelView(
+                models.TaskInstance, Session, name="Task Instances", category="Browse"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'browse.logs', 'F'):
+            av(vs.LogModelView(models.Log, Session, name="Logs", category="Browse"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'browse.jobs', 'F'):
+            av(vs.JobModelView(jobs.BaseJob, Session, name="Jobs", category="Browse"))
+
+        # Admin optional views
+        if not configuration.has_expected_value('suppressible_default_views', 'browse.pools', 'F'):
+            av(vs.PoolModelView(models.Pool, Session, name="Pools", category="Admin"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'admin.configuration', 'F'):
+            av(vs.ConfigurationView(name='Configuration', category="Admin"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'admin.users', 'F'):
+            av(vs.UserModelView(models.User, Session, name="Users", category="Admin"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'admin.connections', 'F'):
+            av(vs.ConnectionModelView(models.Connection, Session, name="Connections", category="Admin"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'admin.variables', 'F'):
+            av(vs.VariableView(models.Variable, Session, name="Variables", category="Admin"))
+
+        if not configuration.has_expected_value('suppressible_default_views', 'admin.xcoms', 'F'):
+            av(vs.XComView(models.XCom, Session, name="XComs", category="Admin"))
+
+        # About optional views
+        if not configuration.has_expected_value('suppressible_default_views', 'about.versions', 'F'):
+            av(vs.VersionView(name='Version', category="About"))
+
         av(vs.DagModelView(models.DagModel, Session, name=None))
         # Hack to not add this view to the menu
         admin._menu = admin._menu[:-1]
+
+        # Menu links
+        # Docs required views
+        admin.add_link(base.MenuLink(category='Docs', name='Documentation',
+                                     url='http://pythonhosted.org/airflow/'))
+        admin.add_link(base.MenuLink(category='Docs', name='Github',
+                                     url='https://github.com/airbnb/airflow'))
+
+        # Add custom links
+        for key in configuration.as_dict()['custom_external_links']:
+            # Don't care about the key itself
+            # Take value as <category_name>::<tab_name>::<tab_link>
+            v = configuration.get('custom_external_links', key).split("::")
+            admin.add_link(base.MenuLink(category=v[0], name=v[1], url=v[2]))
 
         def integrate_plugins():
             """Integrate plugins to the context"""
@@ -151,6 +179,7 @@ def create_app(config=None, testing=False):
             settings.Session.remove()
 
         return app
+
 
 app = None
 
