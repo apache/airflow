@@ -534,7 +534,7 @@ class AirflowConfigParser(ConfigParser):
         elif (
             self.getboolean("webserver", "authenticate") and
             self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
-            self.get("core", "auth_backend") != (
+            self.get("webserver", "auth_backend") != (
                 'airflow.contrib.auth.backends.ldap_auth')
         ):
             raise AirflowConfigException(
