@@ -1972,13 +1972,14 @@ class LocalTaskJob(BaseJob):
         try:
             command = self.task_instance.command(
                 raw=True,
-                ignore_dependencies=self.ignore_dependencies,
-                ignore_depends_on_past=self.ignore_depends_on_past,
-                force=self.force,
-                pickle_id=self.pickle_id,
-                mark_success=self.mark_success,
-                job_id=self.id,
-                pool=self.pool,
+                ignore_all_deps = self.ignore_all_deps,
+                ignore_depends_on_past = self.ignore_depends_on_past,
+                ignore_task_deps = self.ignore_task_deps,
+                ignore_ti_state = self.ignore_ti_state,
+                pickle_id = self.pickle_id,
+                mark_success = self.mark_success,
+                job_id = self.id,
+                pool = self.pool
             )
             self.process = subprocess.Popen(['bash', '-c', command])
             self.logger.info("Subprocess PID is {}".format(self.process.pid))
