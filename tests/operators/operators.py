@@ -71,6 +71,28 @@ class MySqlTest(unittest.TestCase):
             sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def mysql_hook_test_bulk_load(self):
+        records = ("foo", "bar", "baz")
+
+        import tempfile
+        with tempfile.NamedTemporaryFile() as t:
+            t.write("\n".join(records).encode('utf8'))
+            t.flush()
+
+            from airflow.hooks.mysql_hook import MySqlHook
+            h = MySqlHook('airflow_ci')
+            with h.get_conn() as c:
+                c.execute("""
+                    CREATE TABLE IF NOT EXISTS test_airflow (
+                        dummy VARCHAR(50)
+                    )
+                """)
+                c.execute("TRUNCATE TABLE test_airflow")
+                h.bulk_load("test_airflow", t.name)
+                c.execute("SELECT dummy FROM test_airflow")
+                results = tuple(result[0] for result in c.fetchall())
+                assert sorted(records) == sorted(results)
+
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         import airflow.operators.generic_transfer
