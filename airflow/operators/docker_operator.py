@@ -46,6 +46,8 @@ class DockerOperator(BaseOperator):
     :type environment: dict
     :param force_pull: Pull the docker image on every run.
     :type force_pull: bool
+    :param remove: Remove the container when stopped or killed
+    :type remove: bool
     :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
         represents the limit in bytes, or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
@@ -91,6 +93,7 @@ class DockerOperator(BaseOperator):
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
+            remove=False,
             mem_limit=None,
             network_mode=None,
             privileged=False,
@@ -114,6 +117,7 @@ class DockerOperator(BaseOperator):
         self.docker_url = docker_url
         self.environment = environment or {}
         self.force_pull = force_pull
+        self.remove = remove
         self.image = image
         self.mem_limit = mem_limit
         self.network_mode = network_mode
@@ -183,6 +187,9 @@ class DockerOperator(BaseOperator):
                 logging.info("{}".format(line.strip()))
 
             exit_code = self.cli.wait(self.container['Id'])
+            # remove the container if specified in initializer
+            self.remove_container()
+
             if exit_code != 0:
                 raise AirflowException('docker container failed')
 
@@ -200,3 +207,9 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             logging.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+            self.remove_container()
+
+    def remove_container(self):
+        if self.remove:
+            self.cli.remove_container(self.container['Id'])
+
