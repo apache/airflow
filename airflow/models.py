@@ -719,7 +719,7 @@ class TaskInstance(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     duration = Column(Float)
@@ -1613,7 +1613,7 @@ class TaskFail(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     duration = Column(Float)
@@ -1639,7 +1639,7 @@ class Log(Base):
     dag_id = Column(String(ID_LEN))
     task_id = Column(String(ID_LEN))
     event = Column(String(30))
-    execution_date = Column(DateTime)
+    execution_date = Column(DateTime(0))
     owner = Column(String(500))
     extra = Column(Text)
 
@@ -3471,7 +3471,7 @@ class XCom(Base):
     value = Column(PickleType(pickler=dill))
     timestamp = Column(
         DateTime, default=func.now(), nullable=False)
-    execution_date = Column(DateTime, nullable=False)
+    execution_date = Column(DateTime(0), nullable=False)
 
     # source information
     task_id = Column(String(ID_LEN), nullable=False)
@@ -3670,7 +3670,7 @@ class DagRun(Base):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(DateTime, default=func.now())
+    execution_date = Column(DateTime(0), default=func.now())
     start_date = Column(DateTime, default=func.now())
     end_date = Column(DateTime)
     _state = Column('state', String(50), default=State.RUNNING)
@@ -4027,7 +4027,7 @@ class SlaMiss(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(DateTime)
     description = Column(Text)
