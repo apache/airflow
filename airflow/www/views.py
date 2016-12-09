@@ -2422,7 +2422,7 @@ class TaskInstanceModelView(ModelViewOnly):
                 execution_date = dateutil.parser.parse(execution_date)
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
-                                              TI.execution_date == dttm).one()
+                                              TI.execution_date == execution_date).one()
                 ti.state = target_state
             session.commit()
             flash(
