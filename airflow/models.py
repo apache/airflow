@@ -719,7 +719,7 @@ class TaskInstance(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     duration = Column(Float)
@@ -1613,7 +1613,7 @@ class TaskFail(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     start_date = Column(DateTime)
     end_date = Column(DateTime)
     duration = Column(Float)
@@ -4027,7 +4027,7 @@ class SlaMiss(Base):
 
     task_id = Column(String(ID_LEN), primary_key=True)
     dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(DateTime, primary_key=True)
+    execution_date = Column(DateTime(0), primary_key=True)
     email_sent = Column(Boolean, default=False)
     timestamp = Column(DateTime)
     description = Column(Text)
