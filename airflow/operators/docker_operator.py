@@ -14,6 +14,8 @@
 
 import json
 import logging
+import warnings
+
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -144,7 +146,7 @@ class DockerOperator(BaseOperator):
         self.container = None
 
         if cpus is not None and isinstance(cpus, float):
-            logging.warning("cpus is deprecated property. Use cpu_shares instead.")
+            warnings.warn("cpus is deprecated property. Use cpu_shares instead.", DeprecationWarning)
             self.cpu_shares = int(round(self.cpus * 1024))
 
     def execute(self, context):
