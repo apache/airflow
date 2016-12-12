@@ -19,6 +19,8 @@ from airflow.hooks.pig_hook import PigCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class PigOperator(BaseOperator):
     """
@@ -61,7 +63,7 @@ class PigOperator(BaseOperator):
                 "(\$([a-zA-Z_][a-zA-Z0-9_]*))", "{{ \g<2> }}", self.pig)
 
     def execute(self, context):
-        logging.info('Executing: ' + self.pig)
+        _log.info('Executing: ' + self.pig)
         self.hook = self.get_hook()
         self.hook.run_cli(pig=self.pig)
 

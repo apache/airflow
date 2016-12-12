@@ -20,6 +20,8 @@ import os.path
 from airflow.hooks.base_hook import BaseHook
 from past.builtins import basestring
 
+_log = logging.getLogger(__name__)
+
 
 def mlsd(conn, path="", facts=None):
     """
@@ -166,9 +168,9 @@ class FTPHook(BaseHook):
 
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
-        logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
+        _log.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
-        logging.info('Finished retrieving file from FTP: {}'.format(
+        _log.info('Finished retrieving file from FTP: {}'.format(
             remote_full_path))
 
         if is_path:

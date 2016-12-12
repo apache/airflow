@@ -19,6 +19,8 @@ from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 
+_log = logging.getLogger(__name__)
+
 
 class EmrCreateJobFlowOperator(BaseOperator):
     """
@@ -53,11 +55,11 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id)
 
-        logging.info('Creating JobFlow')
+        _log.info('Creating JobFlow')
         response = emr.create_job_flow(self.job_flow_overrides)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow creation failed: %s' % response)
         else:
-            logging.info('JobFlow with id %s created', response['JobFlowId'])
+            _log.info('JobFlow with id %s created', response['JobFlowId'])
             return response['JobFlowId']

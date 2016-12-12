@@ -24,6 +24,8 @@ from airflow.exceptions import AirflowException
 
 import logging
 
+_log = logging.getLogger(__name__)
+
 
 class SSHHook(BaseHook):
     """
@@ -92,7 +94,7 @@ class SSHHook(BaseHook):
             connection_cmd += ["-t"]
 
         connection_cmd += cmd
-        logging.debug("SSH cmd: {} ".format(connection_cmd))
+        _log.debug("SSH cmd: {} ".format(connection_cmd))
 
         return connection_cmd
 

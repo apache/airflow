@@ -24,6 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 
+_log = logging.getLogger(__name__)
+
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
 '''
@@ -51,11 +53,11 @@ app = Celery(
 
 @app.task
 def execute_command(command):
-    logging.info("Executing command in Celery " + command)
+    _log.info("Executing command in Celery " + command)
     try:
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
-        logging.error(e)
+        _log.error(e)
         raise AirflowException('Celery command failed')
 
 

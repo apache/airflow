@@ -19,6 +19,8 @@ from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.emr_hook import EmrHook
 
+_log = logging.getLogger(__name__)
+
 
 class EmrTerminateJobFlowOperator(BaseOperator):
     """
@@ -46,10 +48,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        logging.info('Terminating JobFlow %s', self.job_flow_id)
+        _log.info('Terminating JobFlow %s', self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow termination failed: %s' % response)
         else:
-            logging.info('JobFlow with id %s terminated', self.job_flow_id)
+            _log.info('JobFlow with id %s terminated', self.job_flow_id)

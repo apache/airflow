@@ -18,6 +18,8 @@ from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class BigQueryOperator(BaseOperator):
     """
@@ -73,7 +75,7 @@ class BigQueryOperator(BaseOperator):
         self.use_legacy_sql = use_legacy_sql
 
     def execute(self, context):
-        logging.info('Executing: %s', str(self.bql))
+        _log.info('Executing: %s', str(self.bql))
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()

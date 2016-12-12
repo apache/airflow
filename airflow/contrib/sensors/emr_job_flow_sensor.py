@@ -19,6 +19,8 @@ from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
 from airflow.utils import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class EmrJobFlowSensor(EmrBaseSensor):
     """
@@ -45,7 +47,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     def get_emr_response(self):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        logging.info('Poking cluster %s' % self.job_flow_id)
+        _log.info('Poking cluster %s' % self.job_flow_id)
         return emr.describe_cluster(ClusterId=self.job_flow_id)
 
     def state_from_response(self, response):

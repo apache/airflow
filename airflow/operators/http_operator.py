@@ -19,6 +19,8 @@ from airflow.hooks.http_hook import HttpHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class SimpleHttpOperator(BaseOperator):
     """
@@ -75,7 +77,7 @@ class SimpleHttpOperator(BaseOperator):
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
-        logging.info("Calling HTTP method")
+        _log.info("Calling HTTP method")
         response = http.run(self.endpoint,
                             self.data,
                             self.headers,

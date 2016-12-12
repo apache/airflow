@@ -20,6 +20,8 @@ from airflow.hooks.jdbc_hook import JdbcHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class JdbcOperator(BaseOperator):
     """
@@ -60,6 +62,6 @@ class JdbcOperator(BaseOperator):
         self.autocommit = autocommit
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        _log.info('Executing: ' + str(self.sql))
         self.hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

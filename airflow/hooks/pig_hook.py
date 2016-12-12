@@ -22,6 +22,8 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.utils.file import TemporaryDirectory
 from airflow import configuration
 
+_log = logging.getLogger(__name__)
+
 
 class PigCliHook(BaseHook):
     """
@@ -64,7 +66,7 @@ class PigCliHook(BaseHook):
                     pig_properties_list = self.pig_properties.split()
                     pig_cmd.extend(pig_properties_list)
                 if verbose:
-                    logging.info(" ".join(pig_cmd))
+                    _log.info(" ".join(pig_cmd))
                 sp = subprocess.Popen(
                     pig_cmd,
                     stdout=subprocess.PIPE,
@@ -75,7 +77,7 @@ class PigCliHook(BaseHook):
                 for line in iter(sp.stdout.readline, ''):
                     stdout += line
                     if verbose:
-                        logging.info(line.strip())
+                        _log.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:

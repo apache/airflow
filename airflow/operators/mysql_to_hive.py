@@ -24,6 +24,8 @@ from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class MySqlToHiveTransfer(BaseOperator):
     """
@@ -107,7 +109,7 @@ class MySqlToHiveTransfer(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
-        logging.info("Dumping MySQL query results to local file")
+        _log.info("Dumping MySQL query results to local file")
         conn = mysql.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
@@ -120,7 +122,7 @@ class MySqlToHiveTransfer(BaseOperator):
             f.flush()
             cursor.close()
             conn.close()
-            logging.info("Loading file into Hive")
+            _log.info("Loading file into Hive")
             hive.load_file(
                 f.name,
                 self.hive_table,

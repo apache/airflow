@@ -20,7 +20,7 @@ import logging
 import os
 import sys
 
-logger = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 version = imp.load_source(
@@ -68,10 +68,10 @@ def git_version(version):
         import git
         repo = git.Repo('.git')
     except ImportError:
-        logger.warn('gitpython not found: Cannot compute the git version.')
+        _log.warn('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warn('Git repo not found: Cannot compute the git version.')
+        _log.warn('Git repo not found: Cannot compute the git version.')
         return ''
     if repo:
         sha = repo.head.commit.hexsha

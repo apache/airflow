@@ -21,6 +21,8 @@ from airflow.utils.file import TemporaryDirectory
 from docker import Client, tls
 import ast
 
+_log = logging.getLogger(__name__)
+
 
 class DockerOperator(BaseOperator):
     """
@@ -129,7 +131,7 @@ class DockerOperator(BaseOperator):
         self.container = None
 
     def execute(self, context):
-        logging.info('Starting docker container from image ' + self.image)
+        _log.info('Starting docker container from image ' + self.image)
 
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
@@ -150,10 +152,10 @@ class DockerOperator(BaseOperator):
             image = self.image
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
-            logging.info('Pulling docker image ' + image)
+            _log.info('Pulling docker image ' + image)
             for l in self.cli.pull(image, stream=True):
                 output = json.loads(l.decode('utf-8'))
-                logging.info("{}".format(output['status']))
+                _log.info("{}".format(output['status']))
 
         cpu_shares = int(round(self.cpus * 1024))
 
@@ -175,7 +177,7 @@ class DockerOperator(BaseOperator):
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                _log.info("{}".format(line.strip()))
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -193,5 +195,5 @@ class DockerOperator(BaseOperator):
 
     def on_kill(self):
         if self.cli is not None:
-            logging.info('Stopping docker container')
+            _log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])

@@ -18,6 +18,8 @@ from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class MySqlOperator(BaseOperator):
     """
@@ -46,7 +48,7 @@ class MySqlOperator(BaseOperator):
         self.parameters = parameters
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        _log.info('Executing: ' + str(self.sql))
         hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         hook.run(
             self.sql,

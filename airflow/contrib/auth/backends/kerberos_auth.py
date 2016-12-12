@@ -36,6 +36,8 @@ login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
+_log = logging.getLogger(__name__)
+
 
 class AuthenticationError(Exception):
     pass
@@ -56,7 +58,8 @@ class KerberosUser(models.User):
             if not kerberos.checkPassword(user_principal, password, service_principal, realm, True):
                 raise AuthenticationError()
         except kerberos.KrbError as e:
-            logging.error('Password validation for principal %s failed %s', user_principal, e)
+            _log.error('Password validation for principal %s failed %s',
+                    user_principal, e)
             raise AuthenticationError(e)
 
         return

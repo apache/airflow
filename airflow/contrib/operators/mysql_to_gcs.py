@@ -26,6 +26,8 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 
+_log = logging.getLogger(__name__)
+
 
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
     """
@@ -170,7 +172,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                 'mode': field_mode,
             })
 
-        logging.info('Using schema for %s: %s', self.schema_filename, schema)
+        _log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         json.dump(schema, tmp_schema_file_handle)
         return {self.schema_filename: tmp_schema_file_handle}

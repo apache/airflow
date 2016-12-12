@@ -19,6 +19,8 @@ from airflow.models import BaseOperator, TaskInstance
 from airflow.utils.state import State
 from airflow import settings
 
+_log = logging.getLogger(__name__)
+
 
 class LatestOnlyOperator(BaseOperator):
     """
@@ -36,22 +38,22 @@ class LatestOnlyOperator(BaseOperator):
         left_window = context['dag'].following_schedule(
             context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)
-        logging.info(
+        _log.info(
             'Checking latest only with left_window: %s right_window: %s '
             'now: %s', left_window, right_window, now)
         if not left_window < now <= right_window:
-            logging.info('Not latest execution, skipping downstream.')
+            _log.info('Not latest execution, skipping downstream.')
             session = settings.Session()
             for task in context['task'].downstream_list:
                 ti = TaskInstance(
                     task, execution_date=context['ti'].execution_date)
-                logging.info('Skipping task: %s', ti.task_id)
+                _log.info('Skipping task: %s', ti.task_id)
                 ti.state = State.SKIPPED
                 ti.start_date = now
                 ti.end_date = now
                 session.merge(ti)
             session.commit()
             session.close()
-            logging.info('Done.')
+            _log.info('Done.')
         else:
-            logging.info('Latest, allowing execution to proceed.')
+            _log.info('Latest, allowing execution to proceed.')

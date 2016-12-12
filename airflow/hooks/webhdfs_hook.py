@@ -18,12 +18,14 @@ import logging
 
 from hdfs import InsecureClient, HdfsError
 
+_log = logging.getLogger(__name__)
+
 _kerberos_security_mode = configuration.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient
     except ImportError:
-        logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
+        _log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
 from airflow.exceptions import AirflowException
 
@@ -47,7 +49,7 @@ class WebHDFSHook(BaseHook):
         nn_connections = self.get_connections(self.webhdfs_conn_id)
         for nn in nn_connections:
             try:
-                logging.debug('Trying namenode {}'.format(nn.host))
+                _log.debug('Trying namenode {}'.format(nn.host))
                 connection_str = 'http://{nn.host}:{nn.port}'.format(nn=nn)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
@@ -55,10 +57,10 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                logging.debug('Using namenode {} for hook'.format(nn.host))
+                _log.debug('Using namenode {} for hook'.format(nn.host))
                 return client
             except HdfsError as e:
-                logging.debug("Read operation on namenode {nn.host} failed with"
+                _log.debug("Read operation on namenode {nn.host} failed with"
                               " error: {e.message}".format(**locals()))
         nn_hosts = [c.host for c in nn_connections]
         no_nn_error = "Read operations failed on the namenodes below:\n{}".format("\n".join(nn_hosts))
@@ -98,4 +100,4 @@ class WebHDFSHook(BaseHook):
                  overwrite=overwrite,
                  n_threads=parallelism,
                  **kwargs)
-        logging.debug("Uploaded file {} to {}".format(source, destination))
+        _log.debug("Uploaded file {} to {}".format(source, destination))

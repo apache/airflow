@@ -22,6 +22,8 @@ from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
+_log = logging.getLogger(__name__)
+
 
 class _DataflowJob(object):
     def __init__(self, dataflow, project_number, name):
@@ -48,10 +50,10 @@ class _DataflowJob(object):
             job = self._dataflow.projects().jobs().get(projectId=self._project_number,
                                                        jobId=self._job_id).execute()
         if 'currentState' in job:
-            logging.info('Google Cloud DataFlow job %s is %s', job['name'],
+            _log.info('Google Cloud DataFlow job %s is %s', job['name'],
                          job['currentState'])
         else:
-            logging.info('Google Cloud DataFlow with job_id %s has name %s', self._job_id,
+            _log.info('Google Cloud DataFlow with job_id %s has name %s', self._job_id,
                          job['name'])
         return job
 
@@ -69,7 +71,7 @@ class _DataflowJob(object):
                 elif 'JOB_STATE_RUNNING' == self._job['currentState']:
                     time.sleep(10)
                 else:
-                    logging.debug(str(self._job))
+                    _log.debug(str(self._job))
                     raise Exception(
                         "Google Cloud Dataflow job {} was unknown state: {}".format(
                             self._job['name'], self._job['currentState']))
@@ -103,15 +105,15 @@ class _DataflowJava(object):
 
     def wait_for_done(self):
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
-        logging.info("Start waiting for DataFlow process to complete.")
+        _log.info("Start waiting for DataFlow process to complete.")
         while self._proc.poll() is None:
             ret = select.select(reads, [], [], 5)
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
-                    logging.debug(line[:-1])
+                    _log.debug(line[:-1])
             else:
-                logging.info("Waiting for DataFlow process to complete.")
+                _log.info("Waiting for DataFlow process to complete.")
         if self._proc.returncode is not 0:
             raise Exception("DataFlow jar failed with return code {}".format(
                 self._proc.returncode))

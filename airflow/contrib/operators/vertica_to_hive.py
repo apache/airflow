@@ -23,6 +23,8 @@ from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class VerticaToHiveTransfer(BaseOperator):
     """
@@ -104,7 +106,7 @@ class VerticaToHiveTransfer(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 
-        logging.info("Dumping Vertica query results to local file")
+        _log.info("Dumping Vertica query results to local file")
         conn = vertica.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
@@ -120,7 +122,7 @@ class VerticaToHiveTransfer(BaseOperator):
             f.flush()
             cursor.close()
             conn.close()
-            logging.info("Loading file into Hive")
+            _log.info("Loading file into Hive")
             hive.load_file(
                 f.name,
                 self.hive_table,

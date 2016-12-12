@@ -26,6 +26,8 @@ from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 
+_log = logging.getLogger(__name__)
+
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
@@ -64,7 +66,7 @@ class BaseHook(object):
         else:
             conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
-            logging.info("Using connection to: " + conn.host)
+            _log.info("Using connection to: " + conn.host)
         return conn
 
     @classmethod

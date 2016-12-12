@@ -20,6 +20,8 @@ from airflow.operators.sensors import BaseSensorOperator
 from airflow.contrib.hooks.fs_hook import FSHook
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class FileSensor(BaseSensorOperator):
     """
@@ -49,7 +51,7 @@ class FileSensor(BaseSensorOperator):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
         full_path = "/".join([basepath, self.filepath])
-        logging.info(
+        _log.info(
             'Poking for file {full_path} '.format(**locals()))
         try:
             files = [f for f in walk(full_path)]
