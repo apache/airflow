@@ -470,7 +470,6 @@ class BigQueryBaseCursor(object):
             .insert(projectId=self.project_id, body=job_data) \
             .execute()
         job_id = query_reply['jobReference']['jobId']
-        job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
 
         # Wait for query to finish.
         keep_polling_job = True
