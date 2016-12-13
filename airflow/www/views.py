@@ -42,7 +42,7 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
 from flask_admin.babel import lazy_gettext
 from flask_admin.tools import iterdecode
-from flask_login import flash
+from flask_login import flash, current_user as flask_user
 from flask._compat import PY2
 
 import jinja2
@@ -61,7 +61,7 @@ from airflow import models
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
-from airflow.models import XCom, DagRun
+from airflow.models import XCom, DagRun, TaskExclusion, TaskExclusionType
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
 from airflow.models import BaseOperator
@@ -1198,6 +1198,54 @@ class Airflow(BaseView):
                         "to mark as successful:"),
                     details=details,)
             return response
+
+    @expose('/exclude')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def exclude(self):
+        # Get values from arguments
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+        clear = request.args.get('clear') == "true"
+        exclusion_type = TaskExclusionType.SINGLE_DATE
+
+        # Convert execution_date to Datetime object.
+        execution_date = dateutil.parser.parse(execution_date)
+
+        # Get current user
+        username = flask_user.username
+        if not username:
+            username = 'Username not found.'
+
+        if clear:
+            TaskExclusion.remove(dag_id,
+                                 task_id,
+                                 exclusion_type,
+                                 execution_date,
+                                 execution_date)
+
+            flash("Removed task exclusion for task {} in DAG {} for execution "
+                  "date {}".format(task_id,
+                                   dag_id,
+                                   execution_date.isoformat()))
+
+        else:
+            TaskExclusion.set(dag_id,
+                              task_id,
+                              exclusion_type,
+                              execution_date,
+                              execution_date,
+                              username)
+
+            flash("Added task exclusion for task {} in DAG {} for execution "
+                  "date {}".format(task_id,
+                                   dag_id,
+                                   execution_date.isoformat()))
+
+        return redirect(origin)
 
     @expose('/tree')
     @login_required

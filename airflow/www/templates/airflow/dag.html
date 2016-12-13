@@ -211,6 +211,16 @@
               Recursive
             </button>
           </span>
+          <hr/>
+          <button id="btn_exclude" type="button" class="btn btn-primary">
+            Exclude from this DAG Run
+          </button>
+          <span class="btn-group">
+            <button id="btn_exclude_clear"
+              type="button" class="btn" data-toggle="button">
+              Clear Exclusion
+            </button>
+          </span>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -342,6 +352,17 @@ function updateQueryStringParameter(uri, key, value) {
         "&past=" + $('#btn_success_past').hasClass('active') +
         "&recursive=" + $('#btn_success_recursive').hasClass('active') +
         "&execution_date=" + execution_date +
+        "&origin=" + encodeURIComponent(window.location);
+
+      window.location = url;
+    });
+
+    $("#btn_exclude").click(function(){
+      url = "{{ url_for('airflow.exclude') }}" +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + execution_date +
+        "&clear=" + $('#btn_exclude_clear').hasClass('active') +
         "&origin=" + encodeURIComponent(window.location);
 
       window.location = url;
