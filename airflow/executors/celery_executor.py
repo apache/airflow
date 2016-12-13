@@ -19,6 +19,7 @@ import time
 
 from celery import Celery
 from celery import states as celery_states
+from collections import defaultdict
 
 from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
@@ -59,6 +60,10 @@ def execute_command(command):
         raise AirflowException('Celery command failed')
 
 
+LAST_STATE = 'last_state'
+QUEUE_NAME = 'queue_name'
+
+
 class CeleryExecutor(BaseExecutor):
     """
     CeleryExecutor is recommended for production use of Airflow. It allows
@@ -71,14 +76,15 @@ class CeleryExecutor(BaseExecutor):
 
     def start(self):
         self.tasks = {}
-        self.last_state = {}
+        self.task_info = defaultdict(dict)
 
     def execute_async(self, key, command, queue=DEFAULT_QUEUE):
         self.logger.info( "[celery] queuing {key} through celery, "
                        "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
             args=[command], queue=queue)
-        self.last_state[key] = celery_states.PENDING
+        self.task_info[key][LAST_STATE] = celery_states.PENDING
+        self.task_info[key][QUEUE_NAME] = queue
 
     def sync(self):
 
@@ -86,22 +92,22 @@ class CeleryExecutor(BaseExecutor):
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
         for key, async in list(self.tasks.items()):
             state = async.state
-            if self.last_state[key] != state:
+            if self.task_info[key][LAST_STATE] != state:
                 if state == celery_states.SUCCESS:
                     self.success(key)
                     del self.tasks[key]
-                    del self.last_state[key]
+                    del self.task_info[key]
                 elif state == celery_states.FAILURE:
                     self.fail(key)
                     del self.tasks[key]
-                    del self.last_state[key]
+                    del self.task_info[key]
                 elif state == celery_states.REVOKED:
                     self.fail(key)
                     del self.tasks[key]
-                    del self.last_state[key]
+                    del self.task_info[key]
                 else:
                     self.logger.info("Unexpected state: " + async.state)
-                self.last_state[key] = async.state
+                self.task_info[key][LAST_STATE] = async.state
 
     def end(self, synchronous=False):
         if synchronous:
@@ -110,3 +116,13 @@ class CeleryExecutor(BaseExecutor):
                     for async in self.tasks.values()]):
                 time.sleep(5)
         self.sync()
+
+    def report_metrics(self):
+        # count elements in each queue
+        super(CeleryExecutor, self).report_metrics()
+        counts = defaultdict(lambda: 0)
+        for d in self.task_info.values():
+            if d[LAST_STATE] == celery_states.PENDING: # only count enqueued tasks
+                counts[d[QUEUE_NAME]] += 1
+        for queue_name, queue_length in counts.items():
+            self.stats.gauge("queue_length_" + queue_name, queue_length)
