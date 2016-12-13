@@ -473,12 +473,12 @@ class BigQueryBaseCursor(object):
         job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
 
         # Wait for query to finish.
-        job_status_flag = True
-        while (job_status_flag):
+        keep_polling_job = True
+        while (keep_polling_job):
             try:
                 job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
                 if (job['status']['state'] == 'DONE'):
-                    job_status_flag = False
+                    keep_polling_job = False
                     # Check if job had errors.
                     if 'errorResult' in job['status']:
                         raise Exception(
@@ -492,9 +492,10 @@ class BigQueryBaseCursor(object):
 
             except HttpError, err:
                 if err.code in [500, 503]:
-                    logging.info('%s: Retryable error, waiting for job to complete: %s',err.code, job_id)
+                    logging.info('%s: Retryable error, waiting for job to complete: %s', err.code, job_id)
                     time.sleep(5)
-                else:raise Exception(
+                else:
+                    raise Exception(
                 'BigQuery job status check faild. Final error was: %s', err.code)
 
         return job_id
