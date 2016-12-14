@@ -240,7 +240,7 @@ error_logfile = -
 expose_config = False
 
 # Set to true to turn on authentication:
-# http://pythonhosted.org/airflow/installation.html#web-authentication
+# http://pythonhosted.org/airflow/security.html#web-authentication
 authenticate = False
 
 # Filter the list of dags by owner name (requires authentication to be enabled)
