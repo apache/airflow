@@ -489,7 +489,7 @@ class BigQueryBaseCursor(object):
                     logging.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
                     time.sleep(5)
 
-            except HttpError, err:
+            except HttpError as err:
                 if err.code in [500, 503]:
                     logging.info('%s: Retryable error, waiting for job to complete: %s', err.code, job_id)
                     time.sleep(5)
