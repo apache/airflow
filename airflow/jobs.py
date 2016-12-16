@@ -1983,6 +1983,13 @@ class LocalTaskJob(BaseJob):
             )
             self.process = subprocess.Popen(['bash', '-c', command])
             self.logger.info("Subprocess PID is {}".format(self.process.pid))
+            ti = self.task_instance
+            session = settings.Session()
+            ti.pid = self.process.pid
+            ti.hostname = socket.getfqdn()
+            session.merge(ti)
+            session.commit()
+            session.close()
 
             last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
@@ -2032,11 +2039,20 @@ class LocalTaskJob(BaseJob):
         # Suicide pill
         TI = models.TaskInstance
         ti = self.task_instance
-        state = session.query(TI.state).filter(
+        new_ti = session.query(TI).filter(
             TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
             TI.execution_date==ti.execution_date).scalar()
-        if state == State.RUNNING:
+        if new_ti.state == State.RUNNING:
             self.was_running = True
+            fqdn = socket.getfqdn()
+            if not (fqdn == new_ti.hostname and self.process.pid == new_ti.pid):
+                logging.warning("Recorded hostname and pid of {new_ti.hostname} "
+                                "and {new_ti.pid} do not match this instance's "
+                                "which are {fqdn} and "
+                                "{self.process.pid}. Taking the poison pill. So "
+                                "long."
+                                .format(**locals()))
+                raise AirflowException("Another worker/process is running this job")
         elif self.was_running and hasattr(self, 'process'):
             logging.warning(
                 "State of this instance has been externally set to "
