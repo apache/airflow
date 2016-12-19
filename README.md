@@ -113,8 +113,8 @@ Currently **officially** using Airflow:
 1. [Jampp](https://github.com/jampp)
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
 1. [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
-1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
 1. [Lemann Foundation](http://fundacaolemann.org.br) [[@fernandosjp](https://github.com/fernandosjp)]
+1. [LendUp](https://www.lendup.com/) [[@lendup](https://github.com/lendup)]
 1. [liligo](http://liligo.com/) [[@tromika](https://github.com/tromika)]
 1. [LingoChamp](http://www.liulishuo.com/) [[@haitaoyao](https://github.com/haitaoyao)]
 1. [Lucid](http://luc.id) [[@jbrownlucid](https://github.com/jbrownlucid) & [@kkourtchikov](https://github.com/kkourtchikov)]
