@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 import logging
 import subprocess
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class SqoopHook(BaseHook):

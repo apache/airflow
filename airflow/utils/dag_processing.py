@@ -30,6 +30,8 @@ from airflow.exceptions import AirflowException
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.utils.logging import LoggingMixin
 
+_log = logging.getLogger(__name__)
+
 
 class SimpleDag(BaseDag):
     """
@@ -206,7 +208,7 @@ def list_py_file_paths(directory, safe_mode=True):
 
                     file_paths.append(file_path)
                 except Exception:
-                    logging.exception("Error while examining %s", f)
+                    _log.exception("Error while examining %s", f)
     return file_paths
 
 

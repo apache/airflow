@@ -24,6 +24,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 
+_log = logging.getLogger(__name__)
+
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
 '''
@@ -39,7 +41,12 @@ class CeleryConfig(object):
     CELERYD_PREFETCH_MULTIPLIER = 1
     CELERY_ACKS_LATE = True
     BROKER_URL = configuration.get('celery', 'BROKER_URL')
-    CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
+    CELERY_RESULT_BACKEND = configuration.get(
+        'celery',
+        'CELERY_RESULT_BACKEND')
+    CELERY_TASK_RESULT_EXPIRES = configuration.get(
+        'celery',
+        'CELERY_TASK_RESULT_EXPIRES')
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
@@ -51,11 +58,11 @@ app = Celery(
 
 @app.task
 def execute_command(command):
-    logging.info("Executing command in Celery " + command)
+    _log.info("Executing command in Celery " + command)
     try:
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
-        logging.error(e)
+        _log.error(e)
         raise AirflowException('Celery command failed')
 
 

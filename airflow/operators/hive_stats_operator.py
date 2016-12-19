@@ -25,6 +25,8 @@ from airflow.hooks.hive_hooks import HiveMetastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class HiveStatsCollectionOperator(BaseOperator):
     """
@@ -141,15 +143,15 @@ class HiveStatsCollectionOperator(BaseOperator):
         """.format(**locals())
 
         hook = PrestoHook(presto_conn_id=self.presto_conn_id)
-        logging.info('Executing SQL check: ' + sql)
+        _log.info('Executing SQL check: ' + sql)
         row = hook.get_first(hql=sql)
-        logging.info("Record: " + str(row))
+        _log.info("Record: " + str(row))
         if not row:
             raise AirflowException("The query returned None")
 
         part_json = json.dumps(self.partition, sort_keys=True)
 
-        logging.info("Deleting rows from previous runs if they exist")
+        _log.info("Deleting rows from previous runs if they exist")
         mysql = MySqlHook(self.mysql_conn_id)
         sql = """
         SELECT 1 FROM hive_stats
@@ -169,7 +171,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             """.format(**locals())
             mysql.run(sql)
 
-        logging.info("Pivoting and loading cells into the Airflow db")
+        _log.info("Pivoting and loading cells into the Airflow db")
         rows = [
             (self.ds, self.dttm, self.table, part_json) +
             (r[0][0], r[0][1], r[1])

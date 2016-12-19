@@ -21,6 +21,8 @@ from airflow.utils.decorators import apply_defaults
 
 from tempfile import NamedTemporaryFile
 
+_log = logging.getLogger(__name__)
+
 
 class HiveToMySqlTransfer(BaseOperator):
     """
@@ -80,8 +82,8 @@ class HiveToMySqlTransfer(BaseOperator):
 
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-        logging.info("Extracting data from Hive")
-        logging.info(self.sql)
+        _log.info("Extracting data from Hive")
+        _log.info(self.sql)
 
         if self.bulk_load:
             tmpfile = NamedTemporaryFile()
@@ -92,10 +94,10 @@ class HiveToMySqlTransfer(BaseOperator):
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
-            logging.info("Running MySQL preoperator")
+            _log.info("Running MySQL preoperator")
             mysql.run(self.mysql_preoperator)
 
-        logging.info("Inserting rows into MySQL")
+        _log.info("Inserting rows into MySQL")
 
         if self.bulk_load:
             mysql.bulk_load(table=self.mysql_table, tmp_file=tmpfile.name)
@@ -104,7 +106,7 @@ class HiveToMySqlTransfer(BaseOperator):
             mysql.insert_rows(table=self.mysql_table, rows=results)
 
         if self.mysql_postoperator:
-            logging.info("Running MySQL postoperator")
+            _log.info("Running MySQL postoperator")
             mysql.run(self.mysql_postoperator)
 
-        logging.info("Done.")
+        _log.info("Done.")

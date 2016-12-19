@@ -19,6 +19,8 @@ from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class PrestoToMySqlTransfer(BaseOperator):
     """
@@ -64,15 +66,15 @@ class PrestoToMySqlTransfer(BaseOperator):
 
     def execute(self, context):
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        logging.info("Extracting data from Presto")
-        logging.info(self.sql)
+        _log.info("Extracting data from Presto")
+        _log.info(self.sql)
         results = presto.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
-            logging.info("Running MySQL preoperator")
-            logging.info(self.mysql_preoperator)
+            _log.info("Running MySQL preoperator")
+            _log.info(self.mysql_preoperator)
             mysql.run(self.mysql_preoperator)
 
-        logging.info("Inserting rows into MySQL")
+        _log.info("Inserting rows into MySQL")
         mysql.insert_rows(table=self.mysql_table, rows=results)

@@ -42,7 +42,7 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
 from flask_admin.babel import lazy_gettext
 from flask_admin.tools import iterdecode
-from flask_login import flash
+from flask_login import flash, current_user as flask_user
 from flask._compat import PY2
 
 import jinja2
@@ -61,7 +61,7 @@ from airflow import models
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
-from airflow.models import XCom, DagRun
+from airflow.models import XCom, DagRun, TaskExclusion, TaskExclusionType
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
 from airflow.models import BaseOperator
@@ -1199,6 +1199,54 @@ class Airflow(BaseView):
                     details=details,)
             return response
 
+    @expose('/exclude')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def exclude(self):
+        # Get values from arguments
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+        clear = request.args.get('clear') == "true"
+        exclusion_type = TaskExclusionType.SINGLE_DATE
+
+        # Convert execution_date to Datetime object.
+        execution_date = dateutil.parser.parse(execution_date)
+
+        # Get current user
+        username = flask_user.username
+        if not username:
+            username = 'Username not found.'
+
+        if clear:
+            TaskExclusion.remove(dag_id,
+                                 task_id,
+                                 exclusion_type,
+                                 execution_date,
+                                 execution_date)
+
+            flash("Removed task exclusion for task {} in DAG {} for execution "
+                  "date {}".format(task_id,
+                                   dag_id,
+                                   execution_date.isoformat()))
+
+        else:
+            TaskExclusion.set(dag_id,
+                              task_id,
+                              exclusion_type,
+                              execution_date,
+                              execution_date,
+                              username)
+
+            flash("Added task exclusion for task {} in DAG {} for execution "
+                  "date {}".format(task_id,
+                                   dag_id,
+                                   execution_date.isoformat()))
+
+        return redirect(origin)
+
     @expose('/tree')
     @login_required
     @wwwutils.gzipped
@@ -1416,6 +1464,10 @@ class Airflow(BaseView):
         session.close()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') else ''
 
+        refresh_rate = int(conf.get('webserver', 'graph_refresh_rate'))
+        if not refresh_rate:
+            refresh_rate = 0
+
         return self.render(
             'airflow/graph.html',
             dag=dag,
@@ -1435,7 +1487,8 @@ class Airflow(BaseView):
             task_instances=json.dumps(task_instances, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2),)
+            edges=json.dumps(edges, indent=2),
+            refresh_rate=refresh_rate)
 
     @expose('/duration')
     @login_required
@@ -2618,6 +2671,36 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
                 code_html=code_html, title=title, subtitle=subtitle,
                 table=table)
+
+
+class ErrorLogView(wwwutils.SuperUserMixin, BaseView):
+    @expose('/')
+    def error_log(self):
+        raw = request.args.get('raw') == "true"
+        title = "Airflow Error Log"
+        log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        error_log_path = os.path.normpath(log_base + "/error.log")
+        subtitle = "Error log path: " + error_log_path
+        post_subtitle = None
+        error_log = None
+
+        if not (os.path.isfile(error_log_path)):
+            post_subtitle = "The error log file does not exist."
+        elif os.stat(error_log_path).st_size == 0:
+            post_subtitle = "The error log file is empty."
+        else:
+            with open(error_log_path, 'r') as f:
+                error_log = f.read()
+
+        if raw:
+            return Response(
+                response=error_log,
+                status=200,
+                mimetype="application/text")
+        else:
+            return self.render(
+                'airflow/log.html', log=error_log, title=title, subtitle=subtitle,
+                post_subtitle=post_subtitle)
 
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):

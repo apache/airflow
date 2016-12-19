@@ -23,7 +23,7 @@ import socket
 
 from airflow import configuration
 
-LOG = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 NEED_KRB181_WORKAROUND=None
 
@@ -39,7 +39,7 @@ def renew_from_kt():
             "-t", configuration.get('kerberos', 'keytab'),   # specify keytab
             "-c", configuration.get('kerberos', 'ccache'),   # specify credentials cache
             principal]
-    LOG.info("Reinitting kerberos from keytab: " +
+    _log.info("Reinitting kerberos from keytab: " +
              " ".join(cmdv))
 
     subp = subprocess.Popen(cmdv,
@@ -49,7 +49,7 @@ def renew_from_kt():
                             bufsize=-1)
     subp.wait()
     if subp.returncode != 0:
-        LOG.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
+        _log.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
             subp.returncode,
             "\n".join(subp.stdout.readlines()),
             "\n".join(subp.stderr.readlines())))
@@ -69,21 +69,21 @@ def perform_krb181_workaround():
     cmdv = [configuration.get('kerberos', 'kinit_path'),
             "-R",
             "-c", configuration.get('kerberos', 'ccache')]
-    LOG.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
+    _log.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
              " ".join(cmdv))
     ret = subprocess.call(cmdv)
     if ret != 0:
         principal = "%s/%s" % (configuration.get('kerberos', 'principal'), socket.getfqdn())
         fmt_dict = dict(princ=principal,
                         ccache=configuration.get('kerberos', 'principal'))
-        LOG.error("Couldn't renew kerberos ticket in order to work around "
-                  "Kerberos 1.8.1 issue. Please check that the ticket for "
-                  "'%(princ)s' is still renewable:\n"
-                  "  $ kinit -f -c %(ccache)s\n"
-                  "If the 'renew until' date is the same as the 'valid starting' "
-                  "date, the ticket cannot be renewed. Please check your KDC "
-                  "configuration, and the ticket renewal policy (maxrenewlife) "
-                  "for the '%(princ)s' and `krbtgt' principals." % fmt_dict)
+        _log.error("Couldn't renew kerberos ticket in order to work around "
+                   "Kerberos 1.8.1 issue. Please check that the ticket for "
+                   "'%(princ)s' is still renewable:\n"
+                   "  $ kinit -f -c %(ccache)s\n"
+                   "If the 'renew until' date is the same as the 'valid starting' "
+                   "date, the ticket cannot be renewed. Please check your KDC "
+                   "configuration, and the ticket renewal policy (maxrenewlife) "
+                   "for the '%(princ)s' and `krbtgt' principals." % fmt_dict)
         sys.exit(ret)
 
 
@@ -99,7 +99,7 @@ def detect_conf_var():
 
 def run():
     if configuration.get('kerberos','keytab') is None:
-        LOG.debug("Keytab renewer not starting, no keytab configured")
+        _log.debug("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
     while True:

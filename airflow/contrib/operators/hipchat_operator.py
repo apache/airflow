@@ -21,6 +21,8 @@ import logging
 import requests
 import json
 
+_log = logging.getLogger(__name__)
+
 
 class HipChatAPIOperator(BaseOperator):
     """
@@ -66,7 +68,7 @@ class HipChatAPIOperator(BaseOperator):
                                         'Authorization': 'Bearer %s' % self.token},
                                     data=self.body)
         if response.status_code >= 400:
-            logging.error('HipChat API call failed: %s %s',
+            _log.error('HipChat API call failed: %s %s',
                           response.status_code, response.reason)
             raise AirflowException('HipChat API call failed: %s %s' %
                                    (response.status_code, response.reason))

@@ -86,6 +86,8 @@ XCOM_RETURN_KEY = 'return_value'
 
 Stats = settings.Stats
 
+_log = logging.getLogger(__name__)
+
 ENCRYPTION_ON = False
 try:
     from cryptography.fernet import Fernet
@@ -238,7 +240,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 return found_dags
 
         except Exception as e:
-            logging.exception(e)
+            self.logger.exception(e)
             return found_dags
 
         mods = []
@@ -425,7 +427,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                                 str([dag.dag_id for dag in found_dags]),
                             ))
                     except Exception as e:
-                        logging.warning(e)
+                        _log.warning(e)
         Stats.gauge(
             'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
         Stats.gauge(
@@ -669,8 +671,8 @@ class Connection(Base):
             try:
                 obj = json.loads(self.extra)
             except Exception as e:
-                logging.exception(e)
-                logging.error("Failed parsing the json for conn_id %s", self.conn_id)
+                _log.exception(e)
+                _log.error("Failed parsing the json for conn_id %s", self.conn_id)
 
         return obj
 
@@ -761,6 +763,19 @@ class TaskInstance(Base):
     def init_on_load(self):
         """ Initialize the attributes that aren't stored in the DB. """
         self.test_mode = False  # can be changed when calling 'run'
+
+    def state_for_dependents(self):
+        """
+        Helper function used to wire in the EXCLUDED state. For identifying
+        whether task dependencies are met, the EXCLUDED state should be treated
+        as SUCCESS. This function allows us to encompass this logic in one
+        place.
+        :return: the effective state of the task instance.
+        """
+        if self.state == State.EXCLUDED:
+            return State.SUCCESS
+        else:
+            return self.state
 
     def command(
             self,
@@ -926,7 +941,7 @@ class TaskInstance(Base):
         """
         Forces the task instance's state to FAILED in the database.
         """
-        logging.error("Recording the task instance as FAILED")
+        _log.error("Recording the task instance as FAILED")
         self.state = State.FAILED
         session.merge(self)
         session.commit()
@@ -1014,7 +1029,7 @@ class TaskInstance(Base):
             TaskInstance.dag_id == self.dag_id,
             TaskInstance.task_id.in_(task.downstream_task_ids),
             TaskInstance.execution_date == self.execution_date,
-            TaskInstance.state == State.SUCCESS,
+            TaskInstance.state.in_([State.SUCCESS, State.EXCLUDED]),
         )
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
@@ -1054,12 +1069,12 @@ class TaskInstance(Base):
                 dep_context=dep_context,
                 session=session):
             if verbose:
-                logging.warning(
+                _log.warning(
                     "Dependencies not met for %s, dependency '%s' FAILED: %s",
                     self, dep_status.dep_name, dep_status.reason)
             return False
         if verbose:
-            logging.info("Dependencies all met for %s", self)
+            _log.info("Dependencies all met for %s", self)
         return True
 
     @provide_session
@@ -1074,7 +1089,7 @@ class TaskInstance(Base):
                     session,
                     dep_context):
                 if dep_status.passed:
-                    logging.debug("%s dependency '%s' PASSED: %s",
+                    _log.debug("%s dependency '%s' PASSED: %s",
                                   self,
                                   dep_status.dep_name,
                                   dep_status.reason)
@@ -1184,8 +1199,9 @@ class TaskInstance(Base):
         self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
 
-        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
-            Stats.incr('previously_succeeded', 1, 1)
+        if not ignore_all_deps and not ignore_ti_state:
+            if self.state_for_dependents() == State.SUCCESS:
+                Stats.incr('previously_succeeded', 1, 1)
 
         queue_dep_context = DepContext(
             deps=QUEUE_DEPS,
@@ -1230,11 +1246,11 @@ class TaskInstance(Base):
                 msg = "Queuing attempt {attempt} of {total}".format(
                     attempt=self.try_number % (task.retries + 1) + 1,
                     total=task.retries + 1)
-                logging.info(hr + msg + hr)
+                _log.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
                 msg = "Queuing into pool {}".format(self.pool)
-                logging.info(msg)
+                _log.info(msg)
                 session.merge(self)
             session.commit()
             return
@@ -1243,12 +1259,12 @@ class TaskInstance(Base):
         # the current worker process was blocked on refresh_from_db
         if self.state == State.RUNNING:
             msg = "Task Instance already running {}".format(self)
-            logging.warn(msg)
+            _log.warn(msg)
             session.commit()
             return
 
         # print status message
-        logging.info(hr + msg + hr)
+        _log.info(hr + msg + hr)
         self.try_number += 1
 
         if not test_mode:
@@ -1271,7 +1287,7 @@ class TaskInstance(Base):
 
         context = {}
         try:
-            logging.info(msg.format(self=self))
+            _log.info(msg.format(self=self))
             if not mark_success:
                 context = self.get_template_context()
 
@@ -1280,7 +1296,7 @@ class TaskInstance(Base):
 
                 def signal_handler(signum, frame):
                     '''Setting kill signal handler'''
-                    logging.error("Killing subprocess")
+                    _log.error("Killing subprocess")
                     task_copy.on_kill()
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
@@ -1326,8 +1342,8 @@ class TaskInstance(Base):
             if task.on_success_callback:
                 task.on_success_callback(context)
         except Exception as e3:
-            logging.error("Failed when executing success callback")
-            logging.exception(e3)
+            _log.error("Failed when executing success callback")
+            _log.exception(e3)
 
         session.commit()
 
@@ -1340,7 +1356,7 @@ class TaskInstance(Base):
         task_copy.dry_run()
 
     def handle_failure(self, error, test_mode=False, context=None):
-        logging.exception(error)
+        _log.exception(error)
         task = self.task
         session = settings.Session()
         self.end_date = datetime.now()
@@ -1356,21 +1372,21 @@ class TaskInstance(Base):
         try:
             if task.retries and self.try_number % (task.retries + 1) != 0:
                 self.state = State.UP_FOR_RETRY
-                logging.info('Marking task as UP_FOR_RETRY')
+                _log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
                     self.email_alert(error, is_retry=True)
             else:
                 self.state = State.FAILED
                 if task.retries:
-                    logging.info('All retries failed; marking task as FAILED')
+                    _log.info('All retries failed; marking task as FAILED')
                 else:
-                    logging.info('Marking task as FAILED.')
+                    _log.info('Marking task as FAILED.')
                 if task.email_on_failure and task.email:
                     self.email_alert(error, is_retry=False)
         except Exception as e2:
-            logging.error(
+            _log.error(
                 'Failed to send email to: ' + str(task.email))
-            logging.exception(e2)
+            _log.exception(e2)
 
         # Handling callbacks pessimistically
         try:
@@ -1379,13 +1395,13 @@ class TaskInstance(Base):
             if self.state == State.FAILED and task.on_failure_callback:
                 task.on_failure_callback(context)
         except Exception as e3:
-            logging.error("Failed at executing callback")
-            logging.exception(e3)
+            _log.error("Failed at executing callback")
+            _log.exception(e3)
 
         if not test_mode:
             session.merge(self)
         session.commit()
-        logging.error(str(error))
+        _log.error(str(error))
 
     @provide_session
     def get_template_context(self, session=None):
@@ -1853,7 +1869,7 @@ class BaseOperator(object):
         self.email_on_failure = email_on_failure
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
-            logging.warning(
+            _log.warning(
                 "start_date for {} isn't datetime.datetime".format(self))
         self.end_date = end_date
         if not TriggerRule.is_valid(trigger_rule):
@@ -1870,7 +1886,7 @@ class BaseOperator(object):
             self.depends_on_past = True
 
         if schedule_interval:
-            logging.warning(
+            _log.warning(
                 "schedule_interval is used for {}, though it has "
                 "been deprecated as a task parameter, you need to "
                 "specify it as a DAG parameter instead".format(self))
@@ -1886,7 +1902,7 @@ class BaseOperator(object):
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
-            logging.debug("retry_delay isn't timedelta object, assuming secs")
+            _log.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
         self.max_retry_delay = max_retry_delay
@@ -2183,7 +2199,7 @@ class BaseOperator(object):
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
                 except Exception as e:
-                    logging.exception(e)
+                    _log.exception(e)
         self.prepare_template()
 
     @property
@@ -2303,12 +2319,12 @@ class BaseOperator(object):
                 ignore_ti_state=ignore_ti_state)
 
     def dry_run(self):
-        logging.info('Dry run')
+        _log.info('Dry run')
         for attr in self.template_fields:
             content = getattr(self, attr)
             if content and isinstance(content, six.string_types):
-                logging.info('Rendering template for {0}'.format(attr))
-                logging.info(content)
+                _log.info('Rendering template for {0}'.format(attr))
+                _log.info(content)
 
     def get_direct_relatives(self, upstream=False):
         """
@@ -2829,6 +2845,24 @@ class DAG(BaseDag, LoggingMixin):
 
         return active_dates
 
+    @provide_session
+    def get_dagrun(self, execution_date, session=None):
+        """
+        Returns the dag run for a given execution date if it exists, otherwise
+        none.
+        :param execution_date: The execution date of the DagRun to find.
+        :param session:
+        :return: The DagRun if found, otherwise None.
+        """
+        dagrun = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == self.dag_id,
+                DagRun.execution_date == execution_date)
+            .first())
+
+        return dagrun
+
     @property
     def latest_execution_date(self):
         """
@@ -3058,7 +3092,7 @@ class DAG(BaseDag, LoggingMixin):
             d['pickle_len'] = len(pickled)
             d['pickling_duration'] = "{}".format(datetime.now() - dttm)
         except Exception as e:
-            logging.exception(e)
+            _log.exception(e)
             d['is_picklable'] = False
             d['stacktrace'] = traceback.format_exc()
         return d
@@ -3254,7 +3288,7 @@ class DAG(BaseDag, LoggingMixin):
             DagModel).filter(DagModel.dag_id == dag.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=dag.dag_id)
-            logging.info("Creating ORM DAG for %s",
+            _log.info("Creating ORM DAG for %s",
                          dag.dag_id)
         orm_dag.fileloc = dag.full_filepath
         orm_dag.is_subdag = dag.is_subdag
@@ -3301,7 +3335,7 @@ class DAG(BaseDag, LoggingMixin):
         for dag in session.query(
                 DagModel).filter(DagModel.last_scheduler_run < expiration_date,
                                  DagModel.is_active).all():
-            logging.info("Deactivating DAG ID %s since it was last touched "
+            _log.info("Deactivating DAG ID %s since it was last touched "
                          "by the scheduler at %s",
                          dag.dag_id,
                          dag.last_scheduler_run.isoformat())
@@ -3833,7 +3867,7 @@ class DagRun(Base):
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
-        logging.info("Updating state for {} considering {} task(s)"
+        _log.info("Updating state for {} considering {} task(s)"
                      .format(self, len(tis)))
 
         for ti in list(tis):
@@ -3869,18 +3903,18 @@ class DagRun(Base):
 
             if any(r.state in (State.FAILED, State.UPSTREAM_FAILED)
                    for r in roots):
-                logging.info('Marking run {} failed'.format(self))
+                _log.info('Marking run {} failed'.format(self))
                 self.state = State.FAILED
 
             # if all roots succeeded, the run succeeded
             elif all(r.state in (State.SUCCESS, State.SKIPPED)
                      for r in roots):
-                logging.info('Marking run {} successful'.format(self))
+                _log.info('Marking run {} successful'.format(self))
                 self.state = State.SUCCESS
 
             # if *all tasks* are deadlocked, the run failed
             elif unfinished_tasks and none_depends_on_past and no_dependencies_met:
-                logging.info(
+                _log.info(
                     'Deadlock; marking run {} failed'.format(self))
                 self.state = State.FAILED
 
@@ -4045,3 +4079,247 @@ class ImportError(Base):
     timestamp = Column(DateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+
+
+class TaskExclusionType(object):
+    """
+    This class is used to define the different types of circumstances under
+    which to exclude tasks from execution. It should be used only for
+    interaction with the TaskExclusion class.
+    """
+
+    # SINGLE_DATE exclusion will prevent a task from executing only in the
+    # DagRun with execution_date matching the given datetime.
+    SINGLE_DATE = 'single_date'
+
+    # DATE_RANGE exclusion will prevent a task from executing in any DagRun
+    # with an execution_date that is between the start and end dates of the
+    # exclusion. These boundaries are inclusive.
+    DATE_RANGE = 'date_range'
+
+    # INDEFINITE exclusion will prevent a task from executing in any DagRun
+    # while the exclusion is in place.
+    INDEFINITE = 'indefinite'
+
+
+class TaskExclusion(Base):
+    """
+    This class is used to define objects that can be used to specify not to
+    run a given task in a given dag on a variety of execution date conditions.
+    These objects will be stored in the backend database in the task_exclusion
+    table.
+    Static methods are provided for the creation, removal and investigation of
+    these objects.
+    """
+
+    __tablename__ = "task_exclusion"
+
+    id = Column(Integer(), primary_key=True)
+    dag_id = Column(String(ID_LEN), nullable=False)
+    task_id = Column(String(ID_LEN), nullable=False)
+    exclusion_type = Column(String(32), nullable=False)
+    exclusion_start_date = Column(DateTime(), nullable=True)
+    exclusion_end_date = Column(DateTime(), nullable=True)
+    created_by = Column(String(256), nullable=False)
+    created_on = Column(DateTime(), nullable=False)
+
+    @classmethod
+    @provide_session
+    def set(
+            cls,
+            dag_id,
+            task_id,
+            exclusion_type,
+            exclusion_start_date,
+            exclusion_end_date,
+            created_by,
+            session=None):
+        """
+        Add a task exclusion to prevent a task running under certain
+        circumstances.
+        :param dag_id: The dag_id of the DAG containing the task to exclude
+         from execution.
+        :param task_id: The task_id of the task to exclude from execution.
+        :param exclusion_type: The type of circumstances to exclude the task
+         from execution under. See the TaskExclusionType class for more detail.
+        :param exclusion_start_date: The execution_date to start excluding on.
+         This will be ignored if the exclusion_type is INDEFINITE.
+        :param exclusion_end_date: The execution_date to stop excluding on.
+         This will be ignored if the exclusion_type is INDEFINITE or
+         SINGLE_DATE.
+        :param created_by: Who is creating this exclusion. Stored with the
+         exclusion record for auditing/debugging purposes.
+        :return: None.
+        """
+
+        session.expunge_all()
+
+        # Set up execution date range correctly
+        if exclusion_type == TaskExclusionType.SINGLE_DATE:
+            if exclusion_start_date:
+                exclusion_end_date = exclusion_start_date
+            else:
+                raise AirflowException(
+                    "No exclusion_start_date "
+                )
+        elif exclusion_type == TaskExclusionType.DATE_RANGE:
+            if exclusion_start_date > exclusion_end_date:
+                raise AirflowException(
+                    "The exclusion_start_date is after the exclusion_end_date"
+                )
+        elif exclusion_type == TaskExclusionType.INDEFINITE:
+            exclusion_start_date = None
+            exclusion_end_date = None
+        else:
+            raise AirflowException(
+                "The exclusion_type, {}, is not recognised."
+                .format(exclusion_type)
+            )
+
+        # remove any duplicate exclusions
+        session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.exclusion_type == exclusion_type,
+            cls.exclusion_start_date == exclusion_start_date,
+            cls.exclusion_end_date == exclusion_end_date
+        ).delete()
+
+        # insert new exclusion
+        session.add(TaskExclusion(
+            dag_id=dag_id,
+            task_id=task_id,
+            exclusion_type=exclusion_type,
+            exclusion_start_date=exclusion_start_date,
+            exclusion_end_date=exclusion_end_date,
+            created_by=created_by,
+            created_on=datetime.now())
+        )
+
+        session.commit()
+
+    @classmethod
+    @provide_session
+    def remove(
+            cls,
+            dag_id,
+            task_id,
+            exclusion_type,
+            exclusion_start_date,
+            exclusion_end_date,
+            session=None):
+        """
+        Remove a task exclusion that would prevent a task running under certain
+        circumstances.
+        :param dag_id: The dag_id of the DAG containing the task that would be
+         excluded from execution.
+        :param task_id: The task_id of the task that would be excluded from
+         execution.
+        :param exclusion_type: The type of circumstances that the task would be
+         excluded from execution under. See the TaskExclusionType class for
+          more detail.
+        :param exclusion_start_date: The execution_date that the exclusion
+         starts on. This will be ignored if the exclusion_type is INDEFINITE.
+        :param exclusion_end_date: The execution_date that the exclusion ends
+         on. This will be ignored if the exclusion_type is INDEFINITE or
+         SINGLE_DATE.
+        :return: None.
+        """
+
+        session.expunge_all()
+
+        # Set up execution date range correctly
+        if exclusion_type == TaskExclusionType.SINGLE_DATE:
+            if exclusion_start_date:
+                exclusion_end_date = exclusion_start_date
+            else:
+                raise AirflowException(
+                    "No exclusion_start_date "
+                )
+        elif exclusion_type == TaskExclusionType.DATE_RANGE:
+            if exclusion_start_date > exclusion_end_date:
+                raise AirflowException(
+                    "The exclusion_start_date is after the exclusion_end_date"
+                )
+        elif exclusion_type == TaskExclusionType.INDEFINITE:
+            exclusion_start_date = None
+            exclusion_end_date = None
+        else:
+            raise AirflowException(
+                "The exclusion_type, {}, is not recognised."
+                .format(exclusion_type)
+            )
+
+        # remove any identified exclusion.
+        session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.exclusion_type == exclusion_type,
+            cls.exclusion_start_date == exclusion_start_date,
+            cls.exclusion_end_date == exclusion_end_date
+        ).delete()
+
+        session.commit()
+
+    @classmethod
+    @provide_session
+    def should_exclude_task(
+            cls,
+            dag_id,
+            task_id,
+            execution_date,
+            session=None):
+        """
+        Identify whether any exclusions exist that apply to the given task in
+        the given DAG for the given execution date.
+        :param dag_id: The dag_id of the DAG containing the task instance to
+         check for exclusions for.
+        :param task_id: The task_id of the task instance to check for
+         exclusions for.
+        :param execution_date: The execution_date of the task instance to check
+         for exclusions for.
+        :return: True if an exclusion exists for the given task instance. False
+         otherwise.
+        """
+
+        session.expunge_all()
+
+        # Attempt to identify an INDEFINITE exclusion.
+        exclusion = session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.exclusion_type == TaskExclusionType.INDEFINITE,
+        ).first()
+
+        # If an exclusion has been found, return True.
+        if exclusion:
+            return True
+
+        # Attempt to identify a SINGLE_DATE exclusion.
+        exclusion = session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.exclusion_type == TaskExclusionType.SINGLE_DATE,
+            cls.exclusion_start_date == execution_date
+        ).first()
+
+        # If an exclusion has been found, return True.
+        if exclusion:
+            return True
+
+        # Attempt to identify a DATE_RANGE exclusion.
+        exclusion = session.query(cls).filter(
+            cls.dag_id == dag_id,
+            cls.task_id == task_id,
+            cls.exclusion_type == TaskExclusionType.DATE_RANGE,
+            cls.exclusion_start_date <= execution_date,
+            cls.exclusion_end_date >= execution_date
+        ).first()
+
+        # If an exclusion has been found, return True.
+        if exclusion:
+            return True
+
+        # No exclusion has been found, so return False.
+        return False
+

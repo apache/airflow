@@ -20,6 +20,8 @@ from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
+_log = logging.getLogger(__name__)
+
 
 class _DataProcJob:
     def __init__(self, dataproc_api, project_id, job):
@@ -30,7 +32,7 @@ class _DataProcJob:
             region='global',
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
-        logging.info('DataProc job %s is %s', self.job_id,
+        _log.info('DataProc job %s is %s', self.job_id,
                      str(self.job['status']['state']))
 
     def wait_for_done(self):
@@ -41,21 +43,21 @@ class _DataProcJob:
                 jobId=self.job_id).execute()
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
-                logging.error('DataProc job %s has errors', self.job_id)
-                logging.error(self.job['status']['details'])
-                logging.debug(str(self.job))
+                _log.error('DataProc job %s has errors', self.job_id)
+                _log.error(self.job['status']['details'])
+                _log.debug(str(self.job))
                 return False
             if 'CANCELLED' == self.job['status']['state']:
                 print(str(self.job))
-                logging.warning('DataProc job %s is cancelled', self.job_id)
+                _log.warning('DataProc job %s is cancelled', self.job_id)
                 if 'details' in self.job['status']:
-                    logging.warning(self.job['status']['details'])
-                logging.debug(str(self.job))
+                    _log.warning(self.job['status']['details'])
+                _log.debug(str(self.job))
                 return False
             if 'DONE' == self.job['status']['state']:
                 return True
-            logging.debug('DataProc job %s is %s', self.job_id,
-                          str(self.job['status']['state']))
+            _log.debug('DataProc job %s is %s', self.job_id,
+                       str(self.job['status']['state']))
             time.sleep(5)
 
     def raise_error(self, message=None):

@@ -19,6 +19,8 @@ from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class RedshiftToS3Transfer(BaseOperator):
     """
@@ -73,7 +75,7 @@ class RedshiftToS3Transfer(BaseOperator):
         a_key, s_key = self.s3.get_credentials()
         unload_options = ('\n\t\t\t').join(self.unload_options)
 
-        logging.info("Retrieving headers from %s.%s..." % (self.schema, self.table))
+        _log.info("Retrieving headers from %s.%s..." % (self.schema, self.table))
 
         columns_query = """SELECT column_name
                             FROM information_schema.columns
@@ -101,6 +103,6 @@ class RedshiftToS3Transfer(BaseOperator):
                         """.format(column_names, column_castings, self.schema, self.table,
                                 self.s3_bucket, self.s3_key, a_key, s_key, unload_options)
 
-        logging.info('Executing UNLOAD command...')
+        _log.info('Executing UNLOAD command...')
         self.hook.run(unload_query, self.autocommit)
-        logging.info("UNLOAD command complete...")
+        _log.info("UNLOAD command complete...")

@@ -31,6 +31,8 @@ configuration.load_test_config()
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
 
+_log = logging.getLogger('airflow')
+
 
 class TimeoutTestSensor(BaseSensorOperator):
     """
@@ -64,7 +66,7 @@ class TimeoutTestSensor(BaseSensorOperator):
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             time.sleep(self.poke_interval)
-        logging.info("Success criteria met. Exiting.")
+        _log.info("Success criteria met. Exiting.")
 
 
 class SensorTimeoutTest(unittest.TestCase):

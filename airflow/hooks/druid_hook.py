@@ -23,6 +23,8 @@ import requests
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
+_log = logging.getLogger(__name__)
+
 LOAD_CHECK_INTERVAL = 5
 DEFAULT_TARGET_PARTITION_SIZE = 5000000
 
@@ -155,9 +157,9 @@ class DruidHook(BaseHook):
             query_granularity, segment_granularity, hadoop_dependency_coordinates)
         r = requests.post(
             self.ingest_post_url, headers=self.header, data=query)
-        logging.info(self.ingest_post_url)
-        logging.info(query)
-        logging.info(r.text)
+        _log.info(self.ingest_post_url)
+        _log.info(query)
+        _log.info(r.text)
         d = json.loads(r.text)
         if "task" not in d:
             raise AirflowDruidLoadException(
@@ -183,7 +185,7 @@ class DruidHook(BaseHook):
             r = requests.get(status_url)
             d = json.loads(r.text)
             if d['status']['status'] == 'FAILED':
-                logging.error(d)
+                _log.error(d)
                 raise AirflowDruidLoadException(
                     "[Error]: Ingesting data to druid failed.")
             elif d['status']['status'] == 'SUCCESS':

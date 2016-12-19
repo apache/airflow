@@ -20,6 +20,8 @@ import logging
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 
+_log = logging.getLogger(__name__)
+
 
 class CloudantHook(BaseHook):
     """Interact with Cloudant.
@@ -35,9 +37,9 @@ class CloudantHook(BaseHook):
         def _str(s):
             # cloudant-python doesn't support unicode.
             if isinstance(s, unicode):
-                logging.debug(('cloudant-python does not support unicode. '
-                               'Encoding %s as ascii using "ignore".'),
-                              s)
+                _log.debug(('cloudant-python does not support unicode. '
+                            'Encoding %s as ascii using "ignore".'),
+                            s)
                 return s.encode('ascii', 'ignore')
 
             return s

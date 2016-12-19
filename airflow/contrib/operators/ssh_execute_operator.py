@@ -21,6 +21,8 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
+_log = logging.getLogger(__name__)
+
 
 class SSHTempFileContent(object):
     """This class prvides a functionality that creates tempfile
@@ -126,11 +128,11 @@ class SSHExecuteOperator(BaseOperator):
         with SSHTempFileContent(self.hook,
                                 self.bash_command,
                                 self.task_id) as remote_file_path:
-            logging.info("Temporary script "
+            _log.info("Temporary script "
                          "location : {0}:{1}".format(host, remote_file_path))
-            logging.info("Running command: " + bash_command)
+            _log.info("Running command: " + bash_command)
             if self.env is not None:
-                logging.info("env: " + str(self.env))
+                _log.info("env: " + str(self.env))
 
             sp = hook.Popen(
                 ['-q', 'bash', remote_file_path],
@@ -139,13 +141,13 @@ class SSHExecuteOperator(BaseOperator):
 
             self.sp = sp
 
-            logging.info("Output:")
+            _log.info("Output:")
             line = ''
             for line in iter(sp.stdout.readline, b''):
                 line = line.decode().strip()
-                logging.info(line)
+                _log.info(line)
             sp.wait()
-            logging.info("Command exited with "
+            _log.info("Command exited with "
                          "return code {0}".format(sp.returncode))
             if sp.returncode:
                 raise AirflowException("Bash command failed")
@@ -155,5 +157,5 @@ class SSHExecuteOperator(BaseOperator):
     def on_kill(self):
         # TODO: Cleanup remote tempfile
         # TODO: kill `mktemp` or `tee` too when they are alive.
-        logging.info('Sending SIGTERM signal to bash subprocess')
+        _log.info('Sending SIGTERM signal to bash subprocess')
         self.sp.terminate()

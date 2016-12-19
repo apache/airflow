@@ -18,6 +18,8 @@ from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 
+_log = logging.getLogger(__name__)
+
 
 class EmrBaseSensor(BaseSensorOperator):
     """
@@ -39,11 +41,11 @@ class EmrBaseSensor(BaseSensorOperator):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            logging.info('Bad HTTP response: %s' % response)
+            _log.info('Bad HTTP response: %s' % response)
             return False
 
         state = self.state_from_response(response)
-        logging.info('Job flow currently %s' % state)
+        _log.info('Job flow currently %s' % state)
 
         if state in self.NON_TERMINAL_STATES:
             return False

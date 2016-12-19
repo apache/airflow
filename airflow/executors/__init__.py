@@ -20,6 +20,8 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
+_log = logging.getLogger(__name__)
+
 try:
     from airflow.executors.celery_executor import CeleryExecutor
 except:
@@ -54,4 +56,4 @@ else:
     else:
         raise AirflowException("Executor {0} not supported.".format(_EXECUTOR))
 
-logging.info("Using executor " + _EXECUTOR)
+_log.info("Using executor " + _EXECUTOR)

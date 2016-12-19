@@ -35,6 +35,7 @@ from pandas.tools.merge import concat
 
 logging.getLogger("bigquery").setLevel(logging.INFO)
 
+_log = logging.getLogger(__name__)
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
     """
@@ -435,7 +436,7 @@ class BigQueryBaseCursor(object):
                     "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
                 )
             else:
-                logging.info(
+                _log.info(
                     "Adding experimental "
                     "'schemaUpdateOptions': {0}".format(schema_update_options)
                 )
@@ -486,12 +487,12 @@ class BigQueryBaseCursor(object):
                             )
                         )
                 else:
-                    logging.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
+                    _log.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
                     time.sleep(5)
 
             except HttpError as err:
                 if err.code in [500, 503]:
-                    logging.info('%s: Retryable error, waiting for job to complete: %s', err.code, job_id)
+                    _log.info('%s: Retryable error, waiting for job to complete: %s', err.code, job_id)
                     time.sleep(5)
                 else:
                     raise Exception(
@@ -570,14 +571,14 @@ class BigQueryBaseCursor(object):
                         datasetId=deletion_dataset,
                         tableId=deletion_table) \
                 .execute()
-            logging.info('Deleted table %s:%s.%s.',
+            _log.info('Deleted table %s:%s.%s.',
                          deletion_project, deletion_dataset, deletion_table)
         except HttpError:
             if not ignore_if_missing:
                 raise Exception(
                     'Table deletion failed. Table does not exist.')
             else:
-                logging.info('Table does not exist. Skipping.')
+                _log.info('Table does not exist. Skipping.')
 
 
     def run_table_upsert(self, dataset_id, table_resource, project_id=None):
@@ -604,7 +605,7 @@ class BigQueryBaseCursor(object):
             for table in tables_list_resp.get('tables', []):
                 if table['tableReference']['tableId'] == table_id:
                     # found the table, do update
-                    logging.info('table %s:%s.%s exists, updating.',
+                    _log.info('table %s:%s.%s exists, updating.',
                                  project_id, dataset_id, table_id)
                     return self.service.tables().update(projectId=project_id,
                                                         datasetId=dataset_id,
@@ -620,7 +621,7 @@ class BigQueryBaseCursor(object):
             # If there is no next page, then the table doesn't exist.
             else:
                 # do insert
-                logging.info('table %s:%s.%s does not exist. creating.',
+                _log.info('table %s:%s.%s does not exist. creating.',
                              project_id, dataset_id, table_id)
                 return self.service.tables().insert(projectId=project_id,
                                                     datasetId=dataset_id,
@@ -665,7 +666,7 @@ class BigQueryBaseCursor(object):
                                 'tableId': view_table}}
         # check to see if the view we want to add already exists.
         if view_access not in access:
-            logging.info('granting table %s:%s.%s authorized view access to %s:%s dataset.',
+            _log.info('granting table %s:%s.%s authorized view access to %s:%s dataset.',
                          view_project, view_dataset, view_table,
                          source_project, source_dataset)
             access.append(view_access)
@@ -674,7 +675,7 @@ class BigQueryBaseCursor(object):
                                                  body={'access': access}).execute()
         else:
             # if view is already in access, do nothing.
-            logging.info('table %s:%s.%s already has authorized view access to %s:%s dataset.',
+            _log.info('table %s:%s.%s already has authorized view access to %s:%s dataset.',
                          view_project, view_dataset, view_table,
                          source_project, source_dataset)
             return source_dataset_resource
@@ -927,7 +928,7 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     if project_id is None:
         if var_name is not None:
-            logging.info(
+            _log.info(
                 'project not included in {var}: '
                 '{input}; using project "{project}"'.format(
                     var=var_name, input=table_input, project=default_project_id))

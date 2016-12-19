@@ -36,6 +36,10 @@ g.node.queued rect {
     stroke: grey;
 }
 
+g.node.excluded rect {
+    stroke: purple;
+}
+
 g.node.running rect{
     stroke: lime;
 }

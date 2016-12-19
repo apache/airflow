@@ -22,7 +22,7 @@ from airflow.utils.state import State
 import logging
 
 
-def trigger_dag(dag_id, run_id=None, conf=None):
+def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None):
     dagbag = DagBag()
 
     if dag_id not in dagbag.dags:
@@ -30,7 +30,8 @@ def trigger_dag(dag_id, run_id=None, conf=None):
 
     dag = dagbag.get_dag(dag_id)
 
-    execution_date = datetime.now()
+    if not execution_date:
+        execution_date = datetime.now()
 
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())

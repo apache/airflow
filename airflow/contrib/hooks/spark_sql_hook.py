@@ -18,7 +18,7 @@ import subprocess
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
-log = logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class SparkSqlHook(BaseHook):
@@ -112,7 +112,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--queue", self._yarn_queue]
 
         connection_cmd += cmd
-        logging.debug("Spark-Sql cmd: {}".format(connection_cmd))
+        _log.debug("Spark-Sql cmd: {}".format(connection_cmd))
 
         return connection_cmd
 
@@ -131,10 +131,10 @@ class SparkSqlHook(BaseHook):
         # using two iterators here to support 'real-time' logging
         for line in iter(self._sp.stdout.readline, b''):
             line = line.decode('utf-8').strip()
-            logging.info(line)
+            _log.info(line)
         for line in iter(self._sp.stderr.readline, b''):
             line = line.decode('utf-8').strip()
-            logging.info(line)
+            _log.info(line)
         output, stderr = self._sp.communicate()
 
         if self._sp.returncode:
@@ -145,5 +145,5 @@ class SparkSqlHook(BaseHook):
 
     def kill(self):
         if self._sp and self._sp.poll() is None:
-            logging.info("Killing the Spark-Sql job")
+            _log.info("Killing the Spark-Sql job")
             self._sp.kill()

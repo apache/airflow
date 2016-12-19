@@ -22,6 +22,8 @@ from airflow.utils.state import State
 from airflow import settings
 from airflow import configuration as conf
 
+_log = logging.getLogger(__name__)
+
 
 class DagRunOrder(object):
     def __init__(self, run_id=None, payload=None):
@@ -72,9 +74,9 @@ class TriggerDagRunOperator(BaseOperator):
                 state=State.RUNNING,
                 conf=dro.payload,
                 external_trigger=True)
-            logging.info("Creating DagRun {}".format(dr))
+            _log.info("Creating DagRun {}".format(dr))
             session.add(dr)
             session.commit()
             session.close()
         else:
-            logging.info("Criteria not met, moving on")
+            _log.info("Criteria not met, moving on")

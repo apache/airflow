@@ -50,6 +50,8 @@ except ImportError:
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 
+_log = logging.getLogger('airflow')
+
 
 class BackfillJobTest(unittest.TestCase):
 
@@ -600,6 +602,38 @@ class SchedulerJobTest(unittest.TestCase):
         tis = dr.get_task_instances()
         self.assertEquals(len(tis), 2)
 
+    def test_scheduler_does_not_run_excluded(self):
+        dag = DAG(
+            dag_id='test_scheduler_does_not_run_excluded',
+            start_date=DEFAULT_DATE)
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+
+        tis = dr.get_task_instances(session=session)
+        for ti in tis:
+            ti.state = State.EXCLUDED
+
+        session.commit()
+        session.close()
+
+        queue = mock.Mock()
+        scheduler._process_task_instances(dag, queue=queue)
+
+        queue.put.assert_not_called()
+
     def test_scheduler_verify_max_active_runs(self):
         """
         Test if a a dagrun will not be scheduled if max_dag_runs has been reached
@@ -917,7 +951,7 @@ class SchedulerJobTest(unittest.TestCase):
         end_time = datetime.datetime.now()
 
         run_duration = (end_time - start_time).total_seconds()
-        logging.info("Test ran in %.2fs, expected %.2fs",
+        _log.info("Test ran in %.2fs, expected %.2fs",
                      run_duration,
                      expected_run_duration)
         assert run_duration - expected_run_duration < 5.0

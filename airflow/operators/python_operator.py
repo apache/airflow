@@ -21,6 +21,8 @@ from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 from airflow import settings
 
+_log = logging.getLogger(__name__)
+
 
 class PythonOperator(BaseOperator):
     """
@@ -78,7 +80,7 @@ class PythonOperator(BaseOperator):
             self.op_kwargs = context
 
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
-        logging.info("Done. Returned value was: " + str(return_value))
+        _log.info("Done. Returned value was: " + str(return_value))
         return return_value
 
 
@@ -103,8 +105,8 @@ class BranchPythonOperator(PythonOperator):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        logging.info("Following branch " + branch)
-        logging.info("Marking other directly downstream tasks as skipped")
+        _log.info("Following branch " + branch)
+        _log.info("Marking other directly downstream tasks as skipped")
         session = settings.Session()
         for task in context['task'].downstream_list:
             if task.task_id != branch:
@@ -116,7 +118,7 @@ class BranchPythonOperator(PythonOperator):
                 session.merge(ti)
         session.commit()
         session.close()
-        logging.info("Done.")
+        _log.info("Done.")
 
 
 class ShortCircuitOperator(PythonOperator):
@@ -133,12 +135,12 @@ class ShortCircuitOperator(PythonOperator):
     """
     def execute(self, context):
         condition = super(ShortCircuitOperator, self).execute(context)
-        logging.info("Condition result is {}".format(condition))
+        _log.info("Condition result is {}".format(condition))
         if condition:
-            logging.info('Proceeding with downstream tasks...')
+            _log.info('Proceeding with downstream tasks...')
             return
         else:
-            logging.info('Skipping downstream tasks...')
+            _log.info('Skipping downstream tasks...')
             session = settings.Session()
             for task in context['task'].downstream_list:
                 ti = TaskInstance(
@@ -149,4 +151,4 @@ class ShortCircuitOperator(PythonOperator):
                 session.merge(ti)
             session.commit()
             session.close()
-            logging.info("Done.")
+            _log.info("Done.")

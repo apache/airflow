@@ -18,6 +18,8 @@ from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class GoogleCloudStorageObjectSensor(BaseSensorOperator):
     """
@@ -57,7 +59,8 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
 
     def poke(self, context):
-        logging.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
+        _log.info('Sensor checks existence of : %s, %s', self.bucket,
+                 self.object)
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)

@@ -261,6 +261,11 @@ dag_orientation = LR
 # privacy.
 demo_mode = False
 
+# Rate at which to automatically refresh the task states in the graph view in
+# milliseconds. If not set or set to 0, the graph will require refreshing
+# manually. Otherwise the manual refresh button will not be displayed.
+graph_refresh_rate = 0
+
 # The amount of time (in secs) webserver will wait for initial handshake
 # while fetching logs from other worker machine
 log_fetch_timeout_sec = 5
@@ -311,8 +316,14 @@ worker_log_server_port = 8793
 # information.
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 
-# Another key Celery setting
+# The backend used by Celery for storing task results known as tombstones.
+# Refer to the Celery documentation for more information.
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
+# When using RabbitMQ as the celery result backend the default tombstone
+# lifetime is 24 hours. This setting allows you to control that. The value
+# is in minutes, so 180 is 3 hours and prevents RabbitMQ from getting
+# overwhelmed by the number of tombstones during light use of Airflow.
+celery_task_result_expires = 180
 
 # Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
 # it `airflow flower`. This defines the IP that Celery Flower runs on
@@ -487,6 +498,7 @@ authenticate = true
 max_threads = 2
 """
 
+_log = logging.getLogger(__name__)
 
 class AirflowConfigParser(ConfigParser):
 
@@ -586,7 +598,7 @@ class AirflowConfigParser(ConfigParser):
             return option
 
         else:
-            logging.warning("section/key [{section}/{key}] not found "
+            _log.warning("section/key [{section}/{key}] not found "
                             "in config".format(**locals()))
 
             raise AirflowConfigException(
@@ -745,7 +757,7 @@ def parameterized_config(template):
 
 TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
 if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new airflow config file for unit tests in: " +
+    _log.info("Creating new airflow config file for unit tests in: " +
                  TEST_CONFIG_FILE)
     with open(TEST_CONFIG_FILE, 'w') as f:
         f.write(parameterized_config(TEST_CONFIG))
@@ -754,11 +766,11 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     # These configuration options are used to generate a default configuration
     # when it is missing. The right way to change your configuration is to
     # alter your configuration file, not this code.
-    logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
+    _log.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
     with open(AIRFLOW_CONFIG, 'w') as f:
         f.write(parameterized_config(DEFAULT_CONFIG))
 
-logging.info("Reading the config from " + AIRFLOW_CONFIG)
+_log.info("Reading the config from " + AIRFLOW_CONFIG)
 
 
 conf = AirflowConfigParser()

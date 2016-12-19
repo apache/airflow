@@ -19,6 +19,8 @@ from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.emr_hook import EmrHook
 
+_log = logging.getLogger(__name__)
+
 
 class EmrAddStepsOperator(BaseOperator):
     """
@@ -51,11 +53,11 @@ class EmrAddStepsOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        logging.info('Adding steps to %s', self.job_flow_id)
+        _log.info('Adding steps to %s', self.job_flow_id)
         response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('Adding steps failed: %s' % response)
         else:
-            logging.info('Steps %s added to JobFlow', response['StepIds'])
+            _log.info('Steps %s added to JobFlow', response['StepIds'])
             return response['StepIds']

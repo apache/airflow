@@ -18,6 +18,8 @@ from airflow.contrib.hooks.vertica_hook import VerticaHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class VerticaOperator(BaseOperator):
     """
@@ -42,6 +44,6 @@ class VerticaOperator(BaseOperator):
         self.sql = sql
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        _log.info('Executing: ' + str(self.sql))
         hook = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         hook.run(self.sql)

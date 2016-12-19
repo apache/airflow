@@ -31,6 +31,8 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 
+_log = logging.getLogger(__name__)
+
 
 class BaseSensorOperator(BaseOperator):
     '''
@@ -77,7 +79,7 @@ class BaseSensorOperator(BaseOperator):
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             sleep(self.poke_interval)
-        logging.info("Success criteria met. Exiting.")
+        _log.info("Success criteria met. Exiting.")
 
 
 class SqlSensor(BaseSensorOperator):
@@ -103,7 +105,7 @@ class SqlSensor(BaseSensorOperator):
     def poke(self, context):
         hook = BaseHook.get_connection(self.conn_id).get_hook()
 
-        logging.info('Poking: ' + self.sql)
+        _log.info('Poking: ' + self.sql)
         records = hook.get_records(self.sql)
         if not records:
             return False
@@ -223,7 +225,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm = context['execution_date']
 
-        logging.info(
+        _log.info(
             'Poking for '
             '{self.external_dag_id}.'
             '{self.external_task_id} on '
@@ -298,7 +300,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
 
             schema, table, partition = self.parse_partition_name(partition)
 
-            logging.info(
+            _log.info(
                 'Poking for {schema}.{table}/{partition}'.format(**locals())
             )
             return self.hook.check_for_named_partition(
@@ -356,7 +358,7 @@ class HivePartitionSensor(BaseSensorOperator):
     def poke(self, context):
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
-        logging.info(
+        _log.info(
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
@@ -387,7 +389,7 @@ class HdfsSensor(BaseSensorOperator):
         import airflow.hooks.hdfs_hook
         sb = airflow.hooks.hdfs_hook.HDFSHook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
-        logging.info(
+        _log.info(
             'Poking for file {self.filepath} '.format(**locals()))
         try:
             files = [f for f in sb.ls([self.filepath])]
@@ -414,7 +416,7 @@ class WebHdfsSensor(BaseSensorOperator):
 
     def poke(self, context):
         c = airflow.hooks.webhdfs_hook.WebHDFSHook(self.webhdfs_conn_id)
-        logging.info(
+        _log.info(
             'Poking for file {self.filepath} '.format(**locals()))
         return c.check_for_path(hdfs_path=self.filepath)
 
@@ -466,7 +468,7 @@ class S3KeySensor(BaseSensorOperator):
         import airflow.hooks.S3_hook
         hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
-        logging.info('Poking for key : {full_url}'.format(**locals()))
+        _log.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
             return hook.check_for_wildcard_key(self.bucket_key,
                                                self.bucket_name)
@@ -508,8 +510,8 @@ class S3PrefixSensor(BaseSensorOperator):
         self.s3_conn_id = s3_conn_id
 
     def poke(self, context):
-        logging.info('Poking for prefix : {self.prefix}\n'
-                     'in bucket s3://{self.bucket_name}'.format(**locals()))
+        _log.info('Poking for prefix : {self.prefix}\n'
+                  'in bucket s3://{self.bucket_name}'.format(**locals()))
         import airflow.hooks.S3_hook
         hook = airflow.hooks.S3_hook.S3Hook(s3_conn_id=self.s3_conn_id)
         return hook.check_for_prefix(
@@ -533,7 +535,7 @@ class TimeSensor(BaseSensorOperator):
         self.target_time = target_time
 
     def poke(self, context):
-        logging.info(
+        _log.info(
             'Checking if the time ({0}) has come'.format(self.target_time))
         return datetime.now().time() > self.target_time
 
@@ -559,7 +561,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         dag = context['dag']
         target_dttm = dag.following_schedule(context['execution_date'])
         target_dttm += self.delta
-        logging.info('Checking if the time ({0}) has come'.format(target_dttm))
+        _log.info('Checking if the time ({0}) has come'.format(target_dttm))
         return datetime.now() > target_dttm
 
 
@@ -606,7 +608,7 @@ class HttpSensor(BaseSensorOperator):
         self.hook = hooks.http_hook.HttpHook(method='GET', http_conn_id=http_conn_id)
 
     def poke(self, context):
-        logging.info('Poking: ' + self.endpoint)
+        _log.info('Poking: ' + self.endpoint)
         try:
             response = self.hook.run(self.endpoint,
                                      data=self.params,
