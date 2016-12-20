@@ -20,7 +20,7 @@ import requests
 
 
 class Client(api_client.Client):
-    def trigger_dag(self, dag_id, run_id=None, conf=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         endpoint = '/api/experimental/dags/{}/dag_runs'.format(dag_id)
         url = urljoin(self._api_base_url, endpoint)
 
@@ -29,6 +29,7 @@ class Client(api_client.Client):
                              json={
                                  "run_id": run_id,
                                  "conf": conf,
+                                 "execution_date": execution_date,
                              })
 
         if not resp.ok:

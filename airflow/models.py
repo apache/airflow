@@ -2829,6 +2829,24 @@ class DAG(BaseDag, LoggingMixin):
 
         return active_dates
 
+    @provide_session
+    def get_dagrun(self, execution_date, session=None):
+        """
+        Returns the dag run for a given execution date if it exists, otherwise
+        none.
+        :param execution_date: The execution date of the DagRun to find.
+        :param session:
+        :return: The DagRun if found, otherwise None.
+        """
+        dagrun = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == self.dag_id,
+                DagRun.execution_date == execution_date)
+            .first())
+
+        return dagrun
+
     @property
     def latest_execution_date(self):
         """

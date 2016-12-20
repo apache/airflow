@@ -19,7 +19,7 @@ class Client:
         self._api_base_url = api_base_url
         self._auth = auth
 
-    def trigger_dag(self, dag_id, run_id=None, conf=None):
+    def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         """
         Creates a dag run for the specified dag
         :param dag_id:
