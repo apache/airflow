@@ -1200,7 +1200,6 @@ class TaskInstance(Base):
             session.commit()
             return
 
-        self.clear_xcom_data()
         hr = "\n" + ("-" * 80) + "\n"  # Line break
 
         # For reporting purposes, we report based on 1-indexed,
@@ -1284,6 +1283,9 @@ class TaskInstance(Base):
                     task_copy.on_kill()
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
+
+                # Don't clear Xcom until the task is certain to execute
+                self.clear_xcom_data()
 
                 self.render_templates()
                 task_copy.pre_execute(context=context)
