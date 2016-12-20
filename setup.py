@@ -127,6 +127,7 @@ gcp_api = [
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+jira = ['JIRA>1.0.7']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
@@ -256,6 +257,7 @@ def do_setup():
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
+            'jira': jira,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

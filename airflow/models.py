@@ -535,6 +535,7 @@ class Connection(Base):
         ('cloudant', 'IBM Cloudant',),
         ('mssql', 'Microsoft SQL Server'),
         ('mesos_framework-id', 'Mesos Framework ID'),
+        ('jira', 'JIRA',),
     ]
 
     def __init__(
@@ -655,6 +656,9 @@ class Connection(Base):
             elif self.conn_type == 'cloudant':
                 from airflow.contrib.hooks.cloudant_hook import CloudantHook
                 return CloudantHook(cloudant_conn_id=self.conn_id)
+            elif self.conn_type == 'jira':
+                from airflow.contrib.hooks.jira_hook import JiraHook
+                return JiraHook(jira_conn_id=self.conn_id)
         except:
             pass
 
