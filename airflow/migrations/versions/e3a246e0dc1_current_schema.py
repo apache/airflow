@@ -31,9 +31,6 @@ import sqlalchemy as sa
 from sqlalchemy import func
 from sqlalchemy.engine.reflection import Inspector
 
-from airflow import settings
-
-
 def upgrade():
     conn = op.get_bind()
     inspector = Inspector.from_engine(conn)
