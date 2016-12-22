@@ -490,12 +490,12 @@ class BigQueryBaseCursor(object):
                     time.sleep(5)
 
             except HttpError as err:
-                if err.code in [500, 503]:
-                    logging.info('%s: Retryable error, waiting for job to complete: %s', err.code, job_id)
+                if err.resp.status in [500, 503]:
+                    logging.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, job_id)
                     time.sleep(5)
                 else:
                     raise Exception(
-                'BigQuery job status check faild. Final error was: %s', err.code)
+                        'BigQuery job status check failed. Final error was: %s', err.resp.status)
 
         return job_id
 
