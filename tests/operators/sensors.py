@@ -15,13 +15,14 @@
 
 import logging
 import os
+import sys
 import time
 import unittest
 
 from datetime import datetime, timedelta
 
 from airflow import DAG, configuration
-from airflow.operators.sensors import HttpSensor, BaseSensorOperator
+from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import (AirflowException,
                                 AirflowSensorTimeout,
@@ -109,4 +110,74 @@ class HttpSensorTests(unittest.TestCase):
             response_check=resp_check,
             poke_interval=5)
         with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
+            task.execute(None)
+
+
+class HdfsSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        if sys.version_info[0] == 3:
+            raise unittest.SkipTest('HdfsSensor won\'t work with python3. No need to test anything here')
+        from tests.core import FakeHDFSHook
+        self.hook = FakeHDFSHook
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
+
+    def test_legacy_file_exist(self):
+        """
+        Test the legacy behaviour
+        :return:
+        """
+        # Given
+        self.logger.info("Test for existing file with the legacy behaviour")
+        # When
+        task = HdfsSensor(task_id='Should_be_file_legacy',
+                          filepath='/datadirectory/datafile',
+                          timeout=1,
+                          retry_delay=timedelta(seconds=1),
+                          poke_interval=1,
+                          hook=self.hook)
+        task.execute(None)
+
+        # Then
+        # Nothing happens, nothing is raised exec is ok
+
+    def test_legacy_file_exist_but_filesize(self):
+        """
+        Test the legacy behaviour with the filesize
+        :return:
+        """
+        # Given
+        self.logger.info("Test for existing file with the legacy behaviour")
+        # When
+        task = HdfsSensor(task_id='Should_be_file_legacy',
+                          filepath='/datadirectory/datafile',
+                          timeout=1,
+                          file_size=20,
+                          retry_delay=timedelta(seconds=1),
+                          poke_interval=1,
+                          hook=self.hook)
+
+        # When
+        # Then
+        with self.assertRaises(AirflowSensorTimeout):
+            task.execute(None)
+
+    def test_legacy_file_does_not_exists(self):
+        """
+        Test the legacy behaviour
+        :return:
+        """
+        # Given
+        self.logger.info("Test for non existing file with the legacy behaviour")
+        task = HdfsSensor(task_id='Should_not_be_file_legacy',
+                          filepath='/datadirectory/not_existing_file_or_directory',
+                          timeout=1,
+                          retry_delay=timedelta(seconds=1),
+                          poke_interval=1,
+                          hook=self.hook)
+
+        # When
+        # Then
+        with self.assertRaises(AirflowSensorTimeout):
             task.execute(None)
