@@ -588,6 +588,14 @@ class TaskInstanceTest(unittest.TestCase):
         # prior success)
         self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
 
+        # Test AIRFLOW-703: Xcom shouldn't be cleared if the task doesn't
+        # execute, even if dependencies are ignored
+        ti.run(ignore_all_deps=True, mark_success=True)
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), value)
+        # Xcom IS finally cleared once task has executed
+        ti.run(ignore_all_deps=True)
+        self.assertEqual(ti.xcom_pull(task_ids='test_xcom', key=key), None)
+
     def test_xcom_pull_different_execution_date(self):
         """
         tests xcom fetch behavior with different execution dates, using

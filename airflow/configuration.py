@@ -240,7 +240,7 @@ error_logfile = -
 expose_config = False
 
 # Set to true to turn on authentication:
-# http://pythonhosted.org/airflow/installation.html#web-authentication
+# http://pythonhosted.org/airflow/security.html#web-authentication
 authenticate = False
 
 # Filter the list of dags by owner name (requires authentication to be enabled)
@@ -539,7 +539,7 @@ class AirflowConfigParser(ConfigParser):
         elif (
             self.getboolean("webserver", "authenticate") and
             self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
-            self.get("core", "auth_backend") != (
+            self.get("webserver", "auth_backend") != (
                 'airflow.contrib.auth.backends.ldap_auth')
         ):
             raise AirflowConfigException(

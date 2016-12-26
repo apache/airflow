@@ -470,21 +470,32 @@ class BigQueryBaseCursor(object):
             .insert(projectId=self.project_id, body=job_data) \
             .execute()
         job_id = query_reply['jobReference']['jobId']
-        job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
 
         # Wait for query to finish.
-        while not job['status']['state'] == 'DONE':
-            logging.info('Waiting for job to complete: %s, %s', self.project_id, job_id)
-            time.sleep(5)
-            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+        keep_polling_job = True
+        while (keep_polling_job):
+            try:
+                job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+                if (job['status']['state'] == 'DONE'):
+                    keep_polling_job = False
+                    # Check if job had errors.
+                    if 'errorResult' in job['status']:
+                        raise Exception(
+                            'BigQuery job failed. Final error was: {}. The job was: {}'.format(
+                                job['status']['errorResult'], job
+                            )
+                        )
+                else:
+                    logging.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
+                    time.sleep(5)
 
-        # Check if job had errors.
-        if 'errorResult' in job['status']:
-            raise Exception(
-                'BigQuery job failed. Final error was: {}. The job was: {}'.format(
-                    job['status']['errorResult'], job
-                )
-            )
+            except HttpError as err:
+                if err.resp.status in [500, 503]:
+                    logging.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, job_id)
+                    time.sleep(5)
+                else:
+                    raise Exception(
+                        'BigQuery job status check failed. Final error was: %s', err.resp.status)
 
         return job_id
 

@@ -14,6 +14,8 @@
 
 
 from builtins import bytes
+import os
+import signal
 import logging
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
@@ -80,7 +82,8 @@ class BashOperator(BaseOperator):
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
-                    cwd=tmp_dir, env=self.env)
+                    cwd=tmp_dir, env=self.env,
+                    preexec_fn=os.setsid)
 
                 self.sp = sp
 
@@ -100,5 +103,6 @@ class BashOperator(BaseOperator):
             return line
 
     def on_kill(self):
-        logging.info('Sending SIGTERM signal to bash subprocess')
-        self.sp.terminate()
+        logging.info('Sending SIGTERM signal to bash process group')
+        os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
+

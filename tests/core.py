@@ -416,6 +416,28 @@ class CoreTest(unittest.TestCase):
             output_encoding='utf-8')
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_bash_operator_kill(self):
+        import subprocess
+        import psutil
+        sleep_time = "100%d" % os.getpid()
+        t = BashOperator(
+            task_id='test_bash_operator_kill',
+            execution_timeout=timedelta(seconds=1),
+            bash_command="/bin/bash -c 'sleep %s'" % sleep_time,
+            dag=self.dag)
+        self.assertRaises(
+            exceptions.AirflowTaskTimeout,
+            t.run,
+            start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        sleep(2)
+        pid = -1
+        for proc in psutil.process_iter():
+            if proc.cmdline() == ['sleep', sleep_time]:
+                pid = proc.pid
+        if pid != -1:
+            os.kill(pid, signal.SIGTERM)
+            self.fail("BashOperator's subprocess still running after stopping on timeout!")
+
     def test_trigger_dagrun(self):
         def trigga(context, obj):
             if True:

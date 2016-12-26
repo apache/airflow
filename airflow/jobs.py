@@ -45,7 +45,7 @@ from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun
 from airflow.settings import Stats
-from airflow.ti_deps.dep_context import RUN_DEPS, DepContext
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
@@ -165,15 +165,21 @@ class BaseJob(Base, LoggingMixin):
         if job.state == State.SHUTDOWN:
             self.kill()
 
+        # Figure out how long to sleep for
+        sleep_for = 0
         if job.latest_heartbeat:
-            sleep_for = self.heartrate - (
-                datetime.now() - job.latest_heartbeat).total_seconds()
-            if sleep_for > 0:
-                sleep(sleep_for)
+            sleep_for = max(
+                0,
+                self.heartrate - (datetime.now() - job.latest_heartbeat).total_seconds())
 
-        job.latest_heartbeat = datetime.now()
+        # Don't keep session open while sleeping as it leaves a connection open
+        session.close()
+        sleep(sleep_for)
 
+        # Update last heartbeat time
         session = settings.Session()
+        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job.latest_heartbeat = datetime.now()
         session.merge(job)
         session.commit()
 
@@ -182,7 +188,7 @@ class BaseJob(Base, LoggingMixin):
         self.logger.debug('[heart] Boom.')
 
     def run(self):
-        Stats.incr(self.__class__.__name__.lower()+'_start', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         session = settings.Session()
         self.state = State.RUNNING
@@ -202,7 +208,7 @@ class BaseJob(Base, LoggingMixin):
         session.commit()
         session.close()
 
-        Stats.incr(self.__class__.__name__.lower()+'_end', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")
@@ -714,7 +720,7 @@ class SchedulerJob(BaseJob):
                 .filter(or_(
                     DagRun.external_trigger == False,
                     # add % as a wildcard for the like query
-                    DagRun.run_id.like(DagRun.ID_PREFIX+'%')
+                    DagRun.run_id.like(DagRun.ID_PREFIX + '%')
                 ))
             )
             last_scheduled_run = qry.scalar()
@@ -1532,9 +1538,25 @@ class SchedulerJob(BaseJob):
             dag = dagbag.dags[ti_key[0]]
             task = dag.get_task(ti_key[1])
             ti = models.TaskInstance(task, ti_key[2])
-            # Task starts out in the scheduled state. All tasks in the
-            # scheduled state will be sent to the executor
-            ti.state = State.SCHEDULED
+
+            ti.refresh_from_db(session=session, lock_for_update=True)
+            # We can defer checking the task dependency checks to the worker themselves
+            # since they can be expensive to run in the scheduler.
+            dep_context = DepContext(deps=QUEUE_DEPS, ignore_task_deps=True)
+
+            # Only schedule tasks that have their dependencies met, e.g. to avoid
+            # a task that recently got it's state changed to RUNNING from somewhere
+            # other than the scheduler from getting it's state overwritten.
+            # TODO(aoen): It's not great that we have to check all the task instance
+            # dependencies twice; once to get the task scheduled, and again to actually
+            # run the task. We should try to come up with a way to only check them once.
+            if ti.are_dependencies_met(
+                    dep_context=dep_context,
+                    session=session,
+                    verbose=True):
+                # Task starts out in the scheduled state. All tasks in the
+                # scheduled state will be sent to the executor
+                ti.state = State.SCHEDULED
 
             # Also save this task instance to the DB.
             self.logger.info("Creating / updating {} in ORM".format(ti))
@@ -1983,6 +2005,13 @@ class LocalTaskJob(BaseJob):
             )
             self.process = subprocess.Popen(['bash', '-c', command])
             self.logger.info("Subprocess PID is {}".format(self.process.pid))
+            ti = self.task_instance
+            session = settings.Session()
+            ti.pid = self.process.pid
+            ti.hostname = socket.getfqdn()
+            session.merge(ti)
+            session.commit()
+            session.close()
 
             last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
@@ -2032,11 +2061,20 @@ class LocalTaskJob(BaseJob):
         # Suicide pill
         TI = models.TaskInstance
         ti = self.task_instance
-        state = session.query(TI.state).filter(
+        new_ti = session.query(TI).filter(
             TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
             TI.execution_date==ti.execution_date).scalar()
-        if state == State.RUNNING:
+        if new_ti.state == State.RUNNING:
             self.was_running = True
+            fqdn = socket.getfqdn()
+            if not (fqdn == new_ti.hostname and self.process.pid == new_ti.pid):
+                logging.warning("Recorded hostname and pid of {new_ti.hostname} "
+                                "and {new_ti.pid} do not match this instance's "
+                                "which are {fqdn} and "
+                                "{self.process.pid}. Taking the poison pill. So "
+                                "long."
+                                .format(**locals()))
+                raise AirflowException("Another worker/process is running this job")
         elif self.was_running and hasattr(self, 'process'):
             logging.warning(
                 "State of this instance has been externally set to "

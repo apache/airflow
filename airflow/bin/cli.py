@@ -321,6 +321,9 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def run(args, dag=None):
+    # Disable connection pooling to reduce the # of connections on the DB
+    # while it's waiting for the task to finish.
+    settings.configure_orm(disable_connection_pool=True)
     db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id

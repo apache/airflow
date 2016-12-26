@@ -60,7 +60,7 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -733,6 +733,7 @@ class TaskInstance(Base):
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(DateTime)
+    pid = Column(Integer)
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -1199,7 +1200,6 @@ class TaskInstance(Base):
             session.commit()
             return
 
-        self.clear_xcom_data()
         hr = "\n" + ("-" * 80) + "\n"  # Line break
 
         # For reporting purposes, we report based on 1-indexed,
@@ -1284,6 +1284,9 @@ class TaskInstance(Base):
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
 
+                # Don't clear Xcom until the task is certain to execute
+                self.clear_xcom_data()
+
                 self.render_templates()
                 task_copy.pre_execute(context=context)
 
@@ -1291,10 +1294,13 @@ class TaskInstance(Base):
                 # if it goes beyond
                 result = None
                 if task_copy.execution_timeout:
-                    with timeout(int(
-                            task_copy.execution_timeout.total_seconds())):
-                        result = task_copy.execute(context=context)
-
+                    try:
+                        with timeout(int(
+                                task_copy.execution_timeout.total_seconds())):
+                            result = task_copy.execute(context=context)
+                    except AirflowTaskTimeout:
+                        task_copy.on_kill()
+                        raise
                 else:
                     result = task_copy.execute(context=context)
 
