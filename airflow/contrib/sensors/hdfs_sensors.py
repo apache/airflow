@@ -16,7 +16,6 @@ import logging
 
 
 class HdfsSensorRegex(HdfsSensor):
-
     def __init__(
             self,
             regex,
@@ -31,15 +30,16 @@ class HdfsSensorRegex(HdfsSensor):
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
-        logging.info('Poking for {self.filepath} to be a directory with files matching {self.regex.pattern}'.format(**locals()))
-        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if f['file_type'] == 'f' and self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
+        logging.info(
+            'Poking for {self.filepath} to be a directory with files matching {self.regex.pattern}'.format(**locals()))
+        result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
+                  f['file_type'] == 'f' and self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
         result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
         result = self.filter_for_filesize(result, self.file_size)
         return bool(result)
 
 
 class HdfsSensorFolder(HdfsSensor):
-
     def __init__(
             self,
             be_empty=False,
