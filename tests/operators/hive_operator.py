@@ -17,14 +17,12 @@ from __future__ import print_function
 import datetime
 import os
 import unittest
+import mock
+import nose
 import six
 
 from airflow import DAG, configuration, operators, utils
 configuration.load_test_config()
-
-import os
-import unittest
-import nose
 
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
@@ -40,6 +38,7 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     class HiveServer2Test(unittest.TestCase):
         def setUp(self):
             configuration.load_test_config()
+            self.nondefault_schema = "nondefault"
 
         def test_select_conn(self):
             from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -67,6 +66,85 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             sql = "select 1"
             hook = HiveServer2Hook()
             hook.to_csv(hql=sql, csv_filepath="/tmp/test_to_csv")
+
+        def connect_mock(host, port, auth_mechanism, kerberos_service_name, user, database):
+            self.assertEqual(database, self.nondefault_schema)
+
+        @patch('HiveServer2Hook.connect', return_value="foo")
+        def test_select_conn_with_schema(self, connect_mock):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+
+            # Configure
+            hook = HiveServer2Hook()
+
+            # Run
+            hook.get_conn(self.nondefault_schema)
+
+            # Verify
+            assert connect_mock.called
+            (args, kwargs) = connect_mock.call_args_list[0]
+            assert kwargs['database'] == self.nondefault_schema
+
+        def test_get_results_with_schema(self):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+            from unittest.mock import MagicMock
+
+            # Configure
+            sql = "select 1"
+            schema = "notdefault"
+            hook = HiveServer2Hook()
+            cursor_mock = MagicMock(
+                __enter__ = cursor_mock,
+                __exit__ = None,
+                execute = None,
+                fetchall = [],
+            )
+            get_conn_mock = MagicMock(
+                __enter__ = get_conn_mock,
+                __exit__ = None,
+                cursor = cursor_mock,
+            )
+            hook.get_conn = get_conn_mock
+
+            # Run
+            hook.get_results(sql, schema)
+
+            # Verify
+            get_conn_mock.assert_called_with(self.nondefault_schema)
+
+        @patch('HiveServer2Hook.get_results', return_value={data:[]})
+        def test_get_records_with_schema(self, get_results_mock):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+
+            # Configure
+            sql = "select 1"
+            hook = HiveServer2Hook()
+
+            # Run
+            hook.get_records(sql, self.nondefault_schema)
+
+            # Verify
+            assert connect_mock.called
+            (args, kwargs) = connect_mock.call_args_list[0]
+            assert args[0] == sql
+            assert kwargs['schema'] == self.nondefault_schema
+
+        @patch('HiveServer2Hook.get_results', return_value={data:[]})
+        def test_get_pandas_df_with_schema(self, get_results_mock):
+            from airflow.hooks.hive_hooks import HiveServer2Hook
+
+            # Configure
+            sql = "select 1"
+            hook = HiveServer2Hook()
+
+            # Run
+            hook.get_pandas_df(sql, schema)
+
+            # Verify
+            assert connect_mock.called
+            (args, kwargs) = connect_mock.call_args_list[0]
+            assert args[0] == sql
+            assert kwargs['schema'] == self.nondefault_schema
 
     class HivePrestoTest(unittest.TestCase):
 

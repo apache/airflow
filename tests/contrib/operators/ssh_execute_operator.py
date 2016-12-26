@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import unittest
+import os
 from datetime import datetime
 
 from airflow import configuration
@@ -62,11 +63,13 @@ class SSHExecuteOperatorTest(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_with_env(self):
+        test_env = os.environ.copy()
+        test_env['AIRFLOW_test'] = "test"
         task = SSHExecuteOperator(
             task_id="test",
             bash_command="echo $AIRFLOW_HOME",
             ssh_hook=self.hook,
-            env={"AIRFLOW_test": "test"},
+            env=test_env,
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

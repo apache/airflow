@@ -44,13 +44,26 @@
             <h5>Attribute: {{ attr }}</h5>
             {{ value|safe }}
         {% endfor %}
-        <h5>Attributes</h5>
+        <h5>Task Instance Attributes</h5>
         <table class="table table-striped table-bordered">
             <tr>
                 <th>Attribute</th>
                 <th>Value</th>
             </tr>
-            {% for attr, value in attributes %}
+            {% for attr, value in ti_attrs %}
+                <tr>
+                    <td>{{ attr }}</td>
+                    <td class='code'>{{ value }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+        <h5>Task Attributes</h5>
+        <table class="table table-striped table-bordered">
+            <tr>
+                <th>Attribute</th>
+                <th>Value</th>
+            </tr>
+            {% for attr, value in task_attrs %}
                 <tr>
                     <td>{{ attr }}</td>
                     <td class='code'>{{ value }}</td>

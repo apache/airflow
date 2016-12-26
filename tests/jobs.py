@@ -32,7 +32,8 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-
+from airflow.utils.dag_processing import SimpleDagBag
+from mock import patch
 from tests.executor.test_executor import TestExecutor
 
 from airflow import configuration
@@ -701,6 +702,102 @@ class SchedulerJobTest(unittest.TestCase):
         new_dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(new_dr)
 
+    def test_scheduler_max_active_runs_respected_after_clear(self):
+        """
+        Test if _process_task_instances only schedules ti's up to max_active_runs
+        (related to issue AIRFLOW-137)
+        """
+        dag = DAG(
+            dag_id='test_scheduler_max_active_runs_respected_after_clear',
+            start_date=DEFAULT_DATE)
+        dag.max_active_runs = 3
+
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        # First create up to 3 dagruns in RUNNING state.
+        scheduler.create_dag_run(dag)
+
+        # Reduce max_active_runs to 1
+        dag.max_active_runs = 1
+
+        queue = mock.Mock()
+        # and schedule them in, so we can check how many
+        # tasks are put on the queue (should be one, not 3)
+        scheduler._process_task_instances(dag, queue=queue)
+
+        queue.append.assert_called_with(
+            (dag.dag_id, dag_task1.task_id, DEFAULT_DATE)
+        )
+
+    @patch.object(TI, 'pool_full')
+    def test_scheduler_verify_pool_full(self, mock_pool_full):
+        """
+        Test task instances not queued when pool is full
+        """
+        mock_pool_full.return_value = False
+
+        dag = DAG(
+            dag_id='test_scheduler_verify_pool_full',
+            start_date=DEFAULT_DATE)
+
+        DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow',
+            pool='test_scheduler_verify_pool_full')
+
+        session = settings.Session()
+        pool = Pool(pool='test_scheduler_verify_pool_full', slots=1)
+        session.add(pool)
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.is_paused = False
+        session.merge(orm_dag)
+        session.commit()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        # Create 2 dagruns, which will create 2 task instances.
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertEquals(dr.execution_date, DEFAULT_DATE)
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        queue = []
+        scheduler._process_task_instances(dag, queue=queue)
+        self.assertEquals(len(queue), 2)
+        dagbag = SimpleDagBag([dag])
+
+        # Recreated part of the scheduler here, to kick off tasks -> executor
+        for ti_key in queue:
+            task = dag.get_task(ti_key[1])
+            ti = models.TaskInstance(task, ti_key[2])
+            # Task starts out in the scheduled state. All tasks in the
+            # scheduled state will be sent to the executor
+            ti.state = State.SCHEDULED
+
+            # Also save this task instance to the DB.
+            session.merge(ti)
+            session.commit()
+
+        scheduler._execute_task_instances(dagbag,
+                                          (State.SCHEDULED,
+                                           State.UP_FOR_RETRY))
+
+        self.assertEquals(len(scheduler.executor.queued_tasks), 1)
+
     def test_scheduler_auto_align(self):
         """
         Test if the schedule_interval will be auto aligned with the start_date
@@ -851,3 +948,57 @@ class SchedulerJobTest(unittest.TestCase):
         session = settings.Session()
         self.assertEqual(
             len(session.query(TI).filter(TI.dag_id == dag_id).all()), 1)
+
+    def test_dag_get_active_runs(self):
+        """
+        Test to check that a DAG returns it's active runs
+        """
+
+        now = datetime.datetime.now()
+        six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
+
+        START_DATE = six_hours_ago_to_the_hour
+        DAG_NAME1 = 'get_active_runs_test'
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date': START_DATE
+
+        }
+        dag1 = DAG(DAG_NAME1,
+                   schedule_interval='* * * * *',
+                   max_active_runs=1,
+                   default_args=default_args
+                   )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag1)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag1)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag1)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag1.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag1.clear()
+
+        dr = scheduler.create_dag_run(dag1)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
+        execution_date = dr.execution_date
+
+        running_dates = dag1.get_active_runs()
+
+        try:
+            running_date = running_dates[0]
+        except:
+            running_date = 'Except'
+
+        self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')

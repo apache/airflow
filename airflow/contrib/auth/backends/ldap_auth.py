@@ -75,7 +75,12 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
         LOG.warn("Unable to find group for %s %s", search_base, search_filter)
     else:
         for resp in conn.response:
-            if 'attributes' in resp and resp['attributes'].get(user_name_attr)[0] == username:
+            if (
+                'attributes' in resp and (
+                    resp['attributes'].get(user_name_attr)[0] == username or
+                    resp['attributes'].get(user_name_attr) == username
+                )
+            ):
                 return True
     return False
 

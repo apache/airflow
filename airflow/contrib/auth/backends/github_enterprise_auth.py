@@ -138,13 +138,21 @@ class GHEAuthBackend(object):
 
     def ghe_team_check(self, username, ghe_token):
         try:
-            teams = [team.strip()
-                     for team in
-                     get_config_param('allowed_teams').split(',')]
+            # the response from ghe returns the id of the team as an integer
+            try:
+                allowed_teams = [int(team.strip())
+                                 for team in
+                                 get_config_param('allowed_teams').split(',')]
+            except ValueError:
+                # this is to deprecate using the string name for a team
+                raise ValueError('it appears that you are using the string name for a team, '
+                                 'please use the id number instead')
+
         except AirflowConfigException:
             # No allowed teams defined, let anyone in GHE in.
             return True
 
+        # https://developer.github.com/v3/orgs/teams/#list-user-teams
         resp = self.ghe_oauth.get(self.ghe_api_route('/user/teams'),
                                   token=(ghe_token, ''))
 
@@ -154,14 +162,16 @@ class GHEAuthBackend(object):
                     resp.status if resp else 'None'))
 
         for team in resp.data:
-            # team json object has a slug cased team name field aptly named
-            # 'slug'
-            if team['slug'] in teams:
+            # mylons: previously this line used to be if team['slug'] in teams
+            # however, teams are part of organizations. organizations are unique,
+            # but teams are not therefore 'slug' for a team is not necessarily unique.
+            # use id instead
+            if team['id'] in allowed_teams:
                 return True
 
         _log.debug('Denying access for user "%s", not a member of "%s"',
                    username,
-                   str(teams))
+                   str(allowed_teams))
 
         return False
 

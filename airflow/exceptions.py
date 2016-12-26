@@ -20,6 +20,10 @@ class AirflowException(Exception):
     pass
 
 
+class AirflowConfigException(AirflowException):
+    pass
+    
+
 class AirflowSensorTimeout(AirflowException):
     pass
 

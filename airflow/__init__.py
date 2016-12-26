@@ -82,4 +82,5 @@ from airflow import contrib
 
 operators._integrate_plugins()
 hooks._integrate_plugins()
+executors._integrate_plugins()
 macros._integrate_plugins()

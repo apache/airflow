@@ -321,7 +321,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.logger.info("Finding 'running' jobs without a recent heartbeat")
         TI = TaskInstance
         secs = (
-            configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
         limit_dttm = datetime.now() - timedelta(seconds=secs)
         self.logger.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
@@ -512,6 +512,30 @@ class Connection(Base):
     is_encrypted = Column(Boolean, unique=False, default=False)
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
+
+    _types = [
+        ('fs', 'File (path)'),
+        ('ftp', 'FTP',),
+        ('google_cloud_platform', 'Google Cloud Platform'),
+        ('hdfs', 'HDFS',),
+        ('http', 'HTTP',),
+        ('hive_cli', 'Hive Client Wrapper',),
+        ('hive_metastore', 'Hive Metastore Thrift',),
+        ('hiveserver2', 'Hive Server 2 Thrift',),
+        ('jdbc', 'Jdbc Connection',),
+        ('mysql', 'MySQL',),
+        ('postgres', 'Postgres',),
+        ('oracle', 'Oracle',),
+        ('vertica', 'Vertica',),
+        ('presto', 'Presto',),
+        ('s3', 'S3',),
+        ('samba', 'Samba',),
+        ('sqlite', 'Sqlite',),
+        ('ssh', 'SSH',),
+        ('cloudant', 'IBM Cloudant',),
+        ('mssql', 'Microsoft SQL Server'),
+        ('mesos_framework-id', 'Mesos Framework ID'),
+    ]
 
     def __init__(
             self, conn_id=None, conn_type=None,
@@ -729,6 +753,7 @@ class TaskInstance(Base):
         self.unixname = getpass.getuser()
         if state:
             self.state = state
+        self.hostname = ''
         self.init_on_load()
 
     @reconstructor
@@ -930,6 +955,7 @@ class TaskInstance(Base):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+            self.hostname = ti.hostname
         else:
             self.state = None
 
@@ -1111,8 +1137,7 @@ class TaskInstance(Base):
         """
         dr = session.query(DagRun).filter(
             DagRun.dag_id == self.dag_id,
-            DagRun.execution_date == self.execution_date,
-            DagRun.start_date == self.start_date
+            DagRun.execution_date == self.execution_date
         ).first()
 
         return dr
@@ -1171,6 +1196,7 @@ class TaskInstance(Base):
                 dep_context=queue_dep_context,
                 session=session,
                 verbose=True):
+            session.commit()
             return
 
         self.clear_xcom_data()
@@ -1206,9 +1232,18 @@ class TaskInstance(Base):
                 logging.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
+                msg = "Queuing into pool {}".format(self.pool)
+                logging.info(msg)
                 session.merge(self)
-                session.commit()
-                logging.info("Queuing into pool {}".format(self.pool))
+            session.commit()
+            return
+
+        # Another worker might have started running this task instance while
+        # the current worker process was blocked on refresh_from_db
+        if self.state == State.RUNNING:
+            msg = "Task Instance already running {}".format(self)
+            logging.warn(msg)
+            session.commit()
             return
 
         # print status message
@@ -2140,8 +2175,9 @@ class BaseOperator(object):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if (content and isinstance(content, six.string_types) and
-                    any([content.endswith(ext) for ext in self.template_ext])):
+            if content is not None and \
+                    isinstance(content, six.string_types) and \
+                    any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
@@ -2447,6 +2483,8 @@ class DAG(BaseDag, LoggingMixin):
 
     :param dag_id: The id of the DAG
     :type dag_id: string
+    :param description: The description for the DAG to e.g. be shown on the webserver
+    :type description: string
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
         execution_date to figure out the next schedule
@@ -2500,6 +2538,7 @@ class DAG(BaseDag, LoggingMixin):
 
     def __init__(
             self, dag_id,
+            description='',
             schedule_interval=timedelta(days=1),
             start_date=None, end_date=None,
             full_filepath=None,
@@ -2531,6 +2570,7 @@ class DAG(BaseDag, LoggingMixin):
         self._concurrency = concurrency
         self._pickle_id = None
 
+        self._description = description
         self.task_dict = dict()
         self.start_date = start_date
         self.end_date = end_date
@@ -2646,17 +2686,22 @@ class DAG(BaseDag, LoggingMixin):
         return dttm
 
     @provide_session
-    def get_last_dagrun(self, session=None):
+    def get_last_dagrun(self, session=None, include_externally_triggered=False):
         """
         Returns the last dag run for this dag, None if there was none.
         Last dag run can be any type of run eg. scheduled or backfilled.
         Overriden DagRuns are ignored
         """
         DR = DagRun
-        last = session.query(DR).filter(
+        qry = session.query(DR).filter(
             DR.dag_id == self.dag_id,
-            DR.external_trigger == False
-        ).order_by(DR.execution_date.desc()).first()
+        )
+        if not include_externally_triggered:
+            qry = qry.filter(DR.external_trigger.is_(False))
+
+        qry = qry.order_by(DR.execution_date.desc())
+
+        last = qry.first()
 
         return last
 
@@ -2683,6 +2728,10 @@ class DAG(BaseDag, LoggingMixin):
     @concurrency.setter
     def concurrency(self, value):
         self._concurrency = value
+
+    @property
+    def description(self):
+        return self._description
 
     @property
     def pickle_id(self):
@@ -2757,6 +2806,27 @@ class DAG(BaseDag, LoggingMixin):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    @provide_session
+    def get_active_runs(self, session=None):
+        """
+        Returns a list of "running" tasks
+        :param session:
+        :return: List of execution dates
+        """
+        runs = (
+           session.query(DagRun)
+           .filter(
+           DagRun.dag_id == self.dag_id,
+           DagRun.state == State.RUNNING)
+           .order_by(DagRun.execution_date)
+           .all())
+
+        active_dates = []
+        for run in runs:
+            active_dates.append(run.execution_date)
+
+        return active_dates
 
     @property
     def latest_execution_date(self):
@@ -3332,6 +3402,36 @@ class Variable(Base):
                        descriptor=property(cls.get_val, cls.set_val))
 
     @classmethod
+    def setdefault(cls, key, default, deserialize_json=False):
+        """
+        Like a Python builtin dict object, setdefault returns the current value
+        for a key, and if it isn't there, stores the default value and returns it.
+
+        :param key: Dict key for this Variable
+        :type key: String
+        :param: default: Default value to set and return if the variable
+        isn't already in the DB
+        :type: default: Mixed
+        :param: deserialize_json: Store this as a JSON encoded value in the DB
+         and un-encode it when retrieving a value
+        :return: Mixed
+        """
+        default_sentinel = object()
+        obj = Variable.get(key, default_var=default_sentinel, deserialize_json=False)
+        if obj is default_sentinel:
+            if default is not None:
+                Variable.set(key, default, serialize_json=deserialize_json)
+                return default
+            else:
+                raise ValueError('Default Value must be set')
+        else:
+            if deserialize_json:
+                return json.loads(obj.val)
+            else:
+                return obj.val
+
+
+    @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
         obj = session.query(cls).filter(cls.key == key).first()
@@ -3339,7 +3439,7 @@ class Variable(Base):
             if default_var is not None:
                 return default_var
             else:
-                raise ValueError('Variable {} does not exist'.format(key))
+                raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
                 return json.loads(obj.val)
@@ -3376,6 +3476,10 @@ class XCom(Base):
     # source information
     task_id = Column(String(ID_LEN), nullable=False)
     dag_id = Column(String(ID_LEN), nullable=False)
+
+    __table_args__ = (
+        Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
+    )
 
     def __repr__(self):
         return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
@@ -3616,14 +3720,16 @@ class DagRun(Base):
         """
         DR = DagRun
 
+        exec_date = func.cast(self.execution_date, DateTime)
+
         dr = session.query(DR).filter(
             DR.dag_id == self.dag_id,
-            DR.execution_date == self.execution_date,
+            func.cast(DR.execution_date, DateTime) == exec_date,
             DR.run_id == self.run_id
-        ).first()
-        if dr:
-            self.id = dr.id
-            self.state = dr.state
+        ).one()
+
+        self.id = dr.id
+        self.state = dr.state
 
     @staticmethod
     @provide_session
@@ -3907,7 +4013,8 @@ class Pool(Base):
         Returns the number of slots open at the moment
         """
         used_slots = self.used_slots(session=session)
-        return self.slots - used_slots
+        queued_slots = self.queued_slots(session=session)
+        return self.slots - used_slots - queued_slots
 
 
 class SlaMiss(Base):

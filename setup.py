@@ -109,6 +109,7 @@ celery = [
     'flower>=0.7.3'
 ]
 crypto = ['cryptography>=0.9.3']
+datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
@@ -138,6 +139,7 @@ mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.6']
+salesforce = ['simple-salesforce>=0.72']
 s3 = [
     'boto>=2.36.0',
     'filechunkio>=1.6',
@@ -147,9 +149,11 @@ slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = ['pykerberos>=1.1.8',
+kerberos = ['pykerberos>=1.1.13',
+            'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8']
+            'snakebite[kerberos]>=2.7.8',
+            'kerberos>=1.2.5']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -159,7 +163,17 @@ qds = ['qds-sdk>=1.9.0']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
-devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira', 'moto']
+devel = [
+    'click',
+    'freezegun',
+    'jira',
+    'lxml>=3.3.4',
+    'mock',
+    'moto',
+    'nose',
+    'nose-ignore-docstring==0.2',
+    'nose-parameterized',
+]
 devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
@@ -181,16 +195,18 @@ def do_setup():
             'alembic>=0.8.3, <0.9',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.10.1, <0.11',
+            'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
+            'flask-swagger==0.2.13',
             'flask-wtf==0.12',
-            'funcsigs>=0.4, <1',
+            'funcsigs>=1.0.2, <1.1',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <3.0',
+            'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
             'psutil>=4.2.0, <5.0.0',
@@ -204,7 +220,6 @@ def do_setup():
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2, <0.10',
             'zope.deprecation>=4.0, <5.0',
-	    'lxml==3.6.0',
         ],
         extras_require={
             'all': devel_all,
@@ -213,11 +228,13 @@ def do_setup():
             'celery': celery,
             'cloudant': cloudant,
             'crypto': crypto,
+            'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
             'hdfs': hdfs,
@@ -233,7 +250,7 @@ def do_setup():
             'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
-            'emr': emr,
+            'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
             'statsd': statsd,

@@ -15,3 +15,4 @@ This product includes Underscore.js (http://underscorejs.org - MIT license), Cop
 This product includes FooTable (http://fooplugins.com/plugins/footable-jquery/ - MIT license), Copyright 2013 Steven Usher & Brad Vincent.
 This product includes dagre (https://github.com/cpettitt/dagre - MIT license), Copyright (c) 2012-2014 Chris Pettitt.
 This product includes d3js (https://d3js.org/ - https://github.com/mbostock/d3/blob/master/LICENSE), Copyright (c) 2010-2016, Michael Bostock.
+This product includes flask-kerberos (https://github.com/mkomitee/flask-kerberos - BSD License), Copyright (c) 2013, Michael Komitee

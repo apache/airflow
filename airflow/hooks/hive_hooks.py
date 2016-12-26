@@ -269,6 +269,71 @@ class HiveCliHook(BaseHook):
                 else:
                     logging.info("SUCCESS")
 
+    def load_df(
+            self,
+            df,
+            table,
+            create=True,
+            recreate=False,
+            field_dict=None,
+            delimiter=',',
+            encoding='utf8',
+            pandas_kwargs=None, **kwargs):
+        """
+        Loads a pandas DataFrame into hive.
+
+        Hive data types will be inferred if not passed but column names will
+        not be sanitized.
+
+        :param table: target Hive table, use dot notation to target a
+            specific database
+        :type table: str
+        :param create: whether to create the table if it doesn't exist
+        :type create: bool
+        :param recreate: whether to drop and recreate the table at every
+            execution
+        :type recreate: bool
+        :param field_dict: mapping from column name to hive data type
+        :type field_dict: dict
+        :param encoding: string encoding to use when writing DataFrame to file
+        :type encoding: str
+        :param pandas_kwargs: passed to DataFrame.to_csv
+        :type pandas_kwargs: dict
+        :param kwargs: passed to self.load_file
+        """
+
+        def _infer_field_types_from_df(df):
+            DTYPE_KIND_HIVE_TYPE = {
+                'b': 'BOOLEAN',  # boolean
+                'i': 'BIGINT',   # signed integer
+                'u': 'BIGINT',   # unsigned integer
+                'f': 'DOUBLE',   # floating-point
+                'c': 'STRING',   # complex floating-point
+                'O': 'STRING',   # object
+                'S': 'STRING',   # (byte-)string
+                'U': 'STRING',   # Unicode
+                'V': 'STRING'    # void
+            }
+
+            return dict((col, DTYPE_KIND_HIVE_TYPE[dtype.kind]) for col, dtype in df.dtypes.iteritems())
+
+        if pandas_kwargs is None:
+            pandas_kwargs = {}
+
+        with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
+            with NamedTemporaryFile(dir=tmp_dir) as f:
+
+                if field_dict is None and (create or recreate):
+                    field_dict = _infer_field_types_from_df(df)
+
+                df.to_csv(f, sep=delimiter, **pandas_kwargs)
+
+                return self.load_file(filepath=f.name,
+                                      table=table,
+                                      delimiter=delimiter,
+                                      field_dict=field_dict,
+                                      **kwargs)
+
     def load_file(
             self,
             filepath,
@@ -307,6 +372,8 @@ class HiveCliHook(BaseHook):
         if recreate:
             hql += "DROP TABLE IF EXISTS {table};\n"
         if create or recreate:
+            if field_dict is None:
+                raise ValueError("Must provide a field dict when creating a table")
             fields = ",\n    ".join(
                 [k + ' ' + v for k, v in field_dict.items()])
             hql += "CREATE TABLE IF NOT EXISTS {table} (\n{fields})\n"
@@ -573,7 +640,7 @@ class HiveServer2Hook(BaseHook):
     def __init__(self, hiveserver2_conn_id='hiveserver2_default'):
         self.hiveserver2_conn_id = hiveserver2_conn_id
 
-    def get_conn(self):
+    def get_conn(self, schema=None):
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'PLAIN')
         kerberos_service_name = None
@@ -594,11 +661,11 @@ class HiveServer2Hook(BaseHook):
             auth_mechanism=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
             user=db.login,
-            database=db.schema or 'default')
+            database=schema or db.schema or 'default')
 
     def get_results(self, hql, schema='default', arraysize=1000):
         from impala.error import ProgrammingError
-        with self.get_conn() as conn:
+        with self.get_conn(schema) as conn:
             if isinstance(hql, basestring):
                 hql = [hql]
             results = {
@@ -633,7 +700,7 @@ class HiveServer2Hook(BaseHook):
             output_header=True,
             fetch_size=1000):
         schema = schema or 'default'
-        with self.get_conn() as conn:
+        with self.get_conn(schema) as conn:
             with conn.cursor() as cur:
                 logging.info("Running query: " + hql)
                 cur.execute(hql)

@@ -29,6 +29,7 @@ class QuboleOperator(BaseOperator):
         :tags: array of tags to be assigned with the command
         :cluster_label: cluster label on which the command will be executed
         :name: name to be given to command
+        :notify: whether to send email on command completion or not (default is False)
 
         **Arguments specific to command types**
 
@@ -100,8 +101,9 @@ class QuboleOperator(BaseOperator):
     .. note:: Following fields are template-supported : ``query``, ``script_location``,
         ``sub_command``, ``script``, ``files``, ``archives``, ``program``, ``cmdline``,
         ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``,
-        ``tags``, ``name``, ``parameters``. You can also use ``.txt`` files for template
-        driven use cases.
+        ``tags``, ``name``, ``parameters``, ``dbtap_id``, ``hive_table``, ``db_table``,
+        ``split_column``, ``db_update_keys``, ``export_dir``, ``partition_spec``. You
+        can also use ``.txt`` files for template driven use cases.
 
     .. note:: In QuboleOperator there is a default handler for task failures and retries,
         which generally kills the command running at QDS for the corresponding task
@@ -111,7 +113,9 @@ class QuboleOperator(BaseOperator):
 
     template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
                        'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
-                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters')
+                       'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
+                       'dbtap_id', 'hive_table', 'db_table', 'split_column',
+                       'db_update_keys', 'export_dir', 'partition_spec')
     template_ext = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'

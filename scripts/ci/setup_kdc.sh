@@ -13,32 +13,40 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-MINIKDC_VERSION=2.7.1
-MINIKDC_HOME=/tmp/minikdc
-MINIKDC_CACHE=${CACHE}/minikdc
-# Setup MiniKDC environment
-mkdir -p ${MINIKDC_HOME}
-mkdir -p ${MINIKDC_CACHE}
+cat /etc/hosts
 
-URL=http://search.maven.org/remotecontent?filepath=org/apache/ivy/ivy/2.3.0/ivy-2.3.0.jar
-echo "Downloading ivy"
-curl -z ${MINIKDC_CACHE}/ivy.jar -o ${MINIKDC_CACHE}/ivy.jar -L ${URL}
+FQDN=`hostname`
 
-if [ $? != 0 ]; then
-    echo "Failed to download ivy"
-    exit 1
-fi
+echo "hostname: ${FQDN}"
 
-echo "Getting minikdc dependencies"
-java -jar ${MINIKDC_CACHE}/ivy.jar -dependency org.apache.hadoop hadoop-minikdc ${MINIKDC_VERSION} \
-           -cache ${MINIKDC_CACHE} \
-           -retrieve "${MINIKDC_CACHE}/lib/[artifact]-[revision](-[classifier]).[ext]"
+ADMIN="admin"
+PASS="airflow"
 
-if [ $? != 0 ]; then
-    echo "Failed to download dependencies for minikdc"
-    exit 1
-fi
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-cp -r ${MINIKDC_CACHE}/* ${MINIKDC_HOME}/
+cp ${DIR}/kdc.conf /etc/krb5kdc/kdc.conf
 
-mkdir -p ${MINIKDC_HOME}/work
+ln -sf /dev/urandom /dev/random
+
+cp ${DIR}/kadm5.acl /etc/krb5kdc/kadm5.acl
+
+cp ${DIR}/krb5.conf /etc/krb5.conf
+
+# create admin
+echo -e "${PASS}\n${PASS}" | kdb5_util create -s
+
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc ${ADMIN}/admin"
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow"
+echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow/${FQDN}"
+kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow"
+kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow/${FQDN}"
+
+service krb5-kdc restart
+
+# make sure the keytab is readable to anyone
+chmod 664 ${KRB5_KTNAME}
+
+# don't do a kinit here as this happens under super user privileges
+# on travis
+# kinit -kt ${KRB5_KTNAME} airflow
+

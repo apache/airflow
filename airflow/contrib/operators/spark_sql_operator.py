@@ -43,6 +43,10 @@ class SparkSqlOperator(BaseOperator):
     :param yarn_queue: The YARN queue to submit to (Default: "default")
     :type yarn_queue: str
     """
+
+    template_fields = ["_sql"]
+    template_ext = [".sql", ".hql"]
+
     @apply_defaults
     def __init__(self,
                  sql,

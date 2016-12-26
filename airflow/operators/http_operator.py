@@ -57,7 +57,12 @@ class SimpleHttpOperator(BaseOperator):
                  headers=None,
                  response_check=None,
                  extra_options=None,
+                 xcom_push=False,
                  http_conn_id='http_default', *args, **kwargs):
+        """
+        If xcom_push is True, response of an HTTP request will also
+        be pushed to an XCom.
+        """
         super(SimpleHttpOperator, self).__init__(*args, **kwargs)
         self.http_conn_id = http_conn_id
         self.method = method
@@ -66,6 +71,7 @@ class SimpleHttpOperator(BaseOperator):
         self.data = data or {}
         self.response_check = response_check
         self.extra_options = extra_options or {}
+        self.xcom_push_flag = xcom_push
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
@@ -77,3 +83,5 @@ class SimpleHttpOperator(BaseOperator):
         if self.response_check:
             if not self.response_check(response):
                 raise AirflowException("Response check returned False.")
+        if self.xcom_push_flag:
+            return response.text

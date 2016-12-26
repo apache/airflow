@@ -17,7 +17,6 @@ from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
 from airflow.ti_deps.deps.exec_date_after_start_date_dep import ExecDateAfterStartDateDep
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
-from airflow.ti_deps.deps.pool_has_space_dep import PoolHasSpaceDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
@@ -98,8 +97,7 @@ QUEUE_DEPS = MIN_EXEC_DEPS | {
 # Dependencies that need to be met for a given task instance to be able to get run by an
 # executor. This class just extends QueueContext by adding dependencies for resources.
 RUN_DEPS = QUEUE_DEPS | {
-    DagTISlotsAvailableDep(),
-    PoolHasSpaceDep(),
+    DagTISlotsAvailableDep()
 }
 
 # TODO(aoen): SCHEDULER_DEPS is not coupled to actual execution in any way and

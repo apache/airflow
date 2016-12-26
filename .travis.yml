@@ -10,10 +10,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-sudo: false
+#
+sudo: true
+dist: trusty
 language: python
-jdk: oraclejdk7
+jdk:
+  - oraclejdk8
 services:
   - mysql
   - postgresql
@@ -23,6 +25,14 @@ addons:
       - slapd
       - ldap-utils
       - openssh-server
+      - mysql-server-5.6
+      - mysql-client-core-5.6
+      - mysql-client-5.6
+      - krb5-user
+      - krb5-kdc
+      - krb5-admin-server
+      - oracle-java8-installer
+      - python-selinux
   postgresql: "9.2"
 python:
   - "2.7"
@@ -30,6 +40,11 @@ python:
 env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
+    - KRB5_CONFIG=/etc/krb5.conf
+    - KRB5_KTNAME=/etc/airflow.keytab
+    # Travis on google cloud engine has a global /etc/boto.cfg that
+    # does not work with python 3
+    - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
     - TOX_ENV=py27-cdh-airflow_backend_mysql
     - TOX_ENV=py27-cdh-airflow_backend_sqlite
@@ -78,6 +93,7 @@ before_install:
   - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*
+  - jdk_switcher use oraclejdk8
 install:
   - pip install --upgrade pip
   - pip install tox

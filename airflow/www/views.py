@@ -61,7 +61,7 @@ from airflow import models
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
-from airflow.models import XCom
+from airflow.models import XCom, DagRun
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
 from airflow.models import BaseOperator
@@ -75,6 +75,7 @@ from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils import logging as log_utils
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -511,6 +512,7 @@ class Airflow(BaseView):
 
         LastDagRun = (
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
+            .filter(DagRun.state != State.RUNNING)
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
@@ -621,23 +623,6 @@ class Airflow(BaseView):
             hostname=socket.getfqdn(),
             nukular=ascii_.nukular,
             info=traceback.format_exc()), 500
-
-    @expose('/sandbox')
-    @login_required
-    def sandbox(self):
-        title = "Sandbox Suggested Configuration"
-        cfg_loc = conf.AIRFLOW_CONFIG + '.sandbox'
-        f = open(cfg_loc, 'r')
-        config = f.read()
-        f.close()
-        code_html = Markup(highlight(
-            config,
-            lexers.IniLexer(),  # Lexer call
-            HtmlFormatter(noclasses=True))
-        )
-        return self.render(
-            'airflow/code.html',
-            code_html=code_html, title=title, subtitle=cfg_loc)
 
     @expose('/noaccess')
     def noaccess(self):
@@ -758,7 +743,13 @@ class Airflow(BaseView):
                 log += "*** Fetching here: {url}\n".format(**locals())
                 try:
                     import requests
-                    response = requests.get(url)
+                    timeout = None  # No timeout
+                    try:
+                        timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    except (AirflowConfigException, ValueError):
+                        pass
+
+                    response = requests.get(url, timeout=timeout)
                     response.raise_for_status()
                     log += '\n' + response.text
                     log_loaded = True
@@ -823,13 +814,20 @@ class Airflow(BaseView):
         ti = TI(task=task, execution_date=dttm)
         ti.refresh_from_db()
 
-        attributes = []
+        ti_attrs = []
+        for attr_name in dir(ti):
+            if not attr_name.startswith('_'):
+                attr = getattr(ti, attr_name)
+                if type(attr) != type(self.task):
+                    ti_attrs.append((attr_name, str(attr)))
+
+        task_attrs = []
         for attr_name in dir(task):
             if not attr_name.startswith('_'):
                 attr = getattr(task, attr_name)
                 if type(attr) != type(self.task) and \
                                 attr_name not in attr_renderer:
-                    attributes.append((attr_name, str(attr)))
+                    task_attrs.append((attr_name, str(attr)))
 
         # Color coding the special attributes that are code
         special_attrs_rendered = {}
@@ -859,7 +857,8 @@ class Airflow(BaseView):
         title = "Task Instance Details"
         return self.render(
             'airflow/task.html',
-            attributes=attributes,
+            task_attrs=task_attrs,
+            ti_attrs=ti_attrs,
             failed_dep_reasons=failed_dep_reasons or no_failed_deps_result,
             task_id=task_id,
             execution_date=execution_date,
@@ -963,6 +962,42 @@ class Airflow(BaseView):
             "it should start any moment now.".format(ti))
         return redirect(origin)
 
+    @expose('/trigger')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def trigger(self):
+        dag_id = request.args.get('dag_id')
+        origin = request.args.get('origin') or "/admin/"
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag:
+            flash("Cannot find dag {}".format(dag_id))
+            return redirect(origin)
+
+        execution_date = datetime.now()
+        run_id = "manual__{0}".format(execution_date.isoformat())
+
+        dr = DagRun.find(dag_id=dag_id, run_id=run_id)
+        if dr:
+            flash("This run_id {} already exists".format(run_id))
+            return redirect(origin)
+
+        run_conf = {}
+
+        dag.create_dagrun(
+            run_id=run_id,
+            execution_date=execution_date,
+            state=State.RUNNING,
+            conf=run_conf,
+            external_trigger=True
+        )
+
+        flash(
+            "Triggered {}, "
+            "it should start any moment now.".format(dag_id))
+        return redirect(origin)
+
     @expose('/clear')
     @login_required
     @wwwutils.action_logging
@@ -1060,7 +1095,7 @@ class Airflow(BaseView):
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
         recursive = request.args.get('recursive') == "true"
-        MAX_PERIODS = 1000
+        MAX_PERIODS = 5000
 
         # Flagging tasks as successful
         session = settings.Session()
@@ -1205,10 +1240,11 @@ class Airflow(BaseView):
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
+        dates = sorted(list(dag_runs.keys()))
+        max_date = max(dates) if dates else None
+
         tis = dag.get_task_instances(
                 session, start_date=min_date, end_date=base_date)
-        dates = sorted(list({ti.execution_date for ti in tis}))
-        max_date = max([ti.execution_date for ti in tis]) if dates else None
         task_instances = {}
         for ti in tis:
             tid = alchemy_to_dict(ti)
@@ -1686,13 +1722,14 @@ class Airflow(BaseView):
 
         tasks = []
         for ti in tis:
+            end_date = ti.end_date if ti.end_date else datetime.now()
             tasks.append({
                 'startDate': wwwutils.epoch(ti.start_date),
-                'endDate': wwwutils.epoch(ti.end_date or datetime.now()),
+                'endDate': wwwutils.epoch(end_date),
                 'isoStart': ti.start_date.isoformat()[:-4],
-                'isoEnd': ti.end_date.isoformat()[:-4],
+                'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
-                'duration': "{}".format(ti.end_date - ti.start_date)[:-4],
+                'duration': "{}".format(end_date - ti.start_date)[:-4],
                 'status': ti.state,
                 'executionDate': ti.execution_date.isoformat(),
             })
@@ -1786,8 +1823,19 @@ class HomeView(AdminIndexView):
         do_filter = FILTER_BY_OWNER and (not current_user.is_superuser())
         owner_mode = conf.get('webserver', 'OWNER_MODE').strip().lower()
 
-        # read orm_dags from the db
+        hide_paused_dags_by_default = conf.getboolean('webserver',
+                                                      'hide_paused_dags_by_default')
+        show_paused_arg = request.args.get('showPaused', 'None')
+        if show_paused_arg.strip().lower() == 'false':
+            hide_paused = True
 
+        elif show_paused_arg.strip().lower() == 'true':
+            hide_paused = False
+
+        else:
+            hide_paused = hide_paused_dags_by_default
+
+        # read orm_dags from the db
         qry = session.query(DM)
         qry_fltr = []
 
@@ -1806,7 +1854,12 @@ class HomeView(AdminIndexView):
                 ~DM.is_subdag, DM.is_active
             ).all()
 
-        orm_dags = {dag.dag_id: dag for dag in qry_fltr}
+        # optionally filter out "paused" dags
+        if hide_paused:
+            orm_dags = {dag.dag_id: dag for dag in qry_fltr if not dag.is_paused}
+
+        else:
+            orm_dags = {dag.dag_id: dag for dag in qry_fltr}
 
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
@@ -1818,7 +1871,14 @@ class HomeView(AdminIndexView):
         session.close()
 
         # get a list of all non-subdag dags visible to everyone
-        unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if not dag.parent_dag]
+        # optionally filter out "paused" dags
+        if hide_paused:
+            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
+                                         not dag.parent_dag and not dag.is_paused]
+
+        else:
+            unfiltered_webserver_dags = [dag for dag in dagbag.dags.values() if
+                                         not dag.parent_dag]
 
         # optionally filter to get only dags that the user should see
         if do_filter and owner_mode == 'ldapgroup':
@@ -1846,6 +1906,7 @@ class HomeView(AdminIndexView):
             'airflow/dags.html',
             webserver_dags=webserver_dags,
             orm_dags=orm_dags,
+            hide_paused=hide_paused,
             all_dag_ids=all_dag_ids)
 
 
@@ -2102,7 +2163,7 @@ class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
 # admin.add_view(mv)
 
 
-class VariableView(wwwutils.LoginMixin, AirflowModelView):
+class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "Variable"
     verbose_name_plural = "Variables"
     list_template = 'airflow/variable_list.html'
@@ -2159,6 +2220,27 @@ class VariableView(wwwutils.LoginMixin, AirflowModelView):
     def on_form_prefill(self, form, id):
         if should_hide_value_for_key(form.key.data):
             form.val.data = '*' * 8
+
+
+class XComView(wwwutils.LoginMixin, AirflowModelView):
+    verbose_name = "XCom"
+    verbose_name_plural = "XComs"
+    page_size = 20
+
+    form_columns = (
+        'key',
+        'value',
+        'execution_date',
+        'task_id',
+        'dag_id',
+    )
+
+    form_extra_fields = {
+        'value': StringField('Value'),
+    }
+
+    column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
 
 
 class JobModelView(ModelViewOnly):
@@ -2422,29 +2504,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     }
     form_choices = {
-        'conn_type': [
-            ('fs', 'File (path)'),
-            ('ftp', 'FTP',),
-            ('google_cloud_platform', 'Google Cloud Platform'),
-            ('hdfs', 'HDFS',),
-            ('http', 'HTTP',),
-            ('hive_cli', 'Hive Client Wrapper',),
-            ('hive_metastore', 'Hive Metastore Thrift',),
-            ('hiveserver2', 'Hive Server 2 Thrift',),
-            ('jdbc', 'Jdbc Connection',),
-            ('mysql', 'MySQL',),
-            ('postgres', 'Postgres',),
-            ('oracle', 'Oracle',),
-            ('vertica', 'Vertica',),
-            ('presto', 'Presto',),
-            ('s3', 'S3',),
-            ('samba', 'Samba',),
-            ('sqlite', 'Sqlite',),
-            ('ssh', 'SSH',),
-            ('cloudant', 'IBM Cloudant',),
-            ('mssql', 'Microsoft SQL Server'),
-            ('mesos_framework-id', 'Mesos Framework ID'),
-        ]
+        'conn_type': models.Connection._types
     }
 
     def on_model_change(self, form, model, is_created):
@@ -2533,10 +2593,15 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
         if conf.getboolean("webserver", "expose_config"):
             with open(conf.AIRFLOW_CONFIG, 'r') as f:
                 config = f.read()
+            table = [(section, key, value, source)
+                     for section, parameters in conf.as_dict(True, True).items()
+                     for key, (value, source) in parameters.items()]
+
         else:
             config = (
                 "# You Airflow administrator chose not to expose the "
                 "configuration, most likely for security reasons.")
+            table = None
         if raw:
             return Response(
                 response=config,
@@ -2549,9 +2614,10 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
                 HtmlFormatter(noclasses=True))
             )
             return self.render(
-                'airflow/code.html',
+                'airflow/config.html',
                 pre_subtitle=settings.HEADER + "  v" + airflow.__version__,
-                code_html=code_html, title=title, subtitle=subtitle)
+                code_html=code_html, title=title, subtitle=subtitle,
+                table=table)
 
 
 class DagModelView(wwwutils.SuperUserMixin, ModelView):

@@ -36,6 +36,7 @@ from time import sleep
 
 import psutil
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
 
@@ -53,6 +54,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           SimpleDagBag,
                                           list_py_file_paths)
 from airflow.utils.email import send_email
+from airflow.utils.helpers import kill_descendant_processes
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
 
@@ -793,8 +795,12 @@ class SchedulerJob(BaseJob):
             self.logger.info("Examining DAG run {}".format(run))
             # don't consider runs that are executed in the future
             if run.execution_date > datetime.now():
-                self.logging.error("Execution date is in future: {}"
-                                   .format(run.execution_date))
+                self.logger.error("Execution date is in future: {}"
+                                  .format(run.execution_date))
+                continue
+
+            if len(active_dag_runs) >= dag.max_active_runs:
+                self.logger.info("Active dag runs > max_active_run.")
                 continue
 
             # skip backfill dagruns for now as long as they are not really scheduled
@@ -1324,7 +1330,7 @@ class SchedulerJob(BaseJob):
 
         # For the execute duration, parse and schedule DAGs
         while (datetime.now() - execute_start_time).total_seconds() < \
-                self.run_duration:
+                self.run_duration or self.run_duration < 0:
             self.logger.debug("Starting Loop...")
             loop_start_time = time.time()
 
@@ -1679,34 +1685,48 @@ class BackfillJob(BaseJob):
         for run in active_dag_runs:
             logging.info("Checking run {}".format(run))
             run_count = run_count + 1
-            # this needs a fresh session sometimes tis get detached
-            # can be more finegrained (excluding success or skipped)
-            for ti in run.get_task_instances():
-                tasks_to_run[ti.key] = ti
+
+            def get_task_instances_for_dag_run(dag_run):
+                # this needs a fresh session sometimes tis get detached
+                # can be more finegrained (excluding success or skipped)
+                tasks = {}
+                for ti in dag_run.get_task_instances():
+                    tasks[ti.key] = ti
+                return tasks
 
             # Triggering what is ready to get triggered
-            while tasks_to_run and not deadlocked:
+            while not deadlocked:
+                tasks_to_run = get_task_instances_for_dag_run(run)
+                self.logger.debug("Clearing out not_ready list")
                 not_ready.clear()
 
                 for key, ti in list(tasks_to_run.items()):
-                    ti.refresh_from_db(session=session, lock_for_update=True)
                     task = self.dag.get_task(ti.task_id)
                     ti.task = task
 
                     ignore_depends_on_past = (
                         self.ignore_first_depends_on_past and
                         ti.execution_date == (start_date or ti.start_date))
+                    self.logger.debug("Task instance to run {} state {}"
+                                      .format(ti, ti.state))
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
                         succeeded.add(key)
+                        self.logger.debug("Task instance {} succeeded. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
-                        session.commit()
                         continue
                     elif ti.state == State.SKIPPED:
                         skipped.add(key)
+                        self.logger.debug("Task instance {} skipped. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
-                        session.commit()
+                        continue
+                    elif ti.state == State.FAILED:
+                        self.logger.error("Task instance {} failed".format(ti))
+                        failed.add(key)
+                        tasks_to_run.pop(key)
                         continue
 
                     backfill_context = DepContext(
@@ -1735,6 +1755,7 @@ class BackfillJob(BaseJob):
 
                     # Mark the task as not ready to run
                     elif ti.state in (State.NONE, State.UPSTREAM_FAILED):
+                        self.logger.debug('Adding {} to not_ready'.format(ti))
                         not_ready.add(key)
 
                     session.commit()
@@ -1745,12 +1766,17 @@ class BackfillJob(BaseJob):
                 # If the set of tasks that aren't ready ever equals the set of
                 # tasks to run, then the backfill is deadlocked
                 if not_ready and not_ready == set(tasks_to_run):
+                    self.logger.warn("Deadlock discovered for tasks_to_run={}"
+                                     .format(tasks_to_run.values()))
                     deadlocked.update(tasks_to_run.values())
                     tasks_to_run.clear()
 
                 # Reacting to events
                 for key, state in list(executor.get_event_buffer().items()):
                     if key not in tasks_to_run:
+                        self.logger.warn("{} state {} not in tasks_to_run={}"
+                                         .format(key, state,
+                                                 tasks_to_run.values()))
                         continue
                     ti = tasks_to_run[key]
                     ti.refresh_from_db()
@@ -1762,20 +1788,20 @@ class BackfillJob(BaseJob):
                         if ti.state == State.RUNNING:
                             msg = (
                                 'Executor reports that task instance {} failed '
-                                'although the task says it is running.'.format(key))
+                                'although the task says it is running.'.format(ti))
                             self.logger.error(msg)
                             ti.handle_failure(msg)
                             tasks_to_run.pop(key)
 
                         # task reports skipped
                         elif ti.state == State.SKIPPED:
-                            self.logger.error("Skipping {} ".format(key))
+                            self.logger.error("Skipping {} ".format(ti))
                             skipped.add(key)
                             tasks_to_run.pop(key)
 
                         # anything else is a failure
                         else:
-                            self.logger.error("Task instance {} failed".format(key))
+                            self.logger.error("Task instance {} failed".format(ti))
                             failed.add(key)
                             tasks_to_run.pop(key)
 
@@ -1785,19 +1811,19 @@ class BackfillJob(BaseJob):
                         # task reports success
                         if ti.state == State.SUCCESS:
                             self.logger.info(
-                                'Task instance {} succeeded'.format(key))
+                                'Task instance {} succeeded'.format(ti))
                             succeeded.add(key)
                             tasks_to_run.pop(key)
 
                         # task reports failure
                         elif ti.state == State.FAILED:
-                            self.logger.error("Task instance {} failed".format(key))
+                            self.logger.error("Task instance {} failed".format(ti))
                             failed.add(key)
                             tasks_to_run.pop(key)
 
                         # task reports skipped
                         elif ti.state == State.SKIPPED:
-                            self.logger.info("Task instance {} skipped".format(key))
+                            self.logger.info("Task instance {} skipped".format(ti))
                             skipped.add(key)
                             tasks_to_run.pop(key)
 
@@ -1853,6 +1879,12 @@ class BackfillJob(BaseJob):
                     len(active_dag_runs))
                 self.logger.info(msg)
 
+                self.logger.debug("Finished dag run loop iteration. "
+                                  "Remaining tasks {}"
+                                  .format(tasks_to_run.values()))
+                if len(tasks_to_run) == 0:
+                    break
+
             # update dag run state
             run.update_state(session=session)
             if run.dag.is_paused:
@@ -1889,7 +1921,11 @@ class BackfillJob(BaseJob):
                     'backfill with the option '
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
                     'the command line.')
-            err += ' These tasks were unable to run:\n{}\n'.format(deadlocked)
+            err += ' These tasks have succeeded:\n{}\n'.format(succeeded)
+            err += ' These tasks have started:\n{}\n'.format(started)
+            err += ' These tasks have failed:\n{}\n'.format(failed)
+            err += ' These tasks are skipped:\n{}\n'.format(skipped)
+            err += ' These tasks are deadlocked:\n{}\n'.format(deadlocked)
         if err:
             raise AirflowException(err)
 
@@ -1933,22 +1969,54 @@ class LocalTaskJob(BaseJob):
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
-        command = self.task_instance.command(
-            raw=True,
-            ignore_all_deps=self.ignore_all_deps,
-            ignore_depends_on_past=self.ignore_depends_on_past,
-            ignore_task_deps=self.ignore_task_deps,
-            ignore_ti_state=self.ignore_ti_state,
-            pickle_id=self.pickle_id,
-            mark_success=self.mark_success,
-            job_id=self.id,
-            pool=self.pool,
-        )
-        self.process = subprocess.Popen(['bash', '-c', command])
-        return_code = None
-        while return_code is None:
-            self.heartbeat()
-            return_code = self.process.poll()
+        try:
+            command = self.task_instance.command(
+                raw=True,
+                ignore_all_deps = self.ignore_all_deps,
+                ignore_depends_on_past = self.ignore_depends_on_past,
+                ignore_task_deps = self.ignore_task_deps,
+                ignore_ti_state = self.ignore_ti_state,
+                pickle_id = self.pickle_id,
+                mark_success = self.mark_success,
+                job_id = self.id,
+                pool = self.pool
+            )
+            self.process = subprocess.Popen(['bash', '-c', command])
+            self.logger.info("Subprocess PID is {}".format(self.process.pid))
+
+            last_heartbeat_time = time.time()
+            heartbeat_time_limit = conf.getint('scheduler',
+                                               'scheduler_zombie_task_threshold')
+            while True:
+                # Monitor the task to see if it's done
+                return_code = self.process.poll()
+                if return_code is not None:
+                    return
+
+                # Periodically heartbeat so that the scheduler doesn't think this
+                # is a zombie
+                try:
+                    self.heartbeat()
+                    last_heartbeat_time = time.time()
+                except OperationalError:
+                    Stats.incr('local_task_job_heartbeat_failure', 1, 1)
+                    self.logger.exception("Exception while trying to heartbeat! "
+                                          "Sleeping for {}s".format(self.heartrate))
+                    time.sleep(self.heartrate)
+
+                # If it's been too long since we've heartbeat, then it's possible that
+                # the scheduler rescheduled this task, so kill launched processes.
+                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                if time_since_last_heartbeat > heartbeat_time_limit:
+                    Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
+                    self.logger.error("Heartbeat time limited exceeded!")
+                    raise AirflowException("Time since last heartbeat({:.2f}s) "
+                                           "exceeded limit ({}s)."
+                                           .format(time_since_last_heartbeat,
+                                                   heartbeat_time_limit))
+        finally:
+            # Kill processes that were left running
+            kill_descendant_processes(self.logger)
 
     def on_kill(self):
         self.process.terminate()

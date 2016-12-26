@@ -41,6 +41,8 @@
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
+                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                </th>
                 <th style="padding-left: 5px;">DAG Runs
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
@@ -71,7 +73,7 @@
                 <!-- Column 3: Name -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id) }}">
+                    <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id) }}" title="{{ dag.description }}">
                         {{ dag_id }}
                     </a>
                     {% else %}
@@ -102,14 +104,36 @@
                     <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
-                <!-- Column 7: Dag Runs -->
+                <!-- Column 7: Last Run -->
+                <td class="text-nowrap">
+                    {% if dag %}
+                        {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+                        {% if last_run %}
+                            <a href="{{ url_for('airflow.graph', dag_id=last_run.dag_id, execution_date=last_run.execution_date ) }}">
+                                {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
+                            </a> <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Start Date: {{last_run.start_date.strftime('%Y-%m-%d %H:%M')}}"></span>
+                        {% else %}
+                            <!--No DAG Runs-->
+                        {% endif %}
+                    {% else %}
+                        <!--No DAG Runs-->
+                    {% endif %}
+                </td>
+
+                <!-- Column 8: Dag Runs -->
                 <td style="padding:0px; width:120px; height:10px;">
                     <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
                 </td>
 
-                <!-- Column 8: Links -->
+                <!-- Column 9: Links -->
                 <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
                 {% if dag %}
+
+                <!-- Trigger Dag -->
+                <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}"
+                   onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')" title="Trigger Dag">
+                    <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
+                </a>
 
                 <!-- Tree -->
                 <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
@@ -162,6 +186,11 @@
         {% endfor %}
         </tbody>
     </table>
+    {% if not hide_paused %}
+    <a href="/admin/?showPaused=False">Hide Paused DAGs</a>
+    {% else %}
+    <a href="/admin/?showPaused=True">Show Paused DAGs</a>
+    {% endif %}
   </div>
 {% endblock %}
 
@@ -171,6 +200,10 @@
   <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
+
+      function confirmTriggerDag(dag_id){
+          return confirm("Are you sure you want to run '"+dag_id+"' now?");
+      }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
         $(v).change (function() {

@@ -33,6 +33,9 @@ if [ "${TRAVIS}" ]; then
 
     ROOTDIR="$(dirname $(dirname $DIR))"
     export AIRFLOW__CORE__DAGS_FOLDER="$ROOTDIR/tests/dags"
+
+    # kdc init happens in setup_kdc.sh
+    kinit -kt ${KRB5_KTNAME} airflow
 fi
 
 echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
