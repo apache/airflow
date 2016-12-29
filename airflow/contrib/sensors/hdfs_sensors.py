@@ -63,3 +63,5 @@ class HdfsSensorFolder(HdfsSensor):
         else:
             logging.info('Poking for filepath {self.filepath} to a non empty directory'.format(**locals()))
             return bool(result) and result[0]['file_type'] == 'f'
+
+
