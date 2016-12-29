@@ -51,6 +51,12 @@ except ImportError:
     print("Could not find the click library. Run 'sudo pip install click' to install.")
     sys.exit(-1)
 
+try:
+    import keyring
+except ImportError:
+    print("Could not find the keyring library. Run 'sudo pip install keyring' to install.")
+    sys.exit(-1)
+
 # Location of your Airflow git development area
 AIRFLOW_GIT_LOCATION = os.environ.get(
     "AIRFLOW_GIT",
@@ -76,6 +82,7 @@ JIRA_API_BASE = "https://issues.apache.org/jira"
 BRANCH_PREFIX = "PR_TOOL"
 
 TMP_CREDENTIALS = {}
+
 
 class PRToolError(Exception):
     pass
@@ -460,6 +467,10 @@ def fix_version_from_branch(branch, versions):
             return versions[-1]
 
 
+def register(username, password):
+    """ Use this function to register a JIRA account in your OS' keyring """
+    keyring.set_password('airflow-pr', username, password)
+
 def validate_jira_id(jira_id):
     if not jira_id:
         return
@@ -542,13 +553,19 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         click.echo(
             'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
         TMP_CREDENTIALS['JIRA_USERNAME'] = JIRA_USERNAME
+    if JIRA_USERNAME and not JIRA_PASSWORD:
+        JIRA_PASSWORD = keyring.get_password("airflow-pr", JIRA_USERNAME)
+        if JIRA_PASSWORD:
+            click.echo("Obtained password from keyring. To reset remove it there.")
     if not JIRA_PASSWORD:
         JIRA_PASSWORD = click.prompt(
             click.style('Password for Airflow JIRA', fg='blue', bold=True),
             type=str,
             hide_input=True)
-        click.echo(
-            'Set a JIRA_PASSWORD env var to avoid this prompt in the future.')
+        if JIRA_USERNAME and JIRA_PASSWORD:
+            if click.confirm(click.style("Would you like to store your password "
+                                         "in your keyring?", fg='blue', bold=True)):
+                register(JIRA_USERNAME, JIRA_PASSWORD)
         TMP_CREDENTIALS['JIRA_PASSWORD'] = JIRA_PASSWORD
 
     try:
