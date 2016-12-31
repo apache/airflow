@@ -783,10 +783,13 @@ class Airflow(BaseView):
 
         title = "Log"
 
-        return self.render(
-            'airflow/ti_code.html',
-            code=log, dag=dag, title=title, task_id=task_id,
-            execution_date=execution_date, form=form)
+        if (request.args.get('no_render')):
+            return log
+        else:
+            return self.render(
+                'airflow/ti_code.html',
+                code=log, dag=dag, title=title, task_id=task_id,
+                execution_date=execution_date, form=form)
 
     @expose('/task')
     @login_required
@@ -1416,26 +1419,29 @@ class Airflow(BaseView):
         session.close()
         doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') else ''
 
-        return self.render(
-            'airflow/graph.html',
-            dag=dag,
-            form=form,
-            width=request.args.get('width', "100%"),
-            height=request.args.get('height', "800"),
-            execution_date=dttm.isoformat(),
-            state_token=state_token(dr_state),
-            doc_md=doc_md,
-            arrange=arrange,
-            operators=sorted(
-                list(set([op.__class__ for op in dag.tasks])),
-                key=lambda x: x.__name__
-            ),
-            blur=blur,
-            root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
-            tasks=json.dumps(tasks, indent=2),
-            nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2),)
+        if (request.args.get('no_render')):
+	        return json.dumps(task_instances)
+        else:
+            return self.render(
+                'airflow/graph.html',
+                dag=dag,
+                form=form,
+                width=request.args.get('width', "100%"),
+                height=request.args.get('height', "800"),
+                execution_date=dttm.isoformat(),
+                state_token=state_token(dr_state),
+                doc_md=doc_md,
+                arrange=arrange,
+                operators=sorted(
+                    list(set([op.__class__ for op in dag.tasks])),
+                    key=lambda x: x.__name__
+                ),
+                blur=blur,
+                root=root or '',
+                task_instances=json.dumps(task_instances, indent=2),
+                tasks=json.dumps(tasks, indent=2),
+                nodes=json.dumps(nodes, indent=2),
+                edges=json.dumps(edges, indent=2),)
 
     @expose('/duration')
     @login_required
