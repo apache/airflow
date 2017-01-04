@@ -22,6 +22,7 @@ import logging
 import time
 
 from apiclient.discovery import build, HttpError
+from googleapiclient import errors
 from builtins import range
 from pandas.io.gbq import GbqConnector, \
     _parse_data as gbq_parse_data, \
@@ -99,6 +100,32 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
             return concat(dataframe_list, ignore_index=True)
         else:
             return gbq_parse_data(schema, [])
+
+    def table_exists(self, project_id, dataset_id, table_id):
+        """
+        Checks for the existence of a table in Google BigQuery.
+
+        :param project_id: The Google cloud project in which to look for the table. The connection supplied to the hook
+        must provide access to the specified project.
+        :type project_id: string
+        :param dataset_id: The name of the dataset in which to look for the table.
+            storage bucket.
+        :type dataset_id: string
+        :param table_id: The name of the table to check the existence of.
+        :type table_id: string
+        """
+        service = self.get_service()
+        try:
+            service.tables().get(
+                projectId=project_id,
+                datasetId=dataset_id,
+                tableId=table_id
+            ).execute()
+            return True
+        except errors.HttpError as e:
+            if e.resp['status'] == '404':
+                return False
+            raise
 
 
 class BigQueryPandasConnector(GbqConnector):
