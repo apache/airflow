@@ -270,7 +270,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             self,
             partition_names,
             metastore_conn_id='metastore_default',
-            poke_interval=60*3,
+            poke_interval=60 * 3,
             *args,
             **kwargs):
         super(NamedHivePartitionSensor, self).__init__(
@@ -283,9 +283,10 @@ class NamedHivePartitionSensor(BaseSensorOperator):
         self.partition_names = partition_names
         self.next_poke_idx = 0
 
+    @classmethod
     def parse_partition_name(self, partition):
         try:
-            schema, table_partition = partition.split('.')
+            schema, table_partition = partition.split('.', 1)
             table, partition = table_partition.split('/', 1)
             return schema, table, partition
         except ValueError as e:
