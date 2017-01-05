@@ -280,9 +280,10 @@ email_backend = airflow.utils.email.send_email_smtp
 smtp_host = localhost
 smtp_starttls = True
 smtp_ssl = False
-smtp_user = airflow
+# Uncomment and set the user/pass settings if you want to use SMTP AUTH
+# smtp_user = airflow
+# smtp_password = airflow
 smtp_port = 25
-smtp_password = airflow
 smtp_mail_from = airflow@airflow.com
 
 

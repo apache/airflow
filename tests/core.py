@@ -2108,6 +2108,21 @@ class EmailSmtpTest(unittest.TestCase):
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
+    def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
+        configuration.conf.remove_option('smtp', 'SMTP_USER')
+        configuration.conf.remove_option('smtp', 'SMTP_PASSWORD')
+        mock_smtp.return_value = mock.Mock()
+        mock_smtp_ssl.return_value = mock.Mock()
+        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
+        assert not mock_smtp_ssl.called
+        mock_smtp.assert_called_with(
+            configuration.get('smtp', 'SMTP_HOST'),
+            configuration.getint('smtp', 'SMTP_PORT'),
+        )
+        assert not mock_smtp.login.called
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
     def test_send_mime_dryrun(self, mock_smtp, mock_smtp_ssl):
         utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=True)
         assert not mock_smtp.called
