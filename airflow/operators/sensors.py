@@ -22,12 +22,15 @@ from datetime import datetime
 import logging
 from urllib.parse import urlparse
 from time import sleep
+import re
+import sys
 
 import airflow
 from airflow import hooks, settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
 from airflow.models import BaseOperator, TaskInstance
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.hdfs_hook import HDFSHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 
@@ -371,29 +374,77 @@ class HdfsSensor(BaseSensorOperator):
     Waits for a file or folder to land in HDFS
     """
     template_fields = ('filepath',)
-    ui_color = '#4d9de0'
+    ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
     @apply_defaults
     def __init__(
             self,
             filepath,
             hdfs_conn_id='hdfs_default',
+            ignored_ext=['_COPYING_'],
+            ignore_copying=True,
+            file_size=None,
+            hook=HDFSHook,
             *args, **kwargs):
         super(HdfsSensor, self).__init__(*args, **kwargs)
         self.filepath = filepath
         self.hdfs_conn_id = hdfs_conn_id
+        self.file_size = file_size
+        self.ignored_ext = ignored_ext
+        self.ignore_copying = ignore_copying
+        self.hook = hook
+
+    @staticmethod
+    def filter_for_filesize(result, size=None):
+        """
+        Will test the filepath result and test if its size is at least self.filesize
+        :param result: a list of dicts returned by Snakebite ls
+        :param size: the file size in MB a file should be at least to trigger True
+        :return: (bool) depending on the matching criteria
+        """
+        if size:
+            logging.debug('Filtering for file size >= %s in files: %s', size, map(lambda x: x['path'], result))
+            size *= settings.MEGABYTE
+            result = [x for x in result if x['length'] >= size]
+            logging.debug('HdfsSensor.poke: after size filter result is %s', result)
+        return result
+
+    @staticmethod
+    def filter_for_ignored_ext(result, ignored_ext, ignore_copying):
+        """
+        Will filter if instructed to do so the result to remove matching criteria
+        :param result: (list) of dicts returned by Snakebite ls
+        :param ignored_ext: (list) of ignored extentions
+        :param ignore_copying: (bool) shall we ignore ?
+        :return:
+        """
+        if ignore_copying:
+            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            ignored_extentions_regex = re.compile(regex_builder)
+            logging.debug('Filtering result for ignored extentions: %s in files %s', ignored_extentions_regex.pattern,
+                          map(lambda x: x['path'], result))
+            result = [x for x in result if not ignored_extentions_regex.match(x['path'])]
+            logging.debug('HdfsSensor.poke: after ext filter result is %s', result)
+        return result
 
     def poke(self, context):
-        import airflow.hooks.hdfs_hook
-        sb = airflow.hooks.hdfs_hook.HDFSHook(self.hdfs_conn_id).get_conn()
+        sb = self.hook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
-        logging.info(
-            'Poking for file {self.filepath} '.format(**locals()))
+        logging.info('Poking for file {self.filepath} '.format(**locals()))
         try:
-            files = [f for f in sb.ls([self.filepath])]
+            # IMOO it's not right here, as there no raise of any kind.
+            # if the filepath is let's say '/data/mydirectory', it's correct but if it is '/data/mydirectory/*',
+            # it's not correct as the directory exists and sb does not raise any error
+            # here is a quick fix
+            result = [f for f in sb.ls([self.filepath], include_toplevel=False)]
+            logging.debug('HdfsSensor.poke: result is %s', result)
+            result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
+            result = self.filter_for_filesize(result, self.file_size)
+            return bool(result)
         except:
+            e = sys.exc_info()
+            logging.debug("Caught an exception !: %s", str(e))
             return False
-        return True
 
 
 class WebHdfsSensor(BaseSensorOperator):

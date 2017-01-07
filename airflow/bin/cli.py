@@ -355,6 +355,7 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
 
     ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
 
     if args.local:
         print("Logging into: " + filename)

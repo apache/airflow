@@ -179,3 +179,36 @@ def round_time(dt, delta, start_date=datetime.min):
     # in the special case when start_date > dt the search for upper will
     # immediately stop for upper == 1 which results in lower = upper // 2 = 0
     # and this function returns start_date.
+
+
+def infer_time_unit(time_seconds_arr):
+    """
+    Determine the most appropriate time unit for an array of time durations
+    specified in seconds.
+
+    e.g. 5400 seconds => 'minutes', 36000 seconds => 'hours'
+    """
+    if len(time_seconds_arr) == 0:
+        return 'hours'
+    max_time_seconds = max(time_seconds_arr)
+    if max_time_seconds <= 60*2:
+        return 'seconds'
+    elif max_time_seconds <= 60*60*2:
+        return 'minutes'
+    elif max_time_seconds <= 24*60*60*2:
+        return 'hours'
+    else:
+        return 'days'
+
+
+def scale_time_units(time_seconds_arr, unit):
+    """
+    Convert an array of time durations in seconds to the specified time unit.
+    """
+    if unit == 'minutes':
+        return list(map(lambda x: x*1.0/60, time_seconds_arr))
+    elif unit == 'hours':
+        return list(map(lambda x: x*1.0/(60*60), time_seconds_arr))
+    elif unit == 'days':
+        return list(map(lambda x: x*1.0/(24*60*60), time_seconds_arr))
+    return time_seconds_arr

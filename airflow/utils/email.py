@@ -31,6 +31,7 @@ from email.mime.application import MIMEApplication
 from email.utils import formatdate
 
 from airflow import configuration
+from airflow.exceptions import AirflowConfigException
 
 
 def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
@@ -75,11 +76,12 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
     for fname in files or []:
         basename = os.path.basename(fname)
         with open(fname, "rb") as f:
-            msg.attach(MIMEApplication(
+            part = MIMEApplication(
                 f.read(),
-                Content_Disposition='attachment; filename="%s"' % basename,
                 Name=basename
-            ))
+            )
+            part['Content-Disposition'] = 'attachment; filename="%s"' % basename
+            msg.attach(part)
 
     send_MIME_email(SMTP_MAIL_FROM, recipients, msg, dryrun)
 
@@ -87,10 +89,16 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     SMTP_HOST = configuration.get('smtp', 'SMTP_HOST')
     SMTP_PORT = configuration.getint('smtp', 'SMTP_PORT')
-    SMTP_USER = configuration.get('smtp', 'SMTP_USER')
-    SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
     SMTP_STARTTLS = configuration.getboolean('smtp', 'SMTP_STARTTLS')
     SMTP_SSL = configuration.getboolean('smtp', 'SMTP_SSL')
+    SMTP_USER = None
+    SMTP_PASSWORD = None
+
+    try:
+        SMTP_USER = configuration.get('smtp', 'SMTP_USER')
+        SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
+    except AirflowConfigException:
+        logging.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
         s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)

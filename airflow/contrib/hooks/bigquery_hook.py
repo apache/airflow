@@ -18,20 +18,20 @@ This module contains a BigQuery Hook, as well as a very basic PEP 249
 implementation for BigQuery.
 """
 
-from builtins import range
-from past.builtins import basestring
-
 import logging
 import time
 
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.hooks.dbapi_hook import DbApiHook
 from apiclient.discovery import build, HttpError
+from builtins import range
 from pandas.io.gbq import GbqConnector, \
     _parse_data as gbq_parse_data, \
     _check_google_client_version as gbq_check_google_client_version, \
     _test_google_api_imports as gbq_test_google_api_imports
 from pandas.tools.merge import concat
+from past.builtins import basestring
+
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.hooks.dbapi_hook import DbApiHook
 
 logging.getLogger("bigquery").setLevel(logging.INFO)
 
@@ -418,14 +418,15 @@ class BigQueryBaseCursor(object):
                     'datasetId': destination_dataset,
                     'tableId': destination_table,
                 },
-                'schema': {
-                    'fields': schema_fields
-                },
                 'sourceFormat': source_format,
                 'sourceUris': source_uris,
                 'writeDisposition': write_disposition,
             }
         }
+        if schema_fields:
+            configuration['load']['schema'] = {
+                'fields': schema_fields
+            }
 
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:

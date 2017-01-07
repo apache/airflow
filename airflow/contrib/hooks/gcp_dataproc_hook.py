@@ -99,6 +99,9 @@ class _DataProcJobBuilder:
     def add_query(self, query):
         self.job["job"][self.job_type]["queryList"] = {'queries': [query]}
 
+    def add_query_uri(self, query_uri):
+        self.job["job"][self.job_type]["queryFileUri"] = query_uri
+
     def add_jar_file_uris(self, jars):
         if jars is not None:
             self.job["job"][self.job_type]["jarFileUris"] = jars

@@ -76,6 +76,15 @@ class BaseExecutor(LoggingMixin):
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
 
+    def has_task(self, task_instance):
+        """
+        Checks if a task is either queued or running in this executor
+        :param task_instance: TaskInstance
+        :return: True if the task is known to this executor
+        """
+        if task_instance.key in self.queued_tasks or task_instance.key in self.running:
+            return True
+
     def sync(self):
         """
         Sync will get called periodically by the heartbeat method.

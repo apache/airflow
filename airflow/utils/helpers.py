@@ -205,10 +205,16 @@ def kill_descendant_processes(logger, pids_to_kill=None):
     logger.warn("Terminating descendant processes of {} PID: {}"
                 .format(this_process.cmdline(),
                         this_process.pid))
-    for descendant in descendant_processes:
-        logger.warn("Terminating descendant process {} PID: {}"
-                    .format(descendant.cmdline(), descendant.pid))
-        descendant.terminate()
+
+    temp_processes = descendant_processes[:]
+    for descendant in temp_processes:
+        try:
+            logger.warn("Terminating descendant process {} PID: {}"
+                        .format(descendant.cmdline(), descendant.pid))
+            descendant.terminate()
+        except psutil.NoSuchProcess:
+            descendant_processes.remove(descendant)
+
     logger.warn("Waiting up to {}s for processes to exit..."
                 .format(TIME_TO_WAIT_AFTER_SIGTERM))
     try:
@@ -228,8 +234,11 @@ def kill_descendant_processes(logger, pids_to_kill=None):
         for descendant in descendant_processes:
             logger.warn("Killing descendant process {} PID: {}"
                         .format(descendant.cmdline(), descendant.pid))
-            descendant.kill()
-            descendant.wait()
+            try:
+                descendant.kill()
+                descendant.wait()
+            except psutil.NoSuchProcess:
+                pass
         logger.warn("Killed all descendant processes of {} PID: {}"
                     .format(this_process.cmdline(),
                             this_process.pid))

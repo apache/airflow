@@ -100,7 +100,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
 
     user_groups = conn.response[0]["attributes"]["memberOf"]
 
-    regex = re.compile("cn=([^,]*).*")
+    regex = re.compile("cn=([^,]*).*", re.IGNORECASE)
     groups_list = []
     try:
         groups_list = [regex.search(i).group(1) for i in user_groups]

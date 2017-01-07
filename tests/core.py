@@ -21,6 +21,7 @@ import re
 import unittest
 import multiprocessing
 import mock
+from numpy.testing import assert_array_almost_equal
 import tempfile
 from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
@@ -54,7 +55,7 @@ from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils.state import State
-from airflow.utils.dates import round_time
+from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
@@ -809,6 +810,33 @@ class CoreTest(unittest.TestCase):
         rt6 = round_time(datetime(2015, 9, 13, 0, 0), timedelta(1), datetime(
             2015, 9, 14, 0, 0))
         assert rt6 == datetime(2015, 9, 14, 0, 0)
+
+    def test_infer_time_unit(self):
+
+        assert infer_time_unit([130, 5400, 10]) == 'minutes'
+
+        assert infer_time_unit([110, 50, 10, 100]) == 'seconds'
+
+        assert infer_time_unit([100000, 50000, 10000, 20000]) == 'hours'
+
+        assert infer_time_unit([200000, 100000]) == 'days'
+
+    def test_scale_time_units(self):
+
+        # use assert_almost_equal from numpy.testing since we are comparing
+        # floating point arrays
+        arr1 = scale_time_units([130, 5400, 10], 'minutes')
+        assert_array_almost_equal(arr1, [2.167, 90.0, 0.167], decimal=3)
+
+        arr2 = scale_time_units([110, 50, 10, 100], 'seconds')
+        assert_array_almost_equal(arr2, [110.0, 50.0, 10.0, 100.0], decimal=3)
+
+        arr3 = scale_time_units([100000, 50000, 10000, 20000], 'hours')
+        assert_array_almost_equal(arr3, [27.778, 13.889, 2.778, 5.556],
+                                  decimal=3)
+
+        arr4 = scale_time_units([200000, 100000], 'days')
+        assert_array_almost_equal(arr4, [2.315, 1.157], decimal=3)
 
     def test_duplicate_dependencies(self):
 
@@ -1773,6 +1801,7 @@ class HttpOpSensorTest(unittest.TestCase):
             dag=self.dag)
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+
 class FakeWebHDFSHook(object):
     def __init__(self, conn_id):
         self.conn_id = conn_id
@@ -1782,6 +1811,78 @@ class FakeWebHDFSHook(object):
 
     def check_for_path(self, hdfs_path):
         return hdfs_path
+
+
+class FakeSnakeBiteClientException(Exception):
+    pass
+
+
+class FakeSnakeBiteClient(object):
+
+    def __init__(self):
+        self.started = True
+
+    def ls(self, path, include_toplevel=False):
+        """
+        the fake snakebite client
+        :param path: the array of path to test
+        :param include_toplevel: to return the toplevel directory info
+        :return: a list for path for the matching queries
+        """
+        if path[0] == '/datadirectory/empty_directory' and not include_toplevel:
+            return []
+        elif path[0] == '/datadirectory/datafile':
+            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/datafile'}]
+        elif path[0] == '/datadirectory/empty_directory' and include_toplevel:
+            return [
+                {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
+                 'modification_time': 1481132141540, 'length': 0, 'blocksize': 0, 'owner': u'hdfs',
+                 'path': '/datadirectory/empty_directory'}]
+        elif path[0] == '/datadirectory/not_empty_directory':
+            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
+        elif path[0] == '/datadirectory/not_empty_directory' and include_toplevel:
+            return [
+                {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
+                 'modification_time': 1481132141540, 'length': 0, 'blocksize': 0, 'owner': u'hdfs',
+                 'path': '/datadirectory/empty_directory'},
+                {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                 'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
+                 'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
+        elif path[0] == '/datadirectory/not_existing_file_or_directory':
+            raise FakeSnakeBiteClientException
+        elif path[0] == '/datadirectory/regex_dir':
+            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test1file'},
+                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test2file'},
+                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test3file'},
+                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/copying_file_1.txt._COPYING_'},
+                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/copying_file_3.txt.sftp'}
+                    ]
+        else:
+            raise FakeSnakeBiteClientException
+
+
+class FakeHDFSHook(object):
+    def __init__(self, conn_id=None):
+        self.conn_id = conn_id
+
+    def get_conn(self):
+        client = FakeSnakeBiteClient()
+        return client
+
 
 class ConnectionTest(unittest.TestCase):
     def setUp(self):
@@ -1980,6 +2081,8 @@ class EmailSmtpTest(unittest.TestCase):
         assert msg['Subject'] == 'subject'
         assert msg['From'] == configuration.get('smtp', 'SMTP_MAIL_FROM')
         assert len(msg.get_payload()) == 2
+        assert msg.get_payload()[-1].get(u'Content-Disposition') == \
+               u'attachment; filename="' + os.path.basename(attachment.name) + '"'
         mimeapp = MIMEApplication('attachment')
         assert msg.get_payload()[-1].get_payload() == mimeapp.get_payload()
 
@@ -1997,6 +2100,8 @@ class EmailSmtpTest(unittest.TestCase):
         assert msg['Subject'] == 'subject'
         assert msg['From'] == configuration.get('smtp', 'SMTP_MAIL_FROM')
         assert len(msg.get_payload()) == 2
+        assert msg.get_payload()[-1].get(u'Content-Disposition') == \
+               u'attachment; filename="' + os.path.basename(attachment.name) + '"'
         mimeapp = MIMEApplication('attachment')
         assert msg.get_payload()[-1].get_payload() == mimeapp.get_payload()
 
@@ -2032,6 +2137,21 @@ class EmailSmtpTest(unittest.TestCase):
             configuration.get('smtp', 'SMTP_HOST'),
             configuration.getint('smtp', 'SMTP_PORT'),
         )
+
+    @mock.patch('smtplib.SMTP_SSL')
+    @mock.patch('smtplib.SMTP')
+    def test_send_mime_noauth(self, mock_smtp, mock_smtp_ssl):
+        configuration.conf.remove_option('smtp', 'SMTP_USER')
+        configuration.conf.remove_option('smtp', 'SMTP_PASSWORD')
+        mock_smtp.return_value = mock.Mock()
+        mock_smtp_ssl.return_value = mock.Mock()
+        utils.email.send_MIME_email('from', 'to', MIMEMultipart(), dryrun=False)
+        assert not mock_smtp_ssl.called
+        mock_smtp.assert_called_with(
+            configuration.get('smtp', 'SMTP_HOST'),
+            configuration.getint('smtp', 'SMTP_PORT'),
+        )
+        assert not mock_smtp.login.called
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
