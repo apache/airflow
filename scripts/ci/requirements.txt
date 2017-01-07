@@ -26,7 +26,7 @@ hive-thrift-py
 impyla
 ipython
 jaydebeapi
-jinja2
+jinja2<2.9.0
 ldap3
 lxml
 markdown
