@@ -17,6 +17,14 @@ Previously, new DAGs would be scheduled immediately. To retain the old behavior,
 dags_are_paused_at_creation = False
 ```
 
+#### Google Cloud Operator and Hook alignment
+
+All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection type for all kinds of Google Cloud Operators.
+
+If you experience problems connecting with your operator make sure you set the connection type "Google Cloud Platform".
+
+Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service account.
+
 ### Deprecated Features
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer supported and will be removed entirely in Airflow 2.0
 
