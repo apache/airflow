@@ -356,6 +356,14 @@ child_process_log_directory = /tmp/airflow/scheduler/logs
 # associated task instance as failed and will re-schedule the task.
 scheduler_zombie_task_threshold = 300
 
+# Turn off scheduler catchup by setting this to False.
+# Default behavior is unchanged and
+# Command Line Backfills still work, but the scheduler
+# will not do scheduler catchup if this is False,
+# however it can be set on a per DAG basis in the
+# DAG definition (catchup)
+catchup_by_default = True
+
 # Statsd (https://github.com/etsy/statsd) integration settings
 statsd_on = False
 statsd_host = localhost
@@ -486,6 +494,8 @@ job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
 max_threads = 2
+catchup_by_default = True
+scheduler_zombie_task_threshold = 300
 """
 
 
