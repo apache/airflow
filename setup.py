@@ -178,6 +178,29 @@ devel_minreq = devel + mysql + doc + password + s3
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
 
+builtin_connections = [
+    'cloudant = airflow.connection_types.cloudant_connection_type:CloudantConnectionType',
+    'file = airflow.connection_types.file_connection_type:FileConnectionType',
+    'ftp = airflow.connection_types.ftp_connection_type:FtpConnectionType',
+    'google_cloud = airflow.connection_types.google_cloud_connection_type:GoogleCloudConnectionType'
+    'hdfs = airflow.connection_types.hdfs_connection_type:HdfsConnectionType',
+    'hive_cli = airflow.connection_types.hive_connection_type:HiveCliConnectionType',
+    'hive_metastore = airflow.connection_types.hive_connection_type:HiveMetastoreConnectionType',
+    'hive_server2 = airflow.connection_types.hive_connection_type:HiveServer2ConnectionType',
+    'http = airflow.connection_types.http_connection_type:HttpConnectionType',
+    'jdbc = airflow.connection_types.jdbc_connection_type:JdbcConnectionType',
+    'mesos = airflow.connection_types.mesos_connection_type:MesosConnectionType',
+    'mssql = airflow.connection_types.mssql_connection_type:MsSqlConnectionType',
+    'mysql = airflow.connection_types.mysql_connection_type:MySqlConnectionType',
+    'oracle = airflow.connection_types.oracle_connection_type:OracleConnectionType',
+    'postgres = airflow.connection_types.postgres_connection_type:PostgresConnectionType',
+    'presto = airflow.connection_types.presto_connection_type:PrestoConnectionType',
+    's3 = airflow.connection_types.s3_connection_type:S3ConnectionType',
+    'samba = airflow.connection_types.samba_connection_type:SambaConnectionType',
+    'sqlite = airflow.connection_types.sqlite_connection_type:SqliteConnectionType',
+    'ssh = airflow.connection_types.ssh_connection_type:SshConnectionType',
+    'vertica = airflow.connection_types.vertica_connection_type:VerticaConnectionType',
+]
 
 def do_setup():
     write_version()
@@ -256,6 +279,9 @@ def do_setup():
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
+        },
+        entry_points={
+            'airflow.connections': builtin_connections
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

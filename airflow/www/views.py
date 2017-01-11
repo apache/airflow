@@ -2531,7 +2531,7 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
 
     }
     form_choices = {
-        'conn_type': models.Connection._types
+        'conn_type': models.Connection.get_types()
     }
 
     def on_model_change(self, form, model, is_created):
