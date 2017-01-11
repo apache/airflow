@@ -21,4 +21,4 @@ class FakeDatetime(datetime):
     """
 
     def __new__(cls, *args, **kwargs):
-        return date.__new__(datetime, *args, **kwargs)
+        return datetime.__new__(datetime, *args, **kwargs)
