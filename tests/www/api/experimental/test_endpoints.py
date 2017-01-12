@@ -14,6 +14,7 @@
 import unittest
 
 from datetime import datetime
+from airflow.models import DagBag
 
 import json
 
@@ -59,4 +60,41 @@ class ApiExperimentalTests(unittest.TestCase):
         )
         self.assertEqual(404, response.status_code)
 
+    def test_trigger_dag_for_date(self):
+        url_template = '/api/experimental/dags/{}/dag_runs'
+        dag_id = 'example_bash_operator'
+        now = datetime.now()
+        execution_date = datetime(now.year, now.month, now.day, now.hour + 1)
+        datetime_string = execution_date.isoformat()
+
+        # Test Correct execution
+        response = self.app.post(
+            url_template.format(dag_id),
+            data=json.dumps(dict(execution_date=execution_date.isoformat())),
+            content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code)
+
+        dagbag = DagBag()
+        dag = dagbag.get_dag(dag_id)
+        dag_run = dag.get_dagrun(execution_date)
+        self.assertTrue(dag_run,
+                        'Dag Run not found for execution date {}'
+                        .format(execution_date))
+
+        # Test error for nonexistent dag
+        response = self.app.post(
+            url_template.format('does_not_exist_dag'),
+            data=json.dumps(dict(execution_date=execution_date.isoformat())),
+            content_type="application/json"
+        )
+        self.assertEqual(404, response.status_code)
+
+        # Test error for bad datetime format
+        response = self.app.post(
+            url_template.format(dag_id),
+            data=json.dumps(dict(execution_date='not_a_datetime')),
+            content_type="application/json"
+        )
+        self.assertEqual(400, response.status_code)
 

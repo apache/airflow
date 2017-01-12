@@ -22,17 +22,22 @@ from airflow.www.app import csrf
 from flask import (
     g, Markup, Blueprint, redirect, jsonify, abort, request, current_app, send_file
 )
+from datetime import datetime
+
+_log = logging.getLogger(__name__)
 
 requires_authentication = airflow.api.api_auth.requires_authentication
 
 api_experimental = Blueprint('api_experimental', __name__)
+
 
 @csrf.exempt
 @api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['POST'])
 @requires_authentication
 def trigger_dag(dag_id):
     """
-    Trigger a new dag run for a Dag
+    Trigger a new dag run for a Dag with an execution date of now unless
+    specified in the data.
     """
     data = request.get_json(force=True)
 
@@ -44,16 +49,35 @@ def trigger_dag(dag_id):
     if 'conf' in data:
         conf = data['conf']
 
+    execution_date = None
+    if 'execution_date' in data:
+        execution_date = data['execution_date']
+
+        # Convert string datetime into actual datetime
+        try:
+            execution_date = datetime.strptime(execution_date,
+                                               '%Y-%m-%dT%H:%M:%S')
+        except ValueError:
+            error_message = (
+                'Given execution date, {}, could not be identified '
+                'as a date. Example date format: 2015-11-16T14:34:15'
+                .format(execution_date))
+            _log.info(error_message)
+            response = jsonify({'error': error_message})
+            response.status_code = 400
+
+            return response
+
     try:
-        dr = trigger.trigger_dag(dag_id, run_id, conf)
+        dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date)
     except AirflowException as err:
-        logging.error(err)
+        _log.error(err)
         response = jsonify(error="{}".format(err))
         response.status_code = 404
         return response
 
     if getattr(g, 'user', None):
-        logging.info("User {} created {}".format(g.user, dr))
+        _log.info("User {} created {}".format(g.user, dr))
 
     response = jsonify(message="Created {}".format(dr))
     return response

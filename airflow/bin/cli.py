@@ -182,7 +182,8 @@ def trigger_dag(args):
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
-                                         conf=args.conf)
+                                         conf=args.conf,
+                                         execution_date=args.exec_date)
     except IOError as err:
         logging.error(err)
         raise AirflowException(err)
@@ -1159,6 +1160,9 @@ class CLIFactory(object):
         'conf': Arg(
             ('-c', '--conf'),
             "JSON string that gets pickled into the DagRun's conf attribute"),
+        'exec_date': Arg(
+            ("-e", "--exec_date"), help="The execution date of the DAG",
+            type=parsedate),
         # pool
         'pool_set': Arg(
             ("-s", "--set"),
@@ -1406,7 +1410,7 @@ class CLIFactory(object):
         }, {
             'func': trigger_dag,
             'help': "Trigger a DAG run",
-            'args': ('dag_id', 'subdir', 'run_id', 'conf'),
+            'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
         }, {
             'func': pool,
             'help': "CRUD operations on pools",
