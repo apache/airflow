@@ -1840,10 +1840,6 @@ class FakeSnakeBiteClient(object):
                 {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
                  'modification_time': 1481132141540, 'length': 0, 'blocksize': 0, 'owner': u'hdfs',
                  'path': '/datadirectory/empty_directory'}]
-        elif path[0] == '/datadirectory/not_empty_directory':
-            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
         elif path[0] == '/datadirectory/not_empty_directory' and include_toplevel:
             return [
                 {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
@@ -1852,6 +1848,10 @@ class FakeSnakeBiteClient(object):
                 {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
                  'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
                  'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
+        elif path[0] == '/datadirectory/not_empty_directory':
+            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
+                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
+                     'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
         elif path[0] == '/datadirectory/not_existing_file_or_directory':
             raise FakeSnakeBiteClientException
         elif path[0] == '/datadirectory/regex_dir':
