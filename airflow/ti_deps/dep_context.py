@@ -49,6 +49,8 @@ class DepContext(object):
     :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs (e.g. for
         Backfills)
     :type ignore_depends_on_past: boolean
+    :param ignore_in_retry_period: Ignore the retry period for task instances
+    :type ignore_in_retry_period: boolean
     :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past and
         trigger rule
     :type ignore_task_deps: boolean
@@ -61,12 +63,14 @@ class DepContext(object):
             flag_upstream_failed=False,
             ignore_all_deps=False,
             ignore_depends_on_past=False,
+            ignore_in_retry_period=False,
             ignore_task_deps=False,
             ignore_ti_state=False):
         self.deps = deps or set()
         self.flag_upstream_failed = flag_upstream_failed
         self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
+        self.ignore_in_retry_period = ignore_in_retry_period
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
 

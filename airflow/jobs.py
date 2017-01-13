@@ -898,6 +898,7 @@ class SchedulerJob(BaseJob):
             .query(models.TaskInstance)
             .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
             .filter(models.TaskInstance.state.in_(old_states))
+            .with_for_update()
             .all()
         )
         """:type: list[TaskInstance]"""
@@ -1073,6 +1074,13 @@ class SchedulerJob(BaseJob):
                                  .format(task_instance.key, priority, queue))
 
                 # Set the state to queued
+                task_instance.refresh_from_db(lock_for_update=True, session=session)
+                if task_instance.state not in states:
+                    self.logger.info("Task {} was set to {} outside this scheduler."
+                                     .format(task_instance.key, task_instance.state))
+                    session.commit()
+                    continue
+
                 self.logger.info("Setting state of {} to {}".format(
                     task_instance.key, State.QUEUED))
                 task_instance.state = State.QUEUED
@@ -1416,8 +1424,7 @@ class SchedulerJob(BaseJob):
                                                           State.NONE)
 
                 self._execute_task_instances(simple_dag_bag,
-                                             (State.SCHEDULED,
-                                              State.UP_FOR_RETRY))
+                                             (State.SCHEDULED,))
 
             # Call hearbeats
             self.logger.info("Heartbeating the executor")

@@ -913,7 +913,8 @@ class SchedulerJobTest(unittest.TestCase):
 
         dag = DAG(
             dag_id='test_retry_still_in_executor',
-            start_date=DEFAULT_DATE)
+            start_date=DEFAULT_DATE,
+            schedule_interval="@once")
         dag_task1 = BashOperator(
             task_id='test_retry_handling_op',
             bash_command='exit 1',
@@ -963,11 +964,16 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 1)
 
+        ti.refresh_from_db(lock_for_update=True, session=session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
         # do not schedule
         do_schedule()
         self.assertTrue(executor.has_task(ti))
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti.state, State.SCHEDULED)
 
         # now the executor has cleared and it should be allowed the re-queue
         executor.queued_tasks.clear()
