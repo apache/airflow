@@ -145,6 +145,7 @@ s3 = [
     'filechunkio>=1.6',
 ]
 samba = ['pysmbclient>=0.1.3']
+sftp = ['paramiko>=2.1.1']
 slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
