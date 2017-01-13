@@ -2249,7 +2249,7 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
             form.val.data = '*' * 8
 
 
-class XComView(wwwutils.LoginMixin, AirflowModelView):
+class XComView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "XCom"
     verbose_name_plural = "XComs"
     page_size = 20
