@@ -349,7 +349,7 @@ dag_dir_list_interval = 300
 # How often should stats be printed to the logs
 print_stats_interval = 30
 
-child_process_log_directory = /tmp/airflow/scheduler/logs
+child_process_log_directory = {AIRFLOW_HOME}/logs/scheduler
 
 # Local task jobs periodically heartbeat to the DB. If the job has
 # not heartbeat in this many seconds, the scheduler will mark the
