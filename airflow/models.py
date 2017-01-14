@@ -1027,19 +1027,22 @@ class TaskInstance(Base):
         dag = self.task.dag
         if dag:
             dr = self.get_dagrun(session=session)
+
+            # LEGACY: most likely running from unit tests
             if not dr:
                 # Means that this TI is NOT being run from a DR, but from a catchup
                 previous_scheduled_date = dag.previous_schedule(self.execution_date)
                 if not previous_scheduled_date:
                     return None
-                else:
-                    return TaskInstance(task=self.task, execution_date=previous_scheduled_date)
 
+                return TaskInstance(task=self.task,
+                                    execution_date=previous_scheduled_date)
+
+            dr.dag = dag
             if dag.catchup:
-                last_dagrun = dr.get_previous_scheduled_dagrun(session=session) if dr else None
-
+                last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
             else:
-                last_dagrun = dr.get_previous_dagrun(session=session) if dr else None
+                last_dagrun = dr.get_previous_dagrun(session=session)
 
             if last_dagrun:
                 return last_dagrun.get_task_instance(self.task_id, session=session)
@@ -1066,16 +1069,21 @@ class TaskInstance(Base):
         :type verbose: boolean
         """
         dep_context = dep_context or DepContext()
+        failed = False
         for dep_status in self.get_failed_dep_statuses(
                 dep_context=dep_context,
                 session=session):
+            failed = True
             if verbose:
-                logging.warning(
-                    "Dependencies not met for %s, dependency '%s' FAILED: %s",
-                    self, dep_status.dep_name, dep_status.reason)
+                logging.info("Dependencies not met for {}, dependency '{}' FAILED: {}"
+                             .format(self, dep_status.dep_name, dep_status.reason))
+
+        if failed:
             return False
+
         if verbose:
-            logging.info("Dependencies all met for %s", self)
+            logging.info("Dependencies all met for {}".format(self))
+
         return True
 
     @provide_session
@@ -1089,12 +1097,14 @@ class TaskInstance(Base):
                     self,
                     session,
                     dep_context):
-                if dep_status.passed:
-                    logging.debug("%s dependency '%s' PASSED: %s",
-                                  self,
-                                  dep_status.dep_name,
-                                  dep_status.reason)
-                else:
+
+                logging.debug("{} dependency '{}' PASSED: {}, {}"
+                              .format(self,
+                                      dep_status.dep_name,
+                                      dep_status.passed,
+                                      dep_status.reason))
+
+                if not dep_status.passed:
                     yield dep_status
 
     def __repr__(self):
@@ -3882,13 +3892,11 @@ class DagRun(Base):
     @provide_session
     def get_previous_scheduled_dagrun(self, session=None):
         """The previous, SCHEDULED DagRun, if there is one"""
-
-        if not self.dag:
-            return None
+        dag = self.get_dag()
 
         return session.query(DagRun).filter(
             DagRun.dag_id == self.dag_id,
-            DagRun.execution_date == self.dag.previous_schedule(self.execution_date)
+            DagRun.execution_date == dag.previous_schedule(self.execution_date)
         ).first()
 
     @provide_session
