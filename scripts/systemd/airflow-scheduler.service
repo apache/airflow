@@ -22,7 +22,6 @@ User=airflow
 Group=airflow
 Type=simple
 ExecStart=/bin/airflow scheduler -n ${SCHEDULER_RUNS}
-KillMode=process
 Restart=always
 RestartSec=5s
 

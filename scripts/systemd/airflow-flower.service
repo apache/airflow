@@ -22,9 +22,8 @@ User=airflow
 Group=airflow
 Type=simple
 ExecStart=/bin/airflow flower
-KillMode=process
 Restart=on-failure
-RestartSec=42s
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
