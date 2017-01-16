@@ -335,6 +335,24 @@ all uppercase). Airflow assumes the value returned from the environment
 variable to be in a URI format (e.g.
 ``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
 
+To create a new type of URI format, see ``ConnectionTypes``
+
+
+ConnectionTypes
+===========
+
+To add a new type of connection, just create a python package with a class
+implementing the same methods as ``BaseConnectionType``.
+In your setup.py declare a entry point like so:
+```
+entry_points={
+    'airflow.connections': 'myType = some_module:MyClass'
+},
+```
+And after installing your package (pip, setuptools,...) the connection_type will be
+available in airflow
+
+
 Queues
 ======
 
@@ -831,4 +849,3 @@ do the same, but then it is more to use a virtualenv and pip.
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
-

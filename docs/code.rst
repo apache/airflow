@@ -239,6 +239,15 @@ Community contributed hooks
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 
+Connection Types
+------
+
+
+.. automodule:: airflow.connection_types
+    :show-inheritance:
+    :members: BaseConnectionType
+
+
 Executors
 ---------
 Executors are the mechanism by which task instances get run.
