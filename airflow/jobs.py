@@ -135,6 +135,7 @@ class BaseJob(Base, LoggingMixin):
         pass
 
     def heartbeat_callback(self, session=None):
+        
         pass
 
     def heartbeat(self):

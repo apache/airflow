@@ -107,10 +107,11 @@ class BackfillJobTest(unittest.TestCase):
             DagRun.dag_id=='example_bash_operator'
         ).order_by(DagRun.execution_date).all()
 
-        self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
-        self.assertTrue(drs[0].state == State.SUCCESS)
         self.assertTrue(drs[1].execution_date == DEFAULT_DATE+datetime.timedelta(days=1))
         self.assertTrue(drs[1].state == State.SUCCESS)
+        self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
+        self.assertTrue(drs[0].state == State.SUCCESS)
+
 
         dag.clear()
         session.close()
@@ -121,6 +122,20 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test backfilling example dags
         """
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         # some DAGs really are just examples... but try to make them work!
         skip_dags = [
