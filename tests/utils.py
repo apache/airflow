@@ -22,6 +22,7 @@ import unittest
 
 import airflow.utils.logging
 from airflow import configuration
+from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils.operator_resources import Resources
 
@@ -56,6 +57,17 @@ class LogUtilsTest(unittest.TestCase):
         self.assertEqual(
             glog.parse_gcs_url('gs://bucket/'),
             ('bucket', ''))
+
+
+class LoggingMixinTest(unittest.TestCase):
+    def test(self):
+        class MyLoggingClass(airflow.utils.logging.LoggingMixin):
+            pass
+
+        log_class = MyLoggingClass()
+        self.assertEqual(log_class.logger.name, 'tests.utils.MyLoggingClass')
+        self.assertEqual(log_class.logger.level, settings.LOGGING_LEVEL)
+
 
 class OperatorResourcesTest(unittest.TestCase):
 

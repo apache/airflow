@@ -90,15 +90,30 @@ def sigquit_handler(sig, frame):
     print("\n".join(code))
 
 
-def setup_logging(filename):
-    root = logging.getLogger()
+def setup_file_logging(filename, fmt=settings.SIMPLE_LOG_FORMAT):
     handler = logging.FileHandler(filename)
-    formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
+    formatter = logging.Formatter(fmt)
     handler.setFormatter(formatter)
-    root.addHandler(handler)
-    root.setLevel(settings.LOGGING_LEVEL)
+    handler.setLevel(settings.LOGGING_LEVEL)
 
-    return handler.stream
+    root = logging.getLogger()
+    root.addHandler(handler)
+
+    return handler
+
+
+def setup_stream_logging(
+    fmt=settings.SIMPLE_LOG_FORMAT, level=settings.LOGGING_LEVEL
+):
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter(fmt)
+    handler.setFormatter(formatter)
+    handler.setLevel(level)
+
+    root = logging.getLogger()
+    root.addHandler(handler)
+
+    return handler
 
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
@@ -134,10 +149,7 @@ def get_dag(args):
 
 
 def backfill(args, dag=None):
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
-
+    setup_stream_logging()
     dag = dag or get_dag(args)
 
     if not args.start_date and not args.end_date:
@@ -337,11 +349,7 @@ def run(args, dag=None):
     iso = args.execution_date.isoformat()
     filename = "{directory}/{iso}".format(**locals())
 
-    logging.root.handlers = []
-    logging.basicConfig(
-        filename=filename,
-        level=settings.LOGGING_LEVEL,
-        format=settings.LOG_FORMAT)
+    handler = setup_file_logging(filename, settings.LOG_FORMAT)
 
     if not args.pickle and not dag:
         dag = get_dag(args)
@@ -417,8 +425,8 @@ def run(args, dag=None):
     # don't continue logging to the task's log file. The flush is important
     # because we subsequently read from the log to insert into S3 or Google
     # cloud storage.
-    logging.root.handlers[0].flush()
-    logging.root.handlers = []
+    handler.flush()
+    logging.root.removeHandler(handler)
 
     # store logs remotely
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
@@ -558,9 +566,7 @@ def render(args):
 
 
 def clear(args):
-    logging.basicConfig(
-        level=settings.LOGGING_LEVEL,
-        format=settings.SIMPLE_LOG_FORMAT)
+    setup_stream_logging()
     dag = get_dag(args)
 
     if args.task_regex:
@@ -775,13 +781,13 @@ def scheduler(args):
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
-        handle = setup_logging(log_file)
+        handler = setup_file_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
         ctx = daemon.DaemonContext(
             pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
+            files_preserve=[handler.stream],
             stdout=stdout,
             stderr=stderr,
         )
@@ -834,13 +840,13 @@ def worker(args):
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
-        handle = setup_logging(log_file)
+        handler = setup_file_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
         ctx = daemon.DaemonContext(
             pidfile=TimeoutPIDLockFile(pid, -1),
-            files_preserve=[handle],
+            files_preserve=[handler.stream],
             stdout=stdout,
             stderr=stderr,
         )
@@ -872,8 +878,7 @@ def resetdb(args):
     if args.yes or input(
             "This will drop existing tables if they exist. "
             "Proceed? (y/n)").upper() == "Y":
-        logging.basicConfig(level=settings.LOGGING_LEVEL,
-                            format=settings.SIMPLE_LOG_FORMAT)
+        setup_stream_logging()
         db_utils.resetdb()
     else:
         print("Bail.")

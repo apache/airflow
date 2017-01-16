@@ -23,6 +23,7 @@ import logging
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
+from airflow.settings import LOGGING_LEVEL
 
 
 class LoggingMixin(object):
@@ -35,7 +36,10 @@ class LoggingMixin(object):
         try:
             return self._logger
         except AttributeError:
-            self._logger = logging.root.getChild(self.__class__.__module__ + '.' + self.__class__.__name__)
+            self._logger = logging.root.getChild(
+                self.__class__.__module__ + '.' + self.__class__.__name__
+            )
+            self._logger.setLevel(LOGGING_LEVEL)
             return self._logger
 
 
