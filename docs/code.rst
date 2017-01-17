@@ -91,7 +91,7 @@ Community-contributed Operators
 .. automodule:: airflow.contrib.operators
     :show-inheritance:
     :members:
-        SSHExecuteOperator,
+        SSHOperator,
         VerticaOperator,
         VerticaToHiveTransfer
 

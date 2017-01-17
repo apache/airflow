@@ -159,6 +159,7 @@ mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.7.1']
+ssh = ['paramiko>=2.1.1']
 salesforce = ['simple-salesforce>=0.72']
 s3 = [
     'boto>=2.36.0',
@@ -195,11 +196,12 @@ devel = [
     'nose-ignore-docstring==0.2',
     'nose-timer',
     'parameterized',
-    'rednose'
+    'rednose',
+    'paramiko'
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
+devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh
 
 
 def do_setup():
@@ -283,6 +285,7 @@ def do_setup():
             'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
+            'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,

@@ -63,6 +63,7 @@ oauth2client>=2.0.2,<2.1.0
 pandas
 pandas-gbq
 parameterized
+paramiko>=2.1.1
 psutil>=4.2.0, <5.0.0
 psycopg2
 pydruid

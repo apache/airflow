@@ -115,6 +115,11 @@ If you experience problems connecting with your operator make sure you set the c
 Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service 
 account.
 
+### SSH & SFTP Operator and Hook changes
+  This is backword incompatible change
+  SSH Hook, SSH Operator, SFTP Operator now uses well known & adapted paramiko library instead of previous sub process based command execution
+  ref: [AIRFLOW-756](http://issues.apache.org/jira/browse/AIRFLOW-756) [AIRFLOW-751] (http://issues.apache.org/jira/browse/AIRFLOW-751), [GIT PR](https://github.com/apache/incubator-airflow/pull/1999)
+
 ### Deprecated Features
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer 
 supported and will be removed entirely in Airflow 2.0
