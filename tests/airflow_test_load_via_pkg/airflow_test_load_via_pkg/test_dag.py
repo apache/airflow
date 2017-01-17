@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,7 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-set -o verbose
+from datetime import datetime
 
+from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
-python setup.py test --tox-args="-v -e $TOX_ENV"
+entrypoint_test_dag = DAG(
+    dag_id='entrypoint_test_dag',
+    start_date=datetime(2100, 1, 1)
+)
+
+dag1_task1 = DummyOperator(
+    task_id='dummy',
+    dag=entrypoint_test_dag,
+    owner='airflow')

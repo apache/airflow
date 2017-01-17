@@ -45,6 +45,8 @@ import warnings
 import hashlib
 
 from urllib.parse import urlparse
+from pkg_resources import iter_entry_points
+
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
@@ -82,6 +84,7 @@ Base = declarative_base()
 ID_LEN = 250
 SQL_ALCHEMY_CONN = configuration.get('core', 'SQL_ALCHEMY_CONN')
 DAGS_FOLDER = os.path.expanduser(configuration.get('core', 'DAGS_FOLDER'))
+ENTRYPOINT_GROUP = configuration.get('core', 'ENTRYPOINT_GROUP')
 XCOM_RETURN_KEY = 'return_value'
 
 Stats = settings.Stats
@@ -161,12 +164,16 @@ class DagBag(BaseDagBag, LoggingMixin):
     def __init__(
             self,
             dag_folder=None,
+            entrypoint_group=None,
             executor=DEFAULT_EXECUTOR,
             include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES')):
 
         dag_folder = dag_folder or DAGS_FOLDER
-        self.logger.info("Filling up the DagBag from {}".format(dag_folder))
+        entrypoint_group = entrypoint_group or ENTRYPOINT_GROUP
+        logging.info("Filling up the DagBag from %s and "
+                     "entrypoint group %s", dag_folder, entrypoint_group)
         self.dag_folder = dag_folder
+        self.entrypoint_group = entrypoint_group
         self.dags = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
@@ -179,6 +186,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(dag_folder)
+        self.collect_dags_from_entrypoint_group(entrypoint_group)
 
     def size(self):
         """
@@ -454,6 +462,41 @@ class DagBag(BaseDagBag, LoggingMixin):
             task_num=sum([o.dag_num for o in stats]),
             table=pprinttable(stats),
         )
+
+    def collect_dags_from_entrypoint_group(self, entrypoint_group=None):
+        """
+        Given an entry point group, this method takes all entry points in the group that
+        are DAGs and adds them to the dagbag collection.
+
+        Note that the entry point group will be formatted as '{entrypoint_group}.dags'.
+        """
+        entrypoint_group = entrypoint_group or self.entrypoint_group
+        if entrypoint_group is None:
+            return
+
+        for entry_point in iter_entry_points(group=entrypoint_group + '.dags', name=None):
+            dist = entry_point.dist
+            self.logger.info("Importing package " + dist.project_name)
+            try:
+                self.logger.info("Importing DAG from module " + entry_point.module_name)
+                dag = entry_point.load()
+                logging.info(dag)
+                if isinstance(dag, DAG):
+                    # Get the file defining the dag to display it in the ui
+                    module_path = sys.modules[entry_point.module_name].__file__
+
+                    # Do not use pyc files for reloading
+                    if module_path.endswith(".pyc"):
+                        module_path = module_path[:-1]
+
+                    dag.full_filepath = module_path
+
+                    dag.is_subdag = False
+                    self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+
+            except Exception as e:
+                self.logger.exception(e)
+                self.logger.error('Failed to import DAG ' + entry_point.module_name)
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]

@@ -39,6 +39,8 @@ if [ -z "$nose_args" ]; then
 --logging-level=DEBUG "
 fi
 
+pip install -e tests/airflow_test_load_via_pkg
+
 #--with-doctest
 
 # Generate the `airflow` executable if needed
@@ -48,8 +50,13 @@ echo "Initializing the DB"
 yes | airflow resetdb
 airflow initdb
 
+
+
 echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args
 
 # To run individual tests:
 # nosetests tests.core:CoreTest.test_scheduler_job
+
+# Remove the egg info from the local install of the test package
+rm -r tests/airflow_test_load_via_pkg/airflow_test_load_via_pkg.egg-info

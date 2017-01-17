@@ -134,7 +134,8 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(include_examples=True)
 
         some_expected_dag_ids = ["example_bash_operator",
-                                 "example_branch_operator"]
+                                 "example_branch_operator",
+                                 "entrypoint_test_dag"]
 
         for dag_id in some_expected_dag_ids:
             dag = dagbag.get_dag(dag_id)
