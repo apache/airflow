@@ -170,7 +170,10 @@ class DbApiHook(BaseHook):
             else:
                 cur.execute(s)
         cur.close()
-        conn.commit()
+        if self.supports_autocommit and conn.autocommit:
+            pass
+        else: 
+            conn.commit()
         conn.close()
 
     def set_autocommit(self, conn, autocommit):
