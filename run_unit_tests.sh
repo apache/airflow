@@ -13,6 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+set -x
 
 # environment
 export AIRFLOW_HOME=${AIRFLOW_HOME:=~/airflow}
@@ -47,6 +48,19 @@ which airflow > /dev/null || python setup.py develop
 echo "Initializing the DB"
 yes | airflow resetdb
 airflow initdb
+
+if [ "${TRAVIS}" ]; then
+  # For impersonation tests running on SQLite on Travis, make the database world readable so other 
+  # users can update it
+  AIRFLOW_DB="/home/travis/airflow/airflow.db"
+  if [ -f "${AIRFLOW_DB}" ]; then
+    sudo chmod a+rw "${AIRFLOW_DB}"
+  fi
+
+  # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
+  # (which contains /usr/local/bin)
+  sudo ln -s "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+fi
 
 echo "Starting the unit tests with the following nose arguments: "$nose_args
 nosetests $nose_args

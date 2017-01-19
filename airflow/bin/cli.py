@@ -22,7 +22,6 @@ import os
 import subprocess
 import textwrap
 import warnings
-from datetime import datetime
 from importlib import import_module
 
 import argparse
@@ -53,7 +52,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
-from airflow.utils.state import State
+from airflow.utils.file import mkdirs
 from airflow.www.app import cached_app
 
 from sqlalchemy import func
@@ -300,6 +299,7 @@ def export_helper(filepath):
         varfile.write(json.dumps(var_dict, sort_keys=True, indent=4))
     print("{} variables successfully exported to {}".format(len(var_dict), filepath))
 
+
 def pause(args, dag=None):
     set_is_paused(True, args, dag)
 
@@ -329,19 +329,65 @@ def run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
-    # Setting up logging
-    log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-    directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
-    if not os.path.exists(directory):
-        os.makedirs(directory)
-    iso = args.execution_date.isoformat()
-    filename = "{directory}/{iso}".format(**locals())
+    # Load custom airflow config
+    if args.cfg_path:
+        with open(args.cfg_path, 'r') as conf_file:
+           conf_dict = json.load(conf_file)
+
+        if os.path.exists(args.cfg_path):
+            os.remove(args.cfg_path)
+
+        for section, config in conf_dict.items():
+            for option, value in config.items():
+                conf.set(section, option, value)
+        settings.configure_vars()
+        settings.configure_orm()
 
     logging.root.handlers = []
-    logging.basicConfig(
-        filename=filename,
-        level=settings.LOGGING_LEVEL,
-        format=settings.LOG_FORMAT)
+    if args.raw:
+        # Output to STDOUT for the parent process to read and log
+        logging.basicConfig(
+            stream=sys.stdout,
+            level=settings.LOGGING_LEVEL,
+            format=settings.LOG_FORMAT)
+    else:
+        # Setting up logging to a file.
+
+        # To handle log writing when tasks are impersonated, the log files need to
+        # be writable by the user that runs the Airflow command and the user
+        # that is impersonated. This is mainly to handle corner cases with the
+        # SubDagOperator. When the SubDagOperator is run, all of the operators
+        # run under the impersonated user and create appropriate log files
+        # as the impersonated user. However, if the user manually runs tasks
+        # of the SubDagOperator through the UI, then the log files are created
+        # by the user that runs the Airflow command. For example, the Airflow
+        # run command may be run by the `airflow_sudoable` user, but the Airflow
+        # tasks may be run by the `airflow` user. If the log files are not
+        # writable by both users, then it's possible that re-running a task
+        # via the UI (or vice versa) results in a permission error as the task
+        # tries to write to a log file created by the other user.
+        log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
+        # Create the log file and give it group writable permissions
+        # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
+        # operator is not compatible with impersonation (e.g. if a Celery executor is used
+        # for a SubDag operator and the SubDag operator has a different owner than the
+        # parent DAG)
+        if not os.path.exists(directory):
+            # Create the directory as globally writable using custom mkdirs
+            # as os.makedirs doesn't set mode properly.
+            mkdirs(directory, 0o775)
+        iso = args.execution_date.isoformat()
+        filename = "{directory}/{iso}".format(**locals())
+
+        if not os.path.exists(filename):
+            open(filename, "a").close()
+            os.chmod(filename, 0o666)
+
+        logging.basicConfig(
+            filename=filename,
+            level=settings.LOGGING_LEVEL,
+            format=settings.LOG_FORMAT)
 
     if not args.pickle and not dag:
         dag = get_dag(args)
@@ -412,6 +458,10 @@ def run(args, dag=None):
             pool=args.pool)
         executor.heartbeat()
         executor.end()
+
+    # Child processes should not flush or upload to remote
+    if args.raw:
+        return
 
     # Force the log to flush, and set the handler to go back to normal so we
     # don't continue logging to the task's log file. The flush is important
@@ -626,7 +676,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
         logging.debug('%s doing a refresh of %s workers',
-            state, batch_size)
+                      state, batch_size)
         sys.stdout.flush()
         sys.stderr.flush()
 
@@ -635,11 +685,10 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
             gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
             wait_until_true(lambda: num_workers_expected + excess ==
-                get_num_workers_running(gunicorn_master_proc))
-
+                            get_num_workers_running(gunicorn_master_proc))
 
     wait_until_true(lambda: num_workers_expected ==
-        get_num_workers_running(gunicorn_master_proc))
+                    get_num_workers_running(gunicorn_master_proc))
 
     while True:
         num_workers_running = get_num_workers_running(gunicorn_master_proc)
@@ -662,7 +711,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
                 gunicorn_master_proc.send_signal(signal.SIGTTOU)
                 excess -= 1
                 wait_until_true(lambda: num_workers_expected + excess ==
-                    get_num_workers_running(gunicorn_master_proc))
+                                get_num_workers_running(gunicorn_master_proc))
 
         # Start a new worker by asking gunicorn to increase number of workers
         elif num_workers_running == num_workers_expected:
@@ -761,7 +810,8 @@ def webserver(args):
         if conf.getint('webserver', 'worker_refresh_interval') > 0:
             restart_workers(gunicorn_master_proc, num_workers)
         else:
-            while True: time.sleep(1)
+            while True:
+                time.sleep(1)
 
 
 def scheduler(args):
@@ -920,7 +970,7 @@ def connections(args):
                               Connection.is_encrypted,
                               Connection.is_extra_encrypted,
                               Connection.extra).all()
-        conns = [map(reprlib.repr, conn) for conn in conns] 
+        conns = [map(reprlib.repr, conn) for conn in conns]
         print(tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
                        tablefmt="fancy_grid"))
@@ -1255,6 +1305,8 @@ class CLIFactory(object):
             ("-p", "--pickle"),
             "Serialized pickle object of the entire dag (used internally)"),
         'job_id': Arg(("-j", "--job_id"), argparse.SUPPRESS),
+        'cfg_path': Arg(
+            ("--cfg_path", ), "Path to config file to use instead of airflow.cfg"),
         # webserver
         'port': Arg(
             ("-p", "--port"),
@@ -1433,7 +1485,7 @@ class CLIFactory(object):
             'help': "Run a single task instance",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
-                'mark_success', 'force', 'pool',
+                'mark_success', 'force', 'pool', 'cfg_path',
                 'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
@@ -1486,7 +1538,7 @@ class CLIFactory(object):
             'func': upgradedb,
             'help': "Upgrade the metadata database to latest version",
             'args': tuple(),
-        },{
+        }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
             'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
