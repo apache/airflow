@@ -13,7 +13,7 @@
 # limitations under the License.
 import unittest
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow.models import DagBag
 
 import json
@@ -64,7 +64,7 @@ class ApiExperimentalTests(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
         now = datetime.now()
-        execution_date = datetime(now.year, now.month, now.day, now.hour + 1)
+        execution_date = datetime.now() + timedelta(hours=1)
         datetime_string = execution_date.isoformat()
 
         # Test Correct execution
