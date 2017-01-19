@@ -81,7 +81,7 @@ class S3Log(object):
         logging.error(err)
         return err if return_error else ''
 
-    def write(self, log, remote_log_location, append=False):
+    def write(self, log, remote_log_location, append=True):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.
@@ -159,7 +159,7 @@ class GCSLog(object):
         logging.error(err)
         return err if return_error else ''
 
-    def write(self, log, remote_log_location, append=False):
+    def write(self, log, remote_log_location, append=True):
         """
         Writes the log to the remote_log_location. Fails silently if no hook
         was created.

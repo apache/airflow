@@ -494,10 +494,7 @@ def run(args, dag=None):
             logging_utils.S3Log().write(log, remote_log_location)
         # GCS
         elif remote_base.startswith('gs:/'):
-            logging_utils.GCSLog().write(
-                log,
-                remote_log_location,
-                append=True)
+            logging_utils.GCSLog().write(log, remote_log_location)
         # Other
         elif remote_base and remote_base != 'None':
             logging.error(
