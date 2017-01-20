@@ -2085,7 +2085,11 @@ class LocalTaskJob(BaseJob):
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
-        if ti.state == State.RUNNING:
+        if ti is None:
+            logging.warning("Task instance does not exist in DB. Terminating")
+            self.task_runner.terminate()
+            self.terminating = True
+        elif ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
             if not (fqdn == ti.hostname and
