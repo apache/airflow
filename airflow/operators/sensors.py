@@ -152,7 +152,12 @@ class MetastorePartitionSensor(SqlSensor):
         self.schema = schema
         self.first_poke = True
         self.conn_id = mysql_conn_id
-        super(MetastorePartitionSensor, self).__init__(*args, **kwargs)
+        # TODO(aoen): We shouldn't be using SqlSensor here but MetastorePartitionSensor.
+        # The problem is the way apply_defaults works isn't compatible with inheritance.
+        # The inheritance model needs to be reworked in order to support overriding args/
+        # kwargs with arguments here, then 'conn_id' and 'sql' can be passed into the
+        # constructor below and apply_defaults will no longer throw an exception.
+        super(SqlSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
         if self.first_poke:
