@@ -2016,10 +2016,6 @@ class LocalTaskJob(BaseJob):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
 
-        # terminating state is used so that a job don't try to
-        # terminate multiple times
-        self.terminating = False
-
         # Keeps track of the fact that the task instance has been observed
         # as running at least once
         self.was_running = False
@@ -2083,17 +2079,16 @@ class LocalTaskJob(BaseJob):
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
 
-        if self.terminating:
-            # task is already terminating, let it breathe
-            return
-
         # Suicide pill
         TI = models.TaskInstance
         ti = self.task_instance
         new_ti = session.query(TI).filter(
             TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
             TI.execution_date == ti.execution_date).scalar()
-        if new_ti.state == State.RUNNING:
+        if new_ti is None:
+            logging.warning("Task instance does not exist in DB. Terminating")
+            raise AirflowException("Task instance does not exist in DB")
+        elif new_ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
             if not (fqdn == new_ti.hostname and
@@ -2110,5 +2105,4 @@ class LocalTaskJob(BaseJob):
                 "State of this instance has been externally set to "
                 "{self.task_instance.state}. "
                 "Taking the poison pill. So long.".format(**locals()))
-            self.task_runner.terminate()
-            self.terminating = True
+            raise AirflowException("Task instance state has been changed externally")
