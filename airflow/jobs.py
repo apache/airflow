@@ -2093,7 +2093,11 @@ class LocalTaskJob(BaseJob):
         new_ti = session.query(TI).filter(
             TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
             TI.execution_date == ti.execution_date).scalar()
-        if new_ti.state == State.RUNNING:
+        if new_ti is None:
+            logging.warning("Task instance does not exist in DB. Terminating")
+            self.task_runner.terminate()
+            self.terminating = True
+        elif new_ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
             if not (fqdn == new_ti.hostname and
