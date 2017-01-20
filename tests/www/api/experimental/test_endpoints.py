@@ -13,7 +13,7 @@
 # limitations under the License.
 import unittest
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from airflow.models import DagBag
 
 import json
@@ -34,7 +34,7 @@ class ApiExperimentalTests(unittest.TestCase):
         assert '"email"' in response.data.decode('utf-8')
         assert 'error' not in response.data.decode('utf-8')
         self.assertEqual(200, response.status_code)
-       
+
         response = self.app.get(url_template.format('example_bash_operator', 'DNE'))
         assert 'error' in response.data.decode('utf-8')
         self.assertEqual(404, response.status_code)
@@ -63,14 +63,17 @@ class ApiExperimentalTests(unittest.TestCase):
     def test_trigger_dag_for_date(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
-        now = datetime.now()
-        execution_date = datetime(now.year, now.month, now.day, now.hour + 1)
+        hour_from_now = datetime.now() + timedelta(hours=1)
+        execution_date = datetime(hour_from_now.year,
+                                  hour_from_now.month,
+                                  hour_from_now.day,
+                                  hour_from_now.hour)
         datetime_string = execution_date.isoformat()
 
         # Test Correct execution
         response = self.app.post(
             url_template.format(dag_id),
-            data=json.dumps(dict(execution_date=execution_date.isoformat())),
+            data=json.dumps(dict(execution_date=datetime_string)),
             content_type="application/json"
         )
         self.assertEqual(200, response.status_code)
@@ -97,4 +100,3 @@ class ApiExperimentalTests(unittest.TestCase):
             content_type="application/json"
         )
         self.assertEqual(400, response.status_code)
-
