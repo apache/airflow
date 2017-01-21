@@ -168,6 +168,7 @@ cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = [
+    'cgroupspy>=0.1.4',
     'click',
     'freezegun',
     'jira',
