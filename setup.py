@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 version = imp.load_source(
-    'version', os.path.join('airflow', 'version.py')).version
+    'airflow.version', os.path.join('airflow', 'version.py')).version
 
 
 class Tox(TestCommand):
