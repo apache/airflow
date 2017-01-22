@@ -14,7 +14,6 @@
 
 from datetime import datetime
 import logging
-import os
 
 from airflow.models import BaseOperator, DagBag
 from airflow.utils.decorators import apply_defaults
@@ -65,7 +64,7 @@ class TriggerDagRunOperator(BaseOperator):
         dro = self.python_callable(context, dro)
         if dro:
             session = settings.Session()
-            dbag = DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
+            dbag = DagBag(settings.DAGS_FOLDER)
             trigger_dag = dbag.get_dag(self.trigger_dag_id)
             dr = trigger_dag.create_dagrun(
                 run_id=dro.run_id,

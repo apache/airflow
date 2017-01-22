@@ -24,9 +24,7 @@ import unittest
 import six
 
 from airflow import AirflowException, settings
-from airflow import models
 from airflow.bin import cli
-from airflow.executors import DEFAULT_EXECUTOR
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -785,7 +783,7 @@ class SchedulerJobTest(unittest.TestCase):
         # Recreated part of the scheduler here, to kick off tasks -> executor
         for ti_key in queue:
             task = dag.get_task(ti_key[1])
-            ti = models.TaskInstance(task, ti_key[2])
+            ti = TI(task, ti_key[2])
             # Task starts out in the scheduled state. All tasks in the
             # scheduled state will be sent to the executor
             ti.state = State.SCHEDULED
@@ -889,7 +887,7 @@ class SchedulerJobTest(unittest.TestCase):
             # try to schedule the above DAG repeatedly.
             scheduler = SchedulerJob(num_runs=1,
                                      executor=executor,
-                                     subdir=os.path.join(models.DAGS_FOLDER,
+                                     subdir=os.path.join(settings.DAGS_FOLDER,
                                                          "no_dags.py"))
             scheduler.heartrate = 0
             scheduler.run()
@@ -941,7 +939,7 @@ class SchedulerJobTest(unittest.TestCase):
             # try to schedule the above DAG repeatedly.
             scheduler = SchedulerJob(num_runs=1,
                                      executor=executor,
-                                     subdir=os.path.join(models.DAGS_FOLDER,
+                                     subdir=os.path.join(settings.DAGS_FOLDER,
                                                          "no_dags.py"))
             scheduler.heartrate = 0
             scheduler.run()
@@ -1034,7 +1032,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dag_id = 'exit_test_dag'
         dag_ids = [dag_id]
-        dag_directory = os.path.join(models.DAGS_FOLDER,
+        dag_directory = os.path.join(settings.DAGS_FOLDER,
                                      "..",
                                      "dags_with_system_exit")
         dag_file = os.path.join(dag_directory,

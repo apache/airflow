@@ -58,10 +58,8 @@ from airflow.www.app import cached_app
 from sqlalchemy import func
 from sqlalchemy.orm import exc
 
-DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
 api.load_auth()
-
 api_module = import_module(conf.get('cli', 'api_client'))
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
@@ -114,11 +112,8 @@ def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
 
 
 def process_subdir(subdir):
-    dags_folder = conf.get("core", "DAGS_FOLDER")
-    dags_folder = os.path.expanduser(dags_folder)
     if subdir:
-        if "DAGS_FOLDER" in subdir:
-            subdir = subdir.replace("DAGS_FOLDER", dags_folder)
+        subdir = subdir.replace('DAGS_FOLDER', settings.DAGS_FOLDER)
         subdir = os.path.abspath(os.path.expanduser(subdir))
         return subdir
 
@@ -1128,7 +1123,7 @@ class CLIFactory(object):
         'subdir': Arg(
             ("-sd", "--subdir"),
             "File location or directory from which to look for the dag",
-            default=DAGS_FOLDER),
+            default=settings.DAGS_FOLDER),
         'start_date': Arg(
             ("-s", "--start_date"), "Override start_date YYYY-MM-DD",
             type=parsedate),
