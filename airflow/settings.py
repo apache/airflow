@@ -68,7 +68,7 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  """
 
 BASE_LOG_URL = '/admin/airflow/log'
-LOGGING_LEVEL = logging.INFO
+LOGGING_LEVEL = None
 
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
@@ -127,9 +127,11 @@ def configure_vars():
     global AIRFLOW_HOME
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
+    global LOGGING_LEVEL
     AIRFLOW_HOME = os.path.expanduser(conf.get('core', 'AIRFLOW_HOME'))
     SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+    LOGGING_LEVEL = conf.get('core', 'log_level').upper()
 
 
 def configure_orm(disable_connection_pool=False):
@@ -154,8 +156,8 @@ try:
 except:
     pass
 
-configure_logging()
 configure_vars()
+configure_logging()
 configure_orm()
 
 # Const stuff

@@ -113,6 +113,10 @@ encrypt_s3_logs = False
 # DEPRECATED option for remote log storage, use remote_base_log_folder instead!
 s3_log_folder =
 
+# Minimum level of logging messages to log
+# One of CRITICAL(=FATAL), ERROR, WARNING(=WARN), INFO, DEBUG
+log_level = INFO
+
 # The executor class that airflow should use. Choices include
 # SequentialExecutor, LocalExecutor, CeleryExecutor
 executor = SequentialExecutor
@@ -344,11 +348,18 @@ job_heartbeat_sec = 5
 # how often the scheduler should run (in seconds).
 scheduler_heartbeat_sec = 5
 
-# after how much time should the scheduler terminate in seconds
+# After how much time should the scheduler terminate in seconds
 # -1 indicates to run continuously (see also num_runs)
 run_duration = -1
 
-# after how much time a new DAGs should be picked up from the filesystem
+# The number of times to try to schedule each DAG file
+# -1 indicates unlimited number within the run_duration
+num_runs = -1
+
+# The number of seconds to wait between consecutive DAG file processing
+processor_poll_interval = 1
+
+# After how much time a new DAGs should be picked up from the filesystem
 min_file_process_interval = 0
 
 dag_dir_list_interval = 300

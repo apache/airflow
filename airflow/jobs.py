@@ -464,11 +464,12 @@ class SchedulerJob(BaseJob):
             dag_id=None,
             dag_ids=None,
             subdir=settings.DAGS_FOLDER,
-            num_runs=-1,
+            num_runs=conf.getint('scheduler', 'num_runs'),
             file_process_interval=conf.getint('scheduler',
                                               'min_file_process_interval'),
-            processor_poll_interval=1.0,
-            run_duration=None,
+            processor_poll_interval=conf.getfloat('scheduler',
+                                                  'processor_poll_interval'),
+            run_duration=conf.getint('scheduler', 'run_duration'),
             do_pickle=False,
             *args, **kwargs):
         """
@@ -526,9 +527,6 @@ class SchedulerJob(BaseJob):
         # Directory where log files for the processes that scheduled the DAGs reside
         self.child_process_log_directory = conf.get('scheduler',
                                                     'child_process_log_directory')
-        if run_duration is None:
-            self.run_duration = conf.getint('scheduler',
-                                            'run_duration')
 
     @provide_session
     def manage_slas(self, dag, session=None):
