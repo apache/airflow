@@ -16,6 +16,7 @@ from __future__ import absolute_import
 from __future__ import unicode_literals
 
 import errno
+import os
 import shutil
 from tempfile import mkdtemp
 
@@ -34,3 +35,25 @@ def TemporaryDirectory(suffix='', prefix=None, dir=None):
             # ENOENT - no such file or directory
             if e.errno != errno.ENOENT:
                 raise e
+
+
+def mkdirs(path, mode):
+    """
+    Creates the directory specified by path, creating intermediate directories
+    as necessary. If directory already exists, this is a no-op.
+
+    :param path: The directory to create
+    :type path: str
+    :param mode: The mode to give to the directory e.g. 0o755
+    :type mode: int
+    :return: A list of directories that were created
+    :rtype: list[str]
+    """
+    if not path or os.path.exists(path):
+        return []
+    (head, _) = os.path.split(path)
+    res = mkdirs(head, mode)
+    os.mkdir(path)
+    os.chmod(path, mode)
+    res += [path]
+    return res

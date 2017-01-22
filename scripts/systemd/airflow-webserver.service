@@ -17,16 +17,13 @@ After=network.target postgresql.service mysql.service redis.service rabbitmq-ser
 Wants=postgresql.service mysql.service redis.service rabbitmq-server.service
 
 [Service]
-PIDFile=/run/airflow/webserver.pid
 EnvironmentFile=/etc/sysconfig/airflow
 User=airflow
 Group=airflow
-Type=forking
+Type=simple
 ExecStart=/bin/airflow webserver --pid /run/airflow/webserver.pid
-ExecReload=/bin/kill -s HUP $MAINPID
-ExecStop=/bin/kill -s TERM $MAINPID
 Restart=on-failure
-RestartSec=42s
+RestartSec=5s
 PrivateTmp=true
 
 [Install]

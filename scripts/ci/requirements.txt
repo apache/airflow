@@ -2,6 +2,7 @@ alembic
 bcrypt
 boto
 celery
+cgroupspy
 chartkick
 cloudant
 coverage
@@ -27,6 +28,7 @@ impyla
 ipython
 jaydebeapi
 jinja2<2.9.0
+jira
 ldap3
 lxml
 markdown

@@ -166,6 +166,13 @@ donot_pickle = False
 # How long before timing out a python file import while filling the DagBag
 dagbag_import_timeout = 30
 
+# The class to use for running task instances in a subprocess
+task_runner = BashTaskRunner
+
+# If set, tasks without a `run_as_user` argument will be run with this user
+# Can be used to de-elevate a sudo user running Airflow when executing tasks
+default_impersonation =
+
 # What security module to use (for example kerberos):
 security =
 
@@ -349,12 +356,20 @@ dag_dir_list_interval = 300
 # How often should stats be printed to the logs
 print_stats_interval = 30
 
-child_process_log_directory = /tmp/airflow/scheduler/logs
+child_process_log_directory = {AIRFLOW_HOME}/logs/scheduler
 
 # Local task jobs periodically heartbeat to the DB. If the job has
 # not heartbeat in this many seconds, the scheduler will mark the
 # associated task instance as failed and will re-schedule the task.
 scheduler_zombie_task_threshold = 300
+
+# Turn off scheduler catchup by setting this to False.
+# Default behavior is unchanged and
+# Command Line Backfills still work, but the scheduler
+# will not do scheduler catchup if this is False,
+# however it can be set on a per DAG basis in the
+# DAG definition (catchup)
+catchup_by_default = True
 
 # Statsd (https://github.com/etsy/statsd) integration settings
 statsd_on = False
@@ -486,6 +501,8 @@ job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
 max_threads = 2
+catchup_by_default = True
+scheduler_zombie_task_threshold = 300
 """
 
 

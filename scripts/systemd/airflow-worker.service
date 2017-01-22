@@ -23,7 +23,7 @@ Group=airflow
 Type=simple
 ExecStart=/bin/airflow worker
 Restart=on-failure
-RestartSec=42s
+RestartSec=10s
 
 [Install]
 WantedBy=multi-user.target

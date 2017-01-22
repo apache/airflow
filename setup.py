@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 version = imp.load_source(
-    'version', os.path.join('airflow', 'version.py')).version
+    'airflow.version', os.path.join('airflow', 'version.py')).version
 
 
 class Tox(TestCommand):
@@ -108,6 +108,9 @@ celery = [
     'celery>=3.1.17',
     'flower>=0.7.3'
 ]
+cgroups = [
+    'cgroupspy>=0.1.4',
+]
 crypto = ['cryptography>=0.9.3']
 datadog = ['datadog>=0.14.0']
 doc = [
@@ -127,6 +130,7 @@ gcp_api = [
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+jira = ['JIRA>1.0.7']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
@@ -174,7 +178,7 @@ devel = [
     'nose-ignore-docstring==0.2',
     'nose-parameterized',
 ]
-devel_minreq = devel + mysql + doc + password + s3
+devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
 
@@ -201,7 +205,7 @@ def do_setup():
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
             'flask-wtf==0.12',
-            'funcsigs>=1.0.2, <1.1',
+            'funcsigs==1.0.0',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
@@ -226,6 +230,7 @@ def do_setup():
             'all_dbs': all_dbs,
             'async': async,
             'celery': celery,
+            'cgroups': cgroups,
             'cloudant': cloudant,
             'crypto': crypto,
             'datadog': datadog,
@@ -256,6 +261,7 @@ def do_setup():
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
+            'jira': jira,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

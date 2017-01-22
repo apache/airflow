@@ -913,7 +913,8 @@ class SchedulerJobTest(unittest.TestCase):
 
         dag = DAG(
             dag_id='test_retry_still_in_executor',
-            start_date=DEFAULT_DATE)
+            start_date=DEFAULT_DATE,
+            schedule_interval="@once")
         dag_task1 = BashOperator(
             task_id='test_retry_handling_op',
             bash_command='exit 1',
@@ -963,11 +964,16 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
         self.assertEqual(ti.try_number, 1)
 
+        ti.refresh_from_db(lock_for_update=True, session=session)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
         # do not schedule
         do_schedule()
         self.assertTrue(executor.has_task(ti))
         ti.refresh_from_db()
-        self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        self.assertEqual(ti.state, State.SCHEDULED)
 
         # now the executor has cleared and it should be allowed the re-queue
         executor.queued_tasks.clear()
@@ -1101,3 +1107,105 @@ class SchedulerJobTest(unittest.TestCase):
             running_date = 'Except'
 
         self.assertEqual(execution_date, running_date, 'Running Date must match Execution Date')
+
+    def test_dag_catchup_option(self):
+        """
+        Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
+        """
+
+        now = datetime.datetime.now()
+        six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
+        three_minutes_ago = now - datetime.timedelta(minutes=3)
+        two_hours_and_three_minutes_ago = three_minutes_ago - datetime.timedelta(hours=2)
+
+        START_DATE = six_hours_ago_to_the_hour
+        DAG_NAME1 = 'no_catchup_test1'
+        DAG_NAME2 = 'no_catchup_test2'
+        DAG_NAME3 = 'no_catchup_test3'
+
+        default_args = {
+            'owner': 'airflow',
+            'depends_on_past': False,
+            'start_date': START_DATE
+
+        }
+        dag1 = DAG(DAG_NAME1,
+                  schedule_interval='* * * * *',
+                  max_active_runs=1,
+                  default_args=default_args
+                  )
+
+        default_catchup = configuration.getboolean('scheduler', 'catchup_by_default')
+        # Test configs have catchup by default ON
+
+        self.assertEqual(default_catchup, True)
+
+        # Correct default?
+        self.assertEqual(dag1.catchup, True)
+
+        dag2 = DAG(DAG_NAME2,
+                  schedule_interval='* * * * *',
+                  max_active_runs=1,
+                  catchup=False,
+                  default_args=default_args
+                  )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag2)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag2)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag2)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag2.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag2.clear()
+
+        dr = scheduler.create_dag_run(dag2)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
+        # The DR should be scheduled in the last 3 minutes, not 6 hours ago
+        self.assertGreater(dr.execution_date, three_minutes_ago)
+
+        # The DR should be scheduled BEFORE now
+        self.assertLess(dr.execution_date, datetime.datetime.now())
+
+        dag3 = DAG(DAG_NAME3,
+                  schedule_interval='@hourly',
+                  max_active_runs=1,
+                  catchup=False,
+                  default_args=default_args
+              )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag3)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag3)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag3)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag3.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag3.clear()
+
+        dr = None
+        dr = scheduler.create_dag_run(dag3)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
+        # The DR should be scheduled in the last two hours, not 6 hours ago
+        self.assertGreater(dr.execution_date, two_hours_and_three_minutes_ago)
+
+        # The DR should be scheduled BEFORE now
+        self.assertLess(dr.execution_date, datetime.datetime.now())
