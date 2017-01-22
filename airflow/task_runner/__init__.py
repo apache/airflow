@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from airflow import configuration
-from airflow.contrib.task_runner.cgroup_task_runner import CgroupTaskRunner
 from airflow.task_runner.bash_task_runner import BashTaskRunner
 from airflow.exceptions import AirflowException
 
@@ -33,6 +32,7 @@ def get_task_runner(local_task_job):
     if _TASK_RUNNER == "BashTaskRunner":
         return BashTaskRunner(local_task_job)
     elif _TASK_RUNNER == "CgroupTaskRunner":
+        from airflow.contrib.task_runner.cgroup_task_runner import CgroupTaskRunner
         return CgroupTaskRunner(local_task_job)
     else:
         raise AirflowException("Unknown task runner type {}".format(_TASK_RUNNER))

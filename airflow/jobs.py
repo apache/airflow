@@ -919,13 +919,7 @@ class SchedulerJob(BaseJob):
                                          task_instance.execution_date,
                                          dag_runs))
 
-            dag_is_running = True
-            for dag_run in dag_runs:
-                if dag_run.state == State.RUNNING:
-                    dag_is_running = True
-                    break
-
-            if not dag_is_running:
+            if not any(dag_run.state == State.RUNNING for dag_run in dag_runs):
                 self.logger.warn("Setting {} to state={} as it does not have "
                                  "a DagRun in the {} state"
                                  .format(task_instance,

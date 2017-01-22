@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
 version = imp.load_source(
-    'version', os.path.join('airflow', 'version.py')).version
+    'airflow.version', os.path.join('airflow', 'version.py')).version
 
 
 class Tox(TestCommand):
@@ -178,7 +178,7 @@ devel = [
     'nose-ignore-docstring==0.2',
     'nose-parameterized',
 ]
-devel_minreq = devel + mysql + doc + password + s3
+devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
 
@@ -205,7 +205,7 @@ def do_setup():
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
             'flask-wtf==0.12',
-            'funcsigs>=1.0.2, <1.1',
+            'funcsigs==1.0.0',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
