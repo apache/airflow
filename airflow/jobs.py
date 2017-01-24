@@ -2077,28 +2077,25 @@ class LocalTaskJob(BaseJob):
             # task is already terminating, let it breathe
             return
 
-        # Suicide pill
-        TI = models.TaskInstance
+        self.task_instance.refresh_from_db()
         ti = self.task_instance
-        new_ti = session.query(TI).filter(
-            TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
-            TI.execution_date == ti.execution_date).scalar()
-        if new_ti.state == State.RUNNING:
+        if ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
-            if not (fqdn == new_ti.hostname and
-                    self.task_runner.process.pid == new_ti.pid):
-                logging.warning("Recorded hostname and pid of {new_ti.hostname} "
-                                "and {new_ti.pid} do not match this instance's "
+            if not (fqdn == ti.hostname and
+                    self.task_runner.process.pid == ti.pid):
+                logging.warning("Recorded hostname and pid of {ti.hostname} "
+                                "and {ti.pid} do not match this instance's "
                                 "which are {fqdn} and "
-                                "{self.task_runner.process.pid}. Taking the poison pill. "
-                                "So long."
+                                "{self.task_runner.process.pid}. "
+                                "Taking the poison pill. So long."
                                 .format(**locals()))
                 raise AirflowException("Another worker/process is running this job")
-        elif self.was_running and hasattr(self.task_runner, 'process'):
+        elif (self.was_running
+              and self.task_runner.return_code() is None
+              and hasattr(self.task_runner, 'process')):
             logging.warning(
                 "State of this instance has been externally set to "
-                "{self.task_instance.state}. "
-                "Taking the poison pill. So long.".format(**locals()))
+                "{}. Taking the poison pill. So long.".format(ti.state))
             self.task_runner.terminate()
             self.terminating = True
