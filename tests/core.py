@@ -661,6 +661,7 @@ class CoreTest(unittest.TestCase):
         TI = models.TaskInstance
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
+        ti.state = State.RUNNING
         job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
         job.run()
 
