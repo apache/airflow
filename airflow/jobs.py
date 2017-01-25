@@ -34,7 +34,7 @@ import time
 from time import sleep
 
 import psutil
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -955,10 +955,6 @@ class SchedulerJob(BaseJob):
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
             .filter(TI.state.in_(states))
-            .join(DagRun, and_(TI.dag_id == DagRun.dag_id,
-                               TI.execution_date == DagRun.execution_date,
-                               DagRun.state == State.RUNNING,
-                               DagRun.run_id.like(DagRun.ID_PREFIX + '%')))
             .all()
         )
 
