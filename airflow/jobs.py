@@ -539,39 +539,33 @@ class SchedulerJob(BaseJob):
         tasks that should have succeeded in the past hour.
         """
         TI = models.TaskInstance
-        sq = (
-            session
-            .query(
-                TI.task_id,
-                func.max(TI.execution_date).label('max_ti'))
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(TI.state == State.SUCCESS)
-            .filter(TI.task_id.in_(dag.task_ids))
-            .group_by(TI.task_id).subquery('sq')
+        SlaMiss = models.SlaMiss
+
+        sla_missed = (
+            session.query(SlaMiss)
+            .filter(SlaMiss.email_sent == 't')
+            .subquery('sla_missed')
         )
 
-        max_tis = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.task_id == sq.c.task_id,
-            TI.execution_date == sq.c.max_ti,
-        ).all()
+        sq = session.query(TI).outerjoin(
+                sla_missed,
+                sla_missed.c.execution_date == TI.execution_date).filter(
+                sla_missed.c.execution_date == None,
+                TI.dag_id == dag.dag_id,
+                TI.state == State.RUNNING,
+                TI.task_id.in_(dag.task_ids)
+            ).all()
 
         ts = datetime.now()
-        SlaMiss = models.SlaMiss
-        for ti in max_tis:
+        for ti in sq:
             task = dag.get_task(ti.task_id)
-            dttm = ti.execution_date
             if task.sla:
-                dttm = dag.following_schedule(dttm)
-                while dttm < datetime.now():
-                    following_schedule = dag.following_schedule(dttm)
-                    if following_schedule + task.sla < datetime.now():
-                        session.merge(models.SlaMiss(
-                            task_id=ti.task_id,
-                            dag_id=ti.dag_id,
-                            execution_date=dttm,
-                            timestamp=ts))
-                    dttm = dag.following_schedule(dttm)
+                if ti.start_date + task.sla < ts:
+                    session.merge(models.SlaMiss(
+                        task_id=ti.task_id,
+                        dag_id=ti.dag_id,
+                        execution_date=ti.execution_date,
+                        timestamp=ts))
         session.commit()
 
         slas = (
