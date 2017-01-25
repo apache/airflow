@@ -538,12 +538,18 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
+        if not any([ti.sla for ti in dag.tasks]):
+            self.logger.info("Skipping SLA check for {} because "
+              "no tasks in DAG have SLAs".format(dag))
+            return
+
         TI = models.TaskInstance
         sq = (
             session
             .query(
                 TI.task_id,
                 func.max(TI.execution_date).label('max_ti'))
+            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(TI.state == State.SUCCESS)
             .filter(TI.task_id.in_(dag.task_ids))
