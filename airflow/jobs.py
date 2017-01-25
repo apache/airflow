@@ -34,7 +34,7 @@ import time
 from time import sleep
 
 import psutil
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -538,12 +538,18 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
+        if not any([ti.sla for ti in dag.tasks]):
+            self.logger.info("Skipping SLA check for {} because "
+              "no tasks in DAG have SLAs".format(dag))
+            return
+
         TI = models.TaskInstance
         sq = (
             session
             .query(
                 TI.task_id,
                 func.max(TI.execution_date).label('max_ti'))
+            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(TI.state == State.SUCCESS)
             .filter(TI.task_id.in_(dag.task_ids))
@@ -955,10 +961,6 @@ class SchedulerJob(BaseJob):
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
             .filter(TI.state.in_(states))
-            .join(DagRun, and_(TI.dag_id == DagRun.dag_id,
-                               TI.execution_date == DagRun.execution_date,
-                               DagRun.state == State.RUNNING,
-                               DagRun.run_id.like(DagRun.ID_PREFIX + '%')))
             .all()
         )
 
@@ -2081,28 +2083,25 @@ class LocalTaskJob(BaseJob):
             # task is already terminating, let it breathe
             return
 
-        # Suicide pill
-        TI = models.TaskInstance
+        self.task_instance.refresh_from_db()
         ti = self.task_instance
-        new_ti = session.query(TI).filter(
-            TI.dag_id == ti.dag_id, TI.task_id == ti.task_id,
-            TI.execution_date == ti.execution_date).scalar()
-        if new_ti.state == State.RUNNING:
+        if ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
-            if not (fqdn == new_ti.hostname and
-                    self.task_runner.process.pid == new_ti.pid):
-                logging.warning("Recorded hostname and pid of {new_ti.hostname} "
-                                "and {new_ti.pid} do not match this instance's "
+            if not (fqdn == ti.hostname and
+                    self.task_runner.process.pid == ti.pid):
+                logging.warning("Recorded hostname and pid of {ti.hostname} "
+                                "and {ti.pid} do not match this instance's "
                                 "which are {fqdn} and "
-                                "{self.task_runner.process.pid}. Taking the poison pill. "
-                                "So long."
+                                "{self.task_runner.process.pid}. "
+                                "Taking the poison pill. So long."
                                 .format(**locals()))
                 raise AirflowException("Another worker/process is running this job")
-        elif self.was_running and hasattr(self.task_runner, 'process'):
+        elif (self.was_running
+              and self.task_runner.return_code() is None
+              and hasattr(self.task_runner, 'process')):
             logging.warning(
                 "State of this instance has been externally set to "
-                "{self.task_instance.state}. "
-                "Taking the poison pill. So long.".format(**locals()))
+                "{}. Taking the poison pill. So long.".format(ti.state))
             self.task_runner.terminate()
             self.terminating = True

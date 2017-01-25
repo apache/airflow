@@ -26,7 +26,7 @@ class PostgresHook(DbApiHook):
     '''
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
-    supports_autocommit = False
+    supports_autocommit = True
 
     def get_conn(self):
         conn = self.get_connection(self.postgres_conn_id)
@@ -41,8 +41,6 @@ class PostgresHook(DbApiHook):
             if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl', 'application_name']:
                 conn_args[arg_name] = arg_val
         psycopg2_conn = psycopg2.connect(**conn_args)
-        if psycopg2_conn.server_version < 70400:
-            self.supports_autocommit = True
         return psycopg2_conn
 
     @staticmethod

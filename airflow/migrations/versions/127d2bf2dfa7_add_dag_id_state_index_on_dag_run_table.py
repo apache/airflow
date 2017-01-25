@@ -11,27 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Add state index for dagruns to allow the quick lookup of active dagruns
+"""Add dag_id/state index on dag_run table
 
-Revision ID: 1a5a9e6bf2b5
-Revises: 5e7d17757c7a
-Create Date: 2017-01-17 10:22:53.193711
+Revision ID: 127d2bf2dfa7
+Revises: 1a5a9e6bf2b5
+Create Date: 2017-01-25 11:43:51.635667
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '1a5a9e6bf2b5'
-down_revision = '5e7d17757c7a'
+revision = '127d2bf2dfa7'
+down_revision = '1a5a9e6bf2b5'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
 
-
 def upgrade():
-    op.create_index('dr_state', 'dag_run', ['state'], unique=False)
+    op.create_index('dag_id_state', 'dag_run', ['dag_id', 'state'], unique=False)
 
 
 def downgrade():
-    op.drop_index('state', table_name='dag_run')
+    op.drop_index('dag_id_state', table_name='dag_run')
+
