@@ -1,6 +1,35 @@
 FAQ
 ========
 
+
+Why is ``execution_date`` off?
+------------------------------
+Airflow's has a set of assumptions that can be misleading to some,
+especially when coming from the *cron* world. One of these assumptions
+is that you most likely are doing **differential batch processing**, and
+consequently that every schedule for every task need to run at some point.
+
+Based on this premise, a ``schedule_interval='@daily'`` run for the data
+of ``2015-01-01`` where data was generated between ``2015-01-01T00:00:00`` and
+``2015-01-02T00:00:00`` can only start soon after that period is closed, and is
+assumed to process the data of ``2015-01-01``. Airflow chose to use the
+"left bound" of that period as the reference for that specific schedule.
+If your Airflow job does differential loads, you might agree that
+``2015-01-01`` is a better label for that run and objects related to it
+like files, partitions and other related artefacts.
+
+In reality, many tasks are written in a way where only running the latest
+schedule is enough, and many people justifiably think of the trigger time as
+the appropriate label for that run. For example, if you run a daily backup of
+your database, the "right bound" of your schedule would be a more appropriate
+label, and that is where the confusion is coming from.
+
+In any case, for better or for worse, Airflow chose to label the run
+based on the "left bound" of the period. Keep in mind that the metadata
+for ``start_date``, ``end_date``, ``schedule_interval`` is well captured
+and exposed on the platform.
+
+
 Why isn't my task getting scheduled?
 ------------------------------------
 
@@ -129,6 +158,16 @@ simple dictionary.
         dag_id = 'foo_{}'.format(i)
         globals()[dag_id] = DAG(dag_id)
         # or better, call a function that returns a DAG object!
+
+Note that when Airflow parses your ``DAGS_FOLDER`` and fills up the
+*DagBag*, there's a "sanity check" that validates that the strings ``DAG``
+and ``airflow`` are contained somewhere in the file before even
+interpreting it. This prevents Airflow from interpreting things that may
+not be related to Airflow. That is something to keep in mind as you author your
+DAG factory classes, or functions that return DAG objects, and import them
+in different modules. Make sure to include a dummy ``from Airflow import DAG``
+to insure your modules don't get skipped.
+
 
 What are all the ``airflow run`` commands in my process list?
 ---------------------------------------------------------------

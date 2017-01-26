@@ -247,6 +247,9 @@ class DagBag(BaseDagBag, LoggingMixin):
                 with open(filepath, 'rb') as f:
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
+                        logging.warning(
+                            "{} does not appear to contain a DAG "
+                            "import statement - skipping".format(filepath))
                         return found_dags
 
             self.logger.debug("Importing {}".format(filepath))
