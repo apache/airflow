@@ -14,14 +14,14 @@
 """Add dag_id/state index on dag_run table
 
 Revision ID: 127d2bf2dfa7
-Revises: 1a5a9e6bf2b5
+Revises: 5e7d17757c7a
 Create Date: 2017-01-25 11:43:51.635667
 
 """
 
 # revision identifiers, used by Alembic.
 revision = '127d2bf2dfa7'
-down_revision = '1a5a9e6bf2b5'
+down_revision = '5e7d17757c7a'
 branch_labels = None
 depends_on = None
 
