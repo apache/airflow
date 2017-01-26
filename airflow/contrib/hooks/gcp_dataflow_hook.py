@@ -24,6 +24,7 @@ from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
 
 class _DataflowJob(object):
+
     def __init__(self, dataflow, project_number, name):
         self._dataflow = dataflow
         self._project_number = project_number
@@ -82,7 +83,8 @@ class _DataflowJob(object):
         return self._job
 
 
-class _DataflowJava(object):
+class _Dataflow(object):
+
     def __init__(self, cmd):
         self._proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
@@ -113,11 +115,12 @@ class _DataflowJava(object):
             else:
                 logging.info("Waiting for DataFlow process to complete.")
         if self._proc.returncode is not 0:
-            raise Exception("DataFlow jar failed with return code {}".format(
+            raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
 
 
 class DataFlowHook(GoogleCloudBaseHook):
+
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None):
@@ -130,21 +133,27 @@ class DataFlowHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized)
 
+    def _start_dataflow(self, task_id, variables, dataflow, name, command_prefix):
+        cmd = command_prefix + self._build_cmd(task_id, variables, dataflow)
+        _Dataflow(cmd).wait_for_done()
+        _DataflowJob(
+            self.get_conn(), variables['project'], name).wait_for_done()
+
     def start_java_dataflow(self, task_id, variables, dataflow):
         name = task_id + "-" + str(uuid.uuid1())[:8]
-        cmd = self._build_cmd(task_id, variables, dataflow, name)
-        _DataflowJava(cmd).wait_for_done()
-        _DataflowJob(self.get_conn(), variables['project'], name).wait_for_done()
+        variables['jobName'] = name
+        self._start_dataflow(
+            task_id, variables, dataflow, name, ["java", "-jar"])
 
-    def _build_cmd(self, task_id, variables, dataflow, name):
-        command = ["java", "-jar",
-                   dataflow,
-                   "--runner=DataflowPipelineRunner",
-                   "--streaming=false",
-                   "--jobName=" + name]
+    def start_python_dataflow(self, task_id, variables, dataflow, py_options):
+        name = task_id + "-" + str(uuid.uuid1())[:8]
+        variables["job_name"] = name
+        self._start_dataflow(
+            task_id, variables, dataflow, name, ["python"] + py_options)
 
+    def _build_cmd(self, task_id, variables, dataflow):
+        command = [dataflow, "--runner=DataflowPipelineRunner"]
         if variables is not None:
             for attr, value in variables.iteritems():
                 command.append("--" + attr + "=" + value)
-
         return command
