@@ -24,7 +24,7 @@ from airflow.utils.state import State
 
 SUBDIR = 'scripts/perf/dags'
 DAG_IDS = ['perf_dag_1', 'perf_dag_2']
-MAX_RUNTIME_SECS = 6
+MAX_RUNTIME_SECS = 600
 
 
 class SchedulerMetricsJob(SchedulerJob):
@@ -179,7 +179,8 @@ def main():
     clear_dag_runs()
     clear_dag_task_instances()
 
-    job = SchedulerMetricsJob(dag_ids=DAG_IDS, subdir=SUBDIR)
+    job = SchedulerMetricsJob(dag_ids=DAG_IDS, subdir=SUBDIR,
+        processor_poll_interval=1.0)
     job.run()
 
 
