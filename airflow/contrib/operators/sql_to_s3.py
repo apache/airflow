@@ -85,8 +85,10 @@ class SqlToS3(BaseOperator):
 
         tmpdir = tempfile.mkdtemp()
         filename = self.s3_file_key + '.csv'
+
         # Ensure the file is read/write by the creator only
-        saved_umask = os.umask(0077)
+        saved_umask = os.umask(077)
+
         path = os.path.join(tmpdir, filename)
         logging.info("Writting on csv... %s."% (path))
         with open(path, "w") as tmp:

@@ -37,24 +37,24 @@ class TestSqlToS3Operator(unittest.TestCase):
         self.dag = dag
 
     def test_parameters_assignment(self):
-        sqlToS3 = SqlToS3(
+        sql_to_s3 = SqlToS3(
             task_id='task_id',
             db_conn_id='test_db_conn',
             sql='select 1',
             s3_bucket='test-bucket-',
             s3_file_key='test-file-key',
             s3_conn_id='test-s3-conn',
-            s3_replace_file = True,
-            s3_zip_file = False,
-            dag= self.dag
+            s3_replace_file=True,
+            s3_zip_file=False,
+            dag=self.dag
         )
-        self.assertEqual(sqlToS3.task_id, 'task_id')
-        self.assertEqual(sqlToS3.db_conn_id,'test_db_conn')
-        self.assertEqual(sqlToS3.sql,'select 1')
-        self.assertEqual(sqlToS3.s3_bucket,'s3_bucket')
-        self.assertEqual(sqlToS3.s3_conn_id,'s3_conn_id')
-        self.assertEqual(sqlToS3.s3_replace_file,True)
-        self.assertEqual(sqlToS3.s3_zip_file,False)
+        self.assertEqual(sql_to_s3.task_id, 'task_id')
+        self.assertEqual(sql_to_s3.db_conn_id,'test_db_conn')
+        self.assertEqual(sql_to_s3.sql,'select 1')
+        self.assertEqual(sql_to_s3.s3_bucket,'s3_bucket')
+        self.assertEqual(sql_to_s3.s3_conn_id,'s3_conn_id')
+        self.assertEqual(sql_to_s3.s3_replace_file,True)
+        self.assertEqual(sql_to_s3.s3_zip_file,False)
 
 
 if __name__ == '__main__':
