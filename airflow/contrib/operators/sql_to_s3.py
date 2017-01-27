@@ -24,6 +24,13 @@ from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.S3_hook import S3Hook
 
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 class SqlToS3(BaseOperator):
     """

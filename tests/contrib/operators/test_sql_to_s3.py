@@ -15,29 +15,36 @@
 
 import unittest
 import datetime
-from mock import Mock
-from mock import patch
 
 from airflow import DAG
 from airflow.contrib.operators.sql_to_s3 import SqlToS3
 from airflow import models
 from airflow.utils import db
+from airflow import configuration
+
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
 
 TEST_DAG_ID = 'unit_test_dag'
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 
+
 class TestSqlToS3Operator(unittest.TestCase):
     def setUp(self):
-        args = {
+        configuration.load_test_config()
+        args={
             'owner': 'airflow',
             'mysql_conn_id': 'airflow_db',
             'start_date': DEFAULT_DATE
         }
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
-
-    def test_parameters_assignment(self):
-        sql_to_s3 = SqlToS3(
+        self.sql_to_s3 = SqlToS3(
             task_id='task_id',
             db_conn_id='test_db_conn',
             sql='select 1',
@@ -48,14 +55,26 @@ class TestSqlToS3Operator(unittest.TestCase):
             s3_zip_file=False,
             dag=self.dag
         )
-        self.assertEqual(sql_to_s3.task_id, 'task_id')
-        self.assertEqual(sql_to_s3.db_conn_id,'test_db_conn')
-        self.assertEqual(sql_to_s3.sql,'select 1')
-        self.assertEqual(sql_to_s3.s3_bucket,'s3_bucket')
-        self.assertEqual(sql_to_s3.s3_conn_id,'s3_conn_id')
-        self.assertEqual(sql_to_s3.s3_replace_file,True)
-        self.assertEqual(sql_to_s3.s3_zip_file,False)
 
+    def test_init(self):
+        self.assertEqual(self.sql_to_s3.task_id, 'task_id')
+        self.assertEqual(self.sql_to_s3.db_conn_id,'test_db_conn')
+        self.assertEqual(self.sql_to_s3.sql,'select 1')
+        self.assertEqual(self.sql_to_s3.s3_bucket,'test-bucket-')
+        self.assertEqual(self.sql_to_s3.s3_file_key,'test-file-key')
+        self.assertEqual(self.sql_to_s3.s3_conn_id,'test-s3-conn')
+        self.assertEqual(self.sql_to_s3.s3_replace_file,True)
+
+    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.hooks.base_hook.BaseHook')
+    def test_exec(self, base_hook_mock, s3_hook_mock):
+
+        self.sql_to_s3.execute(None)
+        base_hook_mock.return_value.get_hook.assert_called_once_with(self.sql_to_s3.db_conn_id)
+        s3_hook_mock.assert_called_once_with(s3_conn_id=self.sql_to_s3.s3_conn_id)
+
+        s3_hook_mock.return_value.load_file.assert_called_once_with()
+        s3_hook_mock.return_value.connection.return_value.close.assert_called_once_with()
 
 if __name__ == '__main__':
     unittest.main()
