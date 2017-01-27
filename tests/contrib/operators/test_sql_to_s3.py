@@ -41,7 +41,7 @@ class TestSqlToS3Operator(unittest.TestCase):
         models.Connection(
             conn_id='s3_default',
             conn_type='s3',
-            extra='{"aws_access_key_id":"default_access_key", aws_secret_access_key": "default_secret_key"}')
+            extra='{"aws_access_key_id":"default_access_key", "aws_secret_access_key": "default_secret_key"}')
         )
         args={
             'owner': 'airflow',
