@@ -19,6 +19,8 @@ import datetime
 from airflow import DAG
 from airflow.contrib.operators.sql_to_s3 import SqlToS3
 from airflow import configuration
+from airflow import models
+from airflow.utils import db
 
 try:
     from unittest import mock
@@ -35,6 +37,12 @@ DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 class TestSqlToS3Operator(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
+        db.merge_conn(
+        models.Connection(
+            conn_id='s3_default',
+            conn_type='s3',
+            extra='{"aws_access_key_id":"default_access_key", aws_secret_access_key": "default_secret_key"}')
+        )
         args={
             'owner': 'airflow',
             'mysql_conn_id': 'airflow_db',
