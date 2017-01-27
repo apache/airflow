@@ -634,6 +634,8 @@ class DagFileProcessorManager(LoggingMixin):
         """
         :return: whether all file paths have been processed max_runs times
         """
+        if not self._file_paths:  # No dag file is present.
+            return False
         for file_path in self._file_paths:
             if self._run_count[file_path] != self._max_runs:
                 return False
