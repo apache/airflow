@@ -503,6 +503,7 @@ authenticate = true
 max_threads = 2
 catchup_by_default = True
 scheduler_zombie_task_threshold = 300
+dag_dir_list_interval = 0
 """
 
 

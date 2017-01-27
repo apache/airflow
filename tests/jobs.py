@@ -20,13 +20,15 @@ from __future__ import unicode_literals
 import datetime
 import logging
 import os
+import shutil
 import unittest
 import six
+import sys
+from tempfile import mkdtemp
 
 from airflow import AirflowException, settings
 from airflow import models
 from airflow.bin import cli
-from airflow.executors import DEFAULT_EXECUTOR
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -49,8 +51,19 @@ except ImportError:
     except ImportError:
         mock = None
 
+IS_PYTHON_3_TRAVIS = sys.version_info >= (3, 0) and "TRAVIS" in os.environ
+
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+
+# Include the words "airflow" and "dag" in the file contents, tricking airflow into thinking these
+# files contain a DAG (otherwise Airflow will skip them)
+PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
+UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
+
+# Filename to be used for dags that are created in an ad-hoc manner and can be removed/
+# created at runtime
+TEMP_DAG_FILENAME = "temp_dag.py"
 
 
 class BackfillJobTest(unittest.TestCase):
@@ -97,7 +110,7 @@ class BackfillJobTest(unittest.TestCase):
         job = BackfillJob(
             dag=dag,
             start_date=DEFAULT_DATE,
-            end_date=DEFAULT_DATE+datetime.timedelta(days=1),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
             ignore_first_depends_on_past=True
         )
         job.run()
@@ -109,7 +122,8 @@ class BackfillJobTest(unittest.TestCase):
 
         self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
         self.assertTrue(drs[0].state == State.SUCCESS)
-        self.assertTrue(drs[1].execution_date == DEFAULT_DATE+datetime.timedelta(days=1))
+        self.assertTrue(drs[1].execution_date ==
+                        DEFAULT_DATE + datetime.timedelta(days=1))
         self.assertTrue(drs[1].state == State.SUCCESS)
 
         dag.clear()
@@ -134,9 +148,8 @@ class BackfillJobTest(unittest.TestCase):
         logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
         dags = [
             dag for dag in self.dagbag.dags.values()
-            if 'example_dags' in dag.full_filepath
-            and dag.dag_id not in skip_dags
-            ]
+            if 'example_dags' in dag.full_filepath and dag.dag_id not in skip_dags
+        ]
 
         for dag in dags:
             dag.clear(
@@ -244,6 +257,27 @@ class SchedulerJobTest(unittest.TestCase):
 
     def setUp(self):
         self.dagbag = DagBag()
+        session = settings.Session()
+        session.query(models.ImportError).delete()
+        session.commit()
+
+    @staticmethod
+    def run_single_scheduler_loop_with_no_dags(dags_folder):
+        """
+        Utility function that runs a single scheduler loop without actually
+        changing/scheduling any dags. This is useful to simulate the other side effects of
+        running a scheduler loop, e.g. to see what parse errors there are in the
+        dags_folder.
+
+        :param dags_folder: the directory to traverse
+        :type directory: str
+        """
+        scheduler = SchedulerJob(
+            dag_id='this_dag_doesnt_exist',  # We don't want to actually run anything
+            num_runs=1,
+            subdir=os.path.join(dags_folder))
+        scheduler.heartrate = 0
+        scheduler.run()
 
     @provide_session
     def evaluate_dagrun(
@@ -1177,11 +1211,11 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertLess(dr.execution_date, datetime.datetime.now())
 
         dag3 = DAG(DAG_NAME3,
-                  schedule_interval='@hourly',
-                  max_active_runs=1,
-                  catchup=False,
-                  default_args=default_args
-              )
+                   schedule_interval='@hourly',
+                   max_active_runs=1,
+                   catchup=False,
+                   default_args=default_args
+                   )
 
         run_this_1 = DummyOperator(task_id='run_this_1', dag=dag3)
         run_this_2 = DummyOperator(task_id='run_this_2', dag=dag3)
@@ -1209,3 +1243,140 @@ class SchedulerJobTest(unittest.TestCase):
 
         # The DR should be scheduled BEFORE now
         self.assertLess(dr.execution_date, datetime.datetime.now())
+
+    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
+                     "Fails in Python 3 on Travis but not reproducible locally")
+    def test_add_unparseable_file_before_sched_start_creates_import_error(self):
+        try:
+            dags_folder = mkdtemp()
+            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+            with open(unparseable_filename, 'w') as unparseable_file:
+                unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename,
+                         unparseable_filename)
+        self.assertEqual(import_error.stacktrace,
+                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+
+    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
+                     "Fails in Python 3 on Travis but not reproducible locally")
+    def test_add_unparseable_file_after_sched_start_creates_import_error(self):
+        try:
+            dags_folder = mkdtemp()
+            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+
+            with open(unparseable_filename, 'w') as unparseable_file:
+                unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename,
+                         unparseable_filename)
+        self.assertEqual(import_error.stacktrace,
+                         "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
+
+    def test_no_import_errors_with_parseable_dag(self):
+        try:
+            dags_folder = mkdtemp()
+            parseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+
+            with open(parseable_filename, 'w') as parseable_file:
+                parseable_file.writelines(PARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 0)
+
+    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
+                     "Fails in Python 3 on Travis but not reproducible locally")
+    def test_new_import_error_replaces_old(self):
+        try:
+            dags_folder = mkdtemp()
+            unparseable_filename = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+
+            # Generate original import error
+            with open(unparseable_filename, 'w') as unparseable_file:
+                unparseable_file.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+
+            # Generate replacement import error (the error will be on the second line now)
+            with open(unparseable_filename, 'w') as unparseable_file:
+                unparseable_file.writelines(
+                    PARSEABLE_DAG_FILE_CONTENTS +
+                    os.linesep +
+                    UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 1)
+        import_error = import_errors[0]
+        self.assertEqual(import_error.filename,
+                         unparseable_filename)
+        self.assertEqual(import_error.stacktrace,
+                         "invalid syntax ({}, line 2)".format(TEMP_DAG_FILENAME))
+
+    def test_remove_error_clears_import_error(self):
+        try:
+            dags_folder = mkdtemp()
+            filename_to_parse = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+
+            # Generate original import error
+            with open(filename_to_parse, 'w') as file_to_parse:
+                file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+
+            # Remove the import error from the file
+            with open(filename_to_parse, 'w') as file_to_parse:
+                file_to_parse.writelines(
+                    PARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 0)
+
+    def test_remove_file_clears_import_error(self):
+        try:
+            dags_folder = mkdtemp()
+            filename_to_parse = os.path.join(dags_folder, TEMP_DAG_FILENAME)
+
+            # Generate original import error
+            with open(filename_to_parse, 'w') as file_to_parse:
+                file_to_parse.writelines(UNPARSEABLE_DAG_FILE_CONTENTS)
+            self.run_single_scheduler_loop_with_no_dags(dags_folder)
+        finally:
+            shutil.rmtree(dags_folder)
+
+        # Rerun the scheduler once the dag file has been removed
+        self.run_single_scheduler_loop_with_no_dags(dags_folder)
+
+        session = settings.Session()
+        import_errors = session.query(models.ImportError).all()
+
+        self.assertEqual(len(import_errors), 0)

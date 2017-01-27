@@ -657,34 +657,44 @@ class SchedulerJob(BaseJob):
             session.close()
 
     @staticmethod
-    def record_import_errors(session, dagbag):
+    @provide_session
+    def clear_nonexistent_import_errors(session, known_file_paths):
         """
-        For the DAGs in the given DagBag, record any associated import errors.
-        These are usually displayed through the Airflow UI so that users know
-        that there are issues parsing DAGs.
+        Clears import errors for files that no longer exist.
+
+        :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
+        :param known_file_paths: The list of existing files that are parsed for DAGs
+        :type known_file_paths: list[unicode]
+        """
+        session.query(models.ImportError).filter(
+            ~models.ImportError.filename.in_(known_file_paths)
+        ).delete(synchronize_session='fetch')
+        session.commit()
+
+    @staticmethod
+    def update_import_errors(session, dagbag):
+        """
+        For the DAGs in the given DagBag, record any associated import errors and clears
+        errors for files that no longer have them. These are usually displayed through the
+        Airflow UI so that users know that there are issues parsing DAGs.
 
         :param session: session for ORM operations
         :type session: sqlalchemy.orm.session.Session
         :param dagbag: DagBag containing DAGs with import errors
         :type dagbag: models.Dagbag
         """
-        for filename, stacktrace in list(dagbag.import_errors.items()):
+        # Clear the errors of the processed files
+        for dagbag_file in dagbag.file_last_changed:
             session.query(models.ImportError).filter(
-                models.ImportError.filename == filename
+                models.ImportError.filename == dagbag_file
             ).delete()
+
+        # Add the errors of the processed files
+        for filename, stacktrace in dagbag.import_errors.iteritems():
             session.add(models.ImportError(
-                filename=filename, stacktrace=stacktrace))
-        session.commit()
-
-    @staticmethod
-    def clear_import_errors(session):
-        """
-        Remove all the known import errors from the DB.
-
-        :param session: session for ORM operations
-        :type session: sqlalchemy.orm.session.Session
-        """
-        session.query(models.ImportError).delete()
+                filename=filename,
+                stacktrace=stacktrace))
         session.commit()
 
     @provide_session
@@ -1352,8 +1362,6 @@ class SchedulerJob(BaseJob):
                                                       dr.execution_date))
             self._reset_state_for_orphaned_tasks(dr, session=session)
 
-        self.logger.info("Removing old import errors")
-        self.clear_import_errors(session)
         session.close()
 
         execute_start_time = datetime.now()
@@ -1387,6 +1395,9 @@ class SchedulerJob(BaseJob):
                 self.logger.info("There are {} files in {}"
                                  .format(len(known_file_paths), self.subdir))
                 processor_manager.set_file_paths(known_file_paths)
+
+                self.logger.debug("Removing old import errors")
+                self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
 
             # Kick of new processes and collect results from finished ones
             self.logger.info("Heartbeating the process manager")
@@ -1523,6 +1534,7 @@ class SchedulerJob(BaseJob):
                                      file_path))
         else:
             self.logger.warn("No viable dags retrieved from {}".format(file_path))
+            self.update_import_errors(session, dagbag)
             return []
 
         # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
@@ -1598,7 +1610,7 @@ class SchedulerJob(BaseJob):
 
         # Record import errors into the ORM
         try:
-            self.record_import_errors(session, dagbag)
+            self.update_import_errors(session, dagbag)
         except Exception:
             self.logger.exception("Error logging import errors!")
         try:
