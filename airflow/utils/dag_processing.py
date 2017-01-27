@@ -198,8 +198,8 @@ def list_py_file_paths(directory, safe_mode=True):
                     if safe_mode:
                         with open(file_path, 'rb') as f:
                             content = f.read()
-                            might_contain_dag = all([s in content
-                                                     for s in (b'DAG', b'airflow')])
+                            might_contain_dag = all(
+                                [s in content for s in (b'DAG', b'airflow')])
 
                     if not might_contain_dag:
                         continue
