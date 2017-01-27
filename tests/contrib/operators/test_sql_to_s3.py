@@ -77,7 +77,7 @@ class TestSqlToS3Operator(unittest.TestCase):
         self.assertEqual(self.sql_to_s3.s3_conn_id,'s3_default')
         self.assertEqual(self.sql_to_s3.s3_replace_file,True)
 
-        self.source_hook.assert_called_once_with(self.sql_to_s3.db_conn_id)
+        self.source_hook.return_value.get_hook.assert_called_once_with(self.sql_to_s3.db_conn_id)
         self.s3_hook.assert_called_once_with(s3_conn_id=self.sql_to_s3.s3_conn_id)
 
 if __name__ == '__main__':
