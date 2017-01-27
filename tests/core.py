@@ -60,6 +60,7 @@ from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
+from airflow.models import DAG, TaskInstance
 from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
 
@@ -418,6 +419,25 @@ class CoreTest(unittest.TestCase):
             dag=self.dag,
             output_encoding='utf-8')
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_bash_operator_multi_line_regexed_output(self):
+        t = BashOperator(
+                task_id='test_multi_line_bash_operator',
+                bash_command=r"echo 'this is first line. \n "
+                             r"this is 2nd line, \n "
+                             r"you can have n number of lines in output."
+                             r"This is last line.'",
+                xcom_push=True,
+                output_regex_filter="\s?\w+\s?\d\w+ line,",
+                dag=self.dag,
+                output_encoding='utf-8')
+
+        ti = TaskInstance(task=t, execution_date=datetime.now())
+        ti.run()
+        expected_regex_matched_output = ' is 2nd line,'
+        self.assertEqual(ti.xcom_pull(task_ids='test_multi_line_bash_operator',
+                                      key='return_value'),
+                         expected_regex_matched_output)
 
     def test_bash_operator_kill(self):
         import subprocess
