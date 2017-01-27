@@ -35,7 +35,10 @@ DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 
 
 class TestSqlToS3Operator(unittest.TestCase):
-    def setUp(self):
+
+    @mock.patch('airflow.hooks.S3_hook.S3Hook')
+    @mock.patch('airflow.hooks.base_hook.BaseHook')
+    def setUp(self, base_hook_mock, s3_hook_mock):
         configuration.load_test_config()
         db.merge_conn(
         models.Connection(
@@ -48,6 +51,9 @@ class TestSqlToS3Operator(unittest.TestCase):
             'mysql_conn_id': 'airflow_db',
             'start_date': DEFAULT_DATE
         }
+        self.source_hook=base_hook_mock
+        self.s3_hook=s3_hook_mock
+
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
         self.sql_to_s3 = SqlToS3(
@@ -71,16 +77,8 @@ class TestSqlToS3Operator(unittest.TestCase):
         self.assertEqual(self.sql_to_s3.s3_conn_id,'s3_default')
         self.assertEqual(self.sql_to_s3.s3_replace_file,True)
 
-    @mock.patch('airflow.hooks.S3_hook.S3Hook')
-    @mock.patch('airflow.hooks.base_hook.BaseHook')
-    def test_exec(self, base_hook_mock, s3_hook_mock):
-
-        self.sql_to_s3.execute(None)
-        base_hook_mock.return_value.get_hook.assert_called_once_with(self.sql_to_s3.db_conn_id)
-        s3_hook_mock.assert_called_once_with(s3_conn_id=self.sql_to_s3.s3_conn_id)
-
-        s3_hook_mock.return_value.load_file.assert_called_once_with()
-        s3_hook_mock.return_value.connection.return_value.close.assert_called_once_with()
+        self.source_hook.assert_called_once_with(self.sql_to_s3.db_conn_id)
+        self.s3_hook.assert_called_once_with(s3_conn_id=self.sql_to_s3.s3_conn_id)
 
 if __name__ == '__main__':
     unittest.main()
