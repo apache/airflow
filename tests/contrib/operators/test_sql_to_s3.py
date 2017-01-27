@@ -18,8 +18,6 @@ import datetime
 
 from airflow import DAG
 from airflow.contrib.operators.sql_to_s3 import SqlToS3
-from airflow import models
-from airflow.utils import db
 from airflow import configuration
 
 try:
@@ -46,11 +44,11 @@ class TestSqlToS3Operator(unittest.TestCase):
         self.dag = dag
         self.sql_to_s3 = SqlToS3(
             task_id='task_id',
-            db_conn_id='test_db_conn',
+            db_conn_id='mysql_default',
             sql='select 1',
             s3_bucket='test-bucket-',
             s3_file_key='test-file-key',
-            s3_conn_id='test-s3-conn',
+            s3_conn_id='s3_default',
             s3_replace_file=True,
             s3_zip_file=False,
             dag=self.dag
@@ -58,11 +56,11 @@ class TestSqlToS3Operator(unittest.TestCase):
 
     def test_init(self):
         self.assertEqual(self.sql_to_s3.task_id, 'task_id')
-        self.assertEqual(self.sql_to_s3.db_conn_id,'test_db_conn')
+        self.assertEqual(self.sql_to_s3.db_conn_id,'mysql_default')
         self.assertEqual(self.sql_to_s3.sql,'select 1')
         self.assertEqual(self.sql_to_s3.s3_bucket,'test-bucket-')
         self.assertEqual(self.sql_to_s3.s3_file_key,'test-file-key')
-        self.assertEqual(self.sql_to_s3.s3_conn_id,'test-s3-conn')
+        self.assertEqual(self.sql_to_s3.s3_conn_id,'s3_default')
         self.assertEqual(self.sql_to_s3.s3_replace_file,True)
 
     @mock.patch('airflow.hooks.S3_hook.S3Hook')
