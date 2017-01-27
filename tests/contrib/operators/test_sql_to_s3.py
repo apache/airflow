@@ -23,14 +23,17 @@ from airflow.contrib.operators.sql_to_s3 import SqlToS3
 from airflow import models
 from airflow.utils import db
 
+TEST_DAG_ID = 'unit_test_dag'
+DEFAULT_DATE = datetime.datetime(2015, 1, 1)
+
 class TestSqlToS3Operator(unittest.TestCase):
     def setUp(self):
         args = {
             'owner': 'airflow',
             'mysql_conn_id': 'airflow_db',
-            'start_date': datetime(2015, 1, 1)
+            'start_date': DEFAULT_DATE
         }
-        dag = DAG( 'unit_test_dag', default_args=args)
+        dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
     def test_parameters_assignment(self):
