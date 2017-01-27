@@ -1414,7 +1414,7 @@ class Airflow(BaseView):
             flash("No tasks found", "error")
         session.commit()
         session.close()
-        doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') else ''
+        doc_md = markdown.markdown(dag.doc_md) if hasattr(dag, 'doc_md') and dag.doc_md else ''
 
         return self.render(
             'airflow/graph.html',
