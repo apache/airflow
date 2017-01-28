@@ -354,6 +354,8 @@ class DagFileProcessorManager(LoggingMixin):
         self._last_finish_time = {}
         # Map from file path to the number of runs
         self._run_count = defaultdict(int)
+        # Scheduler heartbeat key.
+        self._heart_beat_key = 'heart-beat'
 
     @property
     def file_paths(self):
@@ -628,17 +630,20 @@ class DagFileProcessorManager(LoggingMixin):
 
         self.symlink_latest_log_directory()
 
+        # Update scheduler heartbeat count.
+        self._run_count[self._heart_beat_key] += 1
+
         return simple_dags
 
     def max_runs_reached(self):
         """
         :return: whether all file paths have been processed max_runs times
         """
-        if not self._file_paths:  # No dag file is present.
-            return False
         for file_path in self._file_paths:
             if self._run_count[file_path] != self._max_runs:
                 return False
+        if self._run_count[self._heart_beat_key] < self._max_runs:
+            return False
         return True
 
     def terminate(self):
