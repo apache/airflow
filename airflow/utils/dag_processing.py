@@ -639,6 +639,8 @@ class DagFileProcessorManager(LoggingMixin):
         """
         :return: whether all file paths have been processed max_runs times
         """
+        if self._max_runs == -1:  # Unlimited runs.
+            return False
         for file_path in self._file_paths:
             if self._run_count[file_path] != self._max_runs:
                 return False
