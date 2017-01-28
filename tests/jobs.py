@@ -267,8 +267,7 @@ class SchedulerJobTest(unittest.TestCase):
         Utility function that runs a single scheduler loop without actually
         changing/scheduling any dags. This is useful to simulate the other side effects of
         running a scheduler loop, e.g. to see what parse errors there are in the
-        dags_folder. The run_duration is limited to 20 seconds as the scheduler
-        will run forever as num_runs is ignored when there is no dag file.
+        dags_folder.
 
         :param dags_folder: the directory to traverse
         :type directory: str
@@ -276,8 +275,7 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler = SchedulerJob(
             dag_id='this_dag_doesnt_exist',  # We don't want to actually run anything
             num_runs=1,
-            subdir=os.path.join(dags_folder),
-            run_duration=20)
+            subdir=os.path.join(dags_folder))
         scheduler.heartrate = 0
         scheduler.run()
 
