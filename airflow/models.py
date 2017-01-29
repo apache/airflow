@@ -1474,6 +1474,9 @@ class TaskInstance(Base):
         yesterday_ds = (self.execution_date - timedelta(1)).isoformat()[:10]
         tomorrow_ds = (self.execution_date + timedelta(1)).isoformat()[:10]
 
+        prev_execution_date = task.dag.previous_schedule(self.execution_date)
+        next_execution_date = task.dag.following_schedule(self.execution_date)
+
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
@@ -1543,6 +1546,8 @@ class TaskInstance(Base):
             'dag_run': dag_run,
             'run_id': run_id,
             'execution_date': self.execution_date,
+            'prev_execution_date': prev_execution_date,
+            'next_execution_date': next_execution_date,
             'latest_date': ds,
             'macros': macros,
             'params': params,
