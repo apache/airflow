@@ -127,6 +127,8 @@ Variable                            Description
 ``{{ ts }}``                        same as ``execution_date.isoformat()``
 ``{{ ts_nodash }}``                 same as ``ts`` without ``-`` and ``:``
 ``{{ execution_date }}``            the execution_date, (datetime.datetime)
+``{{ prev_execution_date }}``       the previous execution date (if available) (datetime.datetime)
+``{{ next_execution_date }}``       the next execution date (datetime.datetime)
 ``{{ dag }}``                       the DAG object
 ``{{ task }}``                      the Task object
 ``{{ macros }}``                    a reference to the macros package, described below
