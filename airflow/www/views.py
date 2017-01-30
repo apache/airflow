@@ -25,7 +25,6 @@ import dateutil.parser
 import copy
 from itertools import chain, product
 import json
-from lxml import html
 
 import inspect
 from textwrap import dedent
@@ -1514,14 +1513,12 @@ class Airflow(BaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
-        chart.buildhtml()
-        cum_chart.buildhtml()
-        cum_chart_body = html.document_fromstring(str(cum_chart)).find('body')
-        cum_chart_script = cum_chart_body.find('script')
-        s_index = cum_chart_script.text.rfind('});')
-        cum_chart_script.text = cum_chart_script.text[:s_index]\
-            + "$( document ).trigger('chartload')"\
-            + cum_chart_script.text[s_index:]
+        chart.buildcontent()
+        cum_chart.buildcontent()
+        s_index = cum_chart.htmlcontent.rfind('});')
+        cum_chart.htmlcontent = (cum_chart.htmlcontent[:s_index]
+                                 + "$( document ).trigger('chartload')"
+                                 + cum_chart.htmlcontent[s_index:])
 
         return self.render(
             'airflow/duration_chart.html',
@@ -1529,8 +1526,8 @@ class Airflow(BaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart,
-            cum_chart=html.tostring(cum_chart_body)
+            chart=chart.htmlcontent,
+            cum_chart=cum_chart.htmlcontent
         )
 
     @expose('/tries')
@@ -1584,7 +1581,7 @@ class Airflow(BaseView):
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
 
-        chart.buildhtml()
+        chart.buildcontent()
 
         return self.render(
             'airflow/chart.html',
@@ -1592,7 +1589,7 @@ class Airflow(BaseView):
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
-            chart=chart
+            chart=chart.htmlcontent
         )
 
     @expose('/landing_times')
@@ -1660,10 +1657,11 @@ class Airflow(BaseView):
 
         form = DateTimeWithNumRunsForm(data={'base_date': max_date,
                                              'num_runs': num_runs})
+        chart.buildcontent()
         return self.render(
             'airflow/chart.html',
             dag=dag,
-            chart=chart,
+            chart=chart.htmlcontent,
             height="700px",
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
