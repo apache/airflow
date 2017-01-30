@@ -83,10 +83,7 @@ class TestSqlToS3Operator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.sql_to_s3.os')
     @mock.patch('airflow.contrib.operators.sql_to_s3.tempfile')
     @mock.patch('airflow.contrib.operators.sql_to_s3.csv')
-    try
-        @mock.patch('__builtin__.open', new_callable=mock_open())
-    except ImportError:
-        @mock.patch('builtins.open', new_callable=mock_open())
+    @mock.patch('airflow.contrib.operators.sql_to_s3.open', new_callable=mock_open())
     def test_execute_without_zip(self, open_mock, csv_mock, tempfile_mock, os_mock):
                 self.sql_to_s3.execute(None)
                 mock_cursor = self.sql_to_s3.source_hook.get_conn.return_value.cursor.return_value
@@ -101,10 +98,7 @@ class TestSqlToS3Operator(unittest.TestCase):
     @mock.patch('airflow.contrib.operators.sql_to_s3.tempfile')
     @mock.patch('airflow.contrib.operators.sql_to_s3.csv')
     @mock.patch('airflow.contrib.operators.sql_to_s3.zipfile.ZipFile')
-    try
-        @mock.patch('__builtin__.open', new_callable=mock_open())
-    except ImportError:
-        @mock.patch('builtins.open', new_callable=mock_open())
+    @mock.patch('airflow.contrib.operators.sql_to_s3.open', new_callable=mock_open())
     def test_execute_with_zip(self, open_mock, zip_file_mock, csv_mock, tempfile_mock, os_mock):
                 #overrides setUp props
                 self.sql_to_s3.s3_zip_file=True

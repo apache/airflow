@@ -24,13 +24,6 @@ from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.S3_hook import S3Hook
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
 
 class SqlToS3(BaseOperator):
     """
@@ -53,8 +46,6 @@ class SqlToS3(BaseOperator):
     :param s3_conn_id: s3 connection id
     :type s3_conn_id: str
     """
-    template_fields = tuple()
-    ui_color = '#e8f7e4'
 
     @apply_defaults
     def __init__(
