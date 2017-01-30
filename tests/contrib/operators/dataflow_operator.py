@@ -27,7 +27,7 @@ except ImportError:
 
 
 TASK_ID = 'test-python-dataflow'
-PY_FILE = 'apache_beam.examples.wordcount'
+PY_FILE = 'gs://my-bucket/my-object.py'
 PY_OPTIONS = ['-m']
 DEFAULT_OPTIONS = {
     'project': 'test',
@@ -36,6 +36,7 @@ DEFAULT_OPTIONS = {
 ADDITIONAL_OPTIONS = {
     'output': 'gs://test/output'
 }
+GCS_HOOK_STRING = 'airflow.contrib.operators.dataflow_operator.{}'
 
 
 class DataFlowPythonOperatorTest(unittest.TestCase):
@@ -59,12 +60,14 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
                          ADDITIONAL_OPTIONS)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
-    def test_exec(self, dataflow_mock):
+    @mock.patch(GCS_HOOK_STRING.format('GoogleCloudStorageHook'))
+    def test_exec(self, gcs_hook, dataflow_mock):
         """Test DataFlowHook is created and the right args are passed to
         start_python_workflow.
 
         """
         start_python_hook = dataflow_mock.return_value.start_python_dataflow
+        gcs_download_hook = gcs_hook.return_value.download
         self.dataflow.execute(None)
         assert dataflow_mock.called
         expected_options = {
@@ -72,5 +75,8 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
             'staging_location': 'gs://test/staging',
             'output': 'gs://test/output'
         }
+        gcs_download_hook.assert_called_once_with(
+            'my-bucket', 'my-object.py', mock.ANY)
         start_python_hook.assert_called_once_with(TASK_ID, expected_options,
-                                                  PY_FILE, PY_OPTIONS)
+                                                  mock.ANY, PY_OPTIONS)
+        self.assertTrue(self.dataflow.py_file.startswith('/tmp/dataflow'))
