@@ -50,7 +50,7 @@ def trigger_dag(dag_id):
         conf = data['conf']
 
     execution_date = None
-    if 'execution_date' in data:
+    if 'execution_date' in data and data['execution_date'] is not None:
         execution_date = data['execution_date']
 
         # Convert string datetime into actual datetime
