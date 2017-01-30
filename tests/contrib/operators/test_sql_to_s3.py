@@ -89,7 +89,7 @@ class TestSqlToS3Operator(unittest.TestCase):
                 mock_cursor = self.sql_to_s3.source_hook.get_conn.return_value.cursor.return_value
                 mock_cursor.execute.assert_called_once_with(SQL)
                 open_mock.assert_called_with(os_mock.path.join.return_value, 'w')
-                os_mock.umask.assert_called_with(077)
+                os_mock.umask.assert_called_with(int('077', 8))
                 csv_mock.writer.assert_called_once_with(open_mock().__enter__())
                 self.sql_to_s3.s3_hook.load_file.assert_called_once_with(os_mock.path.join.return_value, S3_FILE_KEY, S3_BUCKET, S3_REPLACE)
                 self.sql_to_s3.s3_hook.connection.close.assert_called_once_with()
@@ -109,7 +109,7 @@ class TestSqlToS3Operator(unittest.TestCase):
                 csv_mock.writer.assert_called_once_with(open_mock().__enter__())
 
                 zip_file_mock.assert_called_with(os_mock.path.join.return_value, 'w', zipfile.ZIP_DEFLATED)
-                os_mock.umask.assert_called_with(077)
+                os_mock.umask.assert_called_with(int('077', 8))
                 self.sql_to_s3.s3_hook.load_file.assert_called_once_with(os_mock.path.join.return_value, S3_FILE_KEY, S3_BUCKET, S3_REPLACE)
                 self.sql_to_s3.s3_hook.connection.close.assert_called_once_with()
 

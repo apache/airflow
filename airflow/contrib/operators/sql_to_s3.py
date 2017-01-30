@@ -93,7 +93,7 @@ class SqlToS3(BaseOperator):
         filename = self.s3_file_key + '.csv'
 
         # Ensure the file is read/write by the creator only
-        saved_umask = os.umask(077)
+        saved_umask = os.umask(int('077', 8))
 
         path = os.path.join(tmpdir, filename)
         logging.info("Writting on csv... %s."% (path))
@@ -101,6 +101,7 @@ class SqlToS3(BaseOperator):
                 csv_writer =  csv.writer(tmp)
                 csv_writer.writerow([i[0] for i in cursor.description])
                 csv_writer.writerows(cursor)
+
         if self.s3_zip_file:
             zippath = os.path.join(tmpdir, self.s3_file_key+'.zip')
             logging.info("Zipping CSV file.... %s."% (zippath))
