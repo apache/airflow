@@ -69,25 +69,24 @@ class SqlToS3(BaseOperator):
             *args, **kwargs):
 
         super(SqlToS3, self).__init__(*args, **kwargs)
-        self.db_conn_id = db_conn_id
-        self.sql = sql
-        self.s3_bucket = s3_bucket
-        self.s3_file_key = s3_file_key
-        self.s3_conn_id = s3_conn_id
-        self.s3_replace_file = s3_replace_file
-        self.s3_zip_file = s3_zip_file
+        self.db_conn_id=db_conn_id
+        self.sql=sql
+        self.s3_bucket=s3_bucket
+        self.s3_file_key=s3_file_key
+        self.s3_conn_id=s3_conn_id
+        self.s3_replace_file=s3_replace_file
+        self.s3_zip_file=s3_zip_file
+        self.source_hook=self.get_source_hook()
+        self.s3_hook=self.get_s3_hook()
 
     def execute(self, context):
         """
         Creates files into a temporary directory
         which will be cleaned afterwards
         """
-        source_hook = BaseHook.get_hook(self.db_conn_id)
-        s3_hook = S3Hook(s3_conn_id=self.s3_conn_id)
-
         logging.info("Extracting data from {}".format(self.db_conn_id))
         logging.info("Executing: \n" + self.sql)
-        cursor =source_hook.get_conn().cursor()
+        cursor =self.source_hook.get_conn().cursor()
         cursor.execute(self.sql)
 
         tmpdir = tempfile.mkdtemp()
@@ -110,6 +109,14 @@ class SqlToS3(BaseOperator):
 
         finalpath = zippath if self.s3_zip_file else path
         logging.info("Sending to S3 bucket %s  current file %s"%(self.s3_bucket, finalpath))
-        s3_hook.load_file(finalpath, self.s3_file_key , self.s3_bucket, self.s3_replace_file)
+        self.s3_hook.load_file(finalpath, self.s3_file_key , self.s3_bucket, self.s3_replace_file)
         logging.info("File is stored in S3 with %s key."%(self.s3_file_key))
-        s3_hook.connection.close()
+        self.s3_hook.connection.close()
+
+
+    def get_source_hook(self):
+        return BaseHook.get_hook(self.db_conn_id)
+
+
+    def get_s3_hook(self):
+        return S3Hook(s3_conn_id=self.s3_conn_id)
