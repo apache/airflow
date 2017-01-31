@@ -28,6 +28,7 @@ import socket
 import multiprocessing
 import os
 import signal
+import six
 import sys
 import threading
 import time
@@ -691,7 +692,7 @@ class SchedulerJob(BaseJob):
             ).delete()
 
         # Add the errors of the processed files
-        for filename, stacktrace in dagbag.import_errors.iteritems():
+        for filename, stacktrace in six.iteritems(dagbag.import_errors):
             session.add(models.ImportError(
                 filename=filename,
                 stacktrace=stacktrace))
