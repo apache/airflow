@@ -192,6 +192,10 @@ def initdb():
             extra='{"region_name": "us-east-1"}'))
     merge_conn(
         models.Connection(
+            conn_id='spark_default', conn_type='spark',
+            host='yarn', extra='{"queue": "root.default"}'))
+    merge_conn(
+        models.Connection(
             conn_id='emr_default', conn_type='emr',
             extra='''
                 {   "Name": "default_job_flow_name",
