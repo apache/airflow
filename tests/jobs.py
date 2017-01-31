@@ -51,8 +51,6 @@ except ImportError:
     except ImportError:
         mock = None
 
-IS_PYTHON_3_TRAVIS = sys.version_info >= (3, 0) and "TRAVIS" in os.environ
-
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 
@@ -1244,8 +1242,6 @@ class SchedulerJobTest(unittest.TestCase):
         # The DR should be scheduled BEFORE now
         self.assertLess(dr.execution_date, datetime.datetime.now())
 
-    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
-                     "Fails in Python 3 on Travis but not reproducible locally")
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         try:
             dags_folder = mkdtemp()
@@ -1266,8 +1262,6 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(import_error.stacktrace,
                          "invalid syntax ({}, line 1)".format(TEMP_DAG_FILENAME))
 
-    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
-                     "Fails in Python 3 on Travis but not reproducible locally")
     def test_add_unparseable_file_after_sched_start_creates_import_error(self):
         try:
             dags_folder = mkdtemp()
@@ -1306,8 +1300,6 @@ class SchedulerJobTest(unittest.TestCase):
 
         self.assertEqual(len(import_errors), 0)
 
-    @unittest.skipIf(IS_PYTHON_3_TRAVIS,
-                     "Fails in Python 3 on Travis but not reproducible locally")
     def test_new_import_error_replaces_old(self):
         try:
             dags_folder = mkdtemp()
