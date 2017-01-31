@@ -691,7 +691,7 @@ class SchedulerJob(BaseJob):
             ).delete()
 
         # Add the errors of the processed files
-        for filename, stacktrace in dagbag.import_errors.iteritems():
+        for filename, stacktrace in dagbag.import_errors.items():
             session.add(models.ImportError(
                 filename=filename,
                 stacktrace=stacktrace))
