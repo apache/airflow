@@ -48,11 +48,11 @@ class BaseHook(object):
             .filter(Connection.conn_id == conn_id)
             .all()
         )
+        session.expunge_all()
+        session.close()
         if not db:
             raise AirflowException(
                 "The conn_id `{0}` isn't defined".format(conn_id))
-        session.expunge_all()
-        session.close()
         return db
 
     @classmethod
