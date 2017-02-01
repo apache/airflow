@@ -21,7 +21,6 @@ import copy
 import errno
 import logging
 import os
-import six
 import subprocess
 import warnings
 
@@ -30,9 +29,11 @@ standard_library.install_aliases()
 
 from builtins import str
 from collections import OrderedDict
-from configparser import ConfigParser
+from backports.configparser import ConfigParser
 
 from .exceptions import AirflowConfigException
+
+from zope.deprecation import deprecated as _deprecated
 
 # show Airflow's deprecation warnings
 warnings.filterwarnings(
@@ -507,7 +508,7 @@ dag_dir_list_interval = 0
 """
 
 
-class AirflowConfigParser(ConfigParser):
+class AirflowConfigParser(ConfigParser, object):
 
     # These configuration elements can be fetched as the stdout of commands
     # following the "{section}__{name}__cmd" pattern, the idea behind this
@@ -519,25 +520,13 @@ class AirflowConfigParser(ConfigParser):
         ('celery', 'celery_result_backend')
     }
 
-    def __init__(self, *args, **kwargs):
-        ConfigParser.__init__(self, *args, **kwargs)
-        self.read_string(parameterized_config(DEFAULT_CONFIG))
+    def __init__(self, default_config=None, *args, **kwargs):
+        super(AirflowConfigParser, self).__init__(*args, **kwargs)
+        self.defaults = ConfigParser(*args, **kwargs)
+
+        if default_config is not None:
+            self.defaults.read_string(default_config)
         self.is_validated = False
-
-    def read_string(self, string, source='<string>'):
-        """
-        Read configuration from a string.
-
-        A backwards-compatible version of the ConfigParser.read_string()
-        method that was introduced in Python 3.
-        """
-        # Python 3 added read_string() method
-        if six.PY3:
-            ConfigParser.read_string(self, string, source=source)
-        # Python 2 requires StringIO buffer
-        else:
-            import StringIO
-            self.readfp(StringIO.StringIO(string))
 
     def _validate(self):
         if (
@@ -576,13 +565,11 @@ class AirflowConfigParser(ConfigParser):
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
         # if this is a valid command key...
-        if (section, key) in AirflowConfigParser.as_command_stdout:
-            # if the original key is present, return it no matter what
-            if self.has_option(section, key):
-                return ConfigParser.get(self, section, key)
-            # otherwise, execute the fallback key
-            elif self.has_option(section, fallback_key):
-                command = self.get(section, fallback_key)
+        if (section, key) in self.as_command_stdout:
+            if super(AirflowConfigParser, self) \
+                    .has_option(section, fallback_key):
+                command = super(AirflowConfigParser, self) \
+                    .get(section, fallback_key)
                 return run_command(command)
 
     def get(self, section, key, **kwargs):
@@ -595,14 +582,19 @@ class AirflowConfigParser(ConfigParser):
             return option
 
         # ...then the config file
-        if self.has_option(section, key):
+        if super(AirflowConfigParser, self).has_option(section, key):
             return expand_env_var(
-                ConfigParser.get(self, section, key, **kwargs))
+                super(AirflowConfigParser, self).get(section, key, **kwargs))
 
         # ...then commands
         option = self._get_cmd_option(section, key)
         if option:
             return option
+
+        # ...then the default config
+        if self.defaults.has_option(section, key):
+            return expand_env_var(
+                self.defaults.get(section, key, **kwargs))
 
         else:
             logging.warning("section/key [{section}/{key}] not found "
@@ -632,8 +624,27 @@ class AirflowConfigParser(ConfigParser):
         return float(self.get(section, key))
 
     def read(self, filenames):
-        ConfigParser.read(self, filenames)
+        super(AirflowConfigParser, self).read(filenames)
         self._validate()
+
+    def has_option(self, section, option):
+        try:
+            self.get(section, option)
+            return True
+        except AirflowConfigException:
+            return False
+
+    def remove_option(self, section, option):
+        """
+        Remove an option if it exists in config from a file or
+        default config. If both of config have the same option, this remove
+        the option in config loaded from a file at first and remove it from
+        default config at next call.
+        """
+        if super(AirflowConfigParser, self).has_option(section, option):
+            super(AirflowConfigParser, self).remove_option(section, option)
+        elif self.defaults.has_option(section, option):
+            self.defaults.remove_option(section, option)
 
     def as_dict(self, display_source=False, display_sensitive=False):
         """
@@ -647,7 +658,8 @@ class AirflowConfigParser(ConfigParser):
             are shown as '< hidden >'
         :type display_sensitive: bool
         """
-        cfg = copy.deepcopy(self._sections)
+        cfg = copy.deepcopy(self.defaults._sections)
+        cfg.update(copy.deepcopy(self._sections))
 
         # remove __name__ (affects Python 2 only)
         for options in cfg.values():
@@ -677,7 +689,7 @@ class AirflowConfigParser(ConfigParser):
                     {key.lower(): opt})
 
         # add bash commands
-        for (section, key) in AirflowConfigParser.as_command_stdout:
+        for (section, key) in self.as_command_stdout:
             opt = self._get_cmd_option(section, key)
             if opt:
                 if not display_sensitive:
@@ -695,9 +707,7 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
-        self.read_string(parameterized_config(DEFAULT_CONFIG))
-        # then read test config
-        self.read_string(parameterized_config(TEST_CONFIG))
+        self.defaults.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read any "custom" test settings
         self.read(TEST_CONFIG_FILE)
 
@@ -780,57 +790,27 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
 
 
-conf = AirflowConfigParser()
+conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
 conf.read(AIRFLOW_CONFIG)
 
-
-def load_test_config():
-    """
-    Load the unit test configuration.
-
-    Note: this is not reversible.
-    """
+if conf.getboolean('core', 'unit_test_mode'):
     conf.load_test_config()
 
-if conf.getboolean('core', 'unit_test_mode'):
-    load_test_config()
+load_test_config = conf.load_test_config
+get = conf.get
+getboolean = conf.getboolean
+getfloat = conf.getfloat
+getint = conf.getint
+has_option = conf.has_option
+remove_option = conf.remove_option
+as_dict = conf.as_dict
+set = conf.set # noqa
 
-
-def get(section, key, **kwargs):
-    return conf.get(section, key, **kwargs)
-
-
-def getboolean(section, key):
-    return conf.getboolean(section, key)
-
-
-def getfloat(section, key):
-    return conf.getfloat(section, key)
-
-
-def getint(section, key):
-    return conf.getint(section, key)
-
-
-def has_option(section, key):
-    return conf.has_option(section, key)
-
-
-def remove_option(section, option):
-    return conf.remove_option(section, option)
-
-
-def as_dict(display_source=False, display_sensitive=False):
-    return conf.as_dict(
-        display_source=display_source, display_sensitive=display_sensitive)
-as_dict.__doc__ = conf.as_dict.__doc__
-
-
-def set(section, option, value):  # noqa
-    return conf.set(section, option, value)
-
-########################
-# convenience method to access config entries
-
-def get_dags_folder():
-    return os.path.expanduser(get('core', 'DAGS_FOLDER'))
+for func in [load_test_config, get, getboolean, getfloat, getint, has_option,
+             remove_option, as_dict, set]:
+    _deprecated(
+        func,
+        "Accessing configuration method '{f.__name__}' directly from "
+        "the configuration module is deprecated. Please access the "
+        "configuration from the 'configuration.conf' object via "
+        "'conf.{f.__name__}'".format(f=func))

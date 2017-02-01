@@ -763,6 +763,9 @@ class CoreTest(unittest.TestCase):
         assert not configuration.has_option("core", "FERNET_KEY_CMD")
 
         FERNET_KEY = configuration.get("core", "FERNET_KEY")
+        # remove overridden config
+        configuration.remove_option("core", "FERNET_KEY")
+        # remove default config
         configuration.remove_option("core", "FERNET_KEY")
 
         with self.assertRaises(AirflowConfigException) as cm:
@@ -1291,7 +1294,8 @@ class CliTests(unittest.TestCase):
             '-s', DEFAULT_DATE.isoformat()]))
 
     def test_process_subdir_path_with_placeholder(self):
-        assert cli.process_subdir('DAGS_FOLDER/abc') == os.path.join(configuration.get_dags_folder(), 'abc')
+        assert cli.process_subdir('DAGS_FOLDER/abc') == \
+               os.path.join(os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')), 'abc')
 
     def test_trigger_dag(self):
         cli.trigger_dag(self.parser.parse_args([
