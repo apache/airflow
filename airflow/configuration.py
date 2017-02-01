@@ -200,6 +200,14 @@ default_ram = 512
 default_disk = 512
 default_gpus = 0
 
+[dataflow]
+# A prefix added to all Dataflow keys
+key_prefix = DATAFLOW
+
+# Connection information for Dataflows backed by Google Cloud Storage
+gcloud_storage_connection_id =
+gcloud_storage_bucket =
+gcloud_storage_prefix =
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or

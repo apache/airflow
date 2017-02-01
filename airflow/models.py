@@ -1370,9 +1370,18 @@ class TaskInstance(Base):
                 else:
                     result = task_copy.execute(context=context)
 
-                # If the task returns a result, push an XCom containing it
-                if result is not None:
+                if self.task.return_xcom:
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+
+                # Process dataflows
+                # first see if this task's is a data source
+                for downstream_task in self.task.downstream_list:
+                    for dataflow in downstream_task.dataflows.values():
+                        if dataflow.upstream_task.task_id == self.task_id:
+                            dataflow._set_data(result, context=context)
+                # second see if this task needs to clean up its own dataflows
+                for dataflow in self.task.dataflows.values():
+                    dataflow.clean_up(context)
 
                 task_copy.post_execute(context=context)
                 Stats.incr('operator_successes_{}'.format(
@@ -1528,7 +1537,7 @@ class TaskInstance(Base):
             def __repr__(self):
                 return str(self.var)
 
-        return {
+        context = {
             'dag': task.dag,
             'ds': ds,
             'ds_nodash': ds_nodash,
@@ -1558,8 +1567,14 @@ class TaskInstance(Base):
             'var': {
                 'value': VariableAccessor(),
                 'json': VariableJsonAccessor()
-            }
+            },
         }
+
+        context['dataflows'] = {
+            key: df._get_data(context.copy())
+            for key, df in task.dataflows.items()}
+
+        return context
 
     def render_templates(self):
         task = self.task
@@ -1863,11 +1878,19 @@ class BaseOperator(object):
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
     :type trigger_rule: str
-    :param resources: A map of resource parameter names (the argument names of the
-        Resources constructor) to their values.
+    :param resources: A map of resource parameter names (the argument names of
+        the Resources constructor) to their values.
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
+    :param dataflows: A dictionary of (key: Dataflow) pairs indicating that the
+        data described by the Dataflow object should be made available in the
+        operator's context as context['dataflows'][key]. Additionally,
+        PythonOperators will receive the Dataflow contents as keyword arguments.
+    :type dataflows: dict
+    :param return_xcom: If True, the result of the Operator is automatically
+        pushed as an XCom.
+    :type return_xcom: bool
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1910,6 +1933,8 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
+            dataflows=None,
+            return_xcom=False,
             *args,
             **kwargs):
 
@@ -1974,6 +1999,8 @@ class BaseOperator(object):
         self.priority_weight = priority_weight
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
+        self.dataflows = {}
+        self.return_xcom = return_xcom
 
         # Private attributes
         self._upstream_task_ids = []
@@ -1983,6 +2010,8 @@ class BaseOperator(object):
             dag = _CONTEXT_MANAGER_DAG
         if dag:
             self.dag = dag
+
+        self.add_dataflows(**(dataflows or {}))
 
         self._comps = {
             'task_id',
@@ -2502,6 +2531,18 @@ class BaseOperator(object):
             task_ids=task_ids,
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
+
+    def add_dataflows(self, **dataflows):
+        # import here to avoid circular imports
+        from airflow.dataflow import Dataflow
+
+        for key, dataflow in dataflows.items():
+            if not isinstance(dataflow, Dataflow):
+                raise TypeError(
+                    'Expected type Dataflow; received {}'.format(type(dataflow)))
+            self.dataflows[key] = dataflow
+            if dataflow.source_task_id not in self._upstream_task_ids:
+                self.set_upstream(dataflow.upstream_task)
 
 
 class DagModel(Base):
@@ -3664,7 +3705,8 @@ class XCom(Base):
             dag_ids=None,
             include_prior_dates=False,
             limit=100,
-            session=None):
+            session=None,
+            count=False):
         """
         Retrieve an XCom value, optionally meeting certain criteria
         """
@@ -3686,7 +3728,10 @@ class XCom(Base):
             .order_by(cls.execution_date.desc(), cls.timestamp.desc())
             .limit(limit))
 
-        return query.all()
+        if count:
+            return query.count()
+        else:
+            return query.all()
 
     @classmethod
     @provide_session
@@ -3700,7 +3745,6 @@ class XCom(Base):
                 )
             session.delete(xcom)
         session.commit()
-
 
 class DagStat(Base):
     __tablename__ = "dag_stats"

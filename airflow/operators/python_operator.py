@@ -72,6 +72,9 @@ class PythonOperator(BaseOperator):
             self.template_ext = templates_exts
 
     def execute(self, context):
+        if self.dataflows:
+            self.op_kwargs.update(context['dataflows'])
+
         if self.provide_context:
             context.update(self.op_kwargs)
             context['templates_dict'] = self.templates_dict
