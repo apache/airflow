@@ -23,6 +23,12 @@
 <link rel="stylesheet" type="text/css"
     href="{{ url_for('static', filename='tree.css') }}">
 <link href="{{ admin_static.url(filename='vendor/bootstrap-daterangepicker/daterangepicker-bs2.css') }}" rel="stylesheet">
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
+<link rel="stylesheet" type="text/css"
+      href="{{ url_for("static", filename="nv.d3.css") }}">
+<script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
+<script src="{{ url_for('static', filename='nv.d3.js') }}"></script>
 {% endblock %}
 
 {% block body %}
