@@ -26,7 +26,7 @@ import six
 import sys
 from tempfile import mkdtemp
 
-from airflow import AirflowException, settings
+from airflow import AirflowException, settings, models
 from airflow.bin import cli
 from airflow.jobs import BackfillJob, SchedulerJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
