@@ -22,7 +22,7 @@ class AirflowException(Exception):
 
 class AirflowConfigException(AirflowException):
     pass
-    
+
 
 class AirflowSensorTimeout(AirflowException):
     pass
@@ -33,4 +33,8 @@ class AirflowTaskTimeout(AirflowException):
 
 
 class AirflowSkipException(AirflowException):
+    pass
+
+
+class XComException(AirflowException):
     pass

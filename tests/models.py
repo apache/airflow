@@ -23,7 +23,7 @@ import unittest
 import time
 
 from airflow import models, settings, AirflowException
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowSkipException, XComException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel
@@ -580,6 +580,31 @@ class TaskInstanceTest(unittest.TestCase):
 
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
+
+
+class XComTest(unittest.TestCase):
+
+    def test_xcom_max_size(self):
+        """
+        Test that pushing large XComs raises an error
+        """
+        small_value = [0] * 100
+        large_value = [0] * 1000000
+
+        dag = models.DAG(dag_id='test_xcom')
+        task = DummyOperator(
+            task_id='test_xcom',
+            dag=dag,
+            owner='airflow',
+            start_date=datetime.datetime(2016, 6, 2, 0, 0, 0))
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+
+        # this should work
+        ti.xcom_push(key='small xcom', value=small_value)
+
+        # this should fail
+        with self.assertRaises(XComException):
+            ti.xcom_push(key='large xcom', value=large_value)
 
     def test_xcom_pull_after_success(self):
         """
