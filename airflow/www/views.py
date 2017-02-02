@@ -78,7 +78,7 @@ from airflow.configuration import AirflowConfigException
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
 
-dagbag = models.DagBag(os.path.expanduser(conf.get('core', 'DAGS_FOLDER')))
+dagbag = models.DagBag(settings.DAGS_FOLDER)
 
 login_required = airflow.login.login_required
 current_user = airflow.login.current_user

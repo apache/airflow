@@ -137,9 +137,7 @@ def notify_owner(f):
         if request.args.get('confirmed') == "true":
             dag_id = request.args.get('dag_id')
             task_id = request.args.get('task_id')
-            dagbag = models.DagBag(
-                os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
-
+            dagbag = models.DagBag(settings.DAGS_FOLDER)
             dag = dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 

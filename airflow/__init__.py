@@ -24,19 +24,17 @@ from airflow import version
 __version__ = version.version
 
 import logging
-import os
 import sys
 
 from airflow import configuration as conf
-
+from airflow import settings
 from airflow.models import DAG
 from flask_admin import BaseView
 from importlib import import_module
 from airflow.exceptions import AirflowException
 
-DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
-if DAGS_FOLDER not in sys.path:
-    sys.path.append(DAGS_FOLDER)
+if settings.DAGS_FOLDER not in sys.path:
+    sys.path.append(settings.DAGS_FOLDER)
 
 login = None
 
