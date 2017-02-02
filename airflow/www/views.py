@@ -18,7 +18,6 @@ from past.builtins import basestring, unicode
 import os
 import pkg_resources
 import socket
-import importlib
 from functools import wraps
 from datetime import datetime, timedelta
 import dateutil.parser
@@ -578,8 +577,8 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         title = dag_id
         try:
-            m = importlib.import_module(dag.module_name)
-            code = inspect.getsource(m)
+            with open(dag.fileloc, 'r') as f:
+                code = f.read()
             html_code = highlight(
                 code, lexers.PythonLexer(), HtmlFormatter(linenos=True))
         except IOError as e:

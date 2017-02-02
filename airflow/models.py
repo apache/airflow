@@ -29,6 +29,7 @@ import functools
 import getpass
 import imp
 import importlib
+import inspect
 import zipfile
 import jinja2
 import json
@@ -307,7 +308,6 @@ class DagBag(BaseDagBag, LoggingMixin):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
                     dag.is_subdag = False
-                    dag.module_name = m.__name__
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                     found_dags.append(dag)
                     found_dags += dag.subdags
@@ -367,7 +367,6 @@ class DagBag(BaseDagBag, LoggingMixin):
         for subdag in dag.subdags:
             subdag.full_filepath = dag.full_filepath
             subdag.parent_dag = dag
-            subdag.fileloc = root_dag.full_filepath
             subdag.is_subdag = True
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
         self.logger.debug('Loaded DAG {dag}'.format(**locals()))
@@ -2658,6 +2657,8 @@ class DAG(BaseDag, LoggingMixin):
         self._pickle_id = None
 
         self._description = description
+        # set file location to caller source path
+        self.fileloc = inspect.getsourcefile(inspect.stack()[1][0])
         self.task_dict = dict()
         self.start_date = start_date
         self.end_date = end_date
@@ -3355,7 +3356,7 @@ class DAG(BaseDag, LoggingMixin):
             orm_dag = DagModel(dag_id=dag.dag_id)
             logging.info("Creating ORM DAG for %s",
                          dag.dag_id)
-        orm_dag.fileloc = dag.full_filepath
+        orm_dag.fileloc = dag.fileloc
         orm_dag.is_subdag = dag.is_subdag
         orm_dag.owners = owner
         orm_dag.is_active = True
