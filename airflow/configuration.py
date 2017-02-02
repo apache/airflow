@@ -591,7 +591,7 @@ class AirflowConfigParser(ConfigParser):
 
         # first check environment variables
         option = self._get_env_var_option(section, key)
-        if option:
+        if option is not None:
             return option
 
         # ...then the config file
