@@ -72,7 +72,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             if file_ext != '.py':
                 continue
 
-            logging.info('Importing plugin module ' + filepath)
+            logging.debug('Importing plugin module ' + filepath)
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
@@ -92,7 +92,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
 
 
 def make_module(name, objects):
-    logging.info('Creating module ' + name)
+    logging.debug('Creating module ' + name)
     name = name.lower()
     module = imp.new_module(name)
     module._name = name.split('.')[-1]
