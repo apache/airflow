@@ -18,6 +18,7 @@ import subprocess
 from subprocess import STDOUT
 
 from airflow.models import BaseOperator
+from airflow.contrib.hooks import SSHHook
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 
@@ -92,6 +93,9 @@ class SSHExecuteOperator(BaseOperator):
     :param ssh_hook: A SSHHook that indicates the remote host
                      you want to run the script
     :param ssh_hook: SSHHook
+    :param ssh_conn_id: If ssh_hook is None, then destination ssh connection id
+        will be used to instantiate a Hook
+    :type ssh_conn_id: string
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
     :type bash_command: string
@@ -100,6 +104,8 @@ class SSHExecuteOperator(BaseOperator):
         of inheriting the current process environment, which is the default
         behavior.
     :type env: dict
+    :param xcom_push_type: 'line', 'output'
+    :type xcom_push_type: string
     """
 
     template_fields = ("bash_command", "env",)
@@ -107,16 +113,25 @@ class SSHExecuteOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 ssh_hook,
                  bash_command,
+                 ssh_hook=None,
+                 ssh_conn_id=None,
                  xcom_push=False,
+                 xcom_push_type='line',
                  env=None,
                  *args, **kwargs):
         super(SSHExecuteOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
-        self.hook = ssh_hook
+        if ssh_hook is not None:
+            self.hook = ssh_hook
+        elif ssh_conn_id is not None:
+            self.hook = SSHHook(conn_id=ssh_conn_id)
+        else:
+            raise AirflowException("Either ssh_hook or ssh_conn_id is required. If both are sent, ssh_conn_id will be ignored")
+
         self.xcom_push = xcom_push
+        self.xcom_push_type = xcom_push_type
 
     def execute(self, context):
         bash_command = self.bash_command
@@ -141,16 +156,23 @@ class SSHExecuteOperator(BaseOperator):
 
             logging.info("Output:")
             line = ''
+            output = []
             for line in iter(sp.stdout.readline, b''):
                 line = line.decode().strip()
+                output.append(line)
                 logging.info(line)
             sp.wait()
             logging.info("Command exited with "
                          "return code {0}".format(sp.returncode))
+
             if sp.returncode:
                 raise AirflowException("Bash command failed")
+
         if self.xcom_push:
-            return line
+            if self.xcom_push_type == 'line':
+                return line
+            else:
+                return output
 
     def on_kill(self):
         # TODO: Cleanup remote tempfile
