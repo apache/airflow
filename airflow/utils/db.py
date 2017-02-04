@@ -237,6 +237,17 @@ def initdb():
                     ]
                 }
             '''))
+    merge_conn(
+        models.Connection(
+            conn_id='jdbc_default', conn_type='jdbc',
+            host='jdbc:mysql://localhost:3306/airflow', port=3306,
+            login='airflow', password='airflow', schema='airflow',
+            extra='''
+            {
+                "extra__jdbc__drv_path": "/tmp/mysql-connector-java-5.1.40-bin.jar",
+                "extra__jdbc__drv_clsname": "com.mysql.jdbc.Driver"
+            }
+            '''))
 
     # Known event types
     KET = models.KnownEventType
