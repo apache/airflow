@@ -15,6 +15,7 @@
 from __future__ import print_function
 
 import doctest
+import json
 import os
 import re
 import unittest
@@ -2044,6 +2045,22 @@ class ConnectionTest(unittest.TestCase):
         self.assertIsInstance(engine, sqlalchemy.engine.Engine)
         self.assertEqual('postgres://username:password@ec2.compute.com:5432/the_database', str(engine.url))
 
+    def test_get_connections_env_var(self):
+        conns = SqliteHook.get_connections(conn_id='test_uri')
+        assert len(conns) == 1
+        assert conns[0].host == 'ec2.compute.com'
+        assert conns[0].schema == 'the_database'
+        assert conns[0].login == 'username'
+        assert conns[0].password == 'password'
+        assert conns[0].port == 5432
+
+    def test_get_connections_db(self):
+        conns = BaseHook.get_connections(conn_id='airflow_db')
+        assert len(conns) == 1
+        assert conns[0].host == 'localhost'
+        assert conns[0].schema == 'airflow'
+        assert conns[0].login == 'root'
+
 
 class WebHDFSHookTest(unittest.TestCase):
     def setUp(self):
@@ -2058,6 +2075,56 @@ class WebHDFSHookTest(unittest.TestCase):
         from airflow.hooks.webhdfs_hook import WebHDFSHook
         c = WebHDFSHook(proxy_user='someone')
         self.assertEqual('someone', c.proxy_user)
+
+
+try:
+    from airflow.hooks.hdfs_hook import HDFSHook
+    import snakebite
+except ImportError:
+    HDFSHook = None
+
+
+@unittest.skipIf(HDFSHook is None,
+                 "Skipping test because HDFSHook is not installed")
+class HDFSHookTest(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        os.environ['AIRFLOW_CONN_HDFS_DEFAULT'] = ('hdfs://localhost:8020')
+
+    def test_get_client(self):
+        client = HDFSHook(proxy_user='foo').get_conn()
+        self.assertIsInstance(client, snakebite.client.Client)
+        self.assertEqual('localhost', client.host)
+        self.assertEqual(8020, client.port)
+        self.assertEqual('foo', client.service.channel.effective_user)
+
+    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
+    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
+    def test_get_autoconfig_client(self, mock_get_connections,
+                                   MockAutoConfigClient):
+        c = models.Connection(conn_id='hdfs', conn_type='hdfs',
+                              host='localhost', port=8020, login='foo',
+                              extra=json.dumps({'autoconfig': True}))
+        mock_get_connections.return_value = [c]
+        HDFSHook(hdfs_conn_id='hdfs').get_conn()
+        MockAutoConfigClient.assert_called_once_with(effective_user='foo',
+                                                     use_sasl=False)
+
+    @mock.patch('airflow.hooks.hdfs_hook.AutoConfigClient')
+    def test_get_autoconfig_client_no_conn(self, MockAutoConfigClient):
+        HDFSHook(hdfs_conn_id='hdfs_missing', autoconfig=True).get_conn()
+        MockAutoConfigClient.assert_called_once_with(effective_user=None,
+                                                     use_sasl=False)
+
+    @mock.patch('airflow.hooks.hdfs_hook.HDFSHook.get_connections')
+    def test_get_ha_client(self, mock_get_connections):
+        c1 = models.Connection(conn_id='hdfs_default', conn_type='hdfs',
+                               host='localhost', port=8020)
+        c2 = models.Connection(conn_id='hdfs_default', conn_type='hdfs',
+                               host='localhost2', port=8020)
+        mock_get_connections.return_value = [c1, c2]
+        client = HDFSHook().get_conn()
+        self.assertIsInstance(client, snakebite.client.HAClient)
 
 
 try:
