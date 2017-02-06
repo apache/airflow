@@ -3734,6 +3734,10 @@ class DagStat(Base):
         :param full_query: whether to check dag_runs for new drs not in dag_stats
         :type full_query: bool
         """
+        # avoid querying with an empty IN clause
+        if not dag_ids:
+            return
+
         dag_ids = set(dag_ids)
 
         qry = (
@@ -3744,6 +3748,10 @@ class DagStat(Base):
         dirty_ids = {dag.dag_id for dag in qry.all()}
         qry.delete(synchronize_session='fetch')
         session.commit()
+
+        # avoid querying with an empty IN clause
+        if not dirty_ids:
+            return
 
         qry = (
             session.query(DagRun.dag_id, DagRun.state, func.count('*'))
