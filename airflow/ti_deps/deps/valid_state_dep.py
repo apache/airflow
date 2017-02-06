@@ -47,11 +47,11 @@ class ValidStateDep(BaseTIDep):
         if dep_context.ignore_ti_state:
             yield self._passing_status(
                 reason="Context specified that state should be ignored.")
-            raise StopIteration
+            return
 
         if ti.state in self._valid_states:
             yield self._passing_status(reason="Task state {} was valid.".format(ti.state))
-            raise StopIteration
+            return
 
         yield self._failing_status(
             reason="Task is in the '{0}' state which is not a valid state for "
