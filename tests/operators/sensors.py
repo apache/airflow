@@ -22,7 +22,7 @@ import unittest
 from datetime import datetime, timedelta
 
 from airflow import DAG, configuration
-from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor
+from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, PythonSensor
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import (AirflowException,
                                 AirflowSensorTimeout,
@@ -181,3 +181,38 @@ class HdfsSensorTests(unittest.TestCase):
         # Then
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(None)
+
+class PythonSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+    def test_python_sensor_true(self):
+        t = PythonSensor(
+            task_id='python_sensor_check_true',
+            python_callable=lambda: True,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_python_sensor_false(self):
+        t = PythonSensor(
+            task_id='python_sensor_check_false',
+            timeout=1,
+            python_callable=lambda: False,
+            dag=self.dag)
+        with self.assertRaises(AirflowSensorTimeout):
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_python_sensor_raise(self):
+        t = PythonSensor(
+            task_id='python_sensor_check_raise',
+            python_callable=lambda: 1/0,
+            dag=self.dag)
+        with self.assertRaises(ZeroDivisionError):
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
