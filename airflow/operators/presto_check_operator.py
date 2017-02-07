@@ -80,7 +80,9 @@ class PrestoValueCheckOperator(ValueCheckOperator):
             self, sql, pass_value, tolerance=None,
             presto_conn_id='presto_default',
             *args, **kwargs):
-        super(PrestoValueCheckOperator, self).__init__(sql, pass_value, tolerance, *args, **kwargs)
+        super(PrestoValueCheckOperator, self).__init__(
+            sql=sql, pass_value=pass_value, tolerance=tolerance,
+            *args, **kwargs)
         self.presto_conn_id = presto_conn_id
 
     def get_db_hook(self):
@@ -110,7 +112,8 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
             presto_conn_id='presto_default',
             *args, **kwargs):
         super(PrestoIntervalCheckOperator, self).__init__(
-            table, metrics_thresholds, date_filter_column, days_back,
+            table=table, metrics_thresholds=metrics_thresholds,
+            date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)
         self.presto_conn_id = presto_conn_id
 
