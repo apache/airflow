@@ -75,14 +75,12 @@ class CgroupTaskRunner(BaseTaskRunner):
             if path_element not in name_to_node:
                 self.logger.debug("Creating cgroup {} in {}"
                                   .format(path_element, node.path))
-                subprocess.check_output("sudo mkdir -p {}".format(path_element))
-                subprocess.check_output("sudo chown -R {} {}".format(
-                    self._cur_user, path_element))
+                node = node.create_cgroup(path_element)
             else:
                 self.logger.debug("Not creating cgroup {} in {} "
                                   "since it already exists"
                                   .format(path_element, node.path))
-            node = name_to_node[path_element]
+                node = name_to_node[path_element]
         return node
 
     def _delete_cgroup(self, path):
