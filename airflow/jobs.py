@@ -2024,7 +2024,7 @@ class LocalTaskJob(BaseJob):
             if self.task_runner.process:
                 ti.pid = self.task_runner.process.pid
             ti.hostname = socket.getfqdn()
-            ti.state = State.RUNNING
+            #ti.state = State.RUNNING
             session.merge(ti)
             session.commit()
             session.close()
