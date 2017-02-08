@@ -28,17 +28,6 @@ export AIRFLOW_USE_NEW_IMPORTS=1
 # any argument received is overriding the default nose execution arguments:
 
 nose_args=$@
-if [ -z "$nose_args" ]; then
-  nose_args="--with-coverage \
---cover-erase \
---cover-html \
---cover-package=airflow \
---cover-html-dir=airflow/www/static/coverage \
---with-ignore-docstrings \
--s \
--v \
---logging-level=DEBUG "
-fi
 
 #--with-doctest
 
@@ -50,7 +39,18 @@ yes | airflow resetdb
 airflow initdb
 
 if [ "${TRAVIS}" ]; then
-  # For impersonation tests running on SQLite on Travis, make the database world readable so other 
+    if [ -z "$nose_args" ]; then
+      nose_args="--with-coverage \
+    --cover-erase \
+    --cover-html \
+    --cover-package=airflow \
+    --cover-html-dir=airflow/www/static/coverage \
+    --with-ignore-docstrings \
+    -v \
+    --logging-level=DEBUG "
+    fi
+
+  # For impersonation tests running on SQLite on Travis, make the database world readable so other
   # users can update it
   AIRFLOW_DB="/home/travis/airflow/airflow.db"
   if [ -f "${AIRFLOW_DB}" ]; then
@@ -60,6 +60,18 @@ if [ "${TRAVIS}" ]; then
   # For impersonation tests on Travis, make airflow accessible to other users via the global PATH
   # (which contains /usr/local/bin)
   sudo ln -s "${VIRTUAL_ENV}/bin/airflow" /usr/local/bin/
+else
+    if [ -z "$nose_args" ]; then
+      nose_args="--with-coverage \
+    --cover-erase \
+    --cover-html \
+    --cover-package=airflow \
+    --cover-html-dir=airflow/www/static/coverage \
+    --with-ignore-docstrings \
+    -s \
+    -v \
+    --logging-level=DEBUG "
+    fi
 fi
 
 echo "Starting the unit tests with the following nose arguments: "$nose_args
