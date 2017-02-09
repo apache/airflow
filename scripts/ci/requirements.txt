@@ -10,6 +10,7 @@ coveralls
 croniter
 cryptography
 dill
+distributed
 docker-py
 filechunkio
 flake8

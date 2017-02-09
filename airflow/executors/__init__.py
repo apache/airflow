@@ -20,11 +20,6 @@ from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
-try:
-    from airflow.executors.celery_executor import CeleryExecutor
-except:
-    pass
-
 from airflow.exceptions import AirflowException
 
 
@@ -39,10 +34,14 @@ _EXECUTOR = configuration.get('core', 'EXECUTOR')
 
 if _EXECUTOR == 'LocalExecutor':
     DEFAULT_EXECUTOR = LocalExecutor()
-elif _EXECUTOR == 'CeleryExecutor':
-    DEFAULT_EXECUTOR = CeleryExecutor()
 elif _EXECUTOR == 'SequentialExecutor':
     DEFAULT_EXECUTOR = SequentialExecutor()
+elif _EXECUTOR == 'CeleryExecutor':
+    from airflow.executors.celery_executor import CeleryExecutor
+    DEFAULT_EXECUTOR = CeleryExecutor()
+elif _EXECUTOR == 'DaskExecutor':
+    from airflow.executors.dask_executor import DaskExecutor
+    DEFAULT_EXECUTOR = DaskExecutor()
 elif _EXECUTOR == 'MesosExecutor':
     from airflow.contrib.executors.mesos_executor import MesosExecutor
     DEFAULT_EXECUTOR = MesosExecutor()

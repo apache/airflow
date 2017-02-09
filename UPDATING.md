@@ -3,6 +3,14 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
+## Master
+
+### New Features
+
+#### Dask Executor
+
+A new DaskExecutor allows Airflow tasks to be run in Dask Distributed clusters.
+
 ## Airflow 1.8
 
 ### Database

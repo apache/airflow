@@ -112,6 +112,9 @@ cgroups = [
     'cgroupspy>=0.1.4',
 ]
 crypto = ['cryptography>=0.9.3']
+dask = [
+    'distributed>=1.15.2, <2'
+    ]
 datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx>=1.2.3',
@@ -233,6 +236,7 @@ def do_setup():
             'cgroups': cgroups,
             'cloudant': cloudant,
             'crypto': crypto,
+            'dask': dask,
             'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,

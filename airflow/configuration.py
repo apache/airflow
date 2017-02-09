@@ -114,7 +114,7 @@ encrypt_s3_logs = False
 s3_log_folder =
 
 # The executor class that airflow should use. Choices include
-# SequentialExecutor, LocalExecutor, CeleryExecutor
+# SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor
 executor = SequentialExecutor
 
 # The SqlAlchemy connection string to the metadata database.
@@ -331,6 +331,14 @@ flower_port = 5555
 
 # Default queue that tasks get assigned to and that worker listen on.
 default_queue = default
+
+
+[dask]
+# This section only applies if you are using the DaskExecutor in
+# [core] section above
+
+# The IP address and port of the Dask cluster's scheduler.
+cluster_address = 127.0.0.1:8786
 
 
 [scheduler]
