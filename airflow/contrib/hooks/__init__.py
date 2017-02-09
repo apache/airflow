@@ -35,7 +35,7 @@ _hooks = {
     'ftp_hook': ['FTPHook'],
     'ftps_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
-    'ssh_hook': ['SSHHook'],
+    'ssh_hook': ['SshHook'],
     'bigquery_hook': ['BigQueryHook'],
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],
