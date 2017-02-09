@@ -16,6 +16,7 @@ from builtins import bytes
 import logging
 import subprocess
 from subprocess import STDOUT
+from six import StringIO
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -54,8 +55,7 @@ class SSHTempFileContent(object):
         string = self._content
         prefix = self._prefix
 
-        pmktemp = ssh_hook.Popen(["-q",
-                                  "mktemp", "-t", prefix + "_XXXXXX"],
+        pmktemp = ssh_hook.Popen(["mktemp", "-q", "-t", prefix + "_XXXXXX"],
                                  stdout=subprocess.PIPE,
                                  stderr=STDOUT)
         tempfile = pmktemp.communicate()[0].rstrip()
@@ -133,24 +133,21 @@ class SSHExecuteOperator(BaseOperator):
                 logging.info("env: " + str(self.env))
 
             sp = hook.Popen(
-                ['-q', 'bash', remote_file_path],
-                stdout=subprocess.PIPE, stderr=STDOUT,
-                env=self.env)
+                    ['-q', 'bash', remote_file_path],
+                    stdout=subprocess.PIPE, stderr=STDOUT,
+                    env=self.env)
 
             self.sp = sp
-
-            logging.info("Output:")
-            line = ''
+            output = StringIO()
             for line in iter(sp.stdout.readline, b''):
-                line = line.decode().strip()
-                logging.info(line)
+                output.write(line)
             sp.wait()
             logging.info("Command exited with "
                          "return code {0}".format(sp.returncode))
             if sp.returncode:
                 raise AirflowException("Bash command failed")
         if self.xcom_push:
-            return line
+            return output.getvalue()
 
     def on_kill(self):
         # TODO: Cleanup remote tempfile

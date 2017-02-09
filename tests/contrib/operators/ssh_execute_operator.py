@@ -62,6 +62,19 @@ class SSHExecuteOperatorTest(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_multiline_output(self):
+        multiline_output = "This is one line\nthis is second line\nthis is last line"
+        task_output = SSHExecuteOperator(
+                task_id="test",
+                bash_command="echo '%s'" % multiline_output,
+                ssh_hook=self.hook,
+                dag=self.dag,
+                xcom_push=True
+        ).execute(context=[])
+
+        self.assertIsNotNone(task_output)
+        self.assertEqual(task_output.rstrip(), multiline_output)
+
     def test_with_env(self):
         test_env = os.environ.copy()
         test_env['AIRFLOW_test'] = "test"
