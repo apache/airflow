@@ -14,6 +14,12 @@ Systemd unit files have been updated. If you use systemd please make sure to upd
 
 > Please note that the webserver does not detach properly, this will be fixed in a future version.
 
+### Tasks not starting although dependencies are met due to stricter pool checking
+Airflow 1.7.1 has issues with being able to over subscribe to a pool, ie. more slots could be used than were
+available. This is fixed in Airflow 1.8.0, but due to past issue jobs may fail to start although their
+dependencies are met after an upgrade. To workaround either temporarily increase the amount of slots above
+the the amount of queued tasks or use a new pool.
+
 ### Less forgiving scheduler on dynamic start_date
 Using a dynamic start_date (e.g. `start_date = datetime.now()`) is not considered a best practice. The 1.8.0 scheduler
 is less forgiving in this area. If you encounter DAGs not being scheduled you can try using a fixed start_date and
