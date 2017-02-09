@@ -66,7 +66,7 @@
                 <!-- Column 2: Turn dag on/off -->
                 <td>
                   {% if dag_id in orm_dags %}
-                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini">
+                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                   {% endif %}
                 </td>
 
@@ -214,7 +214,7 @@
             is_paused = 'false'
           }
           url = 'airflow/paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.ajax(url);
+          $.post(url);
         });
       });
       $('#dags').dataTable({

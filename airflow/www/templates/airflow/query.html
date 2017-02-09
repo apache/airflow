@@ -29,12 +29,12 @@
 
 {% block body %}
   <h2>Ad Hoc Query</h2>
-  <form method="get" id="query_form">
+  <form method="post" id="query_form">
     <div class="form-inline">
         <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
         {{ form.conn_id }}
-        <input type="submit" class="btn btn-default" value="Run!">
-        <input type="button" class="btn btn-default" value=".csv" id="csv">
+        <input type="submit" class="btn btn-default" value="Run!" id="submit_without_csv">
+        <input type="submit" class="btn btn-default" value=".csv" id="submit_with_csv">
         <span id="results"></span><br>
         <div id='ace_container'>
             {{ form.sql(rows=10) }}
@@ -71,12 +71,16 @@
         });
         $('select').addClass("form-control");
         sync();
-        $("#query_form").submit(function(event){
+        $("#submit_without_csv").submit(function(event){
             $("#results").html("<img width='25'src='{{ url_for('static', filename='loading.gif') }}'>");
         });
-        $("#csv").on("click", function(){
-            window.location += '&csv=true';
-        })
+        $("#submit_with_csv").click(function(){
+          $("#csv_value").remove();
+          $("#query_form").append('<input name="csv" type="hidden" value="true" id="csv_value">');
+        });
+        $("#submit_without_csv").click(function(){
+          $("#csv_value").remove();
+        });
     });
   </script>
 {% endblock %}

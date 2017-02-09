@@ -1407,6 +1407,44 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+class CSRFTests(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        configuration.conf.set("webserver", "authenticate", "False")
+        configuration.conf.set("webserver", "expose_config", "True")
+        app = application.create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+        self.dagbag = models.DagBag(
+            dag_folder=DEV_NULL, include_examples=True)
+        self.dag_bash = self.dagbag.dags['example_bash_operator']
+        self.runme_0 = self.dag_bash.get_task('runme_0')
+
+    def get_csrf(self, response):
+        tree = html.fromstring(response.data)
+        form = tree.find('.//form')
+
+        return form.find('.//input[@name="_csrf_token"]').value
+
+    def test_csrf_rejection(self):
+        endpoints = ([
+            "/admin/queryview/",
+            "/admin/airflow/paused?dag_id=example_python_operator&is_paused=false",
+        ])
+        for endpoint in endpoints:
+            response = self.app.post(endpoint)
+            self.assertIn('CSRF token is missing', response.data.decode('utf-8'))
+
+    def test_csrf_acceptance(self):
+        response = self.app.get("/admin/queryview/")
+        csrf = self.get_csrf(response)
+        response = self.app.post("/admin/queryview/", data=dict(csrf_token=csrf))
+        self.assertEqual(200, response.status_code)
+
+    def tearDown(self):
+        configuration.conf.set("webserver", "expose_config", "False")
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1415,6 +1453,7 @@ class WebUiTests(unittest.TestCase):
         configuration.conf.set("webserver", "expose_config", "True")
         app = application.create_app()
         app.config['TESTING'] = True
+        app.config['WTF_CSRF_METHODS'] = []
         self.app = app.test_client()
 
         self.dagbag = models.DagBag(include_examples=True)
@@ -1445,10 +1484,10 @@ class WebUiTests(unittest.TestCase):
     def test_query(self):
         response = self.app.get('/admin/queryview/')
         self.assertIn("Ad Hoc Query", response.data.decode('utf-8'))
-        response = self.app.get(
-            "/admin/queryview/?"
-            "conn_id=airflow_db&"
-            "sql=SELECT+COUNT%281%29+as+TEST+FROM+task_instance")
+        response = self.app.post(
+            "/admin/queryview/", data=dict(
+            conn_id="airflow_db",
+            sql="SELECT+COUNT%281%29+as+TEST+FROM+task_instance"))
         self.assertIn("TEST", response.data.decode('utf-8'))
 
     def test_health(self):
@@ -1563,9 +1602,10 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             "/admin/airflow/refresh?dag_id=example_bash_operator")
         response = self.app.get("/admin/airflow/refresh_all")
-        response = self.app.get(
+        response = self.app.post(
             "/admin/airflow/paused?"
             "dag_id=example_python_operator&is_paused=false")
+        self.assertIn("OK", response.data.decode('utf-8'))
         response = self.app.get("/admin/xcom", follow_redirects=True)
         self.assertIn("Xcoms", response.data.decode('utf-8'))
 
