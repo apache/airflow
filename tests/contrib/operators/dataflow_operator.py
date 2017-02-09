@@ -69,7 +69,7 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
         start_python_hook = dataflow_mock.return_value.start_python_dataflow
         gcs_download_hook = gcs_hook.return_value.download
         self.dataflow.execute(None)
-        assert dataflow_mock.called
+        self.assertTrue(dataflow_mock.called)
         expected_options = {
             'project': 'test',
             'staging_location': 'gs://test/staging',

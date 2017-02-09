@@ -42,7 +42,7 @@ class TestJiraHook(unittest.TestCase):
     def test_jira_client_connection(self, jira_mock):
         jira_hook = JiraHook()
 
-        assert jira_mock.called
+        self.assertTrue(jira_mock.called)
         self.assertIsInstance(jira_hook.client, Mock)
         self.assertEqual(jira_hook.client.name, jira_mock.return_value.name)
 

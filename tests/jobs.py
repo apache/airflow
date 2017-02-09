@@ -1056,7 +1056,7 @@ class SchedulerJobTest(unittest.TestCase):
         logging.info("Test ran in %.2fs, expected %.2fs",
                      run_duration,
                      expected_run_duration)
-        assert run_duration - expected_run_duration < 5.0
+        self.assertLess(run_duration - expected_run_duration, 5.0)
 
     def test_dag_with_system_exit(self):
         """

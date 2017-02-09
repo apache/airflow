@@ -49,8 +49,8 @@ class DagTest(unittest.TestCase):
         """
         dag = models.DAG('test-dag')
 
-        assert type(dag.params) == dict
-        assert len(dag.params) == 0
+        self.assertEqual(dict, type(dag.params))
+        self.assertEqual(0, len(dag.params))
 
     def test_params_passed_and_params_in_default_args_no_override(self):
         """
@@ -68,7 +68,7 @@ class DagTest(unittest.TestCase):
 
         params_combined = params1.copy()
         params_combined.update(params2)
-        assert dag.params == params_combined
+        self.assertEqual(params_combined, dag.params)
 
     def test_dag_as_context_manager(self):
         """
@@ -121,7 +121,7 @@ class DagRunTest(unittest.TestCase):
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
             datetime.datetime(2015, 1, 2, 3, 4, 5, 6, None))
-        assert run_id == 'scheduled__2015-01-02T03:04:05', (
+        self.assertEqual('scheduled__2015-01-02T03:04:05', run_id, msg=
             'Generated run_id did not match expectations: {0}'.format(run_id))
 
 
@@ -139,10 +139,10 @@ class DagBagTest(unittest.TestCase):
         for dag_id in some_expected_dag_ids:
             dag = dagbag.get_dag(dag_id)
 
-            assert dag is not None
-            assert dag.dag_id == dag_id
+            self.assertIsNotNone(dag)
+            self.assertEqual(dag_id, dag.dag_id)
 
-        assert dagbag.size() >= 7
+        self.assertGreaterEqual(dagbag.size(), 7)
 
     def test_get_non_existing_dag(self):
         """
@@ -151,7 +151,7 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(include_examples=True)
 
         non_existing_dag_id = "non_existing_dag_id"
-        assert dagbag.get_dag(non_existing_dag_id) is None
+        self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
 
     def test_process_file_that_contains_multi_bytes_char(self):
         """
@@ -163,7 +163,7 @@ class DagBagTest(unittest.TestCase):
         f.flush()
 
         dagbag = models.DagBag(include_examples=True)
-        assert dagbag.process_file(f.name) == []
+        self.assertEqual([], dagbag.process_file(f.name))
 
     def test_zip(self):
         """
@@ -171,7 +171,7 @@ class DagBagTest(unittest.TestCase):
         """
         dagbag = models.DagBag()
         dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
-        assert dagbag.get_dag("test_zip_dag")
+        self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
     @patch.object(DagModel,'get_current')
     def test_get_dag_without_refresh(self, mock_dagmodel):
@@ -196,9 +196,9 @@ class DagBagTest(unittest.TestCase):
         processed_files = dagbag.process_file_calls
 
         # Should not call process_file agani, since it's already loaded during init.
-        assert dagbag.process_file_calls == 1
-        assert dagbag.get_dag(dag_id) != None
-        assert dagbag.process_file_calls == 1
+        self.assertEqual(1, dagbag.process_file_calls)
+        self.assertIsNotNone(dagbag.get_dag(dag_id))
+        self.assertEqual(1, dagbag.process_file_calls)
 
     def test_get_dag_fileloc(self):
         """

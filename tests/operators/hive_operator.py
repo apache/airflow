@@ -83,9 +83,9 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             hook.get_conn(self.nondefault_schema)
 
             # Verify
-            assert connect_mock.called
+            self.assertTrue(connect_mock.called)
             (args, kwargs) = connect_mock.call_args_list[0]
-            assert kwargs['database'] == self.nondefault_schema
+            self.assertEqual(self.nondefault_schema, kwargs['database'])
 
         def test_get_results_with_schema(self):
             from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -126,10 +126,10 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             hook.get_records(sql, self.nondefault_schema)
 
             # Verify
-            assert self.connect_mock.called
+            self.assertTrue(self.connect_mock.called)
             (args, kwargs) = self.connect_mock.call_args_list[0]
-            assert args[0] == sql
-            assert kwargs['schema'] == self.nondefault_schema
+            self.assertEqual(sql, args[0])
+            self.assertEqual(self.nondefault_schema, kwargs['schema'])
 
         @mock.patch('HiveServer2Hook.get_results', return_value={'data': []})
         def test_get_pandas_df_with_schema(self, get_results_mock):
@@ -143,10 +143,10 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             hook.get_pandas_df(sql, self.nondefault_schema)
 
             # Verify
-            assert self.connect_mock.called
+            self.assertTrue(self.connect_mock.called)
             (args, kwargs) = self.connect_mock.call_args_list[0]
-            assert args[0] == sql
-            assert kwargs['schema'] == self.nondefault_schema
+            self.assertEqual(sql, args[0])
+            self.assertEqual(self.nondefault_schema, kwargs['schema'])
 
     class HivePrestoTest(unittest.TestCase):
 

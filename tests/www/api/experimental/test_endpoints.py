@@ -31,16 +31,16 @@ class ApiExperimentalTests(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/tasks/{}'
 
         response = self.app.get(url_template.format('example_bash_operator', 'runme_0'))
-        assert '"email"' in response.data.decode('utf-8')
-        assert 'error' not in response.data.decode('utf-8')
+        self.assertIn('"email"', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
         self.assertEqual(200, response.status_code)
 
         response = self.app.get(url_template.format('example_bash_operator', 'DNE'))
-        assert 'error' in response.data.decode('utf-8')
+        self.assertIn('error', response.data.decode('utf-8'))
         self.assertEqual(404, response.status_code)
 
         response = self.app.get(url_template.format('DNE', 'DNE'))
-        assert 'error' in response.data.decode('utf-8')
+        self.assertIn('error', response.data.decode('utf-8'))
         self.assertEqual(404, response.status_code)
 
     def test_trigger_dag(self):

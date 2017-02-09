@@ -77,17 +77,17 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         latest_instances = get_task_instances('latest')
         exec_date_to_latest_state = {
             ti.execution_date: ti.state for ti in latest_instances}
-        assert exec_date_to_latest_state == {
+        self.assertEqual({
             datetime.datetime(2016, 1, 1): 'success',
             datetime.datetime(2016, 1, 1, 12): 'success',
-            datetime.datetime(2016, 1, 2): 'success',
-        }
+            datetime.datetime(2016, 1, 2): 'success', }, 
+            exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
-        assert exec_date_to_downstream_state == {
+        self.assertEqual({
             datetime.datetime(2016, 1, 1): 'skipped',
             datetime.datetime(2016, 1, 1, 12): 'skipped',
-            datetime.datetime(2016, 1, 2): 'success',
-        }
+            datetime.datetime(2016, 1, 2): 'success',},
+            exec_date_to_downstream_state)

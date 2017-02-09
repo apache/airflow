@@ -35,19 +35,19 @@ class PluginsTest(unittest.TestCase):
 
     def test_operators(self):
         from airflow.operators.test_plugin import PluginOperator
-        assert issubclass(PluginOperator, BaseOperator)
+        self.assertTrue(issubclass(PluginOperator, BaseOperator))
 
     def test_hooks(self):
         from airflow.hooks.test_plugin import PluginHook
-        assert issubclass(PluginHook, BaseHook)
+        self.assertTrue(issubclass(PluginHook, BaseHook))
 
     def test_executors(self):
         from airflow.executors.test_plugin import PluginExecutor
-        assert issubclass(PluginExecutor, BaseExecutor)
+        self.assertTrue(issubclass(PluginExecutor, BaseExecutor))
 
     def test_macros(self):
         from airflow.macros.test_plugin import plugin_macro
-        assert callable(plugin_macro)
+        self.assertTrue(callable(plugin_macro))
 
     def test_admin_views(self):
         app = cached_app()
@@ -55,11 +55,11 @@ class PluginsTest(unittest.TestCase):
         category = admin._menu_categories['Test Plugin']
         [admin_view] = [v for v in category.get_children()
                         if isinstance(v, MenuView)]
-        assert admin_view.name == 'Test View'
+        self.assertEqual('Test View', admin_view.name)
 
     def test_flask_blueprints(self):
         app = cached_app()
-        assert isinstance(app.blueprints['test_plugin'], Blueprint)
+        self.assertIsInstance(app.blueprints['test_plugin'], Blueprint)
 
     def test_menu_links(self):
         app = cached_app()
@@ -67,4 +67,4 @@ class PluginsTest(unittest.TestCase):
         category = admin._menu_categories['Test Plugin']
         [menu_link] = [ml for ml in category.get_children()
                        if isinstance(ml, MenuLink)]
-        assert menu_link.name == 'Test Menu Link'
+        self.assertEqual('Test Menu Link', menu_link.name)

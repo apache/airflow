@@ -87,7 +87,7 @@ class MySqlTest(unittest.TestCase):
                 h.bulk_load("test_airflow", t.name)
                 c.execute("SELECT dummy FROM test_airflow")
                 results = tuple(result[0] for result in c.fetchall())
-                assert sorted(records) == sorted(results)
+                self.assertEqual(sorted(results), sorted(records))
 
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
