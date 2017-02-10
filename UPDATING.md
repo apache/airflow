@@ -43,7 +43,7 @@ loops. This is now time bound and defaults to `-1`, which means run continuously
 #### num_runs
 Previously `num_runs` was used to let the scheduler terminate after a certain amount of loops. Now num_runs specifies 
 the number of times to try to schedule each DAG file within `run_duration` time. Defaults to `-1`, which means try
-indefinitely.
+indefinitely. This is only available on the command line.
 
 #### min_file_process_interval
 After how much time should an updated DAG be picked up from the filesystem.
@@ -106,6 +106,21 @@ supported and will be removed entirely in Airflow 2.0
 
   Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without 
   complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
+
+### Known Issues
+There is a report that the default of "-1" for num_runs creates an issue where errors are reported while parsing tasks.
+It was not confirmed, but a workaround was found by changing the default back to `None`.
+
+To do this edit `cli.py`, find the following:
+
+```
+        'num_runs': Arg(
+            ("-n", "--num_runs"),
+            default=-1, type=int,
+            help="Set the number of runs to execute before exiting"),
+```
+
+and change `default=-1` to `default=None`. Please report on the mailing list if you have this issue.
 
 ## Airflow 1.7.1.2
 
