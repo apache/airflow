@@ -19,17 +19,21 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class MySqlHook(DbApiHook):
-    '''
+    """
     Interact with MySQL.
 
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
-    '''
+    """
 
     conn_name_attr = 'mysql_conn_id'
     default_conn_name = 'mysql_default'
     supports_autocommit = True
+
+    def __init__(self, *args, **kwargs):
+        super(MySqlHook, self).__init__(*args, **kwargs)
+        self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):
         """
@@ -38,16 +42,15 @@ class MySqlHook(DbApiHook):
         conn = self.get_connection(self.mysql_conn_id)
         conn_config = {
             "user": conn.login,
-            "passwd": conn.password or ''
+            "passwd": conn.password or '',
+            "host": conn.host or 'localhost',
+            "db": self.schema or conn.schema or ''
         }
 
-        conn_config["host"] = conn.host or 'localhost'
         if not conn.port:
             conn_config["port"] = 3306
         else:
             conn_config["port"] = int(conn.port)
-
-        conn_config["db"] = conn.schema or ''
 
         if conn.extra_dejson.get('charset', False):
             conn_config["charset"] = conn.extra_dejson["charset"]

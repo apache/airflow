@@ -114,6 +114,27 @@ class MySqlTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_overwrite_schema(self):
+        """
+        Verifies option to overwrite connection schema
+        """
+        import airflow.operators.mysql_operator
+
+        sql = "SELECT 1;"
+        t = operators.mysql_operator.MySqlOperator(
+            task_id='test_mysql_operator_test_schema_overwrite',
+            sql=sql,
+            dag=self.dag,
+            database="foobar",
+        )
+
+        from _mysql_exceptions import OperationalError
+        try:
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                  ignore_ti_state=True)
+        except OperationalError as e:
+            assert "Unknown database 'foobar'" in str(e)
+
 
 @skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
 class PostgresTest(unittest.TestCase):
@@ -192,6 +213,28 @@ class PostgresTest(unittest.TestCase):
             dag=self.dag,
             autocommit=True)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_overwrite_schema(self):
+        """
+        Verifies option to overwrite connection schema
+        """
+        import airflow.operators.postgres_operator
+
+        sql = "SELECT 1;"
+        t = operators.postgres_operator.PostgresOperator(
+            task_id='postgres_operator_test_schema_overwrite',
+            sql=sql,
+            dag=self.dag,
+            autocommit=True,
+            database="foobar",
+        )
+
+        from psycopg2._psycopg import OperationalError
+        try:
+            t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                  ignore_ti_state=True)
+        except OperationalError as e:
+            assert 'database "foobar" does not exist' in str(e)
 
 
 @skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
