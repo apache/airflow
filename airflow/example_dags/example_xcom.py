@@ -12,22 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from __future__ import print_function
+import airflow
 from airflow import DAG
 from airflow.operators.python_operator import PythonOperator
-from datetime import datetime, timedelta
 
-seven_days_ago = datetime.combine(
-    datetime.today() - timedelta(7),
-    datetime.min.time())
 args = {
     'owner': 'airflow',
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2),
     'provide_context': True
 }
 
 dag = DAG(
     'example_xcom',
-    start_date=datetime(2015, 1, 1),
     schedule_interval="@once",
     default_args=args)
 
@@ -59,6 +55,7 @@ def puller(**kwargs):
     # get both value_1 and value_2
     v1, v2 = ti.xcom_pull(key=None, task_ids=['push', 'push_by_returning'])
     assert (v1, v2) == (value_1, value_2)
+
 
 push1 = PythonOperator(
     task_id='push', dag=dag, python_callable=push)
