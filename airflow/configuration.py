@@ -521,20 +521,12 @@ class AirflowConfigParser(ConfigParser):
 
     def __init__(self, *args, **kwargs):
         ConfigParser.__init__(self, *args, **kwargs)
-        self.read_string(parameterized_config(DEFAULT_CONFIG))
         self.is_validated = False
 
-    def read_string(self, string, source='<string>'):
-        """
-        Read configuration from a string.
-
-        A backwards-compatible version of the ConfigParser.read_string()
-        method that was introduced in Python 3.
-        """
-        # Python 3 added read_string() method
+    def read_parameterized_string(self, string, source='<string>'):
+        string = parameterized_config(string)
         if six.PY3:
             ConfigParser.read_string(self, string, source=source)
-        # Python 2 requires StringIO buffer
         else:
             import StringIO
             self.readfp(StringIO.StringIO(string))
@@ -688,18 +680,12 @@ class AirflowConfigParser(ConfigParser):
 
         return cfg
 
-    def load_test_config(self):
-        """
-        Load the unit test configuration.
-
-        Note: this is not reversible.
-        """
-        # override any custom settings with defaults
-        self.read_string(parameterized_config(DEFAULT_CONFIG))
-        # then read test config
-        self.read_string(parameterized_config(TEST_CONFIG))
-        # then read any "custom" test settings
-        self.read(TEST_CONFIG_FILE)
+    def load_config_file(self, config_file):
+        if os.path.isfile(config_file):
+            self.read(config_file)
+            return True
+        else:
+            return False
 
 
 def mkdir_p(path):
@@ -715,41 +701,33 @@ def mkdir_p(path):
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
 # "~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
 
-if 'AIRFLOW_HOME' not in os.environ:
-    AIRFLOW_HOME = expand_env_var('~/airflow')
-else:
+if 'AIRFLOW_HOME' in os.environ:
     AIRFLOW_HOME = expand_env_var(os.environ['AIRFLOW_HOME'])
+else:
+    AIRFLOW_HOME = expand_env_var('~/airflow')
 
 mkdir_p(AIRFLOW_HOME)
 
-if 'AIRFLOW_CONFIG' not in os.environ:
-    if os.path.isfile(expand_env_var('~/airflow.cfg')):
-        AIRFLOW_CONFIG = expand_env_var('~/airflow.cfg')
-    else:
-        AIRFLOW_CONFIG = AIRFLOW_HOME + '/airflow.cfg'
-else:
+if 'AIRFLOW_CONFIG' in os.environ:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
+elif os.path.isfile(expand_env_var('~/airflow.cfg')):
+    AIRFLOW_CONFIG = expand_env_var('~/airflow.cfg')
+else:
+    AIRFLOW_CONFIG = os.path.join(AIRFLOW_HOME, 'airflow.cfg')
 
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
-_TEST_DAGS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'dags')
-if os.path.exists(_TEST_DAGS_FOLDER):
-    TEST_DAGS_FOLDER = _TEST_DAGS_FOLDER
-else:
+_ROOT_FOLDER = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+TEST_DAGS_FOLDER = os.path.join(_ROOT_FOLDER, 'tests', 'dags')
+if not os.path.exists(TEST_DAGS_FOLDER):
     TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, 'dags')
 
 # Set up plugins folder for unit tests
-_TEST_PLUGINS_FOLDER = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
-    'tests',
-    'plugins')
-if os.path.exists(_TEST_PLUGINS_FOLDER):
-    TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
-else:
+TEST_PLUGINS_FOLDER = os.path.join(_ROOT_FOLDER, 'tests', 'plugins')
+if not os.path.exists(TEST_PLUGINS_FOLDER):
     TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, 'plugins')
+
+TEST_CONFIG_FILE = os.path.join(AIRFLOW_HOME, 'unittests.cfg')
 
 
 def parameterized_config(template):
@@ -762,38 +740,10 @@ def parameterized_config(template):
     all_vars = {k: v for d in [globals(), locals()] for k, v in d.items()}
     return template.format(**all_vars)
 
-TEST_CONFIG_FILE = AIRFLOW_HOME + '/unittests.cfg'
-if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info("Creating new airflow config file for unit tests in: " +
-                 TEST_CONFIG_FILE)
-    with open(TEST_CONFIG_FILE, 'w') as f:
-        f.write(parameterized_config(TEST_CONFIG))
-
-if not os.path.isfile(AIRFLOW_CONFIG):
-    # These configuration options are used to generate a default configuration
-    # when it is missing. The right way to change your configuration is to
-    # alter your configuration file, not this code.
-    logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
-    with open(AIRFLOW_CONFIG, 'w') as f:
-        f.write(parameterized_config(DEFAULT_CONFIG))
-
-logging.info("Reading the config from " + AIRFLOW_CONFIG)
-
 
 conf = AirflowConfigParser()
-conf.read(AIRFLOW_CONFIG)
-
-
-def load_test_config():
-    """
-    Load the unit test configuration.
-
-    Note: this is not reversible.
-    """
-    conf.load_test_config()
-
-if conf.getboolean('core', 'unit_test_mode'):
-    load_test_config()
+conf.read_parameterized_string(DEFAULT_CONFIG)
+conf.load_config_file(AIRFLOW_CONFIG)
 
 
 def get(section, key, **kwargs):
@@ -828,3 +778,28 @@ as_dict.__doc__ = conf.as_dict.__doc__
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
+
+
+def load_config_file(config_file):
+    return conf.load_config_file(config_file)
+
+
+def save_config_file(config_file, config_string):
+    logging.info("Creating new airflow config file in: %s", config_file)
+    with open(config_file, 'w') as f:
+        f.write(parameterized_config(config_string))
+
+
+def load_test_config():
+    """
+    Load the unit test configuration.
+
+    Note: this is not reversible.
+    """
+    conf.read_parameterized_string(DEFAULT_CONFIG)
+    conf.read_parameterized_string(TEST_CONFIG)
+    if not conf.load_config_file(TEST_CONFIG_FILE):
+        save_config_file(TEST_CONFIG_FILE, TEST_CONFIG)
+
+if conf.getboolean('core', 'unit_test_mode'):
+    load_test_config()

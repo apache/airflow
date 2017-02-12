@@ -49,7 +49,6 @@ from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.operators import sensors
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
@@ -1057,7 +1056,32 @@ class CliTests(unittest.TestCase):
         cli.list_tasks(args)
 
     def test_cli_initdb(self):
-        cli.initdb(self.parser.parse_args(['initdb']))
+        temp_config_file = tempfile.mktemp()
+        self.assertFalse(os.path.isfile(temp_config_file))
+        with mock.patch.object(configuration, 'AIRFLOW_CONFIG', temp_config_file):
+            cli.initdb(self.parser.parse_args(['initdb']))
+            self.assertTrue(os.path.isfile(temp_config_file))
+            os.unlink(temp_config_file)
+
+    def test_cli_default_config(self):
+        temp_config_file = tempfile.mktemp()
+        self.assertFalse(os.path.isfile(temp_config_file))
+        with mock.patch.object(cli.conf, 'AIRFLOW_CONFIG', temp_config_file):
+            cli.default_config(self.parser.parse_args(['default_config',
+                                                       '-f', temp_config_file]))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            with self.assertRaises(AirflowException):
+                cli.default_config(self.parser.parse_args(['default_config',
+                                                           '-f', temp_config_file]))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            cli.default_config(self.parser.parse_args(['default_config',
+                                                       '-f', temp_config_file,
+                                                       '--overwrite']))
+            self.assertTrue(os.path.isfile(temp_config_file))
+
+            os.unlink(temp_config_file)
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',

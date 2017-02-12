@@ -29,6 +29,7 @@ from alembic.migration import MigrationContext
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
 
+from airflow import configuration as conf
 from airflow import settings
 
 
@@ -277,6 +278,10 @@ def initdb():
         )
         session.add(chart)
         session.commit()
+
+    # save the default airflow.cfg if it doesn't exist
+    if not os.path.isfile(conf.AIRFLOW_CONFIG):
+        conf.save_config_file(conf.AIRFLOW_CONFIG, conf.DEFAULT_CONFIG)
 
 
 def upgradedb():
