@@ -24,7 +24,7 @@ DAG_NAME = 'test_dag_v1'
 default_args = {
     'owner': 'airflow',
     'depends_on_past': True,
-    'start_date': START_DATE,
+    'start_date': airflow.utils.dates.days_ago(2)
 }
 dag = DAG(DAG_NAME, schedule_interval='*/10 * * * *', default_args=default_args)
 

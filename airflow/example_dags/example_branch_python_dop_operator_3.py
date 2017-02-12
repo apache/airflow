@@ -13,16 +13,15 @@
 # limitations under the License.
 #
 
+import airflow
 from airflow.operators.python_operator import BranchPythonOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
 
-two_days_ago = datetime.combine(datetime.today() - timedelta(2),
-                                  datetime.min.time())
 args = {
     'owner': 'airflow',
-    'start_date': two_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }
 

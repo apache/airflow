@@ -12,16 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import airflow
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
-from datetime import datetime, timedelta
 from airflow.exceptions import AirflowSkipException
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(1),
-                                  datetime.min.time())
+
 args = {
     'owner': 'airflow',
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2)
 }
 
 
@@ -53,5 +52,3 @@ def create_test_pipeline(suffix, trigger_rule, dag):
 
 create_test_pipeline('1', 'all_success', dag)
 create_test_pipeline('2', 'one_success', dag)
-
-

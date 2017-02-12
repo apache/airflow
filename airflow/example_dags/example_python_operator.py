@@ -13,19 +13,16 @@
 # limitations under the License.
 from __future__ import print_function
 from builtins import range
+import airflow
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
-from datetime import datetime, timedelta
 
 import time
 from pprint import pprint
 
-seven_days_ago = datetime.combine(
-        datetime.today() - timedelta(7), datetime.min.time())
-
 args = {
     'owner': 'airflow',
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2)
 }
 
 dag = DAG(

@@ -11,15 +11,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import airflow
 from airflow.operators.bash_operator import BashOperator
 from airflow.models import DAG
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-five_days_ago = datetime.combine(datetime.today() - timedelta(5),
-                                 datetime.min.time())
 args = {
     'owner': 'airflow',
-    'start_date': five_days_ago,
+    'start_date': airflow.utils.dates.days_ago(3),
 }
 
 dag = DAG(

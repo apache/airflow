@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime
+import airflow
 
 from airflow.models import DAG
 from airflow.operators.dummy_operator import DummyOperator
@@ -24,7 +24,7 @@ DAG_NAME = 'example_subdag_operator'
 
 args = {
     'owner': 'airflow',
-    'start_date': datetime(2016, 1, 1),
+    'start_date': airflow.utils.dates.days_ago(2),
 }
 
 dag = DAG(
