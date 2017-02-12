@@ -751,7 +751,7 @@ def webserver(args):
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
         app.run(debug=True, port=args.port, host=args.hostname,
-                ssl_context=(ssl_cert, ssl_key))
+                ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
         pid, stdout, stderr, log_file = setup_locations("webserver", pid=args.pid)
         print(
