@@ -18,13 +18,17 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class MsSqlHook(DbApiHook):
-    '''
+    """
     Interact with Microsoft SQL Server.
-    '''
+    """
 
     conn_name_attr = 'mssql_conn_id'
     default_conn_name = 'mssql_default'
     supports_autocommit = True
+
+    def __init__(self, *args, **kwargs):
+        super(MsSqlHook, self).__init__(*args, **kwargs)
+        self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):
         """
@@ -35,7 +39,7 @@ class MsSqlHook(DbApiHook):
             server=conn.host,
             user=conn.login,
             password=conn.password,
-            database=conn.schema,
+            database=self.schema or conn.schema,
             port=conn.port)
         return conn
 

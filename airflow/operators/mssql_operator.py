@@ -27,6 +27,8 @@ class MsSqlOperator(BaseOperator):
     :param sql: the sql code to be executed
     :type sql: string or string pointing to a template file.
     File must have a '.sql' extensions.
+    :param database: name of database which overwrite defined one in connection
+    :type database: string
     """
 
     template_fields = ('sql',)
@@ -36,14 +38,17 @@ class MsSqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, mssql_conn_id='mssql_default', parameters=None,
-            autocommit=False, *args, **kwargs):
+            autocommit=False, database=None, *args, **kwargs):
         super(MsSqlOperator, self).__init__(*args, **kwargs)
         self.mssql_conn_id = mssql_conn_id
         self.sql = sql
         self.parameters = parameters
         self.autocommit = autocommit
+        self.database = database
 
     def execute(self, context):
         logging.info('Executing: ' + str(self.sql))
-        hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
-        hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)
+        hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id,
+                         schema=self.database)
+        hook.run(self.sql, autocommit=self.autocommit,
+                 parameters=self.parameters)

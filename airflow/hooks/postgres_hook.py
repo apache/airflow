@@ -19,11 +19,11 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class PostgresHook(DbApiHook):
-    '''
+    """
     Interact with Postgres.
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
-    '''
+    """
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
     supports_autocommit = True

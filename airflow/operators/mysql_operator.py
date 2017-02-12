@@ -29,6 +29,8 @@ class MySqlOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+    :param database: name of database which overwrite defined one in connection
+    :type database: string
     """
 
     template_fields = ('sql',)
@@ -38,16 +40,18 @@ class MySqlOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, mysql_conn_id='mysql_default', parameters=None,
-            autocommit=False, *args, **kwargs):
+            autocommit=False, database=None, *args, **kwargs):
         super(MySqlOperator, self).__init__(*args, **kwargs)
         self.mysql_conn_id = mysql_conn_id
         self.sql = sql
         self.autocommit = autocommit
         self.parameters = parameters
+        self.database = database
 
     def execute(self, context):
         logging.info('Executing: ' + str(self.sql))
-        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id)
+        hook = MySqlHook(mysql_conn_id=self.mysql_conn_id,
+                         schema=self.database)
         hook.run(
             self.sql,
             autocommit=self.autocommit,
