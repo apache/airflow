@@ -14,19 +14,18 @@
 """
 ### Example HTTP operator and sensor
 """
+import airflow
 from airflow import DAG
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.operators.sensors import HttpSensor
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
-                                  datetime.min.time())
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2),
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
     'email_on_retry': False,

@@ -212,3 +212,16 @@ def scale_time_units(time_seconds_arr, unit):
     elif unit == 'days':
         return list(map(lambda x: x*1.0/(24*60*60), time_seconds_arr))
     return time_seconds_arr
+
+
+def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
+    """
+    Get a datetime object representing `n` days ago. By default the time is
+    set to midnight.
+    """
+    today = datetime.today().replace(
+        hour=hour,
+        minute=minute,
+        second=second,
+        microsecond=microsecond)
+    return today - timedelta(days=n)

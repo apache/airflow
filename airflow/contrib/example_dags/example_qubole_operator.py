@@ -16,17 +16,15 @@ from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from airflow.contrib.operators.qubole_operator import QuboleOperator
-from datetime import datetime, timedelta
 import filecmp
 import random
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
-                                  datetime.min.time())
+
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2)
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
     'email_on_retry': False

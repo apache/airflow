@@ -11,17 +11,18 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+import airflow
 from builtins import range
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
-                                  datetime.min.time())
+
 args = {
     'owner': 'airflow',
-    'start_date': seven_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2)
 }
 
 dag = DAG(
