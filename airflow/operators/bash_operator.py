@@ -56,10 +56,17 @@ class BashOperator(BaseOperator):
             output_encoding='utf-8',
             *args, **kwargs):
 
+        # TODO Remove xcom_push in Airflow 2.0
+        if xcom_push:
+            kwargs['return_xcom'] = True
+            warnings.warn(
+                'xcom_push is deprecated and will be removed soon. '
+                'Use return_xcom instead.',
+                DeprecationWarning)
+
         super(BashOperator, self).__init__(*args, **kwargs)
         self.bash_command = bash_command
         self.env = env
-        self.xcom_push_flag = xcom_push
         self.output_encoding = output_encoding
 
     def execute(self, context):
@@ -99,8 +106,7 @@ class BashOperator(BaseOperator):
                 if sp.returncode:
                     raise AirflowException("Bash command failed")
 
-        if self.xcom_push_flag:
-            return line
+        return line
 
     def on_kill(self):
         logging.info('Sending SIGTERM signal to bash process group')

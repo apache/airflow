@@ -403,6 +403,79 @@ of what this may look like:
 Note that XComs are similar to `Variables`_, but are specifically designed
 for inter-task communication rather than global settings.
 
+Dataflows
+=========
+
+Airflow supports limited Dataflow semantics, allowing upstream tasks to pass
+results to downstream tasks even when they are run in distributed environments.
+
+A Dataflow object represents the result of an upstream task. If the upstream
+task has multiple outputs contained in a tuple, dict, or other indexable form,
+an index may be provided so the Dataflow only uses the appropriate output.
+
+.. code:: python
+    from airflow.dataflow import Dataflow
+
+    # this Dataflow represents the result of upstream_task
+    Dataflow(upstream_task)
+
+    # this dataflow represents an indexed element of the result
+    Dataflow(upstream_task, index='key')
+
+Dataflows are passed to downstream tasks with a key. This has two effects:
+    1. It sets up a dependency between the upstream and downstream tasks to
+       ensure that the downstream task does not run before the upstream result
+       is available.
+    2. It ensures that the [indexed] upstream result is available in the
+       downstream task's context as ``context['dataflows'][key]``. In addition,
+       the result will be passed directly to PythonOperators as a keyword
+       argument.
+
+.. code:: python
+    # Dataflows can be specified when an Operator is created
+    bash_op = BashOperator(
+        task_id='bash_operator',
+        bash_command='echo {{ dataflows }}',
+        dataflows=dict(
+            foo=Dataflow(upstream_task)))
+
+    # ...or anytime after
+    bash_op.add_dataflows(bar=Dataflow(upstream_task, index=1))
+
+    python_op = PythonOperator(
+        task_id='python_operator',
+        python_callable=lambda foo, bar: print((foo, bar)),
+        dataflows=dict(
+            foo=Dataflow(upstream_task),
+            bar=Dataflow(upstream_task, index=1)))
+
+Implementation
+--------------
+
+Dataflows use the XCom mechanism to exchange data. Data is passed through the
+following series of steps:
+    1. After the upstream task runs, data is passed to the Dataflow object's
+       _set_data() method.
+    2. The Dataflow's serialize() method is called on the data. This method
+       takes the data object and returns a representation that can be used to
+       reconstruct it later.
+    3. _set_data() stores the serialized result as an XCom.
+    4. Before the downstream task runs, it calls the Dataflow _get_data()
+       method.
+    5. _get_data() retrieves the upstream XCom.
+    6. The Dataflow's deserialize() method is called. This method takes the
+       serialiezd representation and returns the data object.
+    7. The data object is passed to the downstream task.
+
+The basic Dataflow object has identity serialize and deserialize methods,
+meaning data is stored directly in the Airflow database. Therefore, for
+performance and practical reasons, basic Dataflows should not be used with
+large or complex results.
+
+Dataflows can easily be extended to use remote storage. In this case, the
+serialize method should write the data in to storage and return a URI, which
+will be stored as an XCom. The URI will be passed to deserialize() so that
+the data can be downloaded and reconstructed.
 
 Variables
 =========
@@ -831,4 +904,3 @@ do the same, but then it is more to use a virtualenv and pip.
 .. note:: packaged dags cannot contain dynamic libraries (eg. libz.so) these need
    to be available on the system if a module needs those. In other words only
    pure python modules can be packaged.
-
