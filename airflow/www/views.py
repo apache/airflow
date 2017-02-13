@@ -1142,7 +1142,7 @@ class Airflow(BaseView):
             TI.dag_id.in_(dag_ids),
             TI.execution_date.in_(dates),
             TI.task_id.in_(task_ids),
-            TI.state != State.SUCCESS).all()
+            or_((TI.state.is_(None)), TI.state != State.SUCCESS)).all()
         tasks = list(product(task_ids, dates))
         tis_to_create = list(
             set(tasks) -
