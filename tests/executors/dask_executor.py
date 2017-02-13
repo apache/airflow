@@ -23,7 +23,7 @@ from airflow.jobs import BackfillJob
 from airflow.operators.python_operator import PythonOperator
 
 try:
-    from airflow.executors import DaskExecutor
+    from airflow.executors.dask_executor import DaskExecutor
     from distributed import LocalCluster
     SKIP_DASK = False
 except ImportError:
@@ -48,6 +48,9 @@ class DaskExecutorTest(unittest.TestCase):
 
         executor = DaskExecutor(cluster_address=cluster.scheduler_address)
 
+        # start the executor
+        executor.start()
+
         success_command = 'echo 1'
         fail_command = 'exit 1'
 
@@ -60,7 +63,7 @@ class DaskExecutorTest(unittest.TestCase):
             k for k, v in executor.futures.items() if v == 'fail')
 
         # wait for the futures to execute, with a timeout
-        timeout = datetime.datetime.now() + datetime.timedelta(seconds=0.5)
+        timeout = datetime.datetime.now() + datetime.timedelta(seconds=30)
         while not (success_future.done() and fail_future.done()):
             if datetime.datetime.now() > timeout:
                 raise ValueError(
@@ -74,73 +77,6 @@ class DaskExecutorTest(unittest.TestCase):
         # check task exceptions
         self.assertTrue(success_future.exception() is None)
         self.assertTrue(fail_future.exception() is not None)
-
-        # tell the executor to shut down
-        executor.end()
-        self.assertTrue(len(executor.futures) == 0)
-
-        cluster.close()
-
-    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
-    def test_submit_task_instance_to_dask_cluster(self):
-        """
-        Test that the DaskExecutor properly submits tasks to the cluster
-        """
-        cluster = LocalCluster(nanny=False)
-
-        executor = DaskExecutor(cluster_address=cluster.scheduler_address)
-
-        args = dict(
-            start_date=DEFAULT_DATE
-        )
-
-        def fail():
-            raise ValueError('Intentional failure.')
-
-        with DAG('test-dag', default_args=args) as dag:
-            # queue should be allowed, but ignored
-            success_operator = PythonOperator(
-                task_id='success',
-                python_callable=lambda: True,
-                queue='queue')
-
-            fail_operator = PythonOperator(
-                task_id='fail',
-                python_callable=fail)
-
-        success_ti = TaskInstance(
-            success_operator,
-            execution_date=DEFAULT_DATE)
-
-        fail_ti = TaskInstance(
-            fail_operator,
-            execution_date=DEFAULT_DATE)
-
-        # queue the tasks
-        executor.queue_task_instance(success_ti)
-        executor.queue_task_instance(fail_ti)
-
-        # the tasks haven't been submitted to the cluster yet
-        self.assertTrue(len(executor.futures) == 0)
-        # after the heartbeat, they have been submitted
-        executor.heartbeat()
-        self.assertTrue(len(executor.futures) == 2)
-
-        # wait a reasonable amount of time for the tasks to complete
-        for _ in range(2):
-            time.sleep(0.25)
-            executor.heartbeat()
-
-        # check that the futures were completed
-        if len(executor.futures) == 2:
-            raise ValueError('Failed to reach cluster before timeout.')
-        self.assertTrue(len(executor.futures) == 0)
-
-        # check that the taskinstances were updated
-        success_ti.refresh_from_db()
-        self.assertTrue(success_ti.state == State.SUCCESS)
-        fail_ti.refresh_from_db()
-        self.assertTrue(fail_ti.state == State.FAILED)
 
         cluster.close()
 

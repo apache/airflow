@@ -19,7 +19,6 @@ import warnings
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.state import State
 
 
 class DaskExecutor(BaseExecutor):
@@ -41,12 +40,13 @@ class DaskExecutor(BaseExecutor):
 
     def execute_async(self, key, command, queue=None):
         if queue is not None:
-            warnings.warning(
+            warnings.warn(
                 'DaskExecutor does not support queues. All tasks will be run '
                 'in the same cluster')
 
         def airflow_run():
             return subprocess.check_call(command, shell=True)
+
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key
 
@@ -54,14 +54,14 @@ class DaskExecutor(BaseExecutor):
         if future.done():
             key = self.futures[future]
             if future.exception():
-                self.change_state(key, State.FAILED)
+                self.fail(key)
                 self.logger.error("Failed to execute task: {}".format(
                     repr(future.exception())))
             elif future.cancelled():
-                self.change_state(key, State.FAILED)
+                self.fail(key)
                 self.logger.error("Failed to execute task")
             else:
-                self.change_state(key, State.SUCCESS)
+                self.success(key)
             self.futures.pop(future)
 
     def sync(self):
@@ -70,7 +70,7 @@ class DaskExecutor(BaseExecutor):
             self._process_future(future)
 
     def end(self):
-        for future in distributed.as_completed(self.futures):
+        for future in distributed.as_completed(self.futures.copy()):
             self._process_future(future)
 
     def terminate(self):
