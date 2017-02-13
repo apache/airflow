@@ -1123,7 +1123,7 @@ class Airflow(BaseView):
             if recursive:
                 recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
         if upstream:
-            relatives = task.get_flat_relatives(upstream=False)
+            relatives = task.get_flat_relatives(upstream=True)
             task_ids += [t.task_id for t in relatives]
             if recursive:
                 recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
