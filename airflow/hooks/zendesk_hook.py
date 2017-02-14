@@ -26,7 +26,6 @@ from airflow.hooks import BaseHook
 
 
 class ZendeskHook(BaseHook):
-
     def __init__(self, zendesk_conn_id):
         self.__zendesk_conn_id = zendesk_conn_id
         self.__url = None
