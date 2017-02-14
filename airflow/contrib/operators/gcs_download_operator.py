@@ -25,7 +25,6 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     Downloads a file from Google Cloud Storage.
     """
     template_fields = ('bucket','object','filename','store_to_xcom_key',)
-    template_ext = ('.sql',)
     ui_color = '#f0eee4'
 
     @apply_defaults
