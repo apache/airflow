@@ -68,10 +68,10 @@ def git_version(version):
         import git
         repo = git.Repo('.git')
     except ImportError:
-        logger.warn('gitpython not found: Cannot compute the git version.')
+        logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warn('Git repo not found: Cannot compute the git version.')
+        logger.warning('Git repo not found: Cannot compute the git version.')
         return ''
     if repo:
         sha = repo.head.commit.hexsha

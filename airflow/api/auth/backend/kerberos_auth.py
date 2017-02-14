@@ -65,7 +65,7 @@ def init_app(app):
         logging.info("Kerberos init: {} {}".format(service, hostname))
         principal = kerberos.getServerPrincipalDetails(service, hostname)
     except kerberos.KrbError as err:
-        logging.warn("Kerberos: {}".format(err))
+        logging.warning("Kerberos: {}".format(err))
     else:
         logging.info("Kerberos API: server is {}".format(principal))
 

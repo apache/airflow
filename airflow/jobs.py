@@ -369,7 +369,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
         # Arbitrarily wait 5s for the process to die
         self._process.join(5)
         if sigkill and self._process.is_alive():
-            logging.warn("Killing PID %s", self._process.pid)
+            logging.warning("Killing PID %s", self._process.pid)
             os.kill(self._process.pid, signal.SIGKILL)
 
     @property
@@ -541,7 +541,7 @@ class SchedulerJob(BaseJob):
         """
         if not any([ti.sla for ti in dag.tasks]):
             self.logger.info("Skipping SLA check for {} because "
-              "no tasks in DAG have SLAs".format(dag))
+                             "no tasks in DAG have SLAs".format(dag))
             return
 
         TI = models.TaskInstance
@@ -923,25 +923,25 @@ class SchedulerJob(BaseJob):
                                    )
 
             if len(dag_runs) == 0:
-                self.logger.warn("DagRun for %s %s does not exist",
-                                 task_instance.dag_id,
-                                 task_instance.execution_date)
+                self.logger.warning("DagRun for %s %s does not exist",
+                                    task_instance.dag_id,
+                                    task_instance.execution_date)
                 continue
 
             # There should only be one DAG run. Add some logging info if this
             # is not the case for later debugging.
             if len(dag_runs) > 1:
-                self.logger.warn("Multiple DagRuns found for {} {}: {}"
-                                 .format(task_instance.dag_id,
-                                         task_instance.execution_date,
-                                         dag_runs))
+                self.logger.warning("Multiple DagRuns found for {} {}: {}"
+                                    .format(task_instance.dag_id,
+                                            task_instance.execution_date,
+                                            dag_runs))
 
             if not any(dag_run.state == State.RUNNING for dag_run in dag_runs):
-                self.logger.warn("Setting {} to state={} as it does not have "
-                                 "a DagRun in the {} state"
-                                 .format(task_instance,
-                                         new_state,
-                                         State.RUNNING))
+                self.logger.warning("Setting {} to state={} as it does not have "
+                                    "a DagRun in the {} state"
+                                    .format(task_instance,
+                                            new_state,
+                                            State.RUNNING))
                 task_instance.state = new_state
                 session.merge(task_instance)
         session.commit()
@@ -1534,7 +1534,7 @@ class SchedulerJob(BaseJob):
                              .format(dagbag.dags.keys(),
                                      file_path))
         else:
-            self.logger.warn("No viable dags retrieved from {}".format(file_path))
+            self.logger.warning("No viable dags retrieved from {}".format(file_path))
             self.update_import_errors(session, dagbag)
             return []
 
@@ -1834,17 +1834,17 @@ class BackfillJob(BaseJob):
                 # If the set of tasks that aren't ready ever equals the set of
                 # tasks to run, then the backfill is deadlocked
                 if not_ready and not_ready == set(tasks_to_run):
-                    self.logger.warn("Deadlock discovered for tasks_to_run={}"
-                                     .format(tasks_to_run.values()))
+                    self.logger.warning("Deadlock discovered for tasks_to_run={}"
+                                        .format(tasks_to_run.values()))
                     deadlocked.update(tasks_to_run.values())
                     tasks_to_run.clear()
 
                 # Reacting to events
                 for key, state in list(executor.get_event_buffer().items()):
                     if key not in tasks_to_run:
-                        self.logger.warn("{} state {} not in tasks_to_run={}"
-                                         .format(key, state,
-                                                 tasks_to_run.values()))
+                        self.logger.warning("{} state {} not in tasks_to_run={}"
+                                            .format(key, state,
+                                                    tasks_to_run.values()))
                         continue
                     ti = tasks_to_run[key]
                     ti.refresh_from_db()

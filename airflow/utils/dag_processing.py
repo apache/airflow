@@ -307,6 +307,7 @@ class DagFileProcessorManager(LoggingMixin):
     :type _last_runtime: dict[unicode, float]
     :type _last_finish_time: dict[unicode, datetime]
     """
+
     def __init__(self,
                  dag_directory,
                  file_paths,
@@ -442,7 +443,7 @@ class DagFileProcessorManager(LoggingMixin):
             if file_path in new_file_paths:
                 filtered_processors[file_path] = processor
             else:
-                self.logger.warn("Stopping processor for {}".format(file_path))
+                self.logger.warning("Stopping processor for {}".format(file_path))
                 processor.stop()
         self._processors = filtered_processors
 
@@ -477,7 +478,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         now = datetime.now()
         return os.path.join(self._child_process_log_directory,
-            now.strftime("%Y-%m-%d"))
+                            now.strftime("%Y-%m-%d"))
 
     def _get_log_file_path(self, dag_file_path):
         """
@@ -518,8 +519,8 @@ class DagFileProcessorManager(LoggingMixin):
                     os.symlink(log_directory, latest_log_directory_path)
             elif (os.path.isdir(latest_log_directory_path) or
                     os.path.isfile(latest_log_directory_path)):
-                self.logger.warn("{} already exists as a dir/file. "
-                                "Skip creating symlink."
+                self.logger.warning("{} already exists as a dir/file. "
+                                    "Skip creating symlink."
                                     .format(latest_log_directory_path))
             else:
                 os.symlink(log_directory, latest_log_directory_path)
@@ -571,11 +572,11 @@ class DagFileProcessorManager(LoggingMixin):
         simple_dags = []
         for file_path, processor in finished_processors.items():
             if processor.result is None:
-                self.logger.warn("Processor for {} exited with return code "
-                                 "{}. See {} for details."
-                                 .format(processor.file_path,
-                                         processor.exit_code,
-                                         processor.log_file))
+                self.logger.warning("Processor for {} exited with return code "
+                                    "{}. See {} for details."
+                                    .format(processor.file_path,
+                                            processor.exit_code,
+                                            processor.log_file))
             else:
                 for simple_dag in processor.result:
                     simple_dags.append(simple_dag)

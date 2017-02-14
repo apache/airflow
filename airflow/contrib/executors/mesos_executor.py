@@ -167,7 +167,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
         except KeyError:
             # The map may not contain an item if the framework re-registered after a failover.
             # Discard these tasks.
-            logging.warn("Unrecognised task key %s" % update.task_id.value)
+            logging.warning("Unrecognised task key %s" % update.task_id.value)
             return
 
         if update.state == mesos_pb2.TASK_FINISHED:

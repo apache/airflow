@@ -206,7 +206,7 @@ def kill_process_tree(logger, pid):
     try:
         root_process = psutil.Process(pid)
     except psutil.NoSuchProcess:
-        logger.warn("PID: {} does not exist".format(pid))
+        logger.warning("PID: {} does not exist".format(pid))
         return
 
     # Check child processes to reduce cases where a child process died but
@@ -215,26 +215,26 @@ def kill_process_tree(logger, pid):
                             if x.is_running()]
 
     if len(descendant_processes) != 0:
-        logger.warn("Terminating descendant processes of {} PID: {}"
-                    .format(root_process.cmdline(),
-                            root_process.pid))
+        logger.warning("Terminating descendant processes of {} PID: {}"
+                       .format(root_process.cmdline(),
+                               root_process.pid))
         temp_processes = descendant_processes[:]
         for descendant in temp_processes:
-            logger.warn("Terminating descendant process {} PID: {}"
-                        .format(descendant.cmdline(), descendant.pid))
+            logger.warning("Terminating descendant process {} PID: {}"
+                           .format(descendant.cmdline(), descendant.pid))
             try:
                 kill_using_shell(descendant.pid, signal.SIGTERM)
             except psutil.NoSuchProcess:
                 descendant_processes.remove(descendant)
 
-        logger.warn("Waiting up to {}s for processes to exit..."
-                    .format(TIME_TO_WAIT_AFTER_SIGTERM))
+        logger.warning("Waiting up to {}s for processes to exit..."
+                       .format(TIME_TO_WAIT_AFTER_SIGTERM))
         try:
             psutil.wait_procs(descendant_processes, TIME_TO_WAIT_AFTER_SIGTERM)
-            logger.warn("Done waiting")
+            logger.warning("Done waiting")
         except psutil.TimeoutExpired:
-            logger.warn("Ran out of time while waiting for "
-                        "processes to exit")
+            logger.warning("Ran out of time while waiting for "
+                           "processes to exit")
         # Then SIGKILL
         descendant_processes = [x for x in root_process.children(recursive=True)
                                 if x.is_running()]
@@ -242,16 +242,16 @@ def kill_process_tree(logger, pid):
         if len(descendant_processes) > 0:
             temp_processes = descendant_processes[:]
             for descendant in temp_processes:
-                logger.warn("Killing descendant process {} PID: {}"
-                            .format(descendant.cmdline(), descendant.pid))
+                logger.warning("Killing descendant process {} PID: {}"
+                               .format(descendant.cmdline(), descendant.pid))
                 try:
                     kill_using_shell(descendant.pid, signal.SIGTERM)
                     descendant.wait()
                 except psutil.NoSuchProcess:
                     descendant_processes.remove(descendant)
-            logger.warn("Killed all descendant processes of {} PID: {}"
-                        .format(root_process.cmdline(),
-                                root_process.pid))
+            logger.warning("Killed all descendant processes of {} PID: {}"
+                           .format(root_process.cmdline(),
+                                   root_process.pid))
     else:
         logger.debug("There are no descendant processes to kill")
 
@@ -279,27 +279,27 @@ def kill_descendant_processes(logger, pids_to_kill=None):
     if len(descendant_processes) == 0:
         logger.debug("There are no descendant processes that can be killed")
         return
-    logger.warn("Terminating descendant processes of {} PID: {}"
-                .format(this_process.cmdline(),
-                        this_process.pid))
+    logger.warning("Terminating descendant processes of {} PID: {}"
+                   .format(this_process.cmdline(),
+                           this_process.pid))
 
     temp_processes = descendant_processes[:]
     for descendant in temp_processes:
         try:
-            logger.warn("Terminating descendant process {} PID: {}"
-                        .format(descendant.cmdline(), descendant.pid))
+            logger.warning("Terminating descendant process {} PID: {}"
+                           .format(descendant.cmdline(), descendant.pid))
             descendant.terminate()
         except psutil.NoSuchProcess:
             descendant_processes.remove(descendant)
 
-    logger.warn("Waiting up to {}s for processes to exit..."
-                .format(TIME_TO_WAIT_AFTER_SIGTERM))
+    logger.warning("Waiting up to {}s for processes to exit..."
+                   .format(TIME_TO_WAIT_AFTER_SIGTERM))
     try:
         psutil.wait_procs(descendant_processes, TIME_TO_WAIT_AFTER_SIGTERM)
-        logger.warn("Done waiting")
+        logger.warning("Done waiting")
     except psutil.TimeoutExpired:
-        logger.warn("Ran out of time while waiting for "
-                    "processes to exit")
+        logger.warning("Ran out of time while waiting for "
+                       "processes to exit")
     # Then SIGKILL
     descendant_processes = [x for x in this_process.children(recursive=True)
                             if x.is_running()]
@@ -309,16 +309,16 @@ def kill_descendant_processes(logger, pids_to_kill=None):
 
     if len(descendant_processes) > 0:
         for descendant in descendant_processes:
-            logger.warn("Killing descendant process {} PID: {}"
-                        .format(descendant.cmdline(), descendant.pid))
+            logger.warning("Killing descendant process {} PID: {}"
+                           .format(descendant.cmdline(), descendant.pid))
             try:
                 descendant.kill()
                 descendant.wait()
             except psutil.NoSuchProcess:
                 pass
-        logger.warn("Killed all descendant processes of {} PID: {}"
-                    .format(this_process.cmdline(),
-                            this_process.pid))
+        logger.warning("Killed all descendant processes of {} PID: {}"
+                       .format(this_process.cmdline(),
+                               this_process.pid))
 
 
 class AirflowImporter(object):
