@@ -6,7 +6,6 @@ import logging
 import time
 from zdesk import Zendesk, RateLimitError, ZendeskError
 from airflow.hooks import BaseHook
-from airflow.plugins_manager import AirflowPlugin
 
 
 class ZendeskHook(BaseHook):
