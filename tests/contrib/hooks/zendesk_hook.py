@@ -38,7 +38,6 @@ def test_returns_single_page_if_get_all_pages_false(_):
     mock_call = Mock(
         return_value={'next_page': 'https://some_host/something', 'path': []})
     mock_conn.call = mock_call
-    print(mock_conn.call)
     zendesk_hook.get_conn = Mock(return_value=mock_conn)
     zendesk_hook.call("path", get_all_pages=False)
     mock_call.assert_called_once_with("path", None)
@@ -56,7 +55,6 @@ def test_returns_multiple_pages_if_get_all_pages_true(_):
     mock_call = Mock(
         return_value={'next_page': 'https://some_host/something', 'path': []})
     mock_conn.call = mock_call
-    print(mock_conn.call)
     zendesk_hook.get_conn = Mock(return_value=mock_conn)
     zendesk_hook.call("path", get_all_pages=True)
     assert mock_call.call_count == 2
