@@ -14,7 +14,6 @@
 #
 
 
-
 """
 A hook to talk to Zendesk
 """
