@@ -1788,6 +1788,9 @@ class FakeSession(object):
         return self.response
 
     def prepare_request(self, request):
+        if 'date' in request.params:
+            self.response._content += (
+                '/' + request.params['date']).encode('ascii', 'ignore')
         return self.response
 
 class HttpOpSensorTest(unittest.TestCase):
@@ -1822,18 +1825,20 @@ class HttpOpSensorTest(unittest.TestCase):
 
     @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):
+
         sensor = sensors.HttpSensor(
             task_id='http_sensor_check',
-            conn_id='http_default',
+            http_conn_id='http_default',
             endpoint='/search',
-            params={"client": "ubuntu", "q": "airflow"},
+            params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
             headers={},
-            response_check=lambda response: ("airbnb/airflow" in response.text),
+            response_check=lambda response: (
+                "airbnb/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')
+                in response.text),
             poke_interval=5,
             timeout=15,
             dag=self.dag)
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
 
 class FakeWebHDFSHook(object):
     def __init__(self, conn_id):
