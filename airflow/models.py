@@ -1752,7 +1752,7 @@ class BaseOperator(object):
     dag crawling behavior. To derive this class, you are expected to override
     the constructor as well as the 'execute' method.
 
-    Operators derived from this task should perform or trigger certain tasks
+    Operators derived from this class should perform or trigger certain tasks
     synchronously (wait for completion). Example of operators could be an
     operator the runs a Pig job (PigOperator), a sensor operator that
     waits for a partition to land in Hive (HiveSensorOperator), or one that
