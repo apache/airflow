@@ -188,7 +188,7 @@ class DagBagTest(unittest.TestCase):
         class TestDagBag(models.DagBag):
             process_file_calls = 0
             def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if 'example_bash_operator.py' in filepath:
+                if 'example_bash_operator.py' == os.path.basename(filepath):
                     TestDagBag.process_file_calls += 1
                 super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
 

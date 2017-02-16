@@ -22,7 +22,6 @@ from functools import wraps
 from datetime import datetime, timedelta
 import dateutil.parser
 import copy
-from itertools import chain, product
 import json
 
 import inspect
@@ -1084,6 +1083,7 @@ class Airflow(BaseView):
         origin = request.args.get('origin')
         dag = dagbag.get_dag(dag_id)
         task = dag.get_task(task_id)
+        task.dag = dag
 
         execution_date = request.args.get('execution_date')
         execution_date = dateutil.parser.parse(execution_date)
@@ -1092,110 +1092,39 @@ class Airflow(BaseView):
         downstream = request.args.get('downstream') == "true"
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
-        recursive = request.args.get('recursive') == "true"
-        MAX_PERIODS = 5000
 
-        # Flagging tasks as successful
-        session = settings.Session()
-        task_ids = [task_id]
-        dag_ids = [dag_id]
-        task_id_to_dag = {
-            task_id: dag
-        }
-        end_date = ((dag.latest_execution_date or datetime.now())
-                    if future else execution_date)
-
-        if 'start_date' in dag.default_args:
-            start_date = dag.default_args['start_date']
-        elif dag.start_date:
-            start_date = dag.start_date
-        else:
-            start_date = execution_date
-
-        start_date = execution_date if not past else start_date
-
-        if recursive:
-            recurse_tasks(task, task_ids, dag_ids, task_id_to_dag)
-
-        if downstream:
-            relatives = task.get_flat_relatives(upstream=False)
-            task_ids += [t.task_id for t in relatives]
-            if recursive:
-                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
-        if upstream:
-            relatives = task.get_flat_relatives(upstream=False)
-            task_ids += [t.task_id for t in relatives]
-            if recursive:
-                recurse_tasks(relatives, task_ids, dag_ids, task_id_to_dag)
-        TI = models.TaskInstance
-
-        if dag.schedule_interval == '@once':
-            dates = [start_date]
-        else:
-            dates = dag.date_range(start_date, end_date=end_date)
-
-        tis = session.query(TI).filter(
-            TI.dag_id.in_(dag_ids),
-            TI.execution_date.in_(dates),
-            TI.task_id.in_(task_ids)).all()
-        tis_to_change = session.query(TI).filter(
-            TI.dag_id.in_(dag_ids),
-            TI.execution_date.in_(dates),
-            TI.task_id.in_(task_ids),
-            TI.state != State.SUCCESS).all()
-        tasks = list(product(task_ids, dates))
-        tis_to_create = list(
-            set(tasks) -
-            set([(ti.task_id, ti.execution_date) for ti in tis]))
-
-        tis_all_altered = list(chain(
-            [(ti.task_id, ti.execution_date) for ti in tis_to_change],
-            tis_to_create))
-
-        if len(tis_all_altered) > MAX_PERIODS:
-            flash("Too many tasks at once (>{0})".format(
-                MAX_PERIODS), 'error')
+        if not dag:
+            flash("Cannot find DAG: {}".format(dag_id))
             return redirect(origin)
+
+        if not task:
+            flash("Cannot find task {} in DAG {}".format(task_id, dag.dag_id))
+            return redirect(origin)
+
+        from airflow.api.common.experimental.mark_tasks import set_state
 
         if confirmed:
-            for ti in tis_to_change:
-                ti.state = State.SUCCESS
-            session.commit()
+            altered = set_state(task=task, execution_date=execution_date,
+                                upstream=upstream, downstream=downstream,
+                                future=future, past=past, state=State.SUCCESS,
+                                commit=True)
 
-            for task_id, task_execution_date in tis_to_create:
-                ti = TI(
-                    task=task_id_to_dag[task_id].get_task(task_id),
-                    execution_date=task_execution_date,
-                    state=State.SUCCESS)
-                session.add(ti)
-                session.commit()
-
-            session.commit()
-            session.close()
-            flash("Marked success on {} task instances".format(
-                len(tis_all_altered)))
-
+            flash("Marked success on {} task instances".format(len(altered)))
             return redirect(origin)
-        else:
-            if not tis_all_altered:
-                flash("No task instances to mark as successful", 'error')
-                response = redirect(origin)
-            else:
-                tis = []
-                for task_id, task_execution_date in tis_all_altered:
-                    tis.append(TI(
-                        task=task_id_to_dag[task_id].get_task(task_id),
-                        execution_date=task_execution_date,
-                        state=State.SUCCESS))
-                details = "\n".join([str(t) for t in tis])
 
-                response = self.render(
-                    'airflow/confirm.html',
-                    message=(
-                        "Here's the list of task instances you are about "
-                        "to mark as successful:"),
-                    details=details,)
-            return response
+        to_be_altered = set_state(task=task, execution_date=execution_date,
+                                  upstream=upstream, downstream=downstream,
+                                  future=future, past=past, state=State.SUCCESS,
+                                  commit=False)
+
+        details = "\n".join([str(t) for t in to_be_altered])
+
+        response = self.render("airflow/confirm.html",
+                               message=("Here's the list of task instances you are "
+                                        "about to mark as successful:"),
+                               details=details)
+
+        return response
 
     @expose('/tree')
     @login_required

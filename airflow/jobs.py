@@ -1632,6 +1632,8 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
+    ID_PREFIX = 'backfill_'
+    ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
 
     __mapper_args__ = {
         'polymorphic_identity': 'BackfillJob'
@@ -1716,7 +1718,7 @@ class BackfillJob(BaseJob):
 
         active_dag_runs = []
         while next_run_date and next_run_date <= end_date:
-            run_id = 'backfill_' + next_run_date.isoformat()
+            run_id = BackfillJob.ID_FORMAT_PREFIX.format(next_run_date.isoformat())
 
             # check if we are scheduling on top of a already existing dag_run
             # we could find a "scheduled" run instead of a "backfill"

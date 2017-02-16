@@ -2314,6 +2314,7 @@ class BaseOperator(object):
         qry = qry.filter(TI.task_id.in_(tasks))
 
         count = qry.count()
+
         clear_task_instances(qry, session)
 
         session.commit()
@@ -2930,13 +2931,11 @@ class DAG(BaseDag, LoggingMixin):
     @property
     def latest_execution_date(self):
         """
-        Returns the latest date for which at least one task instance exists
+        Returns the latest date for which at least one dag run exists
         """
-        TI = TaskInstance
         session = settings.Session()
-        execution_date = session.query(func.max(TI.execution_date)).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id.in_(self.task_ids)
+        execution_date = session.query(func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == self.dag_id
         ).scalar()
         session.commit()
         session.close()
@@ -3329,7 +3328,7 @@ class DAG(BaseDag, LoggingMixin):
 
         # add a placeholder row into DagStat table
         if not session.query(DagStat).filter(DagStat.dag_id == self.dag_id).first():
-            session.add(DagStat(dag_id=self.dag_id, state=State.RUNNING, count=0, dirty=True))
+            session.add(DagStat(dag_id=self.dag_id, state=state, count=0, dirty=True))
         session.commit()
         return run
 
@@ -3808,6 +3807,8 @@ class DagRun(Base):
     def set_state(self, state):
         if self._state != state:
             self._state = state
+            # something really weird goes on here: if you try to close the session
+            # dag runs will end up detached
             session = settings.Session()
             DagStat.set_dirty(self.dag_id, session=session)
 
@@ -3866,7 +3867,10 @@ class DagRun(Base):
         if run_id:
             qry = qry.filter(DR.run_id == run_id)
         if execution_date:
-            qry = qry.filter(DR.execution_date == execution_date)
+            if isinstance(execution_date, list):
+                qry = qry.filter(DR.execution_date.in_(execution_date))
+            else:
+                qry = qry.filter(DR.execution_date == execution_date)
         if state:
             qry = qry.filter(DR.state == state)
         if external_trigger:

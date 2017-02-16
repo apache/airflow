@@ -1407,6 +1407,7 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+
 class WebUiTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
@@ -1416,10 +1417,25 @@ class WebUiTests(unittest.TestCase):
         app.config['TESTING'] = True
         self.app = app.test_client()
 
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
+        self.dagbag = models.DagBag(include_examples=True)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
+        self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
+        self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+
+        self.dag_bash2.create_dagrun(
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            execution_date=DEFAULT_DATE,
+            start_date=datetime.now(),
+            state=State.RUNNING
+        )
+
+        self.sub_dag.create_dagrun(
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            execution_date=DEFAULT_DATE,
+            start_date=datetime.now(),
+            state=State.RUNNING
+        )
 
     def test_index(self):
         response = self.app.get('/', follow_redirects=True)
@@ -1503,7 +1519,7 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
             "/admin/airflow/success?task_id=run_this_last&"
-            "dag_id=example_bash_operator&upstream=false&downstream=false&"
+            "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
@@ -1511,7 +1527,7 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
             '/admin/airflow/clear?task_id=run_this_last&'
-            'dag_id=example_bash_operator&future=true&past=false&'
+            'dag_id=test_example_bash_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
             'origin=/admin'.format(DEFAULT_DATE_DS))
@@ -1519,7 +1535,7 @@ class WebUiTests(unittest.TestCase):
         url = (
             "/admin/airflow/success?task_id=section-1&"
             "dag_id=example_subdag_operator&upstream=true&downstream=true&"
-            "recursive=true&future=false&past=false&execution_date={}&"
+            "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
@@ -1531,7 +1547,7 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url + "&confirmed=true")
         url = (
             "/admin/airflow/clear?task_id=runme_1&"
-            "dag_id=example_bash_operator&future=false&past=false&"
+            "dag_id=test_example_bash_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1575,23 +1591,19 @@ class WebUiTests(unittest.TestCase):
     def test_fetch_task_instance(self):
         url = (
             "/admin/airflow/object/task_instances?"
-            "dag_id=example_bash_operator&"
+            "dag_id=test_example_bash_operator&"
             "execution_date={}".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
-        self.assertIn("{}", response.data.decode('utf-8'))
-
-        TI = models.TaskInstance
-        ti = TI(
-            task=self.runme_0, execution_date=DEFAULT_DATE)
-        job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-        job.run()
-
-        response = self.app.get(url)
-        self.assertIn("runme_0", response.data.decode('utf-8'))
+        self.assertIn("run_this_last", response.data.decode('utf-8'))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        session = Session()
+        session.query(models.DagRun).delete()
+        session.query(models.TaskInstance).delete()
+        session.commit()
+        session.close()
 
 
 class WebPasswordAuthTest(unittest.TestCase):
