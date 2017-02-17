@@ -207,8 +207,7 @@ We can put this all together to build a simple pipeline:
 
     with DAG('my_dag', start_date=datetime(2016, 1, 1)) as dag:
         (
-            dag
-            >> DummyOperator(task_id='dummy_1')
+            DummyOperator(task_id='dummy_1')
             >> BashOperator(
                 task_id='bash_1',
                 bash_command='echo "HELLO!"')
