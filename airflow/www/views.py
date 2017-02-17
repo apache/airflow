@@ -640,6 +640,7 @@ class Airflow(BaseView):
         return wwwutils.json_response(d)
 
     @expose('/pickle_info')
+    @login_required
     def pickle_info(self):
         d = {}
         dag_id = request.args.get('dag_id')
