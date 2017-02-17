@@ -1429,6 +1429,7 @@ class TaskInstance(Base):
         logging.exception(error)
         task = self.task
         session = settings.Session()
+        self.exception = error
         self.end_date = datetime.now()
         self.set_duration()
         Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
