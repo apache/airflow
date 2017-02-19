@@ -469,7 +469,7 @@ class DagBag(BaseDagBag, LoggingMixin):
     def paused_dags(self):
         session = settings.Session()
         dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
-            DagModel.is_paused.is_(True))]
+            DagModel.is_paused.__eq__(True))]
         session.commit()
         session.close()
         return dag_ids
@@ -2858,7 +2858,7 @@ class DAG(BaseDag, LoggingMixin):
             DR.dag_id == self.dag_id,
         )
         if not include_externally_triggered:
-            qry = qry.filter(DR.external_trigger.is_(False))
+            qry = qry.filter(DR.external_trigger.__eq__(False))
 
         qry = qry.order_by(DR.execution_date.desc())
 
