@@ -23,12 +23,12 @@ from airflow.contrib.hooks.jira_hook import JiraHook
 from airflow import models
 from airflow.utils import db
 
-jira_client_mock = Mock(
-        name="jira_client"
-)
+
+jira_client_mock = Mock(name="jira_client")
 
 
 class TestJiraHook(unittest.TestCase):
+
     def setUp(self):
         configuration.load_test_config()
         db.merge_conn(
@@ -45,7 +45,3 @@ class TestJiraHook(unittest.TestCase):
         self.assertTrue(jira_mock.called)
         self.assertIsInstance(jira_hook.client, Mock)
         self.assertEqual(jira_hook.client.name, jira_mock.return_value.name)
-
-
-if __name__ == '__main__':
-    unittest.main()

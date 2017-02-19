@@ -1108,7 +1108,6 @@ class TaskInstance(Base):
         :param verbose: whether or not to print details on failed dependencies
         :type verbose: boolean
         """
-        dep_context = dep_context or DepContext()
         failed = False
         for dep_status in self.get_failed_dep_statuses(
                 dep_context=dep_context,
@@ -1131,7 +1130,6 @@ class TaskInstance(Base):
             self,
             dep_context=None,
             session=None):
-        dep_context = dep_context or DepContext()
         for dep in dep_context.deps | self.task.deps:
             for dep_status in dep.get_dep_statuses(
                     self,

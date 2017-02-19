@@ -1,6 +1,7 @@
 alembic
 bcrypt
 boto
+boto3
 celery
 cgroupspy
 chartkick
@@ -9,6 +10,7 @@ coverage
 coveralls
 croniter
 cryptography
+datadog
 dill
 distributed
 docker-py
@@ -21,7 +23,9 @@ flask-cache
 flask-login==0.2.11
 Flask-WTF
 flower
+freezegun
 future
+google-api-python-client
 gunicorn
 hdfs
 hive-thrift-py
@@ -34,6 +38,7 @@ ldap3
 lxml
 markdown
 mock
+moto
 mysqlclient
 nose
 nose-exclude

@@ -77,7 +77,3 @@ class TestFTPHook(unittest.TestCase):
 
         self.conn_mock.rename.assert_called_once_with(from_path, to_path)
         self.conn_mock.quit.assert_called_once_with()
-
-
-if __name__ == '__main__':
-    unittest.main()
