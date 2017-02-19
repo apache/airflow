@@ -23,7 +23,7 @@ import os
 import unittest
 import time
 
-from airflow import models, settings, AirflowException
+from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
@@ -825,3 +825,41 @@ class TaskInstanceTest(unittest.TestCase):
 
         with self.assertRaises(TestError):
             ti.run()
+
+    def test_auto_xcom_push(self):
+        """
+        Tests that Operators do not automatically push XComs
+        """
+        value = 'hello'
+
+        dag = models.DAG(dag_id='test_xcom')
+        task = PythonOperator(
+            task_id='test_no_auto_xcom_push',
+            dag=dag,
+            python_callable=lambda: value,
+            owner='airflow',
+            start_date=datetime.datetime(2017, 1, 1))
+        ti = TI(task=task, execution_date=datetime.datetime(2017, 1, 1))
+        ti.run()
+
+        # no XCom pushed by default
+        self.assertEqual(
+            ti.xcom_pull(
+                task_ids='test_no_auto_xcom_push', key=models.XCOM_RETURN_KEY),
+            None)
+
+        task2 = PythonOperator(
+            task_id='test_auto_xcom_push',
+            dag=dag,
+            python_callable=lambda: value,
+            auto_xcom_push=True,
+            owner='airflow',
+            start_date=datetime.datetime(2017, 1, 1))
+        ti = TI(task=task2, execution_date=datetime.datetime(2017, 1, 2))
+        ti.run()
+
+        # now an XCom should have been pushed
+        self.assertEqual(
+            ti.xcom_pull(
+                task_ids='test_auto_xcom_push', key=models.XCOM_RETURN_KEY),
+            value)

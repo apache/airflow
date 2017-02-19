@@ -36,6 +36,7 @@ def push(**kwargs):
     kwargs['ti'].xcom_push(key='value from pusher 1', value=value_1)
 
 
+# this requires changing the default configuration
 def push_by_returning(**kwargs):
     # pushes an XCom without a specific target, just by returning it
     return value_2
@@ -61,7 +62,10 @@ push1 = PythonOperator(
     task_id='push', dag=dag, python_callable=push)
 
 push2 = PythonOperator(
-    task_id='push_by_returning', dag=dag, python_callable=push_by_returning)
+    task_id='push_by_returning',
+    dag=dag,
+    python_callable=push_by_returning,
+    auto_xcom_push=True)
 
 pull = PythonOperator(
     task_id='puller', dag=dag, python_callable=puller)

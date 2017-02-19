@@ -180,6 +180,7 @@ security =
 # values at runtime)
 unit_test_mode = False
 
+
 [cli]
 # In what way should the cli access the API. The LocalClient will use the
 # database directly, while the json_client will use the api running on the
@@ -187,9 +188,11 @@ unit_test_mode = False
 api_client = airflow.api.client.local_client
 endpoint_url = http://localhost:8080
 
+
 [api]
 # How to authenticate users of the API
 auth_backend = airflow.api.auth.backend.default
+
 
 [operators]
 # The default owner assigned to each new operator, unless
@@ -199,6 +202,11 @@ default_cpus = 1
 default_ram = 512
 default_disk = 512
 default_gpus = 0
+
+# Operators should automatically push XComs containing their results. This sets
+# the default value for a parameter with the same name than can be passed to
+# individual Operators.
+auto_xcom_push = False
 
 
 [webserver]
@@ -279,6 +287,7 @@ log_fetch_timeout_sec = 5
 # By default, the webserver shows paused DAGs. Flip this to hide paused
 # DAGs by default
 hide_paused_dags_by_default = False
+
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
