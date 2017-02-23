@@ -108,7 +108,7 @@
                 <td class="text-nowrap">
                     {% if dag %}
                         {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                        {% if last_run %}
+                        {% if last_run and last_run.start_date %}
                             <a href="{{ url_for('airflow.graph', dag_id=last_run.dag_id, execution_date=last_run.execution_date ) }}">
                                 {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
                             </a> <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Start Date: {{last_run.start_date.strftime('%Y-%m-%d %H:%M')}}"></span>
