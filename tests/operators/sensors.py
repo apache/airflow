@@ -200,7 +200,6 @@ class HivePartitionSensorTests(unittest.TestCase):
         from thrift.transport.TTransport import TTransportException
         task = HivePartitionSensor(
             table='fake_table',
-            http_conn_id='metastore_default',
             poke_interval=5,
             task_id="fake_task_id")
         with self.assertRaises(TTransportException):
@@ -223,7 +222,6 @@ class NamedHivePartitionSensorTests(unittest.TestCase):
         from thrift.transport.TTransport import TTransportException
         task = NamedHivePartitionSensor(
             partition_names=['fake_schema.fake_table/ds=42'],
-            http_conn_id='metastore_default',
             poke_interval=5,
             task_id="fake_task_id")
         with self.assertRaises(TTransportException):
