@@ -278,11 +278,11 @@ def do_setup():
             'Programming Language :: Python :: 3.4',
             'Topic :: System :: Monitoring',
         ],
-        author='Maxime Beauchemin',
-        author_email='maximebeauchemin@gmail.com',
-        url='https://github.com/apache/incubator-airflow',
+        author='Apache Software Foundation',
+        author_email='dev@airflow.incubator.apache.org',
+        url='http://airflow.incubator.apache.org/',
         download_url=(
-            'https://github.com/apache/incubator-airflow/tarball/' + version),
+            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
         cmdclass={
             'test': Tox,
             'extra_clean': CleanCommand,
