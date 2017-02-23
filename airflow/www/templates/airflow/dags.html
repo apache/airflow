@@ -1,3 +1,20 @@
+{#
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
 {% extends "airflow/master.html" %}
 
 {% block title %}Airflow - DAGs{% endblock %}
@@ -20,8 +37,14 @@
                 <th>DAG</th>
                 <th>Schedule</th>
                 <th>Owner</th>
-                <th style="padding-left: 5px;">Recent Statuses
+                <th style="padding-left: 5px;">Recent Tasks
                   <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of tasks from all active DAG runs or, if not currently active, from most recent run."></span>
+                  <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
+                </th>
+                <th style="padding-left: 5px;">Last Run <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Execution Date/Time of Highest Dag Run."></span>
+                </th>
+                <th style="padding-left: 5px;">DAG Runs
+                  <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Status of all previous DAG runs."></span>
                   <img id="loading" width="15" src="{{ url_for("static", filename="loading.gif") }}">
                 </th>
                 <th class="text-center">Links</th>
@@ -29,75 +52,145 @@
         </thead>
         <tbody>
         {% for dag_id in all_dag_ids %}
-            {% set dag = dags[dag_id] if dag_id in dags else None %}
+            {% set dag = webserver_dags[dag_id] if dag_id in webserver_dags else None %}
             <tr>
+                <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
                     <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
-                        <span class="glyphicon glyphicon-info-sign" aria-hidden="true"></span>
+                        <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
                     {% endif %}
                 </td>
+
+                <!-- Column 2: Turn dag on/off -->
                 <td>
                   {% if dag_id in orm_dags %}
-                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini">
+                    <input id="toggle-{{ dag_id }}" dag_id="{{ dag_id }}" type="checkbox" {{ "checked" if not orm_dags[dag_id].is_paused else "" }} data-toggle="toggle" data-size="mini" method="post">
                   {% endif %}
                 </td>
+
+                <!-- Column 3: Name -->
                 <td>
-                    {% if dag %}
-                    <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}">
+                    {% if dag_id in webserver_dags %}
+                    <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id) }}" title="{{ dag.description }}">
                         {{ dag_id }}
                     </a>
                     {% else %}
                         {{ dag_id }}
-                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metdata database."></span>
+                        <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG isn't available in the web server's DagBag object. It shows up in this list because the scheduler marked it as active in the metadata database."></span>
                     {% endif %}
-                    {% if dag_id not in orm_dags and False %}
+                    {% if dag_id not in orm_dags %}
                         <span class="glyphicon glyphicon-info-sign" class="info" aria-hidden="true" title="This DAG seems to be existing only locally. The master scheduler doesn't seem to be aware of its existence."></span>
                     {% endif %}
                 </td>
+
+                <!-- Column 4: Dag Schedule -->
                 <td>
-                  <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
-                      {{ dag.schedule_interval }}</a></td>
-                <td>{{ dag.owner if dag else orm_dags[dag_id].owners }}</td>
-                <td style="padding:0px; width:200px; height:10px;">
-                    <svg height="10" width="10" id='dag-{{ dag.safe_dag_id }}' style="display: block;"></svg>
-                </td>
-                <td class="text-center" style="width:160px;"><nobr>
-                {% if dag %}
-    <a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
-        <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
-    </a>
-    <a href="{{ url_for("airflow.graph", dag_id=dag.dag_id) }}" title="Graph View">
-        <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
-      </a>
-    <a href="{{ url_for("airflow.duration", dag_id=dag.dag_id) }}" title="Tasks Duration">
-        <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
-    </a>
-      <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}" title="Landing Times">
-        <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
-      </a>
-      <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id) }}" title="Gantt View">
-        <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
-        <i class="icon-align-left"></i>
-      </a>
-      <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}" title="Code View">
-        <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
-      </a>
-      <a href="/admin/log/?sort=1&desc=1&flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
-         <i class="icon-list"></i>
-         <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
-      </a>
-                {% endif %}
-                    <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
-                      <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+                    {% if dag_id in webserver_dags %}
+                    <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                        {{ dag.schedule_interval }}
                     </a>
-                    </nobr>
+                    {% endif %}
+                </td>
+
+                <!-- Column 5: Dag Owners -->
+                <td>
+                  {{ dag.owner if dag else orm_dags[dag_id].owners }}
+                </td>
+
+                <!-- Column 6: Recent Tasks -->
+                <td style="padding:0px; width:200px; height:10px;">
+                    <svg height="10" width="10" id='task-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                </td>
+
+                <!-- Column 7: Last Run -->
+                <td class="text-nowrap">
+                    {% if dag %}
+                        {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
+                        {% if last_run %}
+                            <a href="{{ url_for('airflow.graph', dag_id=last_run.dag_id, execution_date=last_run.execution_date ) }}">
+                                {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
+                            </a> <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Start Date: {{last_run.start_date.strftime('%Y-%m-%d %H:%M')}}"></span>
+                        {% else %}
+                            <!--No DAG Runs-->
+                        {% endif %}
+                    {% else %}
+                        <!--No DAG Runs-->
+                    {% endif %}
+                </td>
+
+                <!-- Column 8: Dag Runs -->
+                <td style="padding:0px; width:120px; height:10px;">
+                    <svg height="10" width="10" id='dag-run-{{ dag.safe_dag_id }}' style="display: block;"></svg>
+                </td>
+
+                <!-- Column 9: Links -->
+                <td class="text-center" style="display:flex; flex-direction:row; justify-content:space-around;">
+                {% if dag %}
+
+                <!-- Trigger Dag -->
+                <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}"
+                   onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')" title="Trigger Dag">
+                    <span class="glyphicon glyphicon-play-circle" aria-hidden="true"></span>
+                </a>
+
+                <!-- Tree -->
+                <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}" title="Tree View">
+                    <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
+                </a>
+
+                <!-- Graph -->
+                <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id) }}" title="Graph View">
+                    <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
+                </a>
+
+                <!-- Duration -->
+                <a href="{{ url_for('airflow.duration', dag_id=dag.dag_id) }}" title="Tasks Duration">
+                    <span class="glyphicon glyphicon-stats" aria-hidden="true"></span>
+                </a>
+
+                <!-- Retries -->
+                <a href="{{ url_for('airflow.tries', dag_id=dag.dag_id) }}" title="Task Tries">
+                    <span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span>
+                </a>
+
+                <!-- Landing Times -->
+                <a href="{{ url_for("airflow.landing_times", dag_id=dag.dag_id) }}" title="Landing Times">
+                    <span class="glyphicon glyphicon-plane" aria-hidden="true"></span>
+                </a>
+
+                <!-- Gantt -->
+                <a href="{{ url_for("airflow.gantt", dag_id=dag.dag_id) }}" title="Gantt View">
+                    <span class="glyphicon glyphicon-align-left" aria-hidden="true"></span>
+                </a>
+
+                <!-- Code -->
+                <a href="{{ url_for("airflow.code", dag_id=dag.dag_id) }}" title="Code View">
+                    <span class="glyphicon glyphicon-flash" aria-hidden="true"></span>
+                </a>
+
+                <!-- Logs -->
+                <a href="/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}" title="Logs">
+                    <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
+                </a>
+                {% endif %}
+
+                <!-- Refresh -->
+                <a href="{{ url_for("airflow.refresh", dag_id=dag_id) }}" title="Refresh">
+                  <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
+                </a>
+
                 </td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
+    {% if not hide_paused %}
+    <a href="/admin/?showPaused=False">Hide Paused DAGs</a>
+    {% else %}
+    <a href="/admin/?showPaused=True">Show Paused DAGs</a>
+    {% endif %}
   </div>
 {% endblock %}
 
@@ -107,6 +200,10 @@
   <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
   <script>
+
+      function confirmTriggerDag(dag_id){
+          return confirm("Are you sure you want to run '"+dag_id+"' now?");
+      }
       all_dags = $("[id^=toggle]");
       $.each(all_dags, function(i,v) {
         $(v).change (function() {
@@ -117,7 +214,7 @@
             is_paused = 'false'
           }
           url = 'airflow/paused?is_paused=' + is_paused + '&dag_id=' + dag_id;
-          $.ajax(url);
+          $.post(url);
         });
       });
       $('#dags').dataTable({
@@ -143,7 +240,86 @@
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
         for(var dag_id in json) {
             states = json[dag_id];
-            g = d3.select('svg#dag-' + dag_id)
+            g = d3.select('svg#dag-run-' + dag_id)
+              .attr('height', diameter + (stroke_width_hover * 2))
+              .attr('width', '110px')
+              .selectAll("g")
+              .data(states)
+              .enter()
+              .append('g')
+              .attr('transform', function(d, i) {
+                x = (i * (diameter + circle_margin)) + (diameter/2 + circle_margin);
+                y = (diameter/2) + stroke_width_hover;
+                return 'translate(' + x + ',' + y + ')';
+              });
+
+            g.append('text')
+              .attr('fill', 'black')
+              .attr('text-anchor', 'middle')
+              .attr('vertical-align', 'middle')
+              .attr('font-size', 8)
+              .attr('y', 3)
+              .text(function(d){ return d.count > 0 ? d.count : ''; });
+
+            g.append('circle')
+              .attr('stroke-width', function(d) {
+                  if (d.count > 0)
+                    return stroke_width;
+                  else {
+                    return 1;
+                  }
+              })
+              .attr('stroke', function(d) {
+                  if (d.count > 0)
+                    return d.color;
+                  else {
+                    return 'gainsboro';
+                  }
+              })
+              .attr('fill-opacity', 0)
+              .attr('r', diameter/2)
+              .attr('title', function(d) {return d.state})
+              .attr('style', function(d) {
+                if (d.count > 0)
+                    return"cursor:pointer;"
+              })
+              .on('click', function(d, i) {
+                  if (d.count > 0)
+                    window.location = "/admin/dagrun/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+              })
+              .on('mouseover', function(d, i) {
+                if (d.count > 0) {
+                    d3.select(this).transition().duration(400)
+                      .attr('fill-opacity', 0.3)
+                      .style("stroke-width", stroke_width_hover);
+                }
+              })
+              .on('mouseout', function(d, i) {
+                if (d.count > 0) {
+                    d3.select(this).transition().duration(400)
+                      .attr('fill-opacity', 0)
+                      .style("stroke-width", stroke_width);
+                }
+              })
+              .style("opacity", 0)
+              .transition()
+              .duration(500)
+              .delay(function(d, i){return i*50;})
+              .style("opacity", 1);
+            d3.select("#loading").remove();
+        }
+        $("#pause_header").tooltip();
+        $("#statuses_info").tooltip();
+
+        $("circle").tooltip({
+          html: true,
+          container: "body",
+        });
+      });
+      d3.json("{{ url_for('airflow.task_stats') }}", function(error, json) {
+        for(var dag_id in json) {
+            states = json[dag_id];
+            g = d3.select('svg#task-run-' + dag_id)
               .attr('height', diameter + (stroke_width_hover * 2))
               .attr('width', '180px')
               .selectAll("g")
@@ -218,6 +394,6 @@
           html: true,
           container: "body",
         });
-    });
+      });
   </script>
 {% endblock %}

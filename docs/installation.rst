@@ -52,10 +52,6 @@ Here's the list of the subpackages and what they enable:
 |  gcp_api      | ``pip install airflow[gcp_api]``    | Google Cloud Platform hooks and operators       |
 |               |                                     | (using ``google-api-python-client``)            |
 +---------------+-------------------------------------+-------------------------------------------------+
-|  gcloud       | ``pip install airflow[gcloud]``     | Google Cloud Platform hooks                     |
-|               |                                     | (using ``gcloud``;                              |
-|               |                                     | see ``/airflow/contrib/hooks/gcloud/readme.md``)|
-+---------------+-------------------------------------+-------------------------------------------------+
 |  jdbc         | ``pip install airflow[jdbc]``       | JDBC hooks and operators                        |
 +---------------+-------------------------------------+-------------------------------------------------+
 |  hdfs         | ``pip install airflow[hdfs]``       | HDFS hooks and operators                        |
@@ -89,4 +85,6 @@ Here's the list of the subpackages and what they enable:
 +---------------+-------------------------------------+-------------------------------------------------+
 |  vertica      | ``pip install airflow[vertica]``    | Vertica hook                                    |
 |               |                                     | support as an Airflow backend                   |
++---------------+-------------------------------------+-------------------------------------------------+
+|  cloudant     | ``pip install airflow[cloudant]``   | Cloudant hook                                   |
 +---------------+-------------------------------------+-------------------------------------------------+

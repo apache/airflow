@@ -21,14 +21,28 @@ Addresses issue #1225.
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator, PythonOperator, SubDagOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
+from airflow.operators.subdag_operator import SubDagOperator
 from airflow.utils.trigger_rule import TriggerRule
+import time
+
 DEFAULT_DATE = datetime(2016, 1, 1)
 default_args = dict(
     start_date=DEFAULT_DATE,
     owner='airflow')
 
 def fail():
+    raise ValueError('Expected failure.')
+
+def delayed_fail():
+    """
+    Delayed failure to make sure that processes are running before the error
+    is raised.
+
+    TODO handle more directly (without sleeping)
+    """
+    time.sleep(5)
     raise ValueError('Expected failure.')
 
 # DAG tests backfill with pooled tasks
@@ -115,15 +129,3 @@ dag7_subdag1 = SubDagOperator(
     subdag=subdag7)
 subdag7_task1.set_downstream(subdag7_task2)
 subdag7_task2.set_downstream(subdag7_task3)
-
-# DAG tests that queued tasks are run
-dag8 = DAG(
-    dag_id='test_scheduled_queued_tasks',
-    start_date=DEFAULT_DATE,
-    end_date=DEFAULT_DATE,
-    default_args=default_args)
-dag8_task1 = PythonOperator(
-    python_callable=fail,
-    task_id='test_queued_task',
-    dag=dag8,
-    pool='test_queued_pool')

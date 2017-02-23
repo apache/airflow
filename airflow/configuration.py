@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -7,6 +21,7 @@ import copy
 import errno
 import logging
 import os
+import six
 import subprocess
 import warnings
 
@@ -18,14 +33,14 @@ from builtins import str
 from collections import OrderedDict
 from configparser import ConfigParser
 
+from .exceptions import AirflowConfigException
+
 # show Airflow's deprecation warnings
 warnings.filterwarnings(
     action='default', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
 
-class AirflowConfigException(Exception):
-    pass
 
 try:
     from cryptography.fernet import Fernet
@@ -74,78 +89,6 @@ def run_command(command):
     return output
 
 
-defaults = {
-    'core': {
-        'unit_test_mode': False,
-        'parallelism': 32,
-        'load_examples': True,
-        'plugins_folder': None,
-        'security': None,
-        'donot_pickle': False,
-        'remote_base_log_folder': '',
-        'remote_log_conn_id': '',
-        'encrypt_s3_logs': False,
-        's3_log_folder': '', # deprecated!
-        'dag_concurrency': 16,
-        'max_active_runs_per_dag': 16,
-        'executor': 'SequentialExecutor',
-        'dags_are_paused_at_creation': True,
-        'sql_alchemy_pool_size': 5,
-        'sql_alchemy_pool_recycle': 3600,
-        'dagbag_import_timeout': 30,
-        'non_pooled_task_slot_count': 128,
-    },
-    'operators': {
-        'default_owner': 'airflow'
-    },
-    'webserver': {
-        'base_url': 'http://localhost:8080',
-        'web_server_host': '0.0.0.0',
-        'web_server_port': '8080',
-        'web_server_worker_timeout': 120,
-        'authenticate': False,
-        'filter_by_owner': False,
-        'demo_mode': False,
-        'secret_key': 'airflowified',
-        'expose_config': False,
-        'workers': 4,
-        'worker_class': 'sync',
-    },
-    'scheduler': {
-        'statsd_on': False,
-        'statsd_host': 'localhost',
-        'statsd_port': 8125,
-        'statsd_prefix': 'airflow',
-        'job_heartbeat_sec': 5,
-        'scheduler_heartbeat_sec': 60,
-        'authenticate': False,
-        'max_threads': 2,
-    },
-    'celery': {
-        'default_queue': 'default',
-        'flower_port': '5555'
-    },
-    'email': {
-        'email_backend': 'airflow.utils.email.send_email_smtp',
-    },
-    'smtp': {
-        'smtp_starttls': True,
-        'smtp_ssl': False,
-        'smtp_user': '',
-        'smtp_password': '',
-    },
-    'kerberos': {
-        'ccache': '/tmp/airflow_krb5_ccache',
-        'principal': 'airflow',                 # gets augmented with fqdn
-        'reinit_frequency': '3600',
-        'kinit_path': 'kinit',
-        'keytab': 'airflow.keytab',
-    },
-    'github_enterprise': {
-        'api_rev': 'v3'
-    }
-}
-
 DEFAULT_CONFIG = """\
 [core]
 # The home folder for airflow, default is ~/airflow
@@ -153,9 +96,11 @@ airflow_home = {AIRFLOW_HOME}
 
 # The folder where your airflow pipelines live, most likely a
 # subfolder in a code repository
+# This path must be absolute
 dags_folder = {AIRFLOW_HOME}/dags
 
-# The folder where airflow should store its log files. This location
+# The folder where airflow should store its log files
+# This path must be absolute
 base_log_folder = {AIRFLOW_HOME}/logs
 
 # Airflow can store logs remotely in AWS S3 or Google Cloud Storage. Users
@@ -166,11 +111,11 @@ remote_base_log_folder =
 remote_log_conn_id =
 # Use server-side encryption for logs stored in S3
 encrypt_s3_logs = False
-# deprecated option for remote log storage, use remote_base_log_folder instead!
-# s3_log_folder =
+# DEPRECATED option for remote log storage, use remote_base_log_folder instead!
+s3_log_folder =
 
 # The executor class that airflow should use. Choices include
-# SequentialExecutor, LocalExecutor, CeleryExecutor
+# SequentialExecutor, LocalExecutor, CeleryExecutor, DaskExecutor
 executor = SequentialExecutor
 
 # The SqlAlchemy connection string to the metadata database.
@@ -222,11 +167,39 @@ donot_pickle = False
 # How long before timing out a python file import while filling the DagBag
 dagbag_import_timeout = 30
 
+# The class to use for running task instances in a subprocess
+task_runner = BashTaskRunner
+
+# If set, tasks without a `run_as_user` argument will be run with this user
+# Can be used to de-elevate a sudo user running Airflow when executing tasks
+default_impersonation =
+
+# What security module to use (for example kerberos):
+security =
+
+# Turn unit test mode on (overwrites many configuration options with test
+# values at runtime)
+unit_test_mode = False
+
+[cli]
+# In what way should the cli access the API. The LocalClient will use the
+# database directly, while the json_client will use the api running on the
+# webserver
+api_client = airflow.api.client.local_client
+endpoint_url = http://localhost:8080
+
+[api]
+# How to authenticate users of the API
+auth_backend = airflow.api.auth.backend.default
 
 [operators]
 # The default owner assigned to each new operator, unless
 # provided explicitly or passed via `default_args`
 default_owner = Airflow
+default_cpus = 1
+default_ram = 512
+default_disk = 512
+default_gpus = 0
 
 
 [webserver]
@@ -241,8 +214,21 @@ web_server_host = 0.0.0.0
 # The port on which to run the web server
 web_server_port = 8080
 
-# The time the gunicorn webserver waits before timing out on a worker
+# Paths to the SSL certificate and key for the web server. When both are
+# provided SSL will be enabled. This does not change the web server port.
+web_server_ssl_cert =
+web_server_ssl_key =
+
+# Number of seconds the gunicorn webserver waits before timing out on a worker
 web_server_worker_timeout = 120
+
+# Number of workers to refresh at a time. When set to 0, worker refresh is
+# disabled. When nonzero, airflow periodically refreshes webserver workers by
+# bringing up new ones and killing old ones.
+worker_refresh_batch_size = 1
+
+# Number of seconds to wait before refreshing a batch of workers.
+worker_refresh_interval = 30
 
 # Secret key used to run your flask app
 secret_key = temporary_key
@@ -254,30 +240,60 @@ workers = 4
 # sync (default), eventlet, gevent
 worker_class = sync
 
+# Log files for the gunicorn webserver. '-' means log to stderr.
+access_logfile = -
+error_logfile = -
+
 # Expose the configuration file in the web server
-expose_config = true
+expose_config = False
 
 # Set to true to turn on authentication:
-# http://pythonhosted.org/airflow/installation.html#web-authentication
+# http://pythonhosted.org/airflow/security.html#web-authentication
 authenticate = False
 
 # Filter the list of dags by owner name (requires authentication to be enabled)
 filter_by_owner = False
 
+# Filtering mode. Choices include user (default) and ldapgroup.
+# Ldap group filtering requires using the ldap backend
+#
+# Note that the ldap server needs the "memberOf" overlay to be set up
+# in order to user the ldapgroup mode.
+owner_mode = user
+
+# Default DAG orientation. Valid values are:
+# LR (Left->Right), TB (Top->Bottom), RL (Right->Left), BT (Bottom->Top)
+dag_orientation = LR
+
+# Puts the webserver in demonstration mode; blurs the names of Operators for
+# privacy.
+demo_mode = False
+
+# The amount of time (in secs) webserver will wait for initial handshake
+# while fetching logs from other worker machine
+log_fetch_timeout_sec = 5
+
+# By default, the webserver shows paused DAGs. Flip this to hide paused
+# DAGs by default
+hide_paused_dags_by_default = False
+
 [email]
 email_backend = airflow.utils.email.send_email_smtp
 
+
 [smtp]
 # If you want airflow to send emails on retries, failure, and you want to use
-# the airflow.utils.email.send_email_smtp function, you have to configure an smtp
-# server here
+# the airflow.utils.email.send_email_smtp function, you have to configure an
+# smtp server here
 smtp_host = localhost
 smtp_starttls = True
 smtp_ssl = False
-smtp_user = airflow
+# Uncomment and set the user/pass settings if you want to use SMTP AUTH
+# smtp_user = airflow
+# smtp_password = airflow
 smtp_port = 25
-smtp_password = airflow
 smtp_mail_from = airflow@airflow.com
+
 
 [celery]
 # This section only applies if you are using the CeleryExecutor in
@@ -308,11 +324,23 @@ broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
 
 # Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start
-# it `airflow flower`. This defines the port that Celery Flower runs on
+# it `airflow flower`. This defines the IP that Celery Flower runs on
+flower_host = 0.0.0.0
+
+# This defines the port that Celery Flower runs on
 flower_port = 5555
 
 # Default queue that tasks get assigned to and that worker listen on.
 default_queue = default
+
+
+[dask]
+# This section only applies if you are using the DaskExecutor in
+# [core] section above
+
+# The IP address and port of the Dask cluster's scheduler.
+cluster_address = 127.0.0.1:8786
+
 
 [scheduler]
 # Task instances listen for external kill signal (when you clear tasks
@@ -325,16 +353,46 @@ job_heartbeat_sec = 5
 # how often the scheduler should run (in seconds).
 scheduler_heartbeat_sec = 5
 
+# after how much time should the scheduler terminate in seconds
+# -1 indicates to run continuously (see also num_runs)
+run_duration = -1
+
+# after how much time a new DAGs should be picked up from the filesystem
+min_file_process_interval = 0
+
+dag_dir_list_interval = 300
+
+# How often should stats be printed to the logs
+print_stats_interval = 30
+
+child_process_log_directory = {AIRFLOW_HOME}/logs/scheduler
+
+# Local task jobs periodically heartbeat to the DB. If the job has
+# not heartbeat in this many seconds, the scheduler will mark the
+# associated task instance as failed and will re-schedule the task.
+scheduler_zombie_task_threshold = 300
+
+# Turn off scheduler catchup by setting this to False.
+# Default behavior is unchanged and
+# Command Line Backfills still work, but the scheduler
+# will not do scheduler catchup if this is False,
+# however it can be set on a per DAG basis in the
+# DAG definition (catchup)
+catchup_by_default = True
+
 # Statsd (https://github.com/etsy/statsd) integration settings
-# statsd_on =  False
-# statsd_host =  localhost
-# statsd_port =  8125
-# statsd_prefix = airflow
+statsd_on = False
+statsd_host = localhost
+statsd_port = 8125
+statsd_prefix = airflow
 
 # The scheduler can run multiple threads in parallel to schedule dags.
 # This defines how many threads will run. However airflow will never
 # use more threads than the amount of cpu cores available.
 max_threads = 2
+
+authenticate = False
+
 
 [mesos]
 # Mesos master address which MesosExecutor will connect to.
@@ -373,22 +431,48 @@ authenticate = False
 # default_principal = admin
 # default_secret = admin
 
+
+[kerberos]
+ccache = /tmp/airflow_krb5_ccache
+# gets augmented with fqdn
+principal = airflow
+reinit_frequency = 3600
+kinit_path = kinit
+keytab = airflow.keytab
+
+
+[github_enterprise]
+api_rev = v3
+
+
+[admin]
+# UI to hide sensitive variable fields when set to True
+hide_sensitive_variable_fields = True
+
 """
 
 TEST_CONFIG = """\
 [core]
+unit_test_mode = True
 airflow_home = {AIRFLOW_HOME}
 dags_folder = {TEST_DAGS_FOLDER}
+plugins_folder = {TEST_PLUGINS_FOLDER}
 base_log_folder = {AIRFLOW_HOME}/logs
 executor = SequentialExecutor
 sql_alchemy_conn = sqlite:///{AIRFLOW_HOME}/unittests.db
-unit_test_mode = True
 load_examples = True
 donot_pickle = False
 dag_concurrency = 16
 dags_are_paused_at_creation = False
 fernet_key = {FERNET_KEY}
 non_pooled_task_slot_count = 128
+
+[cli]
+api_client = airflow.api.client.local_client
+endpoint_url = http://localhost:8080
+
+[api]
+auth_backend = airflow.api.auth.backend.default
 
 [operators]
 default_owner = airflow
@@ -397,6 +481,9 @@ default_owner = airflow
 base_url = http://localhost:8080
 web_server_host = 0.0.0.0
 web_server_port = 8080
+dag_orientation = LR
+log_fetch_timeout_sec = 5
+hide_paused_dags_by_default = False
 
 [email]
 email_backend = airflow.utils.email.send_email_smtp
@@ -414,6 +501,7 @@ celeryd_concurrency = 16
 worker_log_server_port = 8793
 broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
+flower_host = 0.0.0.0
 flower_port = 5555
 default_queue = default
 
@@ -422,14 +510,17 @@ job_heartbeat_sec = 1
 scheduler_heartbeat_sec = 5
 authenticate = true
 max_threads = 2
+catchup_by_default = True
+scheduler_zombie_task_threshold = 300
+dag_dir_list_interval = 0
 """
 
 
-class ConfigParserWithDefaults(ConfigParser):
+class AirflowConfigParser(ConfigParser):
 
     # These configuration elements can be fetched as the stdout of commands
-    # following the "{section}__{name}__cmd" pattern, the idea behind this is to not
-    # store password on boxes in text files.
+    # following the "{section}__{name}__cmd" pattern, the idea behind this
+    # is to not store password on boxes in text files.
     as_command_stdout = {
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
@@ -437,17 +528,51 @@ class ConfigParserWithDefaults(ConfigParser):
         ('celery', 'celery_result_backend')
     }
 
-    def __init__(self, defaults, *args, **kwargs):
-        self.defaults = defaults
+    def __init__(self, *args, **kwargs):
         ConfigParser.__init__(self, *args, **kwargs)
+        self.read_string(parameterized_config(DEFAULT_CONFIG))
         self.is_validated = False
+
+    def read_string(self, string, source='<string>'):
+        """
+        Read configuration from a string.
+
+        A backwards-compatible version of the ConfigParser.read_string()
+        method that was introduced in Python 3.
+        """
+        # Python 3 added read_string() method
+        if six.PY3:
+            ConfigParser.read_string(self, string, source=source)
+        # Python 2 requires StringIO buffer
+        else:
+            import StringIO
+            self.readfp(StringIO.StringIO(string))
 
     def _validate(self):
         if (
                 self.get("core", "executor") != 'SequentialExecutor' and
                 "sqlite" in self.get('core', 'sql_alchemy_conn')):
-            raise AirflowConfigException("error: cannot use sqlite with the {}".
-                format(self.get('core', 'executor')))
+            raise AirflowConfigException(
+                "error: cannot use sqlite with the {}".format(
+                    self.get('core', 'executor')))
+
+        elif (
+            self.getboolean("webserver", "authenticate") and
+            self.get("webserver", "owner_mode") not in ['user', 'ldapgroup']
+        ):
+            raise AirflowConfigException(
+                "error: owner_mode option should be either "
+                "'user' or 'ldapgroup' when filtering by owner is set")
+
+        elif (
+            self.getboolean("webserver", "authenticate") and
+            self.get("webserver", "owner_mode").lower() == 'ldapgroup' and
+            self.get("webserver", "auth_backend") != (
+                'airflow.contrib.auth.backends.ldap_auth')
+        ):
+            raise AirflowConfigException(
+                "error: attempt at using ldapgroup "
+                "filtering without using the Ldap backend")
 
         self.is_validated = True
 
@@ -459,21 +584,23 @@ class ConfigParserWithDefaults(ConfigParser):
 
     def _get_cmd_option(self, section, key):
         fallback_key = key + '_cmd'
-        if (
-                (section, key) in ConfigParserWithDefaults.as_command_stdout and
-                self.has_option(section, fallback_key)):
-            command = self.get(section, fallback_key)
-            return run_command(command)
+        # if this is a valid command key...
+        if (section, key) in AirflowConfigParser.as_command_stdout:
+            # if the original key is present, return it no matter what
+            if self.has_option(section, key):
+                return ConfigParser.get(self, section, key)
+            # otherwise, execute the fallback key
+            elif self.has_option(section, fallback_key):
+                command = self.get(section, fallback_key)
+                return run_command(command)
 
     def get(self, section, key, **kwargs):
         section = str(section).lower()
         key = str(key).lower()
 
-        d = self.defaults
-
         # first check environment variables
         option = self._get_env_var_option(section, key)
-        if option:
+        if option is not None:
             return option
 
         # ...then the config file
@@ -486,13 +613,9 @@ class ConfigParserWithDefaults(ConfigParser):
         if option:
             return option
 
-        # ...then the defaults
-        if section in d and key in d[section]:
-            return expand_env_var(d[section][key])
-
         else:
-            logging.warn("section/key [{section}/{key}] not found "
-                         "in config".format(**locals()))
+            logging.warning("section/key [{section}/{key}] not found "
+                            "in config".format(**locals()))
 
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
@@ -502,12 +625,14 @@ class ConfigParserWithDefaults(ConfigParser):
         val = str(self.get(section, key)).lower().strip()
         if '#' in val:
             val = val.split('#')[0].strip()
-        if val == "true":
+        if val.lower() in ('t', 'true', '1'):
             return True
-        elif val == "false":
+        elif val.lower() in ('f', 'false', '0'):
             return False
         else:
-            raise AirflowConfigException("Not a boolean.")
+            raise AirflowConfigException(
+                'The value for configuration option "{}:{}" is not a '
+                'boolean (received "{}").'.format(section, key, val))
 
     def getint(self, section, key):
         return int(self.get(section, key))
@@ -541,7 +666,7 @@ class ConfigParserWithDefaults(ConfigParser):
         if display_source:
             for section in cfg:
                 for k, v in cfg[section].items():
-                    cfg[section][k] = (v, 'airflow.cfg')
+                    cfg[section][k] = (v, 'airflow config')
 
         # add env vars and overwrite because they have priority
         for ev in [ev for ev in os.environ if ev.startswith('AIRFLOW__')]:
@@ -551,7 +676,9 @@ class ConfigParserWithDefaults(ConfigParser):
             except ValueError:
                 opt = None
             if opt:
-                if not display_sensitive:
+                if (
+                        not display_sensitive
+                        and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
                     opt = '< hidden >'
                 if display_source:
                     opt = (opt, 'env var')
@@ -559,7 +686,7 @@ class ConfigParserWithDefaults(ConfigParser):
                     {key.lower(): opt})
 
         # add bash commands
-        for (section, key) in ConfigParserWithDefaults.as_command_stdout:
+        for (section, key) in AirflowConfigParser.as_command_stdout:
             opt = self._get_cmd_option(section, key)
             if opt:
                 if not display_sensitive:
@@ -568,17 +695,20 @@ class ConfigParserWithDefaults(ConfigParser):
                     opt = (opt, 'bash cmd')
                 cfg.setdefault(section, OrderedDict()).update({key: opt})
 
-        # add defaults
-        for section in sorted(self.defaults):
-            for key in sorted(self.defaults[section].keys()):
-                if key not in cfg.setdefault(section, OrderedDict()):
-                    opt = str(self.defaults[section][key])
-                    if display_source:
-                        cfg[section][key] = (opt, 'default')
-                    else:
-                        cfg[section][key] = opt
-
         return cfg
+
+    def load_test_config(self):
+        """
+        Load the unit test configuration.
+
+        Note: this is not reversible.
+        """
+        # override any custom settings with defaults
+        self.read_string(parameterized_config(DEFAULT_CONFIG))
+        # then read test config
+        self.read_string(parameterized_config(TEST_CONFIG))
+        # then read any "custom" test settings
+        self.read(TEST_CONFIG_FILE)
 
 
 def mkdir_p(path):
@@ -590,10 +720,9 @@ def mkdir_p(path):
         else:
             raise AirflowConfigException('Had trouble creating a directory')
 
-"""
-Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
-"~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
-"""
+
+# Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
+# "~/airflow" and "~/airflow/airflow.cfg" respectively as defaults.
 
 if 'AIRFLOW_HOME' not in os.environ:
     AIRFLOW_HOME = expand_env_var('~/airflow')
@@ -621,6 +750,16 @@ if os.path.exists(_TEST_DAGS_FOLDER):
 else:
     TEST_DAGS_FOLDER = os.path.join(AIRFLOW_HOME, 'dags')
 
+# Set up plugins folder for unit tests
+_TEST_PLUGINS_FOLDER = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))),
+    'tests',
+    'plugins')
+if os.path.exists(_TEST_PLUGINS_FOLDER):
+    TEST_PLUGINS_FOLDER = _TEST_PLUGINS_FOLDER
+else:
+    TEST_PLUGINS_FOLDER = os.path.join(AIRFLOW_HOME, 'plugins')
+
 
 def parameterized_config(template):
     """
@@ -641,13 +780,29 @@ if not os.path.isfile(TEST_CONFIG_FILE):
 
 if not os.path.isfile(AIRFLOW_CONFIG):
     # These configuration options are used to generate a default configuration
-    # when it is missing. The right way to change your configuration is to alter
-    # your configuration file, not this code.
+    # when it is missing. The right way to change your configuration is to
+    # alter your configuration file, not this code.
     logging.info("Creating new airflow config file in: " + AIRFLOW_CONFIG)
     with open(AIRFLOW_CONFIG, 'w') as f:
         f.write(parameterized_config(DEFAULT_CONFIG))
 
 logging.info("Reading the config from " + AIRFLOW_CONFIG)
+
+
+conf = AirflowConfigParser()
+conf.read(AIRFLOW_CONFIG)
+
+
+def load_test_config():
+    """
+    Load the unit test configuration.
+
+    Note: this is not reversible.
+    """
+    conf.load_test_config()
+
+if conf.getboolean('core', 'unit_test_mode'):
+    load_test_config()
 
 
 def get(section, key, **kwargs):
@@ -749,3 +904,6 @@ if conf.getboolean('scheduler', 'statsd_on'):
     Stats = statsd
 else:
     Stats = DummyStatsLogger
+
+def set(section, option, value):  # noqa
+    return conf.set(section, option, value)

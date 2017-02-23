@@ -22,12 +22,14 @@ install_aliases()
 from builtins import str
 from builtins import object, bytes
 import copy
+from collections import namedtuple
 from datetime import datetime, timedelta
 import dill
 import functools
 import getpass
 import imp
 import importlib
+import inspect
 import zipfile
 import jinja2
 import json
@@ -38,17 +40,20 @@ import re
 import signal
 import socket
 import sys
+import textwrap
 import traceback
 import warnings
+import hashlib
+
 from urllib.parse import urlparse
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float)
-from sqlalchemy import case, func, or_, and_
+from sqlalchemy import func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
-from sqlalchemy.orm import relationship, synonym
+from sqlalchemy.orm import reconstructor, relationship, synonym
 
 from croniter import croniter
 import six
@@ -56,13 +61,20 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.dag.base_dag import BaseDag, BaseDagBag
+from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
+from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
-from airflow.utils.helpers import (as_tuple, is_container, is_in, validate_key)
+from airflow.utils.helpers import (
+    as_tuple, is_container, is_in, validate_key, pprinttable)
 from airflow.utils.logging import LoggingMixin
+from airflow.utils.operator_resources import Resources
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
@@ -70,6 +82,8 @@ from airflow.utils.trigger_rule import TriggerRule
 Base = declarative_base()
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
+
+Stats = settings.Stats
 
 ENCRYPTION_ON = False
 try:
@@ -89,16 +103,20 @@ _CONTEXT_MANAGER_DAG = None
 
 
 def clear_task_instances(tis, session, activate_dag_runs=True):
-    '''
+    """
     Clears a set of task instances, but makes sure the running ones
     get killed.
-    '''
+    """
     job_ids = []
     for ti in tis:
         if ti.state == State.RUNNING:
             if ti.job_id:
                 ti.state = State.SHUTDOWN
                 job_ids.append(ti.job_id)
+        # todo: this creates an issue with the webui tests
+        # elif ti.state != State.REMOVED:
+        #     ti.state = State.NONE
+        #     session.merge(ti)
         else:
             session.delete(ti)
     if job_ids:
@@ -117,7 +135,7 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
             dr.start_date = datetime.now()
 
 
-class DagBag(LoggingMixin):
+class DagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
     level configuration settings, like what database to use as a backend and
@@ -128,7 +146,7 @@ class DagBag(LoggingMixin):
     independent settings sets.
 
     :param dag_folder: the folder to scan to find DAGs
-    :type dag_folder: str
+    :type dag_folder: unicode
     :param executor: the executor to use when executing task instances
         in this DagBag
     :param include_examples: whether to include the examples that ship
@@ -151,7 +169,7 @@ class DagBag(LoggingMixin):
 
         self.dag_folder = dag_folder
         self.dags = {}
-        self.sync_to_db = sync_to_db
+        # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
@@ -167,8 +185,6 @@ class DagBag(LoggingMixin):
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(dag_folder)
-        if sync_to_db:
-            self.deactivate_inactive_dags()
 
     def size(self):
         """
@@ -187,7 +203,7 @@ class DagBag(LoggingMixin):
             if dag.is_subdag:
                 root_dag_id = dag.parent_dag.dag_id
 
-        # If the root_dag_id is absent or expired
+        # If the dag corresponding to root_dag_id is absent or expired
         orm_dag = DagModel.get_current(root_dag_id)
         if orm_dag and (
                 root_dag_id not in self.dags or
@@ -196,10 +212,11 @@ class DagBag(LoggingMixin):
                     dag.last_loaded < orm_dag.last_expired
                 )
         ):
-            # Reprocessing source file
+            # Reprocess source file
             found_dags = self.process_file(
                 filepath=orm_dag.fileloc, only_if_updated=False)
 
+            # If the source file no longer exports `dag_id`, delete it from self.dags
             if found_dags and dag_id in [dag.dag_id for dag in found_dags]:
                 return self.dags[dag_id]
             elif dag_id in self.dags:
@@ -220,10 +237,10 @@ class DagBag(LoggingMixin):
         try:
             # This failed before in what may have been a git sync
             # race condition
-            dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
+            file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
             if only_if_updated \
                     and filepath in self.file_last_changed \
-                    and dttm == self.file_last_changed[filepath]:
+                    and file_last_changed_on_disk == self.file_last_changed[filepath]:
                 return found_dags
 
         except Exception as e:
@@ -236,11 +253,14 @@ class DagBag(LoggingMixin):
                 with open(filepath, 'rb') as f:
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
+                        self.file_last_changed[filepath] = file_last_changed_on_disk
                         return found_dags
 
             self.logger.debug("Importing {}".format(filepath))
-            org_mod_name, file_ext = os.path.splitext(os.path.split(filepath)[-1])
-            mod_name = 'unusual_prefix_' + org_mod_name
+            org_mod_name, _ = os.path.splitext(os.path.split(filepath)[-1])
+            mod_name = ('unusual_prefix_' +
+                        hashlib.sha1(filepath.encode('utf-8')).hexdigest() +
+                        '_' + org_mod_name)
 
             if mod_name in sys.modules:
                 del sys.modules[mod_name]
@@ -252,12 +272,12 @@ class DagBag(LoggingMixin):
                 except Exception as e:
                     self.logger.exception("Failed to import: " + filepath)
                     self.import_errors[filepath] = str(e)
-                    self.file_last_changed[filepath] = dttm
+                    self.file_last_changed[filepath] = file_last_changed_on_disk
 
         else:
             zip_file = zipfile.ZipFile(filepath)
             for mod in zip_file.infolist():
-                head, tail = os.path.split(mod.filename)
+                head, _ = os.path.split(mod.filename)
                 mod_name, ext = os.path.splitext(mod.filename)
                 if not head and (ext == '.py' or ext == '.pyc'):
                     if mod_name == '__init__':
@@ -270,6 +290,8 @@ class DagBag(LoggingMixin):
                                               format(mod.filename, filepath))
                             content = zf.read()
                             if not all([s in content for s in (b'DAG', b'airflow')]):
+                                self.file_last_changed[filepath] = (
+                                    file_last_changed_on_disk)
                                 # todo: create ignore list
                                 return found_dags
 
@@ -283,7 +305,7 @@ class DagBag(LoggingMixin):
                     except Exception as e:
                         self.logger.exception("Failed to import: " + filepath)
                         self.import_errors[filepath] = str(e)
-                        self.file_last_changed[filepath] = dttm
+                        self.file_last_changed[filepath] = file_last_changed_on_disk
 
         for m in mods:
             for dag in list(m.__dict__.values()):
@@ -291,16 +313,15 @@ class DagBag(LoggingMixin):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
                     dag.is_subdag = False
-                    dag.module_name = m.__name__
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                     found_dags.append(dag)
                     found_dags += dag.subdags
 
-        self.file_last_changed[filepath] = dttm
+        self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
 
     @provide_session
-    def kill_zombies(self, session):
+    def kill_zombies(self, session=None):
         """
         Fails tasks that haven't had a heartbeat in too long
         """
@@ -308,7 +329,7 @@ class DagBag(LoggingMixin):
         self.logger.info("Finding 'running' jobs without a recent heartbeat")
         TI = TaskInstance
         secs = (
-            configuration.getint('scheduler', 'job_heartbeat_sec') * 3) + 120
+            configuration.getint('scheduler', 'scheduler_zombie_task_threshold'))
         limit_dttm = datetime.now() - timedelta(seconds=secs)
         self.logger.info(
             "Failing jobs without heartbeat after {}".format(limit_dttm))
@@ -334,6 +355,7 @@ class DagBag(LoggingMixin):
                     ti.handle_failure("{} killed as zombie".format(ti))
                     self.logger.info(
                         'Marked zombie job {} as failed'.format(ti))
+                    Stats.incr('zombies_killed')
         session.commit()
 
     def bag_dag(self, dag, parent_dag, root_dag):
@@ -347,24 +369,9 @@ class DagBag(LoggingMixin):
         for task in dag.tasks:
             settings.policy(task)
 
-        if self.sync_to_db:
-            session = settings.Session()
-            orm_dag = session.query(
-                DagModel).filter(DagModel.dag_id == dag.dag_id).first()
-            if not orm_dag:
-                orm_dag = DagModel(dag_id=dag.dag_id)
-            orm_dag.fileloc = root_dag.full_filepath
-            orm_dag.is_subdag = dag.is_subdag
-            orm_dag.owners = root_dag.owner
-            orm_dag.is_active = True
-            session.merge(orm_dag)
-            session.commit()
-            session.close()
-
         for subdag in dag.subdags:
             subdag.full_filepath = dag.full_filepath
             subdag.parent_dag = dag
-            subdag.fileloc = root_dag.full_filepath
             subdag.is_subdag = True
             self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
         self.logger.debug('Loaded DAG {dag}'.format(**locals()))
@@ -382,7 +389,13 @@ class DagBag(LoggingMixin):
         ignoring files that match any of the regex patterns specified
         in the file.
         """
+        start_dttm = datetime.now()
         dag_folder = dag_folder or self.dag_folder
+
+        # Used to store stats around DagBag processing
+        stats = []
+        FileLoadStat = namedtuple(
+            'FileLoadStat', "file duration dag_num task_num dags")
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
@@ -400,14 +413,54 @@ class DagBag(LoggingMixin):
                             continue
                         mod_name, file_ext = os.path.splitext(
                             os.path.split(filepath)[-1])
-                        if file_ext != '.py':
+                        if file_ext != '.py' and not zipfile.is_zipfile(filepath):
                             continue
                         if not any(
                                 [re.findall(p, filepath) for p in patterns]):
-                            self.process_file(
+                            ts = datetime.now()
+                            found_dags = self.process_file(
                                 filepath, only_if_updated=only_if_updated)
+
+                            td = datetime.now() - ts
+                            td = td.total_seconds() + (
+                                float(td.microseconds) / 1000000)
+                            stats.append(FileLoadStat(
+                                filepath.replace(dag_folder, ''),
+                                td,
+                                len(found_dags),
+                                sum([len(dag.tasks) for dag in found_dags]),
+                                str([dag.dag_id for dag in found_dags]),
+                            ))
                     except Exception as e:
                         logging.warning(e)
+        Stats.gauge(
+            'collect_dags', (datetime.now() - start_dttm).total_seconds(), 1)
+        Stats.gauge(
+            'dagbag_size', len(self.dags), 1)
+        Stats.gauge(
+            'dagbag_import_errors', len(self.import_errors), 1)
+        self.dagbag_stats = sorted(
+            stats, key=lambda x: x.duration, reverse=True)
+
+    def dagbag_report(self):
+        """Prints a report around DagBag loading stats"""
+        report = textwrap.dedent("""\n
+        -------------------------------------------------------------------
+        DagBag loading stats for {dag_folder}
+        -------------------------------------------------------------------
+        Number of DAGs: {dag_num}
+        Total task number: {task_num}
+        DagBag parsing time: {duration}
+        {table}
+        """)
+        stats = self.dagbag_stats
+        return report.format(
+            dag_folder=self.dag_folder,
+            duration=sum([o.duration for o in stats]),
+            dag_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.dag_num for o in stats]),
+            table=pprinttable(stats),
+        )
 
     def deactivate_inactive_dags(self):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
@@ -422,7 +475,7 @@ class DagBag(LoggingMixin):
     def paused_dags(self):
         session = settings.Session()
         dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
-            DagModel.is_paused == True)]
+            DagModel.is_paused.__eq__(True))]
         session.commit()
         session.close()
         return dag_ids
@@ -467,6 +520,31 @@ class Connection(Base):
     is_extra_encrypted = Column(Boolean, unique=False, default=False)
     _extra = Column('extra', String(5000))
 
+    _types = [
+        ('fs', 'File (path)'),
+        ('ftp', 'FTP',),
+        ('google_cloud_platform', 'Google Cloud Platform'),
+        ('hdfs', 'HDFS',),
+        ('http', 'HTTP',),
+        ('hive_cli', 'Hive Client Wrapper',),
+        ('hive_metastore', 'Hive Metastore Thrift',),
+        ('hiveserver2', 'Hive Server 2 Thrift',),
+        ('jdbc', 'Jdbc Connection',),
+        ('mysql', 'MySQL',),
+        ('postgres', 'Postgres',),
+        ('oracle', 'Oracle',),
+        ('vertica', 'Vertica',),
+        ('presto', 'Presto',),
+        ('s3', 'S3',),
+        ('samba', 'Samba',),
+        ('sqlite', 'Sqlite',),
+        ('ssh', 'SSH',),
+        ('cloudant', 'IBM Cloudant',),
+        ('mssql', 'Microsoft SQL Server'),
+        ('mesos_framework-id', 'Mesos Framework ID'),
+        ('jira', 'JIRA',),
+    ]
+
     def __init__(
             self, conn_id=None, conn_type=None,
             host=None, login=None, password=None,
@@ -503,7 +581,8 @@ class Connection(Base):
         if self._password and self.is_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt, configuration is missing")
+                    "Can't decrypt encrypted password for login={}, \
+                    FERNET_KEY configuration is missing".format(self.login))
             return FERNET.decrypt(bytes(self._password, 'utf-8')).decode()
         else:
             return self._password
@@ -526,7 +605,8 @@ class Connection(Base):
         if self._extra and self.is_extra_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt `extra`, configuration is missing")
+                    "Can't decrypt `extra` params for login={},\
+                    FERNET_KEY configuration is missing".format(self.login))
             return FERNET.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
             return self._extra
@@ -546,49 +626,63 @@ class Connection(Base):
                        descriptor=property(cls.get_extra, cls.set_extra))
 
     def get_hook(self):
-        from airflow import hooks
-        from airflow.contrib import hooks as contrib_hooks
         try:
             if self.conn_type == 'mysql':
-                return hooks.MySqlHook(mysql_conn_id=self.conn_id)
-            elif self.conn_type == 'bigquery':
-                return contrib_hooks.BigQueryHook(bigquery_conn_id=self.conn_id)
+                from airflow.hooks.mysql_hook import MySqlHook
+                return MySqlHook(mysql_conn_id=self.conn_id)
+            elif self.conn_type == 'google_cloud_platform':
+                from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+                return BigQueryHook(bigquery_conn_id=self.conn_id)
             elif self.conn_type == 'postgres':
-                return hooks.PostgresHook(postgres_conn_id=self.conn_id)
+                from airflow.hooks.postgres_hook import PostgresHook
+                return PostgresHook(postgres_conn_id=self.conn_id)
             elif self.conn_type == 'hive_cli':
-                return hooks.HiveCliHook(hive_cli_conn_id=self.conn_id)
+                from airflow.hooks.hive_hooks import HiveCliHook
+                return HiveCliHook(hive_cli_conn_id=self.conn_id)
             elif self.conn_type == 'presto':
-                return hooks.PrestoHook(presto_conn_id=self.conn_id)
+                from airflow.hooks.presto_hook import PrestoHook
+                return PrestoHook(presto_conn_id=self.conn_id)
             elif self.conn_type == 'hiveserver2':
-                return hooks.HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
+                from airflow.hooks.hive_hooks import HiveServer2Hook
+                return HiveServer2Hook(hiveserver2_conn_id=self.conn_id)
             elif self.conn_type == 'sqlite':
-                return hooks.SqliteHook(sqlite_conn_id=self.conn_id)
+                from airflow.hooks.sqlite_hook import SqliteHook
+                return SqliteHook(sqlite_conn_id=self.conn_id)
             elif self.conn_type == 'jdbc':
-                return hooks.JdbcHook(jdbc_conn_id=self.conn_id)
+                from airflow.hooks.jdbc_hook import JdbcHook
+                return JdbcHook(jdbc_conn_id=self.conn_id)
             elif self.conn_type == 'mssql':
-                return hooks.MsSqlHook(mssql_conn_id=self.conn_id)
+                from airflow.hooks.mssql_hook import MsSqlHook
+                return MsSqlHook(mssql_conn_id=self.conn_id)
             elif self.conn_type == 'oracle':
-                return hooks.OracleHook(oracle_conn_id=self.conn_id)
+                from airflow.hooks.oracle_hook import OracleHook
+                return OracleHook(oracle_conn_id=self.conn_id)
             elif self.conn_type == 'vertica':
-                return contrib_hooks.VerticaHook(vertica_conn_id=self.conn_id)
+                from airflow.contrib.hooks.vertica_hook import VerticaHook
+                return VerticaHook(vertica_conn_id=self.conn_id)
+            elif self.conn_type == 'cloudant':
+                from airflow.contrib.hooks.cloudant_hook import CloudantHook
+                return CloudantHook(cloudant_conn_id=self.conn_id)
+            elif self.conn_type == 'jira':
+                from airflow.contrib.hooks.jira_hook import JiraHook
+                return JiraHook(jira_conn_id=self.conn_id)
         except:
-            return None
+            pass
 
     def __repr__(self):
         return self.conn_id
 
     @property
     def extra_dejson(self):
-        """Returns the extra property by deserializing json"""
+        """Returns the extra property by deserializing json."""
         obj = {}
         if self.extra:
             try:
                 obj = json.loads(self.extra)
             except Exception as e:
                 logging.exception(e)
-                logging.error(
-                    "Failed parsing the json for "
-                    "conn_id {}".format(self.conn_id))
+                logging.error("Failed parsing the json for conn_id %s", self.conn_id)
+
         return obj
 
 
@@ -650,9 +744,11 @@ class TaskInstance(Base):
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(DateTime)
+    pid = Column(Integer)
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
+        Index('ti_state', state),
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
     )
@@ -666,46 +762,160 @@ class TaskInstance(Base):
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
-        self.test_mode = False  # can be changed when calling 'run'
-        self.force = False  # can be changed when calling 'run'
         self.unixname = getpass.getuser()
+        self.run_as_user = task.run_as_user
         if state:
             self.state = state
+        self.hostname = ''
+        self.init_on_load()
+
+    @reconstructor
+    def init_on_load(self):
+        """ Initialize the attributes that aren't stored in the DB. """
+        self.test_mode = False  # can be changed when calling 'run'
 
     def command(
             self,
             mark_success=False,
-            ignore_dependencies=False,
+            ignore_all_deps=False,
             ignore_depends_on_past=False,
-            force=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
             local=False,
             pickle_id=None,
             raw=False,
             job_id=None,
-            pool=None):
+            pool=None,
+            cfg_path=None):
+        """
+        Returns a command that can be executed anywhere where airflow is
+        installed. This command is part of the message sent to executors by
+        the orchestrator.
+        """
+        return " ".join(self.command_as_list(
+            mark_success=mark_success,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path))
+
+    def command_as_list(
+            self,
+            mark_success=False,
+            ignore_all_deps=False,
+            ignore_task_deps=False,
+            ignore_depends_on_past=False,
+            ignore_ti_state=False,
+            local=False,
+            pickle_id=None,
+            raw=False,
+            job_id=None,
+            pool=None,
+            cfg_path=None):
         """
         Returns a command that can be executed anywhere where airflow is
         installed. This command is part of the message sent to executors by
         the orchestrator.
         """
         dag = self.task.dag
-        iso = self.execution_date.isoformat()
-        cmd = "airflow run {self.dag_id} {self.task_id} {iso} "
-        cmd += "--mark_success " if mark_success else ""
-        cmd += "--pickle {pickle_id} " if pickle_id else ""
-        cmd += "--job_id {job_id} " if job_id else ""
-        cmd += "-i " if ignore_dependencies else ""
-        cmd += "-I " if ignore_depends_on_past else ""
-        cmd += "--force " if force else ""
-        cmd += "--local " if local else ""
-        cmd += "--pool {pool} " if pool else ""
-        cmd += "--raw " if raw else ""
-        if not pickle_id and dag:
-            if dag.full_filepath != dag.filepath:
-                cmd += "-sd DAGS_FOLDER/{dag.filepath} "
-            elif dag.full_filepath:
-                cmd += "-sd {dag.full_filepath}"
-        return cmd.format(**locals())
+
+        should_pass_filepath = not pickle_id and dag
+        if should_pass_filepath and dag.full_filepath != dag.filepath:
+            path = "DAGS_FOLDER/{}".format(dag.filepath)
+        elif should_pass_filepath and dag.full_filepath:
+            path = dag.full_filepath
+        else:
+            path = None
+
+        return TaskInstance.generate_command(
+            self.dag_id,
+            self.task_id,
+            self.execution_date,
+            mark_success=mark_success,
+            ignore_all_deps=ignore_all_deps,
+            ignore_task_deps=ignore_task_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            ignore_ti_state=ignore_ti_state,
+            local=local,
+            pickle_id=pickle_id,
+            file_path=path,
+            raw=raw,
+            job_id=job_id,
+            pool=pool,
+            cfg_path=cfg_path)
+
+    @staticmethod
+    def generate_command(dag_id,
+                         task_id,
+                         execution_date,
+                         mark_success=False,
+                         ignore_all_deps=False,
+                         ignore_depends_on_past=False,
+                         ignore_task_deps=False,
+                         ignore_ti_state=False,
+                         local=False,
+                         pickle_id=None,
+                         file_path=None,
+                         raw=False,
+                         job_id=None,
+                         pool=None,
+                         cfg_path=None
+                         ):
+        """
+        Generates the shell command required to execute this task instance.
+
+        :param dag_id: DAG ID
+        :type dag_id: unicode
+        :param task_id: Task ID
+        :type task_id: unicode
+        :param execution_date: Execution date for the task
+        :type execution_date: datetime
+        :param mark_success: Whether to mark the task as successful
+        :type mark_success: bool
+        :param ignore_all_deps: Ignore all ignoreable dependencies.
+            Overrides the other ignore_* parameters.
+        :type ignore_all_deps: boolean
+        :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
+            (e.g. for Backfills)
+        :type ignore_depends_on_past: boolean
+        :param ignore_task_deps: Ignore task-specific dependencies such as depends_on_past
+            and trigger rule
+        :type ignore_task_deps: boolean
+        :param ignore_ti_state: Ignore the task instance's previous failure/success
+        :type ignore_ti_state: boolean
+        :param local: Whether to run the task locally
+        :type local: bool
+        :param pickle_id: If the DAG was serialized to the DB, the ID
+        associated with the pickled DAG
+        :type pickle_id: unicode
+        :param file_path: path to the file containing the DAG definition
+        :param raw: raw mode (needs more details)
+        :param job_id: job ID (needs more details)
+        :param pool: the Airflow pool that the task should run in
+        :type pool: unicode
+        :return: shell command that can be used to run the task instance
+        """
+        iso = execution_date.isoformat()
+        cmd = ["airflow", "run", str(dag_id), str(task_id), str(iso)]
+        cmd.extend(["--mark_success"]) if mark_success else None
+        cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
+        cmd.extend(["--job_id", str(job_id)]) if job_id else None
+        cmd.extend(["-A "]) if ignore_all_deps else None
+        cmd.extend(["-i"]) if ignore_task_deps else None
+        cmd.extend(["-I"]) if ignore_depends_on_past else None
+        cmd.extend(["--force"]) if ignore_ti_state else None
+        cmd.extend(["--local"]) if local else None
+        cmd.extend(["--pool", pool]) if pool else None
+        cmd.extend(["--raw"]) if raw else None
+        cmd.extend(["-sd", file_path]) if file_path else None
+        cmd.extend(["--cfg_path", cfg_path]) if cfg_path else None
+        return cmd
 
     @property
     def log_filepath(self):
@@ -769,21 +979,31 @@ class TaskInstance(Base):
         session.commit()
 
     @provide_session
-    def refresh_from_db(self, session=None):
+    def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key
+
+        :param lock_for_update: if True, indicates that the database should
+            lock the TaskInstance (issuing a FOR UPDATE clause) until the
+            session is committed.
         """
         TI = TaskInstance
-        ti = session.query(TI).filter(
+
+        qry = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date,
-        ).first()
+            TI.execution_date == self.execution_date)
+
+        if lock_for_update:
+            ti = qry.with_for_update().first()
+        else:
+            ti = qry.first()
         if ti:
             self.state = ti.state
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+            self.hostname = ti.hostname
         else:
             self.state = None
 
@@ -804,85 +1024,23 @@ class TaskInstance(Base):
         """
         Returns a tuple that identifies the task instance uniquely
         """
-        return (self.dag_id, self.task_id, self.execution_date)
+        return self.dag_id, self.task_id, self.execution_date
 
     def set_state(self, state, session):
         self.state = state
         self.start_date = datetime.now()
         self.end_date = datetime.now()
         session.merge(self)
+        session.commit()
 
-    def is_queueable(
-            self,
-            include_queued=False,
-            ignore_depends_on_past=False,
-            flag_upstream_failed=False):
+    @property
+    def is_premature(self):
         """
-        Returns a boolean on whether the task instance has met all dependencies
-        and is ready to run. It considers the task's state, the state
-        of its dependencies, depends_on_past and makes sure the execution
-        isn't in the future. It doesn't take into
-        account whether the pool has a slot for it to run.
-
-        :param include_queued: If True, tasks that have already been queued
-            are included. Defaults to False.
-        :type include_queued: boolean
-        :param ignore_depends_on_past: if True, ignores depends_on_past
-            dependencies. Defaults to False.
-        :type ignore_depends_on_past: boolean
-        :param flag_upstream_failed: This is a hack to generate
-            the upstream_failed state creation while checking to see
-            whether the task instance is runnable. It was the shortest
-            path to add the feature
-        :type flag_upstream_failed: boolean
+        Returns whether a task is in UP_FOR_RETRY state and its retry interval
+        has elapsed.
         """
-        # is the execution date in the future?
-        if self.execution_date > datetime.now():
-            return False
         # is the task still in the retry waiting period?
-        elif self.state == State.UP_FOR_RETRY and not self.ready_for_retry():
-            return False
-        # does the task have an end_date prior to the execution date?
-        elif self.task.end_date and self.execution_date > self.task.end_date:
-            return False
-        # has the task been skipped?
-        elif self.state == State.SKIPPED:
-            return False
-        # has the task already been queued (and are we excluding queued tasks)?
-        elif self.state == State.QUEUED and not include_queued:
-            return False
-        # is the task runnable and have its dependencies been met?
-        elif (
-                self.state in State.runnable() and
-                self.are_dependencies_met(
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    flag_upstream_failed=flag_upstream_failed)):
-            return True
-        # anything else
-        else:
-            return False
-
-    def is_runnable(
-            self,
-            include_queued=False,
-            ignore_depends_on_past=False,
-            flag_upstream_failed=False):
-        """
-        Returns whether a task is ready to run AND there's room in the
-        queue.
-
-        :param include_queued: If True, tasks that are already QUEUED are
-            considered "runnable". Defaults to False.
-        :type include_queued: boolean
-        :param ignore_depends_on_past: if True, ignores depends_on_past
-            dependencies. Defaults to False.
-        :type ignore_depends_on_past: boolean
-        """
-        queueable = self.is_queueable(
-            include_queued=include_queued,
-            ignore_depends_on_past=ignore_depends_on_past,
-            flag_upstream_failed=flag_upstream_failed)
-        return queueable and not self.pool_full()
+        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
 
     @provide_session
     def are_dependents_done(self, session=None):
@@ -908,151 +1066,93 @@ class TaskInstance(Base):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
+    @property
     @provide_session
-    def evaluate_trigger_rule(self, successes, skipped, failed,
-                              upstream_failed, done,
-                              flag_upstream_failed, session=None):
-        """
-        Returns a boolean on whether the current task can be scheduled
-        for execution based on its trigger_rule.
+    def previous_ti(self, session=None):
+        """ The task instance for the task that ran before this task instance """
 
-        :param flag_upstream_failed: This is a hack to generate
-            the upstream_failed state creation while checking to see
-            whether the task instance is runnable. It was the shortest
-            path to add the feature
-        :type flag_upstream_failed: boolean
-        :param successes: Number of successful upstream tasks
-        :type successes: boolean
-        :param skipped: Number of skipped upstream tasks
-        :type skipped: boolean
-        :param failed: Number of failed upstream tasks
-        :type failed: boolean
-        :param upstream_failed: Number of upstream_failed upstream tasks
-        :type upstream_failed: boolean
-        :param done: Number of completed upstream tasks
-        :type done: boolean
-        """
-        TR = TriggerRule
+        dag = self.task.dag
+        if dag:
+            dr = self.get_dagrun(session=session)
 
-        task = self.task
-        upstream = len(task.upstream_task_ids)
-        tr = task.trigger_rule
-        upstream_done = done >= upstream
+            # LEGACY: most likely running from unit tests
+            if not dr:
+                # Means that this TI is NOT being run from a DR, but from a catchup
+                previous_scheduled_date = dag.previous_schedule(self.execution_date)
+                if not previous_scheduled_date:
+                    return None
 
-        # handling instant state assignment based on trigger rules
-        if flag_upstream_failed:
-            if tr == TR.ALL_SUCCESS:
-                if upstream_failed or failed:
-                    self.set_state(State.UPSTREAM_FAILED, session)
-                elif skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ALL_FAILED:
-                if successes or skipped:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_SUCCESS:
-                if upstream_done and not successes:
-                    self.set_state(State.SKIPPED, session)
-            elif tr == TR.ONE_FAILED:
-                if upstream_done and not (failed or upstream_failed):
-                    self.set_state(State.SKIPPED, session)
+                return TaskInstance(task=self.task,
+                                    execution_date=previous_scheduled_date)
 
-        return (
-             (tr == TR.ONE_SUCCESS and successes > 0) or
-             (tr == TR.ONE_FAILED and (failed or upstream_failed)) or
-             (tr == TR.ALL_SUCCESS and successes >= upstream) or
-             (tr == TR.ALL_FAILED and failed + upstream_failed >= upstream) or
-             (tr == TR.ALL_DONE and upstream_done)
-        )
+            dr.dag = dag
+            if dag.catchup:
+                last_dagrun = dr.get_previous_scheduled_dagrun(session=session)
+            else:
+                last_dagrun = dr.get_previous_dagrun(session=session)
+
+            if last_dagrun:
+                return last_dagrun.get_task_instance(self.task_id, session=session)
+
+        return None
 
     @provide_session
     def are_dependencies_met(
             self,
+            dep_context=None,
             session=None,
-            flag_upstream_failed=False,
-            ignore_depends_on_past=False,
             verbose=False):
         """
-        Returns a boolean on whether the upstream tasks are in a SUCCESS state
-        and considers depends_on_past and the previous run's state.
+        Returns whether or not all the conditions are met for this task instance to be run
+        given the context for the dependencies (e.g. a task instance being force run from
+        the UI will ignore some dependencies).
 
-        :param flag_upstream_failed: This is a hack to generate
-            the upstream_failed state creation while checking to see
-            whether the task instance is runnable. It was the shortest
-            path to add the feature
-        :type flag_upstream_failed: boolean
-        :param ignore_depends_on_past: if True, ignores depends_on_past
-            dependencies. Defaults to False.
-        :type ignore_depends_on_past: boolean
-        :param verbose: verbose provides more logging in the case where the
-            task instance is evaluated as a check right before being executed.
-            In the case of the scheduler evaluating the dependencies, this
-            logging would be way too verbose.
+        :param dep_context: The execution context that determines the dependencies that
+            should be evaluated.
+        :type dep_context: DepContext
+        :param session: database session
+        :type session: Session
+        :param verbose: whether or not to print details on failed dependencies
         :type verbose: boolean
         """
-        TI = TaskInstance
-        TR = TriggerRule
+        dep_context = dep_context or DepContext()
+        failed = False
+        for dep_status in self.get_failed_dep_statuses(
+                dep_context=dep_context,
+                session=session):
+            failed = True
+            if verbose:
+                logging.info("Dependencies not met for {}, dependency '{}' FAILED: {}"
+                             .format(self, dep_status.dep_name, dep_status.reason))
 
-        task = self.task
+        if failed:
+            return False
 
-        # Checking that the depends_on_past is fulfilled
-        if (task.depends_on_past and not ignore_depends_on_past and
-                not self.execution_date == task.start_date):
-            previous_ti = session.query(TI).filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id == task.task_id,
-                TI.execution_date ==
-                    self.task.dag.previous_schedule(self.execution_date),
-                TI.state.in_({State.SUCCESS, State.SKIPPED}),
-            ).first()
-            if not previous_ti:
-                if verbose:
-                    logging.warning("depends_on_past not satisfied")
-                return False
+        if verbose:
+            logging.info("Dependencies all met for {}".format(self))
 
-            # Applying wait_for_downstream
-            previous_ti.task = self.task
-            if task.wait_for_downstream and not \
-                    previous_ti.are_dependents_done(session=session):
-                if verbose:
-                    logging.warning("wait_for_downstream not satisfied")
-                return False
+        return True
 
-        # Checking that all upstream dependencies have succeeded
-        if not task.upstream_list or task.trigger_rule == TR.DUMMY:
-            return True
+    @provide_session
+    def get_failed_dep_statuses(
+            self,
+            dep_context=None,
+            session=None):
+        dep_context = dep_context or DepContext()
+        for dep in dep_context.deps | self.task.deps:
+            for dep_status in dep.get_dep_statuses(
+                    self,
+                    session,
+                    dep_context):
 
-        qry = (
-            session
-            .query(
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SUCCESS, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.SKIPPED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.FAILED, 1)], else_=0)), 0),
-                func.coalesce(func.sum(
-                    case([(TI.state == State.UPSTREAM_FAILED, 1)], else_=0)), 0),
-                func.count(TI.task_id),
-            )
-            .filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id.in_(task.upstream_task_ids),
-                TI.execution_date == self.execution_date,
-                TI.state.in_([
-                    State.SUCCESS, State.FAILED,
-                    State.UPSTREAM_FAILED, State.SKIPPED]),
-            )
-        )
+                logging.debug("{} dependency '{}' PASSED: {}, {}"
+                              .format(self,
+                                      dep_status.dep_name,
+                                      dep_status.passed,
+                                      dep_status.reason))
 
-        successes, skipped, failed, upstream_failed, done = qry.first()
-        satisfied = self.evaluate_trigger_rule(
-            session=session, successes=successes, skipped=skipped,
-            failed=failed, upstream_failed=upstream_failed, done=done,
-            flag_upstream_failed=flag_upstream_failed)
-        session.commit()
-        if verbose and not satisfied:
-            logging.warning("Trigger rule `{}` not satisfied".format(task.trigger_rule))
-        return satisfied
+                if not dep_status.passed:
+                    yield dep_status
 
     def __repr__(self):
         return (
@@ -1060,13 +1160,26 @@ class TaskInstance(Base):
             "{ti.execution_date} [{ti.state}]>"
         ).format(ti=self)
 
+    def next_retry_datetime(self):
+        """
+        Get datetime of the next retry if the task instance fails. For exponential
+        backoff, retry_delay is used as base and will be converted to seconds.
+        """
+        delay = self.task.retry_delay
+        if self.task.retry_exponential_backoff:
+            delay_backoff_in_seconds = delay.total_seconds() ** self.try_number
+            delay = timedelta(seconds=delay_backoff_in_seconds)
+            if self.task.max_retry_delay:
+                delay = min(self.task.max_retry_delay, delay)
+        return self.end_date + delay
+
     def ready_for_retry(self):
         """
         Checks on whether the task instance is in the right state and timeframe
         to be retried.
         """
-        return self.state == State.UP_FOR_RETRY and \
-            self.end_date + self.task.retry_delay < datetime.now()
+        return (self.state == State.UP_FOR_RETRY and
+                self.next_retry_datetime() < datetime.now())
 
     @provide_session
     def pool_full(self, session):
@@ -1084,168 +1197,230 @@ class TaskInstance(Base):
             .first()
         )
         if not pool:
-            raise ValueError(
-                "Task specified a pool ({}) but the pool "
-                "doesn't exist!".format(self.task.pool))
+            return False
         open_slots = pool.open_slots(session=session)
 
         return open_slots <= 0
 
     @provide_session
+    def get_dagrun(self, session):
+        """
+        Returns the DagRun for this TaskInstance
+        :param session:
+        :return: DagRun
+        """
+        dr = session.query(DagRun).filter(
+            DagRun.dag_id == self.dag_id,
+            DagRun.execution_date == self.execution_date
+        ).first()
+
+        return dr
+
+    @provide_session
     def run(
             self,
             verbose=True,
-            ignore_dependencies=False,  # Doesn't check for deps, just runs
-            ignore_depends_on_past=False,   # Ignore depends_on_past but respect
-                                            # other deps
-            force=False,  # Disregards previous successes
-            mark_success=False,  # Don't run the task, act as if it succeeded
-            test_mode=False,  # Doesn't record success or failure in the DB
+            ignore_all_deps=False,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            mark_success=False,
+            test_mode=False,
             job_id=None,
             pool=None,
             session=None):
         """
         Runs the task instance.
+
+        :param verbose: whether to turn on more verbose loggin
+        :type verbose: boolean
+        :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
+        :type ignore_all_deps: boolean
+        :param ignore_depends_on_past: Ignore depends_on_past DAG attribute
+        :type ignore_depends_on_past: boolean
+        :param ignore_task_deps: Don't check the dependencies of this TI's task
+        :type ignore_task_deps: boolean
+        :param ignore_ti_state: Disregards previous task instance state
+        :type ignore_ti_state: boolean
+        :param mark_success: Don't run the task, mark its state as success
+        :type mark_success: boolean
+        :param test_mode: Doesn't record success or failure in the DB
+        :type test_mode: boolean
+        :param pool: specifies the pool to use to run the task instance
+        :type pool: str
         """
         task = self.task
         self.pool = pool or task.pool
         self.test_mode = test_mode
-        self.force = force
-        self.refresh_from_db()
-        self.clear_xcom_data()
+        self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
-        iso = datetime.now().isoformat()
-        self.hostname = socket.gethostname()
+        self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
 
-        if self.state == State.RUNNING:
-            logging.warning("Another instance is running, skipping.")
-        elif not force and self.state == State.SUCCESS:
-            logging.info(
-                "Task {self} previously succeeded"
-                " on {self.end_date}".format(**locals())
-            )
-        elif (
-                not ignore_dependencies and
-                not self.are_dependencies_met(
-                    session=session,
-                    ignore_depends_on_past=ignore_depends_on_past,
-                    verbose=True)):
-            logging.warning("Dependencies not met yet")
-        elif (
-                self.state == State.UP_FOR_RETRY and
-                not self.ready_for_retry()):
-            next_run = (self.end_date + task.retry_delay).isoformat()
-            logging.info(
-                "Not ready for retry yet. " +
-                "Next run after {0}".format(next_run)
-            )
-        elif force or self.state in State.runnable():
-            HR = "\n" + ("-" * 80) + "\n"  # Line break
+        if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
+            Stats.incr('previously_succeeded', 1, 1)
 
-            # For reporting purposes, we report based on 1-indexed,
-            # not 0-indexed lists (i.e. Attempt 1 instead of
-            # Attempt 0 for the first attempt).
-            msg = "Starting attempt {attempt} of {total}".format(
-                attempt=self.try_number % (task.retries + 1) + 1,
-                total=task.retries + 1)
-            self.start_date = datetime.now()
+        queue_dep_context = DepContext(
+            deps=QUEUE_DEPS,
+            ignore_all_deps=ignore_all_deps,
+            ignore_ti_state=ignore_ti_state,
+            ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps)
+        if not self.are_dependencies_met(
+                dep_context=queue_dep_context,
+                session=session,
+                verbose=True):
+            session.commit()
+            return
 
-            if not mark_success and self.state != State.QUEUED and (
-                    self.pool or self.task.dag.concurrency_reached):
-                # If a pool is set for this task, marking the task instance
-                # as QUEUED
+        hr = "\n" + ("-" * 80) + "\n"  # Line break
+
+        # For reporting purposes, we report based on 1-indexed,
+        # not 0-indexed lists (i.e. Attempt 1 instead of
+        # Attempt 0 for the first attempt).
+        msg = "Starting attempt {attempt} of {total}".format(
+            attempt=self.try_number % (task.retries + 1) + 1,
+            total=task.retries + 1)
+        self.start_date = datetime.now()
+
+        dep_context = DepContext(
+            deps=RUN_DEPS - QUEUE_DEPS,
+            ignore_all_deps=ignore_all_deps,
+            ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state)
+        runnable = self.are_dependencies_met(
+            dep_context=dep_context,
+            session=session,
+            verbose=True)
+
+        if not runnable and not mark_success:
+            if self.state != State.QUEUED:
+                # If a task's dependencies are met but it can't be run yet then queue it
+                # instead
                 self.state = State.QUEUED
                 msg = "Queuing attempt {attempt} of {total}".format(
                     attempt=self.try_number % (task.retries + 1) + 1,
                     total=task.retries + 1)
-                logging.info(HR + msg + HR)
+                logging.info(hr + msg + hr)
 
                 self.queued_dttm = datetime.now()
-                session.merge(self)
-                session.commit()
-                logging.info("Queuing into pool {}".format(self.pool))
-                return
-
-            # print status message
-            logging.info(HR + msg + HR)
-            self.try_number += 1
-
-            if not test_mode:
-                session.add(Log(State.RUNNING, self))
-            self.state = State.RUNNING
-            self.end_date = None
-            if not test_mode:
+                msg = "Queuing into pool {}".format(self.pool)
+                logging.info(msg)
                 session.merge(self)
             session.commit()
+            return
 
-            # Closing all pooled connections to prevent
-            # "max number of connections reached"
-            settings.engine.dispose()
-            if verbose:
-                if mark_success:
-                    msg = "Marking success for "
-                else:
-                    msg = "Executing "
-                msg += "{self.task} on {self.execution_date}"
+        # Another worker might have started running this task instance while
+        # the current worker process was blocked on refresh_from_db
+        if self.state == State.RUNNING:
+            msg = "Task Instance already running {}".format(self)
+            logging.warning(msg)
+            session.commit()
+            return
 
-            context = {}
-            try:
-                logging.info(msg.format(self=self))
-                if not mark_success:
-                    context = self.get_template_context()
+        # print status message
+        logging.info(hr + msg + hr)
+        self.try_number += 1
 
-                    task_copy = copy.copy(task)
-                    self.task = task_copy
+        if not test_mode:
+            session.add(Log(State.RUNNING, self))
+        self.state = State.RUNNING
+        self.end_date = None
+        if not test_mode:
+            session.merge(self)
+        session.commit()
 
-                    def signal_handler(signum, frame):
-                        '''Setting kill signal handler'''
-                        logging.error("Killing subprocess")
-                        task_copy.on_kill()
-                        raise AirflowException("Task received SIGTERM signal")
-                    signal.signal(signal.SIGTERM, signal_handler)
+        # Closing all pooled connections to prevent
+        # "max number of connections reached"
+        settings.engine.dispose()
+        if verbose:
+            if mark_success:
+                msg = "Marking success for "
+            else:
+                msg = "Executing "
+            msg += "{self.task} on {self.execution_date}"
 
-                    self.render_templates()
-                    task_copy.pre_execute(context=context)
+        context = {}
+        try:
+            logging.info(msg.format(self=self))
+            if not mark_success:
+                context = self.get_template_context()
 
-                    # If a timout is specified for the task, make it fail
-                    # if it goes beyond
-                    result = None
-                    if task_copy.execution_timeout:
+                task_copy = copy.copy(task)
+                self.task = task_copy
+
+                def signal_handler(signum, frame):
+                    '''Setting kill signal handler'''
+                    logging.error("Killing subprocess")
+                    task_copy.on_kill()
+                    raise AirflowException("Task received SIGTERM signal")
+                signal.signal(signal.SIGTERM, signal_handler)
+
+                # Don't clear Xcom until the task is certain to execute
+                self.clear_xcom_data()
+
+                self.render_templates()
+                task_copy.pre_execute(context=context)
+
+                # If a timeout is specified for the task, make it fail
+                # if it goes beyond
+                result = None
+                if task_copy.execution_timeout:
+                    try:
                         with timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
                             result = task_copy.execute(context=context)
+                    except AirflowTaskTimeout:
+                        task_copy.on_kill()
+                        raise
+                else:
+                    result = task_copy.execute(context=context)
 
+                # If the task returns a result, push an XCom containing it
+                if result is not None:
+                    self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+
+                # TODO remove deprecated behavior in Airflow 2.0
+                try:
+                    task_copy.post_execute(context=context, result=result)
+                except TypeError as e:
+                    if 'unexpected keyword argument' in str(e):
+                        warnings.warn(
+                            'BaseOperator.post_execute() now takes two '
+                            'arguments, `context` and `result`, but "{}" only '
+                            'expected one. This behavior is deprecated and '
+                            'will be removed in a future version of '
+                            'Airflow.'.format(self.task_id),
+                            category=DeprecationWarning)
+                        task_copy.post_execute(context=context)
                     else:
-                        result = task_copy.execute(context=context)
+                        raise
 
-                    # If the task returns a result, push an XCom containing it
-                    if result is not None:
-                        self.xcom_push(key=XCOM_RETURN_KEY, value=result)
+                Stats.incr('operator_successes_{}'.format(
+                    self.task.__class__.__name__), 1, 1)
+            self.state = State.SUCCESS
+        except AirflowSkipException:
+            self.state = State.SKIPPED
+        except (Exception, KeyboardInterrupt) as e:
+            self.handle_failure(e, test_mode, context)
+            raise
 
-                    task_copy.post_execute(context=context)
-                self.state = State.SUCCESS
-            except AirflowSkipException:
-                self.state = State.SKIPPED
-            except (Exception, KeyboardInterrupt) as e:
-                self.handle_failure(e, test_mode, context)
-                raise
+        # Recording SUCCESS
+        self.end_date = datetime.now()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
+        session.commit()
 
-            # Recording SUCCESS
-            self.end_date = datetime.now()
-            self.set_duration()
-            if not test_mode:
-                session.add(Log(self.state, self))
-                session.merge(self)
-            session.commit()
-
-            # Success callback
-            try:
-                if task.on_success_callback:
-                    task.on_success_callback(context)
-            except Exception as e3:
-                logging.error("Failed when executing success callback")
-                logging.exception(e3)
+        # Success callback
+        try:
+            if task.on_success_callback:
+                task.on_success_callback(context)
+        except Exception as e3:
+            logging.error("Failed when executing success callback")
+            logging.exception(e3)
 
         session.commit()
 
@@ -1263,8 +1438,12 @@ class TaskInstance(Base):
         session = settings.Session()
         self.end_date = datetime.now()
         self.set_duration()
+        Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
         if not test_mode:
             session.add(Log(State.FAILED, self))
+
+        # Log failure duration
+        session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
         # Let's go deeper
         try:
@@ -1314,6 +1493,9 @@ class TaskInstance(Base):
         yesterday_ds = (self.execution_date - timedelta(1)).isoformat()[:10]
         tomorrow_ds = (self.execution_date + timedelta(1)).isoformat()[:10]
 
+        prev_execution_date = task.dag.previous_schedule(self.execution_date)
+        next_execution_date = task.dag.following_schedule(self.execution_date)
+
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
@@ -1342,6 +1524,32 @@ class TaskInstance(Base):
         if task.params:
             params.update(task.params)
 
+        class VariableAccessor:
+            """
+            Wrapper around Variable. This way you can get variables in templates by using
+            {var.variable_name}.
+            """
+            def __init__(self):
+                self.var = None
+
+            def __getattr__(self, item):
+                self.var = Variable.get(item)
+                return self.var
+
+            def __repr__(self):
+                return str(self.var)
+
+        class VariableJsonAccessor:
+            def __init__(self):
+                self.var = None
+
+            def __getattr__(self, item):
+                self.var = Variable.get(item, deserialize_json=True)
+                return self.var
+
+            def __repr__(self):
+                return str(self.var)
+
         return {
             'dag': task.dag,
             'ds': ds,
@@ -1357,6 +1565,8 @@ class TaskInstance(Base):
             'dag_run': dag_run,
             'run_id': run_id,
             'execution_date': self.execution_date,
+            'prev_execution_date': prev_execution_date,
+            'next_execution_date': next_execution_date,
             'latest_date': ds,
             'macros': macros,
             'params': params,
@@ -1367,6 +1577,10 @@ class TaskInstance(Base):
             'task_instance_key_str': ti_key_str,
             'conf': configuration,
             'test_mode': self.test_mode,
+            'var': {
+                'value': VariableAccessor(),
+                'json': VariableJsonAccessor()
+            }
         }
 
     def render_templates(self):
@@ -1489,6 +1703,29 @@ class TaskInstance(Base):
             return pull_fn(task_id=task_ids)
 
 
+class TaskFail(Base):
+    """
+    TaskFail tracks the failed run durations of each task instance.
+    """
+
+    __tablename__ = "task_fail"
+
+    task_id = Column(String(ID_LEN), primary_key=True)
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    execution_date = Column(DateTime, primary_key=True)
+    start_date = Column(DateTime)
+    end_date = Column(DateTime)
+    duration = Column(Float)
+
+    def __init__(self, task, execution_date, start_date, end_date):
+        self.dag_id = task.dag_id
+        self.task_id = task.task_id
+        self.execution_date = execution_date
+        self.start_date = start_date
+        self.end_date = end_date
+        self.duration = (self.end_date - self.start_date).total_seconds()
+
+
 class Log(Base):
     """
     Used to actively log events to the database
@@ -1537,7 +1774,7 @@ class BaseOperator(object):
     dag crawling behavior. To derive this class, you are expected to override
     the constructor as well as the 'execute' method.
 
-    Operators derived from this task should perform or trigger certain tasks
+    Operators derived from this class should perform or trigger certain tasks
     synchronously (wait for completion). Example of operators could be an
     operator the runs a Pig job (PigOperator), a sensor operator that
     waits for a partition to land in Hive (HiveSensorOperator), or one that
@@ -1565,6 +1802,12 @@ class BaseOperator(object):
     :type retries: int
     :param retry_delay: delay between retries
     :type retry_delay: timedelta
+    :param retry_exponential_backoff: allow progressive longer waits between
+        retries by using exponential backoff algorithm on retry delay (delay
+        will be converted into seconds)
+    :type retry_exponential_backoff: bool
+    :param max_retry_delay: maximum delay interval between retries
+    :type max_retry_delay: timedelta
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -1612,7 +1855,7 @@ class BaseOperator(object):
         this represents the ``timedelta`` after the period is closed. For
         example if you set an SLA of 1 hour, the scheduler would send dan email
         soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeede yet.
+        has not succeeded yet.
         The scheduler pays special attention for jobs with an SLA and
         sends alert
         emails for sla misses. SLA misses are also recorded in the database
@@ -1642,6 +1885,11 @@ class BaseOperator(object):
         using the constants defined in the static class
         ``airflow.utils.TriggerRule``
     :type trigger_rule: str
+    :param resources: A map of resource parameter names (the argument names of the
+        Resources constructor) to their values.
+    :type resources: dict
+    :param run_as_user: unix username to impersonate while running the task
+    :type run_as_user: str
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1662,6 +1910,8 @@ class BaseOperator(object):
             email_on_failure=True,
             retries=0,
             retry_delay=timedelta(seconds=300),
+            retry_exponential_backoff=False,
+            max_retry_delay=None,
             start_date=None,
             end_date=None,
             schedule_interval=None,  # not hooked as of now
@@ -1680,6 +1930,8 @@ class BaseOperator(object):
             on_success_callback=None,
             on_retry_callback=None,
             trigger_rule=TriggerRule.ALL_SUCCESS,
+            resources=None,
+            run_as_user=None,
             *args,
             **kwargs):
 
@@ -1710,7 +1962,7 @@ class BaseOperator(object):
                 "The trigger_rule must be one of {all_triggers},"
                 "'{d}.{t}'; received '{tr}'."
                 .format(all_triggers=TriggerRule.all_triggers,
-                        d=dag.dag_id, t=task_id, tr = trigger_rule))
+                        d=dag.dag_id, t=task_id, tr=trigger_rule))
 
         self.trigger_rule = trigger_rule
         self.depends_on_past = depends_on_past
@@ -1737,9 +1989,13 @@ class BaseOperator(object):
         else:
             logging.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
+        self.retry_exponential_backoff = retry_exponential_backoff
+        self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
         self.priority_weight = priority_weight
+        self.resources = Resources(**(resources or {}))
+        self.run_as_user = run_as_user
 
         # Private attributes
         self._upstream_task_ids = []
@@ -1757,6 +2013,8 @@ class BaseOperator(object):
             'email',
             'email_on_retry',
             'retry_delay',
+            'retry_exponential_backoff',
+            'max_retry_delay',
             'start_date',
             'schedule_interval',
             'depends_on_past',
@@ -1776,7 +2034,7 @@ class BaseOperator(object):
             all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
                 for c in self._comps))
 
-    def __neq__(self, other):
+    def __ne__(self, other):
         return not self == other
 
     def __lt__(self, other):
@@ -1866,9 +2124,10 @@ class BaseOperator(object):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(
                 "The DAG assigned to {} can not be changed.".format(self))
-        elif self.task_id not in [t.task_id for t in dag.tasks]:
+        elif self.task_id not in dag.task_dict:
             dag.add_task(self)
-            self._dag = dag
+
+        self._dag = dag
 
     def has_dag(self):
         """
@@ -1882,6 +2141,19 @@ class BaseOperator(object):
             return self.dag.dag_id
         else:
             return 'adhoc_' + self.owner
+
+    @property
+    def deps(self):
+        """
+        Returns the list of dependencies for the operator. These differ from execution
+        context dependencies in that they are specific to tasks and can be
+        extended/overriden by subclasses.
+        """
+        return {
+            NotInRetryPeriodDep(),
+            PrevDagrunDep(),
+            TriggerRuleDep(),
+        }
 
     @property
     def schedule_interval(self):
@@ -1904,8 +2176,7 @@ class BaseOperator(object):
 
     def pre_execute(self, context):
         """
-        This is triggered right before self.execute, it's mostly a hook
-        for people deriving operators.
+        This hook is triggered right before self.execute() is called.
         """
         pass
 
@@ -1918,20 +2189,21 @@ class BaseOperator(object):
         """
         raise NotImplementedError()
 
-    def post_execute(self, context):
+    def post_execute(self, context, result=None):
         """
-        This is triggered right after self.execute, it's mostly a hook
-        for people deriving operators.
+        This hook is triggered right after self.execute() is called.
+        It is passed the execution context and any results returned by the
+        operator.
         """
         pass
 
     def on_kill(self):
-        '''
+        """
         Override this method to cleanup subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
-        '''
+        """
         pass
 
     def __deepcopy__(self, memo):
@@ -1953,12 +2225,12 @@ class BaseOperator(object):
         return result
 
     def render_template_from_field(self, attr, content, context, jinja_env):
-        '''
+        """
         Renders a template from a field. If the field is a string, it will
         simply render the string and return the result. If it is a collection or
         nested set of collections, it will traverse the structure and render
         all strings in it.
-        '''
+        """
         rt = self.render_template
         if isinstance(content, six.string_types):
             result = jinja_env.from_string(content).render(**context)
@@ -1977,10 +2249,10 @@ class BaseOperator(object):
         return result
 
     def render_template(self, attr, content, context):
-        '''
+        """
         Renders a template either from a file or directly in a field, and returns
         the rendered result.
-        '''
+        """
         jinja_env = self.dag.get_template_env() \
             if hasattr(self, 'dag') \
             else jinja2.Environment(cache_size=0)
@@ -1994,20 +2266,21 @@ class BaseOperator(object):
             return self.render_template_from_field(attr, content, context, jinja_env)
 
     def prepare_template(self):
-        '''
+        """
         Hook that is triggered after the templated fields get replaced
         by their content. If you need your operator to alter the
         content of the file before the template is rendered,
         it should override this method to do so.
-        '''
+        """
         pass
 
     def resolve_template_files(self):
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
-            if (content and isinstance(content, six.string_types) and
-                    any([content.endswith(ext) for ext in self.template_ext])):
+            if content is not None and \
+                    isinstance(content, six.string_types) and \
+                    any([content.endswith(ext) for ext in self.template_ext]):
                 env = self.dag.get_template_env()
                 try:
                     setattr(self, attr, env.loader.get_source(env, content)[0])
@@ -2063,6 +2336,7 @@ class BaseOperator(object):
         qry = qry.filter(TI.task_id.in_(tasks))
 
         count = qry.count()
+
         clear_task_instances(qry, session)
 
         session.commit()
@@ -2115,9 +2389,8 @@ class BaseOperator(object):
             self,
             start_date=None,
             end_date=None,
-            ignore_dependencies=False,
             ignore_first_depends_on_past=False,
-            force=False,
+            ignore_ti_state=False,
             mark_success=False):
         """
         Run a set of task instances for a date range.
@@ -2128,10 +2401,9 @@ class BaseOperator(object):
         for dt in self.dag.date_range(start_date, end_date=end_date):
             TaskInstance(self, dt).run(
                 mark_success=mark_success,
-                ignore_dependencies=ignore_dependencies,
                 ignore_depends_on_past=(
                     dt == start_date and ignore_first_depends_on_past),
-                force=force,)
+                ignore_ti_state=ignore_ti_state)
 
     def dry_run(self):
         logging.info('Dry run')
@@ -2264,7 +2536,8 @@ class DagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     # A DAG can be paused from the UI / DB
     # Set this default value of is_paused based on a configuration value!
-    is_paused_at_creation = configuration.getboolean('core', 'dags_are_paused_at_creation')
+    is_paused_at_creation = configuration.getboolean('core',
+                                                     'dags_are_paused_at_creation')
     is_paused = Column(Boolean, default=is_paused_at_creation)
     # Whether the DAG is a subdag
     is_subdag = Column(Boolean, default=False)
@@ -2274,8 +2547,8 @@ class DagModel(Base):
     last_scheduler_run = Column(DateTime)
     # Last time this DAG was pickled
     last_pickled = Column(DateTime)
-    # When the DAG received a refreshed signal last, used to know when
-    # we need to force refresh
+    # Time when the DAG last received a refresh signal
+    # (e.g. the DAG's "refresh" button was clicked in the web UI)
     last_expired = Column(DateTime)
     # Whether (one  of) the scheduler is scheduling this DAG at the moment
     scheduler_lock = Column(Boolean)
@@ -2300,7 +2573,7 @@ class DagModel(Base):
 
 
 @functools.total_ordering
-class DAG(LoggingMixin):
+class DAG(BaseDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start end an end date
@@ -2314,6 +2587,8 @@ class DAG(LoggingMixin):
 
     :param dag_id: The id of the DAG
     :type dag_id: string
+    :param description: The description for the DAG to e.g. be shown on the webserver
+    :type description: string
     :param schedule_interval: Defines how often that DAG runs, this
         timedelta object gets added to your latest task instance's
         execution_date to figure out the next schedule
@@ -2361,10 +2636,15 @@ class DAG(LoggingMixin):
     :param sla_miss_callback: specify a function to call when reporting SLA
         timeouts.
     :type sla_miss_callback: types.FunctionType
+    :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
+    :type orientation: string
+    :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
+    "type catchup: bool"
     """
 
     def __init__(
             self, dag_id,
+            description='',
             schedule_interval=timedelta(days=1),
             start_date=None, end_date=None,
             full_filepath=None,
@@ -2376,6 +2656,8 @@ class DAG(LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
+            orientation=configuration.get('webserver', 'dag_orientation'),
+            catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
             params=None):
 
         self.user_defined_macros = user_defined_macros
@@ -2388,8 +2670,17 @@ class DAG(LoggingMixin):
             del self.default_args['params']
 
         validate_key(dag_id)
+
+        # Properties from BaseDag
+        self._dag_id = dag_id
+        self._full_filepath = full_filepath if full_filepath else ''
+        self._concurrency = concurrency
+        self._pickle_id = None
+
+        self._description = description
+        # set file location to caller source path
+        self.fileloc = inspect.getsourcefile(inspect.stack()[1][0])
         self.task_dict = dict()
-        self.dag_id = dag_id
         self.start_date = start_date
         self.end_date = end_date
         self.schedule_interval = schedule_interval
@@ -2399,21 +2690,21 @@ class DAG(LoggingMixin):
             self._schedule_interval = None
         else:
             self._schedule_interval = schedule_interval
-        self.full_filepath = full_filepath if full_filepath else ''
         if isinstance(template_searchpath, six.string_types):
             template_searchpath = [template_searchpath]
         self.template_searchpath = template_searchpath
         self.parent_dag = None  # Gets set when DAGs are loaded
         self.last_loaded = datetime.now()
         self.safe_dag_id = dag_id.replace('.', '__dot__')
-        self.concurrency = concurrency
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
         self.sla_miss_callback = sla_miss_callback
+        self.orientation = orientation
+        self.catchup = catchup
 
         self._comps = {
             'dag_id',
-            'tasks',
+            'task_ids',
             'parent_dag',
             'start_date',
             'schedule_interval',
@@ -2428,10 +2719,12 @@ class DAG(LoggingMixin):
     def __eq__(self, other):
         return (
             type(self) == type(other) and
-            all(self.__dict__.get(c, None) == other.__dict__.get(c, None)
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            all(getattr(self, c, None) == getattr(other, c, None)
                 for c in self._comps))
 
-    def __neq__(self, other):
+    def __ne__(self, other):
         return not self == other
 
     def __lt__(self, other):
@@ -2440,7 +2733,11 @@ class DAG(LoggingMixin):
     def __hash__(self):
         hash_components = [type(self)]
         for c in self._comps:
-            val = getattr(self, c, None)
+            # task_ids returns a list and lists can't be hashed
+            if c == 'task_ids':
+                val = tuple(self.task_dict.keys())
+            else:
+                val = getattr(self, c, None)
             try:
                 hash(val)
                 hash_components.append(val)
@@ -2482,6 +2779,77 @@ class DAG(LoggingMixin):
             return cron.get_prev(datetime)
         elif isinstance(self._schedule_interval, timedelta):
             return dttm - self._schedule_interval
+
+    def normalize_schedule(self, dttm):
+        """
+        Returns dttm + interval unless dttm is first interval then it returns dttm
+        """
+        following = self.following_schedule(dttm)
+
+        # in case of @once
+        if not following:
+            return dttm
+
+        if self.previous_schedule(following) != dttm:
+            return following
+
+        return dttm
+
+    @provide_session
+    def get_last_dagrun(self, session=None, include_externally_triggered=False):
+        """
+        Returns the last dag run for this dag, None if there was none.
+        Last dag run can be any type of run eg. scheduled or backfilled.
+        Overriden DagRuns are ignored
+        """
+        DR = DagRun
+        qry = session.query(DR).filter(
+            DR.dag_id == self.dag_id,
+        )
+        if not include_externally_triggered:
+            qry = qry.filter(DR.external_trigger.__eq__(False))
+
+        qry = qry.order_by(DR.execution_date.desc())
+
+        last = qry.first()
+
+        return last
+
+    @property
+    def dag_id(self):
+        return self._dag_id
+
+    @dag_id.setter
+    def dag_id(self, value):
+        self._dag_id = value
+
+    @property
+    def full_filepath(self):
+        return self._full_filepath
+
+    @full_filepath.setter
+    def full_filepath(self, value):
+        self._full_filepath = value
+
+    @property
+    def concurrency(self):
+        return self._concurrency
+
+    @concurrency.setter
+    def concurrency(self, value):
+        self._concurrency = value
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def pickle_id(self):
+        return self._pickle_id
+
+    @pickle_id.setter
+    def pickle_id(self, value):
+        self._pickle_id = value
 
     @property
     def tasks(self):
@@ -2549,16 +2917,47 @@ class DAG(LoggingMixin):
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
 
+    @provide_session
+    def get_active_runs(self, session=None):
+        """
+        Returns a list of "running" tasks
+        :param session:
+        :return: List of execution dates
+        """
+        runs = DagRun.find(dag_id=self.dag_id, state=State.RUNNING)
+
+        active_dates = []
+        for run in runs:
+            active_dates.append(run.execution_date)
+
+        return active_dates
+
+    @provide_session
+    def get_dagrun(self, execution_date, session=None):
+        """
+        Returns the dag run for a given execution date if it exists, otherwise
+        none.
+        :param execution_date: The execution date of the DagRun to find.
+        :param session:
+        :return: The DagRun if found, otherwise None.
+        """
+        dagrun = (
+            session.query(DagRun)
+            .filter(
+                DagRun.dag_id == self.dag_id,
+                DagRun.execution_date == execution_date)
+            .first())
+
+        return dagrun
+
     @property
     def latest_execution_date(self):
         """
-        Returns the latest date for which at least one task instance exists
+        Returns the latest date for which at least one dag run exists
         """
-        TI = TaskInstance
         session = settings.Session()
-        execution_date = session.query(func.max(TI.execution_date)).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id.in_(self.task_ids)
+        execution_date = session.query(func.max(DagRun.execution_date)).filter(
+            DagRun.dag_id == self.dag_id
         ).scalar()
         session.commit()
         session.close()
@@ -2580,107 +2979,6 @@ class DAG(LoggingMixin):
                 l += task.subdag.subdags
         return l
 
-    def get_active_runs(self):
-        """
-        Maintains and returns the currently active runs as a list of dates.
-
-        A run is considered a SUCCESS if all of its root tasks either succeeded
-        or were skipped.
-
-        A run is considered a FAILURE if any of its root tasks failed OR if
-        it is deadlocked, meaning no tasks can run.
-        """
-        TI = TaskInstance
-        session = settings.Session()
-        active_dates = []
-        active_runs = (
-            session.query(DagRun)
-            .filter(
-                DagRun.dag_id == self.dag_id,
-                DagRun.state == State.RUNNING)
-            .order_by(DagRun.execution_date)
-            .all())
-
-        task_instances = (
-            session
-            .query(TI)
-            .filter(
-                TI.dag_id == self.dag_id,
-                TI.task_id.in_(self.active_task_ids),
-                TI.execution_date.in_(r.execution_date for r in active_runs)
-            )
-            .all())
-
-        for ti in task_instances:
-            ti.task = self.get_task(ti.task_id)
-
-        # Runs are considered deadlocked if there are unfinished tasks but
-        # none of them can run. First we check across *all* dagruns in case
-        # there are depends_on_past relationships which could make individual
-        # dags look deadlocked incorrectly. Later we will check individual
-        # dagruns, as long as they don't have depends_on_past=True
-        all_deadlocked = (
-            # AND there are unfinished tasks...
-            any(ti.state in State.unfinished() for ti in task_instances) and
-            # AND none of them have dependencies met...
-            all(not ti.are_dependencies_met(session=session)
-                for ti in task_instances
-                if ti.state in State.unfinished()))
-
-        for run in active_runs:
-            self.logger.info("Checking state for {}".format(run))
-
-            tis = [
-                t for t in task_instances
-                if t.execution_date == run.execution_date
-            ]
-
-            if len(tis) == len(self.active_tasks):
-
-                # if any roots failed, the run failed
-                root_ids = [t.task_id for t in self.roots]
-                roots = [t for t in tis if t.task_id in root_ids]
-                if any(
-                        r.state in (State.FAILED,  State.UPSTREAM_FAILED)
-                        for r in roots):
-                    self.logger.info('Marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # if all roots succeeded, the run succeeded
-                elif all(
-                        r.state in (State.SUCCESS, State.SKIPPED)
-                        for r in roots):
-                    self.logger.info('Marking run {} successful'.format(run))
-                    run.state = State.SUCCESS
-
-                # if *the individual dagrun* is deadlocked, the run failed
-                elif (
-                        # there are unfinished tasks
-                        any(t.state in State.unfinished() for t in tis) and
-                        # AND none of them depend on past
-                        all(not t.task.depends_on_past for t in tis
-                            if t.state in State.unfinished()) and
-                        # AND none of their dependencies are met
-                        all(not t.are_dependencies_met() for t in tis
-                            if t.state in State.unfinished())):
-                    self.logger.info(
-                        'Deadlock; marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # if *ALL* dagruns are deadlocked, the run failed
-                elif all_deadlocked:
-                    self.logger.info(
-                        'Deadlock; marking run {} failed'.format(run))
-                    run.state = State.FAILED
-
-                # finally, if the roots aren't done, the dag is still running
-                else:
-                    active_dates.append(run.execution_date)
-            else:
-                active_dates.append(run.execution_date)
-        session.commit()
-        return active_dates
-
     def resolve_template_files(self):
         for t in self.tasks:
             t.resolve_template_files()
@@ -2694,10 +2992,10 @@ class DAG(LoggingMixin):
         raise NotImplementedError("")
 
     def get_template_env(self):
-        '''
+        """
         Returns a jinja2 Environment while taking into account the DAGs
         template_searchpath and user_defined_macros
-        '''
+        """
         searchpath = [self.folder]
         if self.template_searchpath:
             searchpath += self.template_searchpath
@@ -2723,7 +3021,7 @@ class DAG(LoggingMixin):
             self, session, start_date=None, end_date=None, state=None):
         TI = TaskInstance
         if not start_date:
-            start_date = (datetime.today()-timedelta(30)).date()
+            start_date = (datetime.today() - timedelta(30)).date()
             start_date = datetime.combine(start_date, datetime.min.time())
         end_date = end_date or datetime.now()
         tis = session.query(TI).filter(
@@ -2743,11 +3041,13 @@ class DAG(LoggingMixin):
 
     @provide_session
     def set_dag_runs_state(
-            self, start_date, end_date, state=State.RUNNING, session=None):
-        dates = utils_date_range(start_date, end_date)
+            self, state=State.RUNNING, session=None):
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
+        dirty_ids = []
         for dr in drs:
-            dr.state = State.RUNNING
+            dr.state = state
+            dirty_ids.append(dr.dag_id)
+        DagStat.clean_dirty(dirty_ids, session=session)
 
     def clear(
             self, start_date=None, end_date=None,
@@ -2757,11 +3057,11 @@ class DAG(LoggingMixin):
             include_subdags=True,
             reset_dag_runs=True,
             dry_run=False):
-        session = settings.Session()
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
         """
+        session = settings.Session()
         TI = TaskInstance
         tis = session.query(TI)
         if include_subdags:
@@ -2806,7 +3106,7 @@ class DAG(LoggingMixin):
         if do_it:
             clear_task_instances(tis, session)
             if reset_dag_runs:
-                self.set_dag_runs_state(start_date, end_date, session=session)
+                self.set_dag_runs_state(session=session)
         else:
             count = 0
             print("Bail. Nothing was cleared.")
@@ -2823,7 +3123,6 @@ class DAG(LoggingMixin):
         memo[id(self)] = result
         for k, v in list(self.__dict__.items()):
             if k not in ('user_defined_macros', 'params'):
-                print("K: {} V: {}".format(k, v))
                 setattr(result, k, copy.deepcopy(v, memo))
 
         result.user_defined_macros = self.user_defined_macros
@@ -2878,7 +3177,7 @@ class DAG(LoggingMixin):
             d['pickle_len'] = len(pickled)
             d['pickling_duration'] = "{}".format(datetime.now() - dttm)
         except Exception as e:
-            logging.exception(e)
+            logging.debug(e)
             d['is_picklable'] = False
             d['stacktrace'] = traceback.format_exc()
         return d
@@ -2914,21 +3213,25 @@ class DAG(LoggingMixin):
             get_downstream(t)
 
     def add_task(self, task):
-        '''
+        """
         Add a task to the DAG
 
         :param task: the task you want to add
         :type task: task
-        '''
+        """
         if not self.start_date and not task.start_date:
             raise AirflowException("Task is missing the start_date parameter")
         if not task.start_date:
             task.start_date = self.start_date
 
-        if task.task_id in [t.task_id for t in self.tasks]:
-            raise AirflowException(
-                "Task id '{0}' has already been added "
-                "to the DAG ".format(task.task_id))
+        if task.task_id in self.task_dict:
+            # TODO: raise an error in Airflow 2.0
+            warnings.warn(
+                'The requested task could not be added to the DAG because a '
+                'task with task_id {} is already in the DAG. Starting in '
+                'Airflow 2.0, trying to overwrite a task will raise an '
+                'exception.'.format(task.task_id),
+                category=PendingDeprecationWarning)
         else:
             self.tasks.append(task)
             self.task_dict[task.task_id] = task
@@ -2937,12 +3240,12 @@ class DAG(LoggingMixin):
         self.task_count = len(self.tasks)
 
     def add_tasks(self, tasks):
-        '''
+        """
         Add a list of tasks to the DAG
 
         :param task: a lit of tasks you want to add
         :type task: list of tasks
-        '''
+        """
         for task in tasks:
             self.add_task(task)
 
@@ -2965,7 +3268,7 @@ class DAG(LoggingMixin):
             local=False,
             executor=None,
             donot_pickle=configuration.getboolean('core', 'donot_pickle'),
-            ignore_dependencies=False,
+            ignore_task_deps=False,
             ignore_first_depends_on_past=False,
             pool=None):
         """
@@ -2984,7 +3287,7 @@ class DAG(LoggingMixin):
             include_adhoc=include_adhoc,
             executor=executor,
             donot_pickle=donot_pickle,
-            ignore_dependencies=ignore_dependencies,
+            ignore_task_deps=ignore_task_deps,
             ignore_first_depends_on_past=ignore_first_depends_on_past,
             pool=pool)
         job.run()
@@ -2997,6 +3300,133 @@ class DAG(LoggingMixin):
         parser = cli.CLIFactory.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
+
+    @provide_session
+    def create_dagrun(self,
+                      run_id,
+                      state,
+                      execution_date=None,
+                      start_date=None,
+                      external_trigger=False,
+                      conf=None,
+                      session=None):
+        """
+        Creates a dag run from this dag including the tasks associated with this dag.
+        Returns the dag run.
+
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param execution_date: the execution date of this dag run
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param start_date: the date this dag run should be evaluated
+        :type start_date: datetime
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        run = DagRun(
+            dag_id=self.dag_id,
+            run_id=run_id,
+            execution_date=execution_date,
+            start_date=start_date,
+            external_trigger=external_trigger,
+            conf=conf,
+            state=state
+        )
+        session.add(run)
+        session.commit()
+
+        run.dag = self
+
+        # create the associated task instances
+        # state is None at the moment of creation
+        run.verify_integrity(session=session)
+
+        run.refresh_from_db()
+        DagStat.set_dirty(self.dag_id, session=session)
+
+        # add a placeholder row into DagStat table
+        if not session.query(DagStat).filter(DagStat.dag_id == self.dag_id).first():
+            session.add(DagStat(dag_id=self.dag_id, state=state, count=0, dirty=True))
+        session.commit()
+        return run
+
+    @staticmethod
+    @provide_session
+    def sync_to_db(dag, owner, sync_time, session=None):
+        """
+        Save attributes about this DAG to the DB. Note that this method
+        can be called for both DAGs and SubDAGs. A SubDag is actually a
+        SubDagOperator.
+
+        :param dag: the DAG object to save to the DB
+        :type dag: DAG
+        :own
+        :param sync_time: The time that the DAG should be marked as sync'ed
+        :type sync_time: datetime
+        :return: None
+        """
+        orm_dag = session.query(
+            DagModel).filter(DagModel.dag_id == dag.dag_id).first()
+        if not orm_dag:
+            orm_dag = DagModel(dag_id=dag.dag_id)
+            logging.info("Creating ORM DAG for %s",
+                         dag.dag_id)
+        orm_dag.fileloc = dag.fileloc
+        orm_dag.is_subdag = dag.is_subdag
+        orm_dag.owners = owner
+        orm_dag.is_active = True
+        orm_dag.last_scheduler_run = sync_time
+        session.merge(orm_dag)
+        session.commit()
+
+        for subdag in dag.subdags:
+            DAG.sync_to_db(subdag, owner, sync_time, session=session)
+
+    @staticmethod
+    @provide_session
+    def deactivate_unknown_dags(active_dag_ids, session=None):
+        """
+        Given a list of known DAGs, deactivate any other DAGs that are
+        marked as active in the ORM
+
+        :param active_dag_ids: list of DAG IDs that are active
+        :type active_dag_ids: list[unicode]
+        :return: None
+        """
+
+        if len(active_dag_ids) == 0:
+            return
+        for dag in session.query(
+                DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
+            dag.is_active = False
+            session.merge(dag)
+
+    @staticmethod
+    @provide_session
+    def deactivate_stale_dags(expiration_date, session=None):
+        """
+        Deactivate any DAGs that were last touched by the scheduler before
+        the expiration date. These DAGs were likely deleted.
+
+        :param expiration_date: set inactive DAGs that were touched before this
+        time
+        :type expiration_date: datetime
+        :return: None
+        """
+        for dag in session.query(
+                DagModel).filter(DagModel.last_scheduler_run < expiration_date,
+                                 DagModel.is_active).all():
+            logging.info("Deactivating DAG ID %s since it was last touched "
+                         "by the scheduler at %s",
+                         dag.dag_id,
+                         dag.last_scheduler_run.isoformat())
+            dag.is_active = False
+            session.merge(dag)
+            session.commit()
 
 
 class Chart(Base):
@@ -3071,7 +3501,8 @@ class Variable(Base):
         if self._val and self.is_encrypted:
             if not ENCRYPTION_ON:
                 raise AirflowException(
-                    "Can't decrypt _val, configuration is missing")
+                    "Can't decrypt _val for key={}, FERNET_KEY configuration \
+                    missing".format(self.key))
             return FERNET.decrypt(bytes(self._val, 'utf-8')).decode()
         else:
             return self._val
@@ -3089,6 +3520,36 @@ class Variable(Base):
     def val(cls):
         return synonym('_val',
                        descriptor=property(cls.get_val, cls.set_val))
+
+    @classmethod
+    def setdefault(cls, key, default, deserialize_json=False):
+        """
+        Like a Python builtin dict object, setdefault returns the current value
+        for a key, and if it isn't there, stores the default value and returns it.
+
+        :param key: Dict key for this Variable
+        :type key: String
+        :param: default: Default value to set and return if the variable
+        isn't already in the DB
+        :type: default: Mixed
+        :param: deserialize_json: Store this as a JSON encoded value in the DB
+         and un-encode it when retrieving a value
+        :return: Mixed
+        """
+        default_sentinel = object()
+        obj = Variable.get(key, default_var=default_sentinel, deserialize_json=False)
+        if obj is default_sentinel:
+            if default is not None:
+                Variable.set(key, default, serialize_json=deserialize_json)
+                return default
+            else:
+                raise ValueError('Default Value must be set')
+        else:
+            if deserialize_json:
+                return json.loads(obj.val)
+            else:
+                return obj.val
+
     @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
@@ -3097,7 +3558,7 @@ class Variable(Base):
             if default_var is not None:
                 return default_var
             else:
-                raise ValueError('Variable {} does not exist'.format(key))
+                raise KeyError('Variable {} does not exist'.format(key))
         else:
             if deserialize_json:
                 return json.loads(obj.val)
@@ -3135,6 +3596,10 @@ class XCom(Base):
     task_id = Column(String(ID_LEN), nullable=False)
     dag_id = Column(String(ID_LEN), nullable=False)
 
+    __table_args__ = (
+        Index('idx_xcom_dag_task_date', dag_id, task_id, execution_date, unique=False),
+    )
+
     def __repr__(self):
         return '<XCom "{key}" ({task_id} @ {execution_date})>'.format(
             key=self.key,
@@ -3162,6 +3627,8 @@ class XCom(Base):
             cls.execution_date == execution_date,
             cls.task_id == task_id,
             cls.dag_id == dag_id).delete()
+
+        session.commit()
 
         # insert new XCom
         session.add(XCom(
@@ -3249,9 +3716,73 @@ class XCom(Base):
             xcoms = [xcoms]
         for xcom in xcoms:
             if not isinstance(xcom, XCom):
-                raise TypeError('Expected XCom; received {}'.format(
-                                xcom.__class__.__name__))
+                raise TypeError(
+                    'Expected XCom; received {}'.format(xcom.__class__.__name__)
+                )
             session.delete(xcom)
+        session.commit()
+
+
+class DagStat(Base):
+    __tablename__ = "dag_stats"
+
+    dag_id = Column(String(ID_LEN), primary_key=True)
+    state = Column(String(50), primary_key=True)
+    count = Column(Integer, default=0)
+    dirty = Column(Boolean, default=False)
+
+    def __init__(self, dag_id, state, count, dirty=False):
+        self.dag_id = dag_id
+        self.state = state
+        self.count = count
+        self.dirty = dirty
+
+    @staticmethod
+    @provide_session
+    def set_dirty(dag_id, session=None):
+        for dag in session.query(DagStat).filter(DagStat.dag_id == dag_id):
+            dag.dirty = True
+        session.commit()
+
+    @staticmethod
+    @provide_session
+    def clean_dirty(dag_ids, session=None):
+        """
+        Cleans out the dirty/out-of-sync rows from dag_stats table
+
+        :param dag_ids: dag_ids that may be dirty
+        :type dag_ids: list
+        :param full_query: whether to check dag_runs for new drs not in dag_stats
+        :type full_query: bool
+        """
+        # avoid querying with an empty IN clause
+        if not dag_ids:
+            return
+
+        dag_ids = set(dag_ids)
+
+        qry = (
+            session.query(DagStat)
+            .filter(and_(DagStat.dag_id.in_(dag_ids), DagStat.dirty == True))
+        )
+
+        dirty_ids = {dag.dag_id for dag in qry.all()}
+        qry.delete(synchronize_session='fetch')
+        session.commit()
+
+        # avoid querying with an empty IN clause
+        if not dirty_ids:
+            return
+
+        qry = (
+            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
+            .filter(DagRun.dag_id.in_(dirty_ids))
+            .group_by(DagRun.dag_id, DagRun.state)
+        )
+
+        for dag_id, state, count in qry:
+            session.add(DagStat(dag_id=dag_id, state=state, count=count))
+
         session.commit()
 
 
@@ -3264,16 +3795,19 @@ class DagRun(Base):
 
     ID_PREFIX = 'scheduled__'
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
+    DEADLOCK_CHECK_DEP_CONTEXT = DepContext(ignore_in_retry_period=True)
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
     execution_date = Column(DateTime, default=func.now())
     start_date = Column(DateTime, default=func.now())
     end_date = Column(DateTime)
-    state = Column(String(50), default=State.RUNNING)
+    _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
     external_trigger = Column(Boolean, default=True)
     conf = Column(PickleType)
+
+    dag = None
 
     __table_args__ = (
         Index('dr_run_id', dag_id, run_id, unique=True),
@@ -3289,9 +3823,310 @@ class DagRun(Base):
             run_id=self.run_id,
             external_trigger=self.external_trigger)
 
+    def get_state(self):
+        return self._state
+
+    def set_state(self, state):
+        if self._state != state:
+            self._state = state
+            # something really weird goes on here: if you try to close the session
+            # dag runs will end up detached
+            session = settings.Session()
+            DagStat.set_dirty(self.dag_id, session=session)
+
+    @declared_attr
+    def state(self):
+        return synonym('_state',
+                       descriptor=property(self.get_state, self.set_state))
+
     @classmethod
-    def id_for_date(klass, date, prefix=ID_FORMAT_PREFIX):
+    def id_for_date(cls, date, prefix=ID_FORMAT_PREFIX):
         return prefix.format(date.isoformat()[:19])
+
+    @provide_session
+    def refresh_from_db(self, session=None):
+        """
+        Reloads the current dagrun from the database
+        :param session: database session
+        """
+        DR = DagRun
+
+        exec_date = func.cast(self.execution_date, DateTime)
+
+        dr = session.query(DR).filter(
+            DR.dag_id == self.dag_id,
+            func.cast(DR.execution_date, DateTime) == exec_date,
+            DR.run_id == self.run_id
+        ).one()
+
+        self.id = dr.id
+        self.state = dr.state
+
+    @staticmethod
+    @provide_session
+    def find(dag_id=None, run_id=None, execution_date=None,
+             state=None, external_trigger=None, session=None):
+        """
+        Returns a set of dag runs for the given search criteria.
+        :param dag_id: the dag_id to find dag runs for
+        :type dag_id: integer, list
+        :param run_id: defines the the run id for this dag run
+        :type run_id: string
+        :param execution_date: the execution date
+        :type execution_date: datetime
+        :param state: the state of the dag run
+        :type state: State
+        :param external_trigger: whether this dag run is externally triggered
+        :type external_trigger: bool
+        :param session: database session
+        :type session: Session
+        """
+        DR = DagRun
+
+        qry = session.query(DR)
+        if dag_id:
+            qry = qry.filter(DR.dag_id == dag_id)
+        if run_id:
+            qry = qry.filter(DR.run_id == run_id)
+        if execution_date:
+            if isinstance(execution_date, list):
+                qry = qry.filter(DR.execution_date.in_(execution_date))
+            else:
+                qry = qry.filter(DR.execution_date == execution_date)
+        if state:
+            qry = qry.filter(DR.state == state)
+        if external_trigger:
+            qry = qry.filter(DR.external_trigger == external_trigger)
+
+        dr = qry.order_by(DR.execution_date).all()
+
+        return dr
+
+    @provide_session
+    def get_task_instances(self, state=None, session=None):
+        """
+        Returns the task instances for this dag run
+        """
+        TI = TaskInstance
+        tis = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
+        )
+        if state:
+            if isinstance(state, six.string_types):
+                tis = tis.filter(TI.state == state)
+            else:
+                # this is required to deal with NULL values
+                if None in state:
+                    tis = tis.filter(
+                        or_(TI.state.in_(state),
+                            TI.state.is_(None))
+                    )
+                else:
+                    tis = tis.filter(TI.state.in_(state))
+
+        return tis.all()
+
+    @provide_session
+    def get_task_instance(self, task_id, session=None):
+        """
+        Returns the task instance specified by task_id for this dag run
+        :param task_id: the task id
+        """
+
+        TI = TaskInstance
+        ti = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.execution_date == self.execution_date,
+            TI.task_id == task_id
+        ).one()
+
+        return ti
+
+    def get_dag(self):
+        """
+        Returns the Dag associated with this DagRun.
+
+        :return: DAG
+        """
+        if not self.dag:
+            raise AirflowException("The DAG (.dag) for {} needs to be set"
+                                   .format(self))
+
+        return self.dag
+
+    @provide_session
+    def get_previous_dagrun(self, session=None):
+        """The previous DagRun, if there is one"""
+
+        return session.query(DagRun).filter(
+            DagRun.dag_id == self.dag_id,
+            DagRun.execution_date < self.execution_date
+        ).order_by(
+            DagRun.execution_date.desc()
+        ).first()
+
+    @provide_session
+    def get_previous_scheduled_dagrun(self, session=None):
+        """The previous, SCHEDULED DagRun, if there is one"""
+        dag = self.get_dag()
+
+        return session.query(DagRun).filter(
+            DagRun.dag_id == self.dag_id,
+            DagRun.execution_date == dag.previous_schedule(self.execution_date)
+        ).first()
+
+    @provide_session
+    def update_state(self, session=None):
+        """
+        Determines the overall state of the DagRun based on the state
+        of its TaskInstances.
+        :returns State:
+        """
+
+        dag = self.get_dag()
+        tis = self.get_task_instances(session=session)
+
+        logging.info("Updating state for {} considering {} task(s)"
+                     .format(self, len(tis)))
+
+        for ti in list(tis):
+            # skip in db?
+            if ti.state == State.REMOVED:
+                tis.remove(ti)
+            else:
+                ti.task = dag.get_task(ti.task_id)
+
+        # pre-calculate
+        # db is faster
+        start_dttm = datetime.now()
+        unfinished_tasks = self.get_task_instances(
+            state=State.unfinished(),
+            session=session
+        )
+        none_depends_on_past = all(not t.task.depends_on_past for t in unfinished_tasks)
+        # small speed up
+        if unfinished_tasks and none_depends_on_past:
+            # todo: this can actually get pretty slow: one task costs between 0.01-015s
+            no_dependencies_met = all(
+                # Use a special dependency context that ignores task's up for retry
+                # dependency, since a task that is up for retry is not necessarily
+                # deadlocked.
+                not t.are_dependencies_met(dep_context=self.DEADLOCK_CHECK_DEP_CONTEXT,
+                                           session=session)
+                for t in unfinished_tasks)
+
+        duration = (datetime.now() - start_dttm).total_seconds() * 1000
+        Stats.timing("dagrun.dependency-check.{}.{}".
+                     format(self.dag_id, self.execution_date), duration)
+
+        # future: remove the check on adhoc tasks (=active_tasks)
+        if len(tis) == len(dag.active_tasks):
+            # if any roots failed, the run failed
+            root_ids = [t.task_id for t in dag.roots]
+            roots = [t for t in tis if t.task_id in root_ids]
+
+            if any(r.state in (State.FAILED, State.UPSTREAM_FAILED)
+                   for r in roots):
+                logging.info('Marking run {} failed'.format(self))
+                self.state = State.FAILED
+
+            # if all roots succeeded, the run succeeded
+            elif all(r.state in (State.SUCCESS, State.SKIPPED)
+                     for r in roots):
+                logging.info('Marking run {} successful'.format(self))
+                self.state = State.SUCCESS
+
+            # if *all tasks* are deadlocked, the run failed
+            elif unfinished_tasks and none_depends_on_past and no_dependencies_met:
+                logging.info(
+                    'Deadlock; marking run {} failed'.format(self))
+                self.state = State.FAILED
+
+            # finally, if the roots aren't done, the dag is still running
+            else:
+                self.state = State.RUNNING
+
+        # todo: determine we want to use with_for_update to make sure to lock the run
+        session.merge(self)
+        session.commit()
+
+        return self.state
+
+    @provide_session
+    def verify_integrity(self, session=None):
+        """
+        Verifies the DagRun by checking for removed tasks or tasks that are not in the
+        database yet. It will set state to removed or add the task if required.
+        """
+        dag = self.get_dag()
+        tis = self.get_task_instances(session=session)
+
+        # check for removed tasks
+        task_ids = []
+        for ti in tis:
+            task_ids.append(ti.task_id)
+            try:
+                dag.get_task(ti.task_id)
+            except AirflowException:
+                if self.state is not State.RUNNING:
+                    ti.state = State.REMOVED
+
+        # check for missing tasks
+        for task in dag.tasks:
+            if task.adhoc:
+                continue
+
+            if task.task_id not in task_ids:
+                ti = TaskInstance(task, self.execution_date)
+                session.add(ti)
+
+        session.commit()
+
+    @staticmethod
+    def get_running_tasks(session, dag_id, task_ids):
+        """
+        Returns the number of tasks running in the given DAG.
+
+        :param session: ORM session
+        :param dag_id: ID of the DAG to get the task concurrency of
+        :type dag_id: unicode
+        :param task_ids: A list of valid task IDs for the given DAG
+        :type task_ids: list[unicode]
+        :return: The number of running tasks
+        :rtype: int
+        """
+        qry = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.task_id.in_(task_ids),
+            TaskInstance.state == State.RUNNING,
+        )
+        return qry.scalar()
+
+    @staticmethod
+    def get_run(session, dag_id, execution_date):
+        """
+        :param dag_id: DAG ID
+        :type dag_id: unicode
+        :param execution_date: execution date
+        :type execution_date: datetime
+        :return: DagRun corresponding to the given dag_id and execution date
+        if one exists. None otherwise.
+        :rtype: DagRun
+        """
+        qry = session.query(DagRun).filter(
+            DagRun.dag_id == dag_id,
+            DagRun.external_trigger == False,
+            DagRun.execution_date == execution_date,
+        )
+        return qry.first()
+
+    @property
+    def is_backfill(self):
+        if "backfill" in self.run_id:
+            return True
+
+        return False
 
 
 class Pool(Base):
@@ -3338,7 +4173,8 @@ class Pool(Base):
         Returns the number of slots open at the moment
         """
         used_slots = self.used_slots(session=session)
-        return self.slots - used_slots
+        queued_slots = self.queued_slots(session=session)
+        return self.slots - used_slots - queued_slots
 
 
 class SlaMiss(Base):

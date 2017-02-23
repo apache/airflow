@@ -5,6 +5,8 @@
 .DS_Store
 .ipynb*
 .coverage
+.python-version
+airflow/git_version
 airflow/www/static/coverage/
 airflow.db
 airflow.cfg
@@ -24,3 +26,6 @@ unittests.cfg
 error.log
 unittests.db
 rat-results.txt
+/.eggs/
+/.tox/
+venv

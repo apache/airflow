@@ -1,15 +1,15 @@
 Security
 ========
 
-Web Authentication
-------------------
-
 By default, all gates are opened. An easy way to restrict access
 to the web application is to do it at the network level, or by using
 SSH tunnels.
 
 It is however possible to switch on authentication by either using one of the supplied
 backends or create your own.
+
+Web Authentication
+------------------
 
 Password
 ''''''''
@@ -67,16 +67,20 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     auth_backend = airflow.contrib.auth.backends.ldap_auth
 
     [ldap]
+    # set a connection without encryption: uri = ldap://<your.ldap.server>:<port>
     uri = ldaps://<your.ldap.server>:<port>
     user_filter = objectClass=*
-    user_name_attr = uid # in case of Active Directory you would use sAMAccountName
+    # in case of Active Directory you would use: user_name_attr = sAMAccountName
+    user_name_attr = uid
     superuser_filter = memberOf=CN=airflow-super-users,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     data_profiler_filter = memberOf=CN=airflow-data-profilers,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     bind_user = cn=Manager,dc=example,dc=com
     bind_password = insecure
     basedn = dc=example,dc=com
     cacert = /etc/ca/ldap_ca.crt
-    search_scope = LEVEL # Set this to SUBTREE if using Active Directory, and not specifying an Organizational Unit
+    # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
+    # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
+    search_scope = LEVEL
 
 The superuser_filter and data_profiler_filter are optional. If defined, these configurations allow you to specify LDAP groups that users must belong to in order to have superuser (admin) and data-profiler permissions. If undefined, all users will be superusers and data profilers.
 
@@ -106,6 +110,7 @@ created by itself.
 
 Kerberos
 --------
+
 Airflow has initial support for Kerberos. This means that airflow can renew kerberos
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
@@ -210,6 +215,9 @@ and in your DAG, when initializing the HiveOperator, specify
 
     run_as_owner=True
 
+OAuth Authentication
+--------------------
+
 GitHub Enterprise (GHE) Authentication
 ''''''''''''''''''''''''''''''''''''''
 
@@ -232,10 +240,10 @@ your GHE installation will be able to login to Airflow.
     client_id = oauth_key_from_github_enterprise
     client_secret = oauth_secret_from_github_enterprise
     oauth_callback_route = /example/ghe_oauth/callback
-    allowed_teams = example_team_1, example_team_2
+    allowed_teams = 1, 345, 23
 
 Setting up GHE Authentication
-'''''''''''''''''''''''''''''
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 An application must be setup in GHE before you can use the GHE authentication
 backend. In order to setup an application:
@@ -247,3 +255,80 @@ backend. In order to setup an application:
 5. Fill in the required information (the 'Authorization callback URL' must be fully qualifed e.g. http://airflow.example.com/example/ghe_oauth/callback)
 6. Click 'Register application'
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
+
+Google Authentication
+'''''''''''''''''''''
+
+The Google authentication backend can be used to authenticate users
+against Google using OAuth2. You must specify a domain to restrict login
+to only members of that domain.
+
+.. code-block:: bash
+
+    [webserver]
+    authenticate = True
+    auth_backend = airflow.contrib.auth.backends.google_auth
+
+    [google]
+    client_id = google_client_id
+    client_secret = google_client_secret
+    oauth_callback_route = /oauth2callback
+    domain = example.com
+
+Setting up Google Authentication
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+An application must be setup in the Google API Console before you can use the Google authentication
+backend. In order to setup an application:
+
+1. Navigate to https://console.developers.google.com/apis/
+2. Select 'Credentials' from the left hand nav
+3. Click 'Create credentials' and choose 'OAuth client ID'
+4. Choose 'Web application'
+5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualifed e.g. http://airflow.example.com/oauth2callback)
+6. Click 'Create'
+7. Copy 'Client ID', 'Client Secret', and your redirect URI to your airflow.cfg according to the above example
+
+SSL
+---
+
+SSL can be enabled by providing a certificate and key. Once enabled, be sure to use
+"https://" in your browser.
+
+.. code-block:: bash
+
+    [webserver]
+    web_server_ssl_cert = <path to cert>
+    web_server_ssl_key = <path to key>
+
+Enabling SSL will not automatically change the web server port. If you want to use the
+standard port 443, you'll need to configure that too. Be aware that super user privileges
+(or cap_net_bind_service on Linux) are required to listen on port 443.
+
+.. code-block:: bash
+
+    # Optionally, set the server to listen on the standard SSL port.
+    web_server_port = 443
+    base_url = http://<hostname or IP>:443
+
+Impersonation
+'''''''''''''
+
+Airflow has the ability to impersonate a unix user while running task
+instances based on the task's ``run_as_user`` parameter, which takes a user's name.
+
+*NOTE* For impersonations to work, Airflow must be run with `sudo` as subtasks are run
+with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
+exist on the worker. Here is what a simple sudoers file entry could look like to achieve
+this, assuming as airflow is running as the `airflow` user. Note that this means that
+the airflow user must be trusted and treated the same way as the root user.
+
+.. code-block:: none
+    airflow ALL=(ALL) NOPASSWD: ALL
+
+Subtasks with impersonation will still log to the same folder, except that the files they
+log to will have permissions changed such that only the unix user can write to it.
+
+*Default impersonation* To prevent tasks that don't use impersonation to be run with
+`sudo` privileges, you can set the `default_impersonation` config in `core` which sets a
+default user impersonate if `run_as_user` is not set.

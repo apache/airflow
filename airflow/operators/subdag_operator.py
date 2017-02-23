@@ -41,9 +41,11 @@ class SubDagOperator(BaseOperator):
         :param dag: the parent DAG
         :type subdag: airflow.DAG
         """
-        if 'dag' not in kwargs:
-            raise AirflowException("Please pass in the `dag` param")
-        dag = kwargs['dag']
+        import airflow.models
+        dag = kwargs.get('dag') or airflow.models._CONTEXT_MANAGER_DAG
+        if not dag:
+            raise AirflowException('Please pass in the `dag` param or call '
+                                   'within a DAG context manager')
         session = kwargs.pop('session')
         super(SubDagOperator, self).__init__(*args, **kwargs)
 

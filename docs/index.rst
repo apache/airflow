@@ -1,8 +1,24 @@
-.. image:: img/pin_large.png
-    :width: 70
 
-Airflow Documentation
-================================
+.. image:: img/pin_large.png
+    :width: 100
+.. image:: img/incubator.jpg
+    :width: 150
+
+Apache Airflow (incubating) Documentation
+=========================================
+
+.. important::
+
+    **Disclaimer**: Apache Airflow is an effort undergoing incubation at The
+    Apache Software Foundation (ASF), sponsored by the Apache Incubator.
+    Incubation is required of all newly accepted projects until a further
+    review indicates that the infrastructure, communications, and
+    decision making process have stabilized in a manner consistent with
+    other successful ASF projects. While incubation status is not
+    necessarily a reflection of the completeness or stability of
+    the code, it does indicate that the project has yet to be fully
+    endorsed by the ASF.
+
 
 Airflow is a platform to programmatically author, schedule and monitor
 workflows.
@@ -17,7 +33,7 @@ monitor progress, and troubleshoot issues when needed.
 When workflows are defined as code, they become more maintainable,
 versionable, testable, and collaborative.
 
-------------
+
 
 .. image:: img/airflow.gif
 
@@ -48,13 +64,16 @@ than a database structure would be. Airflow workflows are expected to look
 similar from a run to the next, this allows for clarity around
 unit of work and continuity.
 
+
 Content
 -------
 .. toctree::
     :maxdepth: 4
 
-    installation
+    project
+    license
     start
+    installation
     tutorial
     configuration
     ui
@@ -64,5 +83,7 @@ Content
     scheduler
     plugins
     security
+    api
+    integration
     faq
     code

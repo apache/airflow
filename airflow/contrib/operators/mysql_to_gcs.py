@@ -1,9 +1,23 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
 import logging
 import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.hooks import MySqlHook
+from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from collections import OrderedDict
@@ -11,6 +25,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
+
 
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
     """
@@ -62,7 +77,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             delegation enabled.
         """
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
-        self.sql = sql;
+        self.sql = sql
         self.bucket = bucket
         self.filename = filename
         self.schema_filename = schema_filename
@@ -110,7 +125,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         schema = map(lambda schema_tuple: schema_tuple[0], cursor.description)
         file_no = 0
         tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = { self.filename.format(file_no): tmp_file_handle }
+        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
 
         for row in cursor:
             # Convert datetime objects to utc seconds, and decimals to floats
@@ -166,7 +181,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         Google cloud storage.
         """
         hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                                      scope='https://www.googleapis.com/auth/devstorage.read_write',
                                       delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
             hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')

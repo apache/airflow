@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 import datetime
 import ftplib
 import logging
@@ -7,8 +22,8 @@ from past.builtins import basestring
 
 
 def mlsd(conn, path="", facts=None):
-    '''
-    BACKPORT FROM PYTHON3 FTPLIB
+    """
+    BACKPORT FROM PYTHON3 FTPLIB.
 
     List a directory in a standardized format by using MLSD
     command (RFC-3659). If path is omitted the current directory
@@ -20,7 +35,7 @@ def mlsd(conn, path="", facts=None):
     First element is the file name, the second one is a dictionary
     including a variable number of "facts" depending on the server
     and whether "facts" argument has been provided.
-    '''
+    """
     facts = facts or []
     if facts:
         conn.sendcmd("OPTS MLST " + ";".join(facts) + ";")
@@ -40,7 +55,6 @@ def mlsd(conn, path="", facts=None):
 
 
 class FTPHook(BaseHook):
-
     """
     Interact with FTP.
 
@@ -51,6 +65,13 @@ class FTPHook(BaseHook):
     def __init__(self, ftp_conn_id='ftp_default'):
         self.ftp_conn_id = ftp_conn_id
         self.conn = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.conn is not None:
+            self.close_conn()
 
     def get_conn(self):
         """
@@ -65,7 +86,7 @@ class FTPHook(BaseHook):
     def close_conn(self):
         """
         Closes the connection. An error will occur if the
-        connection wasnt ever opened.
+        connection wasn't ever opened.
         """
         conn = self.conn
         conn.quit()
@@ -147,7 +168,7 @@ class FTPHook(BaseHook):
         conn.cwd(remote_path)
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
-        logging.info('Finished etrieving file from FTP: {}'.format(
+        logging.info('Finished retrieving file from FTP: {}'.format(
             remote_full_path))
 
         if is_path:
@@ -184,13 +205,23 @@ class FTPHook(BaseHook):
 
     def delete_file(self, path):
         """
-        Removes a file on the FTP Server
+        Removes a file on the FTP Server.
 
         :param path: full path to the remote file
         :type path: str
         """
         conn = self.get_conn()
         conn.delete(path)
+
+    def rename(self, from_name, to_name):
+        """
+        Rename a file.
+
+        :param from_name: rename file from name
+        :param to_name: rename file to name
+        """
+        conn = self.get_conn()
+        return conn.rename(from_name, to_name)
 
     def get_mod_time(self, path):
         conn = self.get_conn()
@@ -202,7 +233,7 @@ class FTPSHook(FTPHook):
 
     def get_conn(self):
         """
-        Returns a FTPS connection object
+        Returns a FTPS connection object.
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)

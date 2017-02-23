@@ -17,6 +17,9 @@ the run stamped ``2016-01-01`` will be trigger soon after ``2016-01-01T23:59``.
 In other words, the job instance is started once the period it covers
 has ended.
 
+**Let's Repeat That** The scheduler runs your job one ``schedule_interval`` AFTER the
+start date, at the END of the period.
+
 The scheduler starts an instance of the executor specified in the your
 ``airflow.cfg``. If it happens to be the ``LocalExecutor``, tasks will be
 executed as subprocesses; in the case of ``CeleryExecutor`` and
@@ -71,6 +74,55 @@ scheduler would have much more work to do in order to figure out what tasks
 should be triggered and come to a crawl. It might also create undesired
 processing when changing the shape of your DAG, by say adding in new
 tasks.
+
+Backfill and Catchup
+''''''''''''''''''''
+
+An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
+series of intervals which the scheduler turn into individual Dag Runs and execute. A key capability of
+Airflow is that these DAG Runs are atomic, idempotent items, and the scheduler, by default, will examine
+the lifetime of the DAG (from start to end/now, one interval at a time) and kick off a DAG Run for any
+interval that has not been run (or has been cleared). This concept is called Catchup.
+
+If your DAG is written to handle it's own catchup (IE not limited to the interval, but instead to "Now"
+for instance.), then you will want to turn catchup off (Either on the DAG itself with ``dag.catchup =
+False``) or by default at the configuration file level with ``catchup_by_default = False``. What this
+will do, is to instruct the scheduler to only create a DAG Run for the most current instance of the DAG
+interval series.
+
+.. code:: python
+    """
+    Code that goes along with the Airflow tutorial located at:
+    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    """
+    from airflow import DAG
+    from airflow.operators.bash_operator import BashOperator
+    from datetime import datetime, timedelta
+
+
+    default_args = {
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'start_date': datetime(2015, 12, 1),
+        'email': ['airflow@airflow.com'],
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+        'schedule_interval': '@hourly',
+    }
+
+    dag = DAG('tutorial', catchup=False, default_args=default_args)
+
+In the example above, if the DAG is picked up by the scheduler daemon on 2016-01-02 at 6 AM, (or from the
+command line), a single DAG Run will be created, with an ``execution_date`` of 2016-01-01, and the next
+one will be created just after midnight on the morning of 2016-01-03 with an execution date of 2016-01-02.
+
+If the ``dag.catchup`` value had been True instead, the scheduler would have created a DAG Run for each
+completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02, as that interval
+hasn't completed) and the scheduler will execute them sequentially. This behavior is great for atomic
+datasets that can easily be split into periods. Turning catchup off is great if your DAG Runs perform
+backfill internally.
 
 External Triggers
 '''''''''''''''''

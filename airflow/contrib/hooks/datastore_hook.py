@@ -1,37 +1,37 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 from apiclient.discovery import build
-from airflow.contrib.hooks.gc_base_hook import GoogleCloudBaseHook
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+
 
 class DatastoreHook(GoogleCloudBaseHook):
     """
-    Interact with Google Cloud Datastore. Connections must be defined with an
-    extras JSON field containing:
-
-    {
-        "project": "<google project ID>",
-        "service_account": "<google service account email>",
-        "key_path": "<p12 key path>"
-    }
-
-    If you have used ``gcloud auth`` to authenticate on the machine that's
-    running Airflow, you can exclude the service_account and key_path
-    parameters.
+    Interact with Google Cloud Datastore. This hook uses the Google Cloud Platform
+    connection.
 
     This object is not threads safe. If you want to make multiple requests
     simultaniously, you will need to create a hook per thread.
     """
 
-    conn_name_attr = 'datastore_conn_id'
-
     def __init__(self,
-                 scope=None,
                  datastore_conn_id='google_cloud_datastore_default',
                  delegate_to=None):
-        scope = scope or [
-                'https://www.googleapis.com/auth/datastore',
-                'https://www.googleapis.com/auth/userinfo.email']
-        super(DatastoreHook, self).__init__(scope, datastore_conn_id, delegate_to)
+        super(DatastoreHook, self).__init__(datastore_conn_id, delegate_to)
         # datasetId is the same as the project name
-        self.dataset_id = self._extras_dejson().get('project')
+        self.dataset_id = self._get_field('project')
         self.connection = self.get_conn()
 
     def get_conn(self):
