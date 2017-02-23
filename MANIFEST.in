@@ -11,7 +11,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+include NOTICE
+include LICENSE
+include DISCLAIMER
+include CHANGELOG.txt
+include README.md
 graft airflow/www/templates
 graft airflow/www/static
 include airflow/alembic.ini
-include requirements.txt
+graft scripts/systemd
+graft scripts/upstart
+
