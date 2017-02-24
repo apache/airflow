@@ -2042,15 +2042,6 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            ti = self.task_instance
-            session = settings.Session()
-            if self.task_runner.process:
-                ti.pid = self.task_runner.process.pid
-            ti.hostname = socket.getfqdn()
-            session.merge(ti)
-            session.commit()
-            session.close()
-
             last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
                                                'scheduler_zombie_task_threshold')
@@ -2109,8 +2100,9 @@ class LocalTaskJob(BaseJob):
                                 "and {ti.pid} do not match this instance's "
                                 "which are {fqdn} and "
                                 "{self.task_runner.process.pid}. "
+                                "Taking the poison pill."
                                 .format(**locals()))
-                #raise AirflowException("Another worker/process is running this job")
+                raise AirflowException("Another worker/process is running this job")
         elif (self.was_running
               and self.task_runner.return_code() is None
               and hasattr(self.task_runner, 'process')):
