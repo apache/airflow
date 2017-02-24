@@ -2651,7 +2651,7 @@ class DAG(BaseDag, LoggingMixin):
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
             sla_miss_callback=None,
-            default_view=configuration.get('webserver', 'dag_default_view'),
+            default_view=configuration.get('webserver', 'dag_default_view').lower(),
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
             params=None):
