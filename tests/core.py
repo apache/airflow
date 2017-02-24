@@ -26,6 +26,7 @@ from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
+from time import time as timetime
 from time import sleep
 import warnings
 
@@ -894,6 +895,64 @@ class CoreTest(unittest.TestCase):
                 task_id='test_bad_trigger',
                 trigger_rule="non_existant",
                 dag=self.dag)
+
+    def test_run_task_twice(self):
+        """If two copies of a TI run, the new one should die, and old should live"""
+        dagbag = models.DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        TI = models.TaskInstance
+        dag = dagbag.dags.get('sleep_forever_dag')
+        task = dag.task_dict.get('sleeps_forever')
+    
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        job1 = jobs.LocalTaskJob(
+            task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job2 = jobs.LocalTaskJob(
+            task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+
+        p1 = multiprocessing.Process(target=job1.run)
+        p2 = multiprocessing.Process(target=job2.run)
+        try:
+            p1.start()
+            start_time = timetime()
+            sleep(5.0) # must wait for session to be created on p1
+            settings.engine.dispose()
+            session = settings.Session()
+            ti.refresh_from_db(session=session)
+            self.assertEqual(State.RUNNING, ti.state)
+            p1pid = ti.pid
+            settings.engine.dispose()
+            p2.start()
+            p2.join(5) # wait 5 seconds until termination
+            self.assertFalse(p2.is_alive())
+            self.assertTrue(p1.is_alive())
+
+            settings.engine.dispose()
+            session = settings.Session()
+            ti.refresh_from_db(session=session)
+            self.assertEqual(State.RUNNING, ti.state)
+            self.assertEqual(p1pid, ti.pid)
+
+            # check changing hostname kills task
+            ti.refresh_from_db(session=session, lock_for_update=True)
+            ti.hostname = 'nonexistenthostname'
+            session.merge(ti)
+            session.commit()
+
+            p1.join(5)
+            self.assertFalse(p1.is_alive())
+        finally:
+            try:
+                p1.terminate()
+            except AttributeError:
+                pass # process already terminated
+            try:
+                p2.terminate()
+            except AttributeError:
+                pass # process already terminated
+            session.close()
 
     def test_terminate_task(self):
         """If a task instance's db state get deleted, it should fail"""
