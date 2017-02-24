@@ -260,6 +260,10 @@ filter_by_owner = False
 # in order to user the ldapgroup mode.
 owner_mode = user
 
+# Default DAG view.  Valid values are:
+# tree, graph, duration, gantt, landing_times
+dag_default_view = tree
+
 # Default DAG orientation. Valid values are:
 # LR (Left->Right), TB (Top->Bottom), RL (Right->Left), BT (Bottom->Top)
 dag_orientation = LR
@@ -481,6 +485,7 @@ base_url = http://localhost:8080
 web_server_host = 0.0.0.0
 web_server_port = 8080
 dag_orientation = LR
+dag_default_view = tree
 log_fetch_timeout_sec = 5
 hide_paused_dags_by_default = False
 
