@@ -46,6 +46,8 @@ if [ "${TRAVIS}" ]; then
     --cover-package=airflow \
     --cover-html-dir=airflow/www/static/coverage \
     --with-ignore-docstrings \
+    --rednose \
+    --with-timer \
     -v \
     --logging-level=DEBUG "
     fi
@@ -68,6 +70,8 @@ else
     --cover-package=airflow \
     --cover-html-dir=airflow/www/static/coverage \
     --with-ignore-docstrings \
+    --rednose \
+    --with-timer \
     -s \
     -v \
     --logging-level=DEBUG "

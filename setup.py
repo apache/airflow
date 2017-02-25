@@ -180,6 +180,8 @@ devel = [
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-parameterized',
+    'nose-timer',
+    'rednose'
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos

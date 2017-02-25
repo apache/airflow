@@ -39,6 +39,7 @@ nose
 nose-exclude
 nose-ignore-docstring==0.2
 nose-parameterized
+nose-timer
 pandas
 psutil>=4.2.0, <5.0.0
 psycopg2
@@ -51,6 +52,7 @@ PySmbClient
 python-daemon
 python-dateutil
 redis
+rednose
 requests
 requests-kerberos
 setproctitle
