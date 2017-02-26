@@ -1356,8 +1356,9 @@ class TaskInstance(Base):
                 # Don't clear Xcom until the task is certain to execute
                 self.clear_xcom_data()
 
-                self.render_templates()
                 task_copy.pre_execute(context=context)
+
+                self.render_templates(jinja_context=context)
 
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
@@ -1579,9 +1580,10 @@ class TaskInstance(Base):
             }
         }
 
-    def render_templates(self):
+    def render_templates(self, jinja_context=None):
         task = self.task
-        jinja_context = self.get_template_context()
+        if jinja_context is None:
+            jinja_context = self.get_template_context()
         if hasattr(self, 'task') and hasattr(self.task, 'dag'):
             if self.task.dag.user_defined_macros:
                 jinja_context.update(
