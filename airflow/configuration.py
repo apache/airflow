@@ -545,7 +545,7 @@ class AirflowConfigParser(ConfigParser):
         # Python 2 requires StringIO buffer
         else:
             import StringIO
-            self.readfp(StringIO.StringIO(string))
+            self.read_file(StringIO.StringIO(string))
 
     def _validate(self):
         if (
