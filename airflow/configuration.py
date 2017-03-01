@@ -90,6 +90,7 @@ def run_command(command):
 
     return output
 
+
 _templates_dir = os.path.join(os.path.dirname(__file__), 'config_templates')
 with open(os.path.join(_templates_dir, 'default_airflow.cfg')) as f:
     DEFAULT_CONFIG = f.read()

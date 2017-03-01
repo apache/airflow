@@ -753,12 +753,20 @@ class Airflow(BaseView):
                 # S3
                 if remote_log_path.startswith('s3:/'):
                     remote_log += log_utils.S3Log().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
+                        remote_log_path,
+                        return_error=surface_log_retrieval_errors)
                     remote_log_loaded = True
                 # GCS
                 elif remote_log_path.startswith('gs:/'):
                     remote_log += log_utils.GCSLog().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
+                        remote_log_path,
+                        return_error=surface_log_retrieval_errors)
+                    remote_log_loaded = True
+                # HDFS
+                elif remote_log_path.startswith('hdfs:/'):
+                    remote_log += log_utils.HDFSLog().read(
+                        remote_log_path,
+                        return_error=surface_log_retrieval_errors)
                     remote_log_loaded = True
                 # unsupported
                 else:

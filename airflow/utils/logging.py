@@ -20,6 +20,7 @@ from __future__ import unicode_literals
 from builtins import object
 
 import logging
+import os
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -211,3 +212,89 @@ class GCSLog(object):
             bucket = parsed_url.netloc
             blob = parsed_url.path.strip('/')
             return (bucket, blob)
+
+
+class HDFSLog(object):
+    """
+    Utility class for reading and writing logs in HDFS via WebHDFS.
+    Requires airflow[webhdfs] and setting the REMOTE_BASE_LOG_FOLDER and
+    REMOTE_LOG_CONN_ID configuration options in airflow.cfg.
+    """
+    def __init__(self):
+        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        try:
+            from airflow.hooks.webhdfs_hook import WebHDFSHook
+            self.hook = WebHDFSHook(remote_conn_id)
+        except:
+            self.hook = None
+            logging.error(
+                'Could not create an WebHDFSHook with connection id "{}". '
+                'Please make sure that airflow[webhdfs] is installed and '
+                'the WebHDFS connection exists.'.format(remote_conn_id))
+
+    def escape_filename(self, hdfs_path):
+        directory = os.path.dirname(hdfs_path)
+        filename = os.path.basename(hdfs_path)
+        return os.path.join(directory, filename.replace(':', '-'))
+
+    def remove_scheme(self, hdfs_path):
+        return hdfs_path[7:] if hdfs_path.startswith('hdfs://') else hdfs_path
+
+    def read(self, remote_log_location, return_error=False, client=None):
+        """
+        Returns the log found at the remote_log_location. Returns '' if no
+        logs are found or there is an error.
+
+        :param remote_log_location: the log's location in remote storage
+        :type remote_log_location: string (path)
+        :param return_error: if True, returns a string error message if an
+            error occurs. Otherwise returns '' when an error occurs.
+        :type return_error: bool
+        :param client: if passed, reuse already established snakebite client
+        :type client: hdfs.client.Client
+        """
+        remote_log_location = self.escape_filename(remote_log_location)
+        if self.hook:
+            try:
+                if client is None:
+                    client = self.hook.get_conn()
+                with client.read(self.remove_scheme(remote_log_location)) as f:
+                    return f.read()
+            except Exception:
+                pass
+
+        err = 'Could not read logs from {}'.format(remote_log_location)
+        logging.error(err)
+        return err if return_error else ''
+
+    def write(self, log, remote_log_location, append=True):
+        """
+        Writes the log to the remote_log_location. Fails silently if no hook
+        was created.
+
+        :param log: the log to write to the remote_log_location
+        :type log: string
+        :param remote_log_location: the log's location in remote storage
+        :type remote_log_location: string (path)
+        :param append: if False, any existing log file is overwritten. If True,
+            the new log is appended to any existing logs.
+        :type append: bool
+
+        """
+        remote_log_location = self.escape_filename(remote_log_location)
+        if self.hook:
+            try:
+                client = self.hook.get_conn()
+                if append:
+                    old_log = self.read(remote_log_location, client=client)
+                    log = old_log + '\n' + log
+                with client.write(
+                        self.remove_scheme(remote_log_location),
+                        overwrite=True) as f:
+                    f.write(log)
+                return
+            except Exception:
+                pass
+
+        # raise/return error if we get here
+        logging.error('Could not write logs to {}'.format(remote_log_location))
