@@ -29,3 +29,4 @@ rat-results.txt
 /.eggs/
 /.tox/
 venv
+*.swp
