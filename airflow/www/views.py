@@ -506,7 +506,7 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, sqla.func.max(DagRun.execution_date).label('execution_date'))
             .join(Dag, Dag.dag_id == DagRun.dag_id)
             .filter(DagRun.state != State.RUNNING)
-            .filter(Dag.is_active == 1)
+            .filter(Dag.is_active == True)
             .group_by(DagRun.dag_id)
             .subquery('last_dag_run')
         )
@@ -514,7 +514,7 @@ class Airflow(BaseView):
             session.query(DagRun.dag_id, DagRun.execution_date)
             .join(Dag, Dag.dag_id == DagRun.dag_id)
             .filter(DagRun.state == State.RUNNING)
-            .filter(Dag.is_active == 1)
+            .filter(Dag.is_active == True)
             .subquery('running_dag_run')
         )
 
