@@ -34,6 +34,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
 from mock import patch
 from nose_parameterized import parameterized
+from tests.core import TEST_DAG_FOLDER
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -117,12 +118,70 @@ class DagTest(unittest.TestCase):
         self.assertEqual(dag.dag_id, 'creating_dag_in_cm')
         self.assertEqual(dag.tasks[0].task_id, 'op6')
 
+
 class DagRunTest(unittest.TestCase):
+
+    def setUp(self):
+        self.dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
+
+    def create_dag_run(self, dag_id, state=State.RUNNING, task_states=None):
+        now = datetime.datetime.now()
+        dag = self.dagbag.get_dag(dag_id)
+        dag_run = dag.create_dagrun(
+            run_id='manual__' + now.isoformat(),
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+
+        if task_states is not None:
+            session = settings.Session()
+            for task_id, state in task_states.items():
+                ti = dag_run.get_task_instance(task_id)
+                ti.set_state(state, session)
+            session.close()
+
+        return dag_run
+
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
             datetime.datetime(2015, 1, 2, 3, 4, 5, 6, None))
-        self.assertEqual('scheduled__2015-01-02T03:04:05', run_id, msg=
+        self.assertEqual(
+            'scheduled__2015-01-02T03:04:05', run_id,
             'Generated run_id did not match expectations: {0}'.format(run_id))
+
+    def test_dagrun_running_when_upstream_skipped(self):
+        """
+        Tests that a DAG run is not failed when an upstream task is skipped
+        """
+        initial_task_states = {
+            'test_short_circuit_false': State.SUCCESS,
+            'test_state_skipped1': State.SKIPPED,
+            'test_state_skipped2': State.NONE,
+        }
+        # dags/test_dagrun_short_circuit_false.py
+        dag_run = self.create_dag_run('test_dagrun_short_circuit_false',
+                                      state=State.RUNNING,
+                                      task_states=initial_task_states)
+        updated_dag_state = dag_run.update_state()
+        self.assertEqual(State.RUNNING, updated_dag_state)
+
+    def test_dagrun_success_when_all_skipped(self):
+        """
+        Tests that a DAG run succeeds when all tasks are skipped
+        """
+        initial_task_states = {
+            'test_short_circuit_false': State.SUCCESS,
+            'test_state_skipped1': State.SKIPPED,
+            'test_state_skipped2': State.SKIPPED,
+        }
+        # dags/test_dagrun_short_circuit_false.py
+        dag_run = self.create_dag_run('test_dagrun_short_circuit_false',
+                                      state=State.RUNNING,
+                                      task_states=initial_task_states)
+        updated_dag_state = dag_run.update_state()
+        self.assertEqual(State.SUCCESS, updated_dag_state)
 
 
 class DagBagTest(unittest.TestCase):
@@ -488,7 +547,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(dt, ti.end_date+max_delay)
 
     def test_depends_on_past(self):
-        dagbag = models.DagBag()
+        dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
         dag = dagbag.get_dag('test_depends_on_past')
         dag.clear()
         task = dag.tasks[0]
@@ -517,10 +576,11 @@ class TaskInstanceTest(unittest.TestCase):
         #
         # Tests for all_success
         #
-        ['all_success', 5, 0, 0, 0, 0, True, None, True],
-        ['all_success', 2, 0, 0, 0, 0, True, None, False],
-        ['all_success', 2, 0, 1, 0, 0, True, ST.UPSTREAM_FAILED, False],
-        ['all_success', 2, 1, 0, 0, 0, True, ST.SKIPPED, False],
+        ['all_success', 5, 0, 0, 0, 5, True, None, True],
+        ['all_success', 2, 0, 0, 0, 2, True, None, False],
+        ['all_success', 2, 0, 1, 0, 3, True, ST.UPSTREAM_FAILED, False],
+        ['all_success', 2, 1, 0, 0, 3, True, None, False],
+        ['all_success', 0, 5, 0, 0, 5, True, ST.SKIPPED, True],
         #
         # Tests for one_success
         #
@@ -528,6 +588,7 @@ class TaskInstanceTest(unittest.TestCase):
         ['one_success', 2, 0, 0, 0, 2, True, None, True],
         ['one_success', 2, 0, 1, 0, 3, True, None, True],
         ['one_success', 2, 1, 0, 0, 3, True, None, True],
+        ['one_success', 0, 2, 0, 0, 2, True, None, True],
         #
         # Tests for all_failed
         #
@@ -539,9 +600,9 @@ class TaskInstanceTest(unittest.TestCase):
         #
         # Tests for one_failed
         #
-        ['one_failed', 5, 0, 0, 0, 0, True, None, False],
-        ['one_failed', 2, 0, 0, 0, 0, True, None, False],
-        ['one_failed', 2, 0, 1, 0, 0, True, None, True],
+        ['one_failed', 5, 0, 0, 0, 5, True, ST.SKIPPED, False],
+        ['one_failed', 2, 0, 0, 0, 2, True, None, False],
+        ['one_failed', 2, 0, 1, 0, 2, True, None, True],
         ['one_failed', 2, 1, 0, 0, 3, True, None, False],
         ['one_failed', 2, 3, 0, 0, 5, True, ST.SKIPPED, False],
         #
