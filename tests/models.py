@@ -366,6 +366,19 @@ class TaskInstanceTest(unittest.TestCase):
         dag >> op5
         self.assertIs(op5.dag, dag)
 
+    @patch.object(DAG, 'concurrency_reached')
+    def test_requeue_over_concurrency(self, mock_concurrency_reached):
+        mock_concurrency_reached.return_value = True
+
+        dag = DAG(dag_id='test_requeue_over_concurrency', start_date=DEFAULT_DATE,
+                  max_active_runs=1, concurrency=2)
+        task = DummyOperator(task_id='test_requeue_over_concurrency_op', dag=dag)
+
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        ti.run()
+        self.assertEqual(ti.state, models.State.NONE)
+
+
     @patch.object(TI, 'pool_full')
     def test_run_pooling_task(self, mock_pool_full):
         """
