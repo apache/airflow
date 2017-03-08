@@ -27,6 +27,7 @@ from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel
+from airflow.models import XCom
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -736,3 +737,89 @@ class TaskInstanceTest(unittest.TestCase):
 
         with self.assertRaises(TestError):
             ti.run()
+
+    def test_xcom_disable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test1"
+        dag_id = "test_dag1"
+        task_id = "test_task1"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=False)
+
+        ret_value = XCom.get_one(key=key,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=False)
+
+        self.assertEqual(ret_value, json_obj)
+
+    def test_xcom_enable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test2"
+        dag_id = "test_dag2"
+        task_id = "test_task2"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        ret_value = XCom.get_one(key=key,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        self.assertEqual(ret_value, json_obj)
+
+    def test_xcom_disable_pickle_type_fail_on_non_json(self):
+        class PickleRce(object):
+            def __reduce__(self):
+                return (os.system, ("ls -alt",))
+        self.assertRaises(TypeError, XCom.set,
+                          key="xcom_test3",
+                          value=PickleRce(),
+                          dag_id="test_dag3",
+                          task_id="test_task3",
+                          execution_date=datetime.datetime.now(),
+                          enable_pickling=False)
+
+    def test_xcom_get_many(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test4"
+        dag_id1 = "test_dag4"
+        task_id1 = "test_task4"
+        dag_id2 = "test_dag5"
+        task_id2 = "test_task5"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id1,
+                 task_id=task_id1,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id2,
+                 task_id=task_id2,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        results = XCom.get_many(key=key,
+                                execution_date=execution_date,
+                                enable_pickling=True)
+
+        for result in results:
+            self.assertEqual(result.value, json_obj)
