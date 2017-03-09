@@ -87,6 +87,7 @@ span.skipped{
     background-color: pink;
 }
 .tooltip-inner {
+    max-width: 500px;
     text-align:left !important;
     font-size: 12px;
 }
