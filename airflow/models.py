@@ -1019,7 +1019,7 @@ class TaskInstance(Base):
         """
         return self.dag_id, self.task_id, self.execution_date
 
-    def set_state(self, state, session):
+    def  set_state(self, state, session):
         self.state = state
         self.start_date = datetime.now()
         self.end_date = datetime.now()
@@ -1393,6 +1393,10 @@ class TaskInstance(Base):
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
             self.state = State.SUCCESS
+            if (task.on_success_set_state_to
+                and task.on_success_set_state_to in State.hold()):
+                self.state = task.on_success_set_state_to
+
         except AirflowSkipException:
             self.state = State.SKIPPED
         except (Exception, KeyboardInterrupt) as e:
@@ -1925,6 +1929,7 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
+            on_success_set_state_to=None,
             *args,
             **kwargs):
 
@@ -1975,7 +1980,7 @@ class BaseOperator(object):
         self.sla = sla
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
-        self.on_success_callback = on_success_callback
+        self.on_success_set_state_to = on_success_set_state_to
         self.on_retry_callback = on_retry_callback
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -2019,6 +2024,7 @@ class BaseOperator(object):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'on_success_set_state'
         }
 
     def __eq__(self, other):

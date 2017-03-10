@@ -40,6 +40,7 @@ class State(object):
     UP_FOR_RETRY = "up_for_retry"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
+    WAIT_FOR_CALLBACK = 'wait_for_callback'
 
     task_states = (
         SUCCESS,
@@ -48,6 +49,7 @@ class State(object):
         UPSTREAM_FAILED,
         UP_FOR_RETRY,
         QUEUED,
+        WAIT_FOR_CALLBACK,
     )
 
     dag_states = (
@@ -110,4 +112,13 @@ class State(object):
             cls.QUEUED,
             cls.RUNNING,
             cls.UP_FOR_RETRY
+        ]
+
+    @classmethod
+    def hold(cls):
+        """
+        List of states indicating a task is waiting for external action
+        """
+        return [
+            cls.WAIT_FOR_CALLBACK,
         ]
