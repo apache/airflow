@@ -198,11 +198,13 @@ class DagTest(unittest.TestCase):
 
 class DagRunTest(unittest.TestCase):
 
-    def create_dag_run(self, dag, state=State.RUNNING, task_states=None):
+    def create_dag_run(self, dag, state=State.RUNNING, task_states=None, execution_date=None):
         now = datetime.datetime.now()
+        if execution_date is None:
+            execution_date = now
         dag_run = dag.create_dagrun(
             run_id='manual__' + now.isoformat(),
-            execution_date=now,
+            execution_date=execution_date,
             start_date=now,
             state=state,
             external_trigger=False,
@@ -373,6 +375,21 @@ class DagRunTest(unittest.TestCase):
 
         ti = dag_run.get_task_instance('test_short_circuit_false')
         self.assertEqual(None, ti)
+
+    def test_get_latest_runs(self):
+        session = settings.Session()
+        dag = DAG(
+            dag_id='test_latest_runs_1',
+            start_date=DEFAULT_DATE)
+        dag_1_run_1 = self.create_dag_run(dag, 
+                execution_date=datetime.datetime(2015, 1, 1))
+        dag_1_run_2 = self.create_dag_run(dag,
+                execution_date=datetime.datetime(2015, 1, 2))
+        dagruns = models.DagRun.get_latest_runs(session)
+        session.close()
+        for dagrun in dagruns:
+            if dagrun.dag_id == 'test_latest_runs_1':
+                self.assertEqual(dagrun.execution_date, datetime.datetime(2015, 1, 2))
 
 
 class DagBagTest(unittest.TestCase):
