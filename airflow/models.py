@@ -31,6 +31,7 @@ import imp
 import importlib
 import inspect
 import zipfile
+import inspect
 import jinja2
 import json
 import logging
@@ -71,6 +72,7 @@ from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.email import send_email
+from airflow.utils.file import each
 from airflow.utils.helpers import (
     as_tuple, is_container, is_in, validate_key, pprinttable)
 from airflow.utils.logging import LoggingMixin
@@ -135,6 +137,206 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
             dr.start_date = datetime.now()
 
 
+class DagLoader(LoggingMixin):
+    """
+    Helps with loading dag files as well as detecting their dependant
+    python files, Variable instances and resources files. Resource files
+    are defined by having a top level variable called __resource_file_selectors__
+    in the dag file.
+
+    Each dag file can list a set of resource selectors to help
+    find files that it depends on other than python modules and variables.
+    eg: sample_dag.py would contain something like the following. If any of the
+    `.yaml` files change, it will trigger a reload of the dag on the next scheduler
+    heartbeat.
+
+    config_path = os.path.join(
+       os.path.dirname(os.path.abspath(__file__)),
+       'config'
+    )
+     __resource_file_selectors__ = [
+       (config_path, ('.yaml'))
+    ]
+
+    :param dag_folder: the folder to scan to find DAGs
+    :type dag_folder: unicode
+    """
+
+    def __init__(self, dag_folder,):
+        self.dag_folder = dag_folder
+        # the file's last modified timestamp when we last read it
+        self.file_last_changed = {}
+        self.variable_last_changed = {}
+        self.resource_last_changed = {}
+        self.dep_files = {}
+        self.dep_variables = {}
+        self.dep_resources = {}
+
+    def load_source(self, mod_name, filepath):
+        module = imp.load_source(mod_name, filepath)
+
+        self.get_python_deps(module, filepath)
+        self.get_variable_deps(module, filepath)
+        self.get_resource_deps(module, filepath)
+        return module
+
+    def deps_changed(self, filepath):
+        return (self.dep_files_changed(filepath) or
+                self.dep_variables_changed(filepath) or
+                self.dep_resources_changed(filepath))
+
+    def dependency_source_files(self, module):
+        abs_dags_folder = os.path.abspath(self.dag_folder)
+        dags_root_folder = abs_dags_folder.split('/')[-1]
+        deps = {}
+
+        self.get_dep_files_recurse(module, abs_dags_folder, dags_root_folder, deps)
+        return deps
+
+    def get_python_deps(self, module, filepath):
+        if filepath in self.dep_files:
+            for d in self.dep_files[filepath]:
+                self.file_last_changed.pop(d, None)
+            del self.dep_files[filepath]
+        dep_files = self.dependency_source_files(module).keys()
+        for f in dep_files:
+            self.file_last_changed[f] = datetime.fromtimestamp(
+                os.path.getmtime(f))
+        self.file_last_changed[filepath] = datetime.fromtimestamp(
+            os.path.getmtime(filepath))
+        self.dep_files[filepath] = dep_files
+
+    def get_variable_deps(self, module, filepath):
+        if filepath in self.dep_variables:
+            for v in self.dep_variables[filepath]:
+                self.variable_last_changed.pop(v, None)
+            del self.dep_variables[filepath]
+        dep_variables = []
+        for key in module.__dict__:
+            self.recurse_for_variables(module.__dict__[key], dep_variables)
+        self.dep_variables[filepath] = dep_variables
+
+    def recurse_for_variables(self, attr, dep_variables):
+        if isinstance(attr, MaterializedVariable):
+            dep_variables.append(attr.key)
+            self.variable_last_changed[attr.key] = attr.last_updated
+        elif isinstance(attr, list):
+            for i, o in enumerate(attr):
+                self.recurse_for_variables(o, dep_variables)
+        elif isinstance(attr, dict):
+            for key in attr:
+                self.recurse_for_variables(attr[key], dep_variables)
+
+    def get_resource_deps(self, module, filepath):
+        if filepath in self.dep_resources:
+            for r in self.dep_resources[filepath]:
+                self.resource_last_changed.pop(r, None)
+            del self.dep_resources[filepath]
+        dep_resources = []
+
+        def on_resource_file(abs_path, *_):
+            dep_resources.append(abs_path)
+            self.resource_last_changed[abs_path] = datetime.fromtimestamp(
+                os.path.getmtime(abs_path))
+
+        if '__resource_file_selectors__' in module.__dict__:
+            resource_files = module.__dict__['__resource_file_selectors__']
+            for (rf_path, rf_exts) in resource_files:
+                each(func=on_resource_file,
+                     path=rf_path,
+                     file_extensions=rf_exts)
+        self.dep_resources[filepath] = dep_resources
+
+    def dep_files_changed(self, filepath):
+        dttm = datetime.fromtimestamp(os.path.getmtime(filepath))
+        if (filepath not in self.dep_files or
+                filepath not in self.file_last_changed):
+            logging.debug('New source file detected {} LMT: {}'
+                          .format(filepath, dttm))
+            Stats.incr('source_file_added')
+            return True
+        if dttm != self.file_last_changed[filepath]:
+            logging.debug('Changed source file detected {} LMT: {}'
+                          .format(filepath, dttm))
+            Stats.incr('source_file_changed')
+            return True
+        deps = self.dep_files[filepath]
+        for d in deps:
+            dttm = datetime.fromtimestamp(os.path.getmtime(d))
+            if d not in self.file_last_changed:
+                logging.debug('New dependency source file detected {} LMT: {}'
+                              .format(d, dttm))
+                Stats.incr('dep_source_file_added')
+                return True
+            elif dttm != self.file_last_changed[d]:
+                logging.debug(
+                    'Dependency source file change detected {} LMT: {}'
+                    .format(d, dttm))
+                Stats.incr('dep_source_file_changed')
+                return True
+        return False
+
+    @provide_session
+    def dep_variables_changed(self, filepath, session=None):
+        dep_variables = self.dep_variables[filepath]
+        for v in dep_variables:
+            var = session.query(Variable).filter(Variable.key == v).first()
+            if var is None:
+                return True
+            dttm = var.last_updated
+            if v not in self.variable_last_changed:
+                logging.debug('New dependency variable detected {} LMT: {}'
+                              .format(v, dttm))
+                Stats.incr('dep_var_added')
+                return True
+            elif dttm != self.variable_last_changed[v]:
+                logging.debug(
+                    'Dependency variable change detected {} LMT: {}'
+                    .format(v, dttm))
+                Stats.incr('dep_var_changed')
+                return True
+        return False
+
+    def dep_resources_changed(self, filepath):
+        dep_resources = self.dep_resources[filepath]
+        for d in dep_resources:
+            dttm = datetime.fromtimestamp(os.path.getmtime(d))
+            if d not in self.resource_last_changed:
+                logging.debug(
+                    'New dependency resource file detected {} LMT: {}'
+                    .format(d, dttm))
+                Stats.incr('dep_resource_added')
+                return True
+            elif dttm != self.resource_last_changed[d]:
+                logging.debug('Dependency resource file change detected '
+                              '{} LMT: {}'.format(d, dttm))
+                Stats.incr('dep_resource_changed')
+                return True
+        return False
+
+    @classmethod
+    def get_dep_files_recurse(cls, module, abs_dags_folder, dags_root_folder, deps):
+        for i in inspect.getmembers(module):
+            sf = cls.get_source_file(i[1])
+            if sf is not None and (sf.find(abs_dags_folder) == 0 or
+                                   sf.find(dags_root_folder) == 0 or
+                                   sf.find('airflow/example_dags') > -1):
+                if sf in deps.keys():
+                    continue
+                deps[sf] = i[1]
+                cls.get_dep_files_recurse(i[1],
+                                          abs_dags_folder=abs_dags_folder,
+                                          dags_root_folder=dags_root_folder,
+                                          deps=deps)
+
+    @classmethod
+    def get_source_file(cls, module):
+        try:
+            return inspect.getsourcefile(module)
+        except Exception:
+            return None
+
+
 class DagBag(BaseDagBag, LoggingMixin):
     """
     A dagbag is a collection of dags, parsed out of a folder tree and has high
@@ -166,9 +368,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.logger.info("Filling up the DagBag from {}".format(dag_folder))
         self.dag_folder = dag_folder
+        self.dag_loader = DagLoader(dag_folder)
         self.dags = {}
-        # the file's last modified timestamp when we last read it
-        self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
 
@@ -178,6 +379,10 @@ class DagBag(BaseDagBag, LoggingMixin):
                 'example_dags')
             self.collect_dags(example_dag_folder)
         self.collect_dags(dag_folder)
+
+    @property
+    def file_last_changed(self):
+        return self.dag_loader.file_last_changed
 
     def size(self):
         """
@@ -231,9 +436,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             # This failed before in what may have been a git sync
             # race condition
             file_last_changed_on_disk = datetime.fromtimestamp(os.path.getmtime(filepath))
-            if only_if_updated \
-                    and filepath in self.file_last_changed \
-                    and file_last_changed_on_disk == self.file_last_changed[filepath]:
+            if only_if_updated and not self.dag_loader.deps_changed(filepath):
                 return found_dags
 
         except Exception as e:
@@ -260,7 +463,7 @@ class DagBag(BaseDagBag, LoggingMixin):
 
             with timeout(configuration.getint('core', "DAGBAG_IMPORT_TIMEOUT")):
                 try:
-                    m = imp.load_source(mod_name, filepath)
+                    m = self.dag_loader.load_source(mod_name, filepath)
                     mods.append(m)
                 except Exception as e:
                     self.logger.exception("Failed to import: " + filepath)
@@ -3479,6 +3682,17 @@ class KnownEvent(Base):
         return self.label
 
 
+class MaterializedVariable(object):
+    """
+    When used in a dag file changes to it will trigger a
+    reload of the dag.
+    """
+    def __init__(self, key, val, last_updated):
+        self.key = key
+        self.val = val
+        self.last_updated = last_updated
+
+
 class Variable(Base):
     __tablename__ = "variable"
 
@@ -3486,6 +3700,7 @@ class Variable(Base):
     key = Column(String(ID_LEN), unique=True)
     _val = Column('val', Text)
     is_encrypted = Column(Boolean, unique=False, default=False)
+    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
 
     def __repr__(self):
         # Hiding the value
@@ -3571,6 +3786,34 @@ class Variable(Base):
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
+
+    @classmethod
+    @provide_session
+    def materialize(cls, key, default_value,
+                    deserialize_json=False, session=None):
+        """
+        This function returns a MaterializedVariable instance that can
+        be used to automatically reload a dag when the value of this
+        variable changes. If the Variable does not exist, it will insert it.
+
+        :param key: Dict key for this Variable
+        :type key: String
+        :param default_value: the default_value
+        :param deserialize_json: whether to deserialize the value
+        :type deserialize_json: boolean
+        :param session: the session
+        :type session: Session
+        :return: an instance of MaterializedVariable or None if not found
+        :rtype: MaterializedVariable
+        """
+        obj = session.query(cls).filter(cls.key == key).first()
+        if obj is None:
+            cls.set(key, default_value, serialize_json=deserialize_json)
+            obj = session.query(cls).filter(cls.key == key).first()
+        return MaterializedVariable(
+            obj.key,
+            json.loads(obj.val) if deserialize_json else obj.val,
+            obj.last_updated)
 
 
 class XCom(Base):
