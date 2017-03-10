@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from future.utils import native
 
 import flask_login
 from flask_login import login_required, current_user, logout_user
@@ -60,7 +61,7 @@ def get_ldap_connection(dn=None, password=None):
         pass
 
     server = Server(configuration.get("ldap", "uri"), use_ssl, tls_configuration)
-    conn = Connection(server, dn, password)
+    conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
         LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
@@ -71,14 +72,15 @@ def get_ldap_connection(dn=None, password=None):
 
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
     search_filter = '(&({0}))'.format(group_filter)
-    if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
+    if not conn.search(native(search_base), native(search_filter),
+                       attributes=[native(user_name_attr)]):
         LOG.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for resp in conn.response:
             if (
-                'attributes' in resp and (
-                    resp['attributes'].get(user_name_attr)[0] == username or
-                    resp['attributes'].get(user_name_attr) == username
+                        'attributes' in resp and (
+                            resp['attributes'].get(user_name_attr)[0] == username or
+                            resp['attributes'].get(user_name_attr) == username
                 )
             ):
                 return True
@@ -87,7 +89,7 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
 
 def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
-    res = conn.search(search_base, search_filter, attributes=["memberOf"])
+    res = conn.search(native(search_base), native(search_filter), attributes=[native("memberOf")])
     if not res:
         LOG.info("Cannot find user %s", username)
         raise AuthenticationError("Invalid username or password")
@@ -118,7 +120,8 @@ class LdapUser(models.User):
         self.ldap_groups = []
 
         # Load and cache superuser and data_profiler settings.
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
+                                   configuration.get("ldap", "bind_password"))
         try:
             self.superuser = group_contains_user(conn,
                                                  configuration.get("ldap", "basedn"),
@@ -151,7 +154,8 @@ class LdapUser(models.User):
 
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
+                                   configuration.get("ldap", "bind_password"))
 
         search_filter = "(&({0})({1}={2}))".format(
             configuration.get("ldap", "user_filter"),
@@ -171,7 +175,9 @@ class LdapUser(models.User):
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=search_scope)
+        res = conn.search(native(configuration.get("ldap", "basedn")),
+                          native(search_filter),
+                          search_scope=native(search_scope))
 
         # todo: use list or result?
         if not res:
