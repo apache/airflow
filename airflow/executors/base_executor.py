@@ -23,7 +23,7 @@ PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
 class BaseExecutor(LoggingMixin):
 
-    def __init__(self, parallelism=PARALLELISM):
+    def __init__(self, parallelism=PARALLELISM, env=None):
         """
         Class to derive in order to interface with executor-type systems
         like Celery, Mesos, Yarn and the likes.
@@ -31,8 +31,13 @@ class BaseExecutor(LoggingMixin):
         :param parallelism: how many jobs should run at one time. Set to
             ``0`` for infinity
         :type parallelism: int
+
+        :param env: environment variables to provide to the child process (
+        defaults to environment of current process)
         """
         self.parallelism = parallelism
+        self.env = env
+
         self.queued_tasks = {}
         self.running = {}
         self.event_buffer = {}

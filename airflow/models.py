@@ -93,7 +93,7 @@ try:
 except:
     pass
 
-if 'mysql' in settings.SQL_ALCHEMY_CONN:
+if 'mysql' in configuration.get_sql_alchemy_conn():
     LongText = LONGTEXT
 else:
     LongText = Text
@@ -161,16 +161,23 @@ class DagBag(BaseDagBag, LoggingMixin):
             self,
             dag_folder=None,
             executor=DEFAULT_EXECUTOR,
-            include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES')):
+            include_examples=None,
+            sync_to_db=False):
 
-        dag_folder = dag_folder or settings.DAGS_FOLDER
+        dag_folder = dag_folder or configuration.get_dags_folder()
         self.logger.info("Filling up the DagBag from {}".format(dag_folder))
+
         self.dag_folder = dag_folder
         self.dags = {}
         # the file's last modified timestamp when we last read it
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+
+        # reading the config here and not as constructor arg since config can
+        # now be reloaded
+        if include_examples is None:
+            include_examples = configuration.getboolean('core', 'LOAD_EXAMPLES')
 
         if include_examples:
             example_dag_folder = os.path.join(
@@ -2871,7 +2878,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         File location of where the dag object is instantiated
         """
-        fn = self.full_filepath.replace(settings.DAGS_FOLDER + '/', '')
+        fn = self.full_filepath.replace(configuration.get_dags_folder() + '/', '')
         fn = fn.replace(os.path.dirname(__file__) + '/', '')
         return fn
 

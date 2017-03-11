@@ -25,6 +25,7 @@ import six
 import subprocess
 import warnings
 
+from airflow import settings
 from future import standard_library
 standard_library.install_aliases()
 
@@ -828,11 +829,81 @@ def remove_option(section, option):
     return conf.remove_option(section, option)
 
 
+def set(section, option, value):  # noqa
+    return conf.set(section, option, value)
+
+
+########################
+# Convenience method to access config entries.
+
+
+def get_dags_folder():
+    return os.path.expanduser(get('core', 'DAGS_FOLDER'))
+
+
+def get_airflow_home():
+    return os.path.expanduser(get('core', 'AIRFLOW_HOME'))
+
+
+def get_sql_alchemy_conn():
+    return get('core', 'SQL_ALCHEMY_CONN')
+
+
+################
+# global config init
+
+conf = None
+
+
+def test_mode():
+    conf = ConfigParserWithDefaults(defaults)
+    conf.read(TEST_CONFIG_FILE)
+
+
+def load_config():
+    """
+    loads the config and triggers the connection to the SQL-alchemy backend
+    """
+    global conf
+    conf = ConfigParserWithDefaults(defaults)
+    conf.read(AIRFLOW_CONFIG)
+    settings.connect(get_sql_alchemy_conn(),
+                     conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE'),
+                     conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE'))
+
+load_config()
+
+
 def as_dict(display_source=False, display_sensitive=False):
     return conf.as_dict(
         display_source=display_source, display_sensitive=display_sensitive)
 as_dict.__doc__ = conf.as_dict.__doc__
 
+
+class DummyStatsLogger(object):
+    @classmethod
+    def incr(cls, stat, count=1, rate=1):
+        pass
+
+    @classmethod
+    def decr(cls, stat, count=1, rate=1):
+        pass
+
+    @classmethod
+    def gauge(cls, stat, value, rate=1, delta=False):
+        pass
+
+Stats = DummyStatsLogger
+
+if conf.getboolean('scheduler', 'statsd_on'):
+    from statsd import StatsClient
+    statsd = StatsClient(
+        host=conf.get('scheduler', 'statsd_host'),
+        port=conf.getint('scheduler', 'statsd_port'),
+        prefix=conf.get('scheduler', 'statsd_prefix'))
+    Stats = statsd
+else:
+    Stats = DummyStatsLogger
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
