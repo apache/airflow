@@ -11,19 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Used for unit tests"""
-import airflow
-from airflow.operators.bash_operator import BashOperator
+from datetime import datetime
+
 from airflow.models import DAG
+from airflow.operators.dummy_operator import DummyOperator
 
-dag = DAG(
-    dag_id='sleep_forever_dag',
-    schedule_interval=None,
-)
+DEFAULT_DATE = datetime(2016, 1, 1)
 
-task = BashOperator(
-    task_id='sleeps_forever',
-    dag=dag,
-    bash_command="sleep 10000000000",
-    start_date=airflow.utils.dates.days_ago(2),
-    owner='airflow')
+args = {
+    'owner': 'airflow',
+    'start_date': DEFAULT_DATE,
+}
+
+dag = DAG(dag_id='test_localtaskjob_double_trigger', default_args=args)
+task = DummyOperator(
+    task_id='test_localtaskjob_double_trigger_task',
+    dag=dag)
