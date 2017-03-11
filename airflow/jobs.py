@@ -2048,14 +2048,6 @@ class LocalTaskJob(BaseJob):
         self.pickle_id = pickle_id
         self.mark_success = mark_success
 
-        # terminating state is used so that a job don't try to
-        # terminate multiple times
-        self.terminating = False
-
-        # Keeps track of the fact that the task instance has been observed
-        # as running at least once
-        self.was_running = False
-
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
@@ -2068,6 +2060,7 @@ class LocalTaskJob(BaseJob):
             if self.task_runner.process:
                 ti.pid = self.task_runner.process.pid
             ti.hostname = socket.getfqdn()
+            #ti.state = State.RUNNING
             session.merge(ti)
             session.commit()
             session.close()
@@ -2114,15 +2107,12 @@ class LocalTaskJob(BaseJob):
     @provide_session
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
-
-        if self.terminating:
-            # task is already terminating, let it breathe
-            return
-
         self.task_instance.refresh_from_db()
         ti = self.task_instance
-        if ti.state == State.RUNNING:
-            self.was_running = True
+        if ti is None:
+            logging.warning("Task instance does not exist in DB. Terminating")
+            raise AirflowException("Task instance does not exist in DB")
+        elif ti.state == State.RUNNING:
             fqdn = socket.getfqdn()
             if not (fqdn == ti.hostname and
                     self.task_runner.process.pid == ti.pid):
@@ -2133,11 +2123,10 @@ class LocalTaskJob(BaseJob):
                                 "Taking the poison pill. So long."
                                 .format(**locals()))
                 raise AirflowException("Another worker/process is running this job")
-        elif (self.was_running
-              and self.task_runner.return_code() is None
+        elif (self.task_runner.return_code() is None
               and hasattr(self.task_runner, 'process')):
             logging.warning(
                 "State of this instance has been externally set to "
-                "{}. Taking the poison pill. So long.".format(ti.state))
-            self.task_runner.terminate()
-            self.terminating = True
+                "{self.task_instance.state}. "
+                "Taking the poison pill. So long.".format(**locals()))
+            raise AirflowException("Task instance state has been changed externally")
