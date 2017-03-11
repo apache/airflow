@@ -57,7 +57,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
                                              version='1.19')
 
-        client_mock.create_container.assert_called_with(command='env', cpu_shares=1024,
+        client_mock.create_container.assert_called_with(command='env', cpu_shares=None,
                                                         environment={
                                                             'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                             'UNIT': 'TEST'
@@ -70,7 +70,7 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           network_mode='bridge')
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.logs.assert_called_with(container='some_id', stream=True)
-        client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
+        client_mock.pull.assert_called_with('ubuntu:latest', auth_config=None, stream=True)
         client_mock.wait.assert_called_with('some_id')
 
     @unittest.skipIf(mock is None, 'mock package not present')
