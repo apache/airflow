@@ -2072,15 +2072,6 @@ class LocalTaskJob(BaseJob):
         try:
             self.task_runner.start()
 
-            ti = self.task_instance
-            session = settings.Session()
-            if self.task_runner.process:
-                ti.pid = self.task_runner.process.pid
-            ti.hostname = socket.getfqdn()
-            session.merge(ti)
-            session.commit()
-            session.close()
-
             last_heartbeat_time = time.time()
             heartbeat_time_limit = conf.getint('scheduler',
                                                'scheduler_zombie_task_threshold')
@@ -2120,6 +2111,18 @@ class LocalTaskJob(BaseJob):
         self.task_runner.terminate()
         self.task_runner.on_finish()
 
+    def _is_descendant_process(self, pid):
+        """Checks if pid is a descendant of the current process.
+
+        :param pid: process id to check
+        :type pid: int
+        :rtype: bool
+        """
+        try:
+            return psutil.Process(pid) in psutil.Process().children(recursive=True)
+        except psutil.NoSuchProcess:
+            return False
+
     @provide_session
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
@@ -2133,15 +2136,17 @@ class LocalTaskJob(BaseJob):
         if ti.state == State.RUNNING:
             self.was_running = True
             fqdn = socket.getfqdn()
-            if not (fqdn == ti.hostname and
-                    self.task_runner.process.pid == ti.pid):
-                logging.warning("Recorded hostname and pid of {ti.hostname} "
-                                "and {ti.pid} do not match this instance's "
-                                "which are {fqdn} and "
-                                "{self.task_runner.process.pid}. "
-                                "Taking the poison pill. So long."
-                                .format(**locals()))
-                raise AirflowException("Another worker/process is running this job")
+            if fqdn != ti.hostname:
+                logging.warning("The recorded hostname {ti.hostname} "
+                                "does not match this instance's hostname "
+                                "{fqdn}".format(**locals()))
+                raise AirflowException("Hostname of job runner does not match")
+            elif not self._is_descendant_process(ti.pid):
+                current_pid = os.getpid()
+                logging.warning("Recorded pid {ti.pid} is not a "
+                                "descendant of the current pid "
+                                "{current_pid}".format(**locals()))
+                raise AirflowException("PID of job runner does not match")
         elif (self.was_running
               and self.task_runner.return_code() is None
               and hasattr(self.task_runner, 'process')):
