@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import logging
 import os
 import unittest
 import time
@@ -117,6 +118,71 @@ class DagTest(unittest.TestCase):
 
         self.assertEqual(dag.dag_id, 'creating_dag_in_cm')
         self.assertEqual(dag.tasks[0].task_id, 'op6')
+
+    def test_dag_topological_sort(self):
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B
+        # A -> C -> D
+        # ordered: B, D, C, A or D, B, C, A or D, C, B, A
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op1.set_upstream([op2, op3])
+            op3.set_upstream(op4)
+
+        topological_list = dag.topological_sort()
+        logging.info(topological_list)
+
+        tasks = [op2, op3, op4]
+        self.assertTrue(topological_list[0] in tasks)
+        tasks.remove(topological_list[0])
+        self.assertTrue(topological_list[1] in tasks)
+        tasks.remove(topological_list[1])
+        self.assertTrue(topological_list[2] in tasks)
+        tasks.remove(topological_list[2])
+        self.assertTrue(topological_list[3] == op1)
+
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # C -> (A u B) -> D
+        # C -> E
+        # ordered: E | D, A | B, C
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op3 = DummyOperator(task_id='C')
+            op4 = DummyOperator(task_id='D')
+            op5 = DummyOperator(task_id='E')
+            op1.set_downstream(op3)
+            op2.set_downstream(op3)
+            op1.set_upstream(op4)
+            op2.set_upstream(op4)
+            op5.set_downstream(op3)
+
+        topological_list = dag.topological_sort()
+        logging.info(topological_list)
+
+        self.assertTrue(topological_list[0] == op5 or topological_list[0] == op4)
+        self.assertTrue(topological_list[1] == op4 or topological_list[1] == op5)
+        self.assertTrue(topological_list[2] == op1 or topological_list[2] == op2)
+        self.assertTrue(topological_list[3] == op1 or topological_list[3] == op2)
+        self.assertTrue(topological_list[4] == op3)
+
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        self.assertEquals(tuple(), dag.topological_sort())
 
 
 class DagRunTest(unittest.TestCase):
