@@ -2060,6 +2060,14 @@ class LocalTaskJob(BaseJob):
 
     def _execute(self):
         self.task_runner = get_task_runner(self)
+
+        def signal_handler(signum, frame):
+            '''Setting kill signal handler'''
+            logging.error("Killing subprocess")
+            self.on_kill()
+            raise AirflowException("LocalTaskJob received SIGTERM signal")
+        signal.signal(signal.SIGTERM, signal_handler)
+
         try:
             self.task_runner.start()
 
