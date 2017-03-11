@@ -171,10 +171,20 @@ class DagTest(unittest.TestCase):
         topological_list = dag.topological_sort()
         logging.info(topological_list)
 
-        self.assertTrue(topological_list[0] == op5 or topological_list[0] == op4)
-        self.assertTrue(topological_list[1] == op4 or topological_list[1] == op5)
-        self.assertTrue(topological_list[2] == op1 or topological_list[2] == op2)
-        self.assertTrue(topological_list[3] == op1 or topological_list[3] == op2)
+        set1 = [op4, op5]
+        self.assertTrue(topological_list[0] in set1)
+        set1.remove(topological_list[0])
+
+        set2 = [op1, op2]
+        set2.extend(set1)
+        self.assertTrue(topological_list[1] in set2)
+        set2.remove(topological_list[1])
+
+        self.assertTrue(topological_list[2] in set2)
+        set2.remove(topological_list[2])
+
+        self.assertTrue(topological_list[3] in set2)
+
         self.assertTrue(topological_list[4] == op3)
 
         dag = DAG(
