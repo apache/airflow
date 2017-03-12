@@ -28,6 +28,10 @@ class PostgresHook(DbApiHook):
     default_conn_name = 'postgres_default'
     supports_autocommit = True
 
+    def __init__(self, *args, **kwargs):
+        super(PostgresHook, self).__init__(*args, **kwargs)
+        self.schema = kwargs.pop("schema", None)
+
     def get_conn(self):
         conn = self.get_connection(self.postgres_conn_id)
         conn_args = dict(
