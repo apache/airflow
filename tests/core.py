@@ -15,7 +15,6 @@
 from __future__ import print_function
 
 import doctest
-import json
 import os
 import re
 import unittest
@@ -27,6 +26,7 @@ from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
+from time import time as timetime
 from time import sleep
 import warnings
 
@@ -776,6 +776,30 @@ class CoreTest(unittest.TestCase):
         configuration.set("core", "FERNET_KEY", FERNET_KEY)
         assert configuration.has_option("core", "FERNET_KEY")
 
+    def test_config_override_original_when_non_empty_envvar_is_provided(self):
+        key = "AIRFLOW__CORE__FERNET_KEY"
+        value = "some value"
+        assert key not in os.environ
+
+        os.environ[key] = value
+        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+        assert FERNET_KEY == value
+
+        # restore the envvar back to the original state
+        del os.environ[key]
+
+    def test_config_override_original_when_empty_envvar_is_provided(self):
+        key = "AIRFLOW__CORE__FERNET_KEY"
+        value = ""
+        assert key not in os.environ
+
+        os.environ[key] = value
+        FERNET_KEY = configuration.get('core', 'FERNET_KEY')
+        assert FERNET_KEY == value
+
+        # restore the envvar back to the original state
+        del os.environ[key]
+
     def test_class_with_logger_should_have_logger_with_correct_name(self):
 
         # each class should automatically receive a logger with a correct name
@@ -1291,7 +1315,7 @@ class CliTests(unittest.TestCase):
             '-s', DEFAULT_DATE.isoformat()]))
 
     def test_process_subdir_path_with_placeholder(self):
-        assert cli.process_subdir('DAGS_FOLDER/abc') == os.path.join(configuration.get_dags_folder(), 'abc')
+        assert cli.process_subdir('DAGS_FOLDER/abc') == os.path.join(settings.DAGS_FOLDER, 'abc')
 
     def test_trigger_dag(self):
         cli.trigger_dag(self.parser.parse_args([

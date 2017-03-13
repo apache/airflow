@@ -36,6 +36,7 @@ _operators = {
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
     'qubole_operator': ['QuboleOperator'],
+    'spark_submit_operator': ['SparkSubmitOperator'],
     'fs_operator': ['FileSensor']
 }
 

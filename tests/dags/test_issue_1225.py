@@ -129,3 +129,16 @@ dag7_subdag1 = SubDagOperator(
     subdag=subdag7)
 subdag7_task1.set_downstream(subdag7_task2)
 subdag7_task2.set_downstream(subdag7_task3)
+
+# DAG tests that a Dag run that doesn't complete but has a root failure is marked running
+dag8 = DAG(dag_id='test_dagrun_states_root_fail_unfinished', default_args=default_args)
+dag8_task1 = DummyOperator(
+    task_id='test_dagrun_unfinished',  # The test will unset the task instance state after
+                                       # running this test
+    dag=dag8,
+)
+dag8_task2 = PythonOperator(
+    task_id='test_dagrun_fail',
+    dag=dag8,
+    python_callable=fail,
+)

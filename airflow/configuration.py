@@ -591,7 +591,7 @@ class AirflowConfigParser(ConfigParser):
 
         # first check environment variables
         option = self._get_env_var_option(section, key)
-        if option:
+        if option is not None:
             return option
 
         # ...then the config file
@@ -828,9 +828,3 @@ as_dict.__doc__ = conf.as_dict.__doc__
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
-
-########################
-# convenience method to access config entries
-
-def get_dags_folder():
-    return os.path.expanduser(get('core', 'DAGS_FOLDER'))

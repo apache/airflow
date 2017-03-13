@@ -1,9 +1,5 @@
-Dear Airflow Maintainers,
-
 Please accept this PR that addresses the following issues:
-- *(replace with a link to AIRFLOW-X)*
-
-Per Apache guidelines you need to create a [Jira issue](https://issues.apache.org/jira/browse/AIRFLOW/).
+- *(MANDATORY - replace with a link to JIRA - e.g. https://issues.apache.org/jira/browse/AIRFLOW-XXX)*
 
 Testing Done:
 - Unittests are required, if you do not include new unit tests please
