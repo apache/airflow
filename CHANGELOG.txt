@@ -1,6 +1,39 @@
-AIRFLOW 1.8.0, 2017-02-02
+AIRFLOW 1.8.0, 2017-03-12
 -------------------------
 
+[AIRFLOW-900] Double trigger should not kill original task instance
+[AIRFLOW-900] Fixes bugs in LocalTaskJob for double run protection
+[AIRFLOW-932] Do not mark tasks removed when backfilling
+[AIRFLOW-961] run onkill when SIGTERMed
+[AIRFLOW-910] Use parallel task execution for backfills
+[AIRFLOW-967] Wrap strings in native for py2 ldap compatibility
+[AIRFLOW-941] Use defined parameters for psycopg2
+[AIRFLOW-719] Prevent DAGs from ending prematurely
+[AIRFLOW-938] Use test for True in task_stats queries
+[AIRFLOW-937] Improve performance of task_stats
+[AIRFLOW-933] use ast.literal_eval rather eval because ast.literal_eval does not execute input.
+[AIRFLOW-925] Revert airflow.hooks change that cherry-pick picked
+[AIRFLOW-919] Running tasks with no start date shouldn't break a DAGs UI
+[AIRFLOW-802] Add spark-submit operator/hook
+[AIRFLOW-897] Prevent dagruns from failing with unfinished tasks
+[AIRFLOW-861] make pickle_info endpoint be login_required
+[AIRFLOW-853] use utf8 encoding for stdout line decode
+[AIRFLOW-856] Make sure execution date is set for local client
+[AIRFLOW-830][AIRFLOW-829][AIRFLOW-88] Reduce Travis log verbosity
+[AIRFLOW-831] Restore import to fix broken tests
+[AIRFLOW-794] Access DAGS_FOLDER and SQL_ALCHEMY_CONN exclusively from settings
+[AIRFLOW-694] Fix config behaviour for empty envvar
+[AIRFLOW-365] Set dag.fileloc explicitly and use for Code view
+[AIRFLOW-931] Do not set QUEUED in TaskInstances
+[AIRFLOW-899] Tasks in SCHEDULED state should be white in the UI instead of black
+[AIRFLOW-895] Address Apache release incompliancies
+[AIRFLOW-893][AIRFLOW-510] Fix crashing webservers when a dagrun has no start date
+[AIRFLOW-793] Enable compressed loading in S3ToHiveTransfer
+[AIRFLOW-863] Example DAGs should have recent start dates
+[AIRFLOW-869] Refactor mark success functionality
+[AIRFLOW-856] Make sure execution date is set for local client
+[AIRFLOW-814] Fix Presto*CheckOperator.__init__
+[AIRFLOW-844] Fix cgroups directory creation
 [AIRFLOW-816] Use static nvd3 and d3
 [AIRFLOW-821] Fix py3 compatibility
 [AIRFLOW-817] Check for None value of execution_date in endpoint
