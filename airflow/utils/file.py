@@ -44,16 +44,14 @@ def mkdirs(path, mode):
 
     :param path: The directory to create
     :type path: str
-    :param mode: The mode to give to the directory e.g. 0o755
+    :param mode: The mode to give to the directory e.g. 0o755, ignores umask
     :type mode: int
-    :return: A list of directories that were created
-    :rtype: list[str]
     """
-    if not path or os.path.exists(path):
-        return []
-    (head, _) = os.path.split(path)
-    res = mkdirs(head, mode)
-    os.mkdir(path)
-    os.chmod(path, mode)
-    res += [path]
-    return res
+    try:
+        o_umask = os.umask(0)
+        os.makedirs(path, mode)
+    except OSError:
+        if not os.path.isdir(path):
+            raise
+    finally:
+        os.umask(o_umask)
