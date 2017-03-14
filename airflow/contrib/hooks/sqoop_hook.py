@@ -14,14 +14,14 @@
 #
 
 """
-This module contains a sqoop 1 hook
+This module contains a sqoop 1.x hook
 """
-
-from airflow.hooks.base_hook import BaseHook
-from airflow.exceptions import AirflowException
 
 import logging
 import subprocess
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 
 log = logging.getLogger(__name__)
 
@@ -30,36 +30,42 @@ class SqoopHook(BaseHook):
     """
     This Hook is a wrapper around the sqoop 1 binary. To be able to use te hook
     it is required that "sqoop" is in the PATH.
-    :param hive_home: (from json) The location of hive-site.xml
-    :type hive_home: str
-    :param job_tracker: (from json) <local|jobtracker:port> specify a job tracker
+    :param job_tracker: (from json) specify a job tracker local|jobtracker:port
     :type job_tracker: str
     :param namenode: (from json) specify a namenode
     :type namenode: str
-    :param lib_jars: (from json) specify comma separated jar files to
-        include in the classpath.
+    :param lib_jars: (from json) specify comma separated jar
+        files to include in the classpath.
     :type lib_jars: str
-    :param files: (from json) specify comma separated files to be copied
-        to the map reduce cluster
+    :param files: (from json) specify comma separated files to be copied to
+        the map reduce cluster
     :type files: (from json) str
     :param archives: (from json)  specify comma separated archives to be
         unarchived on the compute machines.
     :type archives: str
     """
-    def __init__(self, conn_id='sqoop_default'):
-        conn = self.get_connection(conn_id)
-        self.hive_home = conn.extra_dejson.get('hive_home', None)
-        self.job_tracker = conn.extra_dejson.get('job_tracker', None)
-        self.namenode = conn.extra_dejson.get('namenode', None)
-        self.lib_jars = conn.extra_dejson.get('libjars', None)
-        self.files = conn.extra_dejson.get('files', None)
-        self.archives = conn.extra_dejson.get('archives', None)
-        self.conn = conn
+
+    def __init__(self, conn_id='sqoop_default', verbose=False,
+                 num_mappers=None, properties=None):
+        # No mutable types in the default parameters
+        if properties is None:
+            properties = {}
+        self.conn = self.get_connection(conn_id)
+        connection_parameters = self.conn.extra_dejson
+        self.job_tracker = connection_parameters.get('job_tracker', None)
+        self.namenode = connection_parameters.get('namenode', None)
+        self.libjars = connection_parameters.get('libjars', None)
+        self.files = connection_parameters.get('files', None)
+        self.archives = connection_parameters.get('archives', None)
+        self.password_file = connection_parameters.get('password_file', None)
+        self.verbose = verbose
+        self.num_mappers = str(num_mappers)
+        self.properties = properties
 
     def get_conn(self):
         pass
 
-    def Popen(self, cmd, export=False, **kwargs):  # noqa
+    def Popen(self, cmd, **kwargs):
         """
         Remote Popen
 
@@ -67,157 +73,223 @@ class SqoopHook(BaseHook):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        prefixed_cmd = self._prepare_command(cmd, export=export)
-        return subprocess.Popen(prefixed_cmd, **kwargs)
+        process = subprocess.Popen(cmd,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   **kwargs)
+        output, stderr = process.communicate()
 
-    def _prepare_command(self, cmd, export=False):
+        if process.returncode != 0:
+            raise AirflowException((
+                                       "Cannot execute {} on {}. Error code is: {}"
+                                       "Output: {}, Stderr: {}"
+                                   ).format(cmd, self.conn.host,
+                                            process.returncode, output,
+                                            stderr))
+
+    def _prepare_command(self, export=False):
         if export:
-            connection_cmd = ["sqoop", "export", "--verbose"]
+            connection_cmd = ["sqoop", "export"]
         else:
-            connection_cmd = ["sqoop", "import", "--verbose"]
+            connection_cmd = ["sqoop", "import"]
 
+        if self.verbose:
+            connection_cmd += ["--verbose"]
         if self.job_tracker:
             connection_cmd += ["-jt", self.job_tracker]
         if self.conn.login:
             connection_cmd += ["--username", self.conn.login]
-        # todo: put this in a password file
         if self.conn.password:
             connection_cmd += ["--password", self.conn.password]
-        if self.lib_jars:
-            connection_cmd += ["-libjars", self.lib_jars]
+        if self.password_file:
+            connection_cmd += ["--password-file", self.password_file]
+        if self.libjars:
+            connection_cmd += ["-libjars", self.libjars]
         if self.files:
             connection_cmd += ["-files", self.files]
         if self.namenode:
             connection_cmd += ["-fs", self.namenode]
         if self.archives:
             connection_cmd += ["-archives", self.archives]
+        if self.num_mappers:
+            connection_cmd += ["--num-mappers", self.num_mappers]
 
-        connection_cmd += ["--connect", "{}:{}/{}".format(self.conn.host, self.conn.port,
-                                                          self.conn.schema)]
-        connection_cmd += cmd
+        for key, value in self.properties.items():
+            connection_cmd += ["-D", "{}={}".format(key, value)]
+
+        connection_cmd += ["--connect", "{}:{}/{}".format(
+            self.conn.host,
+            self.conn.port,
+            self.conn.schema
+        )]
 
         return connection_cmd
 
-    def _import_cmd(self, target_dir,
-                    append=False, type="text",
-                    num_mappers=None, split_by=None):
+    def _get_export_format_argument(self, file_type='text'):
+        if file_type == "avro":
+            return ["--as-avrodatafile"]
+        elif file_type == "sequence":
+            return ["--as-sequencefile"]
+        elif file_type == "parquet":
+            return ["--as-parquetfile"]
+        else:
+            return ["--as-textfile"]
 
-        cmd = ["--target-dir", target_dir]
+    def _import_cmd(self, target_dir, append, file_type, split_by, direct,
+                    driver):
 
-        if not num_mappers:
-            num_mappers = 1
+        cmd = self._prepare_command(export=False)
 
-        cmd += ["--num-mappers", str(num_mappers)]
-
-        if split_by:
-            cmd += ["--split-by", split_by]
+        cmd += ["--target-dir", target_dir]
 
         if append:
             cmd += ["--append"]
 
-        if type == "avro":
-            cmd += ["--as-avrodatafile"]
-        elif type == "sequence":
-            cmd += ["--as-sequencefile"]
-        else:
-            cmd += ["--as-textfile"]
+        cmd += self._get_export_format_argument(file_type)
+
+        if split_by:
+            cmd += ["--split-by", split_by]
+
+        if direct:
+            cmd += ["--direct"]
+
+        if driver:
+            cmd += ["--driver", driver]
 
         return cmd
 
-    def import_table(self, table, target_dir,
-                     append=False, type="text", columns=None,
-                     num_mappers=None, split_by=None, where=None):
+    def import_table(self, table, target_dir, append=False, file_type="text",
+                     columns=None, split_by=None, where=None, direct=False,
+                     driver=None):
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
         :param table: Table to read
         :param target_dir: HDFS destination dir
         :param append: Append data to an existing dataset in HDFS
-        :param type: "avro", "sequence", "text" Imports data to into the specified
-            format. Defaults to text.
+        :param file_type: "avro", "sequence", "text" or "parquet".
+            Imports data to into the specified format. Defaults to text.
         :param columns: <col,col,col…> Columns to import from table
-        :param num_mappers: Use n map tasks to import in parallel
         :param split_by: Column of the table used to split work units
         :param where: WHERE clause to use during import
+        :param direct: Use direct connector if exists for the database
+        :param driver: Manually specify JDBC driver class to use
         """
-        cmd = self._import_cmd(target_dir, append, type,
-                               num_mappers, split_by)
+        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct,
+                               driver)
+
         cmd += ["--table", table]
+
         if columns:
             cmd += ["--columns", columns]
         if where:
             cmd += ["--where", where]
 
-        p = self.Popen(cmd, export=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, stderr = p.communicate()
+        self.Popen(cmd)
 
-        if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
-            # output=output)
-            raise AirflowException("Cannot execute {} on {}. Error code is: "
-                                   "{}. Output: {}, Stderr: {}"
-                                   .format(cmd, self.conn.host,
-                                           p.returncode, output, stderr))
+    def import_query(self, query, target_dir,
+                     append=False, file_type="text",
+                     split_by=None, direct=None, driver=None):
+        """
+        Imports a specific query from the rdbms to hdfs
+        :param query: Free format query to run
+        :param target_dir: HDFS destination dir
+        :param append: Append data to an existing dataset in HDFS
+        :param file_type: "avro", "sequence", "text" or "parquet"
+            Imports data to hdfs into the specified format. Defaults to text.
+        :param split_by: Column of the table used to split work units
+        :param direct: Use direct import fast path
+        :param driver: Manually specify JDBC driver class to use
+        """
+        cmd = self._import_cmd(target_dir, append, file_type, split_by, direct,
+                               driver)
+        cmd += ["--query", query]
 
-    def _export_cmd(self, export_dir, num_mappers=None):
+        self.Popen(cmd)
 
-        cmd = ["--export-dir", export_dir]
+    def _export_cmd(self, table, export_dir, input_null_string,
+                    input_null_non_string, staging_table, clear_staging_table,
+                    enclosed_by, escaped_by, input_fields_terminated_by,
+                    input_lines_terminated_by, input_optionally_enclosed_by,
+                    batch, relaxed_isolation):
 
-        if not num_mappers:
-            num_mappers = 1
+        cmd = self._prepare_command(export=True)
 
-        cmd += ["--num-mappers", str(num_mappers)]
+        if input_null_string:
+            cmd += ["--input-null-string", input_null_string]
+
+        if input_null_non_string:
+            cmd += ["--input-null-non-string", input_null_non_string]
+
+        if staging_table:
+            cmd += ["--staging-table", staging_table]
+
+        if clear_staging_table:
+            cmd += ["--clear-staging-table"]
+
+        if enclosed_by:
+            cmd += ["--enclosed-by", enclosed_by]
+
+        if escaped_by:
+            cmd += ["--escaped-by", escaped_by]
+
+        if input_fields_terminated_by:
+            cmd += ["--input-fields-terminated-by", input_fields_terminated_by]
+
+        if input_lines_terminated_by:
+            cmd += ["--input-lines-terminated-by", input_lines_terminated_by]
+
+        if input_optionally_enclosed_by:
+            cmd += ["--input-optionally-enclosed-by",
+                    input_optionally_enclosed_by]
+
+        if batch:
+            cmd += ["--batch"]
+
+        if relaxed_isolation:
+            cmd += ["--relaxed-isolation"]
+
+        # The required options
+        cmd += ["--export-dir", export_dir]
+        cmd += ["--table", table]
 
         return cmd
 
-    def export_table(self, table, export_dir,
-                     num_mappers=None):
+    def export_table(self, table, export_dir, input_null_string,
+                     input_null_non_string, staging_table,
+                     clear_staging_table, enclosed_by,
+                     escaped_by, input_fields_terminated_by,
+                     input_lines_terminated_by,
+                     input_optionally_enclosed_by, batch,
+                     relaxed_isolation):
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
         :param table: Table remote destination
         :param export_dir: Hive table to export
-        :param num_mappers: Use n map tasks to import in parallel
+        :param input_null_string: The string to be interpreted as null for
+            string columns
+        :param input_null_non_string: The string to be interpreted as null
+            for non-string columns
+        :param staging_table: The table in which data will be staged before
+            being inserted into the destination table
+        :param clear_staging_table: Indicate that any data present in the
+            staging table can be deleted
+        :param enclosed_by: Sets a required field enclosing character
+        :param escaped_by: Sets the escape character
+        :param input_fields_terminated_by: Sets the field separator character
+        :param input_lines_terminated_by: Sets the end-of-line character
+        :param input_optionally_enclosed_by: Sets a field enclosing character
+        :param batch: Use batch mode for underlying statement execution
+        :param relaxed_isolation: Transaction isolation to read uncommitted
+            for the mappers
         """
+        cmd = self._export_cmd(table, export_dir, input_null_string,
+                               input_null_non_string, staging_table,
+                               clear_staging_table, enclosed_by, escaped_by,
+                               input_fields_terminated_by,
+                               input_lines_terminated_by,
+                               input_optionally_enclosed_by, batch,
+                               relaxed_isolation)
 
-        cmd = self._export_cmd(export_dir, num_mappers)
-        cmd += ["--table", table]
-
-        p = self.Popen(cmd, export=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, stderr = p.communicate()
-
-        if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
-            # output=output)
-            raise AirflowException("Cannot execute {} on {}. Error code is: "
-                                   "{}. Output: {}, Stderr: {}"
-                                   .format(cmd, self.conn.host,
-                                           p.returncode, output, stderr))
-
-    def import_query(self, query, target_dir,
-                     append=False, type="text",
-                     num_mappers=None, split_by=None):
-        """
-
-        :param query: Free format query to run
-        :param target_dir: HDFS destination dir
-        :param append: Append data to an existing dataset in HDFS
-        :param type: "avro", "sequence", "text" Imports data to into the specified
-            format. Defaults to text.
-        :param num_mappers: Use n map tasks to import in parallel
-        :param split_by: Column of the table used to split work units
-        """
-        cmd = self._import_cmd(target_dir, append, type,
-                               num_mappers, split_by)
-        cmd += ["--query", query]
-
-        p = self.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        output, stderr = p.communicate()
-
-        if p.returncode != 0:
-            # I like this better: RemoteCalledProcessError(p.returncode, cmd, self.host,
-            # output=output)
-            raise AirflowException("Cannot execute {} on {}. Error code is: "
-                                   "{}. Output: {}, Stderr: {}"
-                                   .format(cmd, self.conn.host,
-                                           p.returncode, output, stderr))
+        self.Popen(cmd)

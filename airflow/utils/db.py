@@ -196,6 +196,10 @@ def initdb():
             extra='{"db": 0}'))
     merge_conn(
         models.Connection(
+            conn_id='sqoop_default', conn_type='sqoop',
+            host='rmdbs', extra=''))
+    merge_conn(
+        models.Connection(
             conn_id='emr_default', conn_type='emr',
             extra='''
                 {   "Name": "default_job_flow_name",
