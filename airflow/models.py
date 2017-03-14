@@ -2968,11 +2968,11 @@ class DAG(BaseDag, LoggingMixin):
         """
         # Check SubDag for class but don't check class directly, see
         # https://github.com/airbnb/airflow/issues/1168
+        from airflow.operators import SubDagOperator as SDO1
+        from airflow.operators.subdag_operator import SubDagOperator as SDO2
         l = []
         for task in self.tasks:
-            if (
-                    task.__class__.__name__ == 'SubDagOperator' and
-                    hasattr(task, 'subdag')):
+            if isinstance(task, (SDO1, SDO2)):
                 l.append(task.subdag)
                 l += task.subdag.subdags
         return l
