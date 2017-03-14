@@ -43,7 +43,7 @@ from flask_admin.tools import iterdecode
 from flask_login import flash
 from flask._compat import PY2
 
-import jinja2
+from jinja2.sandbox import ImmutableSandboxedEnvironment
 import markdown
 import nvd3
 
@@ -328,8 +328,9 @@ class Airflow(BaseView):
         request_dict = {k: request.args.get(k) for k in request.args}
         args.update(request_dict)
         args['macros'] = macros
-        sql = jinja2.Template(chart.sql).render(**args)
-        label = jinja2.Template(chart.label).render(**args)
+        sandbox = ImmutableSandboxedEnvironment()
+        sql = sandbox.from_string(chart.sql).render(**args)
+        label = sandbox.from_string(chart.label).render(**args)
         payload['sql_html'] = Markup(highlight(
             sql,
             lexers.SqlLexer(),  # Lexer call

@@ -63,6 +63,8 @@ from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
+from jinja2.sandbox import SecurityError
+from jinja2 import UndefinedError
 
 import six
 
@@ -1468,6 +1470,42 @@ class SecurityTests(unittest.TestCase):
             pass
         response = self.app.get("/admin/log", follow_redirects=True)
         self.assertIn(bleach.clean("<script>alert(123456)</script>"), response.data.decode('UTF-8'))
+
+    def test_chart_data_template(self):
+        """Protect chart_data from being able to do RCE."""
+        session = settings.Session()
+        Chart = models.Chart
+        chart1 = Chart(
+            label='insecure_chart',
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT {{ ''.__class__.__mro__[1].__subclasses__() }}"
+        )
+        chart2 = Chart(
+            label="{{ ''.__class__.__mro__[1].__subclasses__() }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        chart3 = Chart(
+            label="{{ subprocess.check_output('ls') }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        session.add(chart1)
+        session.add(chart2)
+        session.add(chart3)
+        session.commit()
+        chart1_id = session.query(Chart).filter(Chart.label=='insecure_chart').first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1_id))
+        chart2_id = session.query(Chart).filter(Chart.label=="{{ ''.__class__.__mro__[1].__subclasses__() }}").first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2_id))
+        chart3_id = session.query(Chart).filter(Chart.label=="{{ subprocess.check_output('ls') }}").first().id
+        with self.assertRaises(UndefinedError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3_id))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
