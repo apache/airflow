@@ -107,7 +107,7 @@ class HiveCliHook(BaseHook):
                     template = utils.replace_hostname_pattern(
                         utils.get_components(template))
 
-                proxy_user = ""  # noqa
+                proxy_user = conn.extra_dejson.get('proxy_user', "")  # noqa
                 if conn.extra_dejson.get('proxy_user') == "login" and conn.login:
                     proxy_user = "hive.server2.proxy.user={0}".format(conn.login)
                 elif conn.extra_dejson.get('proxy_user') == "owner" and self.run_as:
