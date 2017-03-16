@@ -24,18 +24,17 @@ PASS="airflow"
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-cp ${DIR}/kdc.conf /etc/krb5kdc/kdc.conf
-
 ln -sf /dev/urandom /dev/random
 
+cp ${DIR}/kdc.conf /etc/krb5kdc/kdc.conf
 cp ${DIR}/kadm5.acl /etc/krb5kdc/kadm5.acl
-
 cp ${DIR}/krb5.conf /etc/krb5.conf
 
-# create admin
+# create kerberos database
 echo -e "${PASS}\n${PASS}" | kdb5_util create -s
-
+# create admin
 echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc ${ADMIN}/admin"
+# create airflow
 echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow"
 echo -e "${PASS}\n${PASS}" | kadmin.local -q "addprinc -randkey airflow/${FQDN}"
 kadmin.local -q "ktadd -k ${KRB5_KTNAME} airflow"

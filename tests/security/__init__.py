@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,16 +11,5 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-[kdcdefaults]
-kdc_ports = 88
-kdc_tcp_ports = 88
 
-[realms]
-TEST.LOCAL = {
-  #master_key_type = aes256-cts
-  acl_file = /etc/krb5kdc/kadm5.acl
-  dict_file = /usr/share/dict/words
-  admin_keytab = /var/krb5kdc/kadm5.keytab
-  max_renewable_life = 7d 0h 0m 0s
-  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
-}
+from .kerberos import *

@@ -25,7 +25,7 @@ from airflow import configuration
 
 LOG = logging.getLogger(__name__)
 
-NEED_KRB181_WORKAROUND=None
+NEED_KRB181_WORKAROUND = None
 
 
 def renew_from_kt():
@@ -33,20 +33,21 @@ def renew_from_kt():
     # minutes to give ourselves a large renewal buffer.
     renewal_lifetime = "%sm" % configuration.getint('kerberos', 'reinit_frequency')
     principal = configuration.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
+
     cmdv = [configuration.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
             "-k",  # host ticket
             "-t", configuration.get('kerberos', 'keytab'),   # specify keytab
             "-c", configuration.get('kerberos', 'ccache'),   # specify credentials cache
             principal]
-    LOG.info("Reinitting kerberos from keytab: " +
-             " ".join(cmdv))
+    LOG.info("Reinitting kerberos from keytab: " + " ".join(cmdv))
 
     subp = subprocess.Popen(cmdv,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE,
                             close_fds=True,
-                            bufsize=-1)
+                            bufsize=-1,
+                            universal_newlines=True)
     subp.wait()
     if subp.returncode != 0:
         LOG.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
@@ -67,11 +68,14 @@ def renew_from_kt():
 
 def perform_krb181_workaround():
     cmdv = [configuration.get('kerberos', 'kinit_path'),
-            "-R",
-            "-c", configuration.get('kerberos', 'ccache')]
+            "-c", configuration.get('kerberos', 'ccache'),
+            "-R"]  # Renew ticket_cache
+
     LOG.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
              " ".join(cmdv))
+
     ret = subprocess.call(cmdv)
+
     if ret != 0:
         principal = "%s/%s" % (configuration.get('kerberos', 'principal'), socket.getfqdn())
         fmt_dict = dict(princ=principal,
@@ -89,12 +93,15 @@ def perform_krb181_workaround():
 
 def detect_conf_var():
     """Return true if the ticket cache contains "conf" information as is found
-    in ticket caches of Kerboers 1.8.1 or later. This is incompatible with the
+    in ticket caches of Kerberos 1.8.1 or later. This is incompatible with the
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.
     """
-    with open(configuration.get('kerberos', 'ccache'), "rb") as f:
-        return "X-CACHECONF:" in f.read()
+    ticket_cache = configuration.get('kerberos', 'ccache')
+
+    with open(ticket_cache, 'rb') as f:
+        # Note: this file is binary, so we check against a bytearray.
+        return b'X-CACHECONF:' in f.read()
 
 
 def run():
