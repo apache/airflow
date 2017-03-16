@@ -230,7 +230,7 @@ def do_setup():
             'Topic :: System :: Monitoring',
         ],
         dependency_links=[
-            git+https://github.com/lyft/gunicorn@lyft_fixes12#egg=gunicorn
+            'git+https://github.com/lyft/gunicorn@lyft_fixes12#egg=gunicorn'
         ],
         author='Maxime Beauchemin',
         author_email='maximebeauchemin@gmail.com',
