@@ -139,6 +139,8 @@ To do this edit `cli.py`, find the following:
 
 and change `default=-1` to `default=None`. Please report on the mailing list if you have this issue.
 
+- DockerOperator - Use cpu_shares instead of cpus (AIRFLOW-51)
+
 ## Airflow 1.7.1.2
 
 ### Changes to Configuration
