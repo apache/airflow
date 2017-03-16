@@ -148,6 +148,33 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.assertEqual(sql, args[0])
             self.assertEqual(self.nondefault_schema, kwargs['schema'])
 
+    class HiveCliTest(unittest.TestCase):
+
+        def setUp(self):
+            configuration.load_test_config()
+            self.nondefault_schema = "nondefault"
+
+        def test_get_proxy_user_value(self):
+            from airflow.hooks.hive_hooks import HiveCliHook
+            import mock
+            import os
+
+            # Configure
+            os.environ["AIRFLOW__CORE__SECURITY"] = "kerberos"
+
+            hook = HiveCliHook()
+            returner = mock.MagicMock()
+            returner.extra_dejson = {'proxy_user': 'a_user_proxy'}
+            hook.use_beeline = True
+            hook.conn = returner
+
+            # Run
+            result = hook._prepare_cli_cmd()
+
+            # Verify
+            self.assertIn('hive.server2.proxy.user=a_user_proxy', result[2])
+
+
     class HivePrestoTest(unittest.TestCase):
 
         def setUp(self):
