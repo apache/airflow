@@ -102,7 +102,7 @@ def create_app(config=None, testing=False):
             url='http://pythonhosted.org/airflow/'))
         admin.add_link(
             base.MenuLink(category='Docs',
-                name='Github',url='https://github.com/airbnb/airflow'))
+                name='Github',url='https://github.com/apache/incubator-airflow'))
 
         av(vs.VersionView(name='Version', category="About"))
 
