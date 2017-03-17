@@ -60,7 +60,7 @@ from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
-from airflow.configuration import AirflowConfigException
+from airflow.configuration import AirflowConfigException, run_command
 
 import six
 
@@ -1043,6 +1043,20 @@ class CoreTest(unittest.TestCase):
         session.query(models.DagStat).delete()
         session.commit()
         session.close()
+
+    def test_run_command(self):
+        if six.PY3:
+            write = r'sys.stdout.buffer.write("\u1000foo".encode("utf8"))'
+        else:
+            write = r'sys.stdout.write(u"\u1000foo".encode("utf8"))'
+
+        cmd = 'import sys; {0}; sys.stdout.flush()'.format(write)
+
+        self.assertEqual(run_command("python -c '{0}'".format(cmd)),
+                         u'\u1000foo' if six.PY3 else 'foo')
+
+        self.assertEqual(run_command('echo "foo bar"'), u'foo bar\n')
+        self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
 
 class CliTests(unittest.TestCase):

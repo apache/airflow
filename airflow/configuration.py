@@ -24,6 +24,8 @@ import os
 import six
 import subprocess
 import warnings
+import shlex
+import sys
 
 from future import standard_library
 standard_library.install_aliases()
@@ -76,8 +78,9 @@ def run_command(command):
     Runs command and returns stdout
     """
     process = subprocess.Popen(
-        command.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    output, stderr = process.communicate()
+        shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, stderr = [stream.decode(sys.getdefaultencoding(), 'ignore')
+                      for stream in process.communicate()]
 
     if process.returncode != 0:
         raise AirflowConfigException(

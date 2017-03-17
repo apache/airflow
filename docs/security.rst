@@ -324,6 +324,7 @@ this, assuming as airflow is running as the `airflow` user. Note that this means
 the airflow user must be trusted and treated the same way as the root user.
 
 .. code-block:: none
+
     airflow ALL=(ALL) NOPASSWD: ALL
 
 Subtasks with impersonation will still log to the same folder, except that the files they

@@ -16,6 +16,7 @@ from builtins import str
 from datetime import datetime
 import logging
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, TaskInstance
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
@@ -63,6 +64,8 @@ class PythonOperator(BaseOperator):
             templates_exts=None,
             *args, **kwargs):
         super(PythonOperator, self).__init__(*args, **kwargs)
+        if not callable(python_callable):
+            raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}

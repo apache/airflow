@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import unittest
+import logging
 
 try:
     from airflow.operators.docker_operator import DockerOperator
@@ -100,6 +101,29 @@ class DockerOperatorTestCase(unittest.TestCase):
 
         client_class_mock.assert_called_with(base_url='https://127.0.0.1:2376', tls=tls_mock,
                                              version=None)
+
+    @unittest.skipIf(mock is None, 'mock package not present')
+    @mock.patch('airflow.operators.docker_operator.Client')
+    def test_execute_unicode_logs(self, client_class_mock):
+        client_mock = mock.Mock(spec=Client)
+        client_mock.create_container.return_value = {'Id': 'some_id'}
+        client_mock.create_host_config.return_value = mock.Mock()
+        client_mock.images.return_value = []
+        client_mock.logs.return_value = ['unicode container log 😁']
+        client_mock.pull.return_value = []
+        client_mock.wait.return_value = 0
+
+        client_class_mock.return_value = client_mock
+
+        originalRaiseExceptions = logging.raiseExceptions
+        logging.raiseExceptions = True
+
+        operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
+
+        with mock.patch('traceback.print_exception') as print_exception_mock:
+            operator.execute(None)
+            logging.raiseExceptions = originalRaiseExceptions
+            print_exception_mock.assert_not_called()
 
     @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('airflow.operators.docker_operator.Client')
