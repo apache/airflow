@@ -196,6 +196,11 @@ def initdb():
             host='yarn', extra='{"queue": "root.default"}'))
     merge_conn(
         models.Connection(
+            conn_id='redis_default', conn_type='redis',
+            host='localhost', port=6379,
+            extra='{"db": 0}'))
+    merge_conn(
+        models.Connection(
             conn_id='emr_default', conn_type='emr',
             extra='''
                 {   "Name": "default_job_flow_name",
