@@ -203,6 +203,31 @@ default_ram = 512
 default_disk = 512
 default_gpus = 0
 
+[suppressible_default_views]
+# If value is 'F', a view will be hidden; otherwise, a view will be present
+data_profiling.ad_hoc_query = T
+data_profiling.charts = T
+data_profiling.known_event = T
+browse.sla_misses = T
+browse.task_instances = T
+browse.logs = T
+browse.jobs = T
+admin.pools = T
+admin.configuration = T
+admin.users = T
+admin.connections = T
+admin.variables = T
+admin.xcoms = T
+admin.versions = T
+
+[custom_external_links]
+# Format: <key> = <category_name>::<tab_name>::<url>
+# The reason being that you may want to keep special characters or upper cases as
+# catergory name and tab name. But <key> here doesn't provide this capability.
+# Thus we put all inputs as values, and won't process the key.
+# But you still need to ensure keys are unique for app to take them
+# production_environment = Environment::Production Environment::<your_prod_env_url>
+# staging_environment = Environment::Staging Environment::<your_staging_env_url>
 
 [webserver]
 # The base url of your website as airflow cannot guess what domain or
@@ -830,6 +855,13 @@ def getint(section, key):
 
 def has_option(section, key):
     return conf.has_option(section, key)
+
+
+def has_expected_value(section, key, expected_value):
+    if not conf.has_option(section, key):
+        return False
+    else:
+        return conf.get(section, key) == expected_value
 
 
 def remove_option(section, option):
