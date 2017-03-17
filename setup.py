@@ -164,6 +164,7 @@ def do_setup():
             'alembic>=0.8.3',
             'babel>=1.3',
             'chartkick>=0.4.2',
+            'configparser==3.5.0',
             'croniter>=0.3.8',
             'dill>=0.2.2',
             'python-daemon>=2.1.1',
