@@ -164,6 +164,7 @@ def do_setup():
             'alembic>=0.8.3',
             'babel>=1.3',
             'chartkick>=0.4.2',
+            'configparser==3.5.0',
             'croniter>=0.3.8',
             'dill>=0.2.2',
             'python-daemon>=2.1.1',
@@ -174,7 +175,6 @@ def do_setup():
             'future>=0.15.0',
             'funcsigs>=0.4',
             'gitpython>=2.0.2',
-            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3',
             'markdown>=2.5.2',
             'pandas>=0.15.2',
@@ -229,6 +229,9 @@ def do_setup():
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3.4',
             'Topic :: System :: Monitoring',
+        ],
+        dependency_links=[
+            'git+https://github.com/lyft/gunicorn@lyft_fixes12#egg=gunicorn'
         ],
         author='Maxime Beauchemin',
         author_email='maximebeauchemin@gmail.com',
