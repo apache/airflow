@@ -416,6 +416,13 @@ def remove_option(section, option):
     return conf.remove_option(section, option)
 
 
+def has_expected_value(section, key, expected_value):
+    if not conf.has_option(section, key):
+        return False
+    else:
+        return conf.get(section, key) == expected_value
+
+
 def as_dict(display_source=False, display_sensitive=False):
     return conf.as_dict(
         display_source=display_source, display_sensitive=display_sensitive)

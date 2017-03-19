@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from __future__ import print_function
-import os
 import unittest
 
 from airflow import configuration
@@ -27,6 +26,19 @@ class ConfTest(unittest.TestCase):
     def test_env_var_config(self):
         opt = conf.get('testsection', 'testkey')
         self.assertEqual(opt, 'testvalue')
+
+    def test_has_expected_value(self):
+        # if a key doesn't exist, return false
+        opt = configuration.has_expected_value('suppressible_default_views', 'testkey', 'F')
+        self.assertFalse(opt)
+
+        # if a key exist but doesn't have expected value, return false
+        opt = configuration.has_expected_value('suppressible_default_views', 'browse.logs', 'F')
+        self.assertFalse(opt)
+
+        # if a key exist and have expected value, return true
+        opt = configuration.has_expected_value('suppressible_default_views', 'about.versions', 'F')
+        self.assertTrue(opt)
 
     def test_conf_as_dict(self):
         cfg_dict = conf.as_dict()

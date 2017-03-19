@@ -69,48 +69,76 @@ def create_app(config=None, testing=False):
         vs = views
         av(vs.Airflow(name='DAGs', category='DAGs'))
 
-        av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
-        av(vs.ChartModelView(
-            models.Chart, Session, name="Charts", category="Data Profiling"))
-        av(vs.KnowEventView(
-            models.KnownEvent,
-            Session, name="Known Events", category="Data Profiling"))
-        av(vs.SlaMissModelView(
-            models.SlaMiss,
-            Session, name="SLA Misses", category="Browse"))
-        av(vs.TaskInstanceModelView(models.TaskInstance,
-            Session, name="Task Instances", category="Browse"))
-        av(vs.LogModelView(
-            models.Log, Session, name="Logs", category="Browse"))
-        av(vs.JobModelView(
-            jobs.BaseJob, Session, name="Jobs", category="Browse"))
-        av(vs.PoolModelView(
-            models.Pool, Session, name="Pools", category="Admin"))
-        av(vs.ConfigurationView(
-            name='Configuration', category="Admin"))
-        av(vs.UserModelView(
-            models.User, Session, name="Users", category="Admin"))
-        av(vs.ConnectionModelView(
-            models.Connection, Session, name="Connections", category="Admin"))
-        av(vs.VariableView(
-            models.Variable, Session, name="Variables", category="Admin"))
-        av(vs.XComView(
-            models.XCom, Session, name="XComs", category="Admin"))
+        def is_hidden(view_name):
+            return not configuration.has_expected_value('suppressible_default_views', view_name, 'F')
 
-        admin.add_link(base.MenuLink(
-            category='Docs', name='Documentation',
-            url='http://pythonhosted.org/airflow/'))
-        admin.add_link(
-            base.MenuLink(category='Docs',
-                name='Github',url='https://github.com/apache/incubator-airflow'))
+        # Data Profiling optional views
+        if is_hidden('data_profiling.ad_hoc_query'):
+            av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
 
-        av(vs.VersionView(name='Version', category="About"))
+        if is_hidden('data_profiling.charts'):
+            av(vs.ChartModelView(models.Chart, Session, name="Charts", category="Data Profiling"))
 
-        av(vs.DagRunModelView(
-            models.DagRun, Session, name="DAG Runs", category="Browse"))
+        if is_hidden('data_profiling.known_events'):
+            av(vs.KnowEventView(models.KnownEvent, Session, name="Known Events", category="Data Profiling"))
+
+        # Browse required views
+        av(vs.DagRunModelView(models.DagRun, Session, name="DAG Runs", category="Browse"))
+
+        # Browse optional views
+        if is_hidden('browse.sla_misses'):
+            av(vs.SlaMissModelView(models.SlaMiss, Session, name="SLA Misses", category="Browse"))
+
+        if is_hidden('browse.task_instances'):
+            av(vs.TaskInstanceModelView(
+                models.TaskInstance, Session, name="Task Instances", category="Browse"))
+
+        if is_hidden('browse.logs'):
+            av(vs.LogModelView(models.Log, Session, name="Logs", category="Browse"))
+
+        if is_hidden('browse.jobs'):
+            av(vs.JobModelView(jobs.BaseJob, Session, name="Jobs", category="Browse"))
+
+        # Admin optional views
+        if is_hidden('browse.pools'):
+            av(vs.PoolModelView(models.Pool, Session, name="Pools", category="Admin"))
+
+        if is_hidden('admin.configuration'):
+            av(vs.ConfigurationView(name='Configuration', category="Admin"))
+
+        if is_hidden('admin.users'):
+            av(vs.UserModelView(models.User, Session, name="Users", category="Admin"))
+
+        if is_hidden('admin.connections'):
+            av(vs.ConnectionModelView(models.Connection, Session, name="Connections", category="Admin"))
+
+        if is_hidden('admin.variables'):
+            av(vs.VariableView(models.Variable, Session, name="Variables", category="Admin"))
+
+        if is_hidden('admin.xcoms'):
+            av(vs.XComView(models.XCom, Session, name="XComs", category="Admin"))
+
+        # About optional views
+        if is_hidden('about.versions'):
+            av(vs.VersionView(name='Version', category="About"))
+
         av(vs.DagModelView(models.DagModel, Session, name=None))
         # Hack to not add this view to the menu
         admin._menu = admin._menu[:-1]
+
+        # Menu links
+        # Docs required views
+        admin.add_link(base.MenuLink(category='Docs', name='Documentation',
+                                     url='http://pythonhosted.org/airflow/'))
+        admin.add_link(base.MenuLink(category='Docs', name='Github',
+                                     url='https://github.com/apache/incubator-airflow'))
+
+        # Add custom links
+        for key in configuration.as_dict()['custom_external_links']:
+            # Don't care about the key itself
+            # Take value as <category_name>::<tab_name>::<tab_link>
+            v = configuration.get('custom_external_links', key).split("::")
+            admin.add_link(base.MenuLink(category=v[0], name=v[1], url=v[2]))
 
         def integrate_plugins():
             """Integrate plugins to the context"""
