@@ -76,3 +76,10 @@ Users should set environment variables `JIRA_USERNAME` and `JIRA_PASSWORD` corre
 
 #### GitHub OAuth Token
 Unauthenticated users can only make 60 requests/hour to the Github API. If you get an error about exceeding the rate, you will need to set a `GITHUB_OAUTH_KEY` environment variable that contains a token value. Users can generate tokens from their GitHub profile.
+
+## Airflow release signing tool
+The release signing tool can be used to create the SHA512/MD5 and ASC files that required for Apache releases.
+
+### Execution
+To create a release tar ball execute `python setup.py sdist --formats=gztar` from Airflow's root. After that `cd dist` and
+execute `../dev/sign.sh <the_created_tar_ball.tar.gz`. Signing files will be created in the same directory.
