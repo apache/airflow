@@ -1374,7 +1374,7 @@ class TaskInstance(Base):
                     result = task_copy.execute(context=context)
 
                 # If the task returns a result, push an XCom containing it
-                if result is not None:
+                if result is not None and task_copy.auto_xcom_push:
                     self.xcom_push(key=XCOM_RETURN_KEY, value=result)
 
                 # TODO remove deprecated behavior in Airflow 2.0
@@ -1886,6 +1886,10 @@ class BaseOperator(object):
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
+    :param auto_xcom_push: if True, an XCom is automatically pushed containing
+        the Operator's result. The default value for this parameter is taken
+        from airflow.cfg.
+    :type auto_xcom_push: bool
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1928,6 +1932,7 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
+            auto_xcom_push=None,
             *args,
             **kwargs):
 
@@ -1992,6 +1997,10 @@ class BaseOperator(object):
         self.priority_weight = priority_weight
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
+        if auto_xcom_push is None:
+            auto_xcom_push = configuration.getboolean(
+                'operators', 'auto_xcom_push')
+        self.auto_xcom_push = auto_xcom_push
 
         # Private attributes
         self._upstream_task_ids = []
@@ -2022,6 +2031,7 @@ class BaseOperator(object):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'auto_xcom_push',
         }
 
     def __eq__(self, other):
