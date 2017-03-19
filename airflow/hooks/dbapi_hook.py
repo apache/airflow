@@ -138,7 +138,7 @@ class DbApiHook(BaseHook):
         conn.close()
         return rows
 
-    def run(self, sql, autocommit=False, parameters=None):
+    def run(self, sql, autocommit=False, run_as_script=False, parameters=None):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -150,12 +150,19 @@ class DbApiHook(BaseHook):
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
         :type autocommit: bool
+        :param run_as_script: Split sql into individual statements
+        :type run_as_script: bool
         :param parameters: The parameters to render the SQL query with.
         :type parameters: mapping or iterable
         """
         conn = self.get_conn()
         if isinstance(sql, basestring):
-            sql = [sql]
+            if run_as_script:
+                sql = sql.split(';')    # split statements using ';'
+                if sql[-1].isspace():   # if ; was used for the last statement
+                        sql = sql[:-1]  # - don't execute empty statement
+            else:
+                sql = [sql]
 
         if self.supports_autocommit:
             self.set_autocommit(conn, autocommit)
