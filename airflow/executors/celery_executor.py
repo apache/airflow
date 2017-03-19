@@ -39,7 +39,12 @@ class CeleryConfig(object):
     CELERYD_PREFETCH_MULTIPLIER = 1
     CELERY_ACKS_LATE = True
     BROKER_URL = configuration.get('celery', 'BROKER_URL')
-    CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
+    CELERY_RESULT_BACKEND = configuration.get(
+        'celery',
+        'CELERY_RESULT_BACKEND')
+    CELERY_TASK_RESULT_EXPIRES = configuration.get(
+        'celery',
+        'CELERY_TASK_RESULT_EXPIRES')
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
