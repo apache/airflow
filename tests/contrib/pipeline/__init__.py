@@ -13,6 +13,4 @@
 # limitations under the License.
 
 from __future__ import absolute_import
-from .operators import *
-from .pipeline import *
-from .sensors import *
+from . import pipeline

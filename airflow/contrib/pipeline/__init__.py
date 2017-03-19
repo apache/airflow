@@ -12,7 +12,4 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import absolute_import
-from .operators import *
-from .pipeline import *
-from .sensors import *
+from .pipeline import Pipeline, add_pipelines

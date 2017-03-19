@@ -400,6 +400,18 @@ max_threads = 2
 authenticate = False
 
 
+[pipeline]
+# Settings for Data Pipelines (airflow.contrib.pipeline)
+
+# A prefix added to all pipeline XCom keys
+xcom_prefix = PIPELINE
+
+# Connection information for pipelines backed by Google Cloud Storage
+gcloud_storage_connection_id =
+gcloud_storage_bucket =
+gcloud_storage_prefix =
+
+
 [mesos]
 # Mesos master address which MesosExecutor will connect to.
 master = localhost:5050
