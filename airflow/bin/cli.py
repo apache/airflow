@@ -1380,6 +1380,11 @@ class CLIFactory(object):
             type=int,
             help="The number of worker processes",
             default=conf.get('celery', 'celeryd_concurrency')),
+        'prefetch_limit': Arg(
+            ("-pm", "--prefetch_limit"),
+            type=int,
+            help="The number of messages to prefetch at a time",
+            default=conf.get('celery', 'celeryd_prefetch_multiplier')),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
