@@ -61,7 +61,8 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowException, AirflowSkipException, AirflowTaskTimeout, XComException)
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -3677,6 +3678,15 @@ class XCom(Base):
         Store an XCom value.
         """
         session.expunge_all()
+
+        # check XCom size
+        max_xcom_size = configuration.getint('XCOM', 'MAX_SIZE')
+        xcom_size = sys.getsizeof(pickle.dumps(value))
+        if xcom_size > max_xcom_size:
+            raise XComException(
+                "The XCom's pickled size ({} bytes) is larger than the "
+                "maximum allowed size ({} bytes).".format(
+                    xcom_size, max_xcom_size))
 
         # remove any duplicate XComs
         session.query(cls).filter(
