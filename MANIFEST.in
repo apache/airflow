@@ -21,4 +21,4 @@ graft airflow/www/static
 include airflow/alembic.ini
 graft scripts/systemd
 graft scripts/upstart
-
+graft airflow/config_templates
