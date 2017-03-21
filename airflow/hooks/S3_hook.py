@@ -25,6 +25,7 @@ from urllib.parse import urlparse
 import warnings
 
 import boto
+from boto.s3 import connect_to_region
 from boto.s3.connection import S3Connection, NoHostProvided
 from boto.sts import STSConnection
 boto.set_stream_logger('boto')
@@ -227,7 +228,12 @@ class S3Hook(BaseHook):
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
-        return self.connection.get_bucket(bucket_name)
+        bucket = self.connection.get_bucket(bucket_name)
+        bucket_location = bucket.get_location()
+        if bucket_location:
+            connection = connect_to_region(bucket_location)
+            bucket = connection.get_bucket(bucket_name)
+        return bucket
 
     def list_keys(self, bucket_name, prefix='', delimiter=''):
         """

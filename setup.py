@@ -190,7 +190,7 @@ devel = [
     'jira',
     'lxml>=3.3.4',
     'mock',
-    'moto',
+    'moto==0.4.31',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
