@@ -726,7 +726,7 @@ class TaskInstance(Base):
     authority and single source of truth around what tasks have run and the
     state they are in.
 
-    The SqlAchemy model doesn't have a SqlAlchemy foreign key to the task or
+    The SqlAlchemy model doesn't have a SqlAlchemy foreign key to the task or
     dag model deliberately to have more control over transactions.
 
     Database transactions on this table should insure double triggers and
@@ -886,7 +886,7 @@ class TaskInstance(Base):
         :type execution_date: datetime
         :param mark_success: Whether to mark the task as successful
         :type mark_success: bool
-        :param ignore_all_deps: Ignore all ignoreable dependencies.
+        :param ignore_all_deps: Ignore all ignorable dependencies.
             Overrides the other ignore_* parameters.
         :type ignore_all_deps: boolean
         :param ignore_depends_on_past: Ignore depends_on_past parameter of DAGs
@@ -1241,7 +1241,7 @@ class TaskInstance(Base):
         """
         Runs the task instance.
 
-        :param verbose: whether to turn on more verbose loggin
+        :param verbose: whether to turn on more verbose logging
         :type verbose: boolean
         :param ignore_all_deps: Ignore all of the non-critical dependencies, just runs
         :type ignore_all_deps: boolean
@@ -1883,9 +1883,9 @@ class BaseOperator(object):
         objects to the task instance and is documented under the macros
         section of the API.
     :type on_failure_callback: callable
-    :param on_retry_callback: much like the ``on_failure_callback`` excepts
+    :param on_retry_callback: much like the ``on_failure_callback`` except
         that it is executed when retries occur.
-    :param on_success_callback: much like the ``on_failure_callback`` excepts
+    :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
     :type on_success_callback: callable
     :param trigger_rule: defines the rule by which dependencies are applied
@@ -1905,7 +1905,7 @@ class BaseOperator(object):
 
     # For derived classes to define which fields will get jinjaified
     template_fields = []
-    # Defines wich files extensions to look for in the templated fields
+    # Defines which files extensions to look for in the templated fields
     template_ext = []
     # Defines the color in the UI
     ui_color = '#fff'
@@ -2158,7 +2158,7 @@ class BaseOperator(object):
         """
         Returns the list of dependencies for the operator. These differ from execution
         context dependencies in that they are specific to tasks and can be
-        extended/overriden by subclasses.
+        extended/overridden by subclasses.
         """
         return {
             NotInRetryPeriodDep(),
@@ -2817,7 +2817,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         Returns the last dag run for this dag, None if there was none.
         Last dag run can be any type of run eg. scheduled or backfilled.
-        Overriden DagRuns are ignored
+        Overridden DagRuns are ignored
         """
         DR = DagRun
         qry = session.query(DR).filter(
@@ -3064,7 +3064,7 @@ class DAG(BaseDag, LoggingMixin):
 
         Heavily inspired by:
         http://blog.jupo.org/2012/04/06/topological-sorting-acyclic-directed-graphs/
-        :returns: list of tasks in topological order
+        :return: list of tasks in topological order
         """
 
         # copy the the tasks so we leave it unmodified
@@ -3315,8 +3315,8 @@ class DAG(BaseDag, LoggingMixin):
         """
         Add a list of tasks to the DAG
 
-        :param task: a lit of tasks you want to add
-        :type task: list of tasks
+        :param tasks: a lit of tasks you want to add
+        :type tasks: list of tasks
         """
         for task in tasks:
             self.add_task(task)
@@ -3604,10 +3604,10 @@ class Variable(Base):
 
         :param key: Dict key for this Variable
         :type key: String
-        :param: default: Default value to set and return if the variable
+        :param default: Default value to set and return if the variable
         isn't already in the DB
-        :type: default: Mixed
-        :param: deserialize_json: Store this as a JSON encoded value in the DB
+        :type default: Mixed
+        :param deserialize_json: Store this as a JSON encoded value in the DB
          and un-encode it when retrieving a value
         :return: Mixed
         """
@@ -3827,8 +3827,6 @@ class DagStat(Base):
 
         :param dag_ids: dag_ids that may be dirty
         :type dag_ids: list
-        :param full_query: whether to check dag_runs for new drs not in dag_stats
-        :type full_query: bool
         """
         # avoid querying with an empty IN clause
         if not dag_ids:
@@ -4059,7 +4057,7 @@ class DagRun(Base):
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
-        :returns State:
+        :return: State
         """
 
         dag = self.get_dag()
