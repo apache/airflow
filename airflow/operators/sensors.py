@@ -629,6 +629,8 @@ class HttpSensor(BaseSensorOperator):
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: string
+    :param method: The HTTP request method to use
+    :type method: string
     :param endpoint: The relative part of the full url
     :type endpoint: string
     :param params: The parameters to be added to the GET url
@@ -650,6 +652,7 @@ class HttpSensor(BaseSensorOperator):
     def __init__(self,
                  endpoint,
                  http_conn_id='http_default',
+                 method='GET',
                  params=None,
                  headers=None,
                  response_check=None,
@@ -662,7 +665,9 @@ class HttpSensor(BaseSensorOperator):
         self.extra_options = extra_options or {}
         self.response_check = response_check
 
-        self.hook = HttpHook(method='GET', http_conn_id=http_conn_id)
+        self.hook = HttpHook(
+            method=method,
+            http_conn_id=http_conn_id)
 
     def poke(self, context):
         logging.info('Poking: ' + self.endpoint)
