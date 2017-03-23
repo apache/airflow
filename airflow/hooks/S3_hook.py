@@ -25,7 +25,7 @@ from urllib.parse import urlparse
 import warnings
 
 import boto
-from boto.s3.connection import S3Connection
+from boto.s3.connection import S3Connection, NoHostProvided
 from boto.sts import STSConnection
 boto.set_stream_logger('boto')
 logging.getLogger("boto").setLevel(logging.INFO)
@@ -101,9 +101,12 @@ class S3Hook(BaseHook):
         self.extra_params = self.s3_conn.extra_dejson
         self.profile = self.extra_params.get('profile')
         self.calling_format = None
+        self.s3_host = None
         self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
+        if 'host' in self.extra_params:
+            self.s3_host = self.extra_params['host']
         if self._creds_in_conn:
             self._a_key = self.extra_params['aws_access_key_id']
             self._s_key = self.extra_params['aws_secret_access_key']
@@ -167,9 +170,13 @@ class S3Hook(BaseHook):
             a_key = self._a_key
             s_key = self._s_key
             calling_format = self.calling_format
+            s3_host = self.s3_host
 
         if calling_format is None:
             calling_format = 'boto.s3.connection.SubdomainCallingFormat'
+
+        if s3_host is None:
+            s3_host = NoHostProvided
 
         if self._sts_conn_required:
             sts_connection = STSConnection(aws_access_key_id=a_key,
@@ -190,6 +197,7 @@ class S3Hook(BaseHook):
             connection = S3Connection(aws_access_key_id=a_key,
                                       aws_secret_access_key=s_key,
                                       calling_format=calling_format,
+                                      host=s3_host,
                                       profile_name=self.profile)
         return connection
 
