@@ -54,6 +54,7 @@ from sqlalchemy import func, or_, and_
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import reconstructor, relationship, synonym
+from sqlalchemy.exc import IntegrityError
 
 from croniter import croniter
 import six
@@ -3389,7 +3390,14 @@ class DAG(BaseDag, LoggingMixin):
             state=state
         )
         session.add(run)
-        session.commit()
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            raise AirflowException("Run id {} already exists for dag id {}".format(
+                run_id,
+                self.dag_id
+            ))
 
         run.dag = self
 
