@@ -1,5 +1,6 @@
 alembic
 bcrypt
+bleach
 boto
 celery
 cgroupspy

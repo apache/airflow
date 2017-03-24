@@ -203,6 +203,7 @@ def do_setup():
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=0.8.3, <0.9',
+            'bleach==2.0.0',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',

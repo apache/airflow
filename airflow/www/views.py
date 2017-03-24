@@ -24,6 +24,7 @@ from datetime import datetime, timedelta
 import dateutil.parser
 import copy
 import json
+import bleach
 
 import inspect
 from textwrap import dedent
@@ -102,11 +103,12 @@ if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
 
 
 def dag_link(v, c, m, p):
+    dag_id = bleach.clean(m.dag_id)
     url = url_for(
         'airflow.graph',
-        dag_id=m.dag_id)
+        dag_id=dag_id)
     return Markup(
-        '<a href="{url}">{m.dag_id}</a>'.format(**locals()))
+        '<a href="{}">{}</a>'.format(url, dag_id))
 
 
 def log_url_formatter(v, c, m, p):
@@ -117,20 +119,22 @@ def log_url_formatter(v, c, m, p):
 
 
 def task_instance_link(v, c, m, p):
+    dag_id = bleach.clean(m.dag_id)
+    task_id = bleach.clean(m.task_id)
     url = url_for(
         'airflow.task',
-        dag_id=m.dag_id,
-        task_id=m.task_id,
+        dag_id=dag_id,
+        task_id=task_id,
         execution_date=m.execution_date.isoformat())
     url_root = url_for(
         'airflow.graph',
-        dag_id=m.dag_id,
-        root=m.task_id,
+        dag_id=dag_id,
+        root=task_id,
         execution_date=m.execution_date.isoformat())
     return Markup(
         """
         <span style="white-space: nowrap;">
-        <a href="{url}">{m.task_id}</a>
+        <a href="{url}">{task_id}</a>
         <a href="{url_root}" title="Filter on this task and upstream">
         <span class="glyphicon glyphicon-filter" style="margin-left: 0px;"
             aria-hidden="true"></span>
