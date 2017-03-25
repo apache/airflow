@@ -61,6 +61,8 @@ from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
+from jinja2.sandbox import SecurityError
+from jinja2 import UndefinedError
 
 import six
 
@@ -1423,7 +1425,7 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
-class CSRFTests(unittest.TestCase):
+class SecurityTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
@@ -1457,6 +1459,42 @@ class CSRFTests(unittest.TestCase):
         csrf = self.get_csrf(response)
         response = self.app.post("/admin/queryview/", data=dict(csrf_token=csrf))
         self.assertEqual(200, response.status_code)
+
+    def test_chart_data_template(self):
+        """Protect chart_data from being able to do RCE."""
+        session = settings.Session()
+        Chart = models.Chart
+        chart1 = Chart(
+            label='insecure_chart',
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT {{ ''.__class__.__mro__[1].__subclasses__() }}"
+        )
+        chart2 = Chart(
+            label="{{ ''.__class__.__mro__[1].__subclasses__() }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        chart3 = Chart(
+            label="{{ subprocess.check_output('ls') }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        session.add(chart1)
+        session.add(chart2)
+        session.add(chart3)
+        session.commit()
+        chart1_id = session.query(Chart).filter(Chart.label=='insecure_chart').first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1_id))
+        chart2_id = session.query(Chart).filter(Chart.label=="{{ ''.__class__.__mro__[1].__subclasses__() }}").first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2_id))
+        chart3_id = session.query(Chart).filter(Chart.label=="{{ subprocess.check_output('ls') }}").first().id
+        with self.assertRaises(UndefinedError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3_id))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
