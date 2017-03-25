@@ -19,8 +19,8 @@ import six
 from flask import Flask
 from flask_admin import Admin, base
 from flask_cache import Cache
-from flask_wtf.csrf import CsrfProtect
-csrf = CsrfProtect()
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect()
 
 import airflow
 from airflow import models
