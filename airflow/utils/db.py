@@ -27,6 +27,7 @@ from sqlalchemy.pool import Pool
 
 from airflow import settings
 
+
 def provide_session(func):
     """
     Function decorator that provides a session if it isn't provided.
@@ -94,6 +95,21 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
         )
 
 
+def get_mysql_host(default='localhost'):
+    return default if 'AIRFLOW_MYSQL_HOST' not in os.environ \
+        else os.environ['AIRFLOW_MYSQL_HOST']
+
+
+def get_mysql_login(default='root'):
+    return default if 'AIRFLOW_MYSQL_USER' not in os.environ \
+        else os.environ['AIRFLOW_MYSQL_USER']
+
+
+def get_mysql_password(default=None):
+    return default if 'AIRFLOW_MYSQL_PASSWORD' not in os.environ \
+        else os.environ['AIRFLOW_MYSQL_PASSWORD']
+
+
 def initdb():
     session = settings.Session()
 
@@ -103,12 +119,13 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='airflow_db', conn_type='mysql',
-            host='localhost', login='root', password='',
+            login=get_mysql_login(), host=get_mysql_host(), password=get_mysql_password(),
             schema='airflow'))
     merge_conn(
         models.Connection(
             conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root', extra="{\"local_infile\": true}",
+            host=get_mysql_host(), login=get_mysql_login(), password=get_mysql_password(),
+            extra="{\"local_infile\": true}",
             schema='airflow_ci'))
     merge_conn(
         models.Connection(
@@ -121,7 +138,8 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='local_mysql', conn_type='mysql',
-            host='localhost', login='airflow', password='airflow',
+            host=get_mysql_host(), login=get_mysql_login('airflow'),
+            password=get_mysql_password('airflow'),
             schema='airflow'))
     merge_conn(
         models.Connection(
@@ -145,14 +163,17 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='mysql_default', conn_type='mysql',
-            login='root',
-            host='localhost'))
+            login=get_mysql_login(), host=get_mysql_host(), password=get_mysql_password()))
     merge_conn(
         models.Connection(
             conn_id='postgres_default', conn_type='postgres',
-            login='postgres',
+            login=('postgres' if 'AIRFLOW_POSTGRES_USER' not in os.environ
+                   else os.environ['AIRFLOW_POSTGRES_USER']),
             schema='airflow',
-            host='localhost'))
+            host=('localhost' if 'AIRFLOW_POSTGRES_HOST' not in os.environ
+                  else os.environ['AIRFLOW_POSTGRES_HOST']),
+            password=(None if 'AIRFLOW_POSTGRES_PASSWORD' not in os.environ
+                      else os.environ['AIRFLOW_POSTGRES_PASSWORD'])))
     merge_conn(
         models.Connection(
             conn_id='sqlite_default', conn_type='sqlite',

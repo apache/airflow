@@ -141,11 +141,26 @@ We *highly* recommend setting up [Travis CI](https://travis-ci.org/) on
 your repo to automate this. It is free for open source projects. If for
 some reason you cannot, you can use the steps below to run tests.
 
-Here are loose guidelines on how to get your environment to run the unit tests.
-We do understand that no one out there can run the full test suite since
-Airflow is meant to connect to virtually any external system and that you most
-likely have only a subset of these in your environment. You should run the
-CoreTests and tests related to things you touched in your PR.
+Unit tests can be run locally using Docker. Running this command:
+
+    docker-compose up -d
+
+builds and starts three Docker containers: one for MySQL, one for Postgres,
+and one for Airflow. Once the Docker containers are built and running you can
+then run:
+
+    ./scripts/docker/unittest/run.sh tests.core:CoreTest
+
+The Airflow container has a volume mapped to the Airflow source directory so
+that any edits made to source files are reflected in the container. You can
+make edits and then run tests specific to the area you're working on.
+
+If you want to run unit tests without Docker, here are loose guidelines on
+how to get your environment to run the unit tests. We do understand that no
+one out there can run the full test suite since Airflow is meant to connect
+to virtually any external system and that you most likely have only a subset
+of these in your environment. You should run the CoreTests and tests related
+to things you touched in your PR.
 
 To set up a unit test environment, first take a look at `run_unit_tests.sh` and
 understand that your ``AIRFLOW_CONFIG`` points to an alternate config file
