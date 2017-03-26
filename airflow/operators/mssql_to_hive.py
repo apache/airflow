@@ -40,10 +40,10 @@ class MsSqlToHiveTransfer(BaseOperator):
     queried considerably, you may want to use this operator only to
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
+
     :param sql: SQL query to execute against the Microsoft SQL Server database
     :type sql: str
-    :param hive_table: target Hive table, use dot notation to target a
-    specific database
+    :param hive_table: target Hive table, use dot notation to target a specific database
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool

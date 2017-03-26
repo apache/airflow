@@ -22,7 +22,6 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 class ECSOperator(BaseOperator):
-
     """
     Execute a task on AWS EC2 Container Service
 
@@ -30,9 +29,11 @@ class ECSOperator(BaseOperator):
     :type task_definition: str
     :param cluster: the cluster name on EC2 Container Service
     :type cluster: str
-    :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+    :param: overrides: the same parameter that boto3 will receive:
+            http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
     :type: overrides: dict
-    :param aws_conn_id: connection id of AWS credentials / region name. If None, credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+            credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
     """
@@ -112,7 +113,8 @@ class ECSOperator(BaseOperator):
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException('This task is still pending {}'.format(task))
                 elif 'error' in container.get('reason', '').lower():
-                    raise AirflowException('This containers encounter an error during launching : {}'.format(container.get('reason', '').lower()))
+                    raise AirflowException('This containers encounter an error during launching : {}'.
+                                           format(container.get('reason', '').lower()))
 
     def get_hook(self):
         return AwsHook(

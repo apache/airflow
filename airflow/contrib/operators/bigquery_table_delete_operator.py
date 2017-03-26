@@ -22,6 +22,20 @@ from airflow.utils.decorators import apply_defaults
 class BigQueryTableDeleteOperator(BaseOperator):
     """
     Deletes BigQuery tables
+
+    :param deletion_dataset_table: A dotted
+        (<project>.|<project>:)<dataset>.<table> that indicates which table
+        will be deleted.
+    :type deletion_dataset_table: string
+    :param bigquery_conn_id: reference to a specific BigQuery hook.
+    :type bigquery_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: string
+    :param ignore_if_missing: if True, then return success even if the
+        requested table does not exist.
+    :type ignore_if_missing: boolean
     """
     ui_color = '#ffd1dc'
 
@@ -33,23 +47,6 @@ class BigQueryTableDeleteOperator(BaseOperator):
                  ignore_if_missing=False,
                  *args,
                  **kwargs):
-        """
-        Create a new BigQueryTableDeleteOperator.
-
-        :param deletion_dataset_table: A dotted
-            (<project>.|<project>:)<dataset>.<table> that indicates which table
-            will be deleted.
-        :type deletion_dataset_table: string
-        :param bigquery_conn_id: reference to a specific BigQuery hook.
-        :type bigquery_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have domain-wide
-            delegation enabled.
-        :type delegate_to: string
-        :param ignore_if_missing: if True, then return success even if the
-            requested table does not exist.
-        :type ignore_if_missing: boolean
-        """
         super(BigQueryTableDeleteOperator, self).__init__(*args, **kwargs)
         self.deletion_dataset_table = deletion_dataset_table
         self.bigquery_conn_id = bigquery_conn_id

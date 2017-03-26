@@ -22,6 +22,26 @@ from airflow.utils.decorators import apply_defaults
 class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
+
+    :param bql: the sql code to be executed
+    :type bql: Can receive a str representing a sql statement,
+        a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'
+    :param destination_dataset_table: A dotted
+        (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
+        of the query.
+    :type destination_dataset_table: string
+    :param bigquery_conn_id: reference to a specific BigQuery hook.
+    :type bigquery_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: string
+    :param udf_config: The User Defined Function configuration for the query.
+        See https://cloud.google.com/bigquery/user-defined-functions for details.
+    :type udf_config: list
+    :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+    :type use_legacy_sql: boolean
     """
     template_fields = ('bql', 'destination_dataset_table')
     template_ext = ('.sql',)
@@ -30,7 +50,7 @@ class BigQueryOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  bql,
-                 destination_dataset_table = False,
+                 destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
                  bigquery_conn_id='bigquery_default',
@@ -39,29 +59,6 @@ class BigQueryOperator(BaseOperator):
                  use_legacy_sql=True,
                  *args,
                  **kwargs):
-        """
-        Create a new BigQueryOperator.
-
-        :param bql: the sql code to be executed
-        :type bql: Can receive a str representing a sql statement,
-            a list of str (sql statements), or reference to a template file.
-            Template reference are recognized by str ending in '.sql'
-        :param destination_dataset_table: A dotted
-            (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
-            of the query.
-        :type destination_dataset_table: string
-        :param bigquery_conn_id: reference to a specific BigQuery hook.
-        :type bigquery_conn_id: string
-        :param delegate_to: The account to impersonate, if any.
-            For this to work, the service account making the request must have domain-wide
-            delegation enabled.
-        :type delegate_to: string
-        :param udf_config: The User Defined Function configuration for the query.
-            See https://cloud.google.com/bigquery/user-defined-functions for details.
-        :type udf_config: list
-        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
-        :type use_legacy_sql: boolean
-        """
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
         self.destination_dataset_table = destination_dataset_table

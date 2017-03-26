@@ -21,6 +21,19 @@ from airflow.utils.decorators import apply_defaults
 class FileToGoogleCloudStorageOperator(BaseOperator):
     """
     Uploads a file to Google Cloud Storage
+
+    :param src: Path to the local file
+    :type src: string
+    :param dst: Destination path within the specified bucket
+    :type dst: string
+    :param bucket: The bucket to upload to
+    :type bucket: string
+    :param google_cloud_storage_conn_id: The Airflow connection ID to upload with
+    :type google_cloud_storage_conn_id: string
+    :param mime_type: The mime-type string
+    :type mime_type: string
+    :param delegate_to: The account to impersonate, if any
+    :type delegate_to: string
     """
 
     @apply_defaults
@@ -33,20 +46,6 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        """
-        :param src: Path to the local file
-        :type src: string
-        :param dst: Destination path within the specified bucket
-        :type dst: string
-        :param bucket: The bucket to upload to
-        :type bucket: string
-        :param google_cloud_storage_conn_id: The Airflow connection ID to upload with
-        :type google_cloud_storage_conn_id: string
-        :param mime_type: The mime-type string
-        :type mime_type: string
-        :param delegate_to: The account to impersonate, if any
-        :type delegate_to: string
-        """
         super(FileToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.src = src
         self.dst = dst

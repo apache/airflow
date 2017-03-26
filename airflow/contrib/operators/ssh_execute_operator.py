@@ -91,7 +91,7 @@ class SSHExecuteOperator(BaseOperator):
 
     :param ssh_hook: A SSHHook that indicates the remote host
                      you want to run the script
-    :param ssh_hook: SSHHook
+    :type ssh_hook: string
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
     :type bash_command: string
