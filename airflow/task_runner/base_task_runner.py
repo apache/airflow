@@ -78,6 +78,7 @@ class BaseTaskRunner(LoggingMixin):
             raw=True,
             ignore_all_deps=local_task_job.ignore_all_deps,
             ignore_depends_on_past=local_task_job.ignore_depends_on_past,
+            ignore_task_deps=local_task_job.ignore_task_deps,
             ignore_ti_state=local_task_job.ignore_ti_state,
             pickle_id=local_task_job.pickle_id,
             mark_success=local_task_job.mark_success,
