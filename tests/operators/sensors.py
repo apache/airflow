@@ -22,7 +22,8 @@ import unittest
 from datetime import datetime, timedelta
 
 from airflow import DAG, configuration
-from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor
+from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, HivePartitionSensor, \
+    NamedHivePartitionSensor
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import (AirflowException,
                                 AirflowSensorTimeout,
@@ -180,4 +181,48 @@ class HdfsSensorTests(unittest.TestCase):
         # When
         # Then
         with self.assertRaises(AirflowSensorTimeout):
+            task.execute(None)
+
+
+class HivePartitionSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
+
+    def test_poke_exception(self):
+        """
+        AttributeError exception occurs when airflow.hooks.hive_hooks is not imported,
+        thrift.transport.TTransport.TTransportException otherwise
+        This tests [AIRLFOW-]
+        """
+        self.logger.info("Test for proper HiveMetastoreHook behaviour in HivePartitionSensor")
+        from thrift.transport.TTransport import TTransportException
+        task = HivePartitionSensor(
+            table='fake_table',
+            poke_interval=5,
+            task_id="fake_task_id")
+        with self.assertRaises(TTransportException):
+            task.execute(None)
+
+
+class NamedHivePartitionSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.DEBUG)
+
+    def test_poke_exception(self):
+        """
+        AttributeError exception occurs when airflow.hooks.hive_hooks is not imported,
+        thrift.transport.TTransport.TTransportException otherwise
+        This tests [AIRLFOW-]
+        """
+        self.logger.info("Test for proper HiveMetastoreHook behaviour in HivePartitionSensor")
+        from thrift.transport.TTransport import TTransportException
+        task = NamedHivePartitionSensor(
+            partition_names=['fake_schema.fake_table/ds=42'],
+            poke_interval=5,
+            task_id="fake_task_id")
+        with self.assertRaises(TTransportException):
             task.execute(None)
