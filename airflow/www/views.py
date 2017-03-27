@@ -19,7 +19,7 @@ import ast
 import os
 import pkg_resources
 import socket
-from functools import wraps
+from functools import wraps, partial
 from datetime import datetime, timedelta
 import dateutil.parser
 import copy
@@ -220,7 +220,7 @@ attr_renderer = {
     'doc_yaml': lambda x: render(x, lexers.YamlLexer),
     'doc_md': wrapped_markdown,
     'python_callable': lambda x: render(
-        inspect.getsource(x), lexers.PythonLexer),
+        inspect.getsource(x if not isinstance(x, partial) else x.func), lexers.PythonLexer),
 }
 
 

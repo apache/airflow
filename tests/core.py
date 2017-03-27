@@ -1652,6 +1652,13 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("run_this_last", response.data.decode('utf-8'))
 
+    def test_dag_view_task_with_python_operator_using_partial(self):
+        response = self.app.get(
+            '/admin/airflow/task?'
+            'task_id=test_dagrun_functool_partial&dag_id=test_issue_AIRFLOW_1027_dag&'
+            'execution_date={}'.format(DEFAULT_DATE_DS))
+        self.assertEquals(response.status_code, 200)
+
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
