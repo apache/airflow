@@ -543,6 +543,7 @@ class Connection(Base):
         ('jira', 'JIRA',),
         ('redis', 'Redis',),
         ('wasb', 'Azure Blob Storage'),
+        ('databricks', 'Databricks',),
     ]
 
     def __init__(
