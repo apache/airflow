@@ -118,9 +118,24 @@ def policy(task_instance):
 
 
 def configure_logging(log_format=LOG_FORMAT):
-    logging.root.handlers = []
-    logging.basicConfig(
-        format=log_format, stream=sys.stdout, level=LOGGING_LEVEL)
+
+    def _configure_logging(logging_level):
+        global LOGGING_LEVEL
+        logging.root.handlers = []
+        logging.basicConfig(
+            format=log_format, stream=sys.stdout, level=logging_level)
+        LOGGING_LEVEL = logging_level
+
+    if "logging_level" in conf.as_dict()["core"]:
+        logging_level = conf.get('core', 'LOGGING_LEVEL').upper()
+    else:
+        logging_level = LOGGING_LEVEL
+    try:
+        _configure_logging(logging_level)
+    except ValueError:
+        logging.warning("Logging level {} is not defined. "
+                        "Use default.".format(logging_level))
+        _configure_logging(logging.INFO)
 
 
 def configure_vars():
