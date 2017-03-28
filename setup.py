@@ -215,7 +215,6 @@ def do_setup():
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
-            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <2.9.0',
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
@@ -286,6 +285,9 @@ def do_setup():
         author='Apache Software Foundation',
         author_email='dev@airflow.incubator.apache.org',
         url='http://airflow.incubator.apache.org/',
+        dependency_links=[
+            'git+https://github.com/lyft/gunicorn@lyft_fixes12#egg=gunicorn'
+        ],
         download_url=(
             'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
         cmdclass={
