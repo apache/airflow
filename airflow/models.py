@@ -542,6 +542,7 @@ class Connection(Base):
         ('mesos_framework-id', 'Mesos Framework ID'),
         ('jira', 'JIRA',),
         ('redis', 'Redis',),
+        ('wasb', 'Azure Blob Storage'),
     ]
 
     def __init__(
@@ -674,6 +675,9 @@ class Connection(Base):
             elif self.conn_type == 'redis':
                 from airflow.contrib.hooks.redis_hook import RedisHook
                 return RedisHook(redis_conn_id=self.conn_id)
+            elif self.conn_type == 'wasb':
+                from airflow.contrib.hooks.wasb_hook import WasbHook
+                return WasbHook(wasb_conn_id=self.conn_id)
         except:
             pass
 

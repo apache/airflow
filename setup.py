@@ -104,6 +104,7 @@ async = [
     'eventlet>= 0.9.7',
     'gevent>=0.13'
 ]
+azure = ['azure-storage>=0.34.0']
 celery = [
     'celery>=3.1.17',
     'flower>=0.7.3'
@@ -237,6 +238,7 @@ def do_setup():
             'all': devel_all,
             'all_dbs': all_dbs,
             'async': async,
+            'azure': azure,
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,

@@ -1,4 +1,5 @@
 alembic
+azure-storage>=0.34.0
 bcrypt
 bleach
 boto
