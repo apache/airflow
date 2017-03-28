@@ -14,7 +14,7 @@
 
 import logging
 
-from airflow.hooks import OracleHook
+from airflow.hooks.oracle_hook import OracleHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 

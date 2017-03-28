@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import cx_Oracle
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -6,6 +20,7 @@ from past.builtins import basestring
 from datetime import datetime
 import numpy
 import logging
+
 
 class OracleHook(DbApiHook):
     """
@@ -29,6 +44,8 @@ class OracleHook(DbApiHook):
         conn = self.get_connection(self.oracle_conn_id)
         dsn = conn.extra_dejson.get('dsn', None)
         sid = conn.extra_dejson.get('sid', None)
+        mod = conn.extra_dejson.get('module', None)
+
         service_name = conn.extra_dejson.get('service_name', None)
         if dsn and sid and not service_name:
             dsn = cx_Oracle.makedsn(dsn, conn.port, sid)
@@ -38,9 +55,13 @@ class OracleHook(DbApiHook):
             conn = cx_Oracle.connect(conn.login, conn.password, dsn=dsn)
         else:
             conn = cx_Oracle.connect(conn.login, conn.password, conn.host)
+
+        if mod is not None:
+            conn.module = mod
+
         return conn
 
-    def insert_rows(self, table, rows, target_fields = None, commit_every = 1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         """
         A generic way to insert a set of tuples into a table,
         the whole set of inserts is treated as one transaction
@@ -68,7 +89,7 @@ class OracleHook(DbApiHook):
                     l.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     l.append('NULL')
-                elif type(cell) == float and numpy.isnan(cell): #coerce numpy NaN to NULL
+                elif type(cell) == float and numpy.isnan(cell):  # coerce numpy NaN to NULL
                     l.append('NULL')
                 elif isinstance(cell, numpy.datetime64):
                     l.append("'" + str(cell) + "'")
@@ -95,10 +116,10 @@ class OracleHook(DbApiHook):
         cursor = conn.cursor()
         values = ', '.join(':%s' % i for i in range(1, len(target_fields) + 1))
         prepared_stm = 'insert into {tablename} ({columns}) values ({values})'.format(
-                tablename=table,
-                columns=', '.join(target_fields),
-                values=values
-            )
+            tablename=table,
+            columns=', '.join(target_fields),
+            values=values,
+        )
         row_count = 0
         # Chunk the rows
         row_chunk = []

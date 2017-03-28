@@ -20,22 +20,21 @@ in their PYTHONPATH. airflow_login should be based off the
 `airflow.www.login`
 """
 from builtins import object
-__version__ = "1.7.1.3"
+from airflow import version
+__version__ = version.version
 
 import logging
-import os
 import sys
 
 from airflow import configuration as conf
-
+from airflow import settings
 from airflow.models import DAG
 from flask_admin import BaseView
 from importlib import import_module
 from airflow.exceptions import AirflowException
 
-DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
-if DAGS_FOLDER not in sys.path:
-    sys.path.append(DAGS_FOLDER)
+if settings.DAGS_FOLDER not in sys.path:
+    sys.path.append(settings.DAGS_FOLDER)
 
 login = None
 
@@ -79,6 +78,7 @@ from airflow import executors
 from airflow import macros
 from airflow import contrib
 
-operators.integrate_plugins()
-hooks.integrate_plugins()
-macros.integrate_plugins()
+operators._integrate_plugins()
+hooks._integrate_plugins()
+executors._integrate_plugins()
+macros._integrate_plugins()

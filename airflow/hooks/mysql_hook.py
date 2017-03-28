@@ -1,20 +1,39 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import MySQLdb
 import MySQLdb.cursors
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
+
 class MySqlHook(DbApiHook):
-    '''
+    """
     Interact with MySQL.
 
     You can specify charset in the extra field of your connection
     as ``{"charset": "utf8"}``. Also you can choose cursor as
     ``{"cursor": "SSCursor"}``. Refer to the MySQLdb.cursors for more details.
-    '''
+    """
 
     conn_name_attr = 'mysql_conn_id'
     default_conn_name = 'mysql_default'
     supports_autocommit = True
+
+    def __init__(self, *args, **kwargs):
+        super(MySqlHook, self).__init__(*args, **kwargs)
+        self.schema = kwargs.pop("schema", None)
 
     def get_conn(self):
         """
@@ -23,16 +42,15 @@ class MySqlHook(DbApiHook):
         conn = self.get_connection(self.mysql_conn_id)
         conn_config = {
             "user": conn.login,
-            "passwd": conn.password or ''
+            "passwd": conn.password or '',
+            "host": conn.host or 'localhost',
+            "db": self.schema or conn.schema or ''
         }
 
-        conn_config["host"] = conn.host or 'localhost'
         if not conn.port:
             conn_config["port"] = 3306
         else:
             conn_config["port"] = int(conn.port)
-
-        conn_config["db"] = conn.schema or ''
 
         if conn.extra_dejson.get('charset', False):
             conn_config["charset"] = conn.extra_dejson["charset"]
@@ -65,3 +83,18 @@ class MySqlHook(DbApiHook):
             INTO TABLE {table}
             """.format(**locals()))
         conn.commit()
+
+    @staticmethod
+    def _serialize_cell(cell, conn):
+        """
+        Returns the MySQL literal of the cell as a string.
+
+        :param cell: The cell to insert into the table
+        :type cell: object
+        :param conn: The database connection
+        :type conn: connection object
+        :return: The serialized cell
+        :rtype: str
+        """
+
+        return conn.literal(cell)

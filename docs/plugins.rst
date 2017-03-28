@@ -96,16 +96,20 @@ definitions in Airflow.
     from airflow.models import  BaseOperator
     from airflow.executors.base_executor import BaseExecutor
 
-    # Will show up under airflow.hooks.PluginHook
+    # Will show up under airflow.hooks.test_plugin.PluginHook
     class PluginHook(BaseHook):
         pass
 
-    # Will show up under airflow.operators.PluginOperator
+    # Will show up under airflow.operators.test_plugin.PluginOperator
     class PluginOperator(BaseOperator):
         pass
 
-    # Will show up under airflow.executors.PluginExecutor
+    # Will show up under airflow.executors.test_plugin.PluginExecutor
     class PluginExecutor(BaseExecutor):
+        pass
+
+    # Will show up under airflow.macros.test_plugin.plugin_macro
+    def plugin_macro():
         pass
 
     # Creating a flask admin BaseView
@@ -119,10 +123,10 @@ definitions in Airflow.
     # Creating a flask blueprint to intergrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
-        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder 
+        template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
         static_folder='static',
         static_url_path='/static/test_plugin')
-        
+
     ml = MenuLink(
         category='Test Plugin',
         name='Test Menu Link',
@@ -132,8 +136,9 @@ definitions in Airflow.
     class AirflowTestPlugin(AirflowPlugin):
         name = "test_plugin"
         operators = [PluginOperator]
-        flask_blueprints = [bp]
         hooks = [PluginHook]
         executors = [PluginExecutor]
+        macros = [plugin_macro]
         admin_views = [v]
+        flask_blueprints = [bp]
         menu_links = [ml]

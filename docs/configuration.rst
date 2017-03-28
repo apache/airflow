@@ -4,6 +4,8 @@ Configuration
 Setting up the sandbox in the :doc:`start` section was easy;
 building a production-grade environment requires a bit more work!
 
+.. _setting-options:
+
 Setting Configuration Options
 '''''''''''''''''''''''''''''
 
@@ -129,6 +131,41 @@ to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
 
 
+Scaling Out with Dask
+'''''''''''''''''''''
+
+``DaskExecutor`` allows you to run Airflow tasks in a Dask Distributed cluster.
+
+Dask clusters can be run on a single machine or on remote networks. For complete
+details, consult the `Distributed documentation <https://distributed.readthedocs.io/>`_.
+
+To create a cluster, first start a Scheduler:
+
+.. code-block:: bash
+
+    # default settings for a local cluster
+    DASK_HOST=127.0.0.1
+    DASK_PORT=8786
+
+    dask-scheduler --host $DASK_HOST --port $DASK_PORT
+
+Next start at least one Worker on any machine that can connect to the host:
+
+.. code-block:: bash
+
+    dask-worker $DASK_HOST:$DASK_PORT
+
+Edit your ``airflow.cfg`` to set your executor to ``DaskExecutor`` and provide
+the Dask Scheduler address in the ``[dask]`` section.
+
+Please note:
+
+- Each Dask worker must be able to import Airflow and any dependencies you
+  require.
+- Dask does not support queues. If an Airflow task was created with a queue, a
+  warning will be raised but the task will be submitted to the cluster.
+
+
 Logs
 ''''
 Users can specify a logs folder in ``airflow.cfg``. By default, it is in
@@ -228,3 +265,20 @@ integrated with upstart
 .. code-block:: bash
 
     initctl airflow-webserver status
+
+Test Mode
+'''''''''
+Airflow has a fixed set of "test mode" configuration options. You can load these
+at any time by calling ``airflow.configuration.load_test_config()`` (note this
+operation is not reversible!). However, some options (like the DAG_FOLDER) are
+loaded before you have a chance to call load_test_config(). In order to eagerly load
+the test configuration, set test_mode in airflow.cfg:
+
+.. code-block:: bash
+
+  [tests]
+  unit_test_mode = True
+
+Due to Airflow's automatic environment variable expansion (see :ref:`setting-options`),
+you can also set the env var ``AIRFLOW__CORE__UNIT_TEST_MODE`` to temporarily overwrite
+airflow.cfg.

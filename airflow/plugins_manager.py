@@ -24,13 +24,13 @@ import logging
 import os
 import re
 import sys
-from itertools import chain
-merge = chain.from_iterable
 
 from airflow import configuration
 
+
 class AirflowPluginException(Exception):
     pass
+
 
 class AirflowPlugin(object):
     name = None
@@ -72,6 +72,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             if file_ext != '.py':
                 continue
 
+            logging.debug('Importing plugin module ' + filepath)
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
@@ -89,10 +90,35 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             logging.exception(e)
             logging.error('Failed to import plugin ' + filepath)
 
-operators = merge([p.operators for p in plugins])
-hooks = merge([p.hooks for p in plugins])
-executors = merge([p.executors for p in plugins])
-macros = merge([p.macros for p in plugins])
-admin_views = merge([p.admin_views for p in plugins])
-flask_blueprints = merge([p.flask_blueprints for p in plugins])
-menu_links = merge([p.menu_links for p in plugins])
+
+def make_module(name, objects):
+    logging.debug('Creating module ' + name)
+    name = name.lower()
+    module = imp.new_module(name)
+    module._name = name.split('.')[-1]
+    module._objects = objects
+    module.__dict__.update((o.__name__, o) for o in objects)
+    return module
+
+# Plugin components to integrate as modules
+operators_modules = []
+hooks_modules = []
+executors_modules = []
+macros_modules = []
+
+# Plugin components to integrate directly
+admin_views = []
+flask_blueprints = []
+menu_links = []
+
+for p in plugins:
+    operators_modules.append(
+        make_module('airflow.operators.' + p.name, p.operators))
+    hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
+    executors_modules.append(
+        make_module('airflow.executors.' + p.name, p.executors))
+    macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
+
+    admin_views.extend(p.admin_views)
+    flask_blueprints.extend(p.flask_blueprints)
+    menu_links.extend(p.menu_links)

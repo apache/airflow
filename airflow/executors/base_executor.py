@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import range
 
 from airflow import configuration
@@ -41,17 +55,19 @@ class BaseExecutor(LoggingMixin):
             task_instance,
             mark_success=False,
             pickle_id=None,
-            force=False,
-            ignore_dependencies=False,
+            ignore_all_deps=False,
             ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
             pool=None):
         pool = pool or task_instance.pool
         command = task_instance.command(
             local=True,
             mark_success=mark_success,
-            force=force,
-            ignore_dependencies=ignore_dependencies,
+            ignore_all_deps=ignore_all_deps,
             ignore_depends_on_past=ignore_depends_on_past,
+            ignore_task_deps=ignore_task_deps,
+            ignore_ti_state=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id)
         self.queue_command(
@@ -59,6 +75,15 @@ class BaseExecutor(LoggingMixin):
             command,
             priority=task_instance.task.priority_weight_total,
             queue=task_instance.task.queue)
+
+    def has_task(self, task_instance):
+        """
+        Checks if a task is either queued or running in this executor
+        :param task_instance: TaskInstance
+        :return: True if the task is known to this executor
+        """
+        if task_instance.key in self.queued_tasks or task_instance.key in self.running:
+            return True
 
     def sync(self):
         """
@@ -88,7 +113,7 @@ class BaseExecutor(LoggingMixin):
             # TODO(jlowin) without a way to know what Job ran which tasks,
             # there is a danger that another Job started running a task
             # that was also queued to this executor. This is the last chance
-            # to check if that hapened. The most probable way is that a
+            # to check if that happened. The most probable way is that a
             # Scheduler tried to run a task that was originally queued by a
             # Backfill. This fix reduces the probability of a collision but
             # does NOT eliminate it.

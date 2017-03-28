@@ -41,6 +41,21 @@ class State(object):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
 
+    task_states = (
+        SUCCESS,
+        RUNNING,
+        FAILED,
+        UPSTREAM_FAILED,
+        UP_FOR_RETRY,
+        QUEUED,
+    )
+
+    dag_states = (
+        SUCCESS,
+        RUNNING,
+        FAILED,
+    )
+
     state_color = {
         QUEUED: 'gray',
         RUNNING: 'lime',
@@ -68,18 +83,6 @@ class State(object):
             return 'white'
         else:
             return 'black'
-
-    @classmethod
-    def runnable(cls):
-        return [
-            cls.NONE,
-            cls.FAILED,
-            cls.UP_FOR_RETRY,
-            cls.UPSTREAM_FAILED,
-            cls.SKIPPED,
-            cls.QUEUED,
-            cls.SCHEDULED
-        ]
 
     @classmethod
     def finished(cls):

@@ -13,15 +13,15 @@
 # limitations under the License.
 #
 
-from airflow.operators import BranchPythonOperator, DummyOperator
+import airflow
+from airflow.operators.python_operator import BranchPythonOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
 from datetime import datetime, timedelta
 
-two_days_ago = datetime.combine(datetime.today() - timedelta(2),
-                                  datetime.min.time())
 args = {
     'owner': 'airflow',
-    'start_date': two_days_ago,
+    'start_date': airflow.utils.dates.days_ago(2),
     'depends_on_past': True,
 }
 
@@ -29,6 +29,7 @@ args = {
 # and where tasks may run or be skipped on
 # alternating runs
 dag = DAG(dag_id='example_branch_dop_operator_v3',schedule_interval='*/1 * * * *',  default_args=args)
+
 
 def should_run(ds, **kwargs):
 

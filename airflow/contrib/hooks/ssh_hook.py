@@ -54,6 +54,8 @@ class SSHHook(BaseHook):
         conn = self.get_connection(conn_id)
         self.key_file = conn.extra_dejson.get('key_file', None)
         self.connect_timeout = conn.extra_dejson.get('connect_timeout', None)
+        self.tcp_keepalive = conn.extra_dejson.get('tcp_keepalive', False)
+        self.server_alive_interval = conn.extra_dejson.get('server_alive_interval', 60)
         self.no_host_key_check = conn.extra_dejson.get('no_host_key_check', False)
         self.tty = conn.extra_dejson.get('tty', False)
         self.sshpass = conn.extra_dejson.get('sshpass', False)
@@ -73,13 +75,17 @@ class SSHHook(BaseHook):
         if self.sshpass:
             connection_cmd = ["sshpass", "-e"] + connection_cmd
         else:
-            connection_cmd += ["-o", "BatchMode=yes"] # no password prompts
+            connection_cmd += ["-o", "BatchMode=yes"]  # no password prompts
 
         if self.conn.port:
             connection_cmd += ["-p", str(self.conn.port)]
 
         if self.connect_timeout:
             connection_cmd += ["-o", "ConnectionTimeout={}".format(self.connect_timeout)]
+
+        if self.tcp_keepalive:
+            connection_cmd += ["-o", "TCPKeepAlive=yes"]
+            connection_cmd += ["-o", "ServerAliveInterval={}".format(self.server_alive_interval)]
 
         if self.no_host_key_check:
             connection_cmd += ["-o", "UserKnownHostsFile=/dev/null",
@@ -142,8 +148,7 @@ class SSHHook(BaseHook):
         """
         tunnel_host = "{0}:{1}:{2}".format(local_port, remote_host, remote_port)
         proc = self.Popen(["-L", tunnel_host, "echo -n ready && cat"],
-                           stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                           )
+                          stdin=subprocess.PIPE, stdout=subprocess.PIPE)
 
         ready = proc.stdout.read(5)
         assert ready == b"ready", "Did not get 'ready' from remote"

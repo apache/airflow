@@ -18,7 +18,7 @@ complicated, a line by line explanation follows below.
     https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 
 
@@ -39,7 +39,7 @@ complicated, a line by line explanation follows below.
 
     dag = DAG('tutorial', default_args=default_args)
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',
@@ -100,7 +100,7 @@ Airflow DAG object. Let's start by importing the libraries we will need.
     from airflow import DAG
 
     # Operators; we need this to operate!
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
 
 Default Arguments
 -----------------
@@ -270,7 +270,7 @@ something like this:
     http://airflow.readthedocs.org/en/latest/tutorial.html
     """
     from airflow import DAG
-    from airflow.operators import BashOperator
+    from airflow.operators.bash_operator import BashOperator
     from datetime import datetime, timedelta
 
 
@@ -292,7 +292,7 @@ something like this:
     dag = DAG(
         'tutorial', default_args=default_args, schedule_interval=timedelta(1))
 
-    # t1, t2 and t3 are examples of tasks created by instatiating operators
+    # t1, t2 and t3 are examples of tasks created by instantiating operators
     t1 = BashOperator(
         task_id='print_date',
         bash_command='date',

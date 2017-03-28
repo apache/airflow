@@ -15,14 +15,14 @@
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators import DummyOperator
+from airflow.operators.dummy_operator import DummyOperator
 DEFAULT_DATE = datetime(2100, 1, 1)
 
 # DAG tests backfill with pooled tasks
 # Previously backfill would queue the task but never run it
 dag1 = DAG(
     dag_id='test_start_date_scheduling',
-    start_date=DEFAULT_DATE)
+    start_date=datetime(2100, 1, 1))
 dag1_task1 = DummyOperator(
     task_id='dummy',
     dag=dag1,
