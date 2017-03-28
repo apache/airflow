@@ -1776,7 +1776,8 @@ class HomeView(AdminIndexView):
                     .all()
             )
         else:
-            qry = session.query(DM).filter(~DM.is_subdag, DM.is_active).all()
+            # LYFT Change. This was done allow all dags to be shown in the UI when using multiple schedulers
+            qry = session.query(DM).filter(~DM.is_subdag).all()
         orm_dags = {dag.dag_id: dag for dag in qry}
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
