@@ -310,6 +310,32 @@ class DagRunTest(unittest.TestCase):
         state = dr.update_state()
         self.assertEqual(State.FAILED, state)
 
+    def test_get_task_instance_on_empty_dagrun(self):
+        """
+        Make sure that a proper value is returned when a dagrun has no task instances
+        """
+        session = settings.Session()
+
+        # Any dag will work for this
+        dag = self.dagbag.get_dag('test_dagrun_short_circuit_false')
+        now = datetime.datetime.now()
+
+        # Don't use create_dagrun since it will create the task instances too which we
+        # don't want
+        dag_run = models.DagRun(
+            dag_id=dag.dag_id,
+            run_id='manual__' + now.isoformat(),
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+        session.add(dag_run)
+        session.commit()
+
+        ti = dag_run.get_task_instance('test_short_circuit_false')
+        self.assertEqual(None, ti)
+
 
 class DagBagTest(unittest.TestCase):
 
