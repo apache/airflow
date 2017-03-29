@@ -1087,6 +1087,9 @@ class CliTests(unittest.TestCase):
     def test_cli_initdb(self):
         cli.initdb(self.parser.parse_args(['initdb']))
 
+    def test_cli_resetdb(self):
+        cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
+
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
