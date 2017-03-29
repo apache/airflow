@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -27,28 +41,40 @@ class BaseHook(object):
         pass
 
     @classmethod
-    def get_connections(cls, conn_id):
+    def _get_connections_from_db(cls, conn_id):
         session = settings.Session()
         db = (
             session.query(Connection)
             .filter(Connection.conn_id == conn_id)
             .all()
         )
+        session.expunge_all()
+        session.close()
         if not db:
             raise AirflowException(
                 "The conn_id `{0}` isn't defined".format(conn_id))
-        session.expunge_all()
-        session.close()
         return db
 
     @classmethod
-    def get_connection(cls, conn_id):
+    def _get_connection_from_env(cls, conn_id):
         environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
         conn = None
         if environment_uri:
             conn = Connection(conn_id=conn_id, uri=environment_uri)
+        return conn
+
+    @classmethod
+    def get_connections(cls, conn_id):
+        conn = cls._get_connection_from_env(conn_id)
+        if conn:
+            conns = [conn]
         else:
-            conn = random.choice(cls.get_connections(conn_id))
+            conns = cls._get_connections_from_db(conn_id)
+        return conns
+
+    @classmethod
+    def get_connection(cls, conn_id):
+        conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
             logging.info("Using connection to: " + conn.host)
         return conn

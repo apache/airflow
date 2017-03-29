@@ -16,21 +16,23 @@ from future import standard_library
 standard_library.install_aliases()
 from builtins import str
 from builtins import object
+
 from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
 import dateutil.parser as dateparser
 import json
+import time
+
 from flask import after_this_request, request, Response
 from flask_login import current_user
-from jinja2 import Template
 import wtforms
 from wtforms.compat import text_type
 
 from airflow import configuration, models, settings
 from airflow.utils.json import AirflowJsonEncoder
-from airflow.utils.email import send_email
+
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
 
@@ -87,6 +89,11 @@ def limit_sql(sql, limit, conn_type):
     return sql
 
 
+def epoch(dttm):
+    """Returns an epoch-type date"""
+    return int(time.mktime(dttm.timetuple())) * 1000,
+
+
 def action_logging(f):
     '''
     Decorator to log user actions
@@ -130,9 +137,7 @@ def notify_owner(f):
         if request.args.get('confirmed') == "true":
             dag_id = request.args.get('dag_id')
             task_id = request.args.get('task_id')
-            dagbag = models.DagBag(
-                os.path.expanduser(configuration.get('core', 'DAGS_FOLDER')))
-
+            dagbag = models.DagBag(settings.DAGS_FOLDER)
             dag = dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
@@ -177,6 +182,7 @@ def json_response(obj):
             obj, indent=4, cls=AirflowJsonEncoder),
         status=200,
         mimetype="application/json")
+
 
 def gzipped(f):
     '''

@@ -99,6 +99,9 @@ class _DataProcJobBuilder:
     def add_query(self, query):
         self.job["job"][self.job_type]["queryList"] = {'queries': [query]}
 
+    def add_query_uri(self, query_uri):
+        self.job["job"][self.job_type]["queryFileUri"] = query_uri
+
     def add_jar_file_uris(self, jars):
         if jars is not None:
             self.job["job"][self.job_type]["jarFileUris"] = jars
@@ -106,6 +109,14 @@ class _DataProcJobBuilder:
     def add_archive_uris(self, archives):
         if archives is not None:
             self.job["job"][self.job_type]["archiveUris"] = archives
+
+    def add_file_uris(self, files):
+        if files is not None:
+            self.job["job"][self.job_type]["fileUris"] = files
+
+    def add_python_file_uris(self, pyfiles):
+        if pyfiles is not None:
+            self.job["job"][self.job_type]["pythonFileUris"] = pyfiles
 
     def set_main(self, main_jar, main_class):
         if main_class is not None and main_jar is not None:
@@ -117,6 +128,9 @@ class _DataProcJobBuilder:
 
     def set_python_main(self, main):
         self.job["job"][self.job_type]["mainPythonFileUri"] = main
+
+    def set_job_name(self, name):
+        self.job["job"]["reference"]["jobId"] = name + "_" + str(uuid.uuid1())[:8]
 
     def build(self):
         return self.job

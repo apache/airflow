@@ -1,6 +1,21 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
 
+import imp
 import logging
 import os
 import sys
@@ -8,7 +23,8 @@ import sys
 logger = logging.getLogger(__name__)
 
 # Kept manually in sync with airflow.__version__
-version = '1.7.1.3'
+version = imp.load_source(
+    'airflow.version', os.path.join('airflow', 'version.py')).version
 
 
 class Tox(TestCommand):
@@ -52,10 +68,10 @@ def git_version(version):
         import git
         repo = git.Repo('.git')
     except ImportError:
-        logger.warn('gitpython not found: Cannot compute the git version.')
+        logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warn('Git repo not found: Cannot compute the git version.')
+        logger.warning('Git repo not found: Cannot compute the git version.')
         return ''
     if repo:
         sha = repo.head.commit.hexsha
@@ -92,7 +108,14 @@ celery = [
     'celery>=3.1.17',
     'flower>=0.7.3'
 ]
+cgroups = [
+    'cgroupspy>=0.1.4',
+]
 crypto = ['cryptography>=0.9.3']
+dask = [
+    'distributed>=1.15.2, <2'
+    ]
+datadog = ['datadog>=0.14.0']
 doc = [
     'sphinx>=1.2.3',
     'sphinx-argparse>=0.1.13',
@@ -101,6 +124,7 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
+emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
     'google-api-python-client>=1.5.0, <1.6.0',
@@ -109,6 +133,7 @@ gcp_api = [
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+jira = ['JIRA>1.0.7']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
@@ -121,6 +146,7 @@ mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.6']
+salesforce = ['simple-salesforce>=0.72']
 s3 = [
     'boto>=2.36.0',
     'filechunkio>=1.6',
@@ -130,9 +156,11 @@ slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
-kerberos = ['pykerberos>=1.1.8',
+kerberos = ['pykerberos>=1.1.13',
+            'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8']
+            'snakebite[kerberos]>=2.7.8',
+            'kerberos>=1.2.5']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -140,13 +168,26 @@ password = [
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.0']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
-
+redis = ['redis>=2.10.5']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
-devel = ['lxml>=3.3.4', 'nose', 'nose-parameterized', 'mock', 'click', 'jira']
-devel_minreq = devel + mysql + doc + password + s3
+devel = [
+    'click',
+    'freezegun',
+    'jira',
+    'lxml>=3.3.4',
+    'mock',
+    'moto',
+    'nose',
+    'nose-ignore-docstring==0.2',
+    'nose-parameterized',
+    'nose-timer',
+    'rednose'
+]
+devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
+
 
 def do_setup():
     write_version()
@@ -161,63 +202,74 @@ def do_setup():
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
-            'alembic>=0.8.3',
-            'babel>=1.3',
-            'chartkick>=0.4.2',
-            'configparser==3.5.0',
-            'croniter>=0.3.8',
-            'dill>=0.2.2',
-            'python-daemon>=2.1.1',
-            'flask>=0.10.1',
+            'alembic>=0.8.3, <0.9',
+            'configparser>=3.5.0, <3.6.0',
+            'croniter>=0.3.8, <0.4',
+            'dill>=0.2.2, <0.3',
+            'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
             'flask-cache>=0.13.1',
             'flask-login==0.2.11',
-            'future>=0.15.0',
-            'funcsigs>=0.4',
+            'flask-swagger==0.2.13',
+            'flask-wtf==0.12',
+            'funcsigs==1.0.0',
+            'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
-            'jinja2>=2.7.3',
-            'markdown>=2.5.2',
-            'pandas>=0.15.2',
-            'pygments>=2.0.1',
-            'python-dateutil>=2.3',
-            'requests>=2.5.1',
-            'setproctitle>=1.1.8',
+            'jinja2>=2.7.3, <2.9.0',
+            'lxml>=3.6.0, <4.0',
+            'markdown>=2.5.2, <3.0',
+            'pandas>=0.17.1, <1.0.0',
+            'psutil>=3.3.0, <5.0.0',
+            'pygments>=2.0.1, <3.0',
+            'python-daemon>=2.1.1, <2.2',
+            'python-dateutil>=2.3, <3',
+            'python-nvd3==0.14.2',
+            'requests>=2.5.1, <3',
+            'setproctitle>=1.1.8, <2',
             'sqlalchemy>=0.9.8',
-            'thrift>=0.9.2',
-            'Flask-WTF==0.12'
+            'tabulate>=0.7.5, <0.8.0',
+            'thrift>=0.9.2, <0.10',
+            'zope.deprecation>=4.0, <5.0',
         ],
         extras_require={
             'all': devel_all,
             'all_dbs': all_dbs,
             'async': async,
             'celery': celery,
+            'cgroups': cgroups,
+            'cloudant': cloudant,
             'crypto': crypto,
+            'dask': dask,
+            'datadog': datadog,
             'devel': devel_minreq,
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'emr': emr,
             'gcp_api': gcp_api,
+            'github_enterprise': github_enterprise,
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,
+            'kerberos': kerberos,
+            'ldap': ldap,
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
+            'password': password,
             'postgres': postgres,
+            'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
+            'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
             'statsd': statsd,
             'vertica': vertica,
-            'ldap': ldap,
             'webhdfs': webhdfs,
-            'kerberos': kerberos,
-            'password': password,
-            'github_enterprise': github_enterprise,
-            'qds': qds,
-            'cloudant': cloudant
+            'jira': jira,
+            'redis': redis,
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
@@ -230,17 +282,18 @@ def do_setup():
             'Programming Language :: Python :: 3.4',
             'Topic :: System :: Monitoring',
         ],
+        author='Apache Software Foundation',
+        author_email='dev@airflow.incubator.apache.org',
+        url='http://airflow.incubator.apache.org/',
         dependency_links=[
             'git+https://github.com/lyft/gunicorn@lyft_fixes12#egg=gunicorn'
         ],
-        author='Maxime Beauchemin',
-        author_email='maximebeauchemin@gmail.com',
-        url='https://github.com/apache/incubator-airflow',
         download_url=(
-            'https://github.com/apache/incubator-airflow/tarball/' + version),
-        cmdclass={'test': Tox,
-                  'extra_clean': CleanCommand,
-                  },
+            'https://dist.apache.org/repos/dist/release/incubator/airflow/' + version),
+        cmdclass={
+            'test': Tox,
+            'extra_clean': CleanCommand,
+        },
     )
 
 

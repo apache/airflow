@@ -35,7 +35,7 @@ def renew_from_kt():
     principal = configuration.get('kerberos', 'principal').replace("_HOST", socket.getfqdn())
     cmdv = [configuration.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
-            "-k", # host ticket
+            "-k",  # host ticket
             "-t", configuration.get('kerberos', 'keytab'),   # specify keytab
             "-c", configuration.get('kerberos', 'ccache'),   # specify credentials cache
             principal]
@@ -93,13 +93,9 @@ def detect_conf_var():
     Sun Java Krb5LoginModule in Java6, so we need to take an action to work
     around it.
     """
-    f = file(configuration.get('kerberos', 'ccache'), "rb")
+    with open(configuration.get('kerberos', 'ccache'), "rb") as f:
+        return "X-CACHECONF:" in f.read()
 
-    try:
-        data = f.read()
-        return "X-CACHECONF:" in data
-    finally:
-        f.close()
 
 def run():
     if configuration.get('kerberos','keytab') is None:

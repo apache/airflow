@@ -1,4 +1,18 @@
 #!/usr/bin/env bash
+
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 set -o verbose
 
 MINIKDC_VERSION=2.7.1
@@ -109,10 +123,33 @@ echo "Downloading and unpacking hive"
 curl -z ${TRAVIS_CACHE}/hive/hive.tar.gz -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
 tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
+if [ $? != 0 ]; then
+    echo "Failed to extract hive from ${TRAVIS_CACHE}/hive/hive.tar.gz" >&2
+    echo "Trying again..." >&2
+    # dont use cache
+    curl -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
+    tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
+    if [ $? != 0 ]; then
+        echo "Failed twice in downloading and unpacking hive!" >&2
+        exit 1
+    fi
+fi
 
 echo "Downloading and unpacking minicluster"
 curl -z ${TRAVIS_CACHE}/minicluster/minicluster.zip -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+ls -l ${TRAVIS_CACHE}/minicluster/minicluster.zip
 unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+if [ $? != 0 ] ; then
+    # Try downloading w/o cache if there's a failure
+    curl -o ${TRAVIS_CACHE}/minicluster/minicluster.zip -L ${MINICLUSTER_URL}
+    ls -l ${TRAVIS_CACHE}/minicluster/minicluster.zip
+    unzip ${TRAVIS_CACHE}/minicluster/minicluster.zip -d /tmp
+    if [ $? != 0 ] ; then
+        echo "Failed twice in downloading and unpacking minicluster!" >&2
+        exit 1
+    fi
+    exit 1
+fi
 
 echo "Path = ${PATH}"
 

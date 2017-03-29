@@ -17,20 +17,15 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from datetime import datetime
 from functools import wraps
 import logging
 import os
-
-from alembic.config import Config
-from alembic import command
-from alembic.migration import MigrationContext
 
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
 
 from airflow import settings
-from airflow import configuration
-
 
 def provide_session(func):
     """
@@ -95,8 +90,8 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
         connection_record.connection = connection_proxy.connection = None
         raise exc.DisconnectionError(
             "Connection record belongs to pid {}, "
-            "attempting to check out in pid {}".format(
-            connection_record.info['pid'], pid))
+            "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
+        )
 
 
 def initdb():
@@ -113,7 +108,7 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='airflow_ci', conn_type='mysql',
-            host='localhost', login='root',
+            host='localhost', login='root', extra="{\"local_infile\": true}",
             schema='airflow_ci'))
     merge_conn(
         models.Connection(
@@ -186,6 +181,66 @@ def initdb():
         models.Connection(
             conn_id='fs_default', conn_type='fs',
             extra='{"path": "/"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='aws_default', conn_type='aws',
+            extra='{"region_name": "us-east-1"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='spark_default', conn_type='spark',
+            host='yarn', extra='{"queue": "root.default"}'))
+    merge_conn(
+        models.Connection(
+            conn_id='redis_default', conn_type='redis',
+            host='localhost', port=6379,
+            extra='{"db": 0}'))
+    merge_conn(
+        models.Connection(
+            conn_id='emr_default', conn_type='emr',
+            extra='''
+                {   "Name": "default_job_flow_name",
+                    "LogUri": "s3://my-emr-log-bucket/default_job_flow_location",
+                    "ReleaseLabel": "emr-4.6.0",
+                    "Instances": {
+                        "InstanceGroups": [
+                            {
+                                "Name": "Master nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "MASTER",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            },
+                            {
+                                "Name": "Slave nodes",
+                                "Market": "ON_DEMAND",
+                                "InstanceRole": "CORE",
+                                "InstanceType": "r3.2xlarge",
+                                "InstanceCount": 1
+                            }
+                        ]
+                    },
+                    "Ec2KeyName": "mykey",
+                    "KeepJobFlowAliveWhenNoSteps": false,
+                    "TerminationProtected": false,
+                    "Ec2SubnetId": "somesubnet",
+                    "Applications":[
+                        { "Name": "Spark" }
+                    ],
+                    "VisibleToAllUsers": true,
+                    "JobFlowRole": "EMR_EC2_DefaultRole",
+                    "ServiceRole": "EMR_DefaultRole",
+                    "Tags": [
+                        {
+                            "Key": "app",
+                            "Value": "analytics"
+                        },
+                        {
+                            "Key": "environment",
+                            "Value": "development"
+                        }
+                    ]
+                }
+            '''))
 
     # Known event types
     KET = models.KnownEventType
@@ -201,7 +256,13 @@ def initdb():
         session.add(KET(know_event_type='Marketing Campaign'))
     session.commit()
 
-    models.DagBag(sync_to_db=True)
+    dagbag = models.DagBag()
+    # Save individual DAGs in the ORM
+    now = datetime.utcnow()
+    for dag in dagbag.dags.values():
+        models.DAG.sync_to_db(dag, dag.owner, now)
+    # Deactivate the unknown ones
+    models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     Chart = models.Chart
     chart_label = "Airflow task instance by type"
@@ -223,14 +284,17 @@ def initdb():
 
 
 def upgradedb():
+    # alembic adds significant import time, so we import it lazily
+    from alembic import command
+    from alembic.config import Config
+
     logging.info("Creating tables")
     current_dir = os.path.dirname(os.path.abspath(__file__))
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
     config = Config(os.path.join(package_dir, 'alembic.ini'))
     config.set_main_option('script_location', directory)
-    config.set_main_option('sqlalchemy.url',
-                           configuration.get('core', 'SQL_ALCHEMY_CONN'))
+    config.set_main_option('sqlalchemy.url', settings.SQL_ALCHEMY_CONN)
     command.upgrade(config, 'heads')
 
 
@@ -239,6 +303,8 @@ def resetdb():
     Clear out the database
     '''
     from airflow import models
+    # alembic adds significant import time, so we import it lazily
+    from alembic.migration import MigrationContext
 
     logging.info("Dropping tables that exist")
     models.Base.metadata.drop_all(settings.engine)

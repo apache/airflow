@@ -40,9 +40,7 @@ class MiniHiveCluster(object):
             rlist, wlist, xlist = select.select([self.hive.stderr, self.hive.stdout], [], [])
             for f in rlist:
                 line = f.readline()
-                print (line,)
+                print(line,)
                 m = re.match(".*Starting ThriftBinaryCLIService", line)
                 if m:
                     return True
-
-
