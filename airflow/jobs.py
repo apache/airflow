@@ -2135,13 +2135,7 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
         if ti.state == State.RUNNING:
             self.was_running = True
-            fqdn = socket.getfqdn()
-            if fqdn != ti.hostname:
-                logging.warning("The recorded hostname {ti.hostname} "
-                                "does not match this instance's hostname "
-                                "{fqdn}".format(**locals()))
-                raise AirflowException("Hostname of job runner does not match")
-            elif not self._is_descendant_process(ti.pid):
+            if not self._is_descendant_process(ti.pid):
                 current_pid = os.getpid()
                 logging.warning("Recorded pid {ti.pid} is not a "
                                 "descendant of the current pid "

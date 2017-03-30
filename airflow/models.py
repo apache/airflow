@@ -94,9 +94,14 @@ def get_fernet():
     This function could fail either because Cryptography is not installed
     or because the Fernet key is invalid.
     """
-    from cryptography.fernet import Fernet
-    return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
-
+    key = configuration.get('core', 'FERNET_KEY')
+    if key != '':
+        try:
+            from cryptography.fernet import Fernet
+            return Fernet(key.encode('utf-8'))
+        except NameError:
+            pass
+    return None
 
 if 'mysql' in settings.SQL_ALCHEMY_CONN:
     LongText = LONGTEXT
@@ -590,11 +595,11 @@ class Connection(Base):
 
     def set_password(self, value):
         if value:
-            try:
-                fernet = get_fernet()
+            fernet = get_fernet()
+            if fernet:
                 self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_encrypted = True
-            except NameError:
+            else:
                 self._password = value
                 self.is_encrypted = False
 
@@ -617,11 +622,11 @@ class Connection(Base):
 
     def set_extra(self, value):
         if value:
-            try:
-                fernet = get_fernet()
+            fernet = get_fernet()
+            if fernet:
                 self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_extra_encrypted = True
-            except NameError:
+            else:
                 self._extra = value
                 self.is_extra_encrypted = False
 
@@ -3583,11 +3588,11 @@ class Variable(Base):
 
     def set_val(self, value):
         if value:
-            try:
-                fernet = get_fernet()
+            fernet = get_fernet()
+            if fernet:
                 self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_encrypted = True
-            except NameError:
+            else:
                 self._val = value
                 self.is_encrypted = False
 
