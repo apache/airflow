@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 import logging
+import os
 import subprocess
 import re
 
@@ -25,12 +26,14 @@ log = logging.getLogger(__name__)
 class SparkSubmitHook(BaseHook):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    It requires that the "spark-submit" binary is in the PATH or the spark_home to be supplied.
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
     :param conn_id: The connection id as configured in Airflow administration. When an
                     invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
+    :param spark_home: The home for the spark installation.
+    :type spark_home: str
     :param files: Upload additional files to the container running the job, separated by a
                   comma. For example hive-site.xml.
     :type files: str
@@ -38,10 +41,14 @@ class SparkSubmitHook(BaseHook):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
+    :param java_class: the main class of the Java application
+    :type java_class: str
     :param executor_cores: Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
+    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
@@ -55,25 +62,31 @@ class SparkSubmitHook(BaseHook):
     """
 
     def __init__(self,
+                 spark_home=None,
                  conf=None,
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
                  jars=None,
+                 java_class=None,
                  executor_cores=None,
                  executor_memory=None,
+                 driver_memory=None,
                  keytab=None,
                  principal=None,
                  name='default-name',
                  num_executors=None,
                  verbose=False):
+        self._spark_home = spark_home
         self._conf = conf
         self._conn_id = conn_id
         self._files = files
         self._py_files = py_files
         self._jars = jars
+        self._java_class = java_class
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
+        self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
         self._name = name
@@ -124,8 +137,12 @@ class SparkSubmitHook(BaseHook):
         :type application: str
         :return: full command to be executed
         """
-        # The spark-submit binary needs to be in the path
-        connection_cmd = ["spark-submit"]
+        # If the spark_home is passed then build the spark-submit executable path using the spark_home
+        # otherwise assume that spark-submit is present in the path to the executing user
+        if self._spark_home:
+            connection_cmd = [os.path.join(self._spark_home, 'bin', 'spark-submit')]
+        else:
+            connection_cmd = ['spark-submit']
 
         # The url ot the spark master
         connection_cmd += ["--master", self._master]
@@ -145,12 +162,16 @@ class SparkSubmitHook(BaseHook):
             connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:
             connection_cmd += ["--executor-memory", self._executor_memory]
+        if self._driver_memory:
+            connection_cmd += ["--driver-memory", self._driver_memory]
         if self._keytab:
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
         if self._name:
             connection_cmd += ["--name", self._name]
+        if self._java_class:
+            connection_cmd += ["--class", self._java_class]
         if self._verbose:
             connection_cmd += ["--verbose"]
         if self._queue:
