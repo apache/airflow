@@ -14,12 +14,17 @@
 
 import json
 import logging
+import ast
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import Client, tls
-import ast
+from docker import tls
+try:
+    from docker import APIClient
+except ImportError:
+    # prior to version 2.0.0 of the module docker, the API client was called Client
+    from docker import Client as APIClient
 
 
 class DockerOperator(BaseOperator):
@@ -142,7 +147,7 @@ class DockerOperator(BaseOperator):
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')
 
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+        self.cli = APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
         if ':' not in self.image:
             image = self.image + ':latest'
