@@ -95,7 +95,6 @@ def get_fernet():
     or because the Fernet key is invalid.
     """
     key = configuration.get('core', 'FERNET_KEY')
-    logging.info("fernet key: {}".format(key))
     if key != '':
         try:
             from cryptography.fernet import Fernet
