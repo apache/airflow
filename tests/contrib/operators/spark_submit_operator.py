@@ -37,7 +37,9 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'name': 'spark-job',
         'num_executors': 10,
         'verbose': True,
-        'application': 'test_application.py'
+        'application': 'test_application.py',
+        'driver_memory': '3g',
+        'java_class': 'com.foo.bar.AppMain'
     }
 
     def setUp(self):
@@ -69,6 +71,10 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(self._config['name'], operator._name)
         self.assertEqual(self._config['num_executors'], operator._num_executors)
         self.assertEqual(self._config['verbose'], operator._verbose)
+        self.assertEqual(self._config['java_class'], operator._java_class)
+        self.assertEqual(self._config['driver_memory'], operator._driver_memory)
+
+
 
 
 if __name__ == '__main__':
