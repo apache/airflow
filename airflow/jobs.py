@@ -592,6 +592,10 @@ class SchedulerJob(BaseJob):
             dttm = ti.execution_date
             if task.sla:
                 dttm = dag.following_schedule(dttm)
+                # Skip tasks for @once dags
+                if not dttm and dag.schedule_interval == '@once':
+                    self.logger.warn(' --------------> SLAs not supported in @once DAGs')
+                    continue;
                 while dttm < datetime.now():
                     following_schedule = dag.following_schedule(dttm)
                     if following_schedule + task.sla < datetime.now():
