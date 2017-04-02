@@ -309,21 +309,23 @@ class DagFileProcessor(AbstractDagFileProcessor):
         def helper():
             # This helper runs in the newly created process
 
-            # Re-direct stdout and stderr to a separate log file. Otherwise,
-            # the main log becomes too hard to read. No buffering to enable
-            # responsive file tailing
-            parent_dir, _ = os.path.split(log_file)
+            # FIXME (bolke): This is a hack until we fix the mess that is logging
+            if "stdout" not in log_file:
+                # Re-direct stdout and stderr to a separate log file. Otherwise,
+                # the main log becomes too hard to read. No buffering to enable
+                # responsive file tailing
+                parent_dir, _ = os.path.split(log_file)
 
-            # Create the parent directory for the log file if necessary.
-            if not os.path.isdir(parent_dir):
-                os.makedirs(parent_dir)
+                # Create the parent directory for the log file if necessary.
+                if not os.path.isdir(parent_dir):
+                    os.makedirs(parent_dir)
 
-            f = open(log_file, "a")
-            original_stdout = sys.stdout
-            original_stderr = sys.stderr
+                f = open(log_file, "a")
+                original_stdout = sys.stdout
+                original_stderr = sys.stderr
 
-            sys.stdout = f
-            sys.stderr = f
+                sys.stdout = f
+                sys.stderr = f
 
             try:
                 # Re-configure logging to use the new output streams
@@ -354,9 +356,10 @@ class DagFileProcessor(AbstractDagFileProcessor):
                 logging.exception("Got an exception! Propagating...")
                 raise
             finally:
-                sys.stdout = original_stdout
-                sys.stderr = original_stderr
-                f.close()
+                if "stdout" not in log_file:
+                    sys.stdout = original_stdout
+                    sys.stderr = original_stderr
+                    f.close()
 
         p = multiprocessing.Process(target=helper,
                                     args=(),
@@ -373,7 +376,7 @@ class DagFileProcessor(AbstractDagFileProcessor):
             self.file_path,
             self._pickle_dags,
             self._dag_id_white_list,
-            "DagFileProcessor{}".format(self._instance_id),
+            "DagFileProcessor(#{})".format(self._instance_id),
             self.log_file)
         self._start_time = datetime.now()
 

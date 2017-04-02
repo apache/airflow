@@ -619,7 +619,13 @@ class DagFileProcessorManager(LoggingMixin):
         while (self._parallelism - len(self._processors) > 0 and
                len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
-            log_file_path = self._get_log_file_path(file_path)
+
+            # FIXME (bolke): This is a hack until we fix the mess that is logging
+            if "stdout" not in self._child_process_log_directory:
+                log_file_path = self._get_log_file_path(file_path)
+            else:
+                log_file_path = self._child_process_log_directory
+
             processor = self._processor_factory(file_path, log_file_path)
 
             processor.start()
