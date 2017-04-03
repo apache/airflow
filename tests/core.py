@@ -1526,6 +1526,7 @@ class WebUiTests(unittest.TestCase):
         self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dag_bash2.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
@@ -1535,6 +1536,13 @@ class WebUiTests(unittest.TestCase):
         )
 
         self.sub_dag.create_dagrun(
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            execution_date=DEFAULT_DATE,
+            start_date=datetime.now(),
+            state=State.RUNNING
+        )
+
+        self.example_xcom.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
             execution_date=DEFAULT_DATE,
             start_date=datetime.now(),
@@ -1586,8 +1594,12 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
+            'days=30&dag_id=test_example_bash_operator')
+        self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
+        response = self.app.get(
+            '/admin/airflow/landing_times?'
+            'days=30&dag_id=example_xcom')
+        self.assertIn("example_xcom", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/gantt?dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
