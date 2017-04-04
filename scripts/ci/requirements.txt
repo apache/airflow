@@ -22,6 +22,7 @@ flask-cache
 flask-login==0.2.11
 Flask-WTF
 flower
+freezegun
 future
 gunicorn
 hdfs

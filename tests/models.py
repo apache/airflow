@@ -31,11 +31,12 @@ from airflow.models import DagModel
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
+from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
 from mock import patch
 from nose_parameterized import parameterized
-from tests.core import TEST_DAG_FOLDER
+
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -197,17 +198,13 @@ class DagTest(unittest.TestCase):
 
 class DagRunTest(unittest.TestCase):
 
-    def setUp(self):
-        self.dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
-
-    def create_dag_run(self, dag_id, state=State.RUNNING, task_states=None):
+    def create_dag_run(self, dag, state=State.RUNNING, task_states=None):
         now = datetime.datetime.now()
-        dag = self.dagbag.get_dag(dag_id)
         dag_run = dag.create_dagrun(
             run_id='manual__' + now.isoformat(),
             execution_date=now,
             start_date=now,
-            state=State.RUNNING,
+            state=state,
             external_trigger=False,
         )
 
@@ -260,33 +257,34 @@ class DagRunTest(unittest.TestCase):
         self.assertEqual(0, len(models.DagRun.find(dag_id=dag_id2, external_trigger=True)))
         self.assertEqual(1, len(models.DagRun.find(dag_id=dag_id2, external_trigger=False)))
 
-    def test_dagrun_running_when_upstream_skipped(self):
-        """
-        Tests that a DAG run is not failed when an upstream task is skipped
-        """
-        initial_task_states = {
-            'test_short_circuit_false': State.SUCCESS,
-            'test_state_skipped1': State.SKIPPED,
-            'test_state_skipped2': State.NONE,
-        }
-        # dags/test_dagrun_short_circuit_false.py
-        dag_run = self.create_dag_run('test_dagrun_short_circuit_false',
-                                      state=State.RUNNING,
-                                      task_states=initial_task_states)
-        updated_dag_state = dag_run.update_state()
-        self.assertEqual(State.RUNNING, updated_dag_state)
-
     def test_dagrun_success_when_all_skipped(self):
         """
         Tests that a DAG run succeeds when all tasks are skipped
         """
+        dag = DAG(
+            dag_id='test_dagrun_success_when_all_skipped',
+            start_date=datetime.datetime(2017, 1, 1)
+        )
+        dag_task1 = ShortCircuitOperator(
+            task_id='test_short_circuit_false',
+            dag=dag,
+            python_callable=lambda: False)
+        dag_task2 = DummyOperator(
+            task_id='test_state_skipped1',
+            dag=dag)
+        dag_task3 = DummyOperator(
+            task_id='test_state_skipped2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+        dag_task2.set_downstream(dag_task3)
+
         initial_task_states = {
             'test_short_circuit_false': State.SUCCESS,
             'test_state_skipped1': State.SKIPPED,
             'test_state_skipped2': State.SKIPPED,
         }
-        # dags/test_dagrun_short_circuit_false.py
-        dag_run = self.create_dag_run('test_dagrun_short_circuit_false',
+
+        dag_run = self.create_dag_run(dag=dag,
                                       state=State.RUNNING,
                                       task_states=initial_task_states)
         updated_dag_state = dag_run.update_state()
@@ -347,10 +345,17 @@ class DagRunTest(unittest.TestCase):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
         """
+        dag = DAG(
+            dag_id='test_get_task_instance_on_empty_dagrun',
+            start_date=datetime.datetime(2017, 1, 1)
+        )
+        dag_task1 = ShortCircuitOperator(
+            task_id='test_short_circuit_false',
+            dag=dag,
+            python_callable=lambda: False)
+
         session = settings.Session()
 
-        # Any dag will work for this
-        dag = self.dagbag.get_dag('test_dagrun_short_circuit_false')
         now = datetime.datetime.now()
 
         # Don't use create_dagrun since it will create the task instances too which we
@@ -746,7 +751,7 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(dt, ti.end_date+max_delay)
 
     def test_depends_on_past(self):
-        dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
+        dagbag = models.DagBag()
         dag = dagbag.get_dag('test_depends_on_past')
         dag.clear()
         task = dag.tasks[0]
@@ -775,11 +780,10 @@ class TaskInstanceTest(unittest.TestCase):
         #
         # Tests for all_success
         #
-        ['all_success', 5, 0, 0, 0, 5, True, None, True],
-        ['all_success', 2, 0, 0, 0, 2, True, None, False],
-        ['all_success', 2, 0, 1, 0, 3, True, ST.UPSTREAM_FAILED, False],
-        ['all_success', 2, 1, 0, 0, 3, True, None, False],
-        ['all_success', 0, 5, 0, 0, 5, True, ST.SKIPPED, True],
+        ['all_success', 5, 0, 0, 0, 0, True, None, True],
+        ['all_success', 2, 0, 0, 0, 0, True, None, False],
+        ['all_success', 2, 0, 1, 0, 0, True, ST.UPSTREAM_FAILED, False],
+        ['all_success', 2, 1, 0, 0, 0, True, ST.SKIPPED, False],
         #
         # Tests for one_success
         #
@@ -787,7 +791,6 @@ class TaskInstanceTest(unittest.TestCase):
         ['one_success', 2, 0, 0, 0, 2, True, None, True],
         ['one_success', 2, 0, 1, 0, 3, True, None, True],
         ['one_success', 2, 1, 0, 0, 3, True, None, True],
-        ['one_success', 0, 2, 0, 0, 2, True, None, True],
         #
         # Tests for all_failed
         #
@@ -799,9 +802,9 @@ class TaskInstanceTest(unittest.TestCase):
         #
         # Tests for one_failed
         #
-        ['one_failed', 5, 0, 0, 0, 5, True, ST.SKIPPED, False],
-        ['one_failed', 2, 0, 0, 0, 2, True, None, False],
-        ['one_failed', 2, 0, 1, 0, 2, True, None, True],
+        ['one_failed', 5, 0, 0, 0, 0, True, None, False],
+        ['one_failed', 2, 0, 0, 0, 0, True, None, False],
+        ['one_failed', 2, 0, 1, 0, 0, True, None, True],
         ['one_failed', 2, 1, 0, 0, 3, True, None, False],
         ['one_failed', 2, 3, 0, 0, 5, True, ST.SKIPPED, False],
         #

@@ -2336,7 +2336,7 @@ class TaskInstanceModelView(ModelViewOnly):
         queued_dttm=datetime_f,
         dag_id=dag_link, duration=duration_f)
     column_searchable_list = ('dag_id', 'task_id', 'state')
-    column_default_sort = ('start_date', True)
+    column_default_sort = ('job_id', True)
     form_choices = {
         'state': [
             ('success', 'success'),
