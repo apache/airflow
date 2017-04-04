@@ -46,156 +46,69 @@ RUN_ID = 1
 
 
 class DatabricksSubmitRunOperatorTest(unittest.TestCase):
+    def test_init_with_named_parameters(self):
+        """
+        Test the initializer with the named parameters.
+        """
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK)
+        expected = {
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': NOTEBOOK_TASK,
+          'run_name': TASK_ID
+        }
+        self.assertDictEqual(expected, op._get_merged_parameters())
 
-    def _test_init(
-            self,
-            op,
-            expected_spark_jar_task,
-            expected_notebook_task,
-            expected_existing_cluster_id,
-            expected_libraries,
-            expected_run_name,
-            expected_timeout_seconds,
-            expected_extra_api_parameters,
-            expected_databricks_conn_id):
+    def test_init_with_json(self):
         """
-        Utility method to test behavior of initializer.
+        Test the initializer with json data.
         """
-        self.assertEqual(op.spark_jar_task, expected_spark_jar_task)
-        self.assertEqual(op.notebook_task, expected_notebook_task)
-        self.assertEqual(op.existing_cluster_id, expected_existing_cluster_id)
-        self.assertEqual(op.libraries, expected_libraries)
-        self.assertEqual(op.run_name, expected_run_name)
-        self.assertEqual(op.timeout_seconds, expected_timeout_seconds)
-        self.assertEqual(op.extra_api_parameters, expected_extra_api_parameters)
-        self.assertEqual(op.databricks_conn_id, expected_databricks_conn_id)
-
-    def test_init_with_unpacked_json(self):
-        """
-        Test the initializer with a unpacked json data.
-        """
-        run = {
+        json = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
-        self._test_init(
-            op,
-            expected_spark_jar_task=None,
-            expected_notebook_task=NOTEBOOK_TASK,
-            expected_existing_cluster_id=None,
-            expected_libraries=None,
-            expected_run_name=TASK_ID,
-            expected_timeout_seconds=0,
-            expected_extra_api_parameters={},
-            expected_databricks_conn_id=DEFAULT_CONN_ID)
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+        expected = {
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': NOTEBOOK_TASK,
+          'run_name': TASK_ID
+        }
+        self.assertDictEqual(expected, op._get_merged_parameters())
 
-    def test_init_with_unpacked_json_and_run_name(self):
+    def test_init_with_specified_run_name(self):
         """
-        Test the initializer with a unpacked json data and specified run_name.
+        Test the initializer with a specified run_name.
         """
-        run = {
+        json = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': RUN_NAME
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
-        self._test_init(
-            op,
-            expected_spark_jar_task=None,
-            expected_notebook_task=NOTEBOOK_TASK,
-            expected_existing_cluster_id=None,
-            expected_libraries=None,
-            expected_run_name=RUN_NAME,
-            expected_timeout_seconds=0,
-            expected_extra_api_parameters={},
-            expected_databricks_conn_id=DEFAULT_CONN_ID)
-
-    def test_init_with_named_parameters(self):
-        """
-        Test the initializer which uses the named parameters.
-        """
-        op = DatabricksSubmitRunOperator(
-            task_id=TASK_ID,
-            new_cluster=NEW_CLUSTER,
-            notebook_task=NOTEBOOK_TASK)
-        self._test_init(
-            op,
-            expected_spark_jar_task=None,
-            expected_notebook_task=NOTEBOOK_TASK,
-            expected_existing_cluster_id=None,
-            expected_libraries=None,
-            expected_run_name=TASK_ID,
-            expected_timeout_seconds=0,
-            expected_extra_api_parameters={},
-            expected_databricks_conn_id=DEFAULT_CONN_ID)
-
-    def test_init_with_positional_parameters(self):
-        """
-        Test the initializer which uses positional parameters. Users should not
-        use it this way but we cannot enforce this.
-        """
-        op = DatabricksSubmitRunOperator(
-            None,
-            NOTEBOOK_TASK,
-            NEW_CLUSTER,
-            None,
-            [],
-            None,
-            0,
-            {},
-            'databricks_default',
-            task_id=TASK_ID)
-        self._test_init(
-            op,
-            expected_spark_jar_task=None,
-            expected_notebook_task=NOTEBOOK_TASK,
-            expected_existing_cluster_id=None,
-            expected_libraries=[],
-            expected_run_name=TASK_ID,
-            expected_timeout_seconds=0,
-            expected_extra_api_parameters={},
-            expected_databricks_conn_id=DEFAULT_CONN_ID)
-
-    def test_init_with_invalid_oneof_task(self):
-        """
-        Test the initializer where notebook_task and spark_jar_task are
-        both specified. This is not allowed and an exception should
-        be raised.
-        """
-        run = {
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+        expected = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
-          'spark_jar_task': SPARK_JAR_TASK
+          'run_name': RUN_NAME
         }
-        with self.assertRaises(AirflowException):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
+        self.assertDictEqual(expected, op._get_merged_parameters())
 
-    def test_init_with_invalid_oneof_cluster(self):
+    def test_init_with_merging(self):
         """
-        Test the initializer where notebook_task and spark_jar_task are
-        both specified. This is not allowed and an exception should
-        be raised.
+        Test the initializer when json and other named parameters are both
+        provided. The named parameters should override top level keys in the
+        json dict.
         """
-        run = {
+        override_new_cluster = {'workers': 999}
+        json = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
-          'existing_cluster_id': EXISTING_CLUSTER_ID
         }
-        with self.assertRaises(AirflowException):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
-
-    def test_init_with_invalid_oneof_task(self):
-        """
-        Test the initializer where notebook_task and spark_jar_task are
-        both NOT specified. This is not allowed and an exception should
-        be raised.
-        """
-        run = {
-          'new_cluster': NEW_CLUSTER,
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
+        expected = {
+          'new_cluster': override_new_cluster,
+          'notebook_task': NOTEBOOK_TASK,
+          'run_name': TASK_ID,
         }
-        with self.assertRaises(AirflowException):
-            DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
+        self.assertDictEqual(expected, op._get_merged_parameters())
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_success(self, db_mock_class):
@@ -206,22 +119,20 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = 1
         db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
 
         op.execute(None)
 
+        expected = {
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': NOTEBOOK_TASK,
+          'run_name': TASK_ID
+        }
         db_mock_class.assert_called_once_with(DEFAULT_CONN_ID)
-        db_mock.submit_run.assert_called_once_with(
-            None,           # spark_jar_task
-            NOTEBOOK_TASK,  # notebook_task
-            NEW_CLUSTER,    # new_cluster
-            None,           # existing_cluster_id
-            None,           # libraries
-            TASK_ID,        # run_name
-            0)              # timeout_seconds
+        db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
 
@@ -234,52 +145,19 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = 1
         db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
 
         op.execute(None)
 
-        db_mock_class.assert_called_once_with(DEFAULT_CONN_ID)
-        db_mock.submit_run.assert_called_once_with(
-            None,           # spark_jar_task
-            NOTEBOOK_TASK,  # notebook_task
-            NEW_CLUSTER,    # new_cluster
-            None,           # existing_cluster_id
-            None,           # libraries
-            TASK_ID,        # run_name
-            0)              # timeout_seconds
-        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
-        db_mock.get_run_state.assert_called_once_with(RUN_ID)
-
-    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
-    def test_exec_extra_param(self, db_mock_class):
-        """
-        Test the execute function in case where extra API parameters are used.
-        """
-        run = {
+        expected = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
-          'extra_api_parameters': {'test_param': '1'},
+          'run_name': TASK_ID,
         }
-        op = DatabricksSubmitRunOperator(task_id=TASK_ID, **run)
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
-        db_mock.get_run_state.return_value = RunState('TERMINATED', 'FAILED', '')
-
-        with self.assertRaises(AirflowException):
-            op.execute(None)
-
         db_mock_class.assert_called_once_with(DEFAULT_CONN_ID)
-        db_mock.submit_run.assert_called_once_with(
-            None,           # spark_jar_task
-            NOTEBOOK_TASK,  # notebook_task
-            NEW_CLUSTER,    # new_cluster
-            None,           # existing_cluster_id
-            None,           # libraries
-            TASK_ID,        # run_name
-            0,              # timeout_seconds
-            test_param='1')
+        db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)

@@ -86,7 +86,8 @@ class DatabricksHook(BaseHook):
         :param api_parameters: Parameters for this API call.
         :type api_parameters: dict
         :return: If the api call returns a OK status code,
-            this function returns the response in JSON.
+            this function returns the response in JSON. Otherwise,
+            we throw an AirflowException.
         :rtype: dict
         """
         method, endpoint = endpoint_info
@@ -123,37 +124,14 @@ class DatabricksHook(BaseHook):
         raise AirflowException(('API requests to Databricks failed {} times. ' +
                                'Giving up.').format(self.retry_limit))
 
-    def submit_run(
-            self,
-            spark_jar_task=None,
-            notebook_task=None,
-            new_cluster=None,
-            existing_cluster_id=None,
-            libraries=None,
-            run_name=None,
-            timeout_seconds=0,
-            **kwargs):
+    def submit_run(self, json):
         """
         Utility function to call the ``api/2.0/jobs/runs/submit`` endpoint.
-        Parameters are identical to those provided to ``DatabricksSubmitRunOperator``.
 
-        .. seealso: DatabricksSubmitRunOperator
+        :param json: The data used in the body of the request to the ``submit`` endpoint.
+        :type json: dict
         """
-        api_params = kwargs.copy()
-        if spark_jar_task is not None:
-            api_params['spark_jar_task'] = spark_jar_task
-        if notebook_task is not None:
-            api_params['notebook_task'] = notebook_task
-        if new_cluster is not None:
-            api_params['new_cluster'] = new_cluster
-        if existing_cluster_id is not None:
-            api_params['existing_cluster_id'] = existing_cluster_id
-        if libraries is not None:
-            api_params['libraries'] = libraries
-        if run_name is not None:
-            api_params['run_name'] = run_name
-        api_params['timeout_seconds'] = timeout_seconds
-        response = self._do_api_call(SUBMIT_RUN_ENDPOINT, api_params)
+        response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
 
     def get_run_page_url(self, run_id):
@@ -172,12 +150,12 @@ class DatabricksHook(BaseHook):
 
 
 RUN_LIFE_CYCLE_STATES = [
-        'PENDING',
-        'RUNNING',
-        'TERMINATING',
-        'TERMINATED',
-        'SKIPPED',
-        'INTERNAL_ERROR'
+    'PENDING',
+    'RUNNING',
+    'TERMINATING',
+    'TERMINATED',
+    'SKIPPED',
+    'INTERNAL_ERROR'
 ]
 
 
@@ -196,8 +174,8 @@ class RunState:
             raise AirflowException('Unexpected life cycle state: {}:'.format(
                 self.life_cycle_state))
         return self.life_cycle_state == 'TERMINATED' or \
-               self.life_cycle_state == 'SKIPPED' or \
-               self.life_cycle_state == 'INTERNAL_ERROR'
+            self.life_cycle_state == 'SKIPPED' or \
+            self.life_cycle_state == 'INTERNAL_ERROR'
 
     @property
     def is_successful(self):
@@ -205,8 +183,8 @@ class RunState:
 
     def __eq__(self, other):
         return self.life_cycle_state == other.life_cycle_state and \
-               self.result_state == other.result_state and \
-               self.state_message == other.state_message
+            self.result_state == other.result_state and \
+            self.state_message == other.state_message
 
     def __repr__(self):
         return str(self.__dict__)

@@ -20,8 +20,7 @@ from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBM
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
-
-from requests.exceptions import ConnectionError, Timeout
+from requests import exceptions as requests_exceptions
 
 try:
     from unittest import mock
@@ -42,8 +41,8 @@ NEW_CLUSTER = {
     'num_workers': 1
 }
 RUN_ID = 1
-HOST = 'databricks.com'
-INVALID_HOST = 'https://databricks.com'
+HOST = 'xx.cloud.databricks.com'
+INVALID_HOST = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
@@ -101,7 +100,7 @@ class DatabricksHookTest(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.databricks_hook.logging')
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_with_error_retry(self, mock_requests, mock_logging):
-        for exception in [ConnectionError, Timeout]:
+        for exception in [requests_exceptions.ConnectionError, requests_exceptions.Timeout]:
             mock_requests.reset_mock()
             mock_logging.reset_mock()
             mock_requests.post.side_effect = exception()
@@ -116,10 +115,11 @@ class DatabricksHookTest(unittest.TestCase):
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
-
-        run_id = self.hook.submit_run(
-            notebook_task=NOTEBOOK_TASK,
-            new_cluster=NEW_CLUSTER)
+        json = {
+          'notebook_task': NOTEBOOK_TASK,
+          'new_cluster': NEW_CLUSTER
+        }
+        run_id = self.hook.submit_run(json)
 
         self.assertEquals(run_id, '1')
         mock_requests.post.assert_called_once_with(
@@ -127,7 +127,6 @@ class DatabricksHookTest(unittest.TestCase):
             json={
                 'notebook_task': NOTEBOOK_TASK,
                 'new_cluster': NEW_CLUSTER,
-                'timeout_seconds': 0
             },
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,

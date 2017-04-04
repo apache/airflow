@@ -20,7 +20,6 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
 
-POLL_SLEEP_PERIOD_SECONDS = 5
 LINE_BREAK = ("-" * 80)
 
 
@@ -30,39 +29,51 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     https://docs.databricks.com/api/latest/jobs.html#runs-submit
 
-    Note that the named
-    parameters to this operator match the parameters exposed by
-    the Databricks ``api/2.0/jobs/runs/submit`` endpoint.
+    There are two ways to instantiate this operator.
 
-    As a result, one way to instantiate a ``DatabricksSubmitRunOperator``
-    is to pass the same JSON object used to call ``api/2.0/jobs/runs/submit``
-    into the ``DatabricksSubmitRunOperator``. For example: ::
-
+    In the first way, you can take the JSON payload that you typically use
+    to call the ``api/2.0/jobs/runs/submit`` endpoint and pass it directly
+    to our ``DatabricksSubmitRunOperator`` through the ``json`` parameter.
+    For example ::
         params = {
           "new_cluster": {
-            "spark_version": "2.0.x-scala2.10",
-            "node_type_id": "r3.xlarge",
-            "aws_attributes": {
-              "availability": "ON_DEMAND"
-            },
+            "spark_version": "2.1.0-db3-scala2.11",
             "num_workers": 2
           },
-          "libraries": [
-            {
-              "jar": "dbfs:/test.jar"
-            },
-            {
-              "maven": {
-                "coordinates": "org.jsoup:jsoup:1.7.2"
-              }
-            }
-          ],
-          "spark_jar_task": {
-            "main_class_name": "com.databricks.ComputeModels"
-          }
+          "notebook_task": {
+            "notebook_path": "/test",
+          },
         }
-        DatabricksSubmitRunOperator(task_id='spark_jar_run', **params)
+        DatabricksSubmitRunOperator(task_id='notebook_run', json=params)
 
+    Another way to accomplish the same thing is to use the named parameters
+    of the ``DatabricksSubmitRunOperator`` directly. Note that there is exactly
+    one named parameter for each top level parameter in the ``runs/submit``
+    endpoint. In this method, your code would look like this: ::
+        new_cluster = {
+          "spark_version": "2.1.0-db3-scala2.11",
+          "num_workers": 2
+        }
+        notebook_task: {
+          "notebook_path": "/test",
+        }
+        DatabricksSubmitRunOperator(
+            task_id='notebook_run',
+            new_cluster=new_cluster,
+            notebook_task=notebook_task)
+
+    In the case where both the json parameter is provided **AND** the named parameters
+    are provided, they will be merged together. If there are conflicts during the merge,
+    the named parameters will take precedence and override the top level ``json`` keys.
+
+    :param json: A JSON object containing API parameters which will be passed
+        directly to the ``api/2.0/jobs/runs/submit`` endpoint. The other named parameters
+        (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
+        be merged with this json dictionary if they are provided.
+        If there are conflicts during the merge, the named parameters will
+        take precedence and override the top level json keys.
+        https://docs.databricks.com/api/latest/jobs.html#runs-submit
+    :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
@@ -83,19 +94,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
         https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
     :type libraries: list of dicts
     :param run_name: The run name used for this task.
-        By default this will be set to the Airflow ``task_id``. This task_id is a
+        By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
     :type run_name: string
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
     :type timeout_seconds: int32
-    :param extra_api_parameters: Extra parameters which will be merged with parameters
-        listed above. This may be used if additional features are added to the
-        ``api/2.0/jobs/runs/submit`` endpoint.
-    :type extra_api_parameters: dict
-    :param databricks_conn_id: The name of the connection to use.
+    :param databricks_conn_id: The name of the Airflow connection to use.
         By default and in the common case this will be ``databricks_default``.
     :type databricks_conn_id: string
+    :param polling_period_seconds: Controls the rate which we poll for the result of
+        this run. By default the operator will poll every 30 seconds.
+    :type polling_period_seconds: int
     """
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
@@ -103,54 +113,52 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     def __init__(
             self,
+            json=None,
             spark_jar_task=None,
             notebook_task=None,
             new_cluster=None,
             existing_cluster_id=None,
             libraries=None,
             run_name=None,
-            timeout_seconds=0,
-            extra_api_parameters=None,
+            timeout_seconds=None,
             databricks_conn_id='databricks_default',
+            polling_period_seconds=30,
             **kwargs):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
         """
         super(DatabricksSubmitRunOperator, self).__init__(**kwargs)
+        self.json = json or {}
         self.spark_jar_task = spark_jar_task
         self.notebook_task = notebook_task
         self.new_cluster = new_cluster
         self.existing_cluster_id = existing_cluster_id
         self.libraries = libraries
-        self.run_name = kwargs['task_id'] if run_name is None else run_name
+        self.run_name = run_name
         self.timeout_seconds = timeout_seconds
-        if extra_api_parameters is None:
-            self.extra_api_parameters = {}
-        else:
-            self.extra_api_parameters = extra_api_parameters
         self.databricks_conn_id = databricks_conn_id
-        self._validate_parameters()
+        self.polling_period_seconds = polling_period_seconds
+        self.kwargs = kwargs
 
-    def _validate_parameters(self):
-        """
-        Validates the parameters provided to this operator.
-        """
-        if not self._validate_oneof(self.spark_jar_task, self.notebook_task):
-            raise AirflowException('You must specify exactly one of spark_jar_task ' +
-                    'and notebook_task.')
-        if not self._validate_oneof(self.new_cluster, self.existing_cluster_id):
-            raise AirflowException('You must specify exactly one of new_cluster ' +
-                    'and existing_cluster_id.')
-
-    def _validate_oneof(self, param_a, param_b):
-        """
-        Ensures either param_a XOR param_b is set.
-        :return: True if validates correctly. False if fails validation.
-        :rtype: bool
-        """
-        if (param_a is None) == (param_b is None):
-            return False
-        return True
+    def _get_merged_parameters(self):
+        merged = self.json.copy()
+        if self.spark_jar_task is not None:
+            merged['spark_jar_task'] = self.spark_jar_task
+        if self.notebook_task is not None:
+            merged['notebook_task'] = self.notebook_task
+        if self.new_cluster is not None:
+            merged['new_cluster'] = self.new_cluster
+        if self.existing_cluster_id is not None:
+            merged['existing_cluster_id'] = self.existing_cluster_id
+        if self.libraries is not None:
+            merged['libraries'] = self.libraries
+        if self.run_name is not None:
+            merged['run_name'] = self.run_name
+        if self.timeout_seconds is not None:
+            merged['timeout_seconds'] = self.timeout_seconds
+        if 'run_name' not in merged:
+            merged['run_name'] = self.run_name or self.kwargs['task_id']
+        return merged
 
     def _log_run_page_url(self, url):
         logging.info('View run status, Spark UI, and logs at {}'.format(url))
@@ -160,15 +168,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
     def execute(self, context):
         hook = self.get_hook()
-        run_id = hook.submit_run(
-            self.spark_jar_task,
-            self.notebook_task,
-            self.new_cluster,
-            self.existing_cluster_id,
-            self.libraries,
-            self.run_name,
-            self.timeout_seconds,
-            **self.extra_api_parameters)
+        run_id = hook.submit_run(self._get_merged_parameters())
         run_page_url = hook.get_run_page_url(run_id)
         logging.info(LINE_BREAK)
         logging.info('Run submitted with run_id: {}'.format(run_id))
@@ -192,5 +192,5 @@ class DatabricksSubmitRunOperator(BaseOperator):
                                                             s=run_state))
                 self._log_run_page_url(run_page_url)
                 logging.info('Sleeping for {} seconds.'.format(
-                    POLL_SLEEP_PERIOD_SECONDS))
-                time.sleep(POLL_SLEEP_PERIOD_SECONDS)
+                    self.polling_period_seconds))
+                time.sleep(self.polling_period_seconds)
