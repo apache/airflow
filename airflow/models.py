@@ -3925,7 +3925,7 @@ class DagRun(Base):
                 qry = qry.filter(DR.execution_date == execution_date)
         if state:
             qry = qry.filter(DR.state == state)
-        if external_trigger:
+        if external_trigger is not None:
             qry = qry.filter(DR.external_trigger == external_trigger)
 
         dr = qry.order_by(DR.execution_date).all()

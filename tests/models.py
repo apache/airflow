@@ -227,6 +227,39 @@ class DagRunTest(unittest.TestCase):
             'scheduled__2015-01-02T03:04:05', run_id,
             'Generated run_id did not match expectations: {0}'.format(run_id))
 
+    def test_dagrun_find(self):
+        session = settings.Session()
+        now = datetime.datetime.now()
+
+        dag_id1 = "test_dagrun_find_externally_triggered"
+        dag_run = models.DagRun(
+            dag_id=dag_id1,
+            run_id='manual__' + now.isoformat(),
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=True,
+        )
+        session.add(dag_run)
+
+        dag_id2 = "test_dagrun_find_not_externally_triggered"
+        dag_run = models.DagRun(
+            dag_id=dag_id2,
+            run_id='manual__' + now.isoformat(),
+            execution_date=now,
+            start_date=now,
+            state=State.RUNNING,
+            external_trigger=False,
+        )
+        session.add(dag_run)
+
+        session.commit()
+
+        self.assertEqual(1, len(models.DagRun.find(dag_id=dag_id1, external_trigger=True)))
+        self.assertEqual(0, len(models.DagRun.find(dag_id=dag_id1, external_trigger=False)))
+        self.assertEqual(0, len(models.DagRun.find(dag_id=dag_id2, external_trigger=True)))
+        self.assertEqual(1, len(models.DagRun.find(dag_id=dag_id2, external_trigger=False)))
+
     def test_dagrun_running_when_upstream_skipped(self):
         """
         Tests that a DAG run is not failed when an upstream task is skipped
