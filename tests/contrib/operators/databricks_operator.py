@@ -56,7 +56,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
         }
-        self.assertDictEqual(expected, op._get_merged_parameters())
+        self.assertDictEqual(expected, op.json)
 
     def test_init_with_json(self):
         """
@@ -72,7 +72,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
         }
-        self.assertDictEqual(expected, op._get_merged_parameters())
+        self.assertDictEqual(expected, op.json)
 
     def test_init_with_specified_run_name(self):
         """
@@ -89,7 +89,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': RUN_NAME
         }
-        self.assertDictEqual(expected, op._get_merged_parameters())
+        self.assertDictEqual(expected, op.json)
 
     def test_init_with_merging(self):
         """
@@ -108,7 +108,7 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID,
         }
-        self.assertDictEqual(expected, op._get_merged_parameters())
+        self.assertDictEqual(expected, op.json)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_success(self, db_mock_class):
@@ -131,10 +131,13 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
         }
-        db_mock_class.assert_called_once_with(DEFAULT_CONN_ID)
+        db_mock_class.assert_called_once_with(
+                DEFAULT_CONN_ID,
+                retry_limit=op.databricks_retry_limit)
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
+        self.assertEquals(RUN_ID, op.run_id)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_failure(self, db_mock_class):
@@ -148,16 +151,35 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
         db_mock = db_mock_class.return_value
         db_mock.submit_run.return_value = 1
-        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'FAILED', '')
 
-        op.execute(None)
+        with self.assertRaises(AirflowException):
+            op.execute(None)
 
         expected = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID,
         }
-        db_mock_class.assert_called_once_with(DEFAULT_CONN_ID)
+        db_mock_class.assert_called_once_with(
+                DEFAULT_CONN_ID,
+                retry_limit=op.databricks_retry_limit)
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
+        self.assertEquals(RUN_ID, op.run_id)
+
+    @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
+    def test_on_kill(self, db_mock_class):
+        run = {
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
+        db_mock = db_mock_class.return_value
+        op.run_id = RUN_ID
+
+        op.on_kill()
+
+        db_mock.cancel_run.assert_called_once_with(RUN_ID)
+

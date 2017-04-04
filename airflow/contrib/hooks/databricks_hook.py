@@ -30,6 +30,7 @@ except ImportError:
 
 SUBMIT_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/submit')
 GET_RUN_ENDPOINT = ('GET', 'api/2.0/jobs/runs/get')
+CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
@@ -55,6 +56,7 @@ class DatabricksHook(BaseHook):
         self.databricks_conn_id = databricks_conn_id
         self.databricks_conn = self.get_connection(databricks_conn_id)
         self.timeout_seconds = timeout_seconds
+        assert retry_limit >= 1, 'Retry limit must be greater than equal to 1'
         self.retry_limit = retry_limit
 
     def _parse_host(self, host):
@@ -62,29 +64,32 @@ class DatabricksHook(BaseHook):
         The purpose of this function is to be robust to improper connections
         settings provided by users, specifically in the host field.
 
-        For example -- when users supply ``https://XX.cloud.databricks.com`` as the
-        host, we must strip out the protocol to get the host.
-            _parse_host(https://XX.cloud.databricks.com) -> XX.cloud.databricks.com.
 
-        In the case where users supply the correct ``XX.cloud.databricks.com`` as the
+        For example -- when users supply ``https://xx.cloud.databricks.com`` as the
+        host, we must strip out the protocol to get the host.
+        >>> h = DatabricksHook()
+        >>> assert h._parse_host('https://xx.cloud.databricks.com') == \
+            'xx.cloud.databricks.com'
+
+        In the case where users supply the correct ``xx.cloud.databricks.com`` as the
         host, this function is a no-op.
-            _parse_host(XX.cloud.databricks.com) -> XX.cloud.databricks.com.
+        >>> assert h._parse_host('xx.cloud.databricks.com') == 'xx.cloud.databricks.com'
         """
         urlparse_host = urlparse.urlparse(host).hostname
         if urlparse_host:
-            # In this case, host = https://XX.cloud.databricks.com
+            # In this case, host = https://xx.cloud.databricks.com
             return urlparse_host
         else:
-            # In this case, host = XX.cloud.databricks.com
+            # In this case, host = xx.cloud.databricks.com
             return host
 
-    def _do_api_call(self, endpoint_info, api_parameters):
+    def _do_api_call(self, endpoint_info, json):
         """
         Utility function to perform an API call with retries
         :param endpoint_info: Tuple of method and endpoint
         :type endpoint_info: (string, string)
-        :param api_parameters: Parameters for this API call.
-        :type api_parameters: dict
+        :param json: Parameters for this API call.
+        :type json: dict
         :return: If the api call returns a OK status code,
             this function returns the response in JSON. Otherwise,
             we throw an AirflowException.
@@ -106,17 +111,17 @@ class DatabricksHook(BaseHook):
             try:
                 response = request_func(
                     url,
-                    json=api_parameters,
+                    json=json,
                     auth=auth,
                     headers=USER_AGENT_HEADER,
-                    timeout=self.timeout_seconds,
-                    verify=False)
-                if response.ok:
+                    timeout=self.timeout_seconds)
+                if response.status_code == requests.codes.ok:
                     return response.json()
                 else:
                     # In this case, the user probably made a mistake.
                     # Don't retry.
-                    raise AirflowException(response.content)
+                    raise AirflowException('Response: {0}, Status Code: {1}'.format(
+                        response.content, response.status_code))
             except (requests_exceptions.ConnectionError,
                     requests_exceptions.Timeout) as e:
                 logging.error(('Attempt {0} API Request to Databricks failed ' +
@@ -130,23 +135,30 @@ class DatabricksHook(BaseHook):
 
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :type json: dict
+        :return: the run_id as a string
+        :rtype: string
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']
 
     def get_run_page_url(self, run_id):
-        api_params = {'run_id': run_id}
-        response = self._do_api_call(GET_RUN_ENDPOINT, api_params)
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
     def get_run_state(self, run_id):
-        api_params = {'run_id': run_id}
-        response = self._do_api_call(GET_RUN_ENDPOINT, api_params)
-        life_cycle_state = response['state']['life_cycle_state']
+        json = {'run_id': run_id}
+        response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        state = response['state']
+        life_cycle_state = state['life_cycle_state']
         # result_state may not be in the state if not terminal
-        result_state = response['state'].get('result_state', None)
-        state_message = response['state']['state_message']
+        result_state = state.get('result_state', None)
+        state_message = state['state_message']
         return RunState(life_cycle_state, result_state, state_message)
+
+    def cancel_run(self, run_id):
+        json = {'run_id': run_id}
+        self._do_api_call(CANCEL_RUN_ENDPOINT, json)
 
 
 RUN_LIFE_CYCLE_STATES = [
@@ -171,11 +183,11 @@ class RunState:
     @property
     def is_terminal(self):
         if self.life_cycle_state not in RUN_LIFE_CYCLE_STATES:
-            raise AirflowException('Unexpected life cycle state: {}:'.format(
-                self.life_cycle_state))
-        return self.life_cycle_state == 'TERMINATED' or \
-            self.life_cycle_state == 'SKIPPED' or \
-            self.life_cycle_state == 'INTERNAL_ERROR'
+            raise AirflowException(('Unexpected life cycle state: {}: If the state has '
+                            'been introduced recently, please check the Databricks user '
+                            'guide for troubleshooting information').format(
+                                self.life_cycle_state))
+        return self.life_cycle_state in ('TERMINATED', 'SKIPPED', 'INTERNAL_ERROR')
 
     @property
     def is_successful(self):

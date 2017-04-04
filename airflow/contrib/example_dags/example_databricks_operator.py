@@ -33,7 +33,7 @@ from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOpe
 
 args = {
     'owner': 'airflow',
-    'email': ['airflow@airflow.com'],
+    'email': ['airflow@example.com'],
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(2)
 }
@@ -42,7 +42,7 @@ dag = DAG(
     dag_id='example_databricks_operator', default_args=args,
     schedule_interval='@daily')
 
-NEW_CLUSTER_SPEC = {
+new_cluster = {
     'spark_version': '2.1.0-db3-scala2.11',
     'node_type_id': 'r3.xlarge',
     'aws_attributes': {
@@ -52,30 +52,31 @@ NEW_CLUSTER_SPEC = {
 }
 
 notebook_task_params = {
-    'new_cluster': NEW_CLUSTER_SPEC,
+    'new_cluster': new_cluster,
     'notebook_task': {
-        'notebook_path': '/test',
+        'notebook_path': '/Users/airflow@example.com/PrepareData',
     },
 }
+# Example of using the JSON parameter to initialize the operator.
 notebook_task = DatabricksSubmitRunOperator(
     task_id='notebook_task',
     dag=dag,
     json=notebook_task_params)
 
-spark_jar_task_params = {
-    'new_cluster': NEW_CLUSTER_SPEC,
-    'spark_jar_task': {
-        'main_class_name': 'com.databricks.ComputeModels'
-    },
-    'libraries': [
-        {
-            'jar': 'dbfs:/my-jar.jar'
-        },
-    ]
-}
+# Example of using the named parameters of DatabricksSubmitRunOperator
+# to initialize the operator.
 spark_jar_task = DatabricksSubmitRunOperator(
     task_id='spark_jar_task',
     dag=dag,
-    json=spark_jar_task_params)
+    new_cluster=new_cluster,
+    spark_jar_task={
+        'main_class_name': 'com.example.ProcessData'
+    },
+    libraries=[
+        {
+            'jar': 'dbfs:/lib/etl-0.1.jar'
+        }
+    ]
+)
 
 notebook_task.set_downstream(spark_jar_task)

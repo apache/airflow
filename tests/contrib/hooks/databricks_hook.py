@@ -37,12 +37,12 @@ NOTEBOOK_TASK = {
 }
 NEW_CLUSTER = {
     'spark_version': '2.0.x-scala2.10',
-    'node_type_id': 'development-node',
+    'node_type_id': 'r3.xlarge',
     'num_workers': 1
 }
 RUN_ID = 1
 HOST = 'xx.cloud.databricks.com'
-INVALID_HOST = 'https://xx.cloud.databricks.com'
+HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
@@ -72,6 +72,11 @@ def get_run_endpoint(host):
     """
     return 'https://{}/api/2.0/jobs/runs/get'.format(host)
 
+def cancel_run_endpoint(host):
+    """
+    Utility function to generate the get run endpoint given the host.
+    """
+    return 'https://{}/api/2.0/jobs/runs/cancel'.format(host)
 
 class DatabricksHookTest(unittest.TestCase):
     """
@@ -93,9 +98,13 @@ class DatabricksHookTest(unittest.TestCase):
         host = self.hook._parse_host(HOST)
         self.assertEquals(host, HOST)
 
-    def test_parse_host_with_invalid_host(self):
-        host = self.hook._parse_host(INVALID_HOST)
+    def test_parse_host_with_scheme(self):
+        host = self.hook._parse_host(HOST_WITH_SCHEME)
         self.assertEquals(host, HOST)
+
+    def test_init_bad_retry_limit(self):
+        with self.assertRaises(AssertionError):
+            DatabricksHook(retry_limit = 0)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.logging')
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
@@ -111,7 +120,16 @@ class DatabricksHookTest(unittest.TestCase):
             self.assertEquals(len(mock_logging.error.mock_calls), self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_do_api_call_with_bad_status_code(self, mock_requests):
+        mock_requests.codes.ok = 200
+        status_code_mock = mock.PropertyMock(return_value=500)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        with self.assertRaises(AirflowException):
+            self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
         mock_requests.post.return_value.json.return_value = {'run_id': '1'}
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.post.return_value).status_code = status_code_mock
@@ -130,11 +148,11 @@ class DatabricksHookTest(unittest.TestCase):
             },
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
-            timeout=self.hook.timeout_seconds,
-            verify=False)
+            timeout=self.hook.timeout_seconds)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_get_run_page_url(self, mock_requests):
+        mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.get.return_value).status_code = status_code_mock
@@ -147,11 +165,11 @@ class DatabricksHookTest(unittest.TestCase):
             json={'run_id': RUN_ID},
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
-            timeout=self.hook.timeout_seconds,
-            verify=False)
+            timeout=self.hook.timeout_seconds)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_get_run_state(self, mock_requests):
+        mock_requests.codes.ok = 200
         mock_requests.get.return_value.json.return_value = GET_RUN_RESPONSE
         status_code_mock = mock.PropertyMock(return_value=200)
         type(mock_requests.get.return_value).status_code = status_code_mock
@@ -167,9 +185,23 @@ class DatabricksHookTest(unittest.TestCase):
             json={'run_id': RUN_ID},
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
-            timeout=self.hook.timeout_seconds,
-            verify=False)
+            timeout=self.hook.timeout_seconds)
 
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_cancel_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = GET_RUN_RESPONSE
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+
+        self.hook.cancel_run(RUN_ID)
+
+        mock_requests.post.assert_called_once_with(
+            cancel_run_endpoint(HOST),
+            json={'run_id': RUN_ID},
+            auth=(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds)
 
 class RunStateTest(unittest.TestCase):
     def test_is_terminal_true(self):
