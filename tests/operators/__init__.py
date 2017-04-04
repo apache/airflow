@@ -18,3 +18,5 @@ from .operators import *
 from .sensors import *
 from .hive_operator import *
 from .s3_to_hive_operator import *
+from .python_operator import *
+from .latest_only_operator import *
