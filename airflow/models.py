@@ -2682,6 +2682,7 @@ class DAG(BaseDag, LoggingMixin):
         self.sla_miss_callback = sla_miss_callback
         self.orientation = orientation
         self.catchup = catchup
+        self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
 

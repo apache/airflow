@@ -1734,7 +1734,7 @@ class BackfillJob(BaseJob):
 
         # consider max_active_runs but ignore when running subdags
         # "parent.child" as a dag_id is by convention a subdag
-        if self.dag.schedule_interval and "." not in self.dag.dag_id:
+        if self.dag.schedule_interval and not self.dag.is_subdag:
             active_runs = DagRun.find(
                 dag_id=self.dag.dag_id,
                 state=State.RUNNING,
@@ -1774,8 +1774,11 @@ class BackfillJob(BaseJob):
 
         # create dag runs
         dr_start_date = start_date or min([t.start_date for t in self.dag.tasks])
-        next_run_date = self.dag.normalize_schedule(dr_start_date)
         end_date = end_date or datetime.now()
+        # next run date for a subdag isn't relevant (schedule_interval for subdags
+        # is ignored) so we use the dag run's start date in the case of a subdag
+        next_run_date = (self.dag.normalize_schedule(dr_start_date)
+                         if not self.dag.is_subdag else dr_start_date)
 
         active_dag_runs = []
         while next_run_date and next_run_date <= end_date:

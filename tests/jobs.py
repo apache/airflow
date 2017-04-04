@@ -348,6 +348,34 @@ class BackfillJobTest(unittest.TestCase):
             else:
                 self.assertEqual(State.NONE, ti.state)
 
+    def test_backfill_execute_subdag(self):
+        dag = self.dagbag.get_dag('example_subdag_operator')
+        subdag_op_task = dag.get_task('section-1')
+
+        subdag = subdag_op_task.subdag
+        subdag.schedule_interval = '@daily'
+
+        start_date = datetime.datetime.now()
+        executor = TestExecutor(do_update=True)
+        job = BackfillJob(dag=subdag,
+                          start_date=start_date,
+                          end_date=start_date,
+                          executor=executor,
+                          donot_pickle=True)
+        job.run()
+
+        history = executor.history
+        subdag_history = history[0]
+
+        # check that all 5 task instances of the subdag 'section-1' were executed
+        self.assertEqual(5, len(subdag_history))
+        for sdh in subdag_history:
+            ti = sdh[3]
+            self.assertIn('section-1-task-', ti.task_id)
+
+        subdag.clear()
+        dag.clear()
+
 
 class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
