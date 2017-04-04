@@ -4162,22 +4162,22 @@ class DagRun(Base):
         session.commit()
 
     @staticmethod
-    def get_running_tasks(session, dag_id, task_ids):
+    def get_running_or_queued_tasks(session, dag_id, task_ids):
         """
-        Returns the number of tasks running in the given DAG.
+        Returns the number of tasks running or queued in the given DAG.
 
         :param session: ORM session
         :param dag_id: ID of the DAG to get the task concurrency of
         :type dag_id: unicode
         :param task_ids: A list of valid task IDs for the given DAG
         :type task_ids: list[unicode]
-        :return: The number of running tasks
+        :return: The number of running or queued tasks
         :rtype: int
         """
         qry = session.query(func.count(TaskInstance.task_id)).filter(
             TaskInstance.dag_id == dag_id,
             TaskInstance.task_id.in_(task_ids),
-            TaskInstance.state == State.RUNNING,
+            TaskInstance.state == State.RUNNING or TaskInstance.state == State.QUEUED,
         )
         return qry.scalar()
 

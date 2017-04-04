@@ -563,6 +563,22 @@ class SchedulerJobTest(unittest.TestCase):
             },
             dagrun_state=State.FAILED)
 
+    def test_queued_with_concurrency(self):
+        """
+        [AIRFLOW-931] DagRuns with multiple non-dependent tasks and concurrency > 1 should succeed
+        Note this test doesn't actually prove the fix works as the tests run on SequentialExecutor
+        which doesn't have the same race condition problem that LocalExecutor does.
+        """
+        self.evaluate_dagrun(
+            dag_id='test_queued_with_concurrency_dag',
+            expected_task_states={
+                'test_concurrency_1': State.SUCCESS,
+                'test_concurrency_2': State.SUCCESS,
+                'test_concurrency_3': State.SUCCESS,
+                'test_concurrency_4': State.SUCCESS,
+            },
+            dagrun_state=State.SUCCESS)
+
     def test_dagrun_root_fail_unfinished(self):
         """
         DagRuns with one unfinished and one failed root task -> RUNNING

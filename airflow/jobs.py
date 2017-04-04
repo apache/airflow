@@ -1065,7 +1065,7 @@ class SchedulerJob(BaseJob):
 
                 if dag_id not in dag_id_to_running_task_count:
                     dag_id_to_running_task_count[dag_id] = \
-                        DagRun.get_running_tasks(
+                        DagRun.get_running_or_queued_tasks(
                             session,
                             dag_id,
                             simple_dag_bag.get_dag(dag_id).task_ids)
@@ -1434,7 +1434,7 @@ class SchedulerJob(BaseJob):
                                                           State.NONE)
 
                 self._execute_task_instances(simple_dag_bag,
-                                             (State.SCHEDULED,))
+                                             (State.QUEUED, State.SCHEDULED,))
 
             # Call hearbeats
             self.logger.info("Heartbeating the executor")
