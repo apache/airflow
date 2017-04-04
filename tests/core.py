@@ -1398,6 +1398,60 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+    def test_cli_webserver_foreground(self):
+        import subprocess
+
+        # Confirm that webserver hasn't been launched.
+        # pgrep returns exit status 1 if no process matched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in foreground and terminate it.
+        p = subprocess.Popen(["airflow", "webserver"])
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_background(self):
+        import subprocess
+        import psutil
+
+        def wait_pidfile(pidfile):
+            while True:
+                try:
+                    with open(pidfile) as f:
+                        return int(f.read())
+                except IOError:
+                    sleep(1)
+
+        # Confirm that webserver hasn't been launched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in background.
+        subprocess.Popen(["airflow", "webserver", "-D"])
+        pidfile = cli.setup_locations("webserver")[0]
+        wait_pidfile(pidfile)
+
+        # Assert that gunicorn and its monitor are launched.
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Terminate monitor process.
+        pidfile = cli.setup_locations("webserver-monitor")[0]
+        pid = wait_pidfile(pidfile)
+        p = psutil.Process(pid)
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
