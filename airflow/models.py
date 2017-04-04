@@ -61,7 +61,9 @@ import six
 from airflow import settings, utils
 from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowException, AirflowSkipException, AirflowTaskTimeout,
+    AirflowExternalStateChangeException)
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -1458,7 +1460,9 @@ class TaskInstance(Base):
 
         # Let's go deeper
         try:
-            if task.retries and self.try_number % (task.retries + 1) != 0:
+            if type(error) == AirflowExternalStateChangeException:
+                logging.info('State of task was externally changed. Not doing anything.')
+            elif task.retries and self.try_number % (task.retries + 1) != 0:
                 self.state = State.UP_FOR_RETRY
                 logging.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:

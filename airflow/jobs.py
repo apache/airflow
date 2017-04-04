@@ -42,7 +42,7 @@ from tabulate import tabulate
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowExternalStateChangeException
 from airflow.models import DagRun
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
@@ -2054,7 +2054,6 @@ class LocalTaskJob(BaseJob):
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
-        self.terminating = False
 
         # Keeps track of the fact that the task instance has been observed
         # as running at least once
@@ -2130,10 +2129,6 @@ class LocalTaskJob(BaseJob):
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
 
-        if self.terminating:
-            # task is already terminating, let it breathe
-            return
-
         self.task_instance.refresh_from_db()
         ti = self.task_instance
         if ti.state == State.RUNNING:
@@ -2156,5 +2151,4 @@ class LocalTaskJob(BaseJob):
             logging.warning(
                 "State of this instance has been externally set to "
                 "{}. Taking the poison pill. So long.".format(ti.state))
-            self.task_runner.terminate()
-            self.terminating = True
+            raise AirflowExternalStateChangeException("State was {} but expected RUNNING".format(ti.state))
