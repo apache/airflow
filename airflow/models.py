@@ -2716,6 +2716,7 @@ class DAG(BaseDag, LoggingMixin):
         self.default_view = default_view
         self.orientation = orientation
         self.catchup = catchup
+        self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
 
