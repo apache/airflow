@@ -1007,22 +1007,21 @@ class SchedulerJob(BaseJob):
         self.logger.info("Tasks up for execution:\n\t{}".format(task_instance_str))
 
         # Get the pool settings
-        pools = {p.pool: p for p in session.query(models.Pool).all()}
+        pools = {p.pool: p.open_slots(session=session) for p in session.query(models.Pool).all()}
 
         pool_to_task_instances = defaultdict(list)
         for task_instance in task_instances_to_examine:
             pool_to_task_instances[task_instance.pool].append(task_instance)
 
+        # Arbitrary:
+        # If queued outside of a pool, trigger no more than
+        # non_pooled_task_slot_count per run
+        pools[None] = conf.getint('core', 'non_pooled_task_slot_count')
+
         # Go through each pool, and queue up a task for execution if there are
         # any open slots in the pool.
         for pool, task_instances in pool_to_task_instances.items():
-            if not pool:
-                # Arbitrary:
-                # If queued outside of a pool, trigger no more than
-                # non_pooled_task_slot_count per run
-                open_slots = conf.getint('core', 'non_pooled_task_slot_count')
-            else:
-                open_slots = pools[pool].open_slots(session=session)
+            open_slots = pools[pool]
 
             num_queued = len(task_instances)
             self.logger.info("Figuring out tasks to run in Pool(name={pool}) "
@@ -1136,7 +1135,7 @@ class SchedulerJob(BaseJob):
                     priority=priority,
                     queue=queue)
 
-                open_slots -= 1
+                pools[pool] -= 1
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
