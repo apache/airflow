@@ -43,7 +43,7 @@ from tabulate import tabulate
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
+from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -1036,7 +1036,7 @@ class SchedulerJob(BaseJob):
                 task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
 
             # DAG IDs with running tasks that equal the concurrency limit of the dag
-            dag_id_to_running_task_count = {}
+            dag_id_to_possibly_running_task_count = {}
 
             for task_instance in priority_sorted_task_instances:
                 if open_slots <= 0:
@@ -1063,22 +1063,24 @@ class SchedulerJob(BaseJob):
                 # reached.
                 dag_id = task_instance.dag_id
 
-                if dag_id not in dag_id_to_running_task_count:
-                    dag_id_to_running_task_count[dag_id] = \
-                        DagRun.get_running_tasks(
-                            session,
+                if dag_id not in dag_id_to_possibly_running_task_count:
+                    dag_id_to_possibly_running_task_count[dag_id] = \
+                        DAG.get_num_task_instances(
                             dag_id,
-                            simple_dag_bag.get_dag(dag_id).task_ids)
+                            simple_dag_bag.get_dag(dag_id).task_ids,
+                            states=[State.RUNNING, State.QUEUED],
+                            session=session)
 
-                current_task_concurrency = dag_id_to_running_task_count[dag_id]
+                current_task_concurrency = dag_id_to_possibly_running_task_count[dag_id]
                 task_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
-                self.logger.info("DAG {} has {}/{} running tasks"
+                self.logger.info("DAG {} has {}/{} running and queued tasks"
                                  .format(dag_id,
                                          current_task_concurrency,
                                          task_concurrency_limit))
-                if current_task_concurrency > task_concurrency_limit:
+                if current_task_concurrency >= task_concurrency_limit:
                     self.logger.info("Not executing {} since the number "
-                                     "of tasks running from DAG {} is >= to the "
+                                     "of tasks running or queued from DAG {}"
+                                     " is >= to the "
                                      "DAG's task concurrency limit of {}"
                                      .format(task_instance,
                                              dag_id,
@@ -1137,6 +1139,7 @@ class SchedulerJob(BaseJob):
                     queue=queue)
 
                 open_slots -= 1
+                dag_id_to_possibly_running_task_count[dag_id] += 1
 
     def _process_dags(self, dagbag, dags, tis_out):
         """

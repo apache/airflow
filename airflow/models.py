@@ -3505,6 +3505,34 @@ class DAG(BaseDag, LoggingMixin):
             session.merge(dag)
             session.commit()
 
+    @staticmethod
+    @provide_session
+    def get_num_task_instances(dag_id, task_ids, states=None, session=None):
+        """
+        Returns the number of task instances in the given DAG.
+
+        :param session: ORM session
+        :param dag_id: ID of the DAG to get the task concurrency of
+        :type dag_id: unicode
+        :param task_ids: A list of valid task IDs for the given DAG
+        :type task_ids: list[unicode]
+        :param states: A list of states to filter by if supplied
+        :type states: list[state]
+        :return: The number of running tasks
+        :rtype: int
+        """
+        qry = session.query(func.count(TaskInstance.task_id)).filter(
+            TaskInstance.dag_id == dag_id,
+            TaskInstance.task_id.in_(task_ids))
+        if states is not None:
+            if None in states:
+                qry = qry.filter(or_(
+                    TaskInstance.state.in_(states),
+                    TaskInstance.state.is_(None)))
+            else:
+                qry = qry.filter(TaskInstance.state.in_(states))
+        return qry.scalar()
+
 
 class Chart(Base):
     __tablename__ = "chart"
@@ -4164,26 +4192,6 @@ class DagRun(Base):
                 session.add(ti)
 
         session.commit()
-
-    @staticmethod
-    def get_running_tasks(session, dag_id, task_ids):
-        """
-        Returns the number of tasks running in the given DAG.
-
-        :param session: ORM session
-        :param dag_id: ID of the DAG to get the task concurrency of
-        :type dag_id: unicode
-        :param task_ids: A list of valid task IDs for the given DAG
-        :type task_ids: list[unicode]
-        :return: The number of running tasks
-        :rtype: int
-        """
-        qry = session.query(func.count(TaskInstance.task_id)).filter(
-            TaskInstance.dag_id == dag_id,
-            TaskInstance.task_id.in_(task_ids),
-            TaskInstance.state == State.RUNNING,
-        )
-        return qry.scalar()
 
     @staticmethod
     def get_run(session, dag_id, execution_date):
