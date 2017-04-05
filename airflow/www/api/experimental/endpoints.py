@@ -18,6 +18,8 @@ import airflow.api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.exceptions import AirflowException
 from airflow.www.app import csrf
+from airflow.models import DagRun
+from airflow.settings import Session
 
 from flask import (
     g, Markup, Blueprint, redirect, jsonify, abort, request, current_app, send_file
@@ -110,3 +112,73 @@ def task_info(dag_id, task_id):
     task = dag.get_task(task_id)
     fields = {k: str(v) for k, v in vars(task).items() if not k.startswith('_')}
     return jsonify(fields)
+
+@api_experimental.route('/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>', methods=['PUT'])
+@requires_authentication
+def task_callback(dag_id, execution_date, task_id):
+    """
+
+    :param dag_id:
+    :param execution_date:
+    :param task_id:
+    :return:
+    """
+    from airflow.www.views import dagbag
+
+    data = request.get_json(force=True)
+    if not 'state' in data:
+        response = jsonify(error="No state defined")
+        response.status_code = 400
+        return response
+
+    state = data['state']
+    if state is not 'SUCCESS' or state is not 'FAILED':
+        response = jsonify(error="State {} is not a valid state".format(state))
+        response.status_code = 400
+        return response
+
+    if dag_id not in dagbag.dags:
+        response = jsonify(error='Dag {} not found'.format(dag_id))
+        response.status_code = 404
+        return response
+
+    dag = dagbag.dags[dag_id]
+    if not dag.has_task(task_id):
+        response = (jsonify(error='Task {} not found in dag {}'
+                            .format(task_id, dag_id)))
+        response.status_code = 404
+        return response
+
+    # Convert string datetime into actual datetime
+    try:
+        execution_date = datetime.strptime(execution_date,
+                                           '%Y-%m-%dT%H:%M:%S')
+    except ValueError:
+        error_message = (
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15'
+                .format(execution_date))
+        _log.info(error_message)
+        response = jsonify({'error': error_message})
+        response.status_code = 400
+
+        return response
+
+    dr = DagRun.find(dag_id=dag_id, execution_date=execution_date)
+    if not dr:
+        response = jsonify(error="DagRun {} not found for dag {} on execution date {}",
+                           dag_id=dag_id, execution_date=execution_date)
+        response.status_code = 404
+        return response
+
+    ti = dr.get_task_instance(task_id=task_id)
+    if not ti:
+        response = jsonify(error="TaskInstance {} not found in DagRun for dag {} and execution date {}",
+                           task_id=task_id, dag_id=dag_id, execution_date=execution_date)
+        response.status_code = 404
+        return response
+
+    session = Session()
+    ti.refresh_from_db(lock_for_update=True, session=session)
+    ti.state = state
+    session.commit()

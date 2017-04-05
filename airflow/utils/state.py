@@ -40,6 +40,7 @@ class State(object):
     UP_FOR_RETRY = "up_for_retry"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
+    ON_STANDBY = 'on_standby'
 
     task_states = (
         SUCCESS,
@@ -48,6 +49,7 @@ class State(object):
         UPSTREAM_FAILED,
         UP_FOR_RETRY,
         QUEUED,
+        ON_STANDBY,
     )
 
     dag_states = (
@@ -67,6 +69,7 @@ class State(object):
         SKIPPED: 'pink',
         REMOVED: 'lightgrey',
         SCHEDULED: 'white',
+        ON_STANDBY: 'purple'
     }
 
     @classmethod
@@ -109,5 +112,15 @@ class State(object):
             cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
-            cls.UP_FOR_RETRY
+            cls.UP_FOR_RETRY,
+            cls.ON_STANDBY
+        ]
+
+    @classmethod
+    def hold(cls):
+        """
+        List of states indicating a task is waiting for external action
+        """
+        return [
+            cls.ON_STANDBY,
         ]

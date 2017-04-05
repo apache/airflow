@@ -1039,7 +1039,7 @@ class TaskInstance(Base):
         """
         return self.dag_id, self.task_id, self.execution_date
 
-    def set_state(self, state, session):
+    def  set_state(self, state, session):
         self.state = state
         self.start_date = datetime.now()
         self.end_date = datetime.now()
@@ -1415,13 +1415,17 @@ class TaskInstance(Base):
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
             self.state = State.SUCCESS
+            if (task.on_success_set_state_to
+                and task.on_success_set_state_to in State.hold()):
+                self.state = task.on_success_set_state_to
+
         except AirflowSkipException:
             self.state = State.SKIPPED
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
 
-        # Recording SUCCESS
+        # Recording SUCCESS or on_success_set_state_to
         self.end_date = datetime.now()
         self.set_duration()
         if not test_mode:
@@ -1905,6 +1909,12 @@ class BaseOperator(object):
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
+    :param on_success_set_state_to: sets the exit state of the operator to this
+        state. Can be used to allow an external event to trigger continuation
+    :type on_success_set_state_to: str
+    :param on_standby_timeout: the amount of time the scheduler waits on the
+        external trigger. Will be converted to seconds.
+    :type on_standby_timeout: timedelta
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -1947,6 +1957,8 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
+            on_success_set_state_to=None,
+            on_standby_timeout=timedelta(3600),
             *args,
             **kwargs):
 
@@ -1998,6 +2010,11 @@ class BaseOperator(object):
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
+        self.on_success_set_state_to = on_success_set_state_to
+        if isinstance(on_standby_timeout, timedelta):
+            self.on_standby_timeout = on_standby_timeout
+        else:
+            self.on_standby_timeout = timedelta(seconds=retry_delay)
         self.on_retry_callback = on_retry_callback
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
@@ -2041,6 +2058,7 @@ class BaseOperator(object):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'on_success_set_state',
         }
 
     def __eq__(self, other):
