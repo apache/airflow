@@ -1699,20 +1699,31 @@ class TaskInstance(Base, LoggingMixin):
 
         class VariableAccessor:
             """
-            Wrapper around Variable. This way you can get variables in templates by using
-            {var.variable_name}.
+            Wrapper around Variable. This way you can get variables in
+            templates by using {{ var.value.variable_name }} or
+            {{ var.value.get('variable_name', 'backup') }}.
             """
             def __init__(self):
                 self.var = None
 
-            def __getattr__(self, item):
+            def __getattr__(self, item, default_var=None):
                 self.var = Variable.get(item)
                 return self.var
 
             def __repr__(self):
                 return str(self.var)
 
+            @staticmethod
+            def get(item, default_var=None):
+                self.var = Variable.get(item, default_var=default_var)
+                return self.var
+
         class VariableJsonAccessor:
+            """
+            Wrapper around Variable. This way you can get variables in
+            templates by using {{ var.json.variable_name }} or
+            {{ var.json.get('variable_name', 'backup') }}.
+            """
             def __init__(self):
                 self.var = None
 
@@ -1722,6 +1733,12 @@ class TaskInstance(Base, LoggingMixin):
 
             def __repr__(self):
                 return str(self.var)
+
+            @staticmethod
+            def get(item, default_var=None):
+                self.var = Variable.get(item, default_var=default_var,
+                                        deserialize_json=True)
+                return self.var
 
         return {
             'dag': task.dag,

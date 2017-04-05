@@ -193,6 +193,11 @@ UI. You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``
 
+It is also possible to fetch a variable by string if
+needed with ``{{ var.value.get('my_var', 'fallback') }}`` or
+``{{ var.json.get('my_dict_var', {'key1': 'val1'}).key1 }}``. Defaults can be
+supplied in case the variable does not exist.
+
 Macros
 ''''''
 Macros are a way to expose objects to your templates and live under the
