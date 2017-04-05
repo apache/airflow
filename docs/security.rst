@@ -6,7 +6,7 @@ to the web application is to do it at the network level, or by using
 SSH tunnels.
 
 It is however possible to switch on authentication by either using one of the supplied
-backends or create your own.
+backends or creating your own.
 
 Web Authentication
 ------------------
@@ -89,7 +89,7 @@ Roll your own
 
 Airflow uses ``flask_login`` and
 exposes a set of hooks in the ``airflow.default_login`` module. You can
-alter the content and make it part of the ``PYTHONPATH`` and configure it as a backend in ``airflow.cfg```.
+alter the content and make it part of the ``PYTHONPATH`` and configure it as a backend in ``airflow.cfg``.
 
 .. code-block:: bash
 
@@ -100,12 +100,14 @@ alter the content and make it part of the ``PYTHONPATH`` and configure it as a b
 Multi-tenancy
 -------------
 
-You can filter the list of dags in webserver by owner name, when authentication
-is turned on, by setting webserver.filter_by_owner as true in your ``airflow.cfg``
-With this, when a user authenticates and logs into webserver, it will see only the dags
-which it is owner of. A super_user, will be able to see all the dags although.
-This makes the web UI a multi-tenant UI, where a user will only be able to see dags
-created by itself.
+You can filter the list of dags in webserver by owner name when authentication
+is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see 
+only the dags which it is owner of, unless it is a superuser.
+
+.. code-block:: bash
+
+    [webserver]
+    filter_by_owner = True
 
 
 Kerberos
@@ -118,17 +120,18 @@ to authenticate against kerberized services.
 Limitations
 '''''''''''
 
-Please note that at this time not all hooks have been adjusted to make use of this functionality yet.
+Please note that at this time, not all hooks have been adjusted to make use of this functionality.
 Also it does not integrate kerberos into the web interface and you will have to rely on network
 level security for now to make sure your service remains secure.
 
-Celery integration has not been tried and tested yet. However if you generate a key tab for every host
-and launch a ticket renewer next to every worker it will most likely work.
+Celery integration has not been tried and tested yet. However, if you generate a key tab for every
+host and launch a ticket renewer next to every worker it will most likely work.
 
 Enabling kerberos
 '''''''''''''''''
 
-#### Airflow
+Airflow
+^^^^^^^
 
 To enable kerberos you will need to generate a (service) key tab.
 
@@ -160,7 +163,8 @@ Launch the ticket renewer by
     # run ticket renewer
     airflow kerberos
 
-#### Hadoop
+Hadoop
+^^^^^^
 
 If want to use impersonation this needs to be enabled in ``core-site.xml`` of your hadoop config.
 
@@ -186,8 +190,8 @@ Of course if you need to tighten your security replace the asterisk with somethi
 Using kerberos authentication
 '''''''''''''''''''''''''''''
 
-The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to use it simply
-update the connection details with, for example:
+The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to
+use it, simply update the connection details with, for example:
 
 .. code-block:: bash
 
@@ -197,7 +201,7 @@ Adjust the principal to your settings. The _HOST part will be replaced by the fu
 the server.
 
 You can specify if you would like to use the dag owner as the user for the connection or the user specified in the login
-section of the connection. For the login user specify the following as extra:
+section of the connection. For the login user, specify the following as extra:
 
 .. code-block:: bash
 
@@ -209,7 +213,7 @@ For the DAG owner use:
 
     { "use_beeline": true, "principal": "hive/_HOST@EXAMPLE.COM", "proxy_user": "owner"}
 
-and in your DAG, when initializing the HiveOperator, specify
+and in your DAG, when initializing the HiveOperator, specify:
 
 .. code-block:: bash
 
@@ -226,9 +230,6 @@ against an installation of GitHub Enterprise using OAuth2. You can optionally
 specify a team whitelist (composed of slug cased team names) to restrict login
 to only members of those teams.
 
-*NOTE* If you do not specify a team whitelist, anyone with a valid account on
-your GHE installation will be able to login to Airflow.
-
 .. code-block:: bash
 
     [webserver]
@@ -241,6 +242,9 @@ your GHE installation will be able to login to Airflow.
     client_secret = oauth_secret_from_github_enterprise
     oauth_callback_route = /example/ghe_oauth/callback
     allowed_teams = 1, 345, 23
+
+.. note:: If you do not specify a team whitelist, anyone with a valid account on
+   your GHE installation will be able to login to Airflow.
 
 Setting up GHE Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -312,12 +316,12 @@ standard port 443, you'll need to configure that too. Be aware that super user p
     base_url = http://<hostname or IP>:443
 
 Impersonation
-'''''''''''''
+-------------
 
 Airflow has the ability to impersonate a unix user while running task
 instances based on the task's ``run_as_user`` parameter, which takes a user's name.
 
-*NOTE* For impersonations to work, Airflow must be run with `sudo` as subtasks are run
+**NOTE:** For impersonations to work, Airflow must be run with `sudo` as subtasks are run
 with `sudo -u` and permissions of files are changed. Furthermore, the unix user needs to
 exist on the worker. Here is what a simple sudoers file entry could look like to achieve
 this, assuming as airflow is running as the `airflow` user. Note that this means that
@@ -327,9 +331,17 @@ the airflow user must be trusted and treated the same way as the root user.
 
     airflow ALL=(ALL) NOPASSWD: ALL
 
+
 Subtasks with impersonation will still log to the same folder, except that the files they
 log to will have permissions changed such that only the unix user can write to it.
 
-*Default impersonation* To prevent tasks that don't use impersonation to be run with
-`sudo` privileges, you can set the `default_impersonation` config in `core` which sets a
-default user impersonate if `run_as_user` is not set.
+Default Impersonation
+'''''''''''''''''''''
+To prevent tasks that don't use impersonation to be run with `sudo` privileges, you can set the
+``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is 
+not set.
+
+.. code-block:: bash
+
+    [core]
+    default_impersonation = airflow
