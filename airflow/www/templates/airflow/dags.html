@@ -105,19 +105,7 @@
                 </td>
 
                 <!-- Column 7: Last Run -->
-                <td class="text-nowrap">
-                    {% if dag %}
-                        {% set last_run = dag.get_last_dagrun(include_externally_triggered=True) %}
-                        {% if last_run and last_run.start_date %}
-                            <a href="{{ url_for('airflow.graph', dag_id=last_run.dag_id, execution_date=last_run.execution_date ) }}">
-                                {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
-                            </a> <span id="statuses_info" class="glyphicon glyphicon-info-sign" aria-hidden="true" title="Start Date: {{last_run.start_date.strftime('%Y-%m-%d %H:%M')}}"></span>
-                        {% else %}
-                            <!--No DAG Runs-->
-                        {% endif %}
-                    {% else %}
-                        <!--No DAG Runs-->
-                    {% endif %}
+                <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
                 </td>
 
                 <!-- Column 8: Dag Runs -->
@@ -235,6 +223,21 @@
             $('.label.schedule.' + this.dag_id)
             .css('background-color', 'red');
           }
+        });
+      });
+      $.getJSON("{{ url_for('api_experimental.latest_dag_runs') }}", function(data) {
+        $.each(data, function() {
+          var link = $("<a>", {
+            href: this.dag_run_url,
+            text: this.execution_date
+          });
+          var info_icon = $('<span>', {
+            "aria-hidden": "true",
+            id: "statuses_info",
+            title: "Start Date: " + this.start_date,
+            "class": "glyphicon glyphicon-info-sign"
+          });
+          $('.latest_dag_run.' + this.dag_id).append(link).append(info_icon);
         });
       });
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
