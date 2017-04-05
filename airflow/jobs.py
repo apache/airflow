@@ -1064,11 +1064,12 @@ class SchedulerJob(BaseJob):
                 dag_id = task_instance.dag_id
 
                 if dag_id not in dag_id_to_possibly_running_task_count:
+                    # TODO(saguziel): also check against QUEUED state, see AIRFLOW-1104
                     dag_id_to_possibly_running_task_count[dag_id] = \
                         DAG.get_num_task_instances(
                             dag_id,
                             simple_dag_bag.get_dag(dag_id).task_ids,
-                            states=[State.RUNNING, State.QUEUED],
+                            states=[State.RUNNING],
                             session=session)
 
                 current_task_concurrency = dag_id_to_possibly_running_task_count[dag_id]

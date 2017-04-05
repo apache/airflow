@@ -504,14 +504,14 @@ class SchedulerJobTest(unittest.TestCase):
         ti1.refresh_from_db()
         ti2.refresh_from_db()
         ti1.state = State.RUNNING
-        ti2.state = State.QUEUED
+        ti2.state = State.RUNNING
         session.merge(ti1)
         session.merge(ti2)
         session.commit()
 
         self.assertEqual(State.RUNNING, dr1.state)
         self.assertEqual(2, DAG.get_num_task_instances(dag_id, dag.task_ids,
-            states=[State.RUNNING, State.QUEUED], session=session))
+            states=[State.RUNNING], session=session))
 
         # create second dag run
         dr2 = scheduler.create_dag_run(dag)
@@ -538,7 +538,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(3, DAG.get_num_task_instances(dag_id, dag.task_ids,
             states=[State.RUNNING, State.QUEUED], session=session))
         self.assertEqual(State.RUNNING, ti1.state)
-        self.assertEqual(State.QUEUED, ti2.state)
+        self.assertEqual(State.RUNNING, ti2.state)
         six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
 
         session.close()
