@@ -14,10 +14,10 @@
 
 import unittest
 from datetime import datetime
+from mock import Mock
 
 from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.utils.state import State
-from fake_models import FakeTI
 
 
 class NotRunningDepTest(unittest.TestCase):
@@ -26,14 +26,12 @@ class NotRunningDepTest(unittest.TestCase):
         """
         Running task instances should fail this dep
         """
-        ti = FakeTI(state=State.RUNNING, start_date=datetime(2016, 1, 1))
-
-        self.assertFalse(NotRunningDep().is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.RUNNING, start_date=datetime(2016, 1, 1))
+        self.assertFalse(NotRunningDep().is_met(ti=ti))
 
     def test_ti_not_running(self):
         """
         Non-running task instances should pass this dep
         """
-        ti = FakeTI(state=State.NONE, start_date=datetime(2016, 1, 1))
-
-        self.assertTrue(NotRunningDep().is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.NONE, start_date=datetime(2016, 1, 1))
+        self.assertTrue(NotRunningDep().is_met(ti=ti))
