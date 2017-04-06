@@ -226,7 +226,7 @@
         });
       });
       $.getJSON("{{ url_for('api_experimental.latest_dag_runs') }}", function(data) {
-        $.each(data, function() {
+        $.each(data["items"], function() {
           var link = $("<a>", {
             href: this.dag_run_url,
             text: this.execution_date
