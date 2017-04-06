@@ -1925,6 +1925,15 @@ class BackfillJob(BaseJob):
                             started.pop(key)
                         continue
 
+                    # special case
+                    if ti.state == State.UP_FOR_RETRY:
+                        self.logger.debug("Task instance {} retry period not expired yet"
+                                          .format(ti))
+                        if key in started:
+                            started.pop(key)
+                        tasks_to_run[key] = ti
+                        continue
+
                     # all remaining tasks
                     self.logger.debug('Adding {} to not_ready'.format(ti))
                     not_ready.add(key)
