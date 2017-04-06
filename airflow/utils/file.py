@@ -18,6 +18,7 @@ from __future__ import unicode_literals
 import errno
 import os
 import shutil
+import sys
 from tempfile import mkdtemp
 
 from contextlib import contextmanager
@@ -41,7 +42,6 @@ def mkdirs(path, mode):
     """
     Creates the directory specified by path, creating intermediate directories
     as necessary. If directory already exists, this is a no-op.
-
     :param path: The directory to create
     :type path: str
     :param mode: The mode to give to the directory e.g. 0o755, ignores umask
@@ -55,3 +55,16 @@ def mkdirs(path, mode):
             raise
     finally:
         os.umask(o_umask)
+
+
+def use_virtualenv(command):
+    """
+    If we're in a virtualenv, ensure we call the given command using the
+    its virtualenv wrapped script. Otherwise, just return command.
+
+    Example: gunicorn -> /path/to/venv/bin/gunicorn
+    """
+    if hasattr(sys, 'real_prefix'):
+        return os.path.join(os.path.dirname(sys.executable), command)
+
+    return command

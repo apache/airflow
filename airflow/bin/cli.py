@@ -56,6 +56,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli as cli_utils
 from airflow.utils import db as db_utils
+from airflow.utils.file import use_virtualenv
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
@@ -776,7 +777,7 @@ def webserver(args):
             '''.format(**locals())))
 
         run_args = [
-            'gunicorn',
+            use_virtualenv('gunicorn'),
             '-w', str(num_workers),
             '-k', str(args.workerclass),
             '-t', str(worker_timeout),
@@ -802,6 +803,7 @@ def webserver(args):
         run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
+        env = os.environ.copy()
 
         def kill_proc(dummy_signum, dummy_frame):
             gunicorn_master_proc.terminate()
@@ -830,7 +832,7 @@ def webserver(args):
                 },
             )
             with ctx:
-                subprocess.Popen(run_args, close_fds=True)
+                subprocess.Popen(run_args, env=env, close_fds=True)
 
                 # Reading pid file directly, since Popen#pid doesn't
                 # seem to return the right value with DaemonContext.
@@ -849,7 +851,7 @@ def webserver(args):
             stdout.close()
             stderr.close()
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
+            gunicorn_master_proc = subprocess.Popen(run_args, env=env, close_fds=True)
 
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
@@ -943,7 +945,8 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+            sp = subprocess.Popen(use_virtualenv(['airflow', 'serve_logs']), env=env,
+                                  close_fds=True)
             worker.run(**options)
             sp.kill()
 
@@ -953,7 +956,8 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
+        sp = subprocess.Popen(use_virtualenv(['airflow', 'serve_logs']), env=env,
+                              close_fds=True)
 
         worker.run(**options)
         sp.kill()
@@ -1143,7 +1147,8 @@ def flower(args):
         flower_conf = '--conf=' + args.flower_conf
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations(
+            "flower", args.pid, args.stdout, args.stderr, args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1154,8 +1159,8 @@ def flower(args):
         )
 
         with ctx:
-            os.execvp("flower", ['flower', '-b',
-                                 broka, address, port, api, flower_conf, url_prefix])
+            os.execvp(use_virtualenv('flower'),
+                      ['flower', '-b', broka, address, port, api, flower_conf, url_prefix])
 
         stdout.close()
         stderr.close()
@@ -1163,8 +1168,8 @@ def flower(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        os.execvp("flower", ['flower', '-b',
-                             broka, address, port, api, flower_conf, url_prefix])
+        os.execvp(use_virtualenv('flower'),
+                  ['flower', '-b', broka, address, port, api, flower_conf, url_prefix])
 
 
 @cli_utils.action_logging
