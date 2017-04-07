@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
+import os
 import unittest
 
 from airflow import configuration, models
@@ -37,7 +37,10 @@ class TestSparkSubmitHook(unittest.TestCase):
         'principal': 'user/spark@airflow.org',
         'name': 'spark-job',
         'num_executors': 10,
-        'verbose': True
+        'verbose': True,
+        'spark_home': '/opt/myspark',
+        'driver_memory': '3g',
+        'java_class': 'com.foo.bar.AppMain'
     }
 
     def setUp(self):
@@ -45,7 +48,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         db.merge_conn(
             models.Connection(
                 conn_id='spark_yarn_cluster', conn_type='spark',
-                host='yarn://yarn-mater', extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
+                host='yarn://yarn-master', extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
         )
         db.merge_conn(
             models.Connection(
@@ -72,6 +75,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         assert "--principal {}".format(self._config['principal']) in cmd
         assert "--name {}".format(self._config['name']) in cmd
         assert "--num-executors {}".format(self._config['num_executors']) in cmd
+        assert "--class {}".format(self._config['java_class']) in cmd
+        assert "--driver-memory {}".format(self._config['driver_memory']) in cmd
 
         # Check if all config settings are there
         for k in self._config['conf']:
@@ -79,6 +84,16 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         if self._config['verbose']:
             assert "--verbose" in cmd
+
+    def test_submit_cmd(self):
+        hook = SparkSubmitHook()
+        cmd = ' '.join(hook._build_command(self._spark_job_file))
+        assert cmd.startswith('spark-submit')
+
+        hook = SparkSubmitHook(spark_home='/opt/myspark')
+        cmd = ' '.join(hook._build_command(self._spark_job_file))
+        print cmd
+        assert cmd.startswith(os.path.join('/opt/myspark','bin','spark-submit'))
 
     def test_submit(self):
         hook = SparkSubmitHook()

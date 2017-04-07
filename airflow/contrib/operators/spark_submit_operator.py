@@ -32,6 +32,8 @@ class SparkSubmitOperator(BaseOperator):
     :param conn_id: The connection id as configured in Airflow administration. When an
                     invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
+    :param spark_home: The home for the spark installation.
+    :type spark_home: str
     :param files: Upload additional files to the container running the job, separated by a
                   comma. For example hive-site.xml.
     :type files: str
@@ -39,10 +41,14 @@ class SparkSubmitOperator(BaseOperator):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
+    :param java_class: the main class of the Java application
+    :type java_class: str
     :param executor_cores: Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
+    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
@@ -57,14 +63,17 @@ class SparkSubmitOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
+                 spark_home=None,
                  application='',
                  conf=None,
+                 java_class=None,
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
                  jars=None,
                  executor_cores=None,
                  executor_memory=None,
+                 driver_memory=None,
                  keytab=None,
                  principal=None,
                  name='airflow-spark',
@@ -73,13 +82,16 @@ class SparkSubmitOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(SparkSubmitOperator, self).__init__(*args, **kwargs)
+        self._spark_home = spark_home
         self._application = application
+        self._java_class = java_class
         self._conf = conf
         self._files = files
         self._py_files = py_files
         self._jars = jars
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
+        self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
         self._name = name
@@ -87,19 +99,23 @@ class SparkSubmitOperator(BaseOperator):
         self._verbose = verbose
         self._hook = None
         self._conn_id = conn_id
+        
 
     def execute(self, context):
         """
         Call the SparkSubmitHook to run the provided spark job
         """
         self._hook = SparkSubmitHook(
+            spark_home=self._spark_home,
             conf=self._conf,
             conn_id=self._conn_id,
             files=self._files,
             py_files=self._py_files,
             jars=self._jars,
+            java_class=self._java_class,
             executor_cores=self._executor_cores,
             executor_memory=self._executor_memory,
+            driver_memory=self._driver_memory,
             keytab=self._keytab,
             principal=self._principal,
             name=self._name,
