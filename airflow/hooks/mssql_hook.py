@@ -13,8 +13,13 @@
 # limitations under the License.
 
 import pymssql
+import sys
+import logging
+from past.builtins import basestring
 
 from airflow.hooks.dbapi_hook import DbApiHook
+
+_log = logging.getLogger(__name__)
 
 
 class MsSqlHook(DbApiHook):
