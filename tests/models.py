@@ -775,7 +775,7 @@ class TaskInstanceTest(unittest.TestCase):
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=3)
-        delay_squared = datetime.timedelta(seconds=9)
+        delay_next = datetime.timedelta(seconds=6)
         max_delay = datetime.timedelta(seconds=10)
 
         dag = models.DAG(dag_id='fail_dag')
@@ -799,7 +799,7 @@ class TaskInstanceTest(unittest.TestCase):
 
         ti.try_number = 2
         dt = ti.next_retry_datetime()
-        self.assertEqual(dt, ti.end_date+delay_squared)
+        self.assertEqual(dt, ti.end_date+delay_next)
 
         ti.try_number = 3
         dt = ti.next_retry_datetime()
