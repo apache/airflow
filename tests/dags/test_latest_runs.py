@@ -12,27 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 from datetime import datetime
 
 from airflow.models import DAG
-from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.operators.dummy_operator import DummyOperator
 
-
-# DAG that has its short circuit op fail and skip multiple downstream tasks
-dag = DAG(
-    dag_id='test_dagrun_short_circuit_false',
-    start_date=datetime(2017, 1, 1)
-)
-dag_task1 = ShortCircuitOperator(
-    task_id='test_short_circuit_false',
-    dag=dag,
-    python_callable=lambda: False)
-dag_task2 = DummyOperator(
-    task_id='test_state_skipped1',
-    dag=dag)
-dag_task3 = DummyOperator(
-    task_id='test_state_skipped2',
-    dag=dag)
-dag_task1.set_downstream(dag_task2)
-dag_task2.set_downstream(dag_task3)
+for i in range(1, 2):
+    dag = DAG(dag_id='test_latest_runs_{}'.format(i))
+    task = DummyOperator(
+        task_id='dummy_task',
+        dag=dag,
+        owner='airflow',
+        start_date=datetime(2016, 2, 1))

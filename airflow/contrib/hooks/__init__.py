@@ -44,7 +44,8 @@ _hooks = {
     'gcp_dataflow_hook': ['DataFlowHook'],
     'spark_submit_operator': ['SparkSubmitOperator'],
     'cloudant_hook': ['CloudantHook'],
-    'fs_hook': ['FSHook']
+    'fs_hook': ['FSHook'],
+    'wasb_hook': ['WasbHook']
 }
 
 import os as _os

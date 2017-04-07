@@ -1,4 +1,5 @@
 alembic
+azure-storage>=0.34.0
 bcrypt
 bleach
 boto
@@ -22,6 +23,7 @@ flask-cache
 flask-login==0.2.11
 Flask-WTF
 flower
+freezegun
 future
 gunicorn
 hdfs

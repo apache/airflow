@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from airflow import utils
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from datetime import datetime, timedelta
@@ -24,7 +25,7 @@ DAG_NAME = 'test_dag_v1'
 default_args = {
     'owner': 'airflow',
     'depends_on_past': True,
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': utils.dates.days_ago(2)
 }
 dag = DAG(DAG_NAME, schedule_interval='*/10 * * * *', default_args=default_args)
 

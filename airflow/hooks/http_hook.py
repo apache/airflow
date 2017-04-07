@@ -66,6 +66,11 @@ class HttpHook(BaseHook):
                                    url,
                                    params=data,
                                    headers=headers)
+        elif self.method == 'HEAD':
+            # HEAD doesn't use params
+            req = requests.Request(self.method,
+                                   url,
+                                   headers=headers)
         else:
             # Others use data
             req = requests.Request(self.method,
@@ -100,7 +105,7 @@ class HttpHook(BaseHook):
             # to get reason and code for failure by checking first 3 chars
             # for the code, or do a split on ':'
             logging.error("HTTP error: " + response.reason)
-            if self.method != 'GET':
+            if self.method not in ('GET', 'HEAD'):
                 # The sensor uses GET, so this prevents filling up the log
                 # with the body every time the GET 'misses'.
                 # That's ok to do, because GETs should be repeatable and

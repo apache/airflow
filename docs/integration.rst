@@ -1,8 +1,58 @@
 Integration
 ===========
 
+- :ref:`Azure`
 - :ref:`AWS`
 - :ref:`GCP`
+
+.. _Azure:
+
+Azure: Microsoft Azure
+----------------------
+
+Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
+Storage. Note that the Hook, Sensor and Operator are in the contrib section.
+
+Azure Blob Storage
+''''''''''''''''''
+
+All classes communicate via the Window Azure Storage Blob protocol. Make sure that a
+Airflow connection of type `wasb` exists. Authorization can be done by supplying a
+login (=Storage account name) and password (=KEY), or login and SAS token in the extra
+field (see connection `wasb_default` for an example).
+
+- :ref:`WasbBlobSensor`: Checks if a blob is present on Azure Blob storage.
+- :ref:`WasbPrefixSensor`: Checks if blobs matching a prefix are present on Azure Blob storage.
+- :ref:`FileToWasbOperator`: Uploads a local file to a container as a blob.
+- :ref:`WasbHook`: Interface with Azure Blob Storage.
+
+.. _WasbBlobSensor:
+
+WasbBlobSensor
+"""""""""""""""
+
+.. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
+
+.. _WasbPrefixSensor:
+
+WasbPrefixSensor
+"""""""""""""""""
+
+.. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbPrefixSensor
+
+.. _FileToWasbOperator:
+
+FileToWasbOperator
+"""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
+
+.. _WasbHook:
+
+WasbHook
+"""""""""
+
+.. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
 .. _AWS:
 
@@ -10,6 +60,19 @@ AWS: Amazon Webservices
 -----------------------
 
 ---
+
+.. _Databricks:
+
+Databricks
+--------------------------
+`Databricks <https://databricks.com/>`_ has contributed an Airflow operator which enables
+submitting runs to the Databricks platform. Internally the operator talks to the
+``api/2.0/jobs/runs/submit`` `endpoint <https://docs.databricks.com/api/latest/jobs.html#runs-submit>`_.
+
+DatabricksSubmitRunOperator
+''''''''''''''''''''''''''''
+
+.. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
 
 .. _GCP:
 

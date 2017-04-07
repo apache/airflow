@@ -36,6 +36,9 @@ DEFAULT_QUEUE = configuration.get('celery', 'DEFAULT_QUEUE')
 
 class CeleryConfig(object):
     CELERY_ACCEPT_CONTENT = ['json', 'pickle']
+    CELERY_EVENT_SERIALIZER = 'json'
+    CELERY_RESULT_SERIALIZER = 'pickle'
+    CELERY_TASK_SERIALIZER = 'pickle'
     CELERYD_PREFETCH_MULTIPLIER = 1
     CELERY_ACKS_LATE = True
     BROKER_URL = configuration.get('celery', 'BROKER_URL')

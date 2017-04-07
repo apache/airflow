@@ -171,6 +171,10 @@ def initdb():
             host='localhost', port=5433))
     merge_conn(
         models.Connection(
+            conn_id='wasb_default', conn_type='wasb',
+            extra='{"sas_token": null}'))
+    merge_conn(
+        models.Connection(
             conn_id='webhdfs_default', conn_type='hdfs',
             host='localhost', port=50070))
     merge_conn(
@@ -245,6 +249,10 @@ def initdb():
                     ]
                 }
             '''))
+    merge_conn(
+        models.Connection(
+            conn_id='databricks_default', conn_type='databricks',
+            host='localhost'))
     merge_conn(
         models.Connection(
             conn_id='jdbc_default', conn_type='jdbc',

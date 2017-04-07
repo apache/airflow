@@ -22,7 +22,7 @@ class AirflowException(Exception):
 
 class AirflowConfigException(AirflowException):
     pass
-    
+
 
 class AirflowSensorTimeout(AirflowException):
     pass

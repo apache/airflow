@@ -14,11 +14,11 @@
 
 import unittest
 from datetime import datetime
+from mock import Mock
 
 from airflow import AirflowException
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
 from airflow.utils.state import State
-from fake_models import FakeTI
 
 
 class ValidStateDepTest(unittest.TestCase):
@@ -27,23 +27,20 @@ class ValidStateDepTest(unittest.TestCase):
         """
         Valid state should pass this dep
         """
-        ti = FakeTI(state=State.QUEUED, end_date=datetime(2016, 1, 1))
-
-        self.assertTrue(ValidStateDep({State.QUEUED}).is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.QUEUED, end_date=datetime(2016, 1, 1))
+        self.assertTrue(ValidStateDep({State.QUEUED}).is_met(ti=ti))
 
     def test_invalid_state(self):
         """
         Invalid state should fail this dep
         """
-        ti = FakeTI(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
-
-        self.assertFalse(ValidStateDep({State.FAILURE}).is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
+        self.assertFalse(ValidStateDep({State.FAILED}).is_met(ti=ti))
 
     def test_no_valid_states(self):
         """
         If there are no valid states the dependency should throw
         """
-        ti = FakeTI(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
-
+        ti = Mock(state=State.SUCCESS, end_date=datetime(2016, 1, 1))
         with self.assertRaises(AirflowException):
-            ValidStateDep({}).is_met(ti=ti, dep_context=None)
+            ValidStateDep({}).is_met(ti=ti)

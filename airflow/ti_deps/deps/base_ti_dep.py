@@ -51,7 +51,7 @@ class BaseTIDep(object):
         """
         return getattr(self, 'NAME', self.__class__.__name__)
 
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti, session, dep_context=None):
         """
         Abstract method that returns an iterable of TIDepStatus objects that describe
         whether the given task instance has this dependency met.
@@ -69,7 +69,7 @@ class BaseTIDep(object):
         raise NotImplementedError
 
     @provide_session
-    def get_dep_statuses(self, ti, session, dep_context):
+    def get_dep_statuses(self, ti, session, dep_context=None):
         """
         Wrapper around the private _get_dep_statuses method that contains some global
         checks for all dependencies.
@@ -81,6 +81,12 @@ class BaseTIDep(object):
         :param dep_context: the context for which this dependency should be evaluated for
         :type dep_context: DepContext
         """
+        # this avoids a circular dependency
+        from airflow.ti_deps.dep_context import DepContext
+
+        if dep_context is None:
+            dep_context = DepContext()
+
         if self.IGNOREABLE and dep_context.ignore_all_deps:
             yield self._passing_status(
                 reason="Context specified all dependencies should be ignored.")
@@ -95,7 +101,7 @@ class BaseTIDep(object):
             yield dep_status
 
     @provide_session
-    def is_met(self, ti, session, dep_context):
+    def is_met(self, ti, session, dep_context=None):
         """
         Returns whether or not this dependency is met for a given task instance. A
         dependency is considered met if all of the dependency statuses it reports are
@@ -113,7 +119,7 @@ class BaseTIDep(object):
                    self.get_dep_statuses(ti, session, dep_context))
 
     @provide_session
-    def get_failure_reasons(self, ti, session, dep_context):
+    def get_failure_reasons(self, ti, session, dep_context=None):
         """
         Returns an iterable of strings that explain why this dependency wasn't met.
 

@@ -63,6 +63,8 @@ from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
+from jinja2.sandbox import SecurityError
+from jinja2 import UndefinedError
 
 import six
 
@@ -1087,6 +1089,9 @@ class CliTests(unittest.TestCase):
     def test_cli_initdb(self):
         cli.initdb(self.parser.parse_args(['initdb']))
 
+    def test_cli_resetdb(self):
+        cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
+
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
@@ -1106,6 +1111,7 @@ class CliTests(unittest.TestCase):
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
         self.assertIn(['postgres_default', 'postgres'], conns)
+        self.assertIn(['wasb_default', 'wasb'], conns)
 
         # Attempt to list connections with invalid cli args
         with mock.patch('sys.stdout',
@@ -1425,6 +1431,62 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+    def test_cli_webserver_foreground(self):
+        import subprocess
+
+        # Confirm that webserver hasn't been launched.
+        # pgrep returns exit status 1 if no process matched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in foreground and terminate it.
+        p = subprocess.Popen(["airflow", "webserver"])
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_background(self):
+        import subprocess
+        import psutil
+
+        def wait_pidfile(pidfile):
+            while True:
+                try:
+                    with open(pidfile) as f:
+                        return int(f.read())
+                except IOError:
+                    sleep(1)
+
+        # Confirm that webserver hasn't been launched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in background.
+        subprocess.Popen(["airflow", "webserver", "-D"])
+        pidfile = cli.setup_locations("webserver")[0]
+        wait_pidfile(pidfile)
+
+        # Assert that gunicorn and its monitor are launched.
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Terminate monitor process.
+        pidfile = cli.setup_locations("webserver-monitor")[0]
+        pid = wait_pidfile(pidfile)
+        p = psutil.Process(pid)
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+
 class SecurityTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
@@ -1469,6 +1531,42 @@ class SecurityTests(unittest.TestCase):
         response = self.app.get("/admin/log", follow_redirects=True)
         self.assertIn(bleach.clean("<script>alert(123456)</script>"), response.data.decode('UTF-8'))
 
+    def test_chart_data_template(self):
+        """Protect chart_data from being able to do RCE."""
+        session = settings.Session()
+        Chart = models.Chart
+        chart1 = Chart(
+            label='insecure_chart',
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT {{ ''.__class__.__mro__[1].__subclasses__() }}"
+        )
+        chart2 = Chart(
+            label="{{ ''.__class__.__mro__[1].__subclasses__() }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        chart3 = Chart(
+            label="{{ subprocess.check_output('ls') }}",
+            conn_id='airflow_db',
+            chart_type='bar',
+            sql="SELECT 1"
+        )
+        session.add(chart1)
+        session.add(chart2)
+        session.add(chart3)
+        session.commit()
+        chart1_id = session.query(Chart).filter(Chart.label=='insecure_chart').first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1_id))
+        chart2_id = session.query(Chart).filter(Chart.label=="{{ ''.__class__.__mro__[1].__subclasses__() }}").first().id
+        with self.assertRaises(SecurityError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2_id))
+        chart3_id = session.query(Chart).filter(Chart.label=="{{ subprocess.check_output('ls') }}").first().id
+        with self.assertRaises(UndefinedError):
+            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3_id))
+
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
@@ -1488,6 +1586,7 @@ class WebUiTests(unittest.TestCase):
         self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dag_bash2.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
@@ -1497,6 +1596,13 @@ class WebUiTests(unittest.TestCase):
         )
 
         self.sub_dag.create_dagrun(
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            execution_date=DEFAULT_DATE,
+            start_date=datetime.now(),
+            state=State.RUNNING
+        )
+
+        self.example_xcom.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
             execution_date=DEFAULT_DATE,
             start_date=datetime.now(),
@@ -1548,8 +1654,12 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=example_bash_operator')
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
+            'days=30&dag_id=test_example_bash_operator')
+        self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
+        response = self.app.get(
+            '/admin/airflow/landing_times?'
+            'days=30&dag_id=example_xcom')
+        self.assertIn("example_xcom", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/gantt?dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))

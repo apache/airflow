@@ -19,6 +19,7 @@ import sys
 import time
 import unittest
 
+from mock import patch
 from datetime import datetime, timedelta
 
 from airflow import DAG, configuration
@@ -94,6 +95,14 @@ class SensorTimeoutTest(unittest.TestCase):
 
 
 class HttpSensorTests(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
 
     def test_poke_exception(self):
         """
@@ -111,6 +120,70 @@ class HttpSensorTests(unittest.TestCase):
             poke_interval=5)
         with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
             task.execute(None)
+
+    @patch("airflow.hooks.http_hook.requests.Session.send")
+    def test_head_method(self, mock_session_send):
+        def resp_check(resp):
+            return True
+
+        task = HttpSensor(
+            dag=self.dag,
+            task_id='http_sensor_head_method',
+            http_conn_id='http_default',
+            endpoint='',
+            params={},
+            method='HEAD',
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1)
+
+        import requests
+        task.execute(None)
+
+        args, kwargs = mock_session_send.call_args
+        received_request = args[0]
+
+        prep_request = requests.Request(
+            'HEAD',
+            'https://www.google.com',
+            {}).prepare()
+
+        self.assertEqual(prep_request.url, received_request.url)
+        self.assertTrue(prep_request.method, received_request.method)
+
+    @patch("airflow.hooks.http_hook.requests.Session.send")
+    @patch("airflow.hooks.http_hook.logging.error")
+    def test_logging_head_error_request(
+        self,
+        mock_error_logging,
+        mock_session_send
+    ):
+
+        def resp_check(resp):
+            return True
+
+        import requests
+        response = requests.Response()
+        response.status_code = 404
+        response.reason = 'Not Found'
+        mock_session_send.return_value = response
+
+        task = HttpSensor(
+            dag=self.dag,
+            task_id='http_sensor_head_method',
+            http_conn_id='http_default',
+            endpoint='',
+            params={},
+            method='HEAD',
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1)
+
+        with self.assertRaises(AirflowSensorTimeout):
+            task.execute(None)
+
+        self.assertTrue(mock_error_logging.called)
+        mock_error_logging.assert_called_with('HTTP error: Not Found')
 
 
 class HdfsSensorTests(unittest.TestCase):
