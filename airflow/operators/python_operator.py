@@ -13,8 +13,10 @@
 # limitations under the License.
 
 from builtins import str
+import copy
 from datetime import datetime
 import logging
+import pickle
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, TaskInstance
@@ -66,6 +68,10 @@ class PythonOperator(BaseOperator):
         super(PythonOperator, self).__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
+        try:
+            pickle.dumps(copy.deepcopy(python_callable))
+        except TypeError:
+            raise AirflowException('`python_callable` param must be pickleable')
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}

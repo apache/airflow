@@ -15,6 +15,7 @@
 from __future__ import print_function, unicode_literals
 
 import datetime
+import threading
 import unittest
 
 from airflow import configuration, DAG
@@ -33,6 +34,28 @@ INTERVAL = datetime.timedelta(hours=12)
 FROZEN_NOW = datetime.datetime(2016, 1, 2, 12, 1, 1)
 
 
+class NotPickleable(object):
+
+    def __init__(self):
+        # [AIRFLOW-351] This object prevents pickle, which
+        # eventually causes TypeError by running `airflow clear`
+        self.lock = threading.Lock()
+
+    def callable(self):
+        pass
+
+
+class StatefulTask(object):
+    def do_run(self):
+        self.run = True
+
+    def clear_run(self):
+        self.run = False
+
+    def is_run(self):
+        return self.run
+
+
 class PythonOperatorTest(unittest.TestCase):
 
     def setUp(self):
@@ -45,27 +68,19 @@ class PythonOperatorTest(unittest.TestCase):
                 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL)
         self.addCleanup(self.dag.clear)
-        self.clear_run()
-        self.addCleanup(self.clear_run)
-
-    def do_run(self):
-        self.run = True
-
-    def clear_run(self):
-        self.run = False
-
-    def is_run(self):
-        return self.run
+        self.stateful_task = StatefulTask()
+        self.stateful_task.clear_run()
+        self.addCleanup(self.stateful_task.clear_run)
 
     def test_python_operator_run(self):
         """Tests that the python callable is invoked on task run."""
         task = PythonOperator(
-            python_callable=self.do_run,
+            python_callable=self.stateful_task.do_run,
             task_id='python_operator',
             dag=self.dag)
-        self.assertFalse(self.is_run())
+        self.assertFalse(self.stateful_task.is_run())
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
-        self.assertTrue(self.is_run())
+        self.assertTrue(self.stateful_task.is_run())
 
     def test_python_operator_python_callable_is_callable(self):
         """Tests that PythonOperator will only instantiate if
@@ -80,6 +95,15 @@ class PythonOperatorTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             PythonOperator(
                 python_callable=not_callable,
+                task_id='python_operator',
+                dag=self.dag)
+
+    def test_python_operator_python_callable_is_pickleable(self):
+        """Tests that PythonOperator will only instantiate if
+        the python_callable argument is able to pickle."""
+        with self.assertRaises(AirflowException):
+            PythonOperator(
+                python_callable=NotPickleable().callable,
                 task_id='python_operator',
                 dag=self.dag)
 
