@@ -44,6 +44,9 @@ class JdbcHook(DbApiHook):
     default_conn_name = 'jdbc_default'
     supports_autocommit = True
 
+    def is_jaydebeapi_v1(self):
+        return jaydebeapi.__version_info__[0] >= 1
+
     def get_conn(self):
         conn = self.get_connection(getattr(self, self.conn_name_attr))
         host = conn.host
@@ -52,9 +55,15 @@ class JdbcHook(DbApiHook):
         jdbc_driver_loc = conn.extra_dejson.get('extra__jdbc__drv_path')
         jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
 
-        conn = jaydebeapi.connect(jdbc_driver_name,
-                                  [str(host), str(login), str(psw)],
-                                  jdbc_driver_loc,)
+        if self.is_jaydebeapi_v1():
+            conn = jaydebeapi.connect(jdbc_driver_name,
+                                      str(host),
+                                      [str(login), str(psw)],
+                                      jdbc_driver_loc,)
+        else:
+            conn = jaydebeapi.connect(jdbc_driver_name,
+                                      [str(host), str(login), str(psw)],
+                                      jdbc_driver_loc,)
         return conn
 
     def set_autocommit(self, conn, autocommit):
@@ -64,4 +73,7 @@ class JdbcHook(DbApiHook):
         :param conn: The connection
         :return:
         """
-        conn.jconn.autocommit = autocommit
+        if self.is_jaydebeapi_v1():
+            conn.jconn.autoCommit = autocommit
+        else:
+            conn.jconn.autocommit = autocommit
