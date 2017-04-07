@@ -41,3 +41,43 @@ class MsSqlHook(DbApiHook):
 
     def set_autocommit(self, conn, autocommit):
         conn.autocommit(autocommit)
+
+    def run(self, sql, autocommit=False, parameters=None):
+        """
+        Runs a command or a list of commands. Pass a list of sql
+        statements to the sql parameter to get them to execute
+        sequentially
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :type sql: str or list
+        :param autocommit: What to set the connection's autocommit setting to
+            before executing the query.
+        :type autocommit: bool
+        :param parameters: The parameters to render the SQL query with.
+        :type parameters: mapping or iterable
+        """
+        conn = self.get_conn()
+        if isinstance(sql, basestring):
+            sql = [sql]
+
+        if self.supports_autocommit:
+            self.set_autocommit(conn, autocommit)
+
+        cur = conn.cursor()
+        for s in sql:
+            if sys.version_info[0] < 3:
+                s = s.encode('utf-8')
+            _log.info(s)
+            if parameters is not None:
+                cur.execute(s, parameters)
+            else:
+                cur.execute(s)
+        # At this point we have received a resultset from SQL into the cursor. There could be more to come
+        # as the connection is still open and the sql could well still be running. Since we don't have a
+        # use for the resultsets in Airflow right now, loop through resultsets until there are no more.
+        while cur.nextset():
+            pass
+        cur.close()
+        conn.commit()
+        conn.close()
