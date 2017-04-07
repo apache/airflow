@@ -42,7 +42,12 @@ class TestSparkSubmitHook(unittest.TestCase):
         'num_executors': 10,
         'verbose': True,
         'driver_memory': '3g',
-        'java_class': 'com.foo.bar.AppMain'
+        'java_class': 'com.foo.bar.AppMain',
+        'application_args': [
+            '-f foo',
+            '--bar bar',
+            'baz'
+        ]
     }
 
     def setUp(self):
@@ -101,6 +106,15 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Check if all config settings are there
         for k in self._config['conf']:
             assert "--conf {0}={1}".format(k, self._config['conf'][k]) in cmd
+
+        # Check the application arguments are there
+        for a in self._config['application_args']:
+            assert a in cmd
+
+        # Check if application arguments are after the application
+        application_idx = cmd.find(self._spark_job_file)
+        for a in self._config['application_args']:
+            assert cmd.find(a) > application_idx
 
         if self._config['verbose']:
             assert "--verbose" in cmd
