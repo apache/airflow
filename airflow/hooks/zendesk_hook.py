@@ -21,7 +21,7 @@ A hook to talk to Zendesk
 import logging
 import time
 from zdesk import Zendesk, RateLimitError, ZendeskError
-from airflow.hooks import BaseHook
+from airflow.hooks.base_hook import BaseHook
 
 
 class ZendeskHook(BaseHook):

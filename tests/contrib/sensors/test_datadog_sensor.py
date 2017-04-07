@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import unittest
 from mock import patch
 
+from airflow import configuration
+from airflow.utils import db
+from airflow import models
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
 
 
@@ -51,6 +55,17 @@ zero_events = []
 
 
 class TestDatadogSensor(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        db.merge_conn(
+            models.Connection(
+                conn_id='datadog_default', conn_type='datadog',
+                login='login', password='password',
+                extra=json.dumps({'api_key': 'api_key', 'app_key': 'app_key'})
+            )
+        )
+
     @patch('airflow.contrib.hooks.datadog_hook.api.Event.query')
     @patch('airflow.contrib.sensors.datadog_sensor.api.Event.query')
     def test_sensor_ok(self, api1, api2):

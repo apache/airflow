@@ -89,7 +89,7 @@ class ECSOperator(BaseOperator):
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
-        waiter.config.max_attempts = sys.maxint  # timeout is managed by airflow
+        waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(
             cluster=self.cluster,
             tasks=[self.arn]

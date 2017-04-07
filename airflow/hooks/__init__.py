@@ -48,6 +48,7 @@ _hooks = {
     'samba_hook': ['SambaHook'],
     'sqlite_hook': ['SqliteHook'],
     'S3_hook': ['S3Hook'],
+    'zendesk_hook': ['ZendeskHook'],
     'http_hook': ['HttpHook'],
     'druid_hook': ['DruidHook'],
     'jdbc_hook': ['JdbcHook'],

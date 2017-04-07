@@ -15,7 +15,6 @@
 
 import json
 import unittest
-from exceptions import OSError
 
 from airflow import configuration, models
 from airflow.contrib.hooks.sqoop_hook import SqoopHook

@@ -3,6 +3,7 @@ azure-storage>=0.34.0
 bcrypt
 bleach
 boto
+boto3
 celery
 cgroupspy
 chartkick
@@ -11,6 +12,7 @@ coverage
 coveralls
 croniter
 cryptography
+datadog
 dill
 distributed
 docker-py
@@ -25,6 +27,7 @@ Flask-WTF
 flower
 freezegun
 future
+google-api-python-client>=1.5.0,<1.6.0
 gunicorn
 hdfs
 hive-thrift-py
@@ -37,6 +40,7 @@ ldap3
 lxml
 markdown
 mock
+moto
 mysqlclient
 nose
 nose-exclude
@@ -69,3 +73,4 @@ statsd
 thrift
 thrift_sasl
 unicodecsv
+zdesk

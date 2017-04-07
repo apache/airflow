@@ -93,7 +93,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.run_task.assert_called_once_with(
             cluster='c',
             overrides={},
-            startedBy='Airflow',
+            startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition='t'
         )
 
@@ -115,7 +115,7 @@ class TestECSOperator(unittest.TestCase):
         client_mock.run_task.assert_called_once_with(
             cluster='c',
             overrides={},
-            startedBy='Airflow',
+            startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition='t'
         )
 
@@ -128,7 +128,7 @@ class TestECSOperator(unittest.TestCase):
         self.ecs._wait_for_task_ended()
         client_mock.get_waiter.assert_called_once_with('tasks_stopped')
         client_mock.get_waiter.return_value.wait.assert_called_once_with(cluster='c', tasks=['arn'])
-        self.assertEquals(sys.maxint, client_mock.get_waiter.return_value.config.max_attempts)
+        self.assertEquals(sys.maxsize, client_mock.get_waiter.return_value.config.max_attempts)
 
     def test_check_success_tasks_raises(self):
         client_mock = mock.Mock()
@@ -147,7 +147,11 @@ class TestECSOperator(unittest.TestCase):
         with self.assertRaises(Exception) as e:
             self.ecs._check_success_task()
 
-        self.assertEquals(str(e.exception), "This task is not in success state {'containers': [{'lastStatus': 'STOPPED', 'name': 'foo', 'exitCode': 1}]}")
+        # Ordering of str(dict) is not guaranteed.
+        self.assertIn("This task is not in success state ", str(e.exception))
+        self.assertIn("'name': 'foo'", str(e.exception))
+        self.assertIn("'lastStatus': 'STOPPED'", str(e.exception))
+        self.assertIn("'exitCode': 1", str(e.exception))
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_pending(self):
@@ -164,7 +168,10 @@ class TestECSOperator(unittest.TestCase):
         }
         with self.assertRaises(Exception) as e:
             self.ecs._check_success_task()
-        self.assertEquals(str(e.exception), "This task is still pending {'containers': [{'lastStatus': 'PENDING', 'name': 'container-name'}]}")
+        # Ordering of str(dict) is not guaranteed.
+        self.assertIn("This task is still pending ", str(e.exception))
+        self.assertIn("'name': 'container-name'", str(e.exception))
+        self.assertIn("'lastStatus': 'PENDING'", str(e.exception))
         client_mock.describe_tasks.assert_called_once_with(cluster='c', tasks=['arn'])
 
     def test_check_success_tasks_raises_mutliple(self):

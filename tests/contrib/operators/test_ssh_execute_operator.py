@@ -14,7 +14,11 @@
 
 import unittest
 import os
+import sys
 from datetime import datetime
+from io import StringIO
+
+import mock
 
 from airflow import configuration
 from airflow.settings import Session
@@ -38,11 +42,19 @@ reset()
 
 
 class SSHExecuteOperatorTest(unittest.TestCase):
+
     def setUp(self):
+
+        if sys.version_info[0] == 3:
+            raise unittest.SkipTest('SSHExecuteOperatorTest won\'t work with '
+                                    'python3. No need to test anything here')
+
         configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
-        hook = SSHHook()
+        hook = mock.MagicMock(spec=SSHHook)
         hook.no_host_key_check = True
+        hook.Popen.return_value.stdout = StringIO(u'stdout')
+        hook.Popen.return_value.returncode = False
         args = {
             'owner': 'airflow',
             'start_date': DEFAULT_DATE,
@@ -53,7 +65,9 @@ class SSHExecuteOperatorTest(unittest.TestCase):
         self.hook = hook
         self.dag = dag
 
-    def test_simple(self):
+    @mock.patch('airflow.contrib.operators.ssh_execute_operator.SSHTempFileContent')
+    def test_simple(self, temp_file):
+        temp_file.return_value.__enter__ = lambda x: 'filepath'
         task = SSHExecuteOperator(
             task_id="test",
             bash_command="echo airflow",
@@ -62,14 +76,16 @@ class SSHExecuteOperatorTest(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_with_env(self):
+    @mock.patch('airflow.contrib.operators.ssh_execute_operator.SSHTempFileContent')
+    def test_with_env(self, temp_file):
+        temp_file.return_value.__enter__ = lambda x: 'filepath'
         test_env = os.environ.copy()
         test_env['AIRFLOW_test'] = "test"
         task = SSHExecuteOperator(
             task_id="test",
             bash_command="echo $AIRFLOW_HOME",
             ssh_hook=self.hook,
-            env=test_env,
+            env=test_env['AIRFLOW_test'],
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

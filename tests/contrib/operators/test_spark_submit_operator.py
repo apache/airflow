@@ -15,6 +15,7 @@
 
 import unittest
 import datetime
+import sys
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
@@ -23,6 +24,7 @@ DEFAULT_DATE = datetime.datetime(2017, 1, 1)
 
 
 class TestSparkSubmitOperator(unittest.TestCase):
+
     _config = {
         'conf': {
             'parquet.compression': 'SNAPPY'
@@ -43,6 +45,11 @@ class TestSparkSubmitOperator(unittest.TestCase):
     }
 
     def setUp(self):
+
+        if sys.version_info[0] == 3:
+            raise unittest.SkipTest('TestSparkSubmitOperator won\'t work with '
+                                    'python3. No need to test anything here')
+
         configuration.load_test_config()
         args = {
             'owner': 'airflow',

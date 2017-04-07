@@ -110,7 +110,7 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
             hook.BigQueryBaseCursor("test", "test").run_load("test.test", "test_schema.json", ["test_data.json"], source_format="json")
 
         # since we passed 'json' in, and it's not valid, make sure it's present in the error string.
-        self.assertIn("json", str(context.exception))
+        self.assertIn("JSON", str(context.exception))
 
 
 class TestBigQueryBaseCursor(unittest.TestCase):

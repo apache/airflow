@@ -119,7 +119,7 @@ class TestEmrBaseSensor(unittest.TestCase):
             operator.poke(None)
 
 
-        self.assertTrue('EMR job failed' in context.exception)
+        self.assertIn('EMR job failed', str(context.exception))
 
 
 if __name__ == '__main__':
