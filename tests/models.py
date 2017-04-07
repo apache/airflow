@@ -774,9 +774,8 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(ti.try_number, 4)
 
     def test_next_retry_datetime(self):
-        delay = datetime.timedelta(seconds=3)
-        delay_squared = datetime.timedelta(seconds=9)
-        max_delay = datetime.timedelta(seconds=10)
+        delay = datetime.timedelta(seconds=30)
+        max_delay = datetime.timedelta(minutes=60)
 
         dag = models.DAG(dag_id='fail_dag')
         task = BashOperator(
@@ -795,13 +794,17 @@ class TaskInstanceTest(unittest.TestCase):
 
         ti.try_number = 1
         dt = ti.next_retry_datetime()
-        self.assertEqual(dt, ti.end_date+delay)
+        self.assertEqual(dt, ti.end_date + delay)
 
-        ti.try_number = 2
+        ti.try_number = 6
         dt = ti.next_retry_datetime()
-        self.assertEqual(dt, ti.end_date+delay_squared)
+        self.assertEqual(dt, ti.end_date + (2 ** 5) * delay)
 
-        ti.try_number = 3
+        ti.try_number = 8
+        dt = ti.next_retry_datetime()
+        self.assertEqual(dt, ti.end_date+max_delay)
+
+        ti.try_number = 50
         dt = ti.next_retry_datetime()
         self.assertEqual(dt, ti.end_date+max_delay)
 
