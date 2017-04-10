@@ -89,18 +89,22 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
 
 def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
-    res = conn.search(native(search_base), native(search_filter), attributes=[native("memberOf")])
+    try:
+        memberof_attr = configuration.get("ldap", "group_member_attr")
+    except:
+        memberof_attr = "memberOf"
+    res = conn.search(native(search_base), native(search_filter), attributes=[native(memberof_attr)])
     if not res:
         LOG.info("Cannot find user %s", username)
         raise AuthenticationError("Invalid username or password")
 
-    if conn.response and "memberOf" not in conn.response[0]["attributes"]:
-        LOG.warning("""Missing attribute "memberOf" when looked-up in Ldap database.
+    if conn.response and memberof_attr not in conn.response[0]["attributes"]:
+        LOG.warning("""Missing attribute "%s" when looked-up in Ldap database.
         The user does not seem to be a member of a group and therefore won't see any dag
-        if the option filter_by_owner=True and owner_mode=ldapgroup are set""")
+        if the option filter_by_owner=True and owner_mode=ldapgroup are set""", memberof_attr)
         return []
 
-    user_groups = conn.response[0]["attributes"]["memberOf"]
+    user_groups = conn.response[0]["attributes"][memberof_attr]
 
     regex = re.compile("cn=([^,]*).*", re.IGNORECASE)
     groups_list = []
