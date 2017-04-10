@@ -72,6 +72,11 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     user_filter = objectClass=*
     # in case of Active Directory you would use: user_name_attr = sAMAccountName
     user_name_attr = uid
+    # group_member_attr should be set accordingly with *_filter
+    # eg :
+    #     group_member_attr = groupMembership
+    #     superuser_filter = groupMembership=CN=airflow-super-users...
+    group_member_attr = memberOf
     superuser_filter = memberOf=CN=airflow-super-users,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     data_profiler_filter = memberOf=CN=airflow-data-profilers,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     bind_user = cn=Manager,dc=example,dc=com
@@ -101,7 +106,7 @@ Multi-tenancy
 -------------
 
 You can filter the list of dags in webserver by owner name when authentication
-is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see 
+is turned on by setting ``webserver:filter_by_owner`` in your config. With this, a user will see
 only the dags which it is owner of, unless it is a superuser.
 
 .. code-block:: bash
@@ -287,6 +292,7 @@ backend. In order to setup an application:
 
 1. Navigate to https://console.developers.google.com/apis/
 2. Select 'Credentials' from the left hand nav
+2. Select 'Credentials' from the left hand nav
 3. Click 'Create credentials' and choose 'OAuth client ID'
 4. Choose 'Web application'
 5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualifed e.g. http://airflow.example.com/oauth2callback)
@@ -338,7 +344,7 @@ log to will have permissions changed such that only the unix user can write to i
 Default Impersonation
 '''''''''''''''''''''
 To prevent tasks that don't use impersonation to be run with `sudo` privileges, you can set the
-``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is 
+``core:default_impersonation`` config which sets a default user impersonate if `run_as_user` is
 not set.
 
 .. code-block:: bash
