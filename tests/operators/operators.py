@@ -89,6 +89,16 @@ class MySqlTest(unittest.TestCase):
                 results = tuple(result[0] for result in c.fetchall())
                 self.assertEqual(sorted(results), sorted(records))
 
+    def test_mysql_conn_id_template(self):
+        conn = 'airflow_db'
+
+        import airflow.operators.mysql_operator
+        t = operators.mysql_operator.MySqlOperator(
+            task_id='test_mysql_conn_id_template',
+            mysql_conn_id='{{ conn }}',
+            sql='SELECT count(1) FROM INFORMATION_SCHEMA.TABLES',
+            dag=self.dag)
+
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
         import airflow.operators.generic_transfer
@@ -174,6 +184,16 @@ class PostgresTest(unittest.TestCase):
         t = operators.postgres_operator.PostgresOperator(
             task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+    
+    def test_postgres_conn_id_template(self):
+        conn = 'postgres_default'
+
+        import airflow.operators.postgres_operator
+        t = operators.postgres_operator.PostgresOperator(
+            task_id='test_postgres_conn_id_template', 
+            postgres_conn_id='{{ conn }}',
+            sql='SELECT count(1) FROM INFORMATION_SCHEMA.TABLES', 
+            dag=self.dag)
 
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"

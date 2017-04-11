@@ -33,7 +33,7 @@ class MySqlOperator(BaseOperator):
     :type database: string
     """
 
-    template_fields = ('sql',)
+    template_fields = ('sql', 'mysql_conn_id',)
     template_ext = ('.sql',)
     ui_color = '#ededed'
 
