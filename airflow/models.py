@@ -367,7 +367,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         for task in dag.tasks:
             settings.policy(task)
 
-        for subdag in dag.subdags:
+        for subdag in dag.direct_subdags:
             subdag.full_filepath = dag.full_filepath
             subdag.parent_dag = dag
             subdag.is_subdag = True
@@ -2993,6 +2993,20 @@ class DAG(BaseDag, LoggingMixin):
         session.commit()
         session.close()
         return execution_date
+
+    @property
+    def direct_subdags(self):
+        """
+        Returns only directly connected subdag objects rather than all associated to this DAG
+        """
+        from airflow.operators.subdag_operator import SubDagOperator
+        l = []
+        for task in self.tasks:
+            if (isinstance(task, SubDagOperator) or
+                #TODO remove in Airflow 2.0
+                type(task).__name__ == 'SubDagOperator'):
+                l.append(task.subdag)
+        return l
 
     @property
     def subdags(self):
