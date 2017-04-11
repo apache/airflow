@@ -40,6 +40,7 @@ from airflow.utils.dag_processing import SimpleDagBag
 
 from mock import patch
 from sqlalchemy.orm.session import make_transient
+from sqlalchemy.orm import load_only
 from tests.executors.test_executor import TestExecutor
 
 from tests.core import TEST_DAG_FOLDER
@@ -1662,3 +1663,56 @@ class SchedulerJobTest(unittest.TestCase):
         import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
+
+    def test_scheduler_reschedule_does_not_reset_subdag_unittest(self):
+        subdag_id = 'test_subdag_parent_dag.subdag'
+        subdag = self.dagbag.get_dag(subdag_id)
+        subdag.create_dagrun(run_id="subdag_reset_test",
+                       state=State.RUNNING,
+                       execution_date=DEFAULT_DATE,
+                       start_date=DEFAULT_DATE)
+
+        session = settings.Session()
+        # grab all dag_ids of subdag.
+        qry_ids = session.query(DagModel).filter(DagModel.is_subdag == True).options(load_only("dag_id")).all()
+        subdag_dag_ids = []
+        for qry_id in qry_ids:
+            subdag_dag_ids.append(qry_id.dag_id)
+
+        # do not retrieve active_runs of subdag.
+        active_runs = session.query(DagRun).filter(DagRun.dag_id.in_(subdag_dag_ids),
+                                                   DagRun.state == State.RUNNING,
+                                                   DagRun.external_trigger == False).all()
+
+        self.assertEquals(1, len(active_runs))
+
+    def test_scheduler_reschedule_does_not_reset_subdag_test(self):
+        subdag_id = 'test_subdag_parent_dag.subdag'
+        task_id = 'test_subdag_task'
+        subdag = self.dagbag.get_dag(subdag_id)
+        subdag.create_dagrun(run_id="subdag_reset_test",
+                       state=State.RUNNING,
+                       execution_date=DEFAULT_DATE,
+                       start_date=DEFAULT_DATE)
+
+        session = settings.Session()
+        ti = session.query(TI).filter(TI.dag_id==subdag_id,
+                                      TI.task_id==task_id).first()
+        # set task state as SCHEDULED.
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
+        executor = TestExecutor()
+
+        scheduler = SchedulerJob(num_runs=1,
+                                 executor=executor,
+                                 subdir=os.path.join(settings.DAGS_FOLDER,
+                                                           "no_dags.py"))
+        scheduler.heartrate = 0
+        scheduler.run()
+
+        ti = session.query(TI).filter(TI.dag_id==subdag_id,
+                                      TI.task_id==task_id).first()
+        # Task should not be reset by scheduler as orphan task.
+        self.assertEquals(State.SCHEDULED, ti.state)

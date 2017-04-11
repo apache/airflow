@@ -38,12 +38,13 @@ import psutil
 from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
+from sqlalchemy.orm import load_only
 from tabulate import tabulate
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun
+from airflow.models import DAG, DagRun, DagModel
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -1355,12 +1356,17 @@ class SchedulerJob(BaseJob):
 
         session = settings.Session()
         self.logger.info("Resetting state for orphaned tasks")
-        # grab orphaned tasks and make sure to reset their state
-        active_runs = DagRun.find(
-            state=State.RUNNING,
-            external_trigger=False,
-            session=session
-        )
+
+        # grab all dag_ids of subdag.
+        qry_ids = session.query(DagModel).filter(DagModel.is_subdag == True).options(load_only("dag_id")).all()
+        subdag_dag_ids = []
+        for qry_id in qry_ids:
+            subdag_dag_ids.append(qry_id.dag_id)
+
+        # Do not retrieve active_runs of subdag.
+        active_runs = session.query(DagRun).filter(~DagRun.dag_id.in_(subdag_dag_ids),
+                                                   DagRun.state==State.RUNNING,
+                                                   DagRun.external_trigger==False).all()
         for dr in active_runs:
             self.logger.info("Resetting {} {}".format(dr.dag_id,
                                                       dr.execution_date))
