@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
 import logging
 
 from airflow.models import BaseOperator, DagBag
@@ -23,9 +22,27 @@ from airflow import configuration as conf
 
 
 class DagRunOrder(object):
-    def __init__(self, run_id=None, payload=None):
-        self.run_id = run_id
+    def __init__(self, execution_date, run_id=None, payload=None):
+        self._run_id = run_id
         self.payload = payload
+        self.execution_date = execution_date
+
+    @property
+    def run_id(self):
+        return self._run_id or self._auto_run_id
+
+    @run_id.setter
+    def run_id(self, value):
+        self._run_id = value
+
+    @property
+    def execution_date(self):
+        return self._execution_date
+
+    @execution_date.setter
+    def execution_date(self, dt):
+        self._execution_date = dt
+        self._auto_run_id = 'trig__%s' % dt.isoformat()
 
 
 class TriggerDagRunOperator(BaseOperator):
@@ -37,8 +54,11 @@ class TriggerDagRunOperator(BaseOperator):
     :param python_callable: a reference to a python function that will be
         called while passing it the ``context`` object and a placeholder
         object ``obj`` for your callable to fill and return if you want
-        a DagRun created. This ``obj`` object contains a ``run_id`` and
-        ``payload`` attribute that you can modify in your function.
+        a DagRun created. This ``obj`` object contains an
+        ``execution_date``, a ``run_id`` and ``payload`` attribute that
+        you can modify in your function.
+        The ``execution_date`` is by default the current
+        task's instance ``execution_date``.
         The ``run_id`` should be a unique identifier for that DAG run, and
         the payload has to be a picklable object that will be made available
         to your tasks while executing that DAG run. Your function header
@@ -60,7 +80,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_dag_id = trigger_dag_id
 
     def execute(self, context):
-        dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
+        dro = DagRunOrder(context['execution_date'])
         dro = self.python_callable(context, dro)
         if dro:
             session = settings.Session()
@@ -70,6 +90,7 @@ class TriggerDagRunOperator(BaseOperator):
                 run_id=dro.run_id,
                 state=State.RUNNING,
                 conf=dro.payload,
+                execution_date=dro.execution_date,
                 external_trigger=True)
             logging.info("Creating DagRun {}".format(dr))
             session.add(dr)

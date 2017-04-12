@@ -446,6 +446,7 @@ class CoreTest(unittest.TestCase):
 
     def test_trigger_dagrun(self):
         def trigga(context, obj):
+            trigga.run_id = obj.run_id
             if True:
                 return obj
 
@@ -455,6 +456,40 @@ class CoreTest(unittest.TestCase):
             python_callable=trigga,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        session = settings.Session()
+        new_dag_run = session.query(models.DagRun).filter(
+            models.DagRun.run_id == trigga.run_id).first()
+        self.assertEqual(new_dag_run.execution_date, DEFAULT_DATE)
+
+    def test_trigger_dagrun_order_modified(self):
+        """
+        Test TriggerDagRunOperator with changes in DagRunOrder
+        """
+        new_execution_date = datetime(2016, 1, 1)
+        new_dag_run_id = 'manual_run_id'
+        payload_key = 'message'
+        payload = {payload_key: 'Hello World'}
+
+        def trigga(context, obj):
+            obj.run_id = new_dag_run_id
+            obj.execution_date = new_execution_date
+            obj.payload = payload
+            if True:
+                return obj
+
+        t = TriggerDagRunOperator(
+            task_id='test_trigger_dagrun',
+            trigger_dag_id='example_bash_operator',
+            python_callable=trigga,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        session = settings.Session()
+        new_dag_run = session.query(models.DagRun).filter(
+            models.DagRun.run_id == new_dag_run_id).first()
+        self.assertEqual(new_dag_run.execution_date, new_execution_date)
+        self.assertEqual(new_dag_run.conf[payload_key], payload[payload_key])
 
     def test_dryrun(self):
         t = BashOperator(
