@@ -237,7 +237,12 @@ class FTPSHook(FTPHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
+
+            if params.port:
+               ftplib.FTP_TLS.port=params.port
+
             self.conn = ftplib.FTP_TLS(
                 params.host, params.login, params.password
             )
+
         return self.conn
