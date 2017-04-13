@@ -60,7 +60,7 @@ from croniter import croniter
 import six
 
 from airflow import settings, utils
-from airflow.executors import DEFAULT_EXECUTOR, LocalExecutor
+from airflow.executors import GetDefaultExecutor, LocalExecutor
 from airflow import configuration
 from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
 from airflow.dag.base_dag import BaseDag, BaseDagBag
@@ -161,9 +161,11 @@ class DagBag(BaseDagBag, LoggingMixin):
     def __init__(
             self,
             dag_folder=None,
-            executor=DEFAULT_EXECUTOR,
+            executor=None,
             include_examples=configuration.getboolean('core', 'LOAD_EXAMPLES')):
 
+        if executor is None:
+            executor = GetDefaultExecutor()
         dag_folder = dag_folder or settings.DAGS_FOLDER
         self.logger.info("Filling up the DagBag from {}".format(dag_folder))
         self.dag_folder = dag_folder
@@ -3399,7 +3401,7 @@ class DAG(BaseDag, LoggingMixin):
         if not executor and local:
             executor = LocalExecutor()
         elif not executor:
-            executor = DEFAULT_EXECUTOR
+            executor = GetDefaultExecutor()
         job = BackfillJob(
             self,
             start_date=start_date,

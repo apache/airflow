@@ -16,7 +16,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Pool
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.db import provide_session
-from airflow.executors import DEFAULT_EXECUTOR
+from airflow.executors import GetDefaultExecutor
 
 
 class SubDagOperator(BaseOperator):
@@ -30,7 +30,7 @@ class SubDagOperator(BaseOperator):
     def __init__(
             self,
             subdag,
-            executor=DEFAULT_EXECUTOR,
+            executor=GetDefaultExecutor(),
             *args, **kwargs):
         """
         Yo dawg. This runs a sub dag. By convention, a sub dag's dag_id
