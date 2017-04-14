@@ -1029,9 +1029,6 @@ class SchedulerJob(BaseJob):
                              "with {open_slots} open slots and {num_queued} "
                              "task instances in queue".format(**locals()))
 
-            if open_slots <= 0:
-                continue
-
             priority_sorted_task_instances = sorted(
                 task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
 
@@ -1040,7 +1037,8 @@ class SchedulerJob(BaseJob):
 
             for task_instance in priority_sorted_task_instances:
                 if open_slots <= 0:
-                    self.logger.info("No more slots free")
+                    self.logger.info("Not scheduling since there are {} open slots in pool {}"
+                        .format(open_slots, pool))
                     # Can't schedule any more since there are no more open slots.
                     break
 
