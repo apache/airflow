@@ -18,6 +18,7 @@ import unittest
 
 from airflow import configuration, models
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
+from airflow.exceptions import AirflowException
 from airflow.utils import db
 
 
@@ -88,31 +89,36 @@ class TestSqoopHook(unittest.TestCase):
 
         # Check if the config has been extracted from the json
         if self._config_json['namenode']:
-            assert "-fs {}".format(self._config_json['namenode']) in cmd
+            self.assertIn("-fs {}".format(self._config_json['namenode']), cmd)
 
         if self._config_json['job_tracker']:
-            assert "-jt {}".format(self._config_json['job_tracker']) in cmd
+            self.assertIn("-jt {}".format(self._config_json['job_tracker']),
+                          cmd)
 
         if self._config_json['libjars']:
-            assert "-libjars {}".format(self._config_json['libjars']) in cmd
+            self.assertIn("-libjars {}".format(self._config_json['libjars']),
+                          cmd)
 
         if self._config_json['files']:
-            assert "-files {}".format(self._config_json['files']) in cmd
+            self.assertIn("-files {}".format(self._config_json['files']), cmd)
 
         if self._config_json['archives']:
-            assert "-archives {}".format(self._config_json['archives']) in cmd
+            self.assertIn(
+                "-archives {}".format(self._config_json['archives']), cmd
+            )
 
         # Check the regulator stuff passed by the default constructor
         if self._config['verbose']:
-            assert "--verbose" in cmd
+            self.assertIn("--verbose", cmd)
 
         if self._config['num_mappers']:
-            assert "--num-mappers {}".format(
-                self._config['num_mappers']) in cmd
+            self.assertIn(
+                "--num-mappers {}".format(self._config['num_mappers']), cmd
+            )
 
         print(self._config['properties'])
         for key, value in self._config['properties'].items():
-            assert "-D {}={}".format(key, value) in cmd
+            self.assertIn("-D {}={}".format(key, value), cmd)
 
         # We don't have the sqoop binary available, and this is hard to mock,
         # so just accept an exception for now.
@@ -152,31 +158,31 @@ class TestSqoopHook(unittest.TestCase):
                 relaxed_isolation=self._config_export['relaxed_isolation'])
         )
 
-        assert "--input-null-string {}".format(
-            self._config_export['input_null_string']) in cmd
-        assert "--input-null-non-string {}".format(
-            self._config_export['input_null_non_string']) in cmd
-        assert "--staging-table {}".format(
-            self._config_export['staging_table']) in cmd
-        assert "--enclosed-by {}".format(
-            self._config_export['enclosed_by']) in cmd
-        assert "--escaped-by {}".format(
-            self._config_export['escaped_by']) in cmd
-        assert "--input-fields-terminated-by {}".format(
-            self._config_export['input_fields_terminated_by']) in cmd
-        assert "--input-lines-terminated-by {}".format(
-            self._config_export['input_lines_terminated_by']) in cmd
-        assert "--input-optionally-enclosed-by {}".format(
-            self._config_export['input_optionally_enclosed_by']) in cmd
+        self.assertIn("--input-null-string {}".format(
+            self._config_export['input_null_string']), cmd)
+        self.assertIn("--input-null-non-string {}".format(
+            self._config_export['input_null_non_string']), cmd)
+        self.assertIn("--staging-table {}".format(
+            self._config_export['staging_table']), cmd)
+        self.assertIn("--enclosed-by {}".format(
+            self._config_export['enclosed_by']), cmd)
+        self.assertIn("--escaped-by {}".format(
+            self._config_export['escaped_by']), cmd)
+        self.assertIn("--input-fields-terminated-by {}".format(
+            self._config_export['input_fields_terminated_by']), cmd)
+        self.assertIn("--input-lines-terminated-by {}".format(
+            self._config_export['input_lines_terminated_by']), cmd)
+        self.assertIn("--input-optionally-enclosed-by {}".format(
+            self._config_export['input_optionally_enclosed_by']), cmd)
 
         if self._config_export['clear_staging_table']:
-            assert "--clear-staging-table" in cmd
+            self.assertIn("--clear-staging-table", cmd)
 
         if self._config_export['batch']:
-            assert "--batch" in cmd
+            self.assertIn("--batch", cmd)
 
         if self._config_export['relaxed_isolation']:
-            assert "--relaxed-isolation" in cmd
+            self.assertIn("--relaxed-isolation", cmd)
 
     def test_import_cmd(self):
         hook = SqoopHook()
@@ -192,26 +198,30 @@ class TestSqoopHook(unittest.TestCase):
         )
 
         if self._config_import['append']:
-            assert '--append' in cmd
+            self.assertIn('--append', cmd)
 
         if self._config_import['direct']:
-            assert '--direct' in cmd
+            self.assertIn('--direct', cmd)
 
-        assert '--target-dir {}'.format(
-            self._config_import['target_dir']) in cmd
+        self.assertIn('--target-dir {}'.format(
+            self._config_import['target_dir']), cmd)
 
-        assert '--driver {}'.format(self._config_import['driver']) in cmd
-        assert '--split-by {}'.format(self._config_import['split_by']) in cmd
+        self.assertIn('--driver {}'.format(self._config_import['driver']), cmd)
+        self.assertIn('--split-by {}'.format(self._config_import['split_by']),
+                      cmd)
 
     def test_get_export_format_argument(self):
         hook = SqoopHook()
-        assert "--as-avrodatafile" in hook._get_export_format_argument('avro')
-        assert "--as-parquetfile" in hook._get_export_format_argument(
-            'parquet')
-        assert "--as-sequencefile" in hook._get_export_format_argument(
-            'sequence')
-        assert "--as-textfile" in hook._get_export_format_argument('text')
-        assert "--as-textfile" in hook._get_export_format_argument('unknown')
+        self.assertIn("--as-avrodatafile",
+                      hook._get_export_format_argument('avro'))
+        self.assertIn("--as-parquetfile",
+                      hook._get_export_format_argument('parquet'))
+        self.assertIn("--as-sequencefile",
+                      hook._get_export_format_argument('sequence'))
+        self.assertIn("--as-textfile",
+                      hook._get_export_format_argument('text'))
+        with self.assertRaises(AirflowException):
+            hook._get_export_format_argument('unknown')
 
 
 if __name__ == '__main__':

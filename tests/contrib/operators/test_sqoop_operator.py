@@ -18,6 +18,7 @@ import unittest
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.sqoop_operator import SqoopOperator
+from airflow.exceptions import AirflowException
 
 
 class TestSqoopOperator(unittest.TestCase):
@@ -87,6 +88,12 @@ class TestSqoopOperator(unittest.TestCase):
         self.assertEqual(self._config['direct'], operator.direct)
         self.assertEqual(self._config['driver'], operator.driver)
         self.assertEqual(self._config['properties'], operator.properties)
+
+    def test_invalid_cmd_type(self):
+        operator = SqoopOperator(task_id='sqoop_job', dag=self.dag,
+                                 cmd_type='invalid')
+        with self.assertRaises(AirflowException):
+            operator.execute({})
 
 
 if __name__ == '__main__':

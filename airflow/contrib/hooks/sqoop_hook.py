@@ -28,21 +28,27 @@ log = logging.getLogger(__name__)
 
 class SqoopHook(BaseHook):
     """
-    This Hook is a wrapper around the sqoop 1 binary. To be able to use te hook
+    This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
-    :param job_tracker: (from json) specify a job tracker local|jobtracker:port
-    :type job_tracker: str
-    :param namenode: (from json) specify a namenode
-    :type namenode: str
-    :param lib_jars: (from json) specify comma separated jar
-        files to include in the classpath.
-    :type lib_jars: str
-    :param files: (from json) specify comma separated files to be copied to
-        the map reduce cluster
-    :type files: (from json) str
-    :param archives: (from json)  specify comma separated archives to be
-        unarchived on the compute machines.
-    :type archives: str
+
+    Additional arguments that can be passed via the 'extra' JSON field of the
+    sqoop connection:
+    * job_tracker: Job tracker local|jobtracker:port.
+    * namenode: Namenode.
+    * lib_jars: Comma separated jar files to include in the classpath.
+    * files: Comma separated files to be copied to the map reduce cluster.
+    * archives: Comma separated archives to be unarchived on the compute
+        machines.
+    * password_file: Path to file containing the password.
+
+    :param conn_id: Reference to the sqoop connection.
+    :type conn_id: str
+    :param verbose: Set sqoop to verbose.
+    :type verbose: bool
+    :param num_mappers: Number of map tasks to import in parallel.
+    :type num_mappers: str
+    :param properties: Properties to set via the -D argument
+    :type properties: dict
     """
 
     def __init__(self, conn_id='sqoop_default', verbose=False,
@@ -80,12 +86,11 @@ class SqoopHook(BaseHook):
         output, stderr = process.communicate()
 
         if process.returncode != 0:
-            raise AirflowException((
-                                       "Cannot execute {} on {}. Error code is: {}"
-                                       "Output: {}, Stderr: {}"
-                                   ).format(cmd, self.conn.host,
-                                            process.returncode, output,
-                                            stderr))
+            raise AirflowException(
+                "Cannot execute {} on {}. Error code is: {} Output: {}, "
+                "Stderr: {}".format(cmd, self.conn.host, process.returncode,
+                                    output, stderr)
+            )
 
     def _prepare_command(self, export=False):
         if export:
@@ -132,8 +137,11 @@ class SqoopHook(BaseHook):
             return ["--as-sequencefile"]
         elif file_type == "parquet":
             return ["--as-parquetfile"]
-        else:
+        elif file_type == "text":
             return ["--as-textfile"]
+        else:
+            raise AirflowException("Argument file_type should be 'avro', "
+                                   "'sequence', 'parquet' or 'text'.")
 
     def _import_cmd(self, target_dir, append, file_type, split_by, direct,
                     driver):

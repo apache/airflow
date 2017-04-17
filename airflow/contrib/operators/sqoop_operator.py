@@ -134,7 +134,7 @@ class SqoopOperator(BaseOperator):
                          num_mappers=self.num_mappers,
                          properties=self.properties)
 
-        if self.cmd_type is 'export':
+        if self.cmd_type == 'export':
             hook.export_table(
                 table=self.table,
                 export_dir=self.export_dir,
@@ -149,7 +149,7 @@ class SqoopOperator(BaseOperator):
                 input_optionally_enclosed_by=self.input_optionally_enclosed_by,
                 batch=self.batch,
                 relaxed_isolation=self.relaxed_isolation)
-        else:
+        elif self.cmd_type == 'import':
             if not self.table:
                 hook.import_table(
                     table=self.table,
@@ -174,3 +174,5 @@ class SqoopOperator(BaseOperator):
                 raise AirflowException(
                     "Provide query or table parameter to import using Sqoop"
                 )
+        else:
+            raise AirflowException("cmd_type should be 'import' or 'export'")
