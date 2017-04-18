@@ -2546,7 +2546,7 @@ class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
     def version(self):
         # Look at the version from setup.py
         try:
-            airflow_version = pkg_resources.require("airflow")[0].version
+            airflow_version = pkg_resources.require("apache-airflow")[0].version
         except Exception as e:
             airflow_version = None
             self.logger.error(e)
