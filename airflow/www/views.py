@@ -1377,10 +1377,10 @@ class Airflow(BaseView):
             ),
             blur=blur,
             root=root or '',
-            task_instances=json.dumps(task_instances, indent=2),
-            tasks=json.dumps(tasks, indent=2),
-            nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2),)
+            task_instances=json.dumps(task_instances, indent=4),
+            tasks=json.dumps(tasks, indent=4),
+            nodes=json.dumps(nodes, indent=4),
+            edges=json.dumps(edges, indent=4),)
 
     @expose('/duration')
     @login_required
