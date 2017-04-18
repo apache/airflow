@@ -18,7 +18,7 @@
 */
 
 g.node rect {
-    stroke-width: 2;
+    stroke-width: 3;
     stroke: white;
     cursor: pointer;
 }
