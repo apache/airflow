@@ -2486,10 +2486,13 @@ class BaseOperator(object):
         elif len(dags) == 1:
             dag = list(dags)[0]
         else:
-            raise AirflowException(
-                "Tried to create relationships between tasks that don't have "
-                "DAGs yet. Set the DAG for at least one "
-                "task  and try again: {}".format([self] + task_list))
+            #TODO raise an error in Airflow 2.0
+            warnings.warn(
+                "Tried to set relationships between tasks that don't have "
+                "DAGs yet. This is unsupported behavior and will raise an "
+                "exception in Airflow 2.0: {}".format([self] + task_list),
+                category=PendingDeprecationWarning)
+            dag = None
 
         if dag and not self.has_dag():
             self.dag = dag
