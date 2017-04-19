@@ -349,10 +349,15 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
                     task = dag.get_task(ti.task_id)
+
+                    # now set non db backed vars on ti
                     ti.task = task
-                    ti.handle_failure("{} killed as zombie".format(ti))
+                    ti.test_mode = False
+
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      False, ti.get_template_context())
                     self.logger.info(
-                        'Marked zombie job {} as failed'.format(ti))
+                        'Marked zombie job %s as %s', ti, ti.state)
                     Stats.incr('zombies_killed')
         session.commit()
 
@@ -766,7 +771,7 @@ class TaskInstance(Base):
         Index('ti_pool', pool, state, priority_weight),
     )
 
-    def __init__(self, task, execution_date, state=None):
+    def __init__(self, task, execution_date, state=None, job_id=None):
         self.dag_id = task.dag_id
         self.task_id = task.task_id
         self.execution_date = execution_date
@@ -775,6 +780,7 @@ class TaskInstance(Base):
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
+        self.job_id = job_id
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
         if state:
