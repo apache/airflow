@@ -272,7 +272,7 @@ class MesosExecutor(BaseExecutor):
         self.mesos_driver = driver
         self.mesos_driver.start()
 
-    def execute_async(self, key, command, queue=None):
+    def execute_async(self, key, command, queue=None, task=None):
         self.task_queue.put((key, command))
 
     def sync(self):

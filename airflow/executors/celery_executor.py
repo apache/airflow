@@ -76,7 +76,7 @@ class CeleryExecutor(BaseExecutor):
         self.tasks = {}
         self.last_state = {}
 
-    def execute_async(self, key, command, queue=DEFAULT_QUEUE):
+    def execute_async(self, key, command, queue=DEFAULT_QUEUE, task=None):
         self.logger.info( "[celery] queuing {key} through celery, "
                        "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
