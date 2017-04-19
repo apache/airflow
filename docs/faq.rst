@@ -66,8 +66,8 @@ documentation
 Why are connection passwords still not encrypted in the metadata db after I installed airflow[crypto]?
 ------------------------------------------------------------------------------------------------------
 
-- Verify that the ``fernet_key`` defined in ``$AIRFLOW_HOME/airflow.cfg`` is a valid Fernet key. It must be a base64-encoded 32-byte key. You need to restart the webserver after you update the key
-- For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it
+Check out the ``Connections`` section in the Configuration section of the
+documentation
 
 What's the deal with ``start_date``?
 ------------------------------------
