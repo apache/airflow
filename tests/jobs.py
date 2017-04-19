@@ -348,6 +348,75 @@ class BackfillJobTest(unittest.TestCase):
             else:
                 self.assertEqual(State.NONE, ti.state)
 
+    def test_backfill_fill_blanks(self):
+        dag = DAG(
+            'test_backfill_fill_blanks',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'},
+        )
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+            op2 = DummyOperator(task_id='op2')
+            op3 = DummyOperator(task_id='op3')
+            op4 = DummyOperator(task_id='op4')
+            op5 = DummyOperator(task_id='op5')
+            op6 = DummyOperator(task_id='op6')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id='test',
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        executor = TestExecutor(do_update=True)
+
+        session = settings.Session()
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id == op1.task_id:
+                ti.state = State.UP_FOR_RETRY
+                ti.end_date = DEFAULT_DATE
+            elif ti.task_id == op2.task_id:
+                ti.state = State.FAILED
+            elif ti.task_id == op3.task_id:
+                ti.state = State.SKIPPED
+            elif ti.task_id == op4.task_id:
+                ti.state = State.SCHEDULED
+            elif ti.task_id == op5.task_id:
+                ti.state = State.UPSTREAM_FAILED
+            # op6 = None
+            session.merge(ti)
+        session.commit()
+        session.close()
+
+        job = BackfillJob(dag=dag,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE,
+                          executor=executor)
+        self.assertRaisesRegexp(
+            AirflowException,
+            'Some task instances failed',
+            job.run)
+
+        self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
+        # the run_id should have changed, so a refresh won't work
+        drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
+        dr = drs[0]
+
+        self.assertEqual(dr.state, State.FAILED)
+
+        tis = dr.get_task_instances()
+        for ti in tis:
+            if ti.task_id in (op1.task_id, op4.task_id, op6.task_id):
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == op2.task_id:
+                self.assertEqual(ti.state, State.FAILED)
+            elif ti.task_id == op3.task_id:
+                self.assertEqual(ti.state, State.SKIPPED)
+            elif ti.task_id == op5.task_id:
+                self.assertEqual(ti.state, State.UPSTREAM_FAILED)
+
     def test_backfill_execute_subdag(self):
         dag = self.dagbag.get_dag('example_subdag_operator')
         subdag_op_task = dag.get_task('section-1')

@@ -1821,7 +1821,8 @@ class BackfillJob(BaseJob):
 
             for ti in run.get_task_instances():
                 # all tasks part of the backfill are scheduled to run
-                ti.set_state(State.SCHEDULED, session=session)
+                if ti.state == State.NONE:
+                    ti.set_state(State.SCHEDULED, session=session)
                 tasks_to_run[ti.key] = ti
 
             next_run_date = self.dag.following_schedule(next_run_date)
