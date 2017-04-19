@@ -95,7 +95,7 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(
             self,
-            executor=executors.DEFAULT_EXECUTOR,
+            executor=executors.GetDefaultExecutor(),
             heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
         self.hostname = socket.getfqdn()

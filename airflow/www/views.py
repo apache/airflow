@@ -936,8 +936,9 @@ class Airflow(BaseView):
         ignore_ti_state = request.args.get('ignore_ti_state') == "true"
 
         try:
-            from airflow.executors import DEFAULT_EXECUTOR as executor
+            from airflow.executors import GetDefaultExecutor
             from airflow.executors import CeleryExecutor
+            executor = GetDefaultExecutor()
             if not isinstance(executor, CeleryExecutor):
                 flash("Only works with the CeleryExecutor, sorry", "error")
                 return redirect(origin)
