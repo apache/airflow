@@ -776,6 +776,7 @@ def webserver(args):
             '-t', str(worker_timeout),
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
+            '-p', str(pid),
             '-c', 'airflow.www.gunicorn_config'
         ]
 
@@ -786,7 +787,7 @@ def webserver(args):
             run_args += ['--error-logfile', str(args.error_logfile)]
 
         if args.daemon:
-            run_args += ['-D', '-p', str(pid)]
+            run_args += ['-D']
 
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
