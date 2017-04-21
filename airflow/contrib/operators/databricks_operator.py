@@ -14,6 +14,7 @@
 #
 
 import logging
+import six
 import time
 
 from airflow.exceptions import AirflowException
@@ -81,34 +82,53 @@ class DatabricksSubmitRunOperator(BaseOperator):
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
-        take precedence and override the top level json keys.
-        https://docs.databricks.com/api/latest/jobs.html#runs-submit
+        take precedence and override the top level json keys. This field will be
+        templated.
+
+        .. seealso::
+            For more information about templating see :ref:`jinja-templating`.
+            https://docs.databricks.com/api/latest/jobs.html#runs-submit
     :type json: dict
     :param spark_jar_task: The main class and parameters for the JAR task. Note that
         the actual JAR is specified in the ``libraries``.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
-        https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#jobssparkjartask
     :type spark_jar_task: dict
     :param notebook_task: The notebook path and parameters for the notebook task.
         *EITHER* ``spark_jar_task`` *OR* ``notebook_task`` should be specified.
-        https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#jobsnotebooktask
     :type notebook_task: dict
     :param new_cluster: Specs for a new cluster on which this task will be run.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
-        https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/jobs.html#jobsclusterspecnewcluster
     :type new_cluster: dict
     :param existing_cluster_id: ID for existing cluster on which to run this task.
         *EITHER* ``new_cluster`` *OR* ``existing_cluster_id`` should be specified.
+        This field will be templated.
     :type existing_cluster_id: string
     :param libraries: Libraries which this run will use.
-        https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
+        This field will be templated.
+
+        .. seealso::
+            https://docs.databricks.com/api/latest/libraries.html#managedlibrarieslibrary
     :type libraries: list of dicts
     :param run_name: The run name used for this task.
         By default this will be set to the Airflow ``task_id``. This ``task_id`` is a
         required parameter of the superclass ``BaseOperator``.
+        This field will be templated.
     :type run_name: string
     :param timeout_seconds: The timeout for this run. By default a value of 0 is used
         which means to have no timeout.
+        This field will be templated.
     :type timeout_seconds: int32
     :param databricks_conn_id: The name of the Airflow connection to use.
         By default and in the common case this will be ``databricks_default``.
@@ -120,6 +140,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
     """
+    # Used in airflow.models.BaseOperator
+    template_fields = ('json',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -163,8 +185,34 @@ class DatabricksSubmitRunOperator(BaseOperator):
         if 'run_name' not in self.json:
             self.json['run_name'] = run_name or kwargs['task_id']
 
+        self.json = self._deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
+
+    def _deep_string_coerce(self, content, json_path='json'):
+        """
+        Coerces content or all values of content if it is a dict to a string. The
+        function will throw if content contains non-string or non-numeric types.
+
+        The reason why we have this function is because the ``self.json`` field must be a dict
+        with only string values. This is because ``render_template`` will fail for numerical values.
+        """
+        c = self._deep_string_coerce
+        if isinstance(content, six.string_types):
+            return content
+        elif isinstance(content, six.integer_types+(float,)):
+            # Databricks can tolerate either numeric or string types in the API backend.
+            return str(content)
+        elif isinstance(content, (list, tuple)):
+            return [c(e, '{0}[{1}]'.format(json_path, i)) for e, i in enumerate(content)]
+        elif isinstance(content, dict):
+            return {k: c(v, '{0}[{1}]'.format(json_path, k))
+                    for k, v in list(content.items())}
+        else:
+            param_type = type(content)
+            msg = 'Type {0} used for parameter {1} is not a number or a string' \
+                    .format(param_type, json_path)
+            raise AirflowException(msg)
 
     def _log_run_page_url(self, url):
         logging.info('View run status, Spark UI, and logs at {}'.format(url))

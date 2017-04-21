@@ -13,11 +13,14 @@
 # limitations under the License.
 #
 
+import jinja2
 import unittest
+from datetime import datetime
 
 from airflow.contrib.hooks.databricks_hook import RunState
 from airflow.contrib.operators.databricks_operator import DatabricksSubmitRunOperator
 from airflow.exceptions import AirflowException
+from airflow.models import DAG
 
 try:
     from unittest import mock
@@ -27,10 +30,17 @@ except ImportError:
     except ImportError:
         mock = None
 
+DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
 DEFAULT_CONN_ID = 'databricks_default'
 NOTEBOOK_TASK = {
     'notebook_path': '/test'
+}
+TEMPLATED_NOTEBOOK_TASK = {
+    'notebook_path': '/test-{{ ds }}'
+}
+RENDERED_TEMPLATED_NOTEBOOK_TASK = {
+    'notebook_path': '/test-{0}'.format(DATE)
 }
 SPARK_JAR_TASK = {
     'main_class_name': 'com.databricks.Test'
@@ -51,11 +61,11 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         Test the initializer with the named parameters.
         """
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK)
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
-        }
+        })
         self.assertDictEqual(expected, op.json)
 
     def test_init_with_json(self):
@@ -67,11 +77,11 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
-        }
+        })
         self.assertDictEqual(expected, op.json)
 
     def test_init_with_specified_run_name(self):
@@ -84,11 +94,11 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'run_name': RUN_NAME
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': RUN_NAME
-        }
+        })
         self.assertDictEqual(expected, op.json)
 
     def test_init_with_merging(self):
@@ -103,12 +113,37 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': override_new_cluster,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID,
-        }
+        })
         self.assertDictEqual(expected, op.json)
+
+    def test_init_with_templating(self):
+        json = {
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': TEMPLATED_NOTEBOOK_TASK,
+        }
+        dag = DAG('test', start_date=datetime.now())
+        op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
+        op.json = op.render_template('json', op.json, {'ds': DATE})
+        expected = op._deep_string_coerce({
+          'new_cluster': NEW_CLUSTER,
+          'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
+          'run_name': TASK_ID,
+        })
+        self.assertDictEqual(expected, op.json)
+
+    def test_init_with_bad_type(self):
+        json = {
+            'test': datetime.now()
+        }
+        # Looks a bit weird since we have to escape regex reserved symbols.
+        exception_message = 'Type \<(type|class) \'datetime.datetime\'\> used ' + \
+                        'for parameter json\[test\] is not a number or a string'
+        with self.assertRaisesRegexp(AirflowException, exception_message):
+            op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_success(self, db_mock_class):
@@ -126,11 +161,11 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
 
         op.execute(None)
 
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID
-        }
+        })
         db_mock_class.assert_called_once_with(
                 DEFAULT_CONN_ID,
                 retry_limit=op.databricks_retry_limit)
@@ -156,11 +191,11 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         with self.assertRaises(AirflowException):
             op.execute(None)
 
-        expected = {
+        expected = op._deep_string_coerce({
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID,
-        }
+        })
         db_mock_class.assert_called_once_with(
                 DEFAULT_CONN_ID,
                 retry_limit=op.databricks_retry_limit)
