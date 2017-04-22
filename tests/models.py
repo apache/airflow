@@ -27,7 +27,7 @@ from airflow import models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
-from airflow.models import DagModel
+from airflow.models import DagModel, DagStat
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -234,6 +234,55 @@ class DagTest(unittest.TestCase):
         session.close()
 
 
+class DagStatTest(unittest.TestCase):
+    def test_dagstats_crud(self):
+        DagStat.create(dag_id='test_dagstats_crud')
+
+        session = settings.Session()
+        qry = session.query(DagStat).filter(DagStat.dag_id == 'test_dagstats_crud')
+        self.assertEqual(len(qry.all()), len(State.dag_states))
+
+        DagStat.set_dirty(dag_id='test_dagstats_crud')
+        res = qry.all()
+
+        for stat in res:
+            self.assertTrue(stat.dirty)
+
+        # create missing
+        DagStat.set_dirty(dag_id='test_dagstats_crud_2')
+        qry2 = session.query(DagStat).filter(DagStat.dag_id == 'test_dagstats_crud_2')
+        self.assertEqual(len(qry2.all()), len(State.dag_states))
+
+        dag = DAG(
+            'test_dagstats_crud',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='A')
+
+        now = datetime.datetime.now()
+        dr = dag.create_dagrun(
+            run_id='manual__' + now.isoformat(),
+            execution_date=now,
+            start_date=now,
+            state=State.FAILED,
+            external_trigger=False,
+        )
+
+        DagStat.update(dag_ids=['test_dagstats_crud'])
+        res = qry.all()
+        for stat in res:
+            if stat.state == State.FAILED:
+                self.assertEqual(stat.count, 1)
+            else:
+                self.assertEqual(stat.count, 0)
+
+        DagStat.update()
+        res = qry2.all()
+        for stat in res:
+            self.assertFalse(stat.dirty)
+
 class DagRunTest(unittest.TestCase):
 
     def create_dag_run(self, dag, state=State.RUNNING, task_states=None, execution_date=None):
@@ -419,7 +468,7 @@ class DagRunTest(unittest.TestCase):
         dag = DAG(
             dag_id='test_latest_runs_1',
             start_date=DEFAULT_DATE)
-        dag_1_run_1 = self.create_dag_run(dag, 
+        dag_1_run_1 = self.create_dag_run(dag,
                 execution_date=datetime.datetime(2015, 1, 1))
         dag_1_run_2 = self.create_dag_run(dag,
                 execution_date=datetime.datetime(2015, 1, 2))

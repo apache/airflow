@@ -1176,7 +1176,7 @@ class SchedulerJob(BaseJob):
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
-        models.DagStat.clean_dirty([d.dag_id for d in dags])
+        models.DagStat.update([d.dag_id for d in dags])
 
     def _process_executor_events(self):
         """
@@ -1968,7 +1968,7 @@ class BackfillJob(BaseJob):
                     active_dag_runs.remove(run)
 
                 if run.dag.is_paused:
-                    models.DagStat.clean_dirty([run.dag_id], session=session)
+                    models.DagStat.update([run.dag_id], session=session)
 
             msg = ' | '.join([
                 "[backfill progress]",

@@ -984,50 +984,48 @@ class CoreTest(unittest.TestCase):
         session.query(models.DagStat).delete()
         session.commit()
 
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            models.DagStat.clean_dirty([], session=session)
-        self.assertEqual([], caught_warnings)
+        models.DagStat.update([], session=session)
 
         run1 = self.dag_bash.create_dagrun(
             run_id="run1",
             execution_date=DEFAULT_DATE,
             state=State.RUNNING)
 
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
-        self.assertEqual([], caught_warnings)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        self.assertEqual(1, len(qry))
+        self.assertEqual(3, len(qry))
         self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        self.assertEqual(State.RUNNING, qry[0].state)
-        self.assertEqual(1, qry[0].count)
-        self.assertFalse(qry[0].dirty)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 1)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         run2 = self.dag_bash.create_dagrun(
             run_id="run2",
             execution_date=DEFAULT_DATE+timedelta(days=1),
             state=State.RUNNING)
 
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
-        self.assertEqual([], caught_warnings)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        self.assertEqual(1, len(qry))
+        self.assertEqual(3, len(qry))
         self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
-        self.assertEqual(State.RUNNING, qry[0].state)
-        self.assertEqual(2, qry[0].count)
-        self.assertFalse(qry[0].dirty)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 2)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         session.query(models.DagRun).first().state = State.SUCCESS
         session.commit()
 
-        with warnings.catch_warnings(record=True) as caught_warnings:
-            models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
-        self.assertEqual([], caught_warnings)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).filter(models.DagStat.state == State.SUCCESS).all()
         self.assertEqual(1, len(qry))
