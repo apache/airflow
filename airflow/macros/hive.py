@@ -61,8 +61,8 @@ def _closest_date(target_dt, date_list, before_target=None):
     :returns: The closest date
     :rtype: datetime.date or None
     '''
-    fb = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    fa = lambda d: d - target_dt if d <= target_dt else datetime.timedelta.min
+    fb = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
+    fa = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
     fnone = lambda d: target_dt - d if d < target_dt else d - target_dt
     if before_target is None:
         return min(date_list, key=fnone).date()
