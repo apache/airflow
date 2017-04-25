@@ -93,7 +93,8 @@ class RedshiftToS3Transfer(BaseOperator):
         unload_query = """
                         UNLOAD ('SELECT {0}
                         UNION ALL
-                        SELECT {1} FROM {2}.{3}')
+                        SELECT {1} FROM {2}.{3}
+                        ORDER BY 1 DESC')
                         TO 's3://{4}/{5}/{3}_'
                         with
                         credentials 'aws_access_key_id={6};aws_secret_access_key={7}'
