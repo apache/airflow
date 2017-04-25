@@ -14,6 +14,7 @@
 #
 
 import logging
+import json
 
 import httplib2
 from oauth2client.client import GoogleCredentials
@@ -34,12 +35,14 @@ class GoogleCloudBaseHook(BaseHook):
     The class also contains some miscellaneous helper functions.
 
     All hook derived from this base hook use the 'Google Cloud Platform' connection
-    type. Two ways of authentication are supported:
+    type. Three ways of authentication are supported:
 
     Default credentials: Only specify 'Project Id'. Then you need to have executed
     ``gcloud auth`` on the Airflow worker machine.
 
     JSON key file: Specify 'Project Id', 'Key Path' and 'Scope'.
+
+    JSON key dict: Specify 'Project Id', 'Key Dict' and 'Scope'.
 
     Legacy P12 key files are not supported.
     """
@@ -63,29 +66,36 @@ class GoogleCloudBaseHook(BaseHook):
         service hook connection.
         """
         key_path = self._get_field('key_path', False)
+        key_dict = self._get_field('key_dict', False)
         scope = self._get_field('scope', False)
 
         kwargs = {}
         if self.delegate_to:
             kwargs['sub'] = self.delegate_to
 
-        if not key_path:
-            logging.info('Getting connection using `gcloud auth` user, since no key file '
-                         'is defined for hook.')
-            credentials = GoogleCredentials.get_application_default()
-        else:
+        if key_dict or key_path:
             if not scope:
-                raise AirflowException('Scope should be defined when using a key file.')
+                raise AirflowException('Scope should be defined when using a JSON key.')
             scopes = [s.strip() for s in scope.split(',')]
-            if key_path.endswith('.json'):
-                logging.info('Getting connection using a JSON key file.')
+            if key_dict:
+                logging.info('Getting connection using a JSON key dict.')
                 credentials = ServiceAccountCredentials\
-                    .from_json_keyfile_name(key_path, scopes)
-            elif key_path.endswith('.p12'):
-                raise AirflowException('Legacy P12 key file are not supported, '
-                                       'use a JSON key file.')
+                    .from_json_keyfile_dict(json.loads(key_dict), scopes)
             else:
-                raise AirflowException('Unrecognised extension for key file.')
+                if key_path.endswith('.json'):
+                    logging.info('Getting connection using a JSON key file.')
+                    credentials = ServiceAccountCredentials\
+                        .from_json_keyfile_name(key_path, scopes)
+                elif key_path.endswith('.p12'):
+                    raise AirflowException('Legacy P12 key file are not supported, '
+                                           'use a JSON key file.')
+                else:
+                    raise AirflowException('Unrecognised extension for key file.')
+
+        else:
+            logging.info('Getting connection using `gcloud auth` user, since no key file '
+                         'or dict is defined for hook.')
+            credentials = GoogleCredentials.get_application_default()
 
         http = httplib2.Http()
         return credentials.authorize(http)
