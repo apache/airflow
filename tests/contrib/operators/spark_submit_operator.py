@@ -39,7 +39,11 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'verbose': True,
         'application': 'test_application.py',
         'driver_memory': '3g',
-        'java_class': 'com.foo.bar.AppMain'
+        'java_class': 'com.foo.bar.AppMain',
+        'application_args': [
+            '-f foo',
+            '--bar bar'
+        ]
     }
 
     def setUp(self):
@@ -73,6 +77,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(self._config['verbose'], operator._verbose)
         self.assertEqual(self._config['java_class'], operator._java_class)
         self.assertEqual(self._config['driver_memory'], operator._driver_memory)
+        self.assertEqual(self._config['application_args'], operator._application_args)
 
 
 

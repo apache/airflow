@@ -56,6 +56,8 @@ class SparkSubmitHook(BaseHook):
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int
+    :param application_args: Arguments for the application being submitted
+    :type application_args: list
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
@@ -74,6 +76,7 @@ class SparkSubmitHook(BaseHook):
                  principal=None,
                  name='default-name',
                  num_executors=None,
+                 application_args=None,
                  verbose=False):
         self._conf = conf
         self._conn_id = conn_id
@@ -88,6 +91,7 @@ class SparkSubmitHook(BaseHook):
         self._principal = principal
         self._name = name
         self._num_executors = num_executors
+        self._application_args = application_args
         self._verbose = verbose
         self._sp = None
         self._yarn_application_id = None
@@ -182,6 +186,11 @@ class SparkSubmitHook(BaseHook):
 
         # The actual script to execute
         connection_cmd += [application]
+
+        # Append any application arguments
+        if self._application_args:
+            for arg in self._application_args:
+                connection_cmd += [arg]
 
         logging.debug("Spark-Submit cmd: {}".format(connection_cmd))
 
