@@ -979,40 +979,48 @@ class CoreTest(unittest.TestCase):
         session.query(models.DagStat).delete()
         session.commit()
 
+        models.DagStat.update([], session=session)
+
         run1 = self.dag_bash.create_dagrun(
             run_id="run1",
             execution_date=DEFAULT_DATE,
             state=State.RUNNING)
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        assert len(qry) == 1
-        assert qry[0].dag_id == self.dag_bash.dag_id and\
-                qry[0].state == State.RUNNING and\
-                qry[0].count == 1 and\
-                qry[0].dirty == False
+        self.assertEqual(3, len(qry))
+        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 1)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         run2 = self.dag_bash.create_dagrun(
             run_id="run2",
             execution_date=DEFAULT_DATE+timedelta(days=1),
             state=State.RUNNING)
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        assert len(qry) == 1
-        assert qry[0].dag_id == self.dag_bash.dag_id and\
-                qry[0].state == State.RUNNING and\
-                qry[0].count == 2 and\
-                qry[0].dirty == False
+        self.assertEqual(3, len(qry))
+        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 2)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         session.query(models.DagRun).first().state = State.SUCCESS
         session.commit()
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).filter(models.DagStat.state == State.SUCCESS).all()
         assert len(qry) == 1

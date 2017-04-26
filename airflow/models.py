@@ -29,6 +29,7 @@ import functools
 import getpass
 import imp
 import importlib
+import itertools
 import inspect
 import zipfile
 import jinja2
@@ -718,6 +719,7 @@ class TaskInstance(Base):
     any confusion around what task instances are or aren't ready to run
     even while multiple schedulers may be firing task instances.
     """
+
 
     __tablename__ = "task_instance"
 
@@ -3089,7 +3091,7 @@ class DAG(BaseDag, LoggingMixin):
         for dr in drs:
             dr.state = state
             dirty_ids.append(dr.dag_id)
-        DagStat.clean_dirty(dirty_ids, session=session)
+        DagStat.update(dirty_ids, session=session)
 
     def clear(
             self, start_date=None, end_date=None,
@@ -3383,6 +3385,9 @@ class DAG(BaseDag, LoggingMixin):
             state=state
         )
         session.add(run)
+
+        DagStat.set_dirty(dag_id=self.dag_id, session=session)
+
         session.commit()
 
         run.dag = self
@@ -3392,12 +3397,7 @@ class DAG(BaseDag, LoggingMixin):
         run.verify_integrity(session=session)
 
         run.refresh_from_db()
-        DagStat.set_dirty(self.dag_id, session=session)
 
-        # add a placeholder row into DagStat table
-        if not session.query(DagStat).filter(DagStat.dag_id == self.dag_id).first():
-            session.add(DagStat(dag_id=self.dag_id, state=state, count=0, dirty=True))
-        session.commit()
         return run
 
     @staticmethod
@@ -3805,7 +3805,7 @@ class DagStat(Base):
     count = Column(Integer, default=0)
     dirty = Column(Boolean, default=False)
 
-    def __init__(self, dag_id, state, count, dirty=False):
+    def __init__(self, dag_id, state, count=0, dirty=False):
         self.dag_id = dag_id
         self.state = state
         self.count = count
@@ -3814,42 +3814,104 @@ class DagStat(Base):
     @staticmethod
     @provide_session
     def set_dirty(dag_id, session=None):
-        for dag in session.query(DagStat).filter(DagStat.dag_id == dag_id):
-            dag.dirty = True
-        session.commit()
+        """
+        :param dag_id: the dag_id to mark dirty
+        :param session: database session
+        :return: 
+        """
+        DagStat.create(dag_id=dag_id, session=session)
+
+        try:
+            stats = session.query(DagStat).filter(
+                DagStat.dag_id == dag_id
+            ).with_for_update().all()
+
+            for stat in stats:
+                stat.dirty = True
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.warning("Could not update dag stats for {}".format(dag_id))
+            logging.exception(e)
 
     @staticmethod
     @provide_session
-    def clean_dirty(dag_ids, session=None):
+    def update(dag_ids=None, dirty_only=True, session=None):
         """
-        Cleans out the dirty/out-of-sync rows from dag_stats table
+        Updates the stats for dirty/out-of-sync dags
 
-        :param dag_ids: dag_ids that may be dirty
+        :param dag_ids: dag_ids to be updated
         :type dag_ids: list
-        :param full_query: whether to check dag_runs for new drs not in dag_stats
-        :type full_query: bool
+        :param dirty_only: only updated for marked dirty, defaults to True
+        :type dirty_only: bool
+        :param session: db session to use
+        :type session: Session
         """
-        dag_ids = set(dag_ids)
+        if dag_ids is not None:
+            dag_ids = set(dag_ids)
 
-        qry = (
-            session.query(DagStat)
-            .filter(and_(DagStat.dag_id.in_(dag_ids), DagStat.dirty == True))
-        )
+        try:
+            qry = session.query(DagStat)
 
-        dirty_ids = {dag.dag_id for dag in qry.all()}
-        qry.delete(synchronize_session='fetch')
-        session.commit()
+            if dag_ids is not None:
+                qry = qry.filter(DagStat.dag_id.in_(dag_ids))
+            if dirty_only:
+                qry = qry.filter(DagStat.dirty == True)
 
-        qry = (
-            session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-            .filter(DagRun.dag_id.in_(dirty_ids))
-            .group_by(DagRun.dag_id, DagRun.state)
-        )
+            qry = qry.with_for_update().all()
 
-        for dag_id, state, count in qry:
-            session.add(DagStat(dag_id=dag_id, state=state, count=count))
+            ids = set([dag_stat.dag_id for dag_stat in qry])
 
-        session.commit()
+            # avoid querying with an empty IN clause
+            if len(ids) == 0:
+                session.commit()
+                return
+
+            dagstat_states = set(itertools.product(ids, State.dag_states))
+            qry = (
+                session.query(DagRun.dag_id, DagRun.state, func.count('*'))
+                .filter(DagRun.dag_id.in_(ids))
+                .group_by(DagRun.dag_id, DagRun.state)
+            )
+
+            counts = {(dag_id, state): count for dag_id, state, count in qry}
+            for dag_id, state in dagstat_states:
+                count = 0
+                if (dag_id, state) in counts:
+                    count = counts[(dag_id, state)]
+
+                session.merge(
+                    DagStat(dag_id=dag_id, state=state, count=count, dirty=False)
+                )
+
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.warning("Could not update dag stat table")
+            logging.exception(e)
+
+    @staticmethod
+    @provide_session
+    def create(dag_id, session=None):
+        """
+        Creates the missing states the stats table for the dag specified 
+        
+        :param dag_id: dag id of the dag to create stats for
+        :param session: database session
+        :return: 
+        """
+        # unfortunately sqlalchemy does not know upsert
+        qry = session.query(DagStat).filter(DagStat.dag_id == dag_id).all()
+        states = [dag_stat.state for dag_stat in qry]
+        for state in State.dag_states:
+            if state not in states:
+                try:
+                    session.merge(DagStat(dag_id=dag_id, state=state))
+                    session.commit()
+                except Exception as e:
+                    session.rollback()
+                    logging.warning("Could not create stat record")
+                    logging.exception(e)
 
 
 class DagRun(Base):
@@ -3895,10 +3957,11 @@ class DagRun(Base):
     def set_state(self, state):
         if self._state != state:
             self._state = state
-            # something really weird goes on here: if you try to close the session
-            # dag runs will end up detached
-            session = settings.Session()
-            DagStat.set_dirty(self.dag_id, session=session)
+            if self.dag_id is not None:
+                # something really weird goes on here: if you try to close the session
+                # dag runs will end up detached
+                session = settings.Session()
+                DagStat.set_dirty(self.dag_id, session=session)
 
     @declared_attr
     def state(self):
