@@ -612,6 +612,48 @@ class SchedulerJobTest(unittest.TestCase):
 
         session.close()
 
+    def test_execute_helper_reset_orphaned_tasks(self):
+        session = settings.Session()
+        dag = DAG(
+            'test_execute_helper_reset_orphaned_tasks',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        dr2 = dag.create_dagrun(run_id=BackfillJob.ID_PREFIX,
+                                state=State.RUNNING,
+                                execution_date=DEFAULT_DATE + datetime.timedelta(1),
+                                start_date=DEFAULT_DATE,
+                                session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.SCHEDULED
+        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
+        ti2.state = State.SCHEDULED
+        session.commit()
+
+        processor = mock.MagicMock()
+        processor.get_last_finish_time.return_value = None
+
+        scheduler = SchedulerJob(num_runs=0, run_duration=0)
+        executor = TestExecutor()
+        scheduler.executor = executor
+
+        scheduler._execute_helper(processor_manager=processor)
+
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        self.assertEqual(ti.state, State.NONE)
+
+        ti2 = dr2.get_task_instance(task_id=op1.task_id, session=session)
+        self.assertEqual(ti2.state, State.SCHEDULED)
+
     @provide_session
     def evaluate_dagrun(
             self,
