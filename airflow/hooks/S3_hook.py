@@ -367,7 +367,7 @@ class S3Hook(BaseHook):
             from filechunkio import FileChunkIO
             mp = bucket.initiate_multipart_upload(key_name=key,
                                                   encrypt_key=encrypt)
-            total_chunks = int(math.ceil(key_size / multipart_bytes))
+            total_chunks = int(math.ceil(key_size / multipart_bytes)) + 1
             sent_bytes = 0
             try:
                 for chunk in range(total_chunks):
