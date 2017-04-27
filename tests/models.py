@@ -285,11 +285,13 @@ class DagStatTest(unittest.TestCase):
 
 class DagRunTest(unittest.TestCase):
 
-    def create_dag_run(self, dag, state=State.RUNNING, task_states=None):
+    def create_dag_run(self, dag, state=State.RUNNING, task_states=None, execution_date=None):
         now = datetime.datetime.now()
+        if execution_date is None:
+            execution_date = now
         dag_run = dag.create_dagrun(
             run_id='manual__' + now.isoformat(),
-            execution_date=now,
+            execution_date=execution_date,
             start_date=now,
             state=state,
             external_trigger=False,
