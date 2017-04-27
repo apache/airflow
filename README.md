@@ -152,6 +152,7 @@ Currently **officially** using Airflow:
 1. [Spotify](https://github.com/spotify) [[@znichols](https://github.com/znichols)]
 1. [Stackspace](https://beta.stackspace.io/)
 1. Stripe [[@jbalogh](https://github.com/jbalogh)]
+1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
 1. [Vente-Exclusive.com](http://www.vente-exclusive.com/) [[@alexvanboxel](https://github.com/alexvanboxel)]
