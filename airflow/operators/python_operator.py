@@ -63,6 +63,13 @@ class PythonOperator(BaseOperator):
             templates_dict=None,
             templates_exts=None,
             *args, **kwargs):
+
+        if 'task_id' not in kwargs:
+            try:
+                kwargs['task_id'] = python_callable.__name__
+            except AttributeError:
+                pass
+
         super(PythonOperator, self).__init__(*args, **kwargs)
         if not callable(python_callable):
             raise AirflowException('`python_callable` param must be callable')
