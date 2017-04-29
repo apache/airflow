@@ -231,6 +231,16 @@ different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
 
+Using that same DAG constructor call, it is possible to define
+``user_defined_macros`` which allow you to specify your own variables.
+For example, passing ``dict(foo='bar')`` to this argument allows you
+to use ``{{ foo }}`` in your templates. Moreover, specifying
+``user_defined_filters`` allow you to register you own filters. For example,
+passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
+you to use ``{{ 'world' | hello }}`` in your templates. For more information
+regarding custom filters have a look at the
+`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
+
 For more information on the variables and macros that can be referenced
 in templates, make sure to read through the :ref:`macros` section
 
