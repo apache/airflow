@@ -233,6 +233,61 @@ class DagTest(unittest.TestCase):
             states=[None, State.QUEUED, State.RUNNING], session=session))
         session.close()
 
+    def test_render_template_field(self):
+        """Tests if render_template from a field works"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE)
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', '{{ foo }}', dict(foo='bar'))
+        self.assertEqual(result, 'bar')
+
+    def test_render_template_field_macro(self):
+        """ Tests if render_template from a field works,
+            if a custom filter was defined"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  user_defined_macros = dict(foo='bar'))
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', '{{ foo }}', dict())
+        self.assertEqual(result, 'bar')
+
+    def test_user_defined_filters(self):
+        def jinja_udf(name):
+            return 'Hello %s' %name
+
+        dag = models.DAG('test-dag',
+                         start_date=DEFAULT_DATE,
+                         user_defined_filters=dict(hello=jinja_udf))
+        jinja_env = dag.get_template_env()
+
+        self.assertIn('hello', jinja_env.filters)
+        self.assertEqual(jinja_env.filters['hello'], jinja_udf)
+
+    def test_render_template_field_filter(self):
+        """ Tests if render_template from a field works,
+            if a custom filter was defined"""
+
+        def jinja_udf(name):
+            return 'Hello %s' %name
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  user_defined_filters = dict(hello=jinja_udf))
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', "{{ 'world' | hello}}", dict())
+        self.assertEqual(result, 'Hello world')
+
 
 class DagStatTest(unittest.TestCase):
     def test_dagstats_crud(self):
