@@ -34,6 +34,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
         'jars': 'parquet.jar',
+        'total_executor_cores': 4,
         'executor_cores': 4,
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
@@ -94,6 +95,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         assert "--files {}".format(self._config['files']) in cmd
         assert "--py-files {}".format(self._config['py_files']) in cmd
         assert "--jars {}".format(self._config['jars']) in cmd
+        assert "--total-executor-cores {}".format(self._config['total_executor_cores']) in cmd
         assert "--executor-cores {}".format(self._config['executor_cores']) in cmd
         assert "--executor-memory {}".format(self._config['executor_memory']) in cmd
         assert "--keytab {}".format(self._config['keytab']) in cmd
