@@ -31,7 +31,9 @@ class SparkSqlHook(BaseHook):
     :type conf: str (format: PROP=VALUE)
     :param conn_id: connection_id string
     :type conn_id: str
-    :param executor_cores: Number of cores per executor
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :type total_executor_cores: int
+    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -52,6 +54,7 @@ class SparkSqlHook(BaseHook):
                  sql,
                  conf=None,
                  conn_id='spark_sql_default',
+                 total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
                  keytab=None,
@@ -64,6 +67,7 @@ class SparkSqlHook(BaseHook):
         self._sql = sql
         self._conf = conf
         self._conn = self.get_connection(conn_id)
+        self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
         self._keytab = keytab
@@ -89,6 +93,8 @@ class SparkSqlHook(BaseHook):
         if self._conf:
             for conf_el in self._conf.split(","):
                 connection_cmd += ["--conf", conf_el]
+        if self._total_executor_cores:
+            connection_cmd += ["--total-executor-cores", str(self._total_executor_cores)]
         if self._executor_cores:
             connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:

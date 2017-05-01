@@ -42,7 +42,9 @@ class SparkSubmitHook(BaseHook):
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
-    :param executor_cores: Number of cores per executor (Default: 2)
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :type total_executor_cores: int
+    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -69,6 +71,7 @@ class SparkSubmitHook(BaseHook):
                  py_files=None,
                  jars=None,
                  java_class=None,
+                 total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
                  driver_memory=None,
@@ -84,6 +87,7 @@ class SparkSubmitHook(BaseHook):
         self._py_files = py_files
         self._jars = jars
         self._java_class = java_class
+        self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
         self._driver_memory = driver_memory
@@ -163,6 +167,8 @@ class SparkSubmitHook(BaseHook):
             connection_cmd += ["--jars", self._jars]
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
+        if self._total_executor_cores:
+            connection_cmd += ["--total-executor-cores", str(self._total_executor_cores)]
         if self._executor_cores:
             connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:

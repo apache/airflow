@@ -26,7 +26,9 @@ class SparkSqlOperator(BaseOperator):
     :type conf: str (format: PROP=VALUE)
     :param conn_id: connection_id string
     :type conn_id: str
-    :param executor_cores: Number of cores per executor
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :type total_executor_cores: int
+    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -52,6 +54,7 @@ class SparkSqlOperator(BaseOperator):
                  sql,
                  conf=None,
                  conn_id='spark_sql_default',
+                 total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
                  keytab=None,
@@ -65,6 +68,7 @@ class SparkSqlOperator(BaseOperator):
         self._sql = sql
         self._conf = conf
         self._conn_id = conn_id
+        self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
         self._keytab = keytab
@@ -81,6 +85,7 @@ class SparkSqlOperator(BaseOperator):
         self._hook = SparkSqlHook(sql=self._sql,
                                   conf=self._conf,
                                   conn_id=self._conn_id,
+                                  total_executor_cores=self._total_executor_cores,
                                   executor_cores=self._executor_cores,
                                   executor_memory=self._executor_memory,
                                   keytab=self._keytab,
