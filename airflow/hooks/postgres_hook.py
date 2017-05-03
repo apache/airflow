@@ -50,14 +50,17 @@ class PostgresHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell, conn):
         """
-        Returns the Postgres literal of the cell as a string.
+        Postgresql will adapt all arguments to the execute() method internally,
+        hence we return cell without any conversion.
+        
+        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for 
+        more information.
 
         :param cell: The cell to insert into the table
         :type cell: object
         :param conn: The database connection
         :type conn: connection object
-        :return: The serialized cell
-        :rtype: str
+        :return: The cell
+        :rtype: object
         """
-
-        return psycopg2.extensions.adapt(cell).getquoted().decode('utf-8')
+        return cell

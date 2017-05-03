@@ -87,14 +87,15 @@ class MySqlHook(DbApiHook):
     @staticmethod
     def _serialize_cell(cell, conn):
         """
-        Returns the MySQL literal of the cell as a string.
+        MySQLdb converts an argument to a literal when passing those seperately to execute.
+        Hence, this method does nothing.
 
         :param cell: The cell to insert into the table
         :type cell: object
         :param conn: The database connection
         :type conn: connection object
-        :return: The serialized cell
-        :rtype: str
+        :return: The same cell
+        :rtype: object
         """
 
-        return conn.literal(cell)
+        return cell
