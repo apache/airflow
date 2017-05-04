@@ -143,6 +143,7 @@ Currently **officially** using Airflow:
 1. [PayPal](https://www.paypal.com/) [[@jhsenjaliya](https://github.com/jhsenjaliya)]
 1. [Postmates](http://www.postmates.com) [[@syeoryn](https://github.com/syeoryn)]
 1. [Qubole](https://qubole.com) [[@msumit](https://github.com/msumit)]
+1. [Robinhood](https://robinhood.com) [[@vineet-rh](https://github.com/vineet-rh)]
 1. [Scaleway](https://scaleway.com) [[@kdeldycke](https://github.com/kdeldycke)]
 1. [Sense360](https://github.com/Sense360) [[@kamilmroczek](https://github.com/KamilMroczek)]
 1. [Shopkick](https://shopkick.com/) [[@shopkick](https://github.com/shopkick)]
