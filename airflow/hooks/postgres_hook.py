@@ -67,4 +67,9 @@ class PostgresHook(DbApiHook):
         :rtype: str
         """
 
-        return psycopg2.extensions.adapt(cell).getquoted().decode('utf-8')
+        adapted = psycopg2.extensions.adapt(cell)
+        try:
+            adapted.prepare(conn)
+        except AttributeError:
+            pass
+        return adapted.getquoted()
