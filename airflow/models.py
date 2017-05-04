@@ -3033,14 +3033,6 @@ class DAG(BaseDag, LoggingMixin):
         for t in self.tasks:
             t.resolve_template_files()
 
-    def crawl_for_tasks(objects):
-        """
-        Typically called at the end of a script by passing globals() as a
-        parameter. This allows to not explicitly add every single task to the
-        dag explicitly.
-        """
-        raise NotImplementedError("")
-
     def get_template_env(self):
         """
         Returns a jinja2 Environment while taking into account the DAGs
