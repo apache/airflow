@@ -36,17 +36,10 @@ class PostgresHook(DbApiHook):
         conn = self.get_connection(self.postgres_conn_id)
         conn_args = dict(
             host=conn.host,
-            dbname=self.schema or conn.schema)
-        # work around for https://github.com/psycopg/psycopg2/issues/517
-        # todo: remove when psycopg2 2.7.1 is released
-        # https://issues.apache.org/jira/browse/AIRFLOW-945
-        if conn.port:
-            conn_args['port'] = conn.port
-        if conn.login:
-            conn_args['user'] = conn.login
-        if conn.password:
-            conn_args['password'] = conn.password
-
+            user=conn.login,
+            password=conn.password,
+            dbname=self.schema or conn.schema,
+            port=conn.port)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
             if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl', 'application_name']:
