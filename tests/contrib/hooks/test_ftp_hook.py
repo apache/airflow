@@ -77,6 +77,24 @@ class TestFTPHook(unittest.TestCase):
 
         self.conn_mock.rename.assert_called_once_with(from_path, to_path)
         self.conn_mock.quit.assert_called_once_with()
+        
+    def test_mod_time(self):
+        self.conn_mock.sendcmd.return_value = '213 20170428010138'
+        
+        path = '/path/file'
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.get_mod_time(path)
+
+        self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
+        
+    def test_mod_time_micro(self):
+        self.conn_mock.sendcmd.return_value = '213 20170428010138.003'
+        
+        path = '/path/file'
+        with fh.FTPHook() as ftp_hook:
+            ftp_hook.get_mod_time(path)
+
+        self.conn_mock.sendcmd.assert_called_once_with('MDTM ' + path)
 
 
 if __name__ == '__main__':
