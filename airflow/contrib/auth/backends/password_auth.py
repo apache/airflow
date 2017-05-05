@@ -27,7 +27,7 @@ from flask import url_for, redirect
 from flask_bcrypt import generate_password_hash, check_password_hash
 
 from sqlalchemy import (
-    Column, String, DateTime)
+    Column, String, DateTime, Boolean)
 from sqlalchemy.ext.hybrid import hybrid_property
 
 from airflow import settings
@@ -50,9 +50,18 @@ class AuthenticationError(Exception):
 
 class PasswordUser(models.User):
     _password = Column('password', String(255))
+    _superuser = Column('superuser', Boolean, nullable=False, default=False)
 
     def __init__(self, user):
         self.user = user
+
+    @hybrid_property
+    def superuser(self):
+        return bool(self._superuser)
+
+    @superuser.setter
+    def _set_superuser(self, superuser):
+        self._superuser = bool(superuser)
 
     @hybrid_property
     def password(self):
@@ -88,8 +97,8 @@ class PasswordUser(models.User):
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
-        return True
+        '''Be careful for MySQL '''
+        return bool(self.superuser)
 
 
 @login_manager.user_loader
@@ -99,11 +108,11 @@ def load_user(userid):
         return None
 
     session = settings.Session()
-    user = session.query(models.User).filter(models.User.id == int(userid)).first()
+    user = session.query(PasswordUser).filter(PasswordUser.id == int(userid)).first()
     session.expunge_all()
     session.commit()
     session.close()
-    return PasswordUser(user)
+    return user
 
 
 def login(self, request):
