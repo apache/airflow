@@ -3682,9 +3682,9 @@ class Variable(Base):
                 raise ValueError('Default Value must be set')
         else:
             if deserialize_json:
-                return json.loads(obj.val)
+                return json.loads(obj)
             else:
-                return obj.val
+                return obj
 
     @classmethod
     @provide_session
