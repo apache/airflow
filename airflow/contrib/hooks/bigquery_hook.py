@@ -24,7 +24,7 @@ import time
 from apiclient.discovery import build, HttpError
 from googleapiclient import errors
 from builtins import range
-from pandas.io.gbq import GbqConnector, \
+from pandas_gbq.gbq import GbqConnector, \
     _parse_data as gbq_parse_data, \
     _check_google_client_version as gbq_check_google_client_version, \
     _test_google_api_imports as gbq_test_google_api_imports
