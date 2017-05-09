@@ -20,6 +20,11 @@ supported and will be removed entirely in Airflow 2.0
 
   Previously, post_execute() only took one argument, `context`.
 
+## Airflow 1.8.1
+
+The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall your
+previously installed version of Airflow before installing 1.8.1.
+
 ## Airflow 1.8
 
 ### Database
