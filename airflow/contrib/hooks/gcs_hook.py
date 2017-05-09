@@ -187,8 +187,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type versions: boolean
         :param maxResults: max count of items to return in a single page of responses
         :type maxResults: integer
-        :param pageToken: previously returned page token
         :param prefix: prefix string which filters objects whose name begin with this prefix
+        :type prefix: string
         :return: a stream of object names matching the filtering criteria
         """
         service = self.get_conn()
@@ -205,7 +205,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             ).execute()
 
             if 'items' not in response:
-                logging.warning("No items found for prefix:{}".format(prefix))
+                logging.info("No items found for prefix:{}".format(prefix))
                 break
 
             for item in response['items']:
@@ -220,4 +220,4 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             if not pageToken:
                 # empty next page token
                 break
-        yield ids
+        return ids
