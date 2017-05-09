@@ -3,6 +3,28 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
+## Master
+
+### New Features
+
+#### Dask Executor
+
+A new DaskExecutor allows Airflow tasks to be run in Dask Distributed clusters.
+
+### Deprecated Features
+These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer
+supported and will be removed entirely in Airflow 2.0
+
+- `post_execute()` hooks now take two arguments, `context` and `result`
+  (AIRFLOW-886)
+
+  Previously, post_execute() only took one argument, `context`.
+
+## Airflow 1.8.1
+
+The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall your
+previously installed version of Airflow before installing 1.8.1.
+
 ## Airflow 1.8
 
 ### Database

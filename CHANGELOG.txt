@@ -1,3 +1,44 @@
+AIRFLOW 1.8.1, 2017-05-09
+-------------------------
+
+[AIRFLOW-1142] SubDAG Tasks Not Executed Even Though All Dependencies Met
+[AIRFLOW-1138] Add licenses to files in scripts directory
+[AIRFLOW-1127] Move license notices to LICENSE instead of NOTICE
+[AIRFLOW-1124] Do not set all task instances to scheduled on backfill
+[AIRFLOW-1120] Update version view to include Apache prefix
+[AIRFLOW-1062] DagRun#find returns wrong result if external_trigger=False is specified
+[AIRFLOW-1054] Fix broken import on test_dag
+[AIRFLOW-1050] Retries ignored - regression
+[AIRFLOW-1033] TypeError: can't compare datetime.datetime to None
+[AIRFLOW-1017] get_task_instance should return None instead of throw an exception for non-existent TIs
+[AIRFLOW-1011] Fix bug in BackfillJob._execute() for SubDAGs
+[AIRFLOW-1004] `airflow webserver -D` runs in foreground
+[AIRFLOW-1001] Landing Time shows "unsupported operand type(s) for -: 'datetime.datetime' and 'NoneType'" on example_subdag_operator
+[AIRFLOW-1000] Rebrand to Apache Airflow instead of Airflow
+[AIRFLOW-989] Clear Task Regression
+[AIRFLOW-974] airflow.util.file mkdir has a race condition
+[AIRFLOW-906] Update Code icon from lightning bolt to file
+[AIRFLOW-858] Configurable database name for DB operators
+[AIRFLOW-853] ssh_execute_operator.py stdout decode default to ASCII
+[AIRFLOW-832] Fix debug server
+[AIRFLOW-817] Trigger dag fails when using CLI + API
+[AIRFLOW-816] Make sure to pull nvd3 from local resources
+[AIRFLOW-815] Add previous/next execution dates to available default variables.
+[AIRFLOW-813] Fix unterminated unit tests in tests.job (tests/job.py)
+[AIRFLOW-812] Scheduler job terminates when there is no dag file
+[AIRFLOW-806] UI should properly ignore DAG doc when it is None
+[AIRFLOW-794] Consistent access to DAGS_FOLDER and SQL_ALCHEMY_CONN
+[AIRFLOW-785] ImportError if cgroupspy is not installed
+[AIRFLOW-784] Cannot install with funcsigs > 1.0.0
+[AIRFLOW-780] The UI no longer shows broken DAGs
+[AIRFLOW-777] dag_is_running is initlialized to True instead of False
+[AIRFLOW-719] Skipped operations make DAG finish prematurely
+[AIRFLOW-694] Empty env vars do not overwrite non-empty config values
+[AIRFLOW-492] Insert into dag_stats table results into failed task while task itself succeeded
+[AIRFLOW-139] Executing VACUUM with PostgresOperator
+[AIRFLOW-111] DAG concurrency is not honored
+[AIRFLOW-88] Improve clarity Travis CI reports
+
 AIRFLOW 1.8.0, 2017-03-12
 -------------------------
 
