@@ -152,3 +152,72 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 raise
 
         return False
+
+    def delete(self, bucket, object, generation=None):
+        """
+        Delete an object if versioning is not enabled for the bucket, or if generation
+        parameter is used.
+        :param bucket: name of the bucket, where the object resides
+        :type bucket: string
+        :param object: name of the object to delete
+        :type object: string
+        :param generation: if present, permanently delete the object of this generation
+        :type generation: string
+        :return: True if succeeded
+        """
+        service = self.get_conn()
+
+        try:
+            service \
+                .objects() \
+                .delete(bucket=bucket, object=object, generation=generation) \
+                .execute()
+            return True
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
+
+    def list(self, bucket, versions=None, maxResults=None, prefix=None):
+        """
+        List all objects from the bucket with the give string prefix in name
+        :param bucket: bucket name
+        :type bucket: string
+        :param versions: if true, list all versions of the objects
+        :type versions: boolean
+        :param maxResults: max count of items to return in a single page of responses
+        :type maxResults: integer
+        :param prefix: prefix string which filters objects whose name begin with this prefix
+        :type prefix: string
+        :return: a stream of object names matching the filtering criteria
+        """
+        service = self.get_conn()
+
+        ids = list()
+        pageToken = None
+        while(True):
+            response = service.objects().list(
+                bucket=bucket,
+                versions=versions,
+                maxResults=maxResults,
+                pageToken=pageToken,
+                prefix=prefix
+            ).execute()
+
+            if 'items' not in response:
+                logging.info("No items found for prefix:{}".format(prefix))
+                break
+
+            for item in response['items']:
+                if item and 'name' in item:
+                    ids.append(item['name'])
+
+            if 'nextPageToken' not in response:
+                # no further pages of results, so stop the loop
+                break
+
+            pageToken = response['nextPageToken']
+            if not pageToken:
+                # empty next page token
+                break
+        return ids
