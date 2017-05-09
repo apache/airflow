@@ -15,8 +15,8 @@
 
 import logging
 
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from apiclient.discovery import build
+from apiclient.http import MediaFileUpload
 from googleapiclient import errors
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
