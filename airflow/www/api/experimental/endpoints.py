@@ -20,7 +20,8 @@ from airflow.exceptions import AirflowException
 from airflow.www.app import csrf
 
 from flask import (
-    g, Markup, Blueprint, redirect, jsonify, abort, request, current_app, send_file
+    g, Markup, Blueprint, redirect, jsonify, abort,
+    request, current_app, send_file, url_for
 )
 from datetime import datetime
 
@@ -110,3 +111,23 @@ def task_info(dag_id, task_id):
     task = dag.get_task(task_id)
     fields = {k: str(v) for k, v in vars(task).items() if not k.startswith('_')}
     return jsonify(fields)
+
+
+@api_experimental.route('/latest_runs', methods=['GET'])
+@requires_authentication
+def latest_dag_runs():
+    """Returns the latest running DagRun for each DAG formatted for the UI. """
+    from airflow.models import DagRun
+    dagruns = DagRun.get_latest_runs()
+    payload = []
+    for dagrun in dagruns:
+        if dagrun.execution_date:
+            payload.append({
+                'dag_id': dagrun.dag_id,
+                'execution_date': dagrun.execution_date.strftime("%Y-%m-%d %H:%M"),
+                'start_date': ((dagrun.start_date or '') and
+                               dagrun.start_date.strftime("%Y-%m-%d %H:%M")),
+                'dag_run_url': url_for('airflow.graph', dag_id=dagrun.dag_id,
+                                       execution_date=dagrun.execution_date)
+            })
+    return jsonify(payload)

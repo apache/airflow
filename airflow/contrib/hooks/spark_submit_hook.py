@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 import logging
+import os
 import subprocess
 import re
 
@@ -25,7 +26,8 @@ log = logging.getLogger(__name__)
 class SparkSubmitHook(BaseHook):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    It requires that the "spark-submit" binary is in the PATH or the spark_home to be 
+    supplied.
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
     :param conn_id: The connection id as configured in Airflow administration. When an
@@ -38,10 +40,14 @@ class SparkSubmitHook(BaseHook):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
+    :param java_class: the main class of the Java application
+    :type java_class: str
     :param executor_cores: Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
+    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
@@ -60,8 +66,10 @@ class SparkSubmitHook(BaseHook):
                  files=None,
                  py_files=None,
                  jars=None,
+                 java_class=None,
                  executor_cores=None,
                  executor_memory=None,
+                 driver_memory=None,
                  keytab=None,
                  principal=None,
                  name='default-name',
@@ -72,8 +80,10 @@ class SparkSubmitHook(BaseHook):
         self._files = files
         self._py_files = py_files
         self._jars = jars
+        self._java_class = java_class
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
+        self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
         self._name = name
@@ -82,7 +92,7 @@ class SparkSubmitHook(BaseHook):
         self._sp = None
         self._yarn_application_id = None
 
-        (self._master, self._queue, self._deploy_mode) = self._resolve_connection()
+        (self._master, self._queue, self._deploy_mode, self._spark_home) = self._resolve_connection()
         self._is_yarn = 'yarn' in self._master
 
     def _resolve_connection(self):
@@ -90,6 +100,7 @@ class SparkSubmitHook(BaseHook):
         master = 'yarn'
         queue = None
         deploy_mode = None
+        spark_home = None
 
         try:
             # Master can be local, yarn, spark://HOST:PORT or mesos://HOST:PORT
@@ -105,6 +116,8 @@ class SparkSubmitHook(BaseHook):
                 queue = extra['queue']
             if 'deploy-mode' in extra:
                 deploy_mode = extra['deploy-mode']
+            if 'spark-home' in extra:
+                spark_home = extra['spark-home']
         except AirflowException:
             logging.debug(
                 "Could not load connection string {}, defaulting to {}".format(
@@ -112,7 +125,7 @@ class SparkSubmitHook(BaseHook):
                 )
             )
 
-        return master, queue, deploy_mode
+        return master, queue, deploy_mode, spark_home
 
     def get_conn(self):
         pass
@@ -124,8 +137,13 @@ class SparkSubmitHook(BaseHook):
         :type application: str
         :return: full command to be executed
         """
-        # The spark-submit binary needs to be in the path
-        connection_cmd = ["spark-submit"]
+        # If the spark_home is passed then build the spark-submit executable path using
+        # the spark_home; otherwise assume that spark-submit is present in the path to
+        # the executing user
+        if self._spark_home:
+            connection_cmd = [os.path.join(self._spark_home, 'bin', 'spark-submit')]
+        else:
+            connection_cmd = ['spark-submit']
 
         # The url ot the spark master
         connection_cmd += ["--master", self._master]
@@ -145,12 +163,16 @@ class SparkSubmitHook(BaseHook):
             connection_cmd += ["--executor-cores", str(self._executor_cores)]
         if self._executor_memory:
             connection_cmd += ["--executor-memory", self._executor_memory]
+        if self._driver_memory:
+            connection_cmd += ["--driver-memory", self._driver_memory]
         if self._keytab:
             connection_cmd += ["--keytab", self._keytab]
         if self._principal:
             connection_cmd += ["--principal", self._principal]
         if self._name:
             connection_cmd += ["--name", self._name]
+        if self._java_class:
+            connection_cmd += ["--class", self._java_class]
         if self._verbose:
             connection_cmd += ["--verbose"]
         if self._queue:

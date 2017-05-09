@@ -13,29 +13,28 @@
 # limitations under the License.
 
 import unittest
+from airflow.utils.state import State
+from mock import Mock, patch
 
+from airflow.models import DAG, DagRun
 from airflow.ti_deps.deps.dagrun_exists_dep import DagrunRunningDep
-from fake_models import FakeDag, FakeTask, FakeTI
 
 
 class DagrunRunningDepTest(unittest.TestCase):
 
-    def test_dagrun_doesnt_exist(self):
+    @patch('airflow.models.DagRun.find', return_value=())
+    def test_dagrun_doesnt_exist(self, dagrun_find):
         """
         Task instances without dagruns should fail this dep
         """
-        dag = FakeDag(running_dagruns=[], max_active_runs=1)
-        task = FakeTask(dag=dag)
-        ti = FakeTI(dagrun=None, task=task, dag_id="fake_dag")
-
-        self.assertFalse(DagrunRunningDep().is_met(ti=ti, dep_context=None))
+        dag = DAG('test_dag', max_active_runs=2)
+        ti = Mock(task=Mock(dag=dag), get_dagrun=Mock(return_value=None))
+        self.assertFalse(DagrunRunningDep().is_met(ti=ti))
 
     def test_dagrun_exists(self):
         """
         Task instances with a dagrun should pass this dep
         """
-        dag = FakeDag(running_dagruns=[], max_active_runs=1)
-        task = FakeTask(dag=dag)
-        ti = FakeTI(dagrun="Fake Dagrun", task=task, dag_id="fake_dag")
-
-        self.assertTrue(DagrunRunningDep().is_met(ti=ti, dep_context=None))
+        dagrun = DagRun(state=State.RUNNING)
+        ti = Mock(get_dagrun=Mock(return_value=dagrun))
+        self.assertTrue(DagrunRunningDep().is_met(ti=ti))

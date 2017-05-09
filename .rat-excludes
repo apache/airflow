@@ -13,6 +13,7 @@ docs
 dist
 build
 airflow.egg-info
+apache_airflow.egg-info
 .idea
 metastore_db
 .*sql

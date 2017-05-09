@@ -14,48 +14,46 @@
 
 import unittest
 from datetime import datetime, timedelta
+from freezegun import freeze_time
+from mock import Mock
 
+from airflow.models import TaskInstance
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.state import State
-from fake_models import FakeDag, FakeTask, FakeTI
 
 
 class NotInRetryPeriodDepTest(unittest.TestCase):
 
+    def _get_task_instance(self, state, end_date=None,
+                           retry_delay=timedelta(minutes=15)):
+        task = Mock(retry_delay=retry_delay, retry_exponential_backoff=False)
+        ti = TaskInstance(task=task, state=state, execution_date=None)
+        ti.end_date = end_date
+        return ti
+
+    @freeze_time('2016-01-01 15:44')
     def test_still_in_retry_period(self):
         """
         Task instances that are in their retry period should fail this dep
         """
-        dag = FakeDag()
-        task = FakeTask(dag=dag, retry_delay=timedelta(minutes=1))
-        ti = FakeTI(
-            task=task,
-            state=State.UP_FOR_RETRY,
-            end_date=datetime(2016, 1, 1),
-            is_premature=True)
+        ti = self._get_task_instance(State.UP_FOR_RETRY,
+                                     end_date=datetime(2016, 1, 1, 15, 30))
+        self.assertTrue(ti.is_premature)
+        self.assertFalse(NotInRetryPeriodDep().is_met(ti=ti))
 
-        self.assertFalse(NotInRetryPeriodDep().is_met(ti=ti, dep_context=None))
-
+    @freeze_time('2016-01-01 15:46')
     def test_retry_period_finished(self):
         """
         Task instance's that have had their retry period elapse should pass this dep
         """
-        dag = FakeDag()
-        task = FakeTask(dag=dag, retry_delay=timedelta(minutes=1))
-        ti = FakeTI(
-            task=task,
-            state=State.UP_FOR_RETRY,
-            end_date=datetime(2016, 1, 1),
-            is_premature=False)
-
-        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti, dep_context=None))
+        ti = self._get_task_instance(State.UP_FOR_RETRY,
+                                     end_date=datetime(2016, 1, 1))
+        self.assertFalse(ti.is_premature)
+        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti))
 
     def test_not_in_retry_period(self):
         """
         Task instance's that are not up for retry can not be in their retry period
         """
-        dag = FakeDag()
-        task = FakeTask(dag=dag)
-        ti = FakeTI(task=task, state=State.SUCCESS)
-
-        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti, dep_context=None))
+        ti = self._get_task_instance(State.SUCCESS)
+        self.assertTrue(NotInRetryPeriodDep().is_met(ti=ti))

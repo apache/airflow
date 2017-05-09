@@ -41,6 +41,11 @@ class PrevDagrunDep(BaseTIDep):
         # Don't depend on the previous task instance if we are the first task
         dag = ti.task.dag
         if dag.catchup:
+            if dag.previous_schedule(ti.execution_date) is None:
+                yield self._passing_status(
+                    reason="This task does not have a schedule or is @once"
+                )
+                return
             if dag.previous_schedule(ti.execution_date) < ti.task.start_date:
                 yield self._passing_status(
                     reason="This task instance was the first task instance for its task.")

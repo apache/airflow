@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 class SparkSubmitOperator(BaseOperator):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH.
+    It requires that the "spark-submit" binary is in the PATH or the spark-home is set
+    in the extra on the connection.
     :param application: The application that submitted as a job, either jar or py file.
     :type application: str
     :param conf: Arbitrary Spark configuration properties
@@ -39,10 +40,14 @@ class SparkSubmitOperator(BaseOperator):
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
     :type jars: str
+    :param java_class: the main class of the Java application
+    :type java_class: str
     :param executor_cores: Number of cores per executor (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
+    :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
+    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
@@ -63,8 +68,10 @@ class SparkSubmitOperator(BaseOperator):
                  files=None,
                  py_files=None,
                  jars=None,
+                 java_class=None,
                  executor_cores=None,
                  executor_memory=None,
+                 driver_memory=None,
                  keytab=None,
                  principal=None,
                  name='airflow-spark',
@@ -78,8 +85,10 @@ class SparkSubmitOperator(BaseOperator):
         self._files = files
         self._py_files = py_files
         self._jars = jars
+        self._java_class = java_class
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
+        self._driver_memory = driver_memory
         self._keytab = keytab
         self._principal = principal
         self._name = name
@@ -98,8 +107,10 @@ class SparkSubmitOperator(BaseOperator):
             files=self._files,
             py_files=self._py_files,
             jars=self._jars,
+            java_class=self._java_class,
             executor_cores=self._executor_cores,
             executor_memory=self._executor_memory,
+            driver_memory=self._driver_memory,
             keytab=self._keytab,
             principal=self._principal,
             name=self._name,

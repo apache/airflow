@@ -979,40 +979,48 @@ class CoreTest(unittest.TestCase):
         session.query(models.DagStat).delete()
         session.commit()
 
+        models.DagStat.update([], session=session)
+
         run1 = self.dag_bash.create_dagrun(
             run_id="run1",
             execution_date=DEFAULT_DATE,
             state=State.RUNNING)
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        assert len(qry) == 1
-        assert qry[0].dag_id == self.dag_bash.dag_id and\
-                qry[0].state == State.RUNNING and\
-                qry[0].count == 1 and\
-                qry[0].dirty == False
+        self.assertEqual(3, len(qry))
+        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 1)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         run2 = self.dag_bash.create_dagrun(
             run_id="run2",
             execution_date=DEFAULT_DATE+timedelta(days=1),
             state=State.RUNNING)
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).all()
 
-        assert len(qry) == 1
-        assert qry[0].dag_id == self.dag_bash.dag_id and\
-                qry[0].state == State.RUNNING and\
-                qry[0].count == 2 and\
-                qry[0].dirty == False
+        self.assertEqual(3, len(qry))
+        self.assertEqual(self.dag_bash.dag_id, qry[0].dag_id)
+        for stats in qry:
+            if stats.state == State.RUNNING:
+                self.assertEqual(stats.count, 2)
+            else:
+                self.assertEqual(stats.count, 0)
+            self.assertFalse(stats.dirty)
 
         session.query(models.DagRun).first().state = State.SUCCESS
         session.commit()
 
-        models.DagStat.clean_dirty([self.dag_bash.dag_id], session=session)
+        models.DagStat.update([self.dag_bash.dag_id], session=session)
 
         qry = session.query(models.DagStat).filter(models.DagStat.state == State.SUCCESS).all()
         assert len(qry) == 1
@@ -1398,6 +1406,76 @@ class CliTests(unittest.TestCase):
         os.remove('variables1.json')
         os.remove('variables2.json')
 
+    def _wait_pidfile(self, pidfile):
+        while True:
+            try:
+                with open(pidfile) as f:
+                    return int(f.read())
+            except:
+                sleep(1)
+
+    def test_cli_webserver_foreground(self):
+        import subprocess
+
+        # Confirm that webserver hasn't been launched.
+        # pgrep returns exit status 1 if no process matched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in foreground and terminate it.
+        p = subprocess.Popen(["airflow", "webserver"])
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_foreground_with_pid(self):
+        import subprocess
+
+        # Run webserver in foreground with --pid option
+        pidfile = tempfile.mkstemp()[1]
+        p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
+
+        # Check the file specified by --pid option exists
+        self._wait_pidfile(pidfile)
+
+        # Terminate webserver
+        p.terminate()
+        p.wait()
+
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping test due to lack of required file permission")
+    def test_cli_webserver_background(self):
+        import subprocess
+        import psutil
+
+        # Confirm that webserver hasn't been launched.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Run webserver in background.
+        subprocess.Popen(["airflow", "webserver", "-D"])
+        pidfile = cli.setup_locations("webserver")[0]
+        self._wait_pidfile(pidfile)
+
+        # Assert that gunicorn and its monitor are launched.
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(0, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+        # Terminate monitor process.
+        pidfile = cli.setup_locations("webserver-monitor")[0]
+        pid = self._wait_pidfile(pidfile)
+        p = psutil.Process(pid)
+        p.terminate()
+        p.wait()
+
+        # Assert that no process remains.
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
+        self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1413,6 +1491,7 @@ class WebUiTests(unittest.TestCase):
         self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
+        self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dag_bash2.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
@@ -1422,6 +1501,13 @@ class WebUiTests(unittest.TestCase):
         )
 
         self.sub_dag.create_dagrun(
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            execution_date=DEFAULT_DATE,
+            start_date=datetime.now(),
+            state=State.RUNNING
+        )
+
+        self.example_xcom.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
             execution_date=DEFAULT_DATE,
             start_date=datetime.now(),
@@ -1473,8 +1559,12 @@ class WebUiTests(unittest.TestCase):
         assert "example_bash_operator" in response.data.decode('utf-8')
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=example_bash_operator')
-        assert "example_bash_operator" in response.data.decode('utf-8')
+            'days=30&dag_id=test_example_bash_operator')
+        assert "test_example_bash_operator" in response.data.decode('utf-8')
+        response = self.app.get(
+            '/admin/airflow/landing_times?'
+            'days=30&dag_id=example_xcom')
+        assert "example_xcom" in response.data.decode('utf-8')
         response = self.app.get(
             '/admin/airflow/gantt?dag_id=example_bash_operator')
         assert "example_bash_operator" in response.data.decode('utf-8')

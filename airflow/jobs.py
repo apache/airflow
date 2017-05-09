@@ -43,7 +43,7 @@ from tabulate import tabulate
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
-from airflow.models import DagRun
+from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
@@ -1036,7 +1036,7 @@ class SchedulerJob(BaseJob):
                 task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
 
             # DAG IDs with running tasks that equal the concurrency limit of the dag
-            dag_id_to_running_task_count = {}
+            dag_id_to_possibly_running_task_count = {}
 
             for task_instance in priority_sorted_task_instances:
                 if open_slots <= 0:
@@ -1063,22 +1063,24 @@ class SchedulerJob(BaseJob):
                 # reached.
                 dag_id = task_instance.dag_id
 
-                if dag_id not in dag_id_to_running_task_count:
-                    dag_id_to_running_task_count[dag_id] = \
-                        DagRun.get_running_tasks(
-                            session,
+                if dag_id not in dag_id_to_possibly_running_task_count:
+                    dag_id_to_possibly_running_task_count[dag_id] = \
+                        DAG.get_num_task_instances(
                             dag_id,
-                            simple_dag_bag.get_dag(dag_id).task_ids)
+                            simple_dag_bag.get_dag(dag_id).task_ids,
+                            states=[State.RUNNING, State.QUEUED],
+                            session=session)
 
-                current_task_concurrency = dag_id_to_running_task_count[dag_id]
+                current_task_concurrency = dag_id_to_possibly_running_task_count[dag_id]
                 task_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
-                self.logger.info("DAG {} has {}/{} running tasks"
+                self.logger.info("DAG {} has {}/{} running and queued tasks"
                                  .format(dag_id,
                                          current_task_concurrency,
                                          task_concurrency_limit))
-                if current_task_concurrency > task_concurrency_limit:
+                if current_task_concurrency >= task_concurrency_limit:
                     self.logger.info("Not executing {} since the number "
-                                     "of tasks running from DAG {} is >= to the "
+                                     "of tasks running or queued from DAG {}"
+                                     " is >= to the "
                                      "DAG's task concurrency limit of {}"
                                      .format(task_instance,
                                              dag_id,
@@ -1137,6 +1139,7 @@ class SchedulerJob(BaseJob):
                     queue=queue)
 
                 open_slots -= 1
+                dag_id_to_possibly_running_task_count[dag_id] += 1
 
     def _process_dags(self, dagbag, dags, tis_out):
         """
@@ -1174,7 +1177,7 @@ class SchedulerJob(BaseJob):
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
-        models.DagStat.clean_dirty([d.dag_id for d in dags])
+        models.DagStat.update([d.dag_id for d in dags])
 
     def _process_executor_events(self):
         """
@@ -1356,7 +1359,8 @@ class SchedulerJob(BaseJob):
         active_runs = DagRun.find(
             state=State.RUNNING,
             external_trigger=False,
-            session=session
+            session=session,
+            no_backfills=True,
         )
         for dr in active_runs:
             self.logger.info("Resetting {} {}".format(dr.dag_id,
@@ -1734,7 +1738,7 @@ class BackfillJob(BaseJob):
 
         # consider max_active_runs but ignore when running subdags
         # "parent.child" as a dag_id is by convention a subdag
-        if self.dag.schedule_interval and "." not in self.dag.dag_id:
+        if self.dag.schedule_interval and not self.dag.is_subdag:
             active_runs = DagRun.find(
                 dag_id=self.dag.dag_id,
                 state=State.RUNNING,
@@ -1774,8 +1778,11 @@ class BackfillJob(BaseJob):
 
         # create dag runs
         dr_start_date = start_date or min([t.start_date for t in self.dag.tasks])
-        next_run_date = self.dag.normalize_schedule(dr_start_date)
         end_date = end_date or datetime.now()
+        # next run date for a subdag isn't relevant (schedule_interval for subdags
+        # is ignored) so we use the dag run's start date in the case of a subdag
+        next_run_date = (self.dag.normalize_schedule(dr_start_date)
+                         if not self.dag.is_subdag else dr_start_date)
 
         active_dag_runs = []
         while next_run_date and next_run_date <= end_date:
@@ -1816,7 +1823,8 @@ class BackfillJob(BaseJob):
 
             for ti in run.get_task_instances():
                 # all tasks part of the backfill are scheduled to run
-                ti.set_state(State.SCHEDULED, session=session)
+                if ti.state == State.NONE:
+                    ti.set_state(State.SCHEDULED, session=session)
                 tasks_to_run[ti.key] = ti
 
             next_run_date = self.dag.following_schedule(next_run_date)
@@ -1848,6 +1856,13 @@ class BackfillJob(BaseJob):
                         ti.execution_date == (start_date or ti.start_date))
                     self.logger.debug("Task instance to run {} state {}"
                                       .format(ti, ti.state))
+
+                    # guard against externally modified tasks instances or
+                    # in case max concurrency has been reached at task runtime
+                    if ti.state == State.NONE:
+                        self.logger.warning("FIXME: task instance {} state was set to "
+                                            "None externally. This should not happen")
+                        ti.set_state(State.SCHEDULED, session=session)
 
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
@@ -1919,6 +1934,15 @@ class BackfillJob(BaseJob):
                             started.pop(key)
                         continue
 
+                    # special case
+                    if ti.state == State.UP_FOR_RETRY:
+                        self.logger.debug("Task instance {} retry period not expired yet"
+                                          .format(ti))
+                        if key in started:
+                            started.pop(key)
+                        tasks_to_run[key] = ti
+                        continue
+
                     # all remaining tasks
                     self.logger.debug('Adding {} to not_ready'.format(ti))
                     not_ready.add(key)
@@ -1953,7 +1977,7 @@ class BackfillJob(BaseJob):
                     active_dag_runs.remove(run)
 
                 if run.dag.is_paused:
-                    models.DagStat.clean_dirty([run.dag_id], session=session)
+                    models.DagStat.update([run.dag_id], session=session)
 
             msg = ' | '.join([
                 "[backfill progress]",

@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import unittest
+from mock import Mock
 
+from airflow.models import TaskInstance
 from airflow.ti_deps.deps.dag_unpaused_dep import DagUnpausedDep
-from fake_models import FakeDag, FakeTask, FakeTI
 
 
 class DagUnpausedDepTest(unittest.TestCase):
@@ -24,18 +25,18 @@ class DagUnpausedDepTest(unittest.TestCase):
         """
         Test paused DAG should fail dependency
         """
-        dag = FakeDag(is_paused=True)
-        task = FakeTask(dag=dag)
-        ti = FakeTI(task=task, dag_id="fake_dag")
+        dag = Mock(is_paused=True)
+        task = Mock(dag=dag)
+        ti = TaskInstance(task=task, execution_date=None)
 
-        self.assertFalse(DagUnpausedDep().is_met(ti=ti, dep_context=None))
+        self.assertFalse(DagUnpausedDep().is_met(ti=ti))
 
     def test_all_conditions_met(self):
         """
         Test all conditions met should pass dep
         """
-        dag = FakeDag(is_paused=False)
-        task = FakeTask(dag=dag)
-        ti = FakeTI(task=task, dag_id="fake_dag")
+        dag = Mock(is_paused=False)
+        task = Mock(dag=dag)
+        ti = TaskInstance(task=task, execution_date=None)
 
-        self.assertTrue(DagUnpausedDep().is_met(ti=ti, dep_context=None))
+        self.assertTrue(DagUnpausedDep().is_met(ti=ti))

@@ -13,25 +13,24 @@
 # limitations under the License.
 
 import unittest
+from mock import Mock
 
-from airflow.ti_deps.deps.pool_has_space_dep import PoolHasSpaceDep
-from fake_models import FakeTI
+from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
+from airflow.utils.state import State
 
 
-class PoolHasSpaceDepTest(unittest.TestCase):
+class NotSkippedDepTest(unittest.TestCase):
 
-    def test_pool_full(self):
+    def test_skipped(self):
         """
-        Full pools should fail this dep
+        Skipped task instances should fail this dep
         """
-        ti = FakeTI(pool="fake_pool", pool_filled=True)
-
-        self.assertFalse(PoolHasSpaceDep().is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.SKIPPED)
+        self.assertFalse(NotSkippedDep().is_met(ti=ti))
 
     def test_not_skipped(self):
         """
-        Pools with room should pass this dep
+        Non-skipped task instances should pass this dep
         """
-        ti = FakeTI(pool="fake_pool", pool_filled=False)
-
-        self.assertTrue(PoolHasSpaceDep().is_met(ti=ti, dep_context=None))
+        ti = Mock(state=State.RUNNING)
+        self.assertTrue(NotSkippedDep().is_met(ti=ti))

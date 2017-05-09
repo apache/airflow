@@ -468,6 +468,8 @@ class Airflow(BaseView):
         ds = models.DagStat
         session = Session()
 
+        ds.update()
+
         qry = (
             session.query(ds.dag_id, ds.state, ds.count)
         )
@@ -1553,7 +1555,7 @@ class Airflow(BaseView):
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
                 ts = ti.execution_date
-                if dag.schedule_interval:
+                if dag.schedule_interval and dag.following_schedule(ts):
                     ts = dag.following_schedule(ts)
                 if ti.end_date:
                     dttm = wwwutils.epoch(ti.execution_date)
@@ -2247,9 +2249,8 @@ class DagRunModelView(ModelViewOnly):
         session.commit()
         dirty_ids = []
         for row in deleted:
-            models.DagStat.set_dirty(row.dag_id, session=session)
             dirty_ids.append(row.dag_id)
-        models.DagStat.clean_dirty(dirty_ids, session=session)
+        models.DagStat.update(dirty_ids, dirty_only=False, session=session)
         session.close()
 
     @action('set_running', "Set state to 'running'", None)
@@ -2279,7 +2280,7 @@ class DagRunModelView(ModelViewOnly):
                 else:
                     dr.end_date = datetime.now()
             session.commit()
-            models.DagStat.clean_dirty(dirty_ids, session=session)
+            models.DagStat.update(dirty_ids, session=session)
             flash(
                 "{count} dag runs were set to '{target_state}'".format(**locals()))
         except Exception as ex:
@@ -2513,7 +2514,7 @@ class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
     def version(self):
         # Look at the version from setup.py
         try:
-            airflow_version = pkg_resources.require("airflow")[0].version
+            airflow_version = pkg_resources.require("apache-airflow")[0].version
         except Exception as e:
             airflow_version = None
             self.logger.error(e)

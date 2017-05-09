@@ -18,6 +18,7 @@ from setuptools.command.test import test as TestCommand
 import imp
 import logging
 import os
+import pip
 import sys
 
 logger = logging.getLogger(__name__)
@@ -97,6 +98,15 @@ def write_version(filename=os.path.join(*['airflow',
     text = "{}".format(git_version(version))
     with open(filename, 'w') as a:
         a.write(text)
+
+
+def check_previous():
+    installed_packages = ([package.project_name for package
+                           in pip.get_installed_distributions()])
+    if 'airflow' in installed_packages:
+        print("An earlier non-apache version of Airflow was installed, "
+              "please uninstall it first. Then reinstall.")
+        sys.exit(1)
 
 
 async = [
@@ -184,9 +194,10 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 
 
 def do_setup():
+    check_previous()
     write_version()
     setup(
-        name='airflow',
+        name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
         version=version,
