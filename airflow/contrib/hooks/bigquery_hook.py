@@ -74,7 +74,7 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         """
         raise NotImplementedError()
 
-    def get_pandas_df(self, bql, parameters=None):
+    def get_pandas_df(self, bql, parameters=None, dialect='legacy'):
         """
         Returns a Pandas DataFrame for the results produced by a BigQuery
         query. The DbApiHook method must be overridden because Pandas
@@ -85,10 +85,14 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
 
         :param bql: The BigQuery SQL to execute.
         :type bql: string
+        :param parameters: The parameters to render the SQL query with (not used, leave to override superclass method)
+        :type parameters: mapping or iterable
+        :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
+        :type dialect: string in {'legacy', 'standard'}, default 'legacy'
         """
         service = self.get_service()
         project = self._get_field('project')
-        connector = BigQueryPandasConnector(project, service)
+        connector = BigQueryPandasConnector(project, service, dialect=dialect)
         schema, pages = connector.run_query(bql)
         dataframe_list = []
 
@@ -136,13 +140,14 @@ class BigQueryPandasConnector(GbqConnector):
     without forcing a three legged OAuth connection. Instead, we can inject
     service account credentials into the binding.
     """
-    def __init__(self, project_id, service, reauth=False, verbose=False):
+    def __init__(self, project_id, service, reauth=False, verbose=False, dialect='legacy'):
         gbq_check_google_client_version()
         gbq_test_google_api_imports()
         self.project_id = project_id
         self.reauth = reauth
         self.service = service
         self.verbose = verbose
+        self.dialect = dialect
 
 
 class BigQueryConnection(object):
