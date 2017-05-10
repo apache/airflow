@@ -43,6 +43,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         skip_leading_rows=0,
         write_disposition='WRITE_EMPTY',
         field_delimiter=',',
+        max_bad_records=0,
         max_id_key=None,
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
@@ -80,6 +81,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type write_disposition: string
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
+        :param max_bad_records: The maximum number of bad records that BigQuery can
+            ignore when running the job.
+        :type max_bad_records: int
         :param max_id_key: If set, the name of a column in the BigQuery table
             that's to be loaded. Thsi will be used to select the MAX value from
             BigQuery after the load occurs. The results will be returned by the
@@ -115,6 +119,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.skip_leading_rows = skip_leading_rows
         self.write_disposition = write_disposition
         self.field_delimiter = field_delimiter
+        self.max_bad_records = max_bad_records
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -150,6 +155,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             skip_leading_rows=self.skip_leading_rows,
             write_disposition=self.write_disposition,
             field_delimiter=self.field_delimiter,
+            max_bad_records=self.max_bad_records,
             schema_update_options=self.schema_update_options)
 
         if self.max_id_key:
