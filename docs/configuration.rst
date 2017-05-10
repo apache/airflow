@@ -86,7 +86,7 @@ system have libffi-dev installed.
 If ``crypto`` package was not installed initially, you can still enable encryption for 
 connections by following steps below:
 
-1. Install crypto package ``pip install airflow[crypto]``
+1. Install crypto package ``pip install apache-airflow[crypto]``
 2. Generate fernet_key, using this code snippet below. fernet_key must be a base64-encoded 32-byte key.
 
 .. code:: python
