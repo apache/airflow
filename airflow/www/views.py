@@ -2403,7 +2403,7 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                execution_date = dateutil.parser.parse(execution_date)
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
                                               TI.execution_date == execution_date).one()
@@ -2423,7 +2423,7 @@ class TaskInstanceModelView(ModelViewOnly):
             count = 0
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                execution_date = dateutil.parser.parse(execution_date)
                 count += session.query(TI).filter(TI.task_id == task_id,
                                                   TI.dag_id == dag_id,
                                                   TI.execution_date == execution_date).delete()
