@@ -369,6 +369,7 @@ class BigQueryBaseCursor(object):
                  skip_leading_rows=0,
                  write_disposition='WRITE_EMPTY',
                  field_delimiter=',',
+                 max_bad_records=0,
                  schema_update_options=()):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -400,6 +401,9 @@ class BigQueryBaseCursor(object):
         :type write_disposition: string
         :param field_delimiter: The delimiter to use when loading from a CSV.
         :type field_delimiter: string
+        :param max_bad_records: The maximum number of bad records that BigQuery can
+            ignore when running the job.
+        :type max_bad_records: int
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
@@ -472,6 +476,9 @@ class BigQueryBaseCursor(object):
         if source_format == 'CSV':
             configuration['load']['skipLeadingRows'] = skip_leading_rows
             configuration['load']['fieldDelimiter'] = field_delimiter
+
+        if max_bad_records:
+            configuration['load']['maxBadRecords'] = max_bad_records
 
         return self.run_with_configuration(configuration)
 
