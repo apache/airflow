@@ -46,7 +46,7 @@ class SparkSqlOperator(BaseOperator):
     :type yarn_queue: str
     """
 
-    template_fields = ["_sql"]
+    template_fields = ["_sql", "_name"]
     template_ext = [".sql", ".hql"]
 
     @apply_defaults

@@ -19,6 +19,7 @@ import sys
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
+from airflow.models import TaskInstance
 
 DEFAULT_DATE = datetime.datetime(2017, 1, 1)
 
@@ -48,6 +49,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
             '--bar bar'
         ]
     }
+
+    _template_var = """{% set somelist = ["2017", "05", "10"] %}{{somelist|join("")}}"""
 
     def setUp(self):
 
@@ -87,6 +90,80 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(self._config['java_class'], operator._java_class)
         self.assertEqual(self._config['driver_memory'], operator._driver_memory)
         self.assertEqual(self._config['application_args'], operator._application_args)
+
+    def test_execute_with_template_in_name(self, conn_id='spark_default'):
+
+        name_config = { 'name': 'Name with date '+self._template_var }
+        spark_config = self._config.copy()
+        spark_config.update(name_config)
+
+        operator = SparkSubmitOperator(
+            task_id='spark_submit_job',
+            dag=self.dag,
+            **spark_config
+        )
+
+        TaskInstance(operator, DEFAULT_DATE).render_templates()
+
+        expected_name = 'Name with date 20170510'
+
+        self.assertEqual(conn_id, operator._conn_id)
+
+        self.assertEqual(self._config['application'], operator._application)
+        self.assertEqual(self._config['conf'], operator._conf)
+        self.assertEqual(self._config['files'], operator._files)
+        self.assertEqual(self._config['py_files'], operator._py_files)
+        self.assertEqual(self._config['jars'], operator._jars)
+        self.assertEqual(self._config['total_executor_cores'], operator._total_executor_cores)
+        self.assertEqual(self._config['executor_cores'], operator._executor_cores)
+        self.assertEqual(self._config['executor_memory'], operator._executor_memory)
+        self.assertEqual(self._config['keytab'], operator._keytab)
+        self.assertEqual(self._config['principal'], operator._principal)
+        self.assertEqual(expected_name, operator._name)
+        self.assertEqual(self._config['num_executors'], operator._num_executors)
+        self.assertEqual(self._config['verbose'], operator._verbose)
+        self.assertEqual(self._config['java_class'], operator._java_class)
+        self.assertEqual(self._config['driver_memory'], operator._driver_memory)
+        self.assertEqual(self._config['application_args'], operator._application_args)
+
+    def test_execute_with_template_in_application_args(self, conn_id='spark_default'):
+
+        args_config = { 'application_args': [
+            '-f','foo',
+            '--bar', 'bar',
+            '--extra', self._template_var
+        ] }
+        spark_config = self._config.copy()
+        spark_config.update(args_config)
+
+        operator = SparkSubmitOperator(
+            task_id='spark_submit_job',
+            dag=self.dag,
+            **spark_config
+        )
+
+        TaskInstance(operator, DEFAULT_DATE).render_templates()
+
+        expected_arguments = ['-f', 'foo', '--bar', 'bar', '--extra', '20170510']
+
+        self.assertEqual(conn_id, operator._conn_id)
+
+        self.assertEqual(self._config['application'], operator._application)
+        self.assertEqual(self._config['conf'], operator._conf)
+        self.assertEqual(self._config['files'], operator._files)
+        self.assertEqual(self._config['py_files'], operator._py_files)
+        self.assertEqual(self._config['jars'], operator._jars)
+        self.assertEqual(self._config['total_executor_cores'], operator._total_executor_cores)
+        self.assertEqual(self._config['executor_cores'], operator._executor_cores)
+        self.assertEqual(self._config['executor_memory'], operator._executor_memory)
+        self.assertEqual(self._config['keytab'], operator._keytab)
+        self.assertEqual(self._config['principal'], operator._principal)
+        self.assertEqual(self._config['name'], operator._name)
+        self.assertEqual(self._config['num_executors'], operator._num_executors)
+        self.assertEqual(self._config['verbose'], operator._verbose)
+        self.assertEqual(self._config['java_class'], operator._java_class)
+        self.assertEqual(self._config['driver_memory'], operator._driver_memory)
+        self.assertListEqual(sorted(expected_arguments), sorted(operator._application_args))
 
 
 
