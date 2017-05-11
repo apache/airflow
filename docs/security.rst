@@ -11,6 +11,9 @@ backends or creating your own.
 Web Authentication
 ------------------
 
+Web Authentication
+------------------
+
 Password
 ''''''''
 
