@@ -98,10 +98,11 @@ class SparkSqlHook(BaseHook):
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
-            if self._sql.endswith('.sql') or self._sql.endswith(".hql"):
-                connection_cmd += ["-f", self._sql]
+            sql = self._sql.strip()
+            if sql.endswith(".sql") or sql.endswith(".hql"):
+                connection_cmd += ["-f", sql]
             else:
-                connection_cmd += ["-e", self._sql]
+                connection_cmd += ["-e", sql]
         if self._master:
             connection_cmd += ["--master", self._master]
         if self._name:
