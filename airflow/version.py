@@ -13,4 +13,4 @@
 # limitations under the License.
 #
 
-version = '1.8.2alpha0'
+version = '1.8.1+incubating'
