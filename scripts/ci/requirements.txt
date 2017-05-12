@@ -29,6 +29,7 @@ datadog
 dill
 distributed
 docker-py
+elasticsearch>=5.0.0
 filechunkio
 flake8
 flask
