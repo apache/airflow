@@ -456,6 +456,28 @@ class CoreTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    @mock.patch('airflow.models.DagBag.get_dag')
+    def test_templated_trigger_dagrun(self, get_dag):
+        """
+        Test that the TriggerDagRunOperator properly retrieves the correct DAG
+        when specified as a templated variable.
+        """
+        get_dag.return_value = self.dag
+
+        def trigger(context, dro):
+            return dro
+
+        t = TriggerDagRunOperator(
+            task_id='test_templated_trigger_dagrun',
+            params={'trigger': 'example_bash_operator'},
+            trigger_dag_id='{{params["trigger"]}}',
+            python_callable=trigger,
+            dag=self.dag)
+
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        get_dag.assert_called_with('example_bash_operator')
+
     def test_dryrun(self):
         t = BashOperator(
             task_id='time_sensor_check',
