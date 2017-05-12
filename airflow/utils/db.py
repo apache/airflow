@@ -130,6 +130,11 @@ def initdb():
             schema='hive', port=3400))
     merge_conn(
         models.Connection(
+            conn_id='elasticsearch_default', conn_type='elasticsearch',
+            host='localhost',
+            port=9200))
+    merge_conn(
+        models.Connection(
             conn_id='hive_cli_default', conn_type='hive_cli',
             schema='default',))
     merge_conn(
