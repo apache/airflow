@@ -18,6 +18,8 @@ import datetime
 import sys
 
 from airflow import DAG, configuration
+from airflow.models import TaskInstance
+
 from airflow.contrib.operators.spark_submit_operator import SparkSubmitOperator
 
 DEFAULT_DATE = datetime.datetime(2017, 1, 1)
@@ -45,7 +47,9 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'java_class': 'com.foo.bar.AppMain',
         'application_args': [
             '-f foo',
-            '--bar bar'
+            '--bar bar',
+            '--start {{ macros.ds_add(ds, -1)}}',
+            '--end {{ ds }}'
         ]
     }
 
@@ -88,7 +92,21 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(self._config['driver_memory'], operator._driver_memory)
         self.assertEqual(self._config['application_args'], operator._application_args)
 
+    def test_render_template(self, conn_id='spark_default'):
+        # Given
+        operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
+        ti = TaskInstance(operator, DEFAULT_DATE)
 
+        # When
+        ti.render_templates()
+
+        # Then
+        expected_application_args = [u'-f foo',
+                                     u'--bar bar',
+                                     u'--start %s' % (DEFAULT_DATE - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                                     u'--end %s' % DEFAULT_DATE.strftime("%Y-%m-%d")]
+
+        self.assertListEqual(sorted(expected_application_args), sorted(getattr(operator, '_application_args')))
 
 
 if __name__ == '__main__':
