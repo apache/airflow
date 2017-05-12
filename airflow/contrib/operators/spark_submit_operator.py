@@ -64,6 +64,8 @@ class SparkSubmitOperator(BaseOperator):
     :type verbose: bool
     """
 
+    template_fields = ("_application_args", "_name")
+
     @apply_defaults
     def __init__(self,
                  application='',
