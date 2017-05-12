@@ -18,9 +18,6 @@ from airflow import configuration
 from elasticsearch import Elasticsearch, ElasticsearchException
 from airflow.exceptions import AirflowException
 
-class ElasticsearchHookException(AirflowException, ElasticsearchException):
-    pass
-
 class ElasticsearchHook(BaseHook, Elasticsearch):
     """
     interact with elasticsearch.
