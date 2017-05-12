@@ -27,7 +27,7 @@ class ElasticsearchHook(BaseHook, Elasticsearch):
     """
     def __init__(
             self,
-            es_conn_id = 'es_conn_id_default',
+            es_conn_id = 'elasticsearch_default',
             **kwargs):
         self.es_conn_id = es_conn_id
         host_domain = self.get_connections(self.es_conn_id)
