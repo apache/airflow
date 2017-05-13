@@ -180,7 +180,7 @@ class DbApiHook(BaseHook):
     def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
         """
         A generic way to insert a set of tuples into a table,
-        the whole set of inserts is treated as one transaction
+        a new transaction is created every commit_every rows
 
         :param table: Name of the target table
         :type table: str
@@ -210,11 +210,12 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         l.append(self._serialize_cell(cell, conn))
                     values = tuple(l)
+                    placeholders = ["%s",]*len(values)
                     sql = "INSERT INTO {0} {1} VALUES ({2});".format(
                         table,
                         target_fields,
-                        ",".join(values))
-                    cur.execute(sql)
+                        ",".join(placeholders))
+                    cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
                         logging.info(
@@ -237,16 +238,11 @@ class DbApiHook(BaseHook):
         :rtype: str
         """
 
-        if isinstance(cell, basestring):
-            return "'" + str(cell).replace("'", "''") + "'"
-        elif cell is None:
-            return 'NULL'
-        elif isinstance(cell, numpy.datetime64):
-            return "'" + str(cell) + "'"
-        elif isinstance(cell, datetime):
-            return "'" + cell.isoformat() + "'"
-        else:
-            return str(cell)
+        if cell is None:
+            return None
+        if isinstance(cell, datetime):
+            return cell.isoformat()
+        return str(cell)
 
     def bulk_dump(self, table, tmp_file):
         """
