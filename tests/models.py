@@ -575,6 +575,45 @@ class DagBagTest(unittest.TestCase):
 
 class TaskInstanceTest(unittest.TestCase):
 
+    def test_set_task_dates(self):
+        """
+        Test that tasks properly take start/end dates from DAGs
+        """
+        dag = DAG('dag', start_date=DEFAULT_DATE, end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+
+        op1 = DummyOperator(task_id='op_1', owner='test')
+
+        self.assertTrue(op1.start_date is None and op1.end_date is None)
+
+        # dag should assign its dates to op1 because op1 has no dates
+        dag.add_task(op1)
+        self.assertTrue(
+            op1.start_date == dag.start_date and op1.end_date == dag.end_date)
+
+        op2 = DummyOperator(
+            task_id='op_2',
+            owner='test',
+            start_date=DEFAULT_DATE - datetime.timedelta(days=1),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=11))
+
+        # dag should assign its dates to op2 because they are more restrictive
+        dag.add_task(op2)
+        self.assertTrue(
+            op2.start_date == dag.start_date and op2.end_date == dag.end_date)
+
+        op3 = DummyOperator(
+            task_id='op_3',
+            owner='test',
+            start_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            end_date=DEFAULT_DATE + datetime.timedelta(days=9))
+        # op3 should keep its dates because they are more restrictive
+        dag.add_task(op3)
+        self.assertTrue(
+            op3.start_date == DEFAULT_DATE + datetime.timedelta(days=1))
+        self.assertTrue(
+            op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9))
+
+
     def test_set_dag(self):
         """
         Test assigning Operators to Dags, including deferred assignment

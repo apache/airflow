@@ -3269,8 +3269,21 @@ class DAG(BaseDag, LoggingMixin):
         """
         if not self.start_date and not task.start_date:
             raise AirflowException("Task is missing the start_date parameter")
-        if not task.start_date:
+        # if the task has no start date, assign it the same as the DAG
+        elif not task.start_date:
             task.start_date = self.start_date
+        # otherwise, the task will start on the later of its own start date and
+        # the DAG's start date
+        elif self.start_date:
+            task.start_date = max(task.start_date, self.start_date)
+
+        # if the task has no end date, assign it the same as the dag
+        if not task.end_date:
+            task.end_date = self.end_date
+        # otherwise, the task will end on the earlier of its own end date and
+        # the DAG's end date
+        elif task.end_date and self.end_date:
+            task.end_date = min(task.end_date, self.end_date)
 
         if task.task_id in self.task_dict:
             # TODO: raise an error in Airflow 2.0
