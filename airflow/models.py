@@ -3079,7 +3079,7 @@ class DAG(BaseDag, LoggingMixin):
         )
         if state:
             tis = tis.filter(TI.state == state)
-        tis = tis.all()
+        tis = tis.order_by(TI.execution_date).all()
         return tis
 
     @property
@@ -3887,7 +3887,7 @@ class DagStat(Base):
         """
         :param dag_id: the dag_id to mark dirty
         :param session: database session
-        :return: 
+        :return:
         """
         DagStat.create(dag_id=dag_id, session=session)
 
@@ -3964,11 +3964,11 @@ class DagStat(Base):
     @provide_session
     def create(dag_id, session=None):
         """
-        Creates the missing states the stats table for the dag specified 
-        
+        Creates the missing states the stats table for the dag specified
+
         :param dag_id: dag id of the dag to create stats for
         :param session: database session
-        :return: 
+        :return:
         """
         # unfortunately sqlalchemy does not know upsert
         qry = session.query(DagStat).filter(DagStat.dag_id == dag_id).all()
@@ -4078,7 +4078,7 @@ class DagRun(Base):
         :type state: State
         :param external_trigger: whether this dag run is externally triggered
         :type external_trigger: bool
-        :param no_backfills: return no backfills (True), return all (False). 
+        :param no_backfills: return no backfills (True), return all (False).
         Defaults to False
         :type no_backfills: bool
         :param session: database session
