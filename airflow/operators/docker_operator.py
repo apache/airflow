@@ -184,7 +184,10 @@ class DockerOperator(BaseOperator):
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                line = line.strip()
+                if hasattr(line, 'decode'):
+                    line = line.decode('utf-8')
+                logging.info(line)
 
             exit_code = self.cli.wait(self.container['Id'])
             # remove the container if specified in initializer
@@ -194,7 +197,7 @@ class DockerOperator(BaseOperator):
                 raise AirflowException('docker container failed')
 
             if self.xcom_push:
-                return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line.strip())
+                return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line)
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
