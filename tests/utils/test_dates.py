@@ -17,6 +17,7 @@ import unittest
 
 from airflow.utils import dates
 
+
 class Dates(unittest.TestCase):
 
     def test_days_ago(self):

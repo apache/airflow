@@ -12,22 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import os
 import logging
 import multiprocessing
-import unittest
+import os
 import psutil
 import signal
 import time
+import unittest
 
 from airflow.utils import helpers
 
 
 class TestHelpers(unittest.TestCase):
+
     @staticmethod
     def _ignores_sigterm(child_pid, setup_done):
         def signal_handler(signum, frame):
             pass
+
         signal.signal(signal.SIGTERM, signal_handler)
         child_pid.value = os.getpid()
         setup_done.release()
@@ -45,10 +47,11 @@ class TestHelpers(unittest.TestCase):
             # Process.is_alive doesnt work with SIGKILL
             if not psutil.pid_exists(child_pid.value):
                 child_process_killed.value = 1
+
         process_done.release()
 
     def test_kill_process_tree(self):
-        """ Spin up a process that can't be killed by SIGTERM and make sure it gets killed anyway. """
+        """Spin up a process that can't be killed by SIGTERM and make sure it gets killed anyway."""
         child_process_killed = multiprocessing.Value('i', 0)
         process_done = multiprocessing.Semaphore(0)
         child_pid = multiprocessing.Value('i', 0)
@@ -67,7 +70,7 @@ class TestHelpers(unittest.TestCase):
             child.terminate()
 
     def test_kill_using_shell(self):
-        """ Test when no process exists. """
+        """Test when no process exists."""
         child_pid = multiprocessing.Value('i', 0)
         setup_done = multiprocessing.Semaphore(0)
         args = [child_pid, setup_done]
@@ -81,4 +84,7 @@ class TestHelpers(unittest.TestCase):
         child.join() # remove orphan process
         self.assertFalse(helpers.kill_using_shell(logging.getLogger(), pid_to_kill,
                                                   signal=signal.SIGKILL))
-    
+
+
+if __name__ == '__main__':
+    unittest.main()

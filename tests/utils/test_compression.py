@@ -12,15 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from airflow.utils import compression
-import unittest
-from tempfile import NamedTemporaryFile, mkdtemp
 import bz2
-import gzip
-import shutil
-import logging
 import errno
 import filecmp
+import gzip
+import logging
+import shutil
+import tempfile
+import unittest
+
+from airflow.utils import compression
 
 
 class Compression(unittest.TestCase):
@@ -31,23 +32,25 @@ class Compression(unittest.TestCase):
             header = "Sno\tSome,Text \n".encode()
             line1 = "1\tAirflow Test\n".encode()
             line2 = "2\tCompressionUtil\n".encode()
-            self.tmp_dir = mkdtemp(prefix='test_utils_compression_')
+            self.tmp_dir = tempfile.mkdtemp(prefix='test_utils_compression_')
             # create sample txt, gz and bz2 files
-            with NamedTemporaryFile(mode='wb+',
-                                    dir=self.tmp_dir,
-                                    delete=False) as f_txt:
+            with tempfile.NamedTemporaryFile(mode='wb+',
+                                             dir=self.tmp_dir,
+                                             delete=False) as f_txt:
                 self._set_fn(f_txt.name, '.txt')
                 f_txt.writelines([header, line1, line2])
+
             fn_gz = self._get_fn('.txt') + ".gz"
             with gzip.GzipFile(filename=fn_gz,
                                mode="wb") as f_gz:
                 self._set_fn(fn_gz, '.gz')
                 f_gz.writelines([header, line1, line2])
+
             fn_bz2 = self._get_fn('.txt') + '.bz2'
-            with bz2.BZ2File(filename=fn_bz2,
-                             mode="wb") as f_bz2:
+            with bz2.BZ2File(filename=fn_bz2, mode="wb") as f_bz2:
                 self._set_fn(fn_bz2, '.bz2')
                 f_bz2.writelines([header, line1, line2])
+
         # Base Exception so it catches Keyboard Interrupt
         except BaseException as e:
             logging.error(e)
