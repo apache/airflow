@@ -145,6 +145,9 @@ def set_state(task, execution_date, upstream=False, downstream=False,
                         dr.state = state
                         session.merge(dr)
 
+                if drs and commit:
+                    session.commit()
+
                 dags.append(current_task.subdag)
                 sub_dag_ids.append(current_task.subdag.dag_id)
 
@@ -184,4 +187,3 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     session.close()
 
     return tis_altered
-
