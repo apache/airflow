@@ -38,7 +38,22 @@ g.node.queued rect {
 
 g.node.running rect{
     stroke: lime;
+    stroke-dasharray: 10 5;
+    animation: dash 3s linear infinite, fade 2s ease-in-out infinite alternate;
 }
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 180;
+  }
+}
+
+@keyframes fade {
+  to {
+    stroke-opacity: .7;
+  }
+}
+
 g.node.failed rect {
     stroke: red;
 }
