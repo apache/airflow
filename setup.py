@@ -193,8 +193,8 @@ devel = [
     'moto',
     'nose',
     'nose-ignore-docstring==0.2',
-    'nose-parameterized',
     'nose-timer',
+    'parameterized',
     'rednose'
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups

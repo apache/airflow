@@ -35,7 +35,7 @@ from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
 from mock import patch
-from nose_parameterized import parameterized
+from parameterized import parameterized
 
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
