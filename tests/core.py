@@ -1067,9 +1067,7 @@ class CliTests(unittest.TestCase):
         app = application.create_app()
         app.config['TESTING'] = True
         self.parser = cli.CLIFactory.get_parser()
-        self.dagbag = models.DagBag(
-            dag_folder=DEV_NULL, include_examples=True)
-        # Persist DAGs
+        self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
@@ -1084,11 +1082,17 @@ class CliTests(unittest.TestCase):
             'list_tasks', 'example_bash_operator', '--tree'])
         cli.list_tasks(args)
 
-    def test_cli_initdb(self):
+    @mock.patch("airflow.bin.cli.db_utils.initdb")
+    def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-    def test_cli_resetdb(self):
+        initdb_mock.assert_called_once_with()
+
+    @mock.patch("airflow.bin.cli.db_utils.resetdb")
+    def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
+
+        resetdb_mock.assert_called_once_with()
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
