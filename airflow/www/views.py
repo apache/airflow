@@ -2138,13 +2138,20 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
             'rows': 20,
         }
     }
+    form_args = {
+        'key': {
+            'validators': {
+                validators.DataRequired(),
+            },
+        },
+    }
     column_sortable_list = (
         'key',
         'val',
         'is_encrypted',
     )
     column_formatters = {
-        'val': hidden_field_formatter
+        'val': hidden_field_formatter,
     }
 
     # Default flask-admin export functionality doesn't handle serialized json
