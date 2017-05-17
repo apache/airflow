@@ -740,8 +740,8 @@ class SchedulerJob(BaseJob):
             timedout_runs = 0
             for dr in active_runs:
                 if (
-                        dr.start_date and dag.dagrun_timeout and
-                        dr.start_date < datetime.now() - dag.dagrun_timeout):
+                        dr.execution_date and dag.dagrun_timeout and
+                        dr.execution_date < datetime.now() - dag.dagrun_timeout):
                     dr.state = State.FAILED
                     dr.end_date = datetime.now()
                     timedout_runs += 1
