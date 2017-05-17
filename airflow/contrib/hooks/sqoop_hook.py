@@ -52,7 +52,8 @@ class SqoopHook(BaseHook):
     """
 
     def __init__(self, conn_id='sqoop_default', verbose=False,
-                 num_mappers=None, properties=None):
+                 num_mappers=None, hcatalog_database=None,
+                 hcatalog_table=None, properties=None):
         # No mutable types in the default parameters
         if properties is None:
             properties = {}
@@ -64,6 +65,8 @@ class SqoopHook(BaseHook):
         self.files = connection_parameters.get('files', None)
         self.archives = connection_parameters.get('archives', None)
         self.password_file = connection_parameters.get('password_file', None)
+        self.hcatalog_database = hcatalog_database
+        self.hcatalog_table = hcatalog_table
         self.verbose = verbose
         self.num_mappers = str(num_mappers)
         self.properties = properties
@@ -118,6 +121,10 @@ class SqoopHook(BaseHook):
             connection_cmd += ["-archives", self.archives]
         if self.num_mappers:
             connection_cmd += ["--num-mappers", self.num_mappers]
+        if self.hcatalog_database:
+            connection_cmd += ["--hcatalog-database", self.hcatalog_database]
+        if self.hcatalog_table:
+            connection_cmd += ["--hcatalog-table", self.hcatalog_table]
 
         for key, value in self.properties.items():
             connection_cmd += ["-D", "{}={}".format(key, value)]
@@ -257,8 +264,10 @@ class SqoopHook(BaseHook):
         if relaxed_isolation:
             cmd += ["--relaxed-isolation"]
 
-        # The required options
-        cmd += ["--export-dir", export_dir]
+        if export_dir:
+            cmd += ["--export-dir", export_dir]
+
+        # The required option
         cmd += ["--table", table]
 
         return cmd

@@ -29,7 +29,9 @@ class TestSqoopHook(unittest.TestCase):
         'verbose': True,
         'properties': {
             'mapred.map.max.attempts': '1'
-        }
+        },
+        'hcatalog_database': 'hive_database',
+        'hcatalog_table': 'hive_table'
     }
     _config_export = {
         'table': 'domino.export_data_to',
@@ -106,6 +108,9 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn(
                 "-archives {}".format(self._config_json['archives']), cmd
             )
+
+        self.assertIn("--hcatalog-database {}".format(self._config['hcatalog_database']), cmd)
+        self.assertIn("--hcatalog-table {}".format(self._config['hcatalog_table']), cmd)
 
         # Check the regulator stuff passed by the default constructor
         if self._config['verbose']:

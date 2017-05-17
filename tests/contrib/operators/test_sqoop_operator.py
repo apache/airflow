@@ -46,6 +46,8 @@ class TestSqoopOperator(unittest.TestCase):
         'relaxed_isolation': True,
         'direct': True,
         'driver': 'com.microsoft.jdbc.sqlserver.SQLServerDriver',
+        'hcatalog_database': 'hive_database',
+        'hcatalog_table': 'hive_table',
         'properties': {
             'mapred.map.max.attempts': '1'
         }
@@ -88,6 +90,8 @@ class TestSqoopOperator(unittest.TestCase):
         self.assertEqual(self._config['direct'], operator.direct)
         self.assertEqual(self._config['driver'], operator.driver)
         self.assertEqual(self._config['properties'], operator.properties)
+        self.assertEqual(self._config['hcatalog_database'], operator.hcatalog_database)
+        self.assertEqual(self._config['hcatalog_table'], operator.hcatalog_table)
 
     def test_invalid_cmd_type(self):
         operator = SqoopOperator(task_id='sqoop_job', dag=self.dag,

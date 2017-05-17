@@ -57,6 +57,8 @@ class SqoopOperator(BaseOperator):
                  verbose=False,
                  relaxed_isolation=False,
                  properties=None,
+                 hcatalog_database=None,
+                 hcatalog_table=None,
                  *args,
                  **kwargs):
         """
@@ -91,6 +93,8 @@ class SqoopOperator(BaseOperator):
         :param driver: Manually specify JDBC driver class to use
         :param verbose: Switch to more verbose logging for debug purposes
         :param relaxed_isolation: use read uncommitted isolation level
+        :param hcatalog_database: Specifies the database name for the HCatalog table
+        :param hcatalog_table: The argument value for this option is the HCatalog table
         :param properties: additional JVM properties passed to sqoop
         """
         super(SqoopOperator, self).__init__(*args, **kwargs)
@@ -120,6 +124,8 @@ class SqoopOperator(BaseOperator):
         self.driver = driver
         self.verbose = verbose
         self.relaxed_isolation = relaxed_isolation
+        self.hcatalog_database = hcatalog_database
+        self.hcatalog_table = hcatalog_table
         # No mutable types in the default parameters
         if properties is None:
             properties = {}
@@ -132,6 +138,8 @@ class SqoopOperator(BaseOperator):
         hook = SqoopHook(conn_id=self.conn_id,
                          verbose=self.verbose,
                          num_mappers=self.num_mappers,
+                         hcatalog_database=self.hcatalog_database,
+                         hcatalog_table=self.hcatalog_table,
                          properties=self.properties)
 
         if self.cmd_type == 'export':
