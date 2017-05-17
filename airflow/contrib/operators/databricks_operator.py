@@ -204,7 +204,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             # Databricks can tolerate either numeric or string types in the API backend.
             return str(content)
         elif isinstance(content, (list, tuple)):
-            return [c(e, '{0}[{1}]'.format(json_path, i)) for e, i in enumerate(content)]
+            return [c(e, '{0}[{1}]'.format(json_path, i)) for i, e in enumerate(content)]
         elif isinstance(content, dict):
             return {k: c(v, '{0}[{1}]'.format(json_path, k))
                     for k, v in list(content.items())}

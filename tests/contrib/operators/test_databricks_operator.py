@@ -145,6 +145,24 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         with self.assertRaisesRegexp(AirflowException, exception_message):
             op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
 
+    def test_deep_string_coerce(self):
+        op = DatabricksSubmitRunOperator(task_id='test')
+        test_json = {
+            'test_int': 1,
+            'test_float': 1.0,
+            'test_dict': {'key': 'value'},
+            'test_list': [1, 1.0, 'a', 'b'],
+            'test_tuple': (1, 1.0, 'a', 'b')
+        }
+        expected = {
+            'test_int': '1',
+            'test_float': '1.0',
+            'test_dict': {'key': 'value'},
+            'test_list': ['1', '1.0', 'a', 'b'],
+            'test_tuple': ['1', '1.0', 'a', 'b']
+        }
+        self.assertDictEqual(op._deep_string_coerce(test_json), expected)
+
     @mock.patch('airflow.contrib.operators.databricks_operator.DatabricksHook')
     def test_exec_success(self, db_mock_class):
         """
