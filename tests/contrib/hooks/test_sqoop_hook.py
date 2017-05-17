@@ -21,6 +21,10 @@ from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
 from airflow.utils import db
 
+from mock import patch, call
+
+from io import StringIO
+
 
 class TestSqoopHook(unittest.TestCase):
     _config = {
@@ -69,20 +73,46 @@ class TestSqoopHook(unittest.TestCase):
         configuration.load_test_config()
         db.merge_conn(
             models.Connection(
-                conn_id='sqoop_test', conn_type='sqoop',
+                conn_id='sqoop_test', conn_type='sqoop', schema='schema',
                 host='rmdbs', port=5050, extra=json.dumps(self._config_json)
             )
         )
 
-    def test_popen(self):
-        hook = SqoopHook(**self._config)
+    @patch('subprocess.Popen')
+    def test_popen(self, mock_popen):
+        # Given
+        mock_popen.return_value.stdout = StringIO(u'stdout')
+        mock_popen.return_value.stderr = StringIO(u'stderr')
+        mock_popen.return_value.returncode = 0
+        mock_popen.return_value.communicate.return_value = [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
 
-        # Should go well
-        hook.Popen(['ls'])
+        # When
+        hook = SqoopHook(conn_id='sqoop_test')
+        hook.export_table(**self._config_export)
 
-        # Should give an exception
-        with self.assertRaises(OSError):
-            hook.Popen('exit 1')
+        # Then
+        self.assertEqual(mock_popen.mock_calls[0], call(
+            ['sqoop',
+             'export',
+             '-jt', self._config_json['job_tracker'],
+             '-libjars', self._config_json['libjars'],
+             '-files', self._config_json['files'],
+             '-fs', self._config_json['namenode'],
+             '-archives', self._config_json['archives'],
+             '--connect', 'rmdbs:5050/schema',
+             '--input-null-string', self._config_export['input_null_string'],
+             '--input-null-non-string', self._config_export['input_null_non_string'],
+             '--staging-table', self._config_export['staging_table'],
+             '--clear-staging-table',
+             '--enclosed-by', self._config_export['enclosed_by'],
+             '--escaped-by', self._config_export['escaped_by'],
+             '--input-fields-terminated-by', self._config_export['input_fields_terminated_by'],
+             '--input-lines-terminated-by', self._config_export['input_lines_terminated_by'],
+             '--input-optionally-enclosed-by', self._config_export['input_optionally_enclosed_by'],
+             '--batch',
+             '--relaxed-isolation',
+             '--export-dir', self._config_export['export_dir'],
+             '--table', self._config_export['table']], stderr=-2, stdout=-1))
 
     def test_submit(self):
         hook = SqoopHook(**self._config)
@@ -227,6 +257,19 @@ class TestSqoopHook(unittest.TestCase):
                       hook._get_export_format_argument('text'))
         with self.assertRaises(AirflowException):
             hook._get_export_format_argument('unknown')
+
+    def test_cmd_mask_password(self):
+        hook = SqoopHook()
+        self.assertEqual(
+            hook.cmd_mask_password(['--password', 'supersecret']),
+            ['--password', 'MASKED']
+        )
+
+        cmd = ['--target', 'targettable']
+        self.assertEqual(
+            hook.cmd_mask_password(cmd),
+            cmd
+        )
 
 
 if __name__ == '__main__':
