@@ -2278,6 +2278,55 @@ class HDFSHookTest(unittest.TestCase):
 
 
 try:
+    from airflow.hooks.http_hook import HttpHook
+except ImportError:
+    HttpHook = None
+
+
+@unittest.skipIf(HttpHook is None,
+                 "Skipping test because HttpHook is not installed")
+class HttpHookTest(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_http_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='localhost', schema='http')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'http://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_https_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='localhost', schema='https')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'https://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_host_encoded_http_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='http://localhost')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'http://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_host_encoded_https_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='https://localhost')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'https://localhost')
+
+
+try:
     from airflow.hooks.S3_hook import S3Hook
 except ImportError:
     S3Hook = None
