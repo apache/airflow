@@ -2300,6 +2300,7 @@ class DagRunModelView(ModelViewOnly):
 class LogModelView(ModelViewOnly):
     verbose_name_plural = "logs"
     verbose_name = "log"
+    column_display_actions = False
     column_default_sort = ('dttm', True)
     column_filters = ('dag_id', 'task_id', 'execution_date')
     column_formatters = dict(
