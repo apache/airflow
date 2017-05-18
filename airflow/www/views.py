@@ -2239,6 +2239,7 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
 class JobModelView(ModelViewOnly):
     verbose_name_plural = "jobs"
     verbose_name = "job"
+    column_display_actions = False
     column_default_sort = ('start_date', True)
     column_filters = (
         'job_type', 'dag_id', 'state',
