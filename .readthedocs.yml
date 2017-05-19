@@ -13,8 +13,9 @@
 
 python:
     pip_install: true
+    requirements_file: docs/requirements.txt
     extra_requirements:
         - doc
         - docker
         - gcp_api
-        - emr 
+        - emr
