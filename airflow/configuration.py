@@ -32,7 +32,7 @@ standard_library.install_aliases()
 
 from builtins import str
 from collections import OrderedDict
-from configparser import ConfigParser
+from six.moves import configparser
 
 from airflow.exceptions import AirflowConfigException
 
@@ -41,6 +41,8 @@ warnings.filterwarnings(
     action='default', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
+
+ConfigParser = configparser.ConfigParser
 
 
 def generate_fernet_key():
