@@ -16,9 +16,10 @@ from slackclient import SlackClient
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
+from airflow.hooks.slack_webhook_hook import SlackWebHookHook
 import json
 import logging
-import requests
+
 
 
 class SlackAPIOperator(BaseOperator):
@@ -118,21 +119,6 @@ class SlackAPIPostOperator(SlackAPIOperator):
             'icon_url': self.icon_url,
             'attachments': json.dumps(self.attachments),
         }
-
-class SlackWebHookHook(BaseHook):
-    """Slack WebHook hook. Connects to a slack webhook URL using a Connection.
-
-    The Slack WebHook URL should be defined in the 'extra' field of the connection as defined
-    in the Airflow admin interface.
-    """
-    def __init__(self, conn_id):
-        self.conn_id = conn_id
-        self.webhook_url = self.get_connection(conn_id).extra
-
-    def post(self, json):
-        response = requests.post(self.webhook_url, json=json,
-                                 headers={'Content-Type': 'application/json'})
-        response.raise_for_status()
 
 
 class SlackPostOperator(BaseOperator):
