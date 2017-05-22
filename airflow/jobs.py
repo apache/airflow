@@ -690,9 +690,12 @@ class SchedulerJob(BaseJob):
         :param known_file_paths: The list of existing files that are parsed for DAGs
         :type known_file_paths: list[unicode]
         """
-        session.query(models.ImportError).filter(
-            ~models.ImportError.filename.in_(known_file_paths)
-        ).delete(synchronize_session='fetch')
+        query = session.query(models.ImportError)
+        if known_file_paths:
+            query = query.filter(
+                ~models.ImportError.filename.in_(known_file_paths)
+            )
+        query.delete(synchronize_session='fetch')
         session.commit()
 
     @staticmethod

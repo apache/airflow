@@ -529,6 +529,7 @@ class SchedulerJobTest(unittest.TestCase):
     def setUp(self):
         self.dagbag = DagBag()
         session = settings.Session()
+        session.query(models.DagRun).delete()
         session.query(models.ImportError).delete()
         session.commit()
 

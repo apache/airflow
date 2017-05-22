@@ -125,16 +125,16 @@ def clear_task_instances(tis, session, activate_dag_runs=True):
         #     session.merge(ti)
         else:
             session.delete(ti)
+
     if job_ids:
         from airflow.jobs import BaseJob as BJ
         for job in session.query(BJ).filter(BJ.id.in_(job_ids)).all():
             job.state = State.SHUTDOWN
-    if activate_dag_runs:
-        execution_dates = {ti.execution_date for ti in tis}
-        dag_ids = {ti.dag_id for ti in tis}
+
+    if activate_dag_runs and tis:
         drs = session.query(DagRun).filter(
-            DagRun.dag_id.in_(dag_ids),
-            DagRun.execution_date.in_(execution_dates),
+            DagRun.dag_id.in_({ti.dag_id for ti in tis}),
+            DagRun.execution_date.in_({ti.execution_date for ti in tis}),
         ).all()
         for dr in drs:
             dr.state = State.RUNNING
@@ -2374,7 +2374,7 @@ class BaseOperator(object):
 
         count = qry.count()
 
-        clear_task_instances(qry, session)
+        clear_task_instances(qry.all(), session)
 
         session.commit()
         session.close()
@@ -3165,9 +3165,11 @@ class DAG(BaseDag, LoggingMixin):
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
-                conditions.append(
-                    TI.dag_id.like(dag.dag_id) & TI.task_id.in_(dag.task_ids)
-                )
+                if dag.task_ids:
+                    conditions.append(
+                        TI.dag_id.like(dag.dag_id) &
+                        TI.task_id.in_(dag.task_ids)
+                    )
             tis = tis.filter(or_(*conditions))
         else:
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
@@ -3201,7 +3203,7 @@ class DAG(BaseDag, LoggingMixin):
             do_it = utils.helpers.ask_yesno(question)
 
         if do_it:
-            clear_task_instances(tis, session)
+            clear_task_instances(tis.all(), session)
             if reset_dag_runs:
                 self.set_dag_runs_state(session=session)
         else:
@@ -3917,14 +3919,10 @@ class DagStat(Base):
         :param session: db session to use
         :type session: Session
         """
-        if dag_ids is not None:
-            dag_ids = set(dag_ids)
-
         try:
             qry = session.query(DagStat)
-
-            if dag_ids is not None:
-                qry = qry.filter(DagStat.dag_id.in_(dag_ids))
+            if dag_ids:
+                qry = qry.filter(DagStat.dag_id.in_(set(dag_ids)))
             if dirty_only:
                 qry = qry.filter(DagStat.dirty == True)
 
