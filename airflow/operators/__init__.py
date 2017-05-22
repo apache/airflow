@@ -88,7 +88,7 @@ _operators = {
     'jdbc_operator': ['JdbcOperator'],
     'mssql_operator': ['MsSqlOperator'],
     'mssql_to_hive': ['MsSqlToHiveTransfer'],
-    'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator'],
+    'slack_operator': ['SlackAPIOperator', 'SlackAPIPostOperator', 'SlackPostOperator'],
     'generic_transfer': ['GenericTransfer'],
     'oracle_operator': ['OracleOperator']
 }

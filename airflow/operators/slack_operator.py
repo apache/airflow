@@ -18,6 +18,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
 import json
 import logging
+import requests
 
 
 class SlackAPIOperator(BaseOperator):
@@ -61,6 +62,7 @@ class SlackAPIOperator(BaseOperator):
         SlackAPIOperator calls will not fail even if the call is not unsuccessful.
         It should not prevent a DAG from completing in success
         """
+
         if not self.api_params:
             self.construct_api_call_params()
         sc = SlackClient(self.token)
@@ -116,3 +118,70 @@ class SlackAPIPostOperator(SlackAPIOperator):
             'icon_url': self.icon_url,
             'attachments': json.dumps(self.attachments),
         }
+
+class SlackWebHookHook(BaseHook):
+    """Slack WebHook hook. Connects to a slack webhook URL using a Connection.
+
+    The Slack WebHook URL should be defined in the 'extra' field of the connection as defined
+    in the Airflow admin interface.
+    """
+    def __init__(self, conn_id):
+        self.conn_id = conn_id
+        self.webhook_url = self.get_connection(conn_id).extra
+
+    def post(self, json):
+        response = requests.post(self.webhook_url, json=json,
+                                 headers={'Content-Type': 'application/json'})
+        response.raise_for_status()
+
+
+class SlackPostOperator(BaseOperator):
+    """
+    Posts messages to a slack channel using the Slack Webhook API. Same functionality as
+    :class:`.SlackAPIPostOperator`, but uses Connection info from Airflow, and does not rely on a
+    deprecated API.
+
+    :param conn_id: Connection ID (type HTTP) to use as Slack WebHook URL. Configure under Connections
+                    in the Airflow administration interface, and add the Slack WebHook URL as 'extra'
+    :param channel: channel in which to post message on slack name (#general) or ID (C12318391)
+    :type channel: string
+    :param username: Username that airflow will be posting to Slack as
+    :type username: string
+    :param text: message to send to slack
+    :type text: string
+    :param icon_url: url to icon used for this message
+    :type icon_url: string
+    :param attachments: extra formatting details - see https://api.slack.com/docs/attachments
+    :type attachments: array of hashes
+    """
+
+    template_fields = ('username', 'text', 'attachments')
+    ui_color = '#FFBA40'
+
+    @apply_defaults
+    def __init__(self,
+                 conn_id='default_slack_webhook',
+                 channel='#general',
+                 username='Airflow',
+                 text='No message has been set.\n'
+                      'Here is a video of the Royal Guards in Stockholm, Sweden instead\n'
+                      'https://www.youtube.com/watch?v=qGeZd6SovFI',
+                 icon_url='https://raw.githubusercontent.com/airbnb/airflow/master/airflow/www/static/pin_100.png',
+                 attachments=None,
+                 *args, **kwargs):
+        self.conn_id = conn_id
+        self.channel = channel
+        self.username = username
+        self.text = text
+        self.icon_url = icon_url
+        self.attachments = attachments
+        super(SlackPostOperator, self).__init__(*args, **kwargs)
+
+    def execute(self, context):
+        hook = SlackWebHookHook(self.conn_id)
+        hook.post({'text': self.text,
+                   'channel': self.channel,
+                   'username': self.username,
+                   'icon': self.icon_url,
+                   'attachments': self.attachments,
+                   })
