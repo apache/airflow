@@ -23,7 +23,7 @@ chartkick
 cloudant
 coverage
 coveralls
-croniter
+croniter>=0.3.17
 cryptography
 datadog
 dill
