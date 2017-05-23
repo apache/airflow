@@ -877,6 +877,35 @@ class SchedulerJobTest(unittest.TestCase):
         dr = scheduler.create_dag_run(dag)
         self.assertIsNone(dr)
 
+    def test_scheduler_dagrun_does_not_skip_first(self):
+        """
+        Test that the dagrun skips the first iteration
+        """
+        ts1 = datetime.datetime(2016, 11, 1, 12, 1)
+        ts2 = datetime.datetime(2016, 11, 1, 13, 1)
+        start_date = datetime.datetime(2016, 11, 1, 12)
+
+        # Execute the dag every hour
+        dag = DAG(
+            'test_scheduler_dagrun_skips_first',
+            start_date=start_date,
+            schedule_interval="00 * * * *"
+        )
+
+        scheduler = SchedulerJob()
+        dag.clear()
+
+        # The first dag run should start at start date
+        dr = scheduler.create_dag_run(dag, now=ts1)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, datetime.datetime(2016, 11, 1, 12))
+
+        # The second dag run should start at start date + 1 hour
+        dr = scheduler.create_dag_run(dag, now=ts2)
+        self.assertIsNotNone(dr)
+        self.assertEqual(dr.execution_date, datetime.datetime(2016, 11, 1, 13))
+
+
     def test_scheduler_process_task_instances(self):
         """
         Test if _process_task_instances puts the right task instances into the

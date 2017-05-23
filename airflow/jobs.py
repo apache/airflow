@@ -721,12 +721,16 @@ class SchedulerJob(BaseJob):
         session.commit()
 
     @provide_session
-    def create_dag_run(self, dag, session=None):
+    def create_dag_run(self, dag, session=None, now=None):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
+        # This allows us to simulate this running at a moment in time under test
+        if now is None:
+            now = datetime.now()
+
         if dag.schedule_interval:
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
@@ -741,9 +745,9 @@ class SchedulerJob(BaseJob):
             for dr in active_runs:
                 if (
                         dr.start_date and dag.dagrun_timeout and
-                        dr.start_date < datetime.now() - dag.dagrun_timeout):
+                        dr.start_date < now - dag.dagrun_timeout):
                     dr.state = State.FAILED
-                    dr.end_date = datetime.now()
+                    dr.end_date = now
                     timedout_runs += 1
             session.commit()
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
@@ -835,11 +839,11 @@ class SchedulerJob(BaseJob):
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
                 return
 
-            if next_run_date and period_end and period_end <= datetime.now():
+            if next_run_date and period_end and next_run_date <= now:
                 next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
-                    start_date=datetime.now(),
+                    start_date=now,
                     state=State.RUNNING,
                     external_trigger=False
                 )
