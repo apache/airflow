@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from airflow.hooks.base_hook import BaseHook
-from airflow import configuration
 
 from elasticsearch import Elasticsearch, ElasticsearchException
 from airflow.exceptions import AirflowException
@@ -30,8 +29,20 @@ class ElasticsearchHook(BaseHook, Elasticsearch):
             es_conn_id = 'elasticsearch_default',
             **kwargs):
         self.es_conn_id = es_conn_id
-        host_domain = self.get_connections(self.es_conn_id)
-        super(Elasticsearch, self).__init__(
-            host_domain,
-            **kwargs) 
+    def get_conn(
+            self,
+            endpoint_url=None): 
+        """ 
+        Get Elasticsearch client configured by connection_id.
+
+        By default the returned object will be initiated with connection Id. 
+        However, when endpoint_url is present, the returned object takes the 
+        URL specified in the endpoint_url field.  
+        """
+        if endpoint_url is None:
+            print("haha")
+            connection_config = self.get_connection(self.es_conn_id)
+            endpoint_url = connection_config.host
             
+        return Elasticsearch(endpoint_url)
+
