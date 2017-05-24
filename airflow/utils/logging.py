@@ -72,7 +72,7 @@ class S3Log(object):
             try:
                 s3_key = self.hook.get_key(remote_log_location)
                 if s3_key:
-                    return s3_key.get_contents_as_string().decode()
+                    return s3_key.get_contents_as_string()
             except:
                 pass
 
