@@ -67,7 +67,6 @@ class TestHelpers(unittest.TestCase):
                 os.kill(child_pid.value, signal.SIGKILL) # terminate doesnt work here
             except OSError:
                 pass
-            child.terminate()
 
     def test_kill_using_shell(self):
         """Test when no process exists."""

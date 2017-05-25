@@ -11,23 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import unittest
 
 from datetime import datetime, timedelta
-from urllib.parse import quote_plus
-from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag
-
 import json
+import unittest
+from urllib.parse import quote_plus
+
+from airflow import configuration
+from airflow.api.common.experimental.trigger_dag import trigger_dag
+from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.settings import Session
+from airflow.www import app as application
 
 
 class ApiExperimentalTests(unittest.TestCase):
+
     def setUp(self):
-        from airflow import configuration
         configuration.load_test_config()
-        from airflow.www import app as application
         app = application.create_app(testing=True)
         self.app = app.test_client()
+        session = Session()
+        session.query(DagRun).delete()
+        session.query(TaskInstance).delete()
+        session.commit()
+        session.close()
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
