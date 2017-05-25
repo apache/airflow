@@ -14,12 +14,11 @@
 
 from builtins import range
 
-from airflow import configuration
+from airflow import configuration, settings
 from airflow.utils.state import State
 from airflow.utils.logging import LoggingMixin
 
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
-
 
 class BaseExecutor(LoggingMixin):
 
@@ -36,6 +35,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks = {}
         self.running = {}
         self.event_buffer = {}
+        self.stats = settings.Stats
 
     def start(self):  # pragma: no cover
         """
@@ -49,6 +49,7 @@ class BaseExecutor(LoggingMixin):
         if key not in self.queued_tasks and key not in self.running:
             self.logger.info("Adding to queue: {}".format(command))
             self.queued_tasks[key] = (command, priority, queue, task_instance)
+
 
     def queue_task_instance(
             self,
@@ -127,6 +128,8 @@ class BaseExecutor(LoggingMixin):
                     'Task is already running, not sending to '
                     'executor: {}'.format(key))
 
+        self.report_metrics()
+
         # Calling child class sync method
         self.logger.debug("Calling the {} sync method".format(self.__class__))
         self.sync()
@@ -168,3 +171,10 @@ class BaseExecutor(LoggingMixin):
         This method is called when the daemon receives a SIGTERM
         """
         raise NotImplementedError()
+
+    def report_metrics(self):
+        """
+        Report stats
+        Overriding subclasses should call this method
+        """
+        pass
