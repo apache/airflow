@@ -1170,9 +1170,14 @@ class SchedulerJob(BaseJob):
 
             self.logger.info("Processing {}".format(dag.dag_id))
 
-            dag_run = self.create_dag_run(dag)
-            if dag_run:
-                self.logger.info("Created {}".format(dag_run))
+            if dag.reached_max_runs:
+                self.logger.info("Not creating new DagRun for {} since its max runs has been reached"
+                                .format(dag.dag_id))
+            else:
+                dag_run = self.create_dag_run(dag)
+                if dag_run:
+                    self.logger.info("Created {}".format(dag_run))
+
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
