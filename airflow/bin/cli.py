@@ -19,6 +19,7 @@ import logging
 import reprlib
 
 import os
+import socket
 import subprocess
 import textwrap
 import warnings
@@ -383,6 +384,9 @@ def run(args, dag=None):
             filename=filename,
             level=settings.LOGGING_LEVEL,
             format=settings.LOG_FORMAT)
+
+    hostname = socket.getfqdn()
+    logging.info("Running on host {}".format(hostname))
 
     if not args.pickle and not dag:
         dag = get_dag(args)
