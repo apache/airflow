@@ -185,6 +185,7 @@ redis = ['redis>=2.10.5']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = [
+    'cgroupspy>=0.1.4',
     'click',
     'freezegun',
     'jira',
