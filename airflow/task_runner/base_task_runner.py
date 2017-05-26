@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import codecs
 import getpass
 import os
 import json
@@ -119,7 +120,7 @@ class BaseTaskRunner(LoggingMixin):
         # Start daemon thread to read subprocess logging output
         log_reader = threading.Thread(
             target=self._read_task_logs,
-            args=(proc.stdout,),
+            args=(codecs.getreader('ascii')(proc.stdout),),
         )
         log_reader.daemon = True
         log_reader.start()
