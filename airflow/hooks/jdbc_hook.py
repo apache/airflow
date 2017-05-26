@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from builtins import str
-
 import jaydebeapi
 
 from airflow.hooks.dbapi_hook import DbApiHook
@@ -51,10 +49,11 @@ class JdbcHook(DbApiHook):
         psw = conn.password
         jdbc_driver_loc = conn.extra_dejson.get('extra__jdbc__drv_path')
         jdbc_driver_name = conn.extra_dejson.get('extra__jdbc__drv_clsname')
+        url = '{0}:user={1};password={2};;'.format(host, login, psw)
 
-        conn = jaydebeapi.connect(jdbc_driver_name,
-                                  [str(host), str(login), str(psw)],
-                                  jdbc_driver_loc,)
+        conn = jaydebeapi.connect(jclassname=jdbc_driver_name,
+                                  url=url,
+                                  jars=jdbc_driver_loc,)
         return conn
 
     def set_autocommit(self, conn, autocommit):
