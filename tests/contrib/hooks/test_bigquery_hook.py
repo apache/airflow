@@ -88,25 +88,35 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
 
-    def test_invalid_syntax_column_double_project(self):
+    def test_colon_in_project(self):
+        project, dataset, table = hook._split_tablename('alt1:alt.dataset.table',
+                                                        'project')
+
+        self.assertEqual('alt1:alt', project)
+        self.assertEqual("dataset", dataset)
+        self.assertEqual("table", table)
+
+
+    def test_valid_double_column(self):
+        project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
+                                  'project')
+
+        self.assertEqual('alt1:alt', project)
+        self.assertEqual("dataset", dataset)
+        self.assertEqual("table", table)
+
+
+    def test_invalid_syntax_triple_colon(self):
         with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt.dataset.table',
+            hook._split_tablename('alt1:alt2:alt3:dataset.table',
                                   'project')
 
         self.assertIn('Use either : or . to specify project',
                       str(context.exception), "")
         self.assertFalse('Format exception for' in str(context.exception))
 
-    def test_invalid_syntax_double_column(self):
-        with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt:dataset.table',
-                                  'project')
 
-        self.assertIn('Expect format of (<project:)<dataset>.<table>',
-                      str(context.exception), "")
-        self.assertFalse('Format exception for' in str(context.exception))
-
-    def test_invalid_syntax_tiple_dot(self):
+    def test_invalid_syntax_triple_dot(self):
         with self.assertRaises(Exception) as context:
             hook._split_tablename('alt1.alt.dataset.table',
                                   'project')
@@ -117,7 +127,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
 
     def test_invalid_syntax_column_double_project_var(self):
         with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt.dataset.table',
+            hook._split_tablename('alt1:alt2:alt.dataset.table',
                                   'project', 'var_x')
 
         self.assertIn('Use either : or . to specify project',
@@ -125,17 +135,17 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertIn('Format exception for var_x:',
                       str(context.exception), "")
 
-    def test_invalid_syntax_double_column_var(self):
+    def test_invalid_syntax_triple_colon_project_var(self):
         with self.assertRaises(Exception) as context:
-            hook._split_tablename('alt1:alt:dataset.table',
+            hook._split_tablename('alt1:alt2:alt:dataset.table',
                                   'project', 'var_x')
 
-        self.assertIn('Expect format of (<project:)<dataset>.<table>',
+        self.assertIn('Use either : or . to specify project',
                       str(context.exception), "")
         self.assertIn('Format exception for var_x:',
                       str(context.exception), "")
 
-    def test_invalid_syntax_tiple_dot_var(self):
+    def test_invalid_syntax_triple_dot_var(self):
         with self.assertRaises(Exception) as context:
             hook._split_tablename('alt1.alt.dataset.table',
                                   'project', 'var_x')
@@ -178,3 +188,4 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
