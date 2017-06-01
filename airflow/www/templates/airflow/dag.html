@@ -216,6 +216,36 @@
       </div>
     </div>
   </div>
+  <!-- Modal for dag -->
+  <div class="modal fade" id="dagModal"
+        tabindex="-1" role="dialog"
+      aria-labelledby="dagModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="dagModalLabel">
+            <span id='dag_id'></span>
+          </h4>
+        </div>
+        <div class="modal-body">
+          <button id="btn_edit_dagrun" type="button" class="btn btn-primary">
+            Edit
+          </button>
+          <button id="btn_dagrun_clear" type="button" class="btn btn-primary">
+            Clear
+          </button>
+          <button id="btn_dagrun_success" type="button" class="btn btn-primary">
+            Mark Success
+          </button>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" data-dismiss="modal">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 {% endblock %}
 {% block tail %}
   {{ lib.form_js() }}
@@ -239,6 +269,7 @@ function updateQueryStringParameter(uri, key, value) {
       $('.never_active').removeClass('active');
     });
 
+    var id = '';
     var dag_id = '{{ dag.dag_id }}';
     var task_id = '';
     var exection_date = '';
@@ -261,6 +292,14 @@ function updateQueryStringParameter(uri, key, value) {
             $("#div_btn_subdag").show();
             subdag_id = "{{ dag.dag_id }}."+t;
         }
+    }
+
+    function call_modal_dag(dag) {
+      id = dag && dag.id;
+      execution_date = dag && dag.execution_date;
+      $('#dag_id').html(dag_id);
+      $('#dagModal').modal({});
+      $("#dagModal").css("margin-top","0px");
     }
 
     $("#btn_rendered").click(function(){
@@ -328,6 +367,15 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
+    $("#btn_dagrun_clear").click(function(){
+      url = "{{ url_for('airflow.dagrun_clear') }}" +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + execution_date +
+        "&origin=" + encodeURIComponent(window.location);
+      window.location = url;
+    });
+
     $("#btn_success").click(function(){
       url = "{{ url_for('airflow.success') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
@@ -339,6 +387,14 @@ function updateQueryStringParameter(uri, key, value) {
         "&execution_date=" + execution_date +
         "&origin=" + encodeURIComponent(window.location);
 
+      window.location = url;
+    });
+
+    $('#btn_dagrun_success').click(function(){
+      url = "{{ url_for('airflow.dagrun_success') }}" +
+        "?dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + execution_date +
+        "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
 
@@ -365,6 +421,10 @@ function updateQueryStringParameter(uri, key, value) {
       }
       url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + dag_id;
       $.post(url);
+    });
+
+    $('#btn_edit_dagrun').click(function(){
+      window.location = '/admin/dagrun/edit/?id=' + id;
     });
 
   </script>
