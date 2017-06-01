@@ -378,6 +378,21 @@ class S3Hook(BaseHook):
                         logging.info('Sending chunk {c} of {tc}...'.format(
                             c=chunk + 1, tc=total_chunks))
                         mp.upload_part_from_file(fp, part_num=chunk + 1)
+
+                    final_chunk = chunk + 1
+
+                # handle the remaining bytes
+                offset = final_chunk * multipart_bytes
+                remainder = key_size - offset
+                if remainder > 0:
+                    with FileChunkIO(filename,
+                                     'r',
+                                     offset=offset,
+                                     bytes=remainder) as fp:
+                        logging.info('Sending remaining {remainder}'.format(
+                            remainder=remainder))
+                        mp.upload_part_from_file(fp, part_num=final_chunk + 1)
+
             except:
                 mp.cancel_upload()
                 raise
