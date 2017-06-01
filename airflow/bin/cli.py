@@ -917,6 +917,7 @@ def worker(args):
     options = {
         'optimization': 'fair',
         'O': 'fair',
+        'loglevel': 'INFO',
         'queues': args.queues,
         'concurrency': args.concurrency,
     }
