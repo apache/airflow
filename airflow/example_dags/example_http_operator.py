@@ -82,7 +82,7 @@ sensor = HttpSensor(
     http_conn_id='http_default',
     endpoint='',
     params={},
-    response_check=lambda response: True if "Google" in response.content else False,
+    response_check=lambda response: True if b"Google" in response.content else False,
     poke_interval=5,
     dag=dag)
 
