@@ -1200,6 +1200,17 @@ class CLIFactory(object):
         'local': Arg(
             ("-l", "--local"),
             "Run the task using the LocalExecutor", "store_true"),
+        'run_local': Arg(
+            ("-l", "--local"), (
+                "[used internally] runs 'locally' and bypasses going through "
+                "the executor. It is used internally to execute within "
+                "the executor. Note that this `airflow run --local` command "
+                "invokes an `airflow run --raw` as a subprocess "
+                "while emitting managing heartbeats and listening for "
+                "external kill signals. It is also used as a wrapper "
+                "to manage impersonation and CGROUP restrictions."
+            ),
+            "store_true"),
         'donot_pickle': Arg(
             ("-x", "--donot_pickle"), (
                 "Do not attempt to pickle the DAG object to send over "
@@ -1525,7 +1536,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir',
                 'mark_success', 'force', 'pool', 'cfg_path',
-                'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
+                'run_local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
                 'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
         }, {
             'func': initdb,
