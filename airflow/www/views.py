@@ -47,6 +47,7 @@ from flask._compat import PY2
 from jinja2.sandbox import ImmutableSandboxedEnvironment
 import markdown
 import nvd3
+import ast
 
 from wtforms import (
     Form, SelectField, TextAreaField, PasswordField, StringField, validators)
