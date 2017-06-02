@@ -47,7 +47,7 @@ class CeleryConfig(object):
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
-    if configuration.get('celery', 'CELERY_SSL_ACTIVE'):
+    if configuration.getboolean('celery', 'CELERY_SSL_ACTIVE'):
         try:
             BROKER_USE_SSL = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
                               'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
