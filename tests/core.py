@@ -2033,7 +2033,7 @@ class HttpOpSensorTest(unittest.TestCase):
             task_id='http_sensor_check',
             http_conn_id='http_default',
             endpoint='/search',
-            params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
+            request_params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
             headers={},
             response_check=lambda response: (
                 "airbnb/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')

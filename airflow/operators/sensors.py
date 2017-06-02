@@ -633,8 +633,8 @@ class HttpSensor(BaseSensorOperator):
     :type method: string
     :param endpoint: The relative part of the full url
     :type endpoint: string
-    :param params: The parameters to be added to the GET url
-    :type params: a dictionary of string key/value pairs
+    :param request_params: The parameters to be added to the GET url
+    :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request
     :type headers: a dictionary of string key/value pairs
     :param response_check: A check against the 'requests' response object.
@@ -646,21 +646,21 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint', 'params')
+    template_fields = ('endpoint', 'request_params')
 
     @apply_defaults
     def __init__(self,
                  endpoint,
                  http_conn_id='http_default',
                  method='GET',
-                 params=None,
+                 request_params=None,
                  headers=None,
                  response_check=None,
                  extra_options=None, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
-        self.params = params or {}
+        self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
         self.response_check = response_check
@@ -673,7 +673,7 @@ class HttpSensor(BaseSensorOperator):
         logging.info('Poking: ' + self.endpoint)
         try:
             response = self.hook.run(self.endpoint,
-                                     data=self.params,
+                                     data=self.request_params,
                                      headers=self.headers,
                                      extra_options=self.extra_options)
             if self.response_check:

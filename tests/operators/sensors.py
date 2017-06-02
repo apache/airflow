@@ -115,7 +115,7 @@ class HttpSensorTests(unittest.TestCase):
             task_id='http_sensor_poke_exception',
             http_conn_id='http_default',
             endpoint='',
-            params={},
+            request_params={},
             response_check=resp_check,
             poke_interval=5)
         with self.assertRaisesRegexp(AirflowException, 'AirflowException raised here!'):
@@ -131,7 +131,7 @@ class HttpSensorTests(unittest.TestCase):
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
-            params={},
+            request_params={},
             method='HEAD',
             response_check=resp_check,
             timeout=5,
@@ -173,7 +173,7 @@ class HttpSensorTests(unittest.TestCase):
             task_id='http_sensor_head_method',
             http_conn_id='http_default',
             endpoint='',
-            params={},
+            request_params={},
             method='HEAD',
             response_check=resp_check,
             timeout=5,
