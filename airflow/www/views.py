@@ -1952,6 +1952,13 @@ class PoolModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_formatters = dict(
         pool=pool_link, used_slots=fused_slots, queued_slots=fqueued_slots)
     named_filter_urls = True
+    form_args = {
+        'pool': {
+            'validators': [
+                validators.DataRequired(),
+            ]
+        }
+    }
 
 
 class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
