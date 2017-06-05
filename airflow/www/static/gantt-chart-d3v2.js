@@ -48,6 +48,7 @@ d3.gantt = function() {
     bottom : 20,
     left : 150
   };
+  var yAxisLeftOffset = 220;
   var selector = 'body';
   var timeDomainStart = d3.time.day.offset(new Date(),-3);
   var timeDomainEnd = d3.time.hour.offset(new Date(),+3);
@@ -64,10 +65,10 @@ d3.gantt = function() {
   };
 
   var rectTransform = function(d) {
-    return "translate(" + x(d.startDate) + "," + y(d.taskName) + ")";
+    return "translate(" + (x(d.startDate) + yAxisLeftOffset) + "," + y(d.taskName) + ")";
   };
 
-  var x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, width ]).clamp(true);
+  var x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, (width-yAxisLeftOffset) ]).clamp(true);
 
   var y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
 
@@ -95,7 +96,7 @@ d3.gantt = function() {
   };
 
   var initAxis = function() {
-    x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, width ]).clamp(true);
+    x = d3.time.scale().domain([ timeDomainStart, timeDomainEnd ]).range([ 0, width-yAxisLeftOffset ]).clamp(true);
     y = d3.scale.ordinal().domain(taskTypes).rangeRoundBands([ 0, height - margin.top - margin.bottom ], .1);
     xAxis = d3.svg.axis().scale(x).orient("bottom").tickFormat(d3.time.format(tickFormat)).tickSubdivide(true)
     .tickSize(8).tickPadding(8);
@@ -141,11 +142,11 @@ d3.gantt = function() {
 
     svg.append("g")
     .attr("class", "x axis")
-    .attr("transform", "translate(0, " + (height - margin.top - margin.bottom) + ")")
+    .attr("transform", "translate(" + yAxisLeftOffset + ", " + (height - margin.top - margin.bottom) + ")")
     .transition()
     .call(xAxis);
 
-    svg.append("g").attr("class", "y axis").transition().call(yAxis);
+    svg.append("g").attr("class", "y axis").transition().attr("transform", "translate(" + yAxisLeftOffset + ", 0)").call(yAxis);
     svg.call(tip);
 
     return gantt;
