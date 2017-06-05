@@ -321,7 +321,7 @@ broker_url = sqla+mysql://airflow:airflow@localhost:3306/airflow
 
 # Celery broker transport options. Provide options in JSON format. Refer to
 # the Celery documentation for more information.
-# broker_transport_options =
+broker_transport_options = {{}}
 
 # Another key Celery setting
 celery_result_backend = db+mysql://airflow:airflow@localhost:3306/airflow
