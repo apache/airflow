@@ -279,6 +279,16 @@ def should_hide_value_for_key(key_name):
            and conf.getboolean('admin', 'hide_sensitive_variable_fields')
 
 
+
+def get_chart_height(dag):
+    """
+    TODO(aoen): See [AIRFLOW-1263] We use the number of tasks in the DAG as a heuristic to
+    approximate the size of generated chart (otherwise the charts are tiny and unreadable
+    when DAGs have a large number of tasks). Ideally nvd3 should allow for dynamic-height
+    charts, that is charts that take up space based on the size of the components within.
+    """
+    return 600 + len(dag.tasks) * 10
+
 class Airflow(BaseView):
 
     def is_visible(self):
@@ -1389,10 +1399,12 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
+
+        chart_height = get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=600, width="1200")
+            name="lineChart", x_is_date=True, height=chart_height, width="1200")
         cum_chart = nvd3.lineChart(
-            name="cumLineChart", x_is_date=True, height=600, width="1200")
+            name="cumLineChart", x_is_date=True, height=chart_height, width="1200")
 
         y = {}
         x = {}
@@ -1483,8 +1495,10 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
+        chart_height = get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, y_axis_format='d', height=600, width="1200")
+            name="lineChart", x_is_date=True, y_axis_format='d', height=chart_height,
+            width="1200")
 
         for task in dag.tasks:
             y = []
@@ -1545,8 +1559,9 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
+        chart_height = get_chart_height(dag)
         chart = nvd3.lineChart(
-            name="lineChart", x_is_date=True, height=600, width="1200")
+            name="lineChart", x_is_date=True, height=chart_height, width="1200")
         y = {}
         x = {}
         for task in dag.tasks:
@@ -1589,7 +1604,7 @@ class Airflow(BaseView):
             'airflow/chart.html',
             dag=dag,
             chart=chart.htmlcontent,
-            height="700px",
+            height=str(chart_height + 100) + "px",
             demo_mode=conf.getboolean('webserver', 'demo_mode'),
             root=root,
             form=form,
