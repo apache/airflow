@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 import unittest
 
@@ -27,6 +26,7 @@ DEV_NULL = "/dev/null"
 
 
 class TestMarkTasks(unittest.TestCase):
+
     def setUp(self):
         self.dagbag = models.DagBag(include_examples=True)
         self.dag1 = self.dagbag.dags['test_example_bash_operator']
@@ -51,6 +51,16 @@ class TestMarkTasks(unittest.TestCase):
             dr.verify_integrity()
 
         self.session = Session()
+
+    def tearDown(self):
+        self.dag1.clear()
+        self.dag2.clear()
+
+        # just to make sure we are fully cleaned up
+        self.session.query(models.DagRun).delete()
+        self.session.query(models.TaskInstance).delete()
+        self.session.commit()
+        self.session.close()
 
     def snapshot_state(self, dag, execution_dates):
         TI = models.TaskInstance
@@ -197,16 +207,6 @@ class TestMarkTasks(unittest.TestCase):
         self.verify_state(self.dag2, task_ids, [self.execution_dates[0]],
                           State.SUCCESS, [])
 
-    def tearDown(self):
-        self.dag1.clear()
-        self.dag2.clear()
-
-        # just to make sure we are fully cleaned up
-        self.session.query(models.DagRun).delete()
-        self.session.query(models.TaskInstance).delete()
-        self.session.commit()
-
-        self.session.close()
 
 class TestMarkDAGRun(unittest.TestCase):
     def setUp(self):

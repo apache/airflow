@@ -11,30 +11,70 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 from future.moves.urllib.parse import urljoin
+import requests
 
 from airflow.api.client import api_client
 
-import requests
-
 
 class Client(api_client.Client):
+    """Json API client implementation."""
+
+    def _request(self, url, method='GET', json=None):
+        params = {
+            'url': url,
+            'auth': self._auth,
+        }
+        if json is not None:
+            params['json'] = json
+
+        resp = getattr(requests, method.lower())(**params)
+        if not resp.ok:
+            try:
+                data = resp.json()
+            except Exception:
+                data = {}
+            raise IOError(data.get('error', 'Server error'))
+
+        return resp.json()
+
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         endpoint = '/api/experimental/dags/{}/dag_runs'.format(dag_id)
         url = urljoin(self._api_base_url, endpoint)
-
-        resp = requests.post(url,
-                             auth=self._auth,
+        data = self._request(url, method='POST',
                              json={
                                  "run_id": run_id,
                                  "conf": conf,
                                  "execution_date": execution_date,
                              })
-
-        if not resp.ok:
-            raise IOError()
-
-        data = resp.json()
-
         return data['message']
+
+    def get_pool(self, name):
+        endpoint = '/api/experimental/pools/{}'.format(name)
+        url = urljoin(self._api_base_url, endpoint)
+        pool = self._request(url)
+        return pool['pool'], pool['slots'], pool['description']
+
+    def get_pools(self):
+        endpoint = '/api/experimental/pools'
+        url = urljoin(self._api_base_url, endpoint)
+        pools = self._request(url)
+        return [(p['pool'], p['slots'], p['description']) for p in pools]
+
+    def create_pool(self, name, slots, description):
+        endpoint = '/api/experimental/pools'
+        url = urljoin(self._api_base_url, endpoint)
+        pool = self._request(url, method='POST',
+                             json={
+                                 'name': name,
+                                 'slots': slots,
+                                 'description': description,
+                             })
+        return pool['pool'], pool['slots'], pool['description']
+
+    def delete_pool(self, name):
+        endpoint = '/api/experimental/pools/{}'.format(name)
+        url = urljoin(self._api_base_url, endpoint)
+        pool = self._request(url, method='DELETE')
+        return pool['pool'], pool['slots'], pool['description']

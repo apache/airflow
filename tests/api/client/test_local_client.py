@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import datetime
 import json
 import unittest
-import datetime
 
 from mock import patch
 
 from airflow import AirflowException
-from airflow import models
-
 from airflow.api.client.local_client import Client
+from airflow import models
+from airflow import settings
 from airflow.utils.state import State
 
 EXECDATE = datetime.datetime.now()
@@ -53,8 +53,25 @@ def mock_datetime_now(target, dt):
 
 
 class TestLocalClient(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestLocalClient, cls).setUpClass()
+        session = settings.Session()
+        session.query(models.Pool).delete()
+        session.commit()
+        session.close()
+
     def setUp(self):
+        super(TestLocalClient, self).setUp()
         self.client = Client(api_base_url=None, auth=None)
+        self.session = settings.Session()
+
+    def tearDown(self):
+        self.session.query(models.Pool).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestLocalClient, self).tearDown()
 
     @patch.object(models.DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):
@@ -104,4 +121,24 @@ class TestLocalClient(unittest.TestCase):
                                          external_trigger=True)
             mock.reset_mock()
 
-            # this is a unit test only, cannot verify existing dag run
+    def test_get_pool(self):
+        self.client.create_pool(name='foo', slots=1, description='')
+        pool = self.client.get_pool(name='foo')
+        self.assertEqual(pool, ('foo', 1, ''))
+
+    def test_get_pools(self):
+        self.client.create_pool(name='foo1', slots=1, description='')
+        self.client.create_pool(name='foo2', slots=2, description='')
+        pools = sorted(self.client.get_pools(), key=lambda p: p[0])
+        self.assertEqual(pools, [('foo1', 1, ''), ('foo2', 2, '')])
+
+    def test_create_pool(self):
+        pool = self.client.create_pool(name='foo', slots=1, description='')
+        self.assertEqual(pool, ('foo', 1, ''))
+        self.assertEqual(self.session.query(models.Pool).count(), 1)
+
+    def test_delete_pool(self):
+        self.client.create_pool(name='foo', slots=1, description='')
+        self.assertEqual(self.session.query(models.Pool).count(), 1)
+        self.client.delete_pool(name='foo')
+        self.assertEqual(self.session.query(models.Pool).count(), 0)

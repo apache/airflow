@@ -49,7 +49,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
-                            Pool, Connection)
+                            Connection)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
@@ -187,40 +187,28 @@ def trigger_dag(args):
 
 
 def pool(args):
-    session = settings.Session()
-    if args.get or (args.set and args.set[0]) or args.delete:
-        name = args.get or args.delete or args.set[0]
-    pool = (
-        session.query(Pool)
-        .filter(Pool.pool == name)
-        .first())
-    if pool and args.get:
-        print("{} ".format(pool))
-        return
-    elif not pool and (args.get or args.delete):
-        print("No pool named {} found".format(name))
-    elif not pool and args.set:
-        pool = Pool(
-            pool=name,
-            slots=args.set[1],
-            description=args.set[2])
-        session.add(pool)
-        session.commit()
-        print("{} ".format(pool))
-    elif pool and args.set:
-        pool.slots = args.set[1]
-        pool.description = args.set[2]
-        session.commit()
-        print("{} ".format(pool))
-        return
-    elif pool and args.delete:
-        session.query(Pool).filter_by(pool=args.delete).delete()
-        session.commit()
-        print("Pool {} deleted".format(name))
+    def _tabulate(pools):
+        return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
+                                 tablefmt="fancy_grid")
+
+    try:
+        if args.get is not None:
+            pools = [api_client.get_pool(name=args.get)]
+        elif args.set:
+            pools = [api_client.create_pool(name=args.set[0],
+                                            slots=args.set[1],
+                                            description=args.set[2])]
+        elif args.delete:
+            pools = [api_client.delete_pool(name=args.delete)]
+        else:
+            pools = api_client.get_pools()
+    except (AirflowException, IOError) as err:
+        logging.error(err)
+    else:
+        logging.info(_tabulate(pools=pools))
 
 
 def variables(args):
-
     if args.get:
         try:
             var = Variable.get(args.get,

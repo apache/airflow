@@ -1062,12 +1062,34 @@ class CoreTest(unittest.TestCase):
 
 
 class CliTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super(CliTests, cls).setUpClass()
+        cls._cleanup()
+
     def setUp(self):
+        super(CliTests, self).setUp()
         configuration.load_test_config()
         app = application.create_app()
         app.config['TESTING'] = True
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = models.DagBag(dag_folder=DEV_NULL, include_examples=True)
+        self.session = Session()
+
+    def tearDown(self):
+        self._cleanup(session=self.session)
+        super(CliTests, self).tearDown()
+
+    @staticmethod
+    def _cleanup(session=None):
+        if session is None:
+            session = Session()
+
+        session.query(models.Pool).delete()
+        session.query(models.Variable).delete()
+        session.commit()
+        session.close()
 
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
@@ -1100,8 +1122,8 @@ class CliTests(unittest.TestCase):
             cli.connections(self.parser.parse_args(['connections', '--list']))
             stdout = mock_stdout.getvalue()
         conns = [[x.strip("'") for x in re.findall("'\w+'", line)[:2]]
-                  for ii, line in enumerate(stdout.split('\n'))
-                  if ii % 2 == 1]
+                 for ii, line in enumerate(stdout.split('\n'))
+                 if ii % 2 == 1]
         conns = [conn for conn in conns if len(conn) > 0]
 
         # Assert that some of the connections are present in the output as
@@ -1365,14 +1387,27 @@ class CliTests(unittest.TestCase):
                 '-c', 'NOT JSON'])
         )
 
-    def test_pool(self):
-        # Checks if all subcommands are properly received
-        cli.pool(self.parser.parse_args([
-            'pool', '-s', 'foo', '1', '"my foo pool"']))
-        cli.pool(self.parser.parse_args([
-            'pool', '-g', 'foo']))
-        cli.pool(self.parser.parse_args([
-            'pool', '-x', 'foo']))
+    def test_pool_create(self):
+        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
+        self.assertEqual(self.session.query(models.Pool).count(), 1)
+
+    def test_pool_get(self):
+        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
+        try:
+            cli.pool(self.parser.parse_args(['pool', '-g', 'foo']))
+        except Exception as e:
+            self.fail("The 'pool -g foo' command raised unexpectedly: %s" % e)
+
+    def test_pool_delete(self):
+        cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
+        cli.pool(self.parser.parse_args(['pool', '-x', 'foo']))
+        self.assertEqual(self.session.query(models.Pool).count(), 0)
+
+    def test_pool_no_args(self):
+        try:
+            cli.pool(self.parser.parse_args(['pool']))
+        except Exception as e:
+            self.fail("The 'pool' command raised unexpectedly: %s" % e)
 
     def test_variables(self):
         # Checks if all subcommands are properly received
@@ -1426,10 +1461,6 @@ class CliTests(unittest.TestCase):
         self.assertEqual('original', models.Variable.get('bar'))
         self.assertEqual('{"foo": "bar"}', models.Variable.get('foo'))
 
-        session = settings.Session()
-        session.query(Variable).delete()
-        session.commit()
-        session.close()
         os.remove('variables1.json')
         os.remove('variables2.json')
 

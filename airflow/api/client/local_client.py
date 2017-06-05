@@ -11,15 +11,33 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 from airflow.api.client import api_client
+from airflow.api.common.experimental import pool
 from airflow.api.common.experimental import trigger_dag
 
 
 class Client(api_client.Client):
+    """Local API client implementation."""
+
     def trigger_dag(self, dag_id, run_id=None, conf=None, execution_date=None):
         dr = trigger_dag.trigger_dag(dag_id=dag_id,
                                      run_id=run_id,
                                      conf=conf,
                                      execution_date=execution_date)
         return "Created {}".format(dr)
+
+    def get_pool(self, name):
+        p = pool.get_pool(name=name)
+        return p.pool, p.slots, p.description
+
+    def get_pools(self):
+        return [(p.pool, p.slots, p.description) for p in pool.get_pools()]
+
+    def create_pool(self, name, slots, description):
+        p = pool.create_pool(name=name, slots=slots, description=description)
+        return p.pool, p.slots, p.description
+
+    def delete_pool(self, name):
+        p = pool.delete_pool(name=name)
+        return p.pool, p.slots, p.description

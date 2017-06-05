@@ -4395,6 +4395,14 @@ class Pool(Base):
     def __repr__(self):
         return self.pool
 
+    def to_json(self):
+        return {
+            'id': self.id,
+            'pool': self.pool,
+            'slots': self.slots,
+            'description': self.description,
+        }
+
     @provide_session
     def used_slots(self, session):
         """
