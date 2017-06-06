@@ -141,7 +141,11 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         conn.rmd(path)
 
-    def retrieve_file(self, remote_full_path, local_full_path_or_buffer):
+    def retrieve_file(
+            self,
+            remote_full_path,
+            local_full_path_or_buffer,
+            progress_callback=None):
         """
         Transfers the remote file to a local location.
 
@@ -154,6 +158,11 @@ class FTPHook(BaseHook):
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
         :type local_full_path: str or file-like buffer
+        :param progress_callback: a function that is called prior to processing
+            each block of data. It is passed the number of bytes about to be
+            processed. If the file size is known, this can be used to track
+            progress.
+        :type progress_callback: callable
         """
         conn = self.get_conn()
 
@@ -164,10 +173,17 @@ class FTPHook(BaseHook):
         else:
             output_handle = local_full_path_or_buffer
 
+        if progress_callback is not None:
+            def callback(data):
+                callback(len(data))
+                output_handle.write(data)
+        else:
+            callback = output_handle.write
+
         remote_path, remote_file_name = os.path.split(remote_full_path)
         conn.cwd(remote_path)
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
-        conn.retrbinary('RETR %s' % remote_file_name, output_handle.write)
+        conn.retrbinary('RETR %s' % remote_file_name, callback)
         logging.info('Finished retrieving file from FTP: {}'.format(
             remote_full_path))
 
@@ -232,6 +248,16 @@ class FTPHook(BaseHook):
             return datetime.datetime.strptime(time_val, "%Y%m%d%H%M%S.%f")
         except ValueError:
             return datetime.datetime.strptime(time_val, '%Y%m%d%H%M%S')
+
+    def size(self, path):
+        """
+        Returns the size of a file (in bytes)
+
+        :param path: remote file path
+        :type path: string
+        """
+        conn = self.get_conn()
+        return conn.size(path)
 
 
 class FTPSHook(FTPHook):
