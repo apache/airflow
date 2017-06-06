@@ -75,6 +75,7 @@ from airflow.utils import logging as log_utils
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.www.validators import GreaterEqualThan
 from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
@@ -2148,9 +2149,22 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
         'start_date',
         'end_date',
         'reported_by',
-        'description')
+        'description',
+    )
+    form_args = {
+        'end_date': {
+            'validators': {
+                GreaterEqualThan(fieldname='start_date'),
+            }
+        }
+    }
     column_list = (
-        'label', 'event_type', 'start_date', 'end_date', 'reported_by')
+        'label',
+        'event_type',
+        'start_date',
+        'end_date',
+        'reported_by',
+    )
     column_default_sort = ("start_date", True)
 
 
