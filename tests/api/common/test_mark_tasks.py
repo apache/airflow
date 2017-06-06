@@ -16,11 +16,13 @@
 import unittest
 
 from airflow import models
-from airflow.api.common.experimental.mark_tasks import set_state, _create_dagruns
+from airflow.api.common.experimental.mark_tasks import (
+    set_state,
+    _create_dagruns,
+)
 from airflow.settings import Session
 from airflow.utils.dates import days_ago
 from airflow.utils.state import State
-
 
 DEV_NULL = "/dev/null"
 
@@ -28,7 +30,7 @@ DEV_NULL = "/dev/null"
 class TestMarkTasks(unittest.TestCase):
     def setUp(self):
         self.dagbag = models.DagBag(include_examples=True)
-        self.dag1 = self.dagbag.dags['test_example_bash_operator']
+        self.dag1 = self.dagbag.dags['example_bash_operator']
         self.dag2 = self.dagbag.dags['example_subdag_operator']
 
         self.execution_dates = [days_ago(2), days_ago(1)]
@@ -54,7 +56,7 @@ class TestMarkTasks(unittest.TestCase):
     def snapshot_state(self, dag, execution_dates):
         TI = models.TaskInstance
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
@@ -66,7 +68,7 @@ class TestMarkTasks(unittest.TestCase):
         TI = models.TaskInstance
 
         tis = self.session.query(TI).filter(
-            TI.dag_id==dag.dag_id,
+            TI.dag_id == dag.dag_id,
             TI.execution_date.in_(execution_dates)
         ).all()
 
