@@ -36,10 +36,9 @@ class DockerOperator(BaseOperator):
     :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
-    :param cpus: Number of CPUs to assign to the container.
-        This value gets multiplied with 1024. See
+    :param cpu_shares: CPU shares (relative weight)
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
-    :type cpus: float
+    :type cpu_shares: int
     :param docker_url: URL of the host running the docker daemon.
     :type docker_url: str
     :param environment: Environment variables to set in the container.
@@ -85,7 +84,7 @@ class DockerOperator(BaseOperator):
             image,
             api_version=None,
             command=None,
-            cpus=1.0,
+            cpu_shares=None,
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
@@ -107,7 +106,7 @@ class DockerOperator(BaseOperator):
         super(DockerOperator, self).__init__(*args, **kwargs)
         self.api_version = api_version
         self.command = command
-        self.cpus = cpus
+        self.cpu_shares = cpu_shares
         self.docker_url = docker_url
         self.environment = environment or {}
         self.force_pull = force_pull
@@ -155,15 +154,13 @@ class DockerOperator(BaseOperator):
                 output = json.loads(l.decode('utf-8'))
                 logging.info("{}".format(output['status']))
 
-        cpu_shares = int(round(self.cpus * 1024))
-
         with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
                     command=self.get_command(),
-                    cpu_shares=cpu_shares,
+                    cpu_shares=self.cpu_shares,
                     environment=self.environment,
                     host_config=self.cli.create_host_config(binds=self.volumes,
                                                             network_mode=self.network_mode),

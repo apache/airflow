@@ -58,7 +58,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
                                              version='1.19')
 
-        client_mock.create_container.assert_called_with(command='env', cpu_shares=1024,
+        client_mock.create_container.assert_called_with(command='env', cpu_shares=None,
                                                         environment={
                                                             'AIRFLOW_TMP_DIR': '/tmp/airflow',
                                                             'UNIT': 'TEST'
