@@ -72,7 +72,7 @@ def create_app(config=None, testing=False):
         av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
         av(vs.ChartModelView(
             models.Chart, Session, name="Charts", category="Data Profiling"))
-        av(vs.KnowEventView(
+        av(vs.KnownEventView(
             models.KnownEvent,
             Session, name="Known Events", category="Data Profiling"))
         av(vs.SlaMissModelView(

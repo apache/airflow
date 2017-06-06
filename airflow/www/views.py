@@ -75,6 +75,7 @@ from airflow.utils import logging as log_utils
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.www.validators import GreaterEqualThan
 from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
@@ -2139,7 +2140,7 @@ chart_mapping = (
 chart_mapping = dict(chart_mapping)
 
 
-class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
+class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "known event"
     verbose_name_plural = "known events"
     form_columns = (
@@ -2148,13 +2149,47 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
         'start_date',
         'end_date',
         'reported_by',
-        'description')
+        'description',
+    )
+    form_args = {
+        'label': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
+        'event_type': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
+        'start_date': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
+        'end_date': {
+            'validators': [
+                validators.DataRequired(),
+                GreaterEqualThan(fieldname='start_date'),
+            ],
+        },
+        'reported_by': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        }
+    }
     column_list = (
-        'label', 'event_type', 'start_date', 'end_date', 'reported_by')
+        'label',
+        'event_type',
+        'start_date',
+        'end_date',
+        'reported_by',
+    )
     column_default_sort = ("start_date", True)
 
 
-class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
+class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
     pass
 
 
