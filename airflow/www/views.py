@@ -2140,7 +2140,7 @@ chart_mapping = (
 chart_mapping = dict(chart_mapping)
 
 
-class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
+class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
     verbose_name = "known event"
     verbose_name_plural = "known events"
     form_columns = (
@@ -2152,10 +2152,31 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
         'description',
     )
     form_args = {
+        'label': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
+        'event_type': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
+        'start_date': {
+            'validators': [
+                validators.DataRequired(),
+            ],
+        },
         'end_date': {
-            'validators': {
+            'validators': [
+                validators.DataRequired(),
                 GreaterEqualThan(fieldname='start_date'),
-            }
+            ],
+        },
+        'reported_by': {
+            'validators': [
+                validators.DataRequired(),
+            ],
         }
     }
     column_list = (
@@ -2168,7 +2189,7 @@ class KnowEventView(wwwutils.DataProfilingMixin, AirflowModelView):
     column_default_sort = ("start_date", True)
 
 
-class KnowEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
+class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
     pass
 
 

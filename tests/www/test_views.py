@@ -41,10 +41,10 @@ class TestKnownEventView(unittest.TestCase):
         self.session = Session()
         self.known_event = {
             'label': 'event-label',
-            'event_type': 1,
+            'event_type': '1',
             'start_date': '2017-06-05 12:00:00',
             'end_date': '2017-06-05 13:00:00',
-            'reported_by': 'airflow',
+            'reported_by': '1',
             'description': '',
         }
 
@@ -60,6 +60,7 @@ class TestKnownEventView(unittest.TestCase):
             data=self.known_event,
             follow_redirects=True,
         )
+        print(response.data)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.session.query(KnownEvent).count(), 1)
 
