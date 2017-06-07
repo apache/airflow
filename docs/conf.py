@@ -224,7 +224,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
   ('index', 'Airflow.tex', u'Airflow Documentation',
-   u'Maxime Beauchemin', 'manual'),
+   u'Apache Airflow', 'manual'),
 ]
 
 # The name of an image file (relative to this directory) to place at the top of
@@ -254,7 +254,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     ('index', 'airflow', u'Airflow Documentation',
-     [u'Maxime Beauchemin'], 1)
+     [u'Apache Airflow'], 1)
 ]
 
 # If true, show URL addresses after external links.
@@ -268,7 +268,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [(
     'index', 'Airflow', u'Airflow Documentation',
-    u'Maxime Beauchemin', 'Airflow',
+    u'Apache Airflow', 'Airflow',
     'Airflow is a system to programmaticaly author, schedule and monitor data pipelines.',
     'Miscellaneous'
 ),]
