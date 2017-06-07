@@ -2187,6 +2187,13 @@ class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
         'reported_by',
     )
     column_default_sort = ("start_date", True)
+    column_sortable_list = (
+        'label',
+        ('event_type', 'event_type.know_event_type'),
+        'start_date',
+        'end_date',
+        ('reported_by', 'reported_by.username'),
+    )
 
 
 class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
