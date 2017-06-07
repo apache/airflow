@@ -528,7 +528,7 @@ class SchedulerJob(BaseJob):
         super(SchedulerJob, self).__init__(*args, **kwargs)
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
-        self.max_threads = min(conf.getint('scheduler', 'max_threads'), multiprocessing.cpu_count())
+        self.max_threads = conf.getint('scheduler', 'max_threads')
         self.using_sqlite = False
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
             if self.max_threads > 1:
