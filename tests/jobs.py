@@ -521,6 +521,81 @@ class LocalTaskJobTest(unittest.TestCase):
         session.close()
 
 
+class LocalTaskJobTest(unittest.TestCase):
+    def setUp(self):
+        pass
+
+    @patch.object(LocalTaskJob, "_is_descendant_process")
+    def test_localtaskjob_heartbeat(self, is_descendant):
+        session = settings.Session()
+        dag = DAG(
+            'test_localtaskjob_heartbeat',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='op1')
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = dr.get_task_instance(task_id=op1.task_id, session=session)
+        ti.state = State.RUNNING
+        ti.hostname = "blablabla"
+        session.commit()
+
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        self.assertRaises(AirflowException, job1.heartbeat_callback)
+
+        is_descendant.return_value = True
+        ti.state = State.RUNNING
+        ti.hostname = socket.getfqdn()
+        ti.pid = 1
+        session.merge(ti)
+        session.commit()
+
+        ret = job1.heartbeat_callback()
+        self.assertEqual(ret, None)
+
+        is_descendant.return_value = False
+        self.assertRaises(AirflowException, job1.heartbeat_callback)
+
+    def test_localtaskjob_double_trigger(self):
+        dagbag = models.DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get('test_localtaskjob_double_trigger')
+        task = dag.get_task('test_localtaskjob_double_trigger_task')
+
+        session = settings.Session()
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.SUCCESS,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
+        ti.state = State.RUNNING
+        ti.hostname = socket.getfqdn()
+        ti.pid = 1
+        session.commit()
+
+        ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+        job1 = LocalTaskJob(task_instance=ti_run, ignore_ti_state=True, executor=SequentialExecutor())
+        self.assertRaises(AirflowException, job1.run)
+
+        ti = dr.get_task_instance(task_id=task.task_id, session=session)
+        self.assertEqual(ti.pid, 1)
+        self.assertEqual(ti.state, State.RUNNING)
+
+        session.close()
+
+
 class SchedulerJobTest(unittest.TestCase):
     # These defaults make the test faster to run
     default_scheduler_args = {"file_process_interval": 0,
