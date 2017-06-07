@@ -792,7 +792,16 @@ class TaskInstance(Base):
         """ Initialize the attributes that aren't stored in the DB. """
         self.test_mode = False  # can be changed when calling 'run'
 
-    def command(
+    def _key(self):
+        return (self.task_id, self.dag_id, self.execution_date)
+
+    def __eq__(self, other):
+        return self._key() == other._key()
+
+    def __hash__(self):
+        return hash(self._key())
+
+   def command(
             self,
             mark_success=False,
             ignore_all_deps=False,
