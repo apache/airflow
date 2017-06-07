@@ -29,7 +29,6 @@ class HipChatAPIOperator(BaseOperator):
     at https://www.hipchat.com/docs/apiv2. Before using any HipChat API operators you need
     to get an authentication token at https://www.hipchat.com/docs/apiv2/auth.
     In the future additional HipChat operators will be derived from this class as well.
-
     :param token: HipChat REST API authentication token
     :type token: str
     :param base_url: HipChat REST API base url.
@@ -77,7 +76,6 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     """
     Send notification to a specific HipChat room.
     More info: https://www.hipchat.com/docs/apiv2/method/send_room_notification
-
     :param room_id: Room in which to send notification on HipChat
     :type room_id: str
     :param message: The message body
