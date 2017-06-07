@@ -102,8 +102,9 @@ class QuboleOperator(BaseOperator):
         ``sub_command``, ``script``, ``files``, ``archives``, ``program``, ``cmdline``,
         ``sql``, ``where_clause``, ``extract_query``, ``boundary_query``, ``macros``,
         ``tags``, ``name``, ``parameters``, ``dbtap_id``, ``hive_table``, ``db_table``,
-        ``split_column``, ``db_update_keys``, ``export_dir``, ``partition_spec``. You
-        can also use ``.txt`` files for template driven use cases.
+        ``split_column``, ``note_id``, ``db_update_keys``, ``export_dir``,
+        ``partition_spec``, ``qubole_conn_id``, ``arguments``, ``user_program_arguments``.
+         You can also use ``.txt`` files for template driven use cases.
 
     .. note:: In QuboleOperator there is a default handler for task failures and retries,
         which generally kills the command running at QDS for the corresponding task
@@ -114,8 +115,10 @@ class QuboleOperator(BaseOperator):
     template_fields = ('query', 'script_location', 'sub_command', 'script', 'files',
                        'archives', 'program', 'cmdline', 'sql', 'where_clause', 'tags',
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
-                       'dbtap_id', 'hive_table', 'db_table', 'split_column',
-                       'db_update_keys', 'export_dir', 'partition_spec')
+                       'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
+                       'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
+                       'arguments', 'user_program_arguments')
+
     template_ext = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
@@ -125,7 +128,6 @@ class QuboleOperator(BaseOperator):
         self.args = args
         self.kwargs = kwargs
         self.kwargs['qubole_conn_id'] = qubole_conn_id
-        self.hook = QuboleHook(*self.args, **self.kwargs)
         super(QuboleOperator, self).__init__(*args, **kwargs)
 
         if self.on_failure_callback is None:
@@ -135,21 +137,23 @@ class QuboleOperator(BaseOperator):
             self.on_retry_callback = QuboleHook.handle_failure_retry
 
     def execute(self, context):
-        # Reinitiating the hook, as some template fields might have changed
-        self.hook = QuboleHook(*self.args, **self.kwargs)
-        return self.hook.execute(context)
+        return self.get_hook().execute(context)
 
-    def on_kill(self, ti):
-        self.hook.kill(ti)
+    def on_kill(self, ti=None):
+        self.get_hook().kill(ti)
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
-        return self.hook.get_results(ti, fp, inline, delim, fetch)
+        return self.get_hook().get_results(ti, fp, inline, delim, fetch)
 
     def get_log(self, ti):
-        return self.hook.get_log(ti)
+        return self.get_hook().get_log(ti)
 
     def get_jobs_id(self, ti):
-        return self.hook.get_jobs_id(ti)
+        return self.get_hook().get_jobs_id(ti)
+
+    def get_hook(self):
+        # Reinitiating the hook, as some template fields might have changed
+        return QuboleHook(*self.args, **self.kwargs)
 
     def __getattribute__(self, name):
         if name in QuboleOperator.template_fields:

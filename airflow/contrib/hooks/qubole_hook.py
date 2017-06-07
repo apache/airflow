@@ -42,7 +42,7 @@ COMMAND_CLASSES = {
     "dbimportcmd": DbImportCommand
 }
 
-HYPHEN_ARGS = ['cluster_label', 'app_id']
+HYPHEN_ARGS = ['cluster_label', 'app_id', 'note_id']
 
 POSITIONAL_ARGS = ['sub_command', 'parameters']
 
@@ -57,7 +57,7 @@ COMMAND_ARGS = {
                'name'],
     'dbtapquerycmd': ['db_tap_id', 'query', 'macros', 'tags', 'name'],
     'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags',
-                 'cluster_label', 'language', 'app_id', 'name', 'arguments',
+                 'cluster_label', 'language', 'app_id', 'name', 'arguments', 'note_id',
                  'user_program_arguments'],
     'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
                     'db_update_mode', 'db_update_keys', 'export_dir',
