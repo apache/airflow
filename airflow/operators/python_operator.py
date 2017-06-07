@@ -115,6 +115,7 @@ class BranchPythonOperator(PythonOperator):
             TI.execution_date == context['ti'].execution_date,
             TI.task_id.in_(context['task'].downstream_task_ids),
             TI.task_id != branch,
+            TI.dag_id == context['dag'].dag_id
         ).with_for_update().all()
 
         for ti in tis:
@@ -171,6 +172,7 @@ class ShortCircuitOperator(PythonOperator):
         tis = session.query(TI).filter(
             TI.execution_date == context['ti'].execution_date,
             TI.task_id.in_(context['task'].downstream_task_ids),
+            TI.dag_id == context['dag'].dag_id
         ).with_for_update().all()
 
         for ti in tis:
