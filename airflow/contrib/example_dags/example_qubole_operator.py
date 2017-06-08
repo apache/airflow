@@ -81,7 +81,6 @@ branching.set_upstream(t3)
 
 join = DummyOperator(
     task_id='join',
-    trigger_rule='one_success',
     dag=dag
 )
 
