@@ -1,43 +1,41 @@
+AIRFLOW 1.8.2rc1, 2017-06-05
+-------------------------
+
+
 AIRFLOW 1.8.1, 2017-05-09
 -------------------------
 
-[AIRFLOW-1142] SubDAG Tasks Not Executed Even Though All Dependencies Met
-[AIRFLOW-1138] Add licenses to files in scripts directory
-[AIRFLOW-1127] Move license notices to LICENSE instead of NOTICE
-[AIRFLOW-1124] Do not set all task instances to scheduled on backfill
-[AIRFLOW-1120] Update version view to include Apache prefix
-[AIRFLOW-1062] DagRun#find returns wrong result if external_trigger=False is specified
-[AIRFLOW-1054] Fix broken import on test_dag
-[AIRFLOW-1050] Retries ignored - regression
-[AIRFLOW-1033] TypeError: can't compare datetime.datetime to None
-[AIRFLOW-1017] get_task_instance should return None instead of throw an exception for non-existent TIs
-[AIRFLOW-1011] Fix bug in BackfillJob._execute() for SubDAGs
-[AIRFLOW-1004] `airflow webserver -D` runs in foreground
-[AIRFLOW-1001] Landing Time shows "unsupported operand type(s) for -: 'datetime.datetime' and 'NoneType'" on example_subdag_operator
-[AIRFLOW-1000] Rebrand to Apache Airflow instead of Airflow
-[AIRFLOW-989] Clear Task Regression
-[AIRFLOW-974] airflow.util.file mkdir has a race condition
-[AIRFLOW-906] Update Code icon from lightning bolt to file
-[AIRFLOW-858] Configurable database name for DB operators
-[AIRFLOW-853] ssh_execute_operator.py stdout decode default to ASCII
-[AIRFLOW-832] Fix debug server
-[AIRFLOW-817] Trigger dag fails when using CLI + API
-[AIRFLOW-816] Make sure to pull nvd3 from local resources
-[AIRFLOW-815] Add previous/next execution dates to available default variables.
-[AIRFLOW-813] Fix unterminated unit tests in tests.job (tests/job.py)
-[AIRFLOW-812] Scheduler job terminates when there is no dag file
-[AIRFLOW-806] UI should properly ignore DAG doc when it is None
-[AIRFLOW-794] Consistent access to DAGS_FOLDER and SQL_ALCHEMY_CONN
-[AIRFLOW-785] ImportError if cgroupspy is not installed
-[AIRFLOW-784] Cannot install with funcsigs > 1.0.0
-[AIRFLOW-780] The UI no longer shows broken DAGs
-[AIRFLOW-777] dag_is_running is initlialized to True instead of False
-[AIRFLOW-719] Skipped operations make DAG finish prematurely
-[AIRFLOW-694] Empty env vars do not overwrite non-empty config values
-[AIRFLOW-492] Insert into dag_stats table results into failed task while task itself succeeded
-[AIRFLOW-139] Executing VACUUM with PostgresOperator
-[AIRFLOW-111] DAG concurrency is not honored
-[AIRFLOW-88] Improve clarity Travis CI reports
+[AIRFLOW-1160] Update Spark parameters for Mesos
+[AIRFLOW 1149] Allow for custom filters in Jinja2 templates
+[AIRFLOW-1119] Fix unload query so headers are on first row[]
+[AIRFLOW-1089] Add Spark application arguments
+[AIRFLOW-1078] Fix latest_runs endpoint for old flask versions
+[AIRFLOW-1074] Don't count queued tasks for concurrency limits
+[AIRFLOW-1064] Change default sort to job_id for TaskInstanceModelView
+[AIRFLOW-1038] Specify celery serialization options explicitly
+[AIRFLOW-1036] Randomize exponential backoff
+[AIRFLOW-993] Update date inference logic
+[AIRFLOW-1167] Support microseconds in FTPHook modification time
+[AIRFLOW-1179] Fix Pandas 0.2x breaking Google BigQuery change
+[AIRFLOW-1263] Dynamic height for charts
+[AIRFLOW-1266] Increase width of gantt y axis
+[AIRFLOW-1290] set docs author to 'Apache Airflow'
+[AIRFLOW-1166] Speed up _change_state_for_tis_without_dagrun
+[AIRFLOW-1192] Some enhancements to qubole_operator
+[AIRFLOW-1281] Sort variables by key field by default
+[AIRFLOW-1244] Forbid creation of a pool with empty name
+[AIRFLOW-1243] DAGs table has no default entries to show
+[AIRFLOW-1227] Remove empty column on the Logs view
+[AIRFLOW-1226] Remove empty column on the Jobs view
+[AIRFLOW-1199] Fix create modal
+[AIRFLOW-1200] Forbid creation of a variable with an empty key
+[AIRFLOW-1186] Sort dag.get_task_instances by execution_date
+[AIRFLOW-1145] Fix closest_date_partition function with before set to True If we're looking for the closest date before, we should take the latest date in the list of date before.
+[AIRFLOW-1180] Fix flask-wtf version for test_csrf_rejection
+[AIRFLOW-1170] DbApiHook insert_rows inserts parameters separately
+[AIRFLOW-1150] Fix scripts execution in sparksql hook[]
+[AIRFLOW-1168] Add closing() to all connections and cursors
+>>>>>>> Stashed changes
 
 AIRFLOW 1.8.0, 2017-03-12
 -------------------------
