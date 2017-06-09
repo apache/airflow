@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from builtins import object
+import errno
 import logging
 import subprocess
 import ssl
@@ -71,7 +72,10 @@ def execute_command(command):
     try:
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
-        logging.error(e)
+        if e.returncode == errno.EBUSY:
+            logging.info("Task reported concurrency reached")
+        else:
+            logging.error(e)
         raise AirflowException('Celery command failed')
 
 

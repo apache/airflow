@@ -13,6 +13,8 @@
 # limitations under the License.
 
 from builtins import str
+
+import errno
 import subprocess
 
 from airflow.executors.base_executor import BaseExecutor
@@ -43,8 +45,12 @@ class SequentialExecutor(BaseExecutor):
                 subprocess.check_call(command, shell=True)
                 self.change_state(key, State.SUCCESS)
             except subprocess.CalledProcessError as e:
-                self.change_state(key, State.FAILED)
-                self.logger.error("Failed to execute task {}:".format(str(e)))
+                if e.returncode == errno.EBUSY:
+                    self.logger.info("Task reported concurrency reached")
+                    self.change_state(key, State.CONCURRENCY_REACHED)
+                else:
+                    self.change_state(key, State.FAILED)
+                    self.logger.error("Failed to execute task {}:".format(str(e)))
 
         self.commands_to_run = []
 

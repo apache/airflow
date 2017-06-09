@@ -26,6 +26,7 @@ import copy
 from collections import namedtuple
 from datetime import datetime, timedelta
 import dill
+import errno
 import functools
 import getpass
 import imp
@@ -1343,6 +1344,7 @@ class TaskInstance(Base):
             logging.info(msg)
             session.merge(self)
             session.commit()
+            sys.exit(errno.EBUSY)
             return
 
         # Another worker might have started running this task instance while

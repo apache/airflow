@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import errno
 import logging
 import os
 import shutil
@@ -511,8 +512,12 @@ class LocalTaskJobTest(unittest.TestCase):
         session.commit()
 
         ti_run = TI(task=task, execution_date=DEFAULT_DATE)
+
         job1 = LocalTaskJob(task_instance=ti_run, ignore_ti_state=True, executor=SequentialExecutor())
-        self.assertRaises(AirflowException, job1.run)
+        with self.assertRaises(SystemExit) as cm:
+            job1.run()
+
+        self.assertEqual(cm.exception.code, errno.EEXIST)
 
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
         self.assertEqual(ti.pid, 1)

@@ -41,6 +41,9 @@ class State(object):
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
 
+    # used by executor
+    CONCURRENCY_REACHED = "concurrency_reached"
+
     task_states = (
         SUCCESS,
         RUNNING,

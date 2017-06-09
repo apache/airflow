@@ -667,7 +667,11 @@ class CoreTest(unittest.TestCase):
         ti = TI(
             task=self.runme_0, execution_date=DEFAULT_DATE)
         job = jobs.LocalTaskJob(task_instance=ti, ignore_ti_state=True)
-        job.run()
+
+        with self.assertRaises(SystemExit) as cm:
+            job.run()
+
+        self.assertEqual(cm.exception.code, 0)
 
     @mock.patch('airflow.utils.dag_processing.datetime', FakeDatetime)
     def test_scheduler_job(self):
@@ -1300,9 +1304,12 @@ class CliTests(unittest.TestCase):
             '-tp', '{"foo":"bar"}', DEFAULT_DATE.isoformat()]))
 
     def test_cli_run(self):
-        cli.run(self.parser.parse_args([
-            'run', 'example_bash_operator', 'runme_0', '-l',
-            DEFAULT_DATE.isoformat()]))
+        with self.assertRaises(SystemExit) as cm:
+            cli.run(self.parser.parse_args([
+                'run', 'example_bash_operator', 'runme_0', '-l',
+                DEFAULT_DATE.isoformat()]))
+
+        self.assertEqual(cm.exception.code, 0)
 
     def test_task_state(self):
         cli.task_state(self.parser.parse_args([
