@@ -46,6 +46,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  storage_bucket=None,
                  init_actions_uris=None,
                  metadata=None,
+                 image_version=None,
                  properties=None,
                  master_machine_type='n1-standard-4',
                  master_disk_size=500,
@@ -81,6 +82,8 @@ class DataprocClusterCreateOperator(BaseOperator):
         :param metadata: dict of key-value google compute engine metadata entries
             to add to all instances
         :type metadata: dict
+        :param image_version: the version of software inside the Dataproc cluster
+        :type image_version: string
         :param properties: dict of properties to set on
             config files (e.g. spark-defaults.conf), see
             https://cloud.google.com/dataproc/docs/reference/rest/v1/ \
@@ -118,6 +121,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
         self.metadata = metadata
+        self.image_version = image_version
         self.properties = properties
         self.master_machine_type = master_machine_type
         self.master_disk_size = master_disk_size
@@ -175,20 +179,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                     return
                 time.sleep(15)
 
-    def execute(self, context):
-        hook = DataProcHook(
-            gcp_conn_id=self.google_cloud_conn_id,
-            delegate_to=self.delegate_to
-        )
-        service = hook.get_conn()
-
-        if self._get_cluster(service):
-            logging.info('Cluster {} already exists... Checking status...'.format(
-                            self.cluster_name
-                        ))
-            self._wait_for_done(service)
-            return True
-
+    def _build_cluster_data(self):
         zone_uri = \
             'https://www.googleapis.com/compute/v1/projects/{}/zones/{}'.format(
                 self.project_id, self.zone
@@ -241,6 +232,8 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:
             cluster_data['config']['gceClusterConfig']['metadata'] = self.metadata
+        if self.image_version:
+            cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
         if self.init_actions_uris:
@@ -248,7 +241,23 @@ class DataprocClusterCreateOperator(BaseOperator):
                 {'executableFile': uri} for uri in self.init_actions_uris
             ]
             cluster_data['config']['initializationActions'] = init_actions_dict
+        return cluster_data
 
+    def execute(self, context):
+        hook = DataProcHook(
+            gcp_conn_id=self.google_cloud_conn_id,
+            delegate_to=self.delegate_to
+        )
+        service = hook.get_conn()
+
+        if self._get_cluster(service):
+            logging.info('Cluster {} already exists... Checking status...'.format(
+                            self.cluster_name
+                        ))
+            self._wait_for_done(service)
+            return True
+
+        cluster_data = self._build_cluster_data()
         try:
             service.projects().regions().clusters().create(
                 projectId=self.project_id,
