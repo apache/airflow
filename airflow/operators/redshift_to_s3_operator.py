@@ -46,6 +46,7 @@ class RedshiftToS3Transfer(BaseOperator):
     @apply_defaults
     def __init__(
             self,
+            db_name,
             schema,
             table,
             s3_bucket,
@@ -58,6 +59,7 @@ class RedshiftToS3Transfer(BaseOperator):
             *args, **kwargs):
         super(RedshiftToS3Transfer, self).__init__(*args, **kwargs)
         self.schema = schema
+        self.db_name = db_name
         self.table = table
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
@@ -85,7 +87,7 @@ class RedshiftToS3Transfer(BaseOperator):
         cursor = self.hook.get_conn().cursor()
         cursor.execute(columns_query)
         rows = cursor.fetchall()
-        columns = map(lambda row: row[0], rows)
+        columns = [row[0] for row in rows]
         column_names = (', ').join(map(lambda c: "\\'{0}\\'".format(c), columns))
         column_castings = (', ').join(map(lambda c: "CAST({0} AS text) AS {0}".format(c),
                                             columns))

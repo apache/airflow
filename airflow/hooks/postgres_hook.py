@@ -31,6 +31,7 @@ class PostgresHook(DbApiHook):
     def __init__(self, *args, **kwargs):
         super(PostgresHook, self).__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
+        self.db_name = kwargs.pop("db_name", None)
 
     def get_conn(self):
         conn = self.get_connection(self.postgres_conn_id)
@@ -38,7 +39,7 @@ class PostgresHook(DbApiHook):
             host=conn.host,
             user=conn.login,
             password=conn.password,
-            dbname=self.schema or conn.schema,
+            dbname=self.db_name or conn.schema,
             port=conn.port)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
@@ -52,8 +53,8 @@ class PostgresHook(DbApiHook):
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
-        
-        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for 
+
+        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for
         more information.
 
         :param cell: The cell to insert into the table
