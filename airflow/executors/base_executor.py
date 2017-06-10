@@ -50,6 +50,10 @@ class BaseExecutor(LoggingMixin):
             self.logger.info("Adding to queue: {}".format(command))
             self.queued_tasks[key] = (command, priority, queue, task_instance)
 
+            return True
+
+        return False
+
     def queue_task_instance(
             self,
             task_instance,
@@ -70,7 +74,8 @@ class BaseExecutor(LoggingMixin):
             ignore_ti_state=ignore_ti_state,
             pool=pool,
             pickle_id=pickle_id)
-        self.queue_command(
+
+        return self.queue_command(
             task_instance,
             command,
             priority=task_instance.task.priority_weight_total,

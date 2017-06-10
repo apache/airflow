@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import errno
 import multiprocessing
 import subprocess
 import time
@@ -48,9 +49,13 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
                 subprocess.check_call(command, shell=True)
                 state = State.SUCCESS
             except subprocess.CalledProcessError as e:
-                state = State.FAILED
-                self.logger.error("failed to execute task {}:".format(str(e)))
-                # raise e
+                if e.returncode == errno.EBUSY:
+                    self.logger.info("Task reported concurrency reached")
+                    state = State.CONCURRENCY_REACHED
+                else:
+                    state = State.FAILED
+                    self.logger.error("failed to execute task {}:".format(str(e)))
+                    # raise e
             self.result_queue.put((key, state))
             self.task_queue.task_done()
             time.sleep(1)

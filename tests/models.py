@@ -764,7 +764,11 @@ class TaskInstanceTest(unittest.TestCase):
         task = DummyOperator(task_id='test_requeue_over_concurrency_op', dag=dag)
 
         ti = TI(task=task, execution_date=datetime.datetime.now())
-        ti.run()
+
+        with self.assertRaises(SystemExit) as cm:
+            ti.run()
+
+        self.assertEqual(cm.exception.code, 16)
         self.assertEqual(ti.state, models.State.NONE)
 
 

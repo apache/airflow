@@ -22,6 +22,7 @@ from collections import defaultdict, Counter
 
 from datetime import datetime
 
+import errno
 import getpass
 import logging
 import socket
@@ -1701,6 +1702,16 @@ class BackfillJob(BaseJob):
                                     .format(ti))
                 started.pop(key)
                 tasks_to_run[key] = ti
+            # special case: if we hit concurrency limits put it back in the queue
+            elif ti.state == State.NONE:
+                self.logger.warning("FIXME: task instance {} state was set to "
+                                    "None externally. This should not happen. "
+                                    "Re-adding task to queue.".format(ti))
+                session = settings.Session()
+                ti.set_state(State.SCHEDULED, session=session)
+                session.close()
+                started.pop(key)
+                tasks_to_run[key] = ti
 
     def _manage_executor_state(self, started):
         """
@@ -1728,6 +1739,9 @@ class BackfillJob(BaseJob):
                            "killed externally?".format(ti, state, ti.state))
                     self.logger.error(msg)
                     ti.handle_failure(msg)
+            elif state == State.CONCURRENCY_REACHED:
+                self.logger.info("Executor reports task instance {} has reached "
+                                 "concurrency.".format(ti))
 
     def _execute(self):
         """
@@ -1832,6 +1846,8 @@ class BackfillJob(BaseJob):
         finished_runs = 0
         total_runs = len(active_dag_runs)
 
+        self.logger.debug("Tasks to evaluate: {}".format(len(tasks_to_run)))
+
         # Triggering what is ready to get triggered
         while (len(tasks_to_run) > 0 or len(started) > 0) and not deadlocked:
             self.logger.debug("*** Clearing out not_ready list ***")
@@ -1910,19 +1926,23 @@ class BackfillJob(BaseJob):
                             verbose=True):
                         ti.refresh_from_db(lock_for_update=True, session=session)
                         if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
-                            # Skip scheduled state, we are executing immediately
-                            ti.state = State.QUEUED
-                            session.merge(ti)
-                            self.logger.debug('Sending {} to executor'.format(ti))
-                            executor.queue_task_instance(
-                                ti,
-                                mark_success=self.mark_success,
-                                pickle_id=pickle_id,
-                                ignore_task_deps=self.ignore_task_deps,
-                                ignore_depends_on_past=ignore_depends_on_past,
-                                pool=self.pool)
-                            started[key] = ti
-                            tasks_to_run.pop(key)
+                            if executor.has_task(ti):
+                                self.logger.debug("Task Instance {} already in executor "
+                                                  "waiting for queue to clear".format(ti))
+                            else:
+                                self.logger.debug('Sending {} to executor'.format(ti))
+                                # Skip scheduled state, we are executing immediately
+                                ti.state = State.QUEUED
+                                session.merge(ti)
+                                executor.queue_task_instance(
+                                    ti,
+                                    mark_success=self.mark_success,
+                                    pickle_id=pickle_id,
+                                    ignore_task_deps=self.ignore_task_deps,
+                                    ignore_depends_on_past=ignore_depends_on_past,
+                                    pool=self.pool)
+                                started[key] = ti
+                                tasks_to_run.pop(key)
                         session.commit()
                         continue
 
@@ -2072,6 +2092,7 @@ class LocalTaskJob(BaseJob):
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+        self.return_code = None
 
         # terminating state is used so that a job don't try to
         # terminate multiple times
@@ -2105,6 +2126,7 @@ class LocalTaskJob(BaseJob):
                 if return_code is not None:
                     self.logger.info("Task exited with return code {}"
                                      .format(return_code))
+                    self.return_code = return_code
                     return
 
                 # Periodically heartbeat so that the scheduler doesn't think this
@@ -2135,6 +2157,8 @@ class LocalTaskJob(BaseJob):
         self.task_runner.terminate()
         self.task_runner.on_finish()
 
+        sys.exit(self.return_code)
+
     def _is_descendant_process(self, pid):
         """Checks if pid is a descendant of the current process.
 
@@ -2164,12 +2188,14 @@ class LocalTaskJob(BaseJob):
                 logging.warning("The recorded hostname {ti.hostname} "
                                 "does not match this instance's hostname "
                                 "{fqdn}".format(**locals()))
+                self.return_code = errno.EINVAL
                 raise AirflowException("Hostname of job runner does not match")
             elif not self._is_descendant_process(ti.pid):
                 current_pid = os.getpid()
                 logging.warning("Recorded pid {ti.pid} is not a "
                                 "descendant of the current pid "
                                 "{current_pid}".format(**locals()))
+                self.return_code = errno.EEXIST
                 raise AirflowException("PID of job runner does not match")
         elif (self.was_running
               and self.task_runner.return_code() is None
@@ -2179,3 +2205,4 @@ class LocalTaskJob(BaseJob):
                 "{}. Taking the poison pill. So long.".format(ti.state))
             self.task_runner.terminate()
             self.terminating = True
+            self.return_code = errno.EINTR
