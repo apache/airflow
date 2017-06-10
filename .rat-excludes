@@ -24,4 +24,4 @@ CHANGELOG.txt
 # it is compatible according to http://www.apache.org/legal/resolved.html#category-a
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
-
+licenses/*
