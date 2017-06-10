@@ -141,6 +141,7 @@ Currently **officially** using Airflow:
 1. [MFG Labs](https://github.com/MfgLabs)
 1. [mytaxi](https://mytaxi.com) [[@mytaxi](https://github.com/mytaxi)]
 1. [Nerdwallet](https://www.nerdwallet.com)
+1. [New Relic](https://www.newrelic.com) [[@marcweil](https://github.com/marcweil)]
 1. [OfferUp](https://offerupnow.com)
 1. [OneFineStay](https://www.onefinestay.com) [[@slangwald](https://github.com/slangwald)]
 1. [Open Knowledge International](https://okfn.org) [@vitorbaptista](https://github.com/vitorbaptista)
