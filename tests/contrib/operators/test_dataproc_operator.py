@@ -18,15 +18,6 @@ import unittest
 from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 
 
-try:
-    from unittest import mock
-except ImportError:
-    try:
-        import mock
-    except ImportError:
-        mock = None
-
-
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'
 PROJECT_ID = 'test-project-id'
