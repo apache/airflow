@@ -18,7 +18,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import Client, tls
+from docker import tls
+from docker.api import APIClient as DockerAPIClient
 import ast
 
 
@@ -142,7 +143,7 @@ class DockerOperator(BaseOperator):
             )
             self.docker_url = self.docker_url.replace('tcp://', 'https://')
 
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+        self.cli = DockerAPIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
         if ':' not in self.image:
             image = self.image + ':latest'
