@@ -22,7 +22,7 @@ import traceback
 from celery import Celery
 from celery import states as celery_states
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 
@@ -48,18 +48,25 @@ class CeleryConfig(object):
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
-    if configuration.getboolean('celery', 'CELERY_SSL_ACTIVE'):
-        try:
+
+    celery_ssl_active = False
+    try:
+        celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
+    except AirflowConfigException as e:
+        logging.warning("Celery Executor will run without SSL")
+
+    try:
+        if celery_ssl_active:
             BROKER_USE_SSL = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
                               'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
                               'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
                               'cert_reqs': ssl.CERT_REQUIRED}
-        except ValueError:
-            raise AirflowException('ValueError: CELERY_SSL_ACTIVE is True, please ensure CELERY_SSL_KEY, '
-                                   'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
-        except Exception as e:
-            raise AirflowException('Exception: There was an unknown Celery SSL Error.  Please ensure you want to use '
-                                   'SSL and/or have all necessary certs and key.')
+    except AirflowConfigException as e:
+        raise AirflowException('AirflowConfigException: CELERY_SSL_ACTIVE is True, please ensure CELERY_SSL_KEY, '
+                               'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
+    except Exception as e:
+        raise AirflowException('Exception: There was an unknown Celery SSL Error.  Please ensure you want to use '
+                               'SSL and/or have all necessary certs and key.')
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
