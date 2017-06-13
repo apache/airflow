@@ -445,6 +445,91 @@ class BackfillJobTest(unittest.TestCase):
         subdag.clear()
         dag.clear()
 
+    def test_update_counters(self):
+        dag = DAG(
+            dag_id='test_manage_executor_state',
+            start_date=DEFAULT_DATE)
+
+        task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        job = BackfillJob(dag=dag)
+
+        session = settings.Session()
+        dr = dag.create_dagrun(run_id=DagRun.ID_PREFIX,
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = TI(task1, dr.execution_date)
+        ti.refresh_from_db()
+
+        started = {}
+        tasks_to_run = {}
+        failed = set()
+        succeeded = set()
+        started = {}
+        skipped = set()
+
+        # test for success
+        ti.set_state(State.SUCCESS, session)
+        started[ti.key] = ti
+        job._update_counters(started=started, succeeded=succeeded,
+                                     skipped=skipped, failed=failed,
+                                     tasks_to_run=tasks_to_run)
+        self.assertTrue(len(started) == 0)
+        self.assertTrue(len(succeeded) == 1)
+        self.assertTrue(len(skipped) == 0)
+        self.assertTrue(len(failed) == 0)
+        self.assertTrue(len(tasks_to_run) == 0)
+
+        succeeded.clear()
+
+        # test for skipped
+        ti.set_state(State.SKIPPED, session)
+        started[ti.key] = ti
+        job._update_counters(started=started, succeeded=succeeded,
+                                     skipped=skipped, failed=failed,
+                                     tasks_to_run=tasks_to_run)
+        self.assertTrue(len(started) == 0)
+        self.assertTrue(len(succeeded) == 0)
+        self.assertTrue(len(skipped) == 1)
+        self.assertTrue(len(failed) == 0)
+        self.assertTrue(len(tasks_to_run) == 0)
+
+        skipped.clear()
+
+        # test for failed
+        ti.set_state(State.FAILED, session)
+        started[ti.key] = ti
+        job._update_counters(started=started, succeeded=succeeded,
+                                     skipped=skipped, failed=failed,
+                                     tasks_to_run=tasks_to_run)
+        self.assertTrue(len(started) == 0)
+        self.assertTrue(len(succeeded) == 0)
+        self.assertTrue(len(skipped) == 0)
+        self.assertTrue(len(failed) == 1)
+        self.assertTrue(len(tasks_to_run) == 0)
+
+        failed.clear()
+
+        # test for reschedule
+        # test for failed
+        ti.set_state(State.NONE, session)
+        started[ti.key] = ti
+        job._update_counters(started=started, succeeded=succeeded,
+                                     skipped=skipped, failed=failed,
+                                     tasks_to_run=tasks_to_run)
+        self.assertTrue(len(started) == 0)
+        self.assertTrue(len(succeeded) == 0)
+        self.assertTrue(len(skipped) == 0)
+        self.assertTrue(len(failed) == 0)
+        self.assertTrue(len(tasks_to_run) == 1)
+
+        session.close()
+
 
 class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
