@@ -1669,7 +1669,8 @@ class BackfillJob(BaseJob):
 
     def _update_counters(self, started, succeeded, skipped, failed, tasks_to_run):
         """
-        Updates the counters per state of the tasks that were running
+        Updates the counters per state of the tasks that were running. Can re-add
+        to tasks to run in case required.
         :param started:
         :param succeeded:
         :param skipped:
@@ -1699,6 +1700,20 @@ class BackfillJob(BaseJob):
             elif ti.state == State.UP_FOR_RETRY:
                 self.logger.warning("Task instance {} is up for retry"
                                     .format(ti))
+                started.pop(key)
+                tasks_to_run[key] = ti
+            # special case: The state of the task can be set to NONE by the task itself
+            # when it reaches concurrency limits. It could also happen when the state
+            # is changed externally, e.g. by clearing tasks from the ui. We need to cover
+            # for that as otherwise those tasks would fall outside of the scope of
+            # the backfill suddenly.
+            elif ti.state == State.NONE:
+                self.logger.warning("FIXME: task instance {} state was set to "
+                                    "None externally or reaching concurrency limits. "
+                                    "Re-adding task to queue.".format(ti))
+                session = settings.Session()
+                ti.set_state(State.SCHEDULED, session=session)
+                session.close()
                 started.pop(key)
                 tasks_to_run[key] = ti
 
@@ -1910,19 +1925,23 @@ class BackfillJob(BaseJob):
                             verbose=True):
                         ti.refresh_from_db(lock_for_update=True, session=session)
                         if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
-                            # Skip scheduled state, we are executing immediately
-                            ti.state = State.QUEUED
-                            session.merge(ti)
-                            self.logger.debug('Sending {} to executor'.format(ti))
-                            executor.queue_task_instance(
-                                ti,
-                                mark_success=self.mark_success,
-                                pickle_id=pickle_id,
-                                ignore_task_deps=self.ignore_task_deps,
-                                ignore_depends_on_past=ignore_depends_on_past,
-                                pool=self.pool)
-                            started[key] = ti
-                            tasks_to_run.pop(key)
+                            if executor.has_task(ti):
+                                self.logger.debug("Task Instance {} already in executor "
+                                                  "waiting for queue to clear".format(ti))
+                            else:
+                                self.logger.debug('Sending {} to executor'.format(ti))
+                                # Skip scheduled state, we are executing immediately
+                                ti.state = State.QUEUED
+                                session.merge(ti)
+                                executor.queue_task_instance(
+                                    ti,
+                                    mark_success=self.mark_success,
+                                    pickle_id=pickle_id,
+                                    ignore_task_deps=self.ignore_task_deps,
+                                    ignore_depends_on_past=ignore_depends_on_past,
+                                    pool=self.pool)
+                                started[key] = ti
+                                tasks_to_run.pop(key)
                         session.commit()
                         continue
 
