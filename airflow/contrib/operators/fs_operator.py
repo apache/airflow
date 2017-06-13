@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from os import walk
+import os
 import logging
 
 from airflow.operators.sensors import BaseSensorOperator
@@ -51,8 +51,5 @@ class FileSensor(BaseSensorOperator):
         full_path = "/".join([basepath, self.filepath])
         logging.info(
             'Poking for file {full_path} '.format(**locals()))
-        try:
-            files = [f for f in walk(full_path)]
-        except:
-            return False
-        return True
+        
+        return os.path.exists(full_path)
