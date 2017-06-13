@@ -1,6 +1,8 @@
 AIRFLOW 1.8.2rc1, 2017-06-05
 -------------------------
 
+570b2ed [AIRFLOW-1294] Backfills can loose tasks to execute
+3f48d48 [AIRFLOW-1291] Update NOTICE and LICENSE files to match ASF requirements
 e10af9a [AIRFLOW-XXX] Set version to 1.8.2rc1
 69bd269 [AIRFLOW-1160] Update Spark parameters for Mesos
 9692510 [AIRFLOW 1149][AIRFLOW-1149] Allow for custom filters in Jinja2 templates
