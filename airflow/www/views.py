@@ -58,6 +58,7 @@ import airflow
 from airflow import configuration as conf
 from airflow import models
 from airflow import settings
+from airflow.api.common.experimental.mark_tasks import set_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom, DagRun
@@ -1026,6 +1027,36 @@ class Airflow(BaseView):
             "it should start any moment now.".format(dag_id))
         return redirect(origin)
 
+    def _clear_dag_tis(self, dag, start_date, end_date, origin,
+                       recursive=False, confirmed=False):
+        if confirmed:
+            count = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive)
+
+            flash("{0} task instances have been cleared".format(count))
+            return redirect(origin)
+
+        tis = dag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            include_subdags=recursive,
+            dry_run=True)
+        if not tis:
+            flash("No task instances to clear", 'error')
+            response = redirect(origin)
+        else:
+            details = "\n".join([str(t) for t in tis])
+
+            response = self.render(
+                'airflow/confirm.html',
+                message=("Here's the list of task instances you are about "
+                         "to clear:"),
+                details=details)
+
+        return response
+
     @expose('/clear')
     @login_required
     @wwwutils.action_logging
@@ -1052,34 +1083,28 @@ class Airflow(BaseView):
 
         end_date = execution_date if not future else None
         start_date = execution_date if not past else None
-        if confirmed:
-            count = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive)
 
-            flash("{0} task instances have been cleared".format(count))
-            return redirect(origin)
-        else:
-            tis = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive,
-                dry_run=True)
-            if not tis:
-                flash("No task instances to clear", 'error')
-                response = redirect(origin)
-            else:
-                details = "\n".join([str(t) for t in tis])
+        return self._clear_dag_tis(dag, start_date, end_date, origin,
+                                   recursive=recursive, confirmed=confirmed)
 
-                response = self.render(
-                    'airflow/confirm.html',
-                    message=(
-                        "Here's the list of task instances you are about "
-                        "to clear:"),
-                    details=details,)
+    @expose('/dagrun_clear')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def dagrun_clear(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        origin = request.args.get('origin')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == "true"
 
-            return response
+        dag = dagbag.get_dag(dag_id)
+        execution_date = dateutil.parser.parse(execution_date)
+        start_date = execution_date
+        end_date = execution_date
+
+        return self._clear_dag_tis(dag, start_date, end_date, origin,
+                                   recursive=True, confirmed=confirmed)
 
     @expose('/blocked')
     @login_required
@@ -1103,6 +1128,44 @@ class Airflow(BaseView):
                 'max_active_runs': max_active_runs,
             })
         return wwwutils.json_response(payload)
+
+    @expose('/dagrun_success')
+    @login_required
+    @wwwutils.action_logging
+    @wwwutils.notify_owner
+    def dagrun_success(self):
+        dag_id = request.args.get('dag_id')
+        execution_date = request.args.get('execution_date')
+        confirmed = request.args.get('confirmed') == 'true'
+        origin = request.args.get('origin')
+
+        if not execution_date:
+            flash('Invalid execution date', 'error')
+            return redirect(origin)
+
+        execution_date = dateutil.parser.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag:
+            flash('Cannot find DAG: {}'.format(dag_id), 'error')
+            return redirect(origin)
+
+        new_dag_state = set_dag_run_state(dag, execution_date, state=State.SUCCESS,
+                                          commit=confirmed)
+
+        if confirmed:
+            flash('Marked success on {} task instances'.format(len(new_dag_state)))
+            return redirect(origin)
+
+        else:
+            details = '\n'.join([str(t) for t in new_dag_state])
+
+            response = self.render('airflow/confirm.html',
+                                   message=("Here's the list of task instances you are "
+                                            "about to mark as successful:"),
+                                   details=details)
+
+            return response
 
     @expose('/success')
     @login_required

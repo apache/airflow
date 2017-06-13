@@ -22,7 +22,6 @@ from airflow.utils.state import State
 
 from sqlalchemy import or_
 
-
 def _create_dagruns(dag, execution_dates, state, run_id_template):
     """
     Infers from the dates which dag runs need to be created and does so.
@@ -181,7 +180,39 @@ def set_state(task, execution_date, upstream=False, downstream=False,
         if len(sub_dag_ids) > 0:
             tis_altered += qry_sub_dag.all()
 
+    session.expunge_all()
     session.close()
 
     return tis_altered
 
+def set_dag_run_state(dag, execution_date, state=State.SUCCESS, commit=False):
+    """
+    Set the state of a dag run and all task instances associated with the dag
+    run for a specific execution date.
+    :param dag: the DAG of which to alter state
+    :param execution_date: the execution date from which to start looking
+    :param state: the state to which the DAG need to be set
+    :param commit: commit DAG and tasks to be altered to the database
+    :return: list of tasks that have been created and updated
+    :raises: AssertionError if dag or execution_date is invalid
+    """
+    res = []
+
+    if not dag or not execution_date:
+        return res
+
+    # Mark all task instances in the dag run
+    for task in dag.tasks:
+        task.dag = dag
+        new_state = set_state(task=task, execution_date=execution_date,
+                              state=state, commit=commit)
+        res.extend(new_state)
+
+    # Mark the dag run
+    if commit:
+        drs = DagRun.find(dag.dag_id, execution_date=execution_date)
+        for dr in drs:
+            dr.dag = dag
+            dr.update_state()
+
+    return res
