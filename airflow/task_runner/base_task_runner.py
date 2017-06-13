@@ -16,6 +16,7 @@ import getpass
 import os
 import json
 import subprocess
+import sys
 import threading
 
 from airflow import configuration as conf
@@ -89,7 +90,7 @@ class BaseTaskRunner(LoggingMixin):
 
     def _read_task_logs(self, stream):
         while True:
-            line = stream.readline().decode('utf-8')
+            line = stream.readline().decode(sys.getdefaultencoding(), 'ignore')
             if len(line) == 0:
                 break
             self.logger.info('Subtask: {}'.format(line.rstrip('\n')))
