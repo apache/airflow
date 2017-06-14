@@ -77,11 +77,16 @@ mkdir -p ${TRAVIS_CACHE}/minicluster
 mkdir -p ${TRAVIS_CACHE}/hive
 mkdir -p ${HIVE_HOME}
 chmod -R 777 ${HIVE_HOME}
-mkdir -p /user/hive/warehouse
+sudo mkdir -p /user/hive/warehouse
+sudo chown -R ${USER} /user/
+sudo chmod -R 777 /user/
+ls -l /
 
 if [ $HADOOP_DISTRO = "cdh" ]; then
-    URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
-    HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
+    # URL="http://archive.cloudera.com/cdh5/cdh/5/hadoop-latest.tar.gz"
+    URL="https://archive.cloudera.com/cdh5/cdh/5/hadoop-2.6.0-cdh5.11.0.tar.gz"
+    # HIVE_URL="http://archive.cloudera.com/cdh5/cdh/5/hive-latest.tar.gz"
+    HIVE_URL="https://archive.cloudera.com/cdh5/cdh/5/hive-1.1.0-cdh5.11.0.tar.gz"
 elif [ $HADOOP_DISTRO = "hdp" ]; then
     URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/hadoop-2.7.1.2.3.2.0-2950.tar.gz"
     HIVE_URL="http://public-repo-1.hortonworks.com/HDP/centos6/2.x/updates/2.3.2.0/tars/apache-hive-1.2.1.2.3.2.0-2950-bin.tar.gz"
@@ -105,6 +110,8 @@ if $ONLY_DOWNLOAD; then
 fi
 
 echo "Extracting ${HADOOP_HOME}/hadoop.tar.gz into $HADOOP_HOME"
+# TODO: remove this below after first successful build
+rm -rf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz
 tar zxf ${TRAVIS_CACHE}/${HADOOP_DISTRO}/hadoop.tar.gz --strip-components 1 -C $HADOOP_HOME
 
 if [ $? != 0 ]; then
@@ -121,6 +128,8 @@ fi
 
 echo "Downloading and unpacking hive"
 curl -z ${TRAVIS_CACHE}/hive/hive.tar.gz -o ${TRAVIS_CACHE}/hive/hive.tar.gz -L ${HIVE_URL}
+# TODO: remove this below after first successful build
+rm -rf ${TRAVIS_CACHE}/hive/hive.tar.gz
 tar zxf ${TRAVIS_CACHE}/hive/hive.tar.gz --strip-components 1 -C ${HIVE_HOME}
 
 if [ $? != 0 ]; then
