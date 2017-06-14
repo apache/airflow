@@ -26,6 +26,7 @@ from airflow.settings import Session
 from airflow.utils.state import State
 
 from airflow.exceptions import AirflowException
+import logging
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 END_DATE = datetime.datetime(2016, 1, 2)
@@ -158,6 +159,8 @@ class ShortCircuitOperatorTest(unittest.TestCase):
 
         self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
         self.branch_1.set_upstream(self.short_op)
+        self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_2.set_upstream(self.branch_1)
         self.upstream = DummyOperator(task_id='upstream', dag=self.dag)
         self.upstream.set_downstream(self.short_op)
         self.dag.clear()
@@ -181,7 +184,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             elif ti.task_id == 'upstream':
                 # should not exist
                 raise
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
                 raise
@@ -196,7 +199,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
             elif ti.task_id == 'upstream':
                 # should not exist
                 raise
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.NONE)
             else:
                 raise
@@ -205,6 +208,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
 
     def test_with_dag_run(self):
         self.value = False
+        logging.error("Tasks {}".format(self.dag.tasks))
         dr = self.dag.create_dagrun(
             run_id="manual__",
             start_date=datetime.datetime.now(),
@@ -216,29 +220,31 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         self.short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
+        self.assertEqual(len(tis), 4)
         for ti in tis:
             if ti.task_id == 'make_choice':
                 self.assertEquals(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 self.assertEquals(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.SKIPPED)
             else:
                 raise
 
         self.value = True
         self.dag.clear()
-
+        dr.verify_integrity()
         self.upstream.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         self.short_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
 
         tis = dr.get_task_instances()
+        self.assertEqual(len(tis), 4)
         for ti in tis:
             if ti.task_id == 'make_choice':
                 self.assertEquals(ti.state, State.SUCCESS)
             elif ti.task_id == 'upstream':
                 self.assertEquals(ti.state, State.SUCCESS)
-            elif ti.task_id == 'branch_1':
+            elif ti.task_id == 'branch_1' or ti.task_id == 'branch_2':
                 self.assertEquals(ti.state, State.NONE)
             else:
                 raise

@@ -13,14 +13,11 @@
 # limitations under the License.
 
 from builtins import str
-from datetime import datetime
 import logging
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, TaskInstance
-from airflow.utils.state import State
+from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
-from airflow import settings
 
 
 class PythonOperator(BaseOperator):
@@ -85,7 +82,7 @@ class PythonOperator(BaseOperator):
         return return_value
 
 
-class BranchPythonOperator(PythonOperator):
+class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to "branch" or follow a single path following the
     execution of this task.
@@ -106,45 +103,20 @@ class BranchPythonOperator(PythonOperator):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        logging.info("Following branch " + branch)
+        logging.info("Following branch {}".format(branch))
         logging.info("Marking other directly downstream tasks as skipped")
-        session = settings.Session()
 
-        TI = TaskInstance
-        tis = session.query(TI).filter(
-            TI.execution_date == context['ti'].execution_date,
-            TI.task_id.in_(context['task'].downstream_task_ids),
-            TI.task_id != branch,
-        ).with_for_update().all()
+        downstream_tasks = context['task'].downstream_list
+        logging.debug("Downstream task_ids {}".format(downstream_tasks))
 
-        for ti in tis:
-            logging.info('Skipping task: %s', ti.task_id)
-            ti.state = State.SKIPPED
-            ti.start_date = datetime.now()
-            ti.end_date = datetime.now()
+        skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
 
-        # this is defensive against dag runs that are not complete
-        for task in context['task'].downstream_list:
-            if task.task_id in tis:
-                continue
-
-            if task.task_id == branch:
-                continue
-
-            logging.warning("Task {} was not part of a dag run. This should not happen."
-                            .format(task))
-            ti = TaskInstance(task, execution_date=context['ti'].execution_date)
-            ti.state = State.SKIPPED
-            ti.start_date = datetime.now()
-            ti.end_date = datetime.now()
-            session.merge(ti)
-
-        session.commit()
-        session.close()
         logging.info("Done.")
 
 
-class ShortCircuitOperator(PythonOperator):
+class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to continue only if a condition is met. Otherwise, the
     workflow "short-circuits" and downstream tasks are skipped.
@@ -165,33 +137,11 @@ class ShortCircuitOperator(PythonOperator):
             return
 
         logging.info('Skipping downstream tasks...')
-        session = settings.Session()
 
-        TI = TaskInstance
-        tis = session.query(TI).filter(
-            TI.execution_date == context['ti'].execution_date,
-            TI.task_id.in_(context['task'].downstream_task_ids),
-        ).with_for_update().all()
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        logging.debug("Downstream task_ids {}".format(downstream_tasks))
 
-        for ti in tis:
-            logging.info('Skipping task: %s', ti.task_id)
-            ti.state = State.SKIPPED
-            ti.start_date = datetime.now()
-            ti.end_date = datetime.now()
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
-        # this is defensive against dag runs that are not complete
-        for task in context['task'].downstream_list:
-            if task.task_id in tis:
-                continue
-
-            logging.warning("Task {} was not part of a dag run. This should not happen."
-                            .format(task))
-            ti = TaskInstance(task, execution_date=context['ti'].execution_date)
-            ti.state = State.SKIPPED
-            ti.start_date = datetime.now()
-            ti.end_date = datetime.now()
-            session.merge(ti)
-
-        session.commit()
-        session.close()
         logging.info("Done.")
