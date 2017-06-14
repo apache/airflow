@@ -44,7 +44,7 @@ class DaskExecutorTest(unittest.TestCase):
 
     @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     def test_dask_executor_functions(self):
-        cluster = LocalCluster(nanny=False)
+        cluster = LocalCluster()
 
         executor = DaskExecutor(cluster_address=cluster.scheduler_address)
 
@@ -86,7 +86,7 @@ class DaskExecutorTest(unittest.TestCase):
         """
         Test that DaskExecutor can be used to backfill example dags
         """
-        cluster = LocalCluster(nanny=False)
+        cluster = LocalCluster()
 
         dags = [
             dag for dag in self.dagbag.dags.values()
