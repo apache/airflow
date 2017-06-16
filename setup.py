@@ -126,7 +126,7 @@ setup(
         'flask-login==0.2.11',
         'future>=0.15.0, <0.16',
         'funcsigs>=1.0.2, <1.1',
-        'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
+        'gunicorn>=19.1.1, <19.4.0',  # 19.4.? seemed to have issues, downgrading to 19.1 to incorporate Lyft's fixes
         'jinja2>=2.7.3, <3.0',
         'markdown>=2.5.2, <3.0',
         'pandas>=0.15.2, <1.0.0',
