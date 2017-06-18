@@ -561,7 +561,10 @@ class CoreTest(unittest.TestCase):
 
     def test_complex_template(self):
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+            try:
+                self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+            except AssertionError as e:
+                raise BaseException(e)
 
         t = OperatorSubclass(
             task_id='test_complex_template',
