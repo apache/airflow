@@ -15,8 +15,11 @@
 import unittest
 import logging
 
-from airflow.operators.docker_operator import DockerOperator
-from docker.api import APIClient as DockerAPIClient
+try:
+    from airflow.operators.docker_operator import DockerOperator
+    from docker.api import APIClient as DockerAPIClient
+except ImportError:
+    pass
 
 from airflow.exceptions import AirflowException
 
