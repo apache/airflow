@@ -16,7 +16,6 @@ import getpass
 import os
 import json
 import subprocess
-import sys
 import threading
 
 from airflow import configuration as conf
@@ -90,7 +89,7 @@ class BaseTaskRunner(LoggingMixin):
 
     def _read_task_logs(self, stream):
         while True:
-            line = stream.readline().decode(sys.getdefaultencoding(), 'ignore')
+            line = stream.readline().decode('utf-8')
             if len(line) == 0:
                 break
             self.logger.info('Subtask: {}'.format(line.rstrip('\n')))
@@ -114,7 +113,8 @@ class BaseTaskRunner(LoggingMixin):
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT
+            stderr=subprocess.STDOUT,
+            universal_newlines=True
         )
 
         # Start daemon thread to read subprocess logging output
