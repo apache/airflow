@@ -134,6 +134,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
+websocket = ['websocket>=0.41.1']
 docker = ['docker>=2.3.0']
 druid = ['pydruid>=0.2.1']
 emr = ['boto3>=1.0.0']
@@ -286,6 +287,7 @@ def do_setup():
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
+            'websocket': websocket,
             'jira': jira,
             'redis': redis,
         },
