@@ -1,0 +1,70 @@
+{#
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
+{% extends "airflow/task_instance.html" %}
+{% block title %}Airflow - DAGs{% endblock %}
+
+{% block body %}
+  {{ super() }}
+  <h4>{{ title }}</h4>
+  <pre id="log"></pre>
+{% endblock %}
+{% block tail %}
+  {{ lib.form_js() }}
+  {{ super() }}
+  <script>
+    // Time interval to wait before next log fetching. Default 2s.
+    const DELAY = 2e3;
+    // Distance away from page bottom to enable auto tailing.
+    const AUTO_TAILING_OFFSET = 50;
+    // Animation speed for auto tailing log display.
+    const ANIMATION_SPEED = 1000;
+
+    function recurse(delay=DELAY) {
+      return new Promise((resolve) => setTimeout(resolve, delay));
+    }
+
+    function autoTailingLog(startTimestamp=null) {
+      return Promise.resolve(
+        $.ajax({
+          url: "{{ url_for("airflow.get_log") }}",
+          data: {
+            dag_id: "{{ dag_id }}",
+            task_id: "{{ task_id }}",
+            execution_date: "{{ execution_date }}",
+            start_ts: startTimestamp,
+          },
+        })).then(res => {
+          console.log(res);
+          if (res && res.message) {
+            const docHeight = $(document).height();
+            $("#log").append(res.message + '\n');
+            // Auto scroll window to the end if current window location is near the end
+            if($(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET) {
+              $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+            }
+          }
+          return recurse().then(() => autoTailingLog(res.next_start_ts));
+        });
+    }
+
+    $(document).ready(function() {
+      autoTailingLog();
+    });
+
+  </script>
+{% endblock %}

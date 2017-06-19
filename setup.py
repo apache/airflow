@@ -136,6 +136,10 @@ doc = [
 ]
 docker = ['docker-py>=1.6.0']
 druid = ['pydruid>=0.2.1']
+elasticsearch = [
+    'elasticsearch>=5.0.0,<6.0.0',
+    'elasticsearch-dsl>=5.0.0,<6.0.0'
+]
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -264,6 +268,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'elasticsearch': elasticsearch,
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
