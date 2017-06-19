@@ -199,6 +199,10 @@ def initdb():
             host='yarn', extra='{"queue": "root.default"}'))
     merge_conn(
         models.Connection(
+            conn_id='druid_ingest_default', conn_type='druid',
+            host='druid-overlord', port=8081, extra='{"endpoint": "druid/indexer/v1/task"}'))
+    merge_conn(
+        models.Connection(
             conn_id='redis_default', conn_type='redis',
             host='localhost', port=6379,
             extra='{"db": 0}'))

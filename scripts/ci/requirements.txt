@@ -66,7 +66,6 @@ parameterized
 paramiko>=2.1.1
 psutil>=4.2.0, <5.0.0
 psycopg2
-pydruid
 pygments
 pyhive
 pykerberos
@@ -79,6 +78,7 @@ redis
 rednose
 requests
 requests-kerberos
+requests_mock
 setproctitle
 slackclient
 sphinx

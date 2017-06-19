@@ -135,7 +135,6 @@ doc = [
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker-py>=1.6.0']
-druid = ['pydruid>=0.2.1']
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -198,7 +197,8 @@ devel = [
     'nose-timer',
     'parameterized',
     'rednose',
-    'paramiko'
+    'paramiko',
+    'requests_mock'
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
@@ -266,7 +266,6 @@ def do_setup():
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
-            'druid': druid,
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
