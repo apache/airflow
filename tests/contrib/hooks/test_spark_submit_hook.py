@@ -45,8 +45,9 @@ class TestSparkSubmitHook(unittest.TestCase):
         'driver_memory': '3g',
         'java_class': 'com.foo.bar.AppMain',
         'application_args': [
-            '-f foo',
-            '--bar bar',
+            '-f', 'foo',
+            '--bar', 'bar',
+            '--with-spaces', 'args should keep embdedded spaces',
             'baz'
         ]
     }
@@ -129,6 +130,7 @@ class TestSparkSubmitHook(unittest.TestCase):
             'test_application.py',
             '-f', 'foo',
             '--bar', 'bar',
+            '--with-spaces', 'args should keep embdedded spaces',
             'baz'
         ]
         self.assertEquals(expected_build_cmd, cmd)

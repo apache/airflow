@@ -194,12 +194,8 @@ class SparkSubmitHook(BaseHook):
 
         # Append any application arguments
         if self._application_args:
-            for arg in self._application_args:
-                if len(arg.split()) > 1:
-                    for splitted_option in arg.split():
-                        connection_cmd += [splitted_option]
-                else:
-                    connection_cmd += [arg]
+            connection_cmd += self._application_args
+
         logging.debug("Spark-Submit cmd: {}".format(connection_cmd))
 
         return connection_cmd
