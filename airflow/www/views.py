@@ -35,7 +35,8 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    redirect, url_for, request, Markup, Response, current_app, render_template, make_response)
+    redirect, url_for, request, Markup, Response, current_app,
+    render_template, make_response, jsonify)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
@@ -59,6 +60,7 @@ from airflow import configuration as conf
 from airflow import models
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import set_dag_run_state
+from airflow.logging_backend import cached_logging_backend
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom, DagRun
@@ -771,6 +773,29 @@ class Airflow(BaseView):
 
         return log
 
+    @expose('/get_log_js')
+    @login_required
+    @wwwutils.action_logging
+    def get_log_js(self):
+        """ JavaScript endpoint for fetching logs. """
+        logging_backend = cached_logging_backend()
+        if not logging_backend:
+            raise AirflowException("Logging backend not found.")
+
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+        try_number = request.args.get('try_number')
+        offset = request.args.get('offset')
+
+        logs = logging_backend.get_logs(dag_id=dag_id, task_id=task_id,
+            execution_date=execution_date, try_number=try_number, offset=offset)
+        next_offset = offset if not logs else logs[-1].offset
+        message = '\n'.join([log.message for log in logs])
+
+        return jsonify(message=message, next_offset=next_offset)
+
     @expose('/log')
     @login_required
     @wwwutils.action_logging
@@ -792,6 +817,13 @@ class Airflow(BaseView):
             logs = ["*** Task instance did not exist in the DB\n"]
         else:
             logs = [''] * ti.try_number
+            if conf.get('core', 'logging_backend_url'):
+                return self.render(
+                    'airflow/ti_streaming_log.html',
+                    logs=logs, dag=dag, title="Log by attempts",
+                    dag_id=dag.dag_id, task_id=task_id,
+                    execution_date=execution_date, form=form)
+
             for try_number in range(ti.try_number):
                 log_filename = get_log_filename(
                     dag_id, task_id, execution_date, try_number)
