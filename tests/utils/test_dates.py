@@ -40,7 +40,3 @@ class Dates(unittest.TestCase):
         self.assertTrue(
             dates.days_ago(0, microsecond=3)
             == today_midnight + timedelta(microseconds=3))
-
-
-if __name__ == '__main__':
-    unittest.main()
