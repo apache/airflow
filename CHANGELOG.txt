@@ -1,6 +1,11 @@
 AIRFLOW 1.8.2rc1, 2017-06-05
 -------------------------
 
+333e0b3 [AIRFLOW-1296] Propagate SKIPPED to all downstream tasks
+93825d5 Re-enable caching for hadoop components
+33a9dcb Pin Hive and Hadoop to a specific version and create writable warehouse dir
+7cff6cd [AIRFLOW-1308] Disable nanny usage for Dask
+c6a09c4 Updating CHANGELOG for 1.8.2rc1
 570b2ed [AIRFLOW-1294] Backfills can loose tasks to execute
 3f48d48 [AIRFLOW-1291] Update NOTICE and LICENSE files to match ASF requirements
 e10af9a [AIRFLOW-XXX] Set version to 1.8.2rc1
