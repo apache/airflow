@@ -23,6 +23,7 @@ from airflow.jobs import BackfillJob
 from airflow.models import TaskInstance
 from airflow.operators.latest_only_operator import LatestOnlyOperator
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.state import State
 from freezegun import freeze_time
 
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
@@ -69,10 +70,16 @@ class LatestOnlyOperatorTest(unittest.TestCase):
         downstream_task = DummyOperator(
             task_id='downstream',
             dag=self.dag)
+        downstream_task2 = DummyOperator(
+            task_id='downstream_2',
+            dag=self.dag)
+
         downstream_task.set_upstream(latest_task)
+        downstream_task2.set_upstream(downstream_task)
 
         latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
         downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
 
         latest_instances = get_task_instances('latest')
         exec_date_to_latest_state = {
@@ -84,6 +91,81 @@ class LatestOnlyOperatorTest(unittest.TestCase):
             exec_date_to_latest_state)
 
         downstream_instances = get_task_instances('downstream')
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances}
+        self.assertEqual({
+            datetime.datetime(2016, 1, 1): 'skipped',
+            datetime.datetime(2016, 1, 1, 12): 'skipped',
+            datetime.datetime(2016, 1, 2): 'success',},
+            exec_date_to_downstream_state)
+
+        downstream_instances = get_task_instances('downstream_2')
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances}
+        self.assertEqual({
+            datetime.datetime(2016, 1, 1): 'skipped',
+            datetime.datetime(2016, 1, 1, 12): 'skipped',
+            datetime.datetime(2016, 1, 2): 'success',},
+            exec_date_to_downstream_state)
+
+    def test_skipping_dagrun(self):
+        latest_task = LatestOnlyOperator(
+            task_id='latest',
+            dag=self.dag)
+        downstream_task = DummyOperator(
+            task_id='downstream',
+            dag=self.dag)
+        downstream_task2 = DummyOperator(
+            task_id='downstream_2',
+            dag=self.dag)
+
+        downstream_task.set_upstream(latest_task)
+        downstream_task2.set_upstream(downstream_task)
+
+        dr1 = self.dag.create_dagrun(
+            run_id="manual__1",
+            start_date=datetime.datetime.now(),
+            execution_date=DEFAULT_DATE,
+            state=State.RUNNING
+        )
+
+        dr2 = self.dag.create_dagrun(
+            run_id="manual__2",
+            start_date=datetime.datetime.now(),
+            execution_date=datetime.datetime(2016, 1, 1, 12),
+            state=State.RUNNING
+        )
+
+        dr2 = self.dag.create_dagrun(
+            run_id="manual__3",
+            start_date=datetime.datetime.now(),
+            execution_date=END_DATE,
+            state=State.RUNNING
+        )
+
+        latest_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+        downstream_task2.run(start_date=DEFAULT_DATE, end_date=END_DATE)
+
+        latest_instances = get_task_instances('latest')
+        exec_date_to_latest_state = {
+            ti.execution_date: ti.state for ti in latest_instances}
+        self.assertEqual({
+            datetime.datetime(2016, 1, 1): 'success',
+            datetime.datetime(2016, 1, 1, 12): 'success',
+            datetime.datetime(2016, 1, 2): 'success', },
+            exec_date_to_latest_state)
+
+        downstream_instances = get_task_instances('downstream')
+        exec_date_to_downstream_state = {
+            ti.execution_date: ti.state for ti in downstream_instances}
+        self.assertEqual({
+            datetime.datetime(2016, 1, 1): 'skipped',
+            datetime.datetime(2016, 1, 1, 12): 'skipped',
+            datetime.datetime(2016, 1, 2): 'success',},
+            exec_date_to_downstream_state)
+
+        downstream_instances = get_task_instances('downstream_2')
         exec_date_to_downstream_state = {
             ti.execution_date: ti.state for ti in downstream_instances}
         self.assertEqual({
