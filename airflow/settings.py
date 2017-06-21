@@ -73,15 +73,6 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
-# can't move this to conf due to ConfigParser interpolation
-LOG_FORMAT = (
-    '[%(asctime)s] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
-LOG_FORMAT_WITH_PID = (
-    '[%(asctime)s] [%(process)d] {%(filename)s:%(lineno)d} %(levelname)s - %(message)s')
-LOG_FORMAT_WITH_THREAD_NAME = (
-    '[%(asctime)s] {%(filename)s:%(lineno)d} %(threadName)s %(levelname)s - %(message)s')
-SIMPLE_LOG_FORMAT = '%(asctime)s %(levelname)s - %(message)s'
-
 AIRFLOW_HOME = None
 SQL_ALCHEMY_CONN = None
 DAGS_FOLDER = None
@@ -117,8 +108,9 @@ def policy(task_instance):
     pass
 
 
-def configure_logging(log_format=LOG_FORMAT):
+def configure_logging(log_format=None):
 
+    log_format = log_format or conf.get('core', 'LOG_FORMAT')
     def _configure_logging(logging_level):
         global LOGGING_LEVEL
         logging.root.handlers = []

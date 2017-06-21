@@ -328,7 +328,8 @@ class DagFileProcessor(AbstractDagFileProcessor):
 
             try:
                 # Re-configure logging to use the new output streams
-                log_format = settings.LOG_FORMAT_WITH_THREAD_NAME
+                log_format = conf.get('core', 'LOG_FORMAT_WITH_THREAD_NAME')
+
                 settings.configure_logging(log_format=log_format)
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
