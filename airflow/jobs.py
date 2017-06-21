@@ -35,8 +35,7 @@ import time
 from time import sleep
 
 import psutil
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_
-from sqlalchemy import update
+from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_, not_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -990,11 +989,21 @@ class SchedulerJob(BaseJob):
         # Get all the queued task instances from associated with scheduled
         # DagRuns.
         TI = models.TaskInstance
+        DR = models.DagRun
+        DM = models.DagModel
         task_instances_to_examine = (
             session
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
             .filter(TI.state.in_(states))
+            .outerjoin(DR,
+                and_(DR.dag_id == TI.dag_id,
+                     DR.execution_date == TI.execution_date))
+            .filter(or_(DR.run_id == None,
+                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id==TI.dag_id)
+            .filter(or_(DM.dag_id == None,
+                    not_(DM.is_paused)))
             .all()
         )
 
@@ -1043,21 +1052,6 @@ class SchedulerJob(BaseJob):
                     # Can't schedule any more since there are no more open slots.
                     break
 
-                if self.executor.has_task(task_instance):
-                    self.logger.debug("Not handling task {} as the executor reports it is running"
-                                      .format(task_instance.key))
-                    continue
-
-                if simple_dag_bag.get_dag(task_instance.dag_id).is_paused:
-                    self.logger.info("Not executing queued {} since {} is paused"
-                                     .format(task_instance, task_instance.dag_id))
-                    continue
-
-                # todo: remove this logic when backfills will be part of the scheduler
-                dag_run = task_instance.get_dagrun()
-                if dag_run and dag_run.is_backfill:
-                    continue
-
                 # Check to make sure that the task concurrency of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
@@ -1085,6 +1079,12 @@ class SchedulerJob(BaseJob):
                                      .format(task_instance,
                                              dag_id,
                                              task_concurrency_limit))
+                    continue
+
+
+                if self.executor.has_task(task_instance):
+                    self.logger.debug("Not handling task {} as the executor reports it is running"
+                                      .format(task_instance.key))
                     continue
 
                 command = " ".join(TI.generate_command(
