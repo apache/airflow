@@ -15,12 +15,10 @@
 import datetime
 import logging
 
-from airflow.models import BaseOperator, TaskInstance
-from airflow.utils.state import State
-from airflow import settings
+from airflow.models import BaseOperator, SkipMixin
 
 
-class LatestOnlyOperator(BaseOperator):
+class LatestOnlyOperator(BaseOperator, SkipMixin):
     """
     Allows a workflow to skip tasks that are not running during the most
     recent schedule interval.
@@ -49,39 +47,14 @@ class LatestOnlyOperator(BaseOperator):
 
         if not left_window < now <= right_window:
             logging.info('Not latest execution, skipping downstream.')
-            downstream_task_ids = context['task'].downstream_task_ids
-            if downstream_task_ids:
-                session = settings.Session()
-                TI = TaskInstance
-                tis = session.query(TI).filter(
-                    TI.execution_date == context['ti'].execution_date,
-                    TI.task_id.in_(downstream_task_ids)
-                ).with_for_update().all()
 
-                for ti in tis:
-                    logging.info('Skipping task: %s', ti.task_id)
-                    ti.state = State.SKIPPED
-                    ti.start_date = now
-                    ti.end_date = now
-                    session.merge(ti)
+            downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+            logging.debug("Downstream task_ids {}".format(downstream_tasks))
 
-                # this is defensive against dag runs that are not complete
-                for task in context['task'].downstream_list:
-                    if task.task_id in tis:
-                        continue
-
-                    logging.warning("Task {} was not part of a dag run. "
-                                    "This should not happen."
-                                    .format(task))
-                    now = datetime.datetime.now()
-                    ti = TaskInstance(task, execution_date=context['ti'].execution_date)
-                    ti.state = State.SKIPPED
-                    ti.start_date = now
-                    ti.end_date = now
-                    session.merge(ti)
-
-                session.commit()
-                session.close()
+            if downstream_tasks:
+                self.skip(context['dag_run'],
+                          context['ti'].execution_date,
+                          downstream_tasks)
 
             logging.info('Done.')
         else:
