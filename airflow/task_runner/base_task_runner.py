@@ -114,6 +114,7 @@ class BaseTaskRunner(LoggingMixin):
             full_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
+            universal_newlines=True
         )
 
         # Start daemon thread to read subprocess logging output
