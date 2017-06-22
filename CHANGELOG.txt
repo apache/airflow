@@ -1,6 +1,7 @@
 AIRFLOW 1.8.2rc1, 2017-06-05
 -------------------------
 
+9a53e66 [AIRFLOW-809][AIRFLOW-1] Use __eq__ ColumnOperator When Testing Booleans
 333e0b3 [AIRFLOW-1296] Propagate SKIPPED to all downstream tasks
 93825d5 Re-enable caching for hadoop components
 33a9dcb Pin Hive and Hadoop to a specific version and create writable warehouse dir
