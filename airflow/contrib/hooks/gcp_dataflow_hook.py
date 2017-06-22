@@ -152,7 +152,7 @@ class DataFlowHook(GoogleCloudBaseHook):
             task_id, variables, dataflow, name, ["python"] + py_options)
 
     def _build_cmd(self, task_id, variables, dataflow):
-        command = [dataflow, "--runner=DataflowPipelineRunner"]
+        command = [dataflow, "--runner=DataflowRunner"]
         if variables is not None:
             for attr, value in variables.iteritems():
                 command.append("--" + attr + "=" + value)
