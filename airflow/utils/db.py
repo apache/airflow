@@ -120,6 +120,9 @@ def initdb():
             conn_id='bigquery_default', conn_type='bigquery'))
     merge_conn(
         models.Connection(
+            conn_id='google_cloud_default', conn_type='google_cloud_platform'))
+    merge_conn(
+        models.Connection(
             conn_id='local_mysql', conn_type='mysql',
             host='localhost', login='airflow', password='airflow',
             schema='airflow'))
@@ -128,6 +131,10 @@ def initdb():
             conn_id='presto_default', conn_type='presto',
             host='localhost',
             schema='hive', port=3400))
+    merge_conn(
+        models.Connection(
+            conn_id='google_cloud_default', conn_type='google_cloud_platform',
+            schema='default',))
     merge_conn(
         models.Connection(
             conn_id='hive_cli_default', conn_type='hive_cli',
