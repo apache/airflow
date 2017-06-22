@@ -73,6 +73,12 @@ LOGGING_LEVEL = logging.INFO
 # the prefix to append to gunicorn worker processes after init
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
+
+LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
+LOG_FORMAT_WITH_PID = conf.get('core', 'LOG_FORMAT_WITH_PID')
+LOG_FORMAT_WITH_THREAD_NAME = conf.get('core', 'LOG_FORMAT_WITH_THREAD_NAME')
+SIMPLE_LOG_FORMAT = conf.get('core', 'SIMPLE_LOG_FORMAT')
+
 AIRFLOW_HOME = None
 SQL_ALCHEMY_CONN = None
 DAGS_FOLDER = None
@@ -108,9 +114,8 @@ def policy(task_instance):
     pass
 
 
-def configure_logging(log_format=None):
+def configure_logging(log_format=LOG_FORMAT):
 
-    log_format = log_format or conf.get('core', 'LOG_FORMAT')
     def _configure_logging(logging_level):
         global LOGGING_LEVEL
         logging.root.handlers = []
