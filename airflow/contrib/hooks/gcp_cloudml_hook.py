@@ -46,6 +46,69 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
+class _CloudMLJob(object):
+    """CloudML job operations helper class."""
+
+    def __init__(self, cloudml, project_name, job_id, job_spec=None):
+        assert project_name is not None and project_name is not ''
+        self._cloudml = cloudml
+        self._project_name = 'projects/{}'.format(project_name)
+        self._job_id = job_id
+        assert self._job_id is not None and self._job_id is not ''
+        self._job_spec = job_spec
+        if self._job_spec:
+            assert self._job_id == self._job_spec['jobId']
+
+    def get_job(self):
+        """Gets a CloudML job based on the job name.
+
+        :return: CloudML job object if succeed.
+        :rtype: dict
+        """
+        name = '{}/jobs/{}'.format(self._project_name, self._job_id)
+        request = self._cloudml.projects().jobs().get(name=name)
+        while True:
+            try:
+                return request.execute()
+            except errors.HttpError as e:
+                if e.resp.status == 429:
+                    time.sleep(10)  # polling after 10 seconds
+                else:
+                    logging.error('Failed to get CloudML job: {}'.format(e))
+                    raise e
+
+    def create_job(self):
+        """Creates a Job on Cloud ML.
+
+        :return: CloudML job creation request response.
+        :rtype: dict
+        """
+        request = self._cloudml.projects().jobs().create(
+            parent=self._project_name, body=self._job_spec)
+        try:
+            return request.execute()
+        except errors.HttpError as e:
+            logging.error('Failed to create CloudML job: {}'.format(e))
+            raise
+
+    def wait_for_done(self, interval):
+        """Waits for the Job to reach a terminal state.
+
+        This method will periodically check the job state until the job reach
+        a terminal state.
+
+        :param interval: Polling interval in seconds.
+        :return: CloudML job object if succeed.
+        :rtype: dict
+        """
+        assert interval > 0
+        while True:
+            job = self.get_job()
+            state = job['state']
+            if state in ['FAILED', 'SUCCEEDED', 'CANCELLED']:
+                return job
+            time.sleep(interval)
+
 
 class CloudMLHook(GoogleCloudBaseHook):
 
@@ -165,3 +228,37 @@ class CloudMLHook(GoogleCloudBaseHook):
                 logging.error('Model was not found: {}'.format(e))
                 return None
             raise e
+
+    def create_job(self, project_name, job):
+        """
+        Creates a CloudML Job, and returns the Job object, which can be waited
+        upon.
+
+        project_name is the name of the project to use, such as
+        'my-project'
+
+        job is the complete Cloud ML Job object that should be provided to the
+        Cloud ML API, such as
+
+        {
+          'jobId': 'my_job_id',
+          'trainingInput': {
+            'scaleTier': 'STANDARD_1',
+            ...
+          }
+        }
+        """
+        cloudml_job = _CloudMLJob(
+            self._cloudml, project_name, job['jobId'], job)
+        cloudml_job.create_job()
+        return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
+
+    def get_job(self, project_name, job_id):
+        """Gets a CloudML job based on the job name."""
+        cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
+        return cloudml_job.get_job()
+
+    def wait_for_job_done(self, project_name, job_id):
+        """Waits for the Job to reach a terminal state."""
+        cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
+        return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
