@@ -29,13 +29,13 @@ from airflow.settings import Session
 from airflow.www.blueprints import routes
 from airflow import jobs
 from airflow import settings
-from airflow import configuration as conf
+from airflow import configuration
 
 
 def create_app(config=None, testing=False):
     app = Flask(__name__)
-    app.secret_key = conf.get('webserver', 'SECRET_KEY')
-    app.config['LOGIN_DISABLED'] = not conf.getboolean('webserver', 'AUTHENTICATE')
+    app.secret_key = configuration.get('webserver', 'SECRET_KEY')
+    app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
 
     csrf.init_app(app)
 
@@ -53,7 +53,7 @@ def create_app(config=None, testing=False):
 
     app.register_blueprint(routes)
 
-    log_format = conf.get('core', 'LOG_FORMAT_WITH_PID')
+    log_format = airflow.settings.LOG_FORMAT_WITH_PID
     airflow.settings.configure_logging(log_format=log_format)
 
     with app.app_context():
