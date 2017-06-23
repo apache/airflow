@@ -42,7 +42,7 @@ warnings.filterwarnings(
 warnings.filterwarnings(
     action='default', category=PendingDeprecationWarning, module='airflow')
 
-ConfigParser = configparser.ConfigParser
+ConfigParser = configparser.SafeConfigParser
 
 
 def generate_fernet_key():
