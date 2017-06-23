@@ -20,6 +20,8 @@ supported and will be removed entirely in Airflow 2.0
 
   Previously, post_execute() only took one argument, `context`.
 
+- `contrib.hooks.gcp_dataflow_hook.DataFlowHook` starts to use `--runner=DataflowRunner` instead of `DataflowPipelineRunner`, which is removed from the package `google-cloud-dataflow-0.6.0`.
+
 ## Airflow 1.8.1
 
 The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall your
