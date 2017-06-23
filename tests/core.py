@@ -2245,7 +2245,32 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].host == 'localhost'
         assert conns[0].schema == 'airflow'
         assert conns[0].login == 'root'
+        
+    def test_get_connections_example_db(self):
+        conns = BaseHook.get_connections(conn_id='beeline_default')
+        assert len(conns) == 1
+        assert conns[0].host == 'localhost'
+        assert conns[0].port == 10000
+        assert conns[0].schema == 'default'
+        
+    def test_get_connections_unknown_db(self):
+        with self.assertRaises(AirflowException):
+            BaseHook.get_connections(conn_id='airflow_db_NOT_EXISTING')
+            
+        
+class NoExampleConnectionsTest(unittest.TestCase):
+    
+    def setUp(self):
+        configuration.load_test_config()
+        utils.db.resetdb(include_examples=False)
+        
+    def tearDown(self):
+        utils.db.resetdb()
 
+    def test_get_connections_db(self):
+        with self.assertRaises(AirflowException):
+            BaseHook.get_connections(conn_id='beeline_default')
+            
 
 class WebHDFSHookTest(unittest.TestCase):
     def setUp(self):
