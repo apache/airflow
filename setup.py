@@ -187,6 +187,7 @@ devel = [
     'nose-ignore-docstring==0.2',
     'nose-timer',
     'parameterized',
+    'qds-sdk>=1.9.6',
     'rednose',
     'paramiko',
     'requests_mock'
