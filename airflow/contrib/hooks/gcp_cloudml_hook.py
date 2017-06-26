@@ -30,11 +30,12 @@ class _CloudMLJob(object):
     """CloudML job operations helper class."""
 
     def __init__(self, cloudml, project_name, job_id, job_spec=None):
-        assert project_name is not None and project_name is not ''
+        assert project_name
         self._cloudml = cloudml
         self._project_name = 'projects/{}'.format(project_name)
         self._job_id = job_id
-        assert self._job_id is not None and self._job_id is not ''
+
+        assert self._job_id
         self._job_spec = job_spec
         if self._job_spec:
             assert self._job_id == self._job_spec['jobId']
@@ -55,7 +56,7 @@ class _CloudMLJob(object):
                     time.sleep(10)  # polling after 10 seconds
                 else:
                     logging.error('Failed to get CloudML job: {}'.format(e))
-                    raise e
+                    raise
 
     def create_job(self):
         """Creates a Job on Cloud ML.
