@@ -22,12 +22,18 @@ import unittest
 from mock import patch
 from datetime import datetime, timedelta
 
-from airflow import DAG, configuration
-from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor
+from airflow import DAG, configuration, jobs, settings
+from airflow.jobs import BackfillJob, SchedulerJob
+from airflow.models import TaskInstance, DagModel, DagBag
+from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, ExternalTaskSensor
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import (AirflowException,
                                 AirflowSensorTimeout,
                                 AirflowSkipException)
+from airflow.utils.state import State
+from tests.core import TEST_DAG_FOLDER
 configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -254,3 +260,103 @@ class HdfsSensorTests(unittest.TestCase):
         # Then
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(None)
+
+
+class ExternalTaskSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        self.args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE,
+            'depends_on_past': False}
+
+    def test_external_task_sensor_fn_multiple_execution_dates(self):
+        bash_command_code = """
+{% set s=execution_date.time().second %}
+echo "second is {{ s }}"
+if [[ $(( {{ s }} % 60 )) == 1 ]]
+    then
+        exit 1
+fi
+exit 0
+"""
+        dag_external_id = TEST_DAG_ID + '_external'
+        dag_external = DAG(
+            dag_external_id,
+            default_args=self.args,
+            schedule_interval=timedelta(seconds=1))
+        task_external_with_failure = BashOperator(
+            task_id="task_external_with_failure",
+            bash_command=bash_command_code,
+            retries=0,
+            dag=dag_external)
+        task_external_without_failure = DummyOperator(
+            task_id="task_external_without_failure",
+            retries=0,
+            dag=dag_external)
+
+        task_external_without_failure.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + timedelta(seconds=1),
+            ignore_ti_state=True)
+
+        session = settings.Session()
+        TI = TaskInstance
+        try:
+            task_external_with_failure.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE + timedelta(seconds=1),
+                ignore_ti_state=True)
+            # The test_with_failure task is excepted to fail
+            # once per minute (the run on the first second of
+            # each minute).
+        except Exception as e:
+            failed_tis = session.query(TI).filter(
+                TI.dag_id == dag_external_id,
+                TI.state == State.FAILED,
+                TI.execution_date == DEFAULT_DATE + timedelta(seconds=1)).all()
+            if (len(failed_tis) == 1 and
+                    failed_tis[0].task_id == 'task_external_with_failure'):
+                pass
+            else:
+                raise e
+
+        dag_id = TEST_DAG_ID
+        dag = DAG(
+            dag_id,
+            default_args=self.args,
+            schedule_interval=timedelta(minutes=1))
+        task_without_failure = ExternalTaskSensor(
+            task_id='task_without_failure',
+            external_dag_id=dag_external_id,
+            external_task_id='task_external_without_failure',
+            execution_date_fn=lambda dt: [dt + timedelta(seconds=i)
+                                          for i in range(2)],
+            allowed_states=['success'],
+            retries=0,
+            timeout=1,
+            poke_interval=1,
+            dag=dag)
+        task_with_failure = ExternalTaskSensor(
+            task_id='task_with_failure',
+            external_dag_id=dag_external_id,
+            external_task_id='task_external_with_failure',
+            execution_date_fn=lambda dt: [dt + timedelta(seconds=i)
+                                          for i in range(2)],
+            allowed_states=['success'],
+            retries=0,
+            timeout=1,
+            poke_interval=1,
+            dag=dag)
+
+        task_without_failure.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True)
+
+        with self.assertRaises(AirflowSensorTimeout):
+            task_with_failure.run(
+                start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE,
+                ignore_ti_state=True)
