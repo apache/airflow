@@ -1864,12 +1864,6 @@ class BaseOperator(object):
     which ultimately becomes a node in DAG objects. Task dependencies should
     be set by using the set_upstream and/or set_downstream methods.
 
-    Note that this class is derived from SQLAlchemy's Base class, which
-    allows us to push metadata regarding tasks to the database. Deriving this
-    classes needs to implement the polymorphic specificities documented in
-    SQLAlchemy. This should become clear while reading the code for other
-    operators.
-
     :param task_id: a unique, meaningful id for the task
     :type task_id: string
     :param owner: the owner of the task, using the unix username is recommended

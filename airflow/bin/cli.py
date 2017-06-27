@@ -90,7 +90,10 @@ def sigquit_handler(sig, frame):
 
 def setup_logging(filename):
     root = logging.getLogger()
-    handler = logging.FileHandler(filename)
+    handler_buffer_size = conf.getInt('core', 'logging_buffer_size')
+    handler_flush_level = conf.getInt('core', 'logging_flush_level')
+    # Buffered wrapper
+    handler = logging.MemoryHandler(handler_buffer_size, handler_flush_level, target=logging.FileHandler(filename))
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
     handler.setFormatter(formatter)
     root.addHandler(handler)
