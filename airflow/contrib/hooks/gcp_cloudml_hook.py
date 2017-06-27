@@ -33,7 +33,8 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
         try:
             response = request.execute()
             if is_error_func(response):
-                raise ValueError('The response contained an error: {}'.format(response))
+                raise ValueError(
+                    'The response contained an error: {}'.format(response))
             elif is_done_func(response):
                 logging.info('Operation is done: {}'.format(response))
                 return response
@@ -41,13 +42,17 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
         except errors.HttpError as e:
             if e.resp.status != 429:
-                logging.info('Something went wrong. Not retrying: {}'.format(e))
-                raise e
+                logging.info(
+                    'Something went wrong. Not retrying: {}'.format(e))
+                raise
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
+
 class _CloudMLJob(object):
-    """CloudML job operations helper class."""
+    """
+    CloudML job operations helper class.
+    """
 
     def __init__(self, cloudml, project_name, job_id, job_spec=None):
         assert project_name
@@ -61,7 +66,8 @@ class _CloudMLJob(object):
             assert self._job_id == self._job_spec['jobId']
 
     def get_job(self):
-        """Gets a CloudML job based on the job name.
+        """
+        Gets a CloudML job based on the job name.
 
         :return: CloudML job object if succeed.
         :rtype: dict
@@ -79,7 +85,8 @@ class _CloudMLJob(object):
                     raise
 
     def create_job(self):
-        """Creates a Job on Cloud ML.
+        """
+        Creates a Job on Cloud ML.
 
         :return: CloudML job creation request response.
         :rtype: dict
@@ -93,7 +100,8 @@ class _CloudMLJob(object):
             raise
 
     def wait_for_done(self, interval):
-        """Waits for the Job to reach a terminal state.
+        """
+        Waits for the Job to reach a terminal state.
 
         This method will periodically check the job state until the job reach
         a terminal state.
@@ -128,7 +136,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         """
         Creates the Version on Cloud ML.
 
-        Returns the operation if the version was created successfully and raises
+        Returns the operation if the version was created successfully and raise
         an error otherwise.
         """
         parent_name = 'projects/{}/models/{}'.format(project_name, model_name)
@@ -155,11 +163,12 @@ class CloudMLHook(GoogleCloudBaseHook):
 
         try:
             response = request.execute()
-            logging.info('Successfully set version: {} to default'.format(response))
+            logging.info(
+                'Successfully set version: {} to default'.format(response))
             return response
         except errors.HttpError as e:
             logging.error('Something went wrong: {}'.format(e))
-            raise e
+            raise
 
     def list_versions(self, project_name, model_name):
         """
@@ -228,7 +237,7 @@ class CloudMLHook(GoogleCloudBaseHook):
             if e.resp.status == 404:
                 logging.error('Model was not found: {}'.format(e))
                 return None
-            raise e
+            raise
 
     def create_job(self, project_name, job):
         """
@@ -255,11 +264,15 @@ class CloudMLHook(GoogleCloudBaseHook):
         return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
 
     def get_job(self, project_name, job_id):
-        """Gets a CloudML job based on the job name."""
+        """
+        Gets a CloudML job based on the job name.
+        """
         cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
         return cloudml_job.get_job()
 
     def wait_for_job_done(self, project_name, job_id):
-        """Waits for the Job to reach a terminal state."""
+        """
+        Waits for the Job to reach a terminal state.
+        """
         cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
         return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
