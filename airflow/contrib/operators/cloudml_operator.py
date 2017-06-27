@@ -28,86 +28,6 @@ from apiclient import errors
 logging.getLogger('GoogleCloudML').setLevel(settings.LOGGING_LEVEL)
 
 
-def _normalize_cloudml_job_id(job_id):
-    """Replaces invalid CloudML job_id characters with '_'.
-
-    This also adds a leading 'z' in case job_id starts with an invalid
-    character.
-
-    Args:
-        job_id: A job_id str that may have invalid characters.
-
-    Returns:
-        A valid job_id representation.
-    """
-    match = re.search(r'\d', job_id)
-    if match and match.start() is 0:
-        job_id = 'z_{}'.format(job_id)
-    return re.sub('[^0-9a-zA-Z]+', '_', job_id)
-
-
-def _create_prediction_input(project_id,
-                             region,
-                             data_format,
-                             input_paths,
-                             output_path,
-                             model_name=None,
-                             version_name=None,
-                             uri=None,
-                             max_worker_count=None,
-                             runtime_version=None):
-    """Create the batch prediction input from the given parameters.
-
-    Args:
-        A subset of arguments documented in __init__ method of class
-        CloudMLBatchPredictionOperator
-
-    Returns:
-        A dictionary representing the predictionInput object as documented
-        in https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs.
-
-    Raises:
-        ValueError: if a unique model/version origin cannot be determined.
-    """
-
-    prediction_input = {
-        'dataFormat': data_format,
-        'inputPaths': input_paths,
-        'outputPath': output_path,
-        'region': region
-    }
-
-    if uri:
-        if model_name or version_name:
-            logging.error(
-                'Ambiguous model origin: Both uri and model/version name are '
-                'provided.')
-            raise ValueError('Ambiguous model origin.')
-        prediction_input['uri'] = uri
-
-    elif model_name:
-        origin_name = 'projects/{}/models/{}'.format(project_id, model_name)
-        if not version_name:
-            prediction_input['modelName'] = origin_name
-        else:
-            prediction_input['versionName'] = \
-                origin_name + '/versions/{}'.format(version_name)
-
-    else:
-        logging.error(
-            'Missing model origin: Batch prediction expects a model, '
-            'a model & version combination, or a URI to savedModel.')
-        raise ValueError('Missing model origin.')
-
-    if max_worker_count:
-        prediction_input['maxWorkerCount'] = max_worker_count
-
-    if runtime_version:
-        prediction_input['runtimeVersion'] = runtime_version
-
-    return prediction_input
-
-
 class CloudMLBatchPredictionOperator(BaseOperator):
     """Start a Cloud ML prediction job.
 
@@ -268,3 +188,82 @@ class CloudMLBatchPredictionOperator(BaseOperator):
             raise RuntimeError(finished_prediction_job['errorMessage'])
 
         return finished_prediction_job['predictionOutput']
+
+def _normalize_cloudml_job_id(job_id):
+    """Replaces invalid CloudML job_id characters with '_'.
+
+    This also adds a leading 'z' in case job_id starts with an invalid
+    character.
+
+    Args:
+        job_id: A job_id str that may have invalid characters.
+
+    Returns:
+        A valid job_id representation.
+    """
+    match = re.search(r'\d', job_id)
+    if match and match.start() is 0:
+        job_id = 'z_{}'.format(job_id)
+    return re.sub('[^0-9a-zA-Z]+', '_', job_id)
+
+
+def _create_prediction_input(project_id,
+                             region,
+                             data_format,
+                             input_paths,
+                             output_path,
+                             model_name=None,
+                             version_name=None,
+                             uri=None,
+                             max_worker_count=None,
+                             runtime_version=None):
+    """Create the batch prediction input from the given parameters.
+
+    Args:
+        A subset of arguments documented in __init__ method of class
+        CloudMLBatchPredictionOperator
+
+    Returns:
+        A dictionary representing the predictionInput object as documented
+        in https://cloud.google.com/ml-engine/reference/rest/v1/projects.jobs.
+
+    Raises:
+        ValueError: if a unique model/version origin cannot be determined.
+    """
+
+    prediction_input = {
+        'dataFormat': data_format,
+        'inputPaths': input_paths,
+        'outputPath': output_path,
+        'region': region
+    }
+
+    if uri:
+        if model_name or version_name:
+            logging.error(
+                'Ambiguous model origin: Both uri and model/version name are '
+                'provided.')
+            raise ValueError('Ambiguous model origin.')
+        prediction_input['uri'] = uri
+
+    elif model_name:
+        origin_name = 'projects/{}/models/{}'.format(project_id, model_name)
+        if not version_name:
+            prediction_input['modelName'] = origin_name
+        else:
+            prediction_input['versionName'] = \
+                origin_name + '/versions/{}'.format(version_name)
+
+    else:
+        logging.error(
+            'Missing model origin: Batch prediction expects a model, '
+            'a model & version combination, or a URI to savedModel.')
+        raise ValueError('Missing model origin.')
+
+    if max_worker_count:
+        prediction_input['maxWorkerCount'] = max_worker_count
+
+    if runtime_version:
+        prediction_input['runtimeVersion'] = runtime_version
+
+    return prediction_input
