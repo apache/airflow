@@ -251,7 +251,7 @@ class CloudMLBatchPredictionOperator(BaseOperator):
                 job_id)
         except errors.HttpError as e:
             if e.resp.status == 404:
-                logging.error(
+                logging.info(
                     'Job with job_id {} does not exist. Will create it.'
                     .format(job_id))
                 finished_prediction_job = hook.create_job(
