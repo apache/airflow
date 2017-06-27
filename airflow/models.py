@@ -1118,6 +1118,28 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
+    def update_hostname(self, hostname, session=None):
+        """
+        For use in kubernetes mode. Update the session to allow heartbeating to SQL
+        :param session:
+   
+        :return:
+        
+        """
+        t_i = TaskInstance
+
+        qry = session.query(t_i).filter(
+            t_i.dag_id == self.dag_id,
+            t_i.task_id == self.task_id,
+            t_i.execution_date == self.execution_date)
+
+        ti = qry.first()
+        if ti:
+            ti.hostname = hostname
+            session.add(ti)
+            session.commit()
+
+    @provide_session
     def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key

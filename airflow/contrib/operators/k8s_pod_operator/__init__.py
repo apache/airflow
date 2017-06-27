@@ -10,8 +10,4 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License.
-
-from airflow import dag_importer
-
-dag_importer.import_dags()
+from .k8s_pod_operator import *

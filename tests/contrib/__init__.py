@@ -20,4 +20,4 @@
 from __future__ import absolute_import
 from .operators import *
 from .sensors import *
-from .utils import *
+from .kubernetes import *

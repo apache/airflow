@@ -19,12 +19,10 @@
 import sys
 
 from airflow import configuration
+from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
-
-from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_EXECUTOR = None
 
@@ -52,6 +50,8 @@ def GetDefaultExecutor():
     return DEFAULT_EXECUTOR
 
 
+
+
 def _get_executor(executor_name):
     """
     Creates a new instance of the named executor. In case the executor name is not know in airflow,
@@ -70,6 +70,9 @@ def _get_executor(executor_name):
     elif executor_name == 'MesosExecutor':
         from airflow.contrib.executors.mesos_executor import MesosExecutor
         return MesosExecutor()
+    elif executor_name == 'KubernetesExecutor':
+        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        return KubernetesExecutor()
     else:
         # Loading plugins
         _integrate_plugins()

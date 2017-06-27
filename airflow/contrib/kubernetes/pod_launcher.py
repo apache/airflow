@@ -1,135 +1,145 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# -*- coding: utf-8 -*-
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
+import base64
 import json
+import logging
 import time
-from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.state import State
-from datetime import datetime as dt
-from airflow.contrib.kubernetes.kubernetes_request_factory import \
-    pod_request_factory as pod_fac
-from kubernetes import watch
-from kubernetes.client.rest import ApiException
-from airflow import AirflowException
-from requests.exceptions import HTTPError
-from .kube_client import get_kube_client
+import urllib2
+
+from kubernetes import client, config
+
+from kubernetes_request_factory import KubernetesRequestFactory
+from pod import Pod
 
 
-class PodStatus(object):
-    PENDING = 'pending'
-    RUNNING = 'running'
-    FAILED = 'failed'
-    SUCCEEDED = 'succeeded'
+def kube_client():
+    config.load_incluster_config()
+    return client.CoreV1Api()
 
 
-class PodLauncher(LoggingMixin):
-    def __init__(self, kube_client=None):
-        super(PodLauncher, self).__init__()
-        self._client = kube_client or get_kube_client()
-        self._watch = watch.Watch()
-        self.kube_req_factory = pod_fac.SimplePodRequestFactory()
+def incluster_namespace():
+    """
+    :return: The incluster namespace.
+    """
+    config.load_incluster_config()
+    k8s_configuration = config.incluster_config.configuration
+    encoded_namespace = k8s_configuration.api_key['authorization'].split(' ')[-1]
+    api_key = str(base64.b64decode(encoded_namespace))
+    key_with_namespace = [k for k in api_key.split(',') if 'namespace' in k][0]
+    unformatted_namespace = key_with_namespace.split(':')[-1]
+    return unformatted_namespace.replace('"', '')
 
-    def run_pod_async(self, pod):
-        req = self.kube_req_factory.create(pod)
-        self.log.debug('Pod Creation Request: \n{}'.format(json.dumps(req, indent=2)))
+
+class KubernetesLauncher:
+    """
+    This class is responsible for launching objects to Kubernetes.
+    Extend this class to launch exotic objects.
+    Before trying to extend this method check if augmenting the request factory
+    is enough for your use-case
+    :param kube_object: A pod or anything that represents a Kubernetes object
+    :type kube_object: Pod
+    :param request_factory: A factory method to create kubernetes requests.
+    """
+
+    pod_timeout = 3600
+
+    def __init__(self, kube_object, request_factory):
+        if not isinstance(kube_object, Pod):
+            raise Exception('`kube_object` must inherit from Pod')
+        if not isinstance(request_factory, KubernetesRequestFactory):
+            raise Exception('`request_factory` must inherit from '
+                            'KubernetesRequestFactory')
+        self.pod = kube_object
+        self.request_factory = request_factory
+
+    def launch(self):
+        """
+            Launches the pod synchronously and waits for completion.
+            No return value from execution. Will raise an exception if things failed
+        """
+        k8s_beta = kube_client()
+        req = self.request_factory.create(self)
+        logging.info(json.dumps(req))
+        resp = k8s_beta.create_namespaced_pod(body=req, namespace=self.pod.namespace)
+        logging.info("Job created. status='%s', yaml:\n%s"
+                     % (str(resp.status), str(req)))
+        for i in range(1, self.pod_timeout):
+            time.sleep(10)
+            logging.info('Waiting for success')
+            if self._execution_finished():
+                logging.info('Job finished!')
+                return
+        raise Exception("Job timed out!")
+
+    def _execution_finished(self):
+        k8s_beta = kube_client()
+        resp = k8s_beta.read_namespaced_pod_status(
+            self.pod.name,
+            namespace=self.pod.namespace)
+        logging.info('status : ' + str(resp.status))
+        logging.info('phase : i' + str(resp.status.phase))
+        if resp.status.phase == 'Failed':
+            raise Exception("Job " + self.pod.name + " failed!")
+        return resp.status.phase != 'Running'
+
+
+class KubernetesCommunicationService:
+    """
+    A service that manages communications between pods in Kubernetes and ariflow dagrun
+    Note that etcd service is running side by side of the airflow on the same machine
+    using kubernetes magic, so on airflow side we use localhost, and on the remote side
+    we use the provided etcd host.
+    """
+
+    def __init__(self, etcd_host, etcd_port):
+        self.etcd_host = etcd_host
+        self.etcd_port = etcd_port
+        self.url = 'http://localhost:{}'.format(self.etcd_port)
+
+    def pod_pre_stop_hook(self, return_data_file, task_id):
+        return 'echo value=$(cat %s) | curl -d "@-" -X PUT %s:%s/v2/keys/pod_metrics/%s' \
+               % (
+                   return_data_file, self.etcd_host, self.etcd_port, task_id)
+
+    def pod_return_data(self, task_id):
+        """
+            Returns the pod's return data. The pod_pre_stop_hook is responsible to upload 
+            the return data to etcd. 
+            
+            If the return_data_file is generated by the application, the pre stop hook 
+            will upload it to etcd and we will be download it back to airflow.
+        """
+        logging.info('querying {} for task id {}'.format(self.url, task_id))
         try:
-            resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
-            self.log.debug('Pod Creation Response: {}'.format(resp))
-        except ApiException:
-            self.log.exception('Exception when attempting to create Namespaced Pod.')
+            result = urllib2.urlopen(self.url + '/v2/keys/pod_metrics/' + task_id).read()
+            logging.info('result for querying {} for task id {}: {}'
+                         .format(self.url, task_id, result))
+            result = json.loads(result)['node']['value']
+            return result
+        except urllib2.HTTPError as err:
+            if err.code == 404:
+                return None  # Data not found
             raise
-        return resp
 
-    def run_pod(self, pod, startup_timeout=120, get_logs=True):
-        # type: (Pod) -> State
-        """
-        Launches the pod synchronously and waits for completion.
-
-        Args:
-            pod (Pod):
-            startup_timeout (int): Timeout for startup of the pod (if pod is pending for
-             too long, considers task a failure
-        """
-        resp = self.run_pod_async(pod)
-        curr_time = dt.now()
-        if resp.status.start_time is None:
-            while self.pod_not_started(pod):
-                delta = dt.now() - curr_time
-                if delta.seconds >= startup_timeout:
-                    raise AirflowException("Pod took too long to start")
-                time.sleep(1)
-            self.log.debug('Pod not yet started')
-
-        final_status = self._monitor_pod(pod, get_logs)
-        return final_status
-
-    def _monitor_pod(self, pod, get_logs):
-        # type: (Pod) -> State
-
-        if get_logs:
-            logs = self._client.read_namespaced_pod_log(
-                name=pod.name,
-                namespace=pod.namespace,
-                follow=True,
-                tail_lines=10,
-                _preload_content=False)
-            for line in logs:
-                self.log.info(line)
-        else:
-            while self.pod_is_running(pod):
-                self.log.info("Pod {} has state {}".format(pod.name, State.RUNNING))
-                time.sleep(2)
-        return self._task_status(self.read_pod(pod))
-
-    def _task_status(self, event):
-        # type: (V1Pod) -> State
-        self.log.info(
-            "Event: {} had an event of type {}".format(event.metadata.name,
-                                                       event.status.phase))
-        status = self.process_status(event.metadata.name, event.status.phase)
-        return status
-
-    def pod_not_started(self, pod):
-        state = self._task_status(self.read_pod(pod))
-        return state == State.QUEUED
-
-    def pod_is_running(self, pod):
-        state = self._task_status(self.read_pod(pod))
-        return state != State.SUCCESS and state != State.FAILED
-
-    def read_pod(self, pod):
-        try:
-            return self._client.read_namespaced_pod(pod.name, pod.namespace)
-        except HTTPError as e:
-            raise AirflowException("There was an error reading the kubernetes API: {}"
-                                   .format(e))
-
-    def process_status(self, job_id, status):
-        status = status.lower()
-        if status == PodStatus.PENDING:
-            return State.QUEUED
-        elif status == PodStatus.FAILED:
-            self.log.info("Event: {} Failed".format(job_id))
-            return State.FAILED
-        elif status == PodStatus.SUCCEEDED:
-            self.log.info("Event: {} Succeeded".format(job_id))
-            return State.SUCCESS
-        elif status == PodStatus.RUNNING:
-            return State.RUNNING
-        else:
-            self.log.info("Event: Invalid state {} on job {}".format(status, job_id))
-            return State.FAILED
+    @staticmethod
+    def from_dag_default_args(dag):
+        (etcd_host, etcd_port) = dag.default_args.get('etcd_endpoint', ':').split(':')
+        logging.info('Setting etcd endpoint from dag default args {}:{}'
+                     .format(etcd_host, etcd_port))
+        if not etcd_host:
+            raise Exception('`KubernetesCommunicationService` '
+                            'requires etcd endpoint. Please defined it in dag '
+                            'degault_args')
+        return KubernetesCommunicationService(etcd_host, etcd_port)
