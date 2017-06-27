@@ -79,6 +79,7 @@ from airflow import operators
 from airflow import hooks
 from airflow import executors
 from airflow import macros
+from airflow import contrib
 
 operators._integrate_plugins()
 hooks._integrate_plugins()
