@@ -636,6 +636,87 @@ class SchedulerJobTest(unittest.TestCase):
         scheduler.heartrate = 0
         scheduler.run()
 
+    def test_execute_task_instances_is_paused_wont_execute(self):
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
+        task_id_1 = 'dummy_task'
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        ti1 = TI(task1, DEFAULT_DATE)
+        ti1.state = State.SCHEDULED
+        dr1.state = State.RUNNING
+        dagmodel = models.DagModel()
+        dagmodel.dag_id = dag_id
+        dagmodel.is_paused = True
+        session.merge(ti1)
+        session.merge(dr1)
+        session.add(dagmodel)
+        session.commit()
+
+        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        ti1.refresh_from_db()
+        self.assertEquals(State.SCHEDULED, ti1.state)
+
+    def test_execute_task_instances_no_dagrun_task_will_execute(self):
+        """
+        Tests that tasks without dagrun still get executed.
+        """
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_no_dagrun_task_will_execute'
+        task_id_1 = 'dummy_task'
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        ti1 = TI(task1, DEFAULT_DATE)
+        ti1.state = State.SCHEDULED
+        ti1.execution_date = ti1.execution_date + datetime.timedelta(days=1)
+        session.merge(ti1)
+        session.commit()
+
+        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        ti1.refresh_from_db()
+        self.assertEquals(State.QUEUED, ti1.state)
+
+    def test_execute_task_instances_backfill_tasks_wont_execute(self):
+        """
+        Tests that backfill tasks won't get executed.
+        """
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_backfill_tasks_wont_execute'
+        task_id_1 = 'dummy_task'
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr1.run_id = BackfillJob.ID_PREFIX + '_blah'
+        ti1 = TI(task1, dr1.execution_date)
+        ti1.refresh_from_db()
+        ti1.state = State.SCHEDULED
+        session.merge(ti1)
+        session.merge(dr1)
+        session.commit()
+
+        self.assertTrue(dr1.is_backfill)
+
+        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        ti1.refresh_from_db()
+        self.assertEquals(State.SCHEDULED, ti1.state)
+
     def test_concurrency(self):
         dag_id = 'SchedulerJobTest.test_concurrency'
         task_id_1 = 'dummy_task'
