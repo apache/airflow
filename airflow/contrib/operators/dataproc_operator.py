@@ -19,6 +19,7 @@ import time
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+from airflow.version import version
 from googleapiclient.errors import HttpError
 
 
@@ -226,8 +227,9 @@ class DataprocClusterCreateOperator(BaseOperator):
                 },
                 'isPreemptible': True
             }
-        if self.labels:
-            cluster_data['labels'] = self.labels
+
+        cluster_data['labels'] = self.labels if self.labels else {}
+        cluster_data['labels'].update({'airflow_version': version})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:
