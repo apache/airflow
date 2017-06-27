@@ -1,92 +1,91 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# -*- coding: utf-8 -*-
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
-
-class Resources:
-    def __init__(
-            self,
-            request_memory=None,
-            request_cpu=None,
-            limit_memory=None,
-            limit_cpu=None):
-        self.request_memory = request_memory
-        self.request_cpu = request_cpu
-        self.limit_memory = limit_memory
-        self.limit_cpu = limit_cpu
-
-    def is_empty_resource_request(self):
-        return not self.has_limits() and not self.has_requests()
-
-    def has_limits(self):
-        return self.limit_cpu is not None or self.limit_memory is not None
-
-    def has_requests(self):
-        return self.request_cpu is not None or self.request_memory is not None
-
+from kubernetes import client, config
+from kubernetes_request_factory import KubernetesRequestFactory, SimplePodRequestFactory
+import logging
+from airflow import AirflowException
+import time
+import json
 
 class Pod:
     """
-    Represents a kubernetes pod and manages execution of a single pod.
-    :param image: The docker image
-    :type image: str
-    :param env: A dict containing the environment variables
-    :type env: dict
-    :param cmds: The command to be run on the pod
-    :type cmd: list str
-    :param secrets: Secrets to be launched to the pod
-    :type secrets: list Secret
-    :param result: The result that will be returned to the operator after
-                   successful execution of the pod
-    :type result: any
+        Represents a kubernetes pod and manages execution of a single pod.
+        :param image: The docker image
+        :type image: str
+        :param env: A dict containing the environment variables
+        :type env: dict
+        :param cmds: The command to be run on the pod
+        :type cmd: list str
+        :param secrets: Secrets to be launched to the pod
+        :type secrets: list Secret
+        :param result: The result that will be returned to the operator after
+                       successful execution of the pod
+        :type result: any
+
     """
+    pod_timeout = 3600
+
     def __init__(
             self,
             image,
             envs,
             cmds,
-            args=None,
-            secrets=None,
-            labels=None,
-            node_selectors=None,
-            name=None,
-            volumes=None,
-            volume_mounts=None,
+            secrets,
+            labels,
+            node_selectors,
+            kube_req_factory,
+            name,
             namespace='default',
-            result=None,
-            image_pull_policy="IfNotPresent",
-            image_pull_secrets=None,
-            init_containers=None,
-            service_account_name=None,
-            resources=None
-    ):
+            result=None):
         self.image = image
-        self.envs = envs or {}
+        self.envs = envs
         self.cmds = cmds
-        self.args = args or []
-        self.secrets = secrets or []
+        self.secrets = secrets
         self.result = result
-        self.labels = labels or {}
+        self.labels = labels
         self.name = name
-        self.volumes = volumes or []
-        self.volume_mounts = volume_mounts or []
-        self.node_selectors = node_selectors or []
+        self.node_selectors = node_selectors
+        self.kube_req_factory = (kube_req_factory or SimplePodRequestFactory)()
         self.namespace = namespace
-        self.image_pull_policy = image_pull_policy
-        self.image_pull_secrets = image_pull_secrets
-        self.init_containers = init_containers
-        self.service_account_name = service_account_name
-        self.resources = resources or Resources()
+        self.logger = logging.getLogger(self.__class__.__name__)
+        if not isinstance(self.kube_req_factory, KubernetesRequestFactory):
+            raise AirflowException('`kube_req_factory`'
+                                   '  should implement KubernetesRequestFactory')
+
+    def launch(self):
+        """
+            Launches the pod synchronously and waits for completion.
+        """
+        k8s_beta = self._kube_client()
+        req = self.kube_req_factory.create(self)
+        print(json.dumps(req))
+        resp = k8s_beta.create_namespaced_job(body=req, namespace=self.namespace)
+        self.logger.info("Job created. status='%s', yaml:\n%s"
+                         % (str(resp.status), str(req)))
+        while not self._execution_finished():
+            time.sleep(10)
+        return self.result
+
+    def _kube_client(self):
+        config.load_incluster_config()
+        return client.BatchV1Api()
+
+    def _execution_finished(self):
+        k8s_beta = self._kube_client()
+        resp = k8s_beta.read_namespaced_job_status(self.name, namespace=self.namespace)
+        self.logger.info('status : ' + str(resp.status))
+        if resp.status.phase == 'Failed':
+            raise Exception("Job " + self.name + " failed!")
+        return resp.status.phase != 'Running'

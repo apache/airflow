@@ -1,0 +1,195 @@
+#  Licensed to the Apache Software Foundation (ASF) under one   *
+#  or more contributor license agreements.  See the NOTICE file *
+#  distributed with this work for additional information        *
+#  regarding copyright ownership.  The ASF licenses this file   *
+#  to you under the Apache License, Version 2.0 (the            *
+#  "License"); you may not use this file except in compliance   *
+#  with the License.  You may obtain a copy of the License at   *
+#                                                               *
+#    http://www.apache.org/licenses/LICENSE-2.0                 *
+#                                                               *
+#  Unless required by applicable law or agreed to in writing,   *
+#  software distributed under the License is distributed on an  *
+#  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+#  KIND, either express or implied.  See the License for the    *
+#  specific language governing permissions and limitations      *
+#  under the License.                                           *
+
+# The backing volume can be anything you want, it just needs to be `ReadWriteOnce`
+# I'm using hostPath since minikube is nice for testing, but any (non-local) volume will work on a real cluster
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: airflow-dags
+  labels:
+    type: local
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/data/airflow-dags"
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: airflow-dags
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: airflow
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: airflow
+    spec:
+      initContainers:
+      - name: "init"
+        image: "airflow/ci:latest"
+        imagePullPolicy: "IfNotPresent"
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-dags
+          mountPath: /root/airflow/dags
+        env:
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        command:
+          - "bash"
+        args:
+          - "-cx"
+          - "cd /usr/local/lib/python2.7/dist-packages/airflow && cp -R example_dags/* /root/airflow/dags/ && airflow initdb && alembic upgrade heads"
+      containers:
+      - name: web
+        image: airflow/ci:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: web
+          containerPort: 8080
+        args: ["webserver"]
+        env:
+        - name: AIRFLOW_KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-dags
+          mountPath: /root/airflow/dags
+        readinessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          periodSeconds: 5
+          httpGet:
+            path: /admin
+            port: 8080
+        livenessProbe:
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+          failureThreshold: 5
+          httpGet:
+            path: /admin
+            port: 8080
+      - name: scheduler
+        image: airflow/ci:latest
+        imagePullPolicy: IfNotPresent
+        args: ["scheduler"]
+        env:
+        - name: AIRFLOW_KUBE_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: SQL_ALCHEMY_CONN
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secrets
+              key: sql_alchemy_conn
+        volumeMounts:
+        - name: airflow-configmap
+          mountPath: /root/airflow/airflow.cfg
+          subPath: airflow.cfg
+        - name: airflow-dags
+          mountPath: /root/airflow/dags
+      volumes:
+      - name: airflow-dags
+        persistentVolumeClaim:
+          claimName: airflow-dags
+      - name: airflow-configmap
+        configMap:
+          name: airflow-configmap
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      nodePort: 30809
+  selector:
+    name: airflow
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: airflow-secrets
+type: Opaque
+data:
+  # The sql_alchemy_conn value is a base64 encoded represenation of this connection string:
+  # postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+  sql_alchemy_conn: cG9zdGdyZXNxbCtwc3ljb3BnMjovL3Jvb3Q6cm9vdEBwb3N0Z3Jlcy1haXJmbG93OjU0MzIvYWlyZmxvdwo=
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-configmap
+data:
+  airflow.cfg: |
+    [core]
+    airflow_home = /root/airflow
+    dags_folder = /root/airflow/dags
+    base_log_folder = /root/airflow/logs
+    logging_level = INFO
+    executor = KubernetesExecutor
+    parallelism = 32
+    plugins_folder = /root/airflow/plugins
+    sql_alchemy_conn = $SQL_ALCHEMY_CONN
+
+    [scheduler]
+    dag_dir_list_interval = 60
+    child_process_log_directory = /root/airflow/logs/scheduler
+
+    [kubernetes]
+    airflow_configmap = airflow-configmap
+    worker_container_repository = airflow/ci
+    worker_container_tag = latest
+    delete_worker_pods = False
+    git_repo = https://github.com/grantnicholas/testdags.git
+    git_branch = master
+    dags_volume_claim = airflow-dags
+
+    [kubernetes_secrets]
+    SQL_ALCHEMY_CONN = airflow-secrets=sql_alchemy_conn

@@ -11,7 +11,4 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from airflow import dag_importer
-
-dag_importer.import_dags()
+#

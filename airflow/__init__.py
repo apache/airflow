@@ -85,6 +85,7 @@ from airflow import sensors  # noqa: E402
 from airflow import hooks
 from airflow import executors
 from airflow import macros
+from airflow import contrib
 
 operators._integrate_plugins()
 sensors._integrate_plugins()  # noqa: E402
