@@ -13,9 +13,10 @@
 import json
 import mock
 import unittest
-try: # python 2
+
+try:  # python 2
     from urlparse import urlparse, parse_qsl
-except ImportError: #python 3
+except ImportError:  # python 3
     from urllib.parse import urlparse, parse_qsl
 
 from airflow.contrib.hooks import gcp_cloudml_hook as hook
@@ -49,12 +50,16 @@ class _TestCloudMLHook(object):
         self._test_cls = test_cls
         self._responses = responses
         self._expected_requests = [
-            self._normalize_requests_for_comparison(x[0], x[1], x[2]) for x in expected_requests]
+            self._normalize_requests_for_comparison(x[0], x[1], x[2])
+            for x in expected_requests]
         self._actual_requests = []
 
     def _normalize_requests_for_comparison(self, uri, http_method, body):
         parts = urlparse(uri)
-        return (parts._replace(query=set(parse_qsl(parts.query))), http_method, body)
+        return (
+            parts._replace(query=set(parse_qsl(parts.query))),
+            http_method,
+            body)
 
     def __enter__(self):
         http = HttpMockSequence(self._responses)
@@ -76,7 +81,9 @@ class _TestCloudMLHook(object):
         if any(args):
             return None
         self._test_cls.assertEquals(
-            [self._normalize_requests_for_comparison(x[0], x[1], x[2]) for x in self._actual_requests], self._expected_requests)
+            [self._normalize_requests_for_comparison(x[0], x[1], x[2])
+                for x in self._actual_requests],
+            self._expected_requests)
 
 
 class TestCloudMLHook(unittest.TestCase):
@@ -86,6 +93,7 @@ class TestCloudMLHook(unittest.TestCase):
 
     _SKIP_IF = unittest.skipIf(not cml_available,
                                'CloudML is not available to run tests')
+
     _SERVICE_URI_PREFIX = 'https://ml.googleapis.com/v1/'
 
     @_SKIP_IF
@@ -112,7 +120,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response] * 2,
                 expected_requests=expected_requests) as cml_hook:
             create_version_response = cml_hook.create_version(
-                project_name=project, model_name=model_name, version_spec=version)
+                project_name=project, model_name=model_name,
+                version_spec=version)
             self.assertEquals(create_version_response, response_body)
 
     @_SKIP_IF
@@ -137,7 +146,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             set_default_version_response = cml_hook.set_default_version(
-                project_name=project, model_name=model_name, version_name=version)
+                project_name=project, model_name=model_name,
+                version_name=version)
             self.assertEquals(set_default_version_response, response_body)
 
     @_SKIP_IF
@@ -150,8 +160,12 @@ class TestCloudMLHook(unittest.TestCase):
         # This test returns the versions one at a time.
         versions = ['ver_{}'.format(ix) for ix in range(3)]
 
-        response_bodies = [{'name': operation_name, 'nextPageToken': ix, 'versions': [
-            ver]} for ix, ver in enumerate(versions)]
+        response_bodies = [
+            {
+                'name': operation_name,
+                'nextPageToken': ix,
+                'versions': [ver]
+            } for ix, ver in enumerate(versions)]
         response_bodies[-1].pop('nextPageToken')
         responses = [({'status': '200'}, json.dumps(body))
                      for body in response_bodies]
@@ -190,9 +204,11 @@ class TestCloudMLHook(unittest.TestCase):
             {'status': '200'}, json.dumps(done_response_body))
 
         expected_requests = [
-            ('{}projects/{}/models/{}/versions/{}?alt=json'.format(
-                self._SERVICE_URI_PREFIX, project, model_name, version), 'DELETE',
-             None),
+            (
+                '{}projects/{}/models/{}/versions/{}?alt=json'.format(
+                    self._SERVICE_URI_PREFIX, project, model_name, version),
+                'DELETE',
+                None),
             ('{}{}?alt=json'.format(self._SERVICE_URI_PREFIX, operation_name),
              'GET', None),
         ]
@@ -202,7 +218,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[not_done_response, succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             delete_version_response = cml_hook.delete_version(
-                project_name=project, model_name=model_name, version_name=version)
+                project_name=project, model_name=model_name,
+                version_name=version)
             self.assertEquals(delete_version_response, done_response_body)
 
     @_SKIP_IF
@@ -249,6 +266,42 @@ class TestCloudMLHook(unittest.TestCase):
             get_model_response = cml_hook.get_model(
                 project_name=project, model_name=model_name)
             self.assertEquals(get_model_response, response_body)
+
+    @_SKIP_IF
+    def test_create_cloudml_job(self):
+        project = 'test-project'
+        job_id = 'test-job-id'
+        my_job = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'state': 'SUCCEEDED',
+        }
+        response_body = json.dumps(my_job)
+        succeeded_response = ({'status': '200'}, response_body)
+        queued_response = ({'status': '200'}, json.dumps({
+            'jobId': job_id,
+            'state': 'QUEUED',
+        }))
+
+        create_job_request = ('{}projects/{}/jobs?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project), 'POST', response_body)
+        ask_if_done_request = ('{}projects/{}/jobs/{}?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project, job_id), 'GET', None)
+        expected_requests = [
+            create_job_request,
+            ask_if_done_request,
+            ask_if_done_request,
+        ]
+        responses = [succeeded_response,
+                     queued_response, succeeded_response]
+
+        with _TestCloudMLHook(
+                self,
+                responses=responses,
+                expected_requests=expected_requests) as cml_hook:
+            create_job_response = cml_hook.create_job(
+                project_name=project, job=my_job)
+            self.assertEquals(create_job_response, my_job)
 
 
 if __name__ == '__main__':
