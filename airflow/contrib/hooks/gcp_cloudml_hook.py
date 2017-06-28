@@ -67,7 +67,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         Creates and executes a CloudML job.
 
         Returns the job object if the job was created and finished
-        successfully, or raise an error otherwise.
+        successfully, or raises an error otherwise.
 
         Raises:
             apiclient.errors.HttpError: if the job cannot be created
@@ -163,8 +163,8 @@ class CloudMLHook(GoogleCloudBaseHook):
         """
         Creates the Version on Cloud ML.
 
-        Returns the operation if the version was created successfully and raise
-        an error otherwise.
+        Returns the operation if the version was created successfully and
+        raises an error otherwise.
         """
         parent_name = 'projects/{}/models/{}'.format(project_name, model_name)
         create_request = self._cloudml.projects().models().versions().create(
