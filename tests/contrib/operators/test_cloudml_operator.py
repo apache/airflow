@@ -194,40 +194,6 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 success_message['predictionOutput'],
                 prediction_output)
 
-    def testSuccessWithExistingJob(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
-                as mock_hook:
-
-            input_with_model = INPUT_MISSING_ORIGIN.copy()
-            input_with_model['modelName'] = \
-                'projects/test-project/models/test_model'
-            success_message = SUCCESS_MESSAGE_MISSING_INPUT.copy()
-            success_message['predictionInput'] = input_with_model
-
-            hook_instance = mock_hook.return_value
-            hook_instance.wait_for_job_done.return_value = success_message
-
-            prediction_task = CloudMLBatchPredictionOperator(
-                job_id='test_prediction',
-                project_id='test-project',
-                region=input_with_model['region'],
-                data_format=input_with_model['dataFormat'],
-                input_paths=input_with_model['inputPaths'],
-                output_path=input_with_model['outputPath'],
-                model_name=input_with_model['modelName'].split('/')[-1],
-                dag=self.dag,
-                task_id='test-prediction')
-            prediction_output = prediction_task.execute(None)
-
-            mock_hook.assert_called_with('google_cloud_default', None)
-            hook_instance.create_job.assert_not_called()
-            hook_instance.wait_for_job_done.assert_called_once_with(
-                'test-project',
-                'test_prediction')
-            self.assertEquals(
-                success_message['predictionOutput'],
-                prediction_output)
-
     def testInvalidModelOrigin(self):
         # Test that both uri and model is given
         task_args = DEFAULT_ARGS.copy()
@@ -265,7 +231,6 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
 
     def testHttpError(self):
         http_error_code = 403
-        self.assertNotEqual(404, http_error_code)
 
         with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
                 as mock_hook:
@@ -274,7 +239,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 'projects/experimental/models/test_model'
 
             hook_instance = mock_hook.return_value
-            hook_instance.get_job.side_effect = errors.HttpError(
+            hook_instance.create_job.side_effect = errors.HttpError(
                 resp=httplib2.Response({
                     'status': http_error_code
                 }), content=b'Forbidden')
@@ -301,6 +266,22 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                     })
 
             self.assertEquals(http_error_code, context.exception.resp.status)
+
+    def testFailedJobError(self):
+        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+                as mock_hook:
+            hook_instance = mock_hook.return_value
+            hook_instance.create_job.return_value = {
+                'state': 'FAILED',
+                'errorMessage': 'A failure message'
+            }
+            task_args = DEFAULT_ARGS.copy()
+            task_args['uri'] = 'a uri'
+
+            with self.assertRaises(RuntimeError) as context:
+                CloudMLBatchPredictionOperator(**task_args).execute(None)
+
+            self.assertEquals('A failure message', str(context.exception))
 
 
 if __name__ == '__main__':

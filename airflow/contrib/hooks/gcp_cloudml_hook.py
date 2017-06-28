@@ -49,76 +49,6 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
 
-class _CloudMLJob(object):
-    """
-    CloudML job operations helper class.
-    """
-
-    def __init__(self, cloudml, project_name, job_id, job_spec=None):
-        assert project_name
-        self._cloudml = cloudml
-        self._project_name = 'projects/{}'.format(project_name)
-        self._job_id = job_id
-
-        assert self._job_id
-        self._job_spec = job_spec
-        if self._job_spec:
-            assert self._job_id == self._job_spec['jobId']
-
-    def get_job(self):
-        """
-        Gets a CloudML job based on the job name.
-
-        :return: CloudML job object if succeed.
-        :rtype: dict
-        """
-        name = '{}/jobs/{}'.format(self._project_name, self._job_id)
-        request = self._cloudml.projects().jobs().get(name=name)
-        while True:
-            try:
-                return request.execute()
-            except errors.HttpError as e:
-                if e.resp.status == 429:
-                    time.sleep(10)  # polling after 10 seconds
-                else:
-                    logging.error('Failed to get CloudML job: {}'.format(e))
-                    raise
-
-    def create_job(self):
-        """
-        Creates a Job on Cloud ML.
-
-        :return: CloudML job creation request response.
-        :rtype: dict
-        """
-        request = self._cloudml.projects().jobs().create(
-            parent=self._project_name, body=self._job_spec)
-        try:
-            return request.execute()
-        except errors.HttpError as e:
-            logging.error('Failed to create CloudML job: {}'.format(e))
-            raise
-
-    def wait_for_done(self, interval):
-        """
-        Waits for the Job to reach a terminal state.
-
-        This method will periodically check the job state until the job reach
-        a terminal state.
-
-        :param interval: Polling interval in seconds.
-        :return: CloudML job object if succeed.
-        :rtype: dict
-        """
-        assert interval > 0
-        while True:
-            job = self.get_job()
-            state = job['state']
-            if state in ['FAILED', 'SUCCEEDED', 'CANCELLED']:
-                return job
-            time.sleep(interval)
-
-
 class CloudMLHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
@@ -241,8 +171,10 @@ class CloudMLHook(GoogleCloudBaseHook):
 
     def create_job(self, project_name, job):
         """
-        Creates a CloudML Job, and returns the Job object, which can be waited
-        upon.
+        Creates a CloudML job object.
+
+        Returns the job object if the version was created and finished
+        successfully, and raise an error otherwise.
 
         project_name is the name of the project to use, such as
         'my-project'
@@ -258,21 +190,75 @@ class CloudMLHook(GoogleCloudBaseHook):
           }
         }
         """
-        cloudml_job = _CloudMLJob(
-            self._cloudml, project_name, job['jobId'], job)
-        cloudml_job.create_job()
-        return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
+        request = self._cloudml.projects().jobs().create(
+            parent='projects/{}'.format(project_name),
+            body=job)
+        job_id = job['jobId']
 
-    def get_job(self, project_name, job_id):
+        try:
+            request.execute()
+            return self._wait_for_job_done(project_name, job_id)
+        except errors.HttpError as e:
+            if e.resp.status == 409:
+                existing_job = self._get_job(project_name, job_id)
+                logging.info(
+                    'Job with job_id {} already exist: {}.'.format(
+                        job_id,
+                        existing_job))
+
+                if existing_job.get('predictionInput', None) == \
+                        job['predictionInput']:
+                    return self._wait_for_job_done(project_name, job_id)
+                else:
+                    logging.error(
+                        'Job with job_id {} already exists, but the '
+                        'predictionInput mismatch: {}'
+                        .format(job_id, existing_job))
+                    raise ValueError(
+                        'Found a existing job with job_id {}, but with '
+                        'different predictionInput.'.format(job_id))
+            else:
+                logging.error('Failed to create CloudML job: {}'.format(e))
+                raise
+
+    def _get_job(self, project_name, job_id):
         """
         Gets a CloudML job based on the job name.
-        """
-        cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
-        return cloudml_job.get_job()
 
-    def wait_for_job_done(self, project_name, job_id):
+        :return: CloudML job object if succeed.
+        :rtype: dict
+
+        Raises:
+            apiclient.errors.HttpError: if HTTP error is returned from server
+        """
+        job_name = 'projects/{}/jobs/{}'.format(project_name, job_id)
+        logging.info(job_name)
+        request = self._cloudml.projects().jobs().get(name=job_name)
+        while True:
+            try:
+                return request.execute()
+            except errors.HttpError as e:
+                if e.resp.status == 429:
+                    # polling after 30 seconds when quota failure occurs
+                    time.sleep(30)
+                else:
+                    logging.error('Failed to get CloudML job: {}'.format(e))
+                    raise
+
+    def _wait_for_job_done(self, project_name, job_id, interval=30):
         """
         Waits for the Job to reach a terminal state.
+
+        This method will periodically check the job state until the job reach
+        a terminal state.
+
+        Raises:
+            apiclient.errors.HttpError: if HTTP error is returned when getting
+            the job
         """
-        cloudml_job = _CloudMLJob(self._cloudml, project_name, job_id)
-        return cloudml_job.wait_for_done(10)  # Polling interval is 10 sec
+        assert interval > 0
+        while True:
+            job = self._get_job(project_name, job_id)
+            if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+                return job
+            time.sleep(interval)

@@ -27,25 +27,6 @@ from apiclient import errors
 logging.getLogger('GoogleCloudML').setLevel(settings.LOGGING_LEVEL)
 
 
-def _normalize_cloudml_job_id(job_id):
-    """
-    Replaces invalid CloudML job_id characters with '_'.
-
-    This also adds a leading 'z' in case job_id starts with an invalid
-    character.
-
-    Args:
-        job_id: A job_id str that may have invalid characters.
-
-    Returns:
-        A valid job_id representation.
-    """
-    match = re.search(r'\d', job_id)
-    if match and match.start() is 0:
-        job_id = 'z_{}'.format(job_id)
-    return re.sub('[^0-9a-zA-Z]+', '_', job_id)
-
-
 def _create_prediction_input(project_id,
                              region,
                              data_format,
@@ -104,6 +85,25 @@ def _create_prediction_input(project_id,
         prediction_input['runtimeVersion'] = runtime_version
 
     return prediction_input
+
+
+def _normalize_cloudml_job_id(job_id):
+    """
+    Replaces invalid CloudML job_id characters with '_'.
+
+    This also adds a leading 'z' in case job_id starts with an invalid
+    character.
+
+    Args:
+        job_id: A job_id str that may have invalid characters.
+
+    Returns:
+        A valid job_id representation.
+    """
+    match = re.search(r'\d', job_id)
+    if match and match.start() is 0:
+        job_id = 'z_{}'.format(job_id)
+    return re.sub('[^0-9a-zA-Z]+', '_', job_id)
 
 
 class CloudMLBatchPredictionOperator(BaseOperator):
@@ -232,33 +232,19 @@ class CloudMLBatchPredictionOperator(BaseOperator):
             raise
 
         self.prediction_job_request = {
-            'jobId': job_id,
+            'jobId': _normalize_cloudml_job_id(job_id),
             'predictionInput': prediction_input
         }
 
     def execute(self, context):
         hook = CloudMLHook(self.gcp_conn_id, self.delegate_to)
-        job_id = _normalize_cloudml_job_id(
-            self.prediction_job_request['jobId'])
+
         try:
-            existing_job = hook.get_job(self.project_id, job_id)
-            logging.info(
-                'Job with job_id {} already exist: {}.'.format(
-                    job_id,
-                    existing_job))
-            finished_prediction_job = hook.wait_for_job_done(
+            finished_prediction_job = hook.create_job(
                 self.project_id,
-                job_id)
-        except errors.HttpError as e:
-            if e.resp.status == 404:
-                logging.info(
-                    'Job with job_id {} does not exist. Will create it.'
-                    .format(job_id))
-                finished_prediction_job = hook.create_job(
-                    self.project_id,
-                    self.prediction_job_request)
-            else:
-                raise
+                self.prediction_job_request)
+        except errors.HttpError:
+            raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
             logging.error(

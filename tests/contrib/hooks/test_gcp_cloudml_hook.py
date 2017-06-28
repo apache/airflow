@@ -50,7 +50,8 @@ class _TestCloudMLHook(object):
         self._test_cls = test_cls
         self._responses = responses
         self._expected_requests = [
-            self._normalize_requests_for_comparison(x[0], x[1], x[2]) for x in expected_requests]
+            self._normalize_requests_for_comparison(x[0], x[1], x[2])
+            for x in expected_requests]
         self._actual_requests = []
 
     def _normalize_requests_for_comparison(self, uri, http_method, body):
@@ -80,7 +81,7 @@ class _TestCloudMLHook(object):
         if any(args):
             return None
         self._test_cls.assertEquals(
-            [self._normalize_requests_for_comparison(x[0], x[1], x[2]) 
+            [self._normalize_requests_for_comparison(x[0], x[1], x[2])
                 for x in self._actual_requests],
             self._expected_requests)
 
@@ -119,7 +120,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response] * 2,
                 expected_requests=expected_requests) as cml_hook:
             create_version_response = cml_hook.create_version(
-                project_name=project, model_name=model_name, version_spec=version)
+                project_name=project, model_name=model_name,
+                version_spec=version)
             self.assertEquals(create_version_response, response_body)
 
     @_SKIP_IF
@@ -144,7 +146,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             set_default_version_response = cml_hook.set_default_version(
-                project_name=project, model_name=model_name, version_name=version)
+                project_name=project, model_name=model_name,
+                version_name=version)
             self.assertEquals(set_default_version_response, response_body)
 
     @_SKIP_IF
@@ -157,8 +160,12 @@ class TestCloudMLHook(unittest.TestCase):
         # This test returns the versions one at a time.
         versions = ['ver_{}'.format(ix) for ix in range(3)]
 
-        response_bodies = [{'name': operation_name, 'nextPageToken': ix, 'versions': [
-            ver]} for ix, ver in enumerate(versions)]
+        response_bodies = [
+            {
+                'name': operation_name,
+                'nextPageToken': ix,
+                'versions': [ver]
+            } for ix, ver in enumerate(versions)]
         response_bodies[-1].pop('nextPageToken')
         responses = [({'status': '200'}, json.dumps(body))
                      for body in response_bodies]
@@ -197,9 +204,11 @@ class TestCloudMLHook(unittest.TestCase):
             {'status': '200'}, json.dumps(done_response_body))
 
         expected_requests = [
-            ('{}projects/{}/models/{}/versions/{}?alt=json'.format(
-                self._SERVICE_URI_PREFIX, project, model_name, version), 'DELETE',
-             None),
+            (
+                '{}projects/{}/models/{}/versions/{}?alt=json'.format(
+                    self._SERVICE_URI_PREFIX, project, model_name, version),
+                'DELETE',
+                None),
             ('{}{}?alt=json'.format(self._SERVICE_URI_PREFIX, operation_name),
              'GET', None),
         ]
@@ -209,7 +218,8 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[not_done_response, succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             delete_version_response = cml_hook.delete_version(
-                project_name=project, model_name=model_name, version_name=version)
+                project_name=project, model_name=model_name,
+                version_name=version)
             self.assertEquals(delete_version_response, done_response_body)
 
     @_SKIP_IF
