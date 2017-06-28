@@ -69,7 +69,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         Returns the job object if the job was created and finished
         successfully, or raise an error otherwise.
 
-        Raises: 
+        Raises:
             apiclient.errors.HttpError: if the job cannot be created
             successfully
 
