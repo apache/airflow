@@ -30,11 +30,11 @@ class CloudMLVersionOperator(BaseOperator):
 
     :param model_name: The name of the Google Cloud ML model that the version
         belongs to.
-    :type model_name: string
+    :type model_name: str
 
     :param project_name: The Google Cloud project name to which CloudML
         model belongs.
-    :type project_name: string
+    :type project_name: str
 
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
@@ -45,7 +45,7 @@ class CloudMLVersionOperator(BaseOperator):
     :type version: dict
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param operation: The operation to perform. Available operations are:
         'create': Creates a new version in the model specified by `model_name`,
@@ -64,12 +64,12 @@ class CloudMLVersionOperator(BaseOperator):
             model specified by `model_name`).
             The name of the version should be specified in the `version`
             parameter.
-     :type operation: string
+     :type operation: str
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
 
@@ -132,10 +132,10 @@ class CloudMLModelOperator(BaseOperator):
 
     :param project_name: The Google Cloud project name to which CloudML
         model belongs.
-    :type project_name: string
+    :type project_name: str
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
+    :type gcp_conn_id: str
 
     :param operation: The operation to perform. Available operations are:
         'create': Creates a new model as provided by the `model` parameter.
@@ -144,7 +144,7 @@ class CloudMLModelOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     """
 
     template_fields = [

@@ -26,9 +26,9 @@ class HiveOperator(BaseOperator):
     Executes hql code in a specific Hive database.
 
     :param hql: the hql to be executed
-    :type hql: string
+    :type hql: str
     :param hive_cli_conn_id: reference to the Hive database
-    :type hive_cli_conn_id: string
+    :type hive_cli_conn_id: str
     :param hiveconf_jinja_translate: when True, hiveconf-type templating
         ${var} gets translated into jinja-type templating {{ var }}. Note that
         you may want to use this along with the
@@ -39,13 +39,13 @@ class HiveOperator(BaseOperator):
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
     :param mapred_queue: queue used by the Hadoop CapacityScheduler
-    :type  mapred_queue: string
+    :type  mapred_queue: str
     :param mapred_queue_priority: priority within CapacityScheduler queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
-    :type  mapred_queue_priority: string
+    :type  mapred_queue_priority: str
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
-    :type  mapred_job_name: string
+    :type  mapred_job_name: str
     """
 
     template_fields = ('hql', 'schema')

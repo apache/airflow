@@ -46,9 +46,9 @@ class PrestoCheckOperator(CheckOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults
@@ -70,9 +70,9 @@ class PrestoValueCheckOperator(ValueCheckOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults
@@ -102,7 +102,7 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
     :param metrics_threshold: a dictionary of ratios indexed by metrics
     :type metrics_threshold: dict
     :param presto_conn_id: reference to the Presto database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults

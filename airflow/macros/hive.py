@@ -22,17 +22,17 @@ def max_partition(
     Gets the max partition for a table.
 
     :param schema: The hive schema the table lives in
-    :type schema: string
+    :type schema: str
     :param table: The hive table you are interested in, supports the dot
         notation as in "my_database.my_table", if a dot is found,
         the schema param is disregarded
-    :type table: string
+    :type table: str
     :param hive_conn_id: The hive connection you are interested in.
         If your default is set you don't need to use this parameter.
-    :type hive_conn_id: string
+    :type hive_conn_id: str
     :param filter: filter on a subset of partition as in
         `sub_part='specific_value'`
-    :type filter: string
+    :type filter: str
     :param field: the field to get the max value from. If there's only
         one partition field, this will be inferred
 

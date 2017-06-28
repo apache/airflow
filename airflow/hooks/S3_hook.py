@@ -403,7 +403,7 @@ class S3Hook(BaseHook):
         boto infrastructure to ship a file to s3. It is currently using only
         a single part download, and should not be used to move large files.
 
-        :param string_data: string to set as content for the key.
+        :param string_data: str to set as content for the key.
         :type string_data: str
         :param key: S3 key that will point to the file
         :type key: str

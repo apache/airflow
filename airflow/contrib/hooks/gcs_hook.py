@@ -54,12 +54,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         source bucket/object is used, but not both.
 
         :param bucket: The bucket of the object to copy from.
-        :type bucket: string
+        :type bucket: str
         :param object: The object to copy.
-        :type object: string
+        :type object: str
         :param destination_bucket: The destination of the object to copied to.
             Can be omitted; then the same bucket is used.
-        :type destination_bucket: string
+        :type destination_bucket: str
         :param destination_object: The (renamed) path of the object if given.
             Can be omitted; then the same name is used.
         """
@@ -95,11 +95,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Get a file from Google Cloud Storage.
 
         :param bucket: The bucket to fetch from.
-        :type bucket: string
+        :type bucket: str
         :param object: The object to fetch.
-        :type object: string
+        :type object: str
         :param filename: If set, a local file path where the file should be written to.
-        :type filename: string
+        :type filename: str
         """
         service = self.get_conn()
         downloaded_file_bytes = service \
@@ -121,13 +121,13 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Uploads a local file to Google Cloud Storage.
 
         :param bucket: The bucket to upload to.
-        :type bucket: string
+        :type bucket: str
         :param object: The object name to set when uploading the local file.
-        :type object: string
+        :type object: str
         :param filename: The local file path to the file to be uploaded.
-        :type filename: string
+        :type filename: str
         :param mime_type: The MIME type to set when uploading the file.
-        :type mime_type: string
+        :type mime_type: str
         """
         service = self.get_conn()
         media = MediaFileUpload(filename, mime_type)
@@ -142,10 +142,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Checks for the existence of a file in Google Cloud Storage.
 
         :param bucket: The Google cloud storage bucket where the object is.
-        :type bucket: string
+        :type bucket: str
         :param object: The name of the object to check in the Google cloud
             storage bucket.
-        :type object: string
+        :type object: str
         """
         service = self.get_conn()
         try:
@@ -165,10 +165,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Checks if an object is updated in Google Cloud Storage.
 
         :param bucket: The Google cloud storage bucket where the object is.
-        :type bucket: string
+        :type bucket: str
         :param object: The name of the object to check in the Google cloud
             storage bucket.
-        :type object: string
+        :type object: str
         :param ts: The timestamp to check against.
         :type ts: datetime
         """
@@ -205,11 +205,11 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         parameter is used.
 
         :param bucket: name of the bucket, where the object resides
-        :type bucket: string
+        :type bucket: str
         :param object: name of the object to delete
-        :type object: string
+        :type object: str
         :param generation: if present, permanently delete the object of this generation
-        :type generation: string
+        :type generation: str
         :return: True if succeeded
         """
         service = self.get_conn()
@@ -230,13 +230,13 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         List all objects from the bucket with the give string prefix in name
 
         :param bucket: bucket name
-        :type bucket: string
+        :type bucket: str
         :param versions: if true, list all versions of the objects
         :type versions: boolean
         :param maxResults: max count of items to return in a single page of responses
         :type maxResults: integer
         :param prefix: prefix string which filters objects whose name begin with this prefix
-        :type prefix: string
+        :type prefix: str
         :return: a stream of object names matching the filtering criteria
         """
         service = self.get_conn()

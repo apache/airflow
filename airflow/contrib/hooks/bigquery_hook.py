@@ -84,11 +84,11 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
         https://github.com/pydata/pandas/issues/6900
 
         :param bql: The BigQuery SQL to execute.
-        :type bql: string
+        :type bql: str
         :param parameters: The parameters to render the SQL query with (not used, leave to override superclass method)
         :type parameters: mapping or iterable
         :param dialect: Dialect of BigQuery SQL – legacy SQL or standard SQL
-        :type dialect: string in {'legacy', 'standard'}, default 'legacy'
+        :type dialect: str in {'legacy', 'standard'}, default 'legacy'
         """
         service = self.get_service()
         project = self._get_field('project')
@@ -111,12 +111,12 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
 
         :param project_id: The Google cloud project in which to look for the table. The connection supplied to the hook
         must provide access to the specified project.
-        :type project_id: string
+        :type project_id: str
         :param dataset_id: The name of the dataset in which to look for the table.
             storage bucket.
-        :type dataset_id: string
+        :type dataset_id: str
         :param table_id: The name of the table to check the existence of.
-        :type table_id: string
+        :type table_id: str
         """
         service = self.get_service()
         try:
@@ -204,7 +204,7 @@ class BigQueryBaseCursor(object):
         For more details about these parameters.
 
         :param bql: The BigQuery SQL to execute.
-        :type bql: string
+        :type bql: str
         :param destination_dataset_table: The dotted <dataset>.<table>
             BigQuery table to save the query results.
         :param write_disposition: What to do if the table already exists in
@@ -262,18 +262,18 @@ class BigQueryBaseCursor(object):
 
         :param source_project_dataset_table: The dotted <dataset>.<table>
             BigQuery table to use as the source data.
-        :type source_project_dataset_table: string
+        :type source_project_dataset_table: str
         :param destination_cloud_storage_uris: The destination Google Cloud
             Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
             convention defined here:
             https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
         :type destination_cloud_storage_uris: list
         :param compression: Type of compression to use.
-        :type compression: string
+        :type compression: str
         :param export_format: File format to export.
-        :type export_format: string
+        :type export_format: str
         :param field_delimiter: The delimiter to use when extracting to a CSV.
-        :type field_delimiter: string
+        :type field_delimiter: str
         :param print_header: Whether to print a header for a CSV file extract.
         :type print_header: boolean
         """
@@ -325,11 +325,11 @@ class BigQueryBaseCursor(object):
         :type source_project_dataset_tables: list|string
         :param destination_project_dataset_table: The destination BigQuery
             table. Format is: (project:|project.)<dataset>.<table>
-        :type destination_project_dataset_table: string
+        :type destination_project_dataset_table: str
         :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: string
+        :type write_disposition: str
         :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: string
+        :type create_disposition: str
         """
         source_project_dataset_tables = (
             [source_project_dataset_tables]
@@ -388,7 +388,7 @@ class BigQueryBaseCursor(object):
             The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
             data into. If <project> is not included, project will be the project defined
             in the connection json.
-        :type destination_project_dataset_table: string
+        :type destination_project_dataset_table: str
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         :type schema_fields: list
@@ -397,15 +397,15 @@ class BigQueryBaseCursor(object):
             per-object name can be used.
         :type source_uris: list
         :param source_format: File format to export.
-        :type source_format: string
+        :type source_format: str
         :param create_disposition: The create disposition if the table doesn't exist.
-        :type create_disposition: string
+        :type create_disposition: str
         :param skip_leading_rows: Number of rows to skip when loading from a CSV.
         :type skip_leading_rows: int
         :param write_disposition: The write disposition if the table already exists.
-        :type write_disposition: string
+        :type write_disposition: str
         :param field_delimiter: The delimiter to use when loading from a CSV.
-        :type field_delimiter: string
+        :type field_delimiter: str
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
@@ -756,7 +756,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         Executes a BigQuery query, and returns the job ID.
 
         :param operation: The query to execute.
-        :type operation: string
+        :type operation: str
         :param parameters: Parameters to substitute into the query.
         :type parameters: dict
         """
@@ -768,7 +768,7 @@ class BigQueryCursor(BigQueryBaseCursor):
         Execute a BigQuery query multiple times with different parameters.
 
         :param operation: The query to execute.
-        :type operation: string
+        :type operation: str
         :param parameters: List of dictionary parameters to substitute into the
             query.
         :type parameters: list

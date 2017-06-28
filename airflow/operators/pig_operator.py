@@ -25,9 +25,9 @@ class PigOperator(BaseOperator):
     Executes pig script.
 
     :param pig: the pig latin script to be executed
-    :type pig: string
+    :type pig: str
     :param pig_cli_conn_id: reference to the Hive database
-    :type pig_cli_conn_id: string
+    :type pig_cli_conn_id: str
     :param pigparams_jinja_translate: when True, pig params-type templating
         ${var} gets translated into jinja-type templating {{ var }}. Note that
         you may want to use this along with the

@@ -45,6 +45,7 @@ class PythonOperator(BaseOperator):
     :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
+    :type template_exts: list of str
     """
     template_fields = ('templates_dict',)
     template_ext = tuple()
