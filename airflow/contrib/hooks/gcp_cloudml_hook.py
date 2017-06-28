@@ -62,6 +62,103 @@ class CloudMLHook(GoogleCloudBaseHook):
         credentials = GoogleCredentials.get_application_default()
         return build('ml', 'v1', credentials=credentials)
 
+    def create_job(self, project_name, job):
+        """
+        Creates and executes a CloudML job.
+
+        Returns the job object if the job was created and finished
+        successfully, or raise an error otherwise.
+
+        Raises: 
+            apiclient.errors.HttpError: if the job cannot be created
+            successfully
+
+        project_name is the name of the project to use, such as
+        'my-project'
+
+        job is the complete Cloud ML Job object that should be provided to the
+        Cloud ML API, such as
+
+        {
+          'jobId': 'my_job_id',
+          'trainingInput': {
+            'scaleTier': 'STANDARD_1',
+            ...
+          }
+        }
+        """
+        request = self._cloudml.projects().jobs().create(
+            parent='projects/{}'.format(project_name),
+            body=job)
+        job_id = job['jobId']
+
+        try:
+            request.execute()
+            return self._wait_for_job_done(project_name, job_id)
+        except errors.HttpError as e:
+            if e.resp.status == 409:
+                existing_job = self._get_job(project_name, job_id)
+                logging.info(
+                    'Job with job_id {} already exist: {}.'.format(
+                        job_id,
+                        existing_job))
+
+                if existing_job.get('predictionInput', None) == \
+                        job['predictionInput']:
+                    return self._wait_for_job_done(project_name, job_id)
+                else:
+                    logging.error(
+                        'Job with job_id {} already exists, but the '
+                        'predictionInput mismatch: {}'
+                        .format(job_id, existing_job))
+                    raise ValueError(
+                        'Found a existing job with job_id {}, but with '
+                        'different predictionInput.'.format(job_id))
+            else:
+                logging.error('Failed to create CloudML job: {}'.format(e))
+                raise
+
+    def _get_job(self, project_name, job_id):
+        """
+        Gets a CloudML job based on the job name.
+
+        :return: CloudML job object if succeed.
+        :rtype: dict
+
+        Raises:
+            apiclient.errors.HttpError: if HTTP error is returned from server
+        """
+        job_name = 'projects/{}/jobs/{}'.format(project_name, job_id)
+        request = self._cloudml.projects().jobs().get(name=job_name)
+        while True:
+            try:
+                return request.execute()
+            except errors.HttpError as e:
+                if e.resp.status == 429:
+                    # polling after 30 seconds when quota failure occurs
+                    time.sleep(30)
+                else:
+                    logging.error('Failed to get CloudML job: {}'.format(e))
+                    raise
+
+    def _wait_for_job_done(self, project_name, job_id, interval=30):
+        """
+        Waits for the Job to reach a terminal state.
+
+        This method will periodically check the job state until the job reach
+        a terminal state.
+
+        Raises:
+            apiclient.errors.HttpError: if HTTP error is returned when getting
+            the job
+        """
+        assert interval > 0
+        while True:
+            job = self._get_job(project_name, job_id)
+            if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+                return job
+            time.sleep(interval)
+
     def create_version(self, project_name, model_name, version_spec):
         """
         Creates the Version on Cloud ML.
@@ -168,97 +265,3 @@ class CloudMLHook(GoogleCloudBaseHook):
                 logging.error('Model was not found: {}'.format(e))
                 return None
             raise
-
-    def create_job(self, project_name, job):
-        """
-        Creates a CloudML job object.
-
-        Returns the job object if the version was created and finished
-        successfully, and raise an error otherwise.
-
-        project_name is the name of the project to use, such as
-        'my-project'
-
-        job is the complete Cloud ML Job object that should be provided to the
-        Cloud ML API, such as
-
-        {
-          'jobId': 'my_job_id',
-          'trainingInput': {
-            'scaleTier': 'STANDARD_1',
-            ...
-          }
-        }
-        """
-        request = self._cloudml.projects().jobs().create(
-            parent='projects/{}'.format(project_name),
-            body=job)
-        job_id = job['jobId']
-
-        try:
-            request.execute()
-            return self._wait_for_job_done(project_name, job_id)
-        except errors.HttpError as e:
-            if e.resp.status == 409:
-                existing_job = self._get_job(project_name, job_id)
-                logging.info(
-                    'Job with job_id {} already exist: {}.'.format(
-                        job_id,
-                        existing_job))
-
-                if existing_job.get('predictionInput', None) == \
-                        job['predictionInput']:
-                    return self._wait_for_job_done(project_name, job_id)
-                else:
-                    logging.error(
-                        'Job with job_id {} already exists, but the '
-                        'predictionInput mismatch: {}'
-                        .format(job_id, existing_job))
-                    raise ValueError(
-                        'Found a existing job with job_id {}, but with '
-                        'different predictionInput.'.format(job_id))
-            else:
-                logging.error('Failed to create CloudML job: {}'.format(e))
-                raise
-
-    def _get_job(self, project_name, job_id):
-        """
-        Gets a CloudML job based on the job name.
-
-        :return: CloudML job object if succeed.
-        :rtype: dict
-
-        Raises:
-            apiclient.errors.HttpError: if HTTP error is returned from server
-        """
-        job_name = 'projects/{}/jobs/{}'.format(project_name, job_id)
-        logging.info(job_name)
-        request = self._cloudml.projects().jobs().get(name=job_name)
-        while True:
-            try:
-                return request.execute()
-            except errors.HttpError as e:
-                if e.resp.status == 429:
-                    # polling after 30 seconds when quota failure occurs
-                    time.sleep(30)
-                else:
-                    logging.error('Failed to get CloudML job: {}'.format(e))
-                    raise
-
-    def _wait_for_job_done(self, project_name, job_id, interval=30):
-        """
-        Waits for the Job to reach a terminal state.
-
-        This method will periodically check the job state until the job reach
-        a terminal state.
-
-        Raises:
-            apiclient.errors.HttpError: if HTTP error is returned when getting
-            the job
-        """
-        assert interval > 0
-        while True:
-            job = self._get_job(project_name, job_id)
-            if job['state'] in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
-                return job
-            time.sleep(interval)
