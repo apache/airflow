@@ -4349,10 +4349,8 @@ class DagRun(Base):
 
     @property
     def is_backfill(self):
-        if "backfill" in self.run_id:
-            return True
-
-        return False
+        from airflow.jobs import BackfillJob
+        return self.run_id.startswith(BackfillJob.ID_PREFIX)
 
     @classmethod
     @provide_session

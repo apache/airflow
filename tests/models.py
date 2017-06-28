@@ -25,6 +25,7 @@ import time
 
 from airflow import models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
+from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
@@ -533,6 +534,13 @@ class DagRunTest(unittest.TestCase):
             if dagrun.dag_id == 'test_latest_runs_1':
                 self.assertEqual(dagrun.execution_date, datetime.datetime(2015, 1, 2))
 
+    def test_is_backfill(self):
+        dag = DAG(dag_id='test_is_backfill', start_date=DEFAULT_DATE)
+        dagrun = self.create_dag_run(dag, execution_date=DEFAULT_DATE)
+        dagrun.run_id = BackfillJob.ID_PREFIX + '_sfddsffds'
+        dagrun2 = self.create_dag_run(dag, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        self.assertTrue(dagrun.is_backfill)
+        self.assertFalse(dagrun2.is_backfill)
 
 class DagBagTest(unittest.TestCase):
 
