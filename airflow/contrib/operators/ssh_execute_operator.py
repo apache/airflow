@@ -39,9 +39,9 @@ class SSHTempFileContent(object):
     :param ssh_hook: A SSHHook that indicates a remote host
                      where you want to create tempfile
     :param content: Initial content of creating temporary file
-    :type content: string
+    :type content: str
     :param prefix: The prefix string you want to use for the temporary file
-    :type prefix: string
+    :type prefix: str
     """
 
     def __init__(self, ssh_hook, content, prefix="tmp"):
@@ -91,10 +91,10 @@ class SSHExecuteOperator(BaseOperator):
 
     :param ssh_hook: A SSHHook that indicates the remote host
                      you want to run the script
-    :type ssh_hook: string
+    :type ssh_hook: str
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
-    :type bash_command: string
+    :type bash_command: str
     :param env: If env is not None, it must be a mapping that defines the
         environment variables for the new process; these are used instead
         of inheriting the current process environment, which is the default

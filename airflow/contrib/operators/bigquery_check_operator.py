@@ -46,9 +46,9 @@ class BigQueryCheckOperator(CheckOperator):
     without stopping the progress of the DAG.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     :param bigquery_conn_id: reference to the BigQuery database
-    :type presto_conn_id: string
+    :type presto_conn_id: str
     """
 
     @apply_defaults
@@ -71,7 +71,7 @@ class BigQueryValueCheckOperator(ValueCheckOperator):
     Performs a simple value check using sql code.
 
     :param sql: the sql to be executed
-    :type sql: string
+    :type sql: str
     """
 
     @apply_defaults

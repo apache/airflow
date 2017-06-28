@@ -87,6 +87,6 @@ class RedisHook(BaseHook):
         Checks if a key exists in Redis database
 
         :param key: The key to check the existence.
-        :type key: string
+        :type key: str
         """
         return self.get_conn().exists(key)

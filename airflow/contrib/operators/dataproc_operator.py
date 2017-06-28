@@ -68,15 +68,15 @@ class DataprocClusterCreateOperator(BaseOperator):
         https://cloud.google.com/dataproc/docs/reference/rest/v1/projects.regions.clusters
 
         :param cluster_name: The name of the cluster to create
-        :type cluster_name: string
+        :type cluster_name: str
         :param project_id: The ID of the google cloud project in which
             to create the cluster
-        :type project_id: string
+        :type project_id: str
         :param num_workers: The # of workers to spin up
         :type num_workers: int
         :param storage_bucket: The storage bucket to use, setting to None lets dataproc
             generate a custom one for you
-        :type storage_bucket: string
+        :type storage_bucket: str
         :param init_actions_uris: List of GCS uri's containing
             dataproc initialization scripts
         :type init_actions_uris: list[string]
@@ -84,18 +84,18 @@ class DataprocClusterCreateOperator(BaseOperator):
             to add to all instances
         :type metadata: dict
         :param image_version: the version of software inside the Dataproc cluster
-        :type image_version: string
+        :type image_version: str
         :param properties: dict of properties to set on
             config files (e.g. spark-defaults.conf), see
             https://cloud.google.com/dataproc/docs/reference/rest/v1/ \
             projects.regions.clusters#SoftwareConfig
         :type properties: dict
         :param master_machine_type: Compute engine machine type to use for the master node
-        :type master_machine_type: string
+        :type master_machine_type: str
         :param master_disk_size: Disk size for the master node
         :type int
         :param worker_machine_type:Compute engine machine type to use for the worker nodes
-        :type worker_machine_type: string
+        :type worker_machine_type: str
         :param worker_disk_size: Disk size for the worker nodes
         :type worker_disk_size: int
         :param num_preemptible_workers: The # of preemptible worker nodes to spin up
@@ -103,14 +103,14 @@ class DataprocClusterCreateOperator(BaseOperator):
         :param labels: dict of labels to add to the cluster
         :type labels: dict
         :param zone: The zone where the cluster will be located
-        :type zone: string
+        :type zone: str
         :param region: leave as 'global', might become relevant in the future
         :param google_cloud_conn_id: The connection id to use when connecting to dataproc
-        :type google_cloud_conn_id: string
+        :type google_cloud_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataprocClusterCreateOperator, self).__init__(*args, **kwargs)
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -302,18 +302,18 @@ class DataprocClusterDeleteOperator(BaseOperator):
         Delete a cluster on Google Cloud Dataproc.
 
         :param cluster_name: The name of the cluster to create
-        :type cluster_name: string
+        :type cluster_name: str
         :param project_id: The ID of the google cloud project in which
             the cluster runs
-        :type project_id: string
+        :type project_id: str
         :param region: leave as 'global', might become relevant in the future
-        :type region: string
+        :type region: str
         :param google_cloud_conn_id: The connection id to use when connecting to dataproc
-        :type google_cloud_conn_id: string
+        :type google_cloud_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataprocClusterDeleteOperator, self).__init__(*args, **kwargs)
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -409,17 +409,17 @@ class DataProcPigOperator(BaseOperator):
         https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
 
         :param query: The query or reference to the query file (pg or pig extension).
-        :type query: string
+        :type query: str
         :param query_uri: The uri of a pig script on Cloud Storage.
-        :type query_uri: string
+        :type query_uri: str
         :param variables: Map of named parameters for the query.
         :type variables: dict
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_pig_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_pig_properties: dict
@@ -427,11 +427,11 @@ class DataProcPigOperator(BaseOperator):
             UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_pig_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataProcPigOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -487,17 +487,17 @@ class DataProcHiveOperator(BaseOperator):
         Create a new DataProcHiveOperator.
 
         :param query: The query or reference to the query file (q extension).
-        :type query: string
+        :type query: str
         :param query_uri: The uri of a hive script on Cloud Storage.
-        :type query_uri: string
+        :type query_uri: str
         :param variables: Map of named parameters for the query.
         :type variables: dict
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_hive_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_hive_properties: dict
@@ -505,11 +505,11 @@ class DataProcHiveOperator(BaseOperator):
             UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_hive_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataProcHiveOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -566,17 +566,17 @@ class DataProcSparkSqlOperator(BaseOperator):
         Create a new DataProcSparkSqlOperator.
 
         :param query: The query or reference to the query file (q extension).
-        :type query: string
+        :type query: str
         :param query_uri: The uri of a spark sql script on Cloud Storage.
-        :type query_uri: string
+        :type query_uri: str
         :param variables: Map of named parameters for the query.
         :type variables: dict
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_spark_properties: dict
@@ -584,11 +584,11 @@ class DataProcSparkSqlOperator(BaseOperator):
             for UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_spark_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataProcSparkSqlOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -648,10 +648,10 @@ class DataProcSparkOperator(BaseOperator):
 
         :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
             the main_class, not both together).
-        :type main_jar: string
+        :type main_jar: str
         :param main_class: Name of the job class. (use this or the main_jar, not both
             together).
-        :type main_class: string
+        :type main_class: str
         :param arguments: Arguments for the job.
         :type arguments: list
         :param archives: List of archived files that will be unpacked in the work
@@ -662,9 +662,9 @@ class DataProcSparkOperator(BaseOperator):
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_spark_properties: dict
@@ -672,11 +672,11 @@ class DataProcSparkOperator(BaseOperator):
             for UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_spark_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataProcSparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -736,10 +736,10 @@ class DataProcHadoopOperator(BaseOperator):
 
         :param main_jar: URI of the job jar provisioned on Cloud Storage. (use this or
             the main_class, not both together).
-        :type main_jar: string
+        :type main_jar: str
         :param main_class: Name of the job class. (use this or the main_jar, not both
             together).
-        :type main_class: string
+        :type main_class: str
         :param arguments: Arguments for the job.
         :type arguments: list
         :param archives: List of archived files that will be unpacked in the work
@@ -750,9 +750,9 @@ class DataProcHadoopOperator(BaseOperator):
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_hadoop_properties: dict
@@ -760,11 +760,11 @@ class DataProcHadoopOperator(BaseOperator):
             for UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_hadoop_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataProcHadoopOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -824,7 +824,7 @@ class DataProcPySparkOperator(BaseOperator):
 
         :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
             Python file to use as the driver. Must be a .py file.
-        :type main: string
+        :type main: str
         :param arguments: Arguments for the job.
         :type arguments: list
         :param archives: List of archived files that will be unpacked in the work
@@ -838,9 +838,9 @@ class DataProcPySparkOperator(BaseOperator):
         :param job_name: The job name used in the DataProc cluster. This name by default
             is the task_id appended with the execution data, but can be templated. The
             name will always be appended with a random number to avoid name clashes.
-        :type job_name: string
+        :type job_name: str
         :param dataproc_cluster: The id of the DataProc cluster.
-        :type dataproc_cluster: string
+        :type dataproc_cluster: str
         :param dataproc_pyspark_properties: Map for the Pig properties. Ideal to put in
             default arguments
         :type dataproc_pyspark_properties: dict
@@ -848,11 +848,11 @@ class DataProcPySparkOperator(BaseOperator):
             for UDFs and libs) and are ideal to put in default arguments.
         :type dataproc_pyspark_jars: list
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
          """
         super(DataProcPySparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id

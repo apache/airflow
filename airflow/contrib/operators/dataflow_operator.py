@@ -84,18 +84,18 @@ class DataFlowJavaOperator(BaseOperator):
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
         :param jar: The reference to a self executing DataFlow jar.
-        :type jar: string
+        :type jar: str
         :param dataflow_default_options: Map of default job options.
         :type dataflow_default_options: dict
         :param options: Map of job specific options.
         :type options: dict
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud
         Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
@@ -147,7 +147,7 @@ class DataFlowPythonOperator(BaseOperator):
 
         :param py_file: Reference to the python dataflow pipleline file, e.g.,
             /some/local/file/path/to/your/python/pipeline/file.py.
-        :type py_file: string
+        :type py_file: str
         :param py_options: Additional python options.
         :type pyt_options: list of strings, e.g., ["-m", "-v"].
         :param dataflow_default_options: Map of default job options.
@@ -156,11 +156,11 @@ class DataFlowPythonOperator(BaseOperator):
         :type options: dict
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud
             Platform.
-        :type gcp_conn_id: string
+        :type gcp_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have
             domain-wide  delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
@@ -207,9 +207,9 @@ class GoogleCloudBucketHelper():
         will be returned immediately.
 
         :param file_name: The full path of input file.
-        :type file_name: string
+        :type file_name: str
         :return: The full path of local file.
-        :type: string
+        :type: str
         """
         if not file_name.startswith('gs://'):
             return file_name

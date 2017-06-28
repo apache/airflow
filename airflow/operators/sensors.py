@@ -89,7 +89,7 @@ class SqlSensor(BaseSensorOperator):
     sql returns no row, or if the first cell in (0, '0', '').
 
     :param conn_id: The connection to run the sensor against
-    :type conn_id: string
+    :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
     """
@@ -183,10 +183,10 @@ class ExternalTaskSensor(BaseSensorOperator):
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
-    :type external_dag_id: string
+    :type external_dag_id: str
     :param external_task_id: The task_id that contains the task you want to
         wait for
-    :type external_task_id: string
+    :type external_task_id: str
     :param allowed_states: list of allowed states, default is ``['success']``
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
@@ -332,12 +332,12 @@ class HivePartitionSensor(BaseSensorOperator):
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
-    :type table: string
+    :type table: str
     :param partition: The partition clause to wait for. This is passed as
         is to the metastore Thrift client ``get_partitions_by_filter`` method,
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
-    :type partition: string
+    :type partition: str
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
     :type metastore_conn_id: str
@@ -630,11 +630,11 @@ class HttpSensor(BaseSensorOperator):
         404 not found or response_check function returned False
 
     :param http_conn_id: The connection to run the sensor against
-    :type http_conn_id: string
+    :type http_conn_id: str
     :param method: The HTTP request method to use
-    :type method: string
+    :type method: str
     :param endpoint: The relative part of the full url
-    :type endpoint: string
+    :type endpoint: str
     :param request_params: The parameters to be added to the GET url
     :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request

@@ -47,11 +47,11 @@ class GoogleCloudBaseHook(BaseHook):
     def __init__(self, conn_id, delegate_to=None):
         """
         :param conn_id: The connection ID to use when fetching connection info.
-        :type conn_id: string
+        :type conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         self.conn_id = conn_id
         self.delegate_to = delegate_to

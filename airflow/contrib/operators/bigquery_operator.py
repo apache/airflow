@@ -30,13 +30,13 @@ class BigQueryOperator(BaseOperator):
     :param destination_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
         of the query.
-    :type destination_dataset_table: string
+    :type destination_dataset_table: str
     :param bigquery_conn_id: reference to a specific BigQuery hook.
-    :type bigquery_conn_id: string
+    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
-    :type delegate_to: string
+    :type delegate_to: str
     :param udf_config: The User Defined Function configuration for the query.
         See https://cloud.google.com/bigquery/user-defined-functions for details.
     :type udf_config: list

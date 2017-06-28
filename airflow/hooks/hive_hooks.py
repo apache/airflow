@@ -55,13 +55,13 @@ class HiveCliHook(BaseHook):
     connection string as is.
 
     :param mapred_queue: queue used by the Hadoop Scheduler (Capacity or Fair)
-    :type  mapred_queue: string
+    :type  mapred_queue: str
     :param mapred_queue_priority: priority within the job queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW
-    :type  mapred_queue_priority: string
+    :type  mapred_queue_priority: str
     :param mapred_job_name: This name will appear in the jobtracker.
         This can make monitoring easier.
-    :type  mapred_job_name: string
+    :type  mapred_job_name: str
     """
 
     def __init__(
@@ -295,7 +295,7 @@ class HiveCliHook(BaseHook):
         :type recreate: bool
         :param field_dict: mapping from column name to hive data type
         :type field_dict: dict
-        :param encoding: string encoding to use when writing DataFrame to file
+        :param encoding: str encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
         :type pandas_kwargs: dict
@@ -471,12 +471,12 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: string
+        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: string
+        :type schema: str
         :partition: Expression that matches the partitions to check for
             (eg `a = 'b' AND c = 'd'`)
-        :type schema: string
+        :type schema: str
         :rtype: boolean
 
         >>> hh = HiveMetastoreHook()
@@ -498,11 +498,11 @@ class HiveMetastoreHook(BaseHook):
         Checks whether a partition with a given name exists
 
         :param schema: Name of hive schema (database) @table belongs to
-        :type schema: string
+        :type schema: str
         :param table: Name of hive table @partition belongs to
-        :type schema: string
+        :type schema: str
         :partition: Name of the partitions to check for (eg `a=b/c=d`)
-        :type schema: string
+        :type schema: str
         :rtype: boolean
 
         >>> hh = HiveMetastoreHook()

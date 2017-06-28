@@ -28,15 +28,15 @@ class JdbcHook(DbApiHook):
     Otherwise host, port, schema, username and password can be specified on the fly.
 
     :param jdbc_url: jdbc connection url
-    :type jdbc_url: string
+    :type jdbc_url: str
     :param jdbc_driver_name: jdbc driver name
-    :type jdbc_driver_name: string
+    :type jdbc_driver_name: str
     :param jdbc_driver_loc: path to jdbc driver
-    :type jdbc_driver_loc: string
+    :type jdbc_driver_loc: str
     :param conn_id: reference to a predefined database
-    :type conn_id: string
+    :type conn_id: str
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
+    :type sql: str or str pointing to a template file. File must have
         a '.sql' extensions.
     """
 

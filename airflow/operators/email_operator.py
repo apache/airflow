@@ -24,10 +24,10 @@ class EmailOperator(BaseOperator):
     :param to: list of emails to send the email to
     :type to: list or string (comma or semicolon delimited)
     :param subject: subject line for the email (templated)
-    :type subject: string
+    :type subject: str
     :param html_content: content of the email (templated), html markup
         is allowed
-    :type html_content: string
+    :type html_content: str
     :param files: file names to attach in email
     :type files: list
     :param cc: list of recipients to be added in CC field

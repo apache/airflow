@@ -45,7 +45,7 @@ class DatabricksHook(BaseHook):
             retry_limit=3):
         """
         :param databricks_conn_id: The name of the databricks connection to use.
-        :type databricks_conn_id: string
+        :type databricks_conn_id: str
         :param timeout_seconds: The amount of time in seconds the requests library
             will wait before timing-out.
         :type timeout_seconds: int
@@ -136,7 +136,7 @@ class DatabricksHook(BaseHook):
         :param json: The data used in the body of the request to the ``submit`` endpoint.
         :type json: dict
         :return: the run_id as a string
-        :rtype: string
+        :rtype: str
         """
         response = self._do_api_call(SUBMIT_RUN_ENDPOINT, json)
         return response['run_id']

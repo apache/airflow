@@ -39,16 +39,16 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
         Create a new GoogleCloudStorageObjectSensor.
 
         :param bucket: The Google cloud storage bucket where the object is.
-        :type bucket: string
+        :type bucket: str
         :param object: The name of the object to check in the Google cloud
             storage bucket.
-        :type object: string
+        :type object: str
         :param google_cloud_storage_conn_id: The connection ID to use when
             connecting to Google cloud storage.
-        :type google_cloud_storage_conn_id: string
+        :type google_cloud_storage_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(GoogleCloudStorageObjectSensor, self).__init__(*args, **kwargs)
         self.bucket = bucket
@@ -95,21 +95,21 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
         Create a new GoogleCloudStorageObjectUpdatedSensor.
 
         :param bucket: The Google cloud storage bucket where the object is.
-        :type bucket: string
+        :type bucket: str
         :param object: The name of the object to download in the Google cloud
             storage bucket.
-        :type object: string
+        :type object: str
         :param ts_func: Callback for defining the update condition. The default callback
             returns execution_date + schedule_interval. The callback takes the context
             as parameter.
         :type ts_func: function
         :param google_cloud_storage_conn_id: The connection ID to use when
             connecting to Google cloud storage.
-        :type google_cloud_storage_conn_id: string
+        :type google_cloud_storage_conn_id: str
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
-        :type delegate_to: string
+        :type delegate_to: str
         """
         super(GoogleCloudStorageObjectUpdatedSensor, self).__init__(*args, **kwargs)
         self.bucket = bucket
