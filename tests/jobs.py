@@ -36,7 +36,7 @@ from airflow.operators.bash_operator import BashOperator
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
-from airflow.utils.dag_processing import SimpleDagBag
+from airflow.utils.dag_processing import SimpleDagBag, list_py_file_paths
 
 from mock import patch
 from sqlalchemy.orm.session import make_transient
@@ -68,7 +68,8 @@ UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
 # Filename to be used for dags that are created in an ad-hoc manner and can be removed/
 # created at runtime
 TEMP_DAG_FILENAME = "temp_dag.py"
-
+TEST_DAGS_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'dags')
 
 class BackfillJobTest(unittest.TestCase):
 
@@ -2011,3 +2012,19 @@ class SchedulerJobTest(unittest.TestCase):
         import_errors = session.query(models.ImportError).all()
 
         self.assertEqual(len(import_errors), 0)
+
+    def test_list_py_file_paths(self):
+        """
+        [JIRA-1357] Test the 'list_py_file_paths' function used by the
+        scheduler to list and load DAGs.
+        """
+        detected_files = []
+        expected_files = []
+        for file_name in os.listdir(TEST_DAGS_FOLDER):
+            if file_name.endswith('.py') or file_name.endswith('.zip'):
+                if file_name not in ['no_dags.py']:
+                    expected_files.append(
+                        '{}/{}'.format(TEST_DAGS_FOLDER, file_name))
+        for file_path in list_py_file_paths(TEST_DAGS_FOLDER):
+            detected_files.append(file_path)
+        self.assertEqual(sorted(detected_files), sorted(expected_files))
