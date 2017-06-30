@@ -18,8 +18,9 @@ import logging
 import re
 
 from airflow import settings
-from airflow.operators import BaseOperator
 from airflow.contrib.hooks.gcp_cloudml_hook import CloudMLHook
+from airflow.exceptions import AirflowException
+from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from apiclient import errors
 
@@ -239,10 +240,14 @@ class CloudMLBatchPredictionOperator(BaseOperator):
     def execute(self, context):
         hook = CloudMLHook(self.gcp_conn_id, self.delegate_to)
 
+        def check_existing_job(existing_job):
+            return existing_job.get('predictionInput', None) == \
+                self.prediction_job_request['predictionInput']
         try:
             finished_prediction_job = hook.create_job(
                 self.project_id,
-                self.prediction_job_request)
+                self.prediction_job_request,
+                check_existing_job)
         except errors.HttpError:
             raise
 
@@ -406,3 +411,142 @@ class CloudMLVersionOperator(BaseOperator):
                                        self._version['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
+
+
+class CloudMLTrainingOperator(BaseOperator):
+    """
+    Operator for launching a CloudML training job.
+
+    :param project_name: The Google Cloud project name within which CloudML
+        training job should run. This field could be templated.
+    :type project_name: string
+
+    :param job_id: A unique templated id for the submitted Google CloudML
+        training job.
+    :type job_id: string
+
+    :param package_uris: A list of package locations for CloudML training job,
+        which should include the main training program + any additional
+        dependencies.
+    :type package_uris: string
+
+    :param training_python_module: The Python module name to run within CloudML
+        training job after installing 'package_uris' packages.
+    :type training_python_module: string
+
+    :param training_args: A list of templated command line arguments to pass to
+        the CloudML training program.
+    :type training_args: string
+
+    :param region: The Google Compute Engine region to run the CloudML training
+        job in. This field could be templated.
+    :type region: string
+
+    :param scale_tier: Resource tier for CloudML training job.
+    :type scale_tier: string
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: string
+
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
+    :type delegate_to: string
+
+    :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
+        training job will be launched, but the CloudML training job request
+        will be printed out. In 'CLOUD' mode, a real CloudML training job
+        creation request will be issued.
+    :type mode: string
+    """
+
+    template_fields = [
+        '_project_name',
+        '_job_id',
+        '_package_uris',
+        '_training_python_module',
+        '_training_args',
+        '_region',
+        '_scale_tier',
+    ]
+
+    @apply_defaults
+    def __init__(self,
+                 project_name,
+                 job_id,
+                 package_uris,
+                 training_python_module,
+                 training_args,
+                 region,
+                 scale_tier=None,
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 mode='PRODUCTION',
+                 *args,
+                 **kwargs):
+        super(CloudMLTrainingOperator, self).__init__(*args, **kwargs)
+        self._project_name = project_name
+        self._job_id = job_id
+        self._package_uris = package_uris
+        self._training_python_module = training_python_module
+        self._training_args = training_args
+        self._region = region
+        self._scale_tier = scale_tier
+        self._gcp_conn_id = gcp_conn_id
+        self._delegate_to = delegate_to
+        self._mode = mode
+
+        if not self._project_name:
+            raise AirflowException('Google Cloud project name is required.')
+        if not self._job_id:
+            raise AirflowException(
+                'An unique job id is required for Google CloudML training '
+                'job.')
+        if not package_uris:
+            raise AirflowException(
+                'At least one python package is required for CloudML '
+                'Training job.')
+        if not training_python_module:
+            raise AirflowException(
+                'Python module name to run after installing required '
+                'packages is required.')
+        if not self._region:
+            raise AirflowException('Google Compute Engine region is required.')
+
+    def execute(self, context):
+        job_id = _normalize_cloudml_job_id(self._job_id)
+        training_request = {
+            'jobId': job_id,
+            'trainingInput': {
+                'scaleTier': self._scale_tier,
+                'packageUris': self._package_uris,
+                'pythonModule': self._training_python_module,
+                'region': self._region,
+                'args': self._training_args,
+            }
+        }
+
+        if self._mode == 'DRY_RUN':
+            logging.info('In dry_run mode.')
+            logging.info(
+                'CloudML Training job request is: {}'.format(training_request))
+            return
+
+        hook = CloudMLHook(
+            gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
+
+        # Helper method to check if the existing job's training input is the
+        # same as the request we get here.
+        def check_existing_job(existing_job):
+            return existing_job.get('trainingInput', None) == \
+                training_request['trainingInput']
+        try:
+            finished_training_job = hook.create_job(
+                self._project_name, training_request, check_existing_job)
+        except errors.HttpError:
+            raise
+
+        if finished_training_job['state'] != 'SUCCEEDED':
+            logging.error('CloudML training job failed: {}'.format(
+                str(finished_training_job)))
+            raise RuntimeError(finished_training_job['errorMessage'])

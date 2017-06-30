@@ -62,30 +62,37 @@ class CloudMLHook(GoogleCloudBaseHook):
         credentials = GoogleCredentials.get_application_default()
         return build('ml', 'v1', credentials=credentials)
 
-    def create_job(self, project_name, job):
+    def create_job(self, project_name, job, use_existing_job_fn=None):
         """
-        Creates and executes a CloudML job.
+        Launches a CloudML job and wait for it to reach a terminal state.
 
-        Returns the job object if the job was created and finished
-        successfully, or raises an error otherwise.
+        :param project_name: The Google Cloud project name within which CloudML
+            job will be launched.
+        :type project_name: string
 
-        Raises:
-            apiclient.errors.HttpError: if the job cannot be created
-            successfully
+        :param job: CloudML Job object that should be provided to the CloudML
+            API, such as:
+            {
+              'jobId': 'my_job_id',
+              'trainingInput': {
+                'scaleTier': 'STANDARD_1',
+                ...
+              }
+            }
+        :type job: dict
 
-        project_name is the name of the project to use, such as
-        'my-project'
+        :param use_existing_job_fn: In case that a CloudML job with the same
+            job_id already exist, this method (if provided) will decide whether
+            we should use this existing job, continue waiting for it to finish
+            and returning the job object. It should accepts a CloudML job
+            object, and returns a boolean value indicating whether it is OK to
+            reuse the existing job. If 'use_existing_job_fn' is not provided,
+            we by default reuse the existing CloudML job.
+        :type use_existing_job_fn: function
 
-        job is the complete Cloud ML Job object that should be provided to the
-        Cloud ML API, such as
-
-        {
-          'jobId': 'my_job_id',
-          'trainingInput': {
-            'scaleTier': 'STANDARD_1',
-            ...
-          }
-        }
+        :return: The CloudML job object if the job successfully reach a
+            terminal state (which might be FAILED or CANCELLED state).
+        :rtype: dict
         """
         request = self._cloudml.projects().jobs().create(
             parent='projects/{}'.format(project_name),
@@ -94,29 +101,24 @@ class CloudMLHook(GoogleCloudBaseHook):
 
         try:
             request.execute()
-            return self._wait_for_job_done(project_name, job_id)
         except errors.HttpError as e:
+            # 409 means there is an existing job with the same job ID.
             if e.resp.status == 409:
-                existing_job = self._get_job(project_name, job_id)
+                if use_existing_job_fn is not None:
+                    existing_job = self._get_job(project_name, job_id)
+                    if not use_existing_job_fn(existing_job):
+                        logging.error(
+                            'Job with job_id {} already exist, but it does '
+                            'not match our expectation: {}'.format(
+                                job_id, existing_job))
+                        raise
                 logging.info(
-                    'Job with job_id {} already exist: {}.'.format(
-                        job_id,
-                        existing_job))
-
-                if existing_job.get('predictionInput', None) == \
-                        job['predictionInput']:
-                    return self._wait_for_job_done(project_name, job_id)
-                else:
-                    logging.error(
-                        'Job with job_id {} already exists, but the '
-                        'predictionInput mismatch: {}'
-                        .format(job_id, existing_job))
-                    raise ValueError(
-                        'Found a existing job with job_id {}, but with '
-                        'different predictionInput.'.format(job_id))
+                    'Job with job_id {} already exist. Will waiting for it to '
+                    'finish'.format(job_id))
             else:
                 logging.error('Failed to create CloudML job: {}'.format(e))
                 raise
+        return self._wait_for_job_done(project_name, job_id)
 
     def _get_job(self, project_name, job_id):
         """
