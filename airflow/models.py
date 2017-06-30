@@ -754,6 +754,7 @@ class TaskInstance(Base):
     duration = Column(Float)
     state = Column(String(20))
     try_number = Column(Integer, default=0)
+    max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
@@ -780,6 +781,7 @@ class TaskInstance(Base):
         self.pool = task.pool
         self.priority_weight = task.priority_weight_total
         self.try_number = 0
+        self.max_tries = self.task.retries
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
         if state:
@@ -1021,6 +1023,7 @@ class TaskInstance(Base):
             self.start_date = ti.start_date
             self.end_date = ti.end_date
             self.try_number = ti.try_number
+            self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.pid = ti.pid
         else:
