@@ -81,6 +81,7 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
                 Name=basename
             )
             part['Content-Disposition'] = 'attachment; filename="%s"' % basename
+            part['Content-ID'] = '<%s>' % basename
             msg.attach(part)
 
     send_MIME_email(SMTP_MAIL_FROM, recipients, msg, dryrun)
