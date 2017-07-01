@@ -123,10 +123,12 @@ def create_evaluate_ops(task_prefix,
                         data_format,
                         input_paths,
                         prediction_path,
-                        model_uri,
                         metric_fn_and_keys,
                         validate_fn,
                         dataflow_options,
+                        model_uri=None,
+                        model_name=None,
+                        version_name=None,
                         dag=None):
     """
     Creates Operators needed for model evaluation and returns.
@@ -197,23 +199,42 @@ def create_evaluate_ops(task_prefix,
         hyphen are allowed (no underscores), since this will be used as dataflow
         job name, which doesn't allow other characters.
     :type task_prefix: string
-    :param model_uri: GCS path of the model exported using
-        estimator.export_savedmodel().
+
+    :param model_uri: GCS path of the model exported by Tensorflow using
+        tensorflow.estimator.export_savedmodel(). It cannot be used with
+        model_name or version_name below. See CloudMLBatchPredictionOperator for
+        more detail.
     :type model_uri: string
+
+    :param model_name: Used to indicate a model to use for prediction. Can be
+        used in combination with version_name, but cannot be used together with
+        model_uri. See CloudMLBatchPredictionOperator for more detail.
+    :type model_name: string
+
+    :param version_name: Used to indicate a model version to use for prediciton,
+        in combination with model_name. Cannot be used together with model_uri
+        See CloudMLBatchPredictionOperator for more detail.
+    :type version_name: string
+
     :param data_format: either of 'TEXT', 'TF_RECORD', 'TF_RECORD_GZIP'
     :type data_format: string
+
     :param input_paths: a list of input paths to be sent to BatchPrediction.
     :type input_paths: list of strings
+
     :param prediction_path: GCS path to put the prediction results in.
     :type prediction_path: string
+
     :param metric_fn_and_keys: a tuple of metric_fn and metric_keys:
         - metric_fn is a function that accepts a dictionary (for an instance),
           and returns a tuple of metric(s) that it calculates.
         - metric_keys is a list of strings to denote the key of each metric.
     :type metric_fn_and_keys: tuple of a function and a list of strings
+
     :param validate_fn: a function to validate whether the averaged metric(s) is
         good enough to push the model.
     :type validate_fn: function
+
     :param dataflow_options: options to run Dataflow jobs.
     :type dataflow_options: dictionary
 
@@ -244,10 +265,8 @@ def create_evaluate_ops(task_prefix,
         input_paths=input_paths,
         output_path=prediction_path,
         uri=model_uri,
-        max_worker_count=None,
-        runtime_version=None,
-        gcp_conn_id="google_cloud_default",
-        delegate_to=None,
+        model_name=model_name,
+        version_name=version_name,
         dag=dag)
 
     metric_fn_encoded = base64.b64encode(dill.dumps(metric_fn, recurse=True))
