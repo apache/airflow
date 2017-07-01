@@ -1795,6 +1795,52 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get("/admin/xcom", follow_redirects=True)
         self.assertIn("Xcoms", response.data.decode('utf-8'))
 
+    def test_dag_clear_view_with_descendants(self):
+        def _run_dag(dag):
+            dag.clear()
+            dag.run(start_date=DEFAULT_DATE,
+                end_date=DEFAULT_DATE + timedelta(seconds=1))
+
+        def _parse_view(html):
+            # If the way task instances are serialized changes (repr(TaskInstance))
+            # this regexp won't work anymore but I cannot find another way to
+            # parse the html
+            pattern = r"TaskInstance:\s+(\w+)\.(\w+)\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\s+\[\w+\]"
+            return re.findall(pattern, html)
+
+        dagbag = models.DagBag(dag_folder=TEST_DAG_FOLDER)
+        dag_core_id = TEST_DAG_ID + '_core'
+        dag_first_child_id = TEST_DAG_ID + '_first_child'
+        dag_second_child_id = TEST_DAG_ID + '_second_child'
+
+        dag_core = dagbag.get_dag(dag_core_id)
+        dag_first_child = dagbag.get_dag(dag_first_child_id)
+        dag_second_child = dagbag.get_dag(dag_second_child_id)
+
+        all_dags = [dag_core, dag_first_child, dag_second_child]
+        all_dag_ids = [dag.dag_id for dag in all_dags]
+        all_task_ids = [task_id for dag in all_dags for task_id in dag.task_ids]
+
+        for dag in all_dags:
+            _run_dag(dag)
+        to_rerun_task_ids = [ task_id for task_id in all_task_ids if task_id != 't2_second_child']
+
+        session = settings.Session()
+        TI = models.TaskInstance
+        tis = session.query(TI).filter(TI.dag_id.in_(all_dag_ids),
+            TI.task_id.in_(to_rerun_task_ids)).all()
+        tis = [(ti.dag_id, ti.task_id, str(ti.execution_date)) for ti in tis]
+        url = (
+            "/admin/airflow/clear?task_id=task_core&"
+            "dag_id={}&future=true&past=false&"
+            "upstream=false&downstream=true&recursive=true&"
+            "descendants=true&execution_date={}&"
+            "origin=/admin".format(dag_core_id, DEFAULT_DATE))
+        response = self.app.get(url)
+        html = response.data.decode('utf-8')
+        tasks = _parse_view(html)
+        self.assertEqual(sorted(tis), sorted(tasks))
+
     def test_charts(self):
         session = Session()
         chart_label = "Airflow task instance by type"

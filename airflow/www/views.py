@@ -1011,22 +1011,26 @@ class Airflow(BaseView):
             "it should start any moment now.".format(dag_id))
         return redirect(origin)
 
-    def _clear_dag_tis(self, dag, start_date, end_date, origin,
+    def _clear_dag_tis(self, dags, start_date, end_date, origin,
                        recursive=False, confirmed=False):
         if confirmed:
-            count = dag.clear(
-                start_date=start_date,
-                end_date=end_date,
-                include_subdags=recursive)
+            count = 0
+            for dag in dags:
+                count += dag.clear(
+                    start_date=start_date,
+                    end_date=end_date,
+                    include_subdags=recursive)
 
             flash("{0} task instances have been cleared".format(count))
             return redirect(origin)
 
-        tis = dag.clear(
-            start_date=start_date,
-            end_date=end_date,
-            include_subdags=recursive,
-            dry_run=True)
+        tis = []
+        for dag in dags:
+            tis.extend(dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                include_subdags=recursive,
+                dry_run=True))
         if not tis:
             flash("No task instances to clear", 'error')
             response = redirect(origin)
@@ -1059,16 +1063,22 @@ class Airflow(BaseView):
         future = request.args.get('future') == "true"
         past = request.args.get('past') == "true"
         recursive = request.args.get('recursive') == "true"
+        descendants = request.args.get('descendants') == "true"
 
-        dag = dag.sub_dag(
+        dags = [dag.sub_dag(
             task_regex=r"^{0}$".format(task_id),
             include_downstream=downstream,
-            include_upstream=upstream)
+            include_upstream=upstream)]
+
+        if descendants:
+            dags.extend(dag.descendants(
+                dagbag, task_ids=[task_id], include_downstream=downstream,
+                include_upstream=upstream, recursive=recursive))
 
         end_date = execution_date if not future else None
         start_date = execution_date if not past else None
 
-        return self._clear_dag_tis(dag, start_date, end_date, origin,
+        return self._clear_dag_tis(dags, start_date, end_date, origin,
                                    recursive=recursive, confirmed=confirmed)
 
     @expose('/dagrun_clear')
@@ -1081,13 +1091,19 @@ class Airflow(BaseView):
         origin = request.args.get('origin')
         execution_date = request.args.get('execution_date')
         confirmed = request.args.get('confirmed') == "true"
+        descendants = request.args.get('descendants') == "true"
 
         dag = dagbag.get_dag(dag_id)
+        dags = [dag]
+
+        if descendants:
+            dags.extend(dag.descendants(dagbag, task_ids=[task_id], recursive=True))
+
         execution_date = dateutil.parser.parse(execution_date)
         start_date = execution_date
         end_date = execution_date
 
-        return self._clear_dag_tis(dag, start_date, end_date, origin,
+        return self._clear_dag_tis(dags, start_date, end_date, origin,
                                    recursive=True, confirmed=confirmed)
 
     @expose('/blocked')

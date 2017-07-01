@@ -42,7 +42,7 @@ from parameterized import parameterized
 DEFAULT_DATE = datetime.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
-
+TEST_DAG_ID = 'unit_tests'
 
 class DagTest(unittest.TestCase):
 
@@ -289,6 +289,48 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
 
+    def test_descendants(self):
+        dagbag = models.DagBag(dag_folder=TEST_DAGS_FOLDER)
+        dag_core_id = TEST_DAG_ID + '_core'
+        dag_first_child = TEST_DAG_ID + '_first_child'
+        dag_core = dagbag.get_dag(dag_core_id)
+        dag_first_child = dagbag.get_dag(dag_first_child)
+        descendants = dag_core.descendants(dagbag)
+        self.assertEqual(len(descendants), 1)
+        self.assertEqual(descendants[0], dag_first_child.sub_dag(task_regex=r"^t1_first_child$"))
+
+    def test_descendants_upstream(self):
+        dagbag = models.DagBag(dag_folder=TEST_DAGS_FOLDER)
+        dag_core_id = TEST_DAG_ID + '_core'
+        dag_first_child = TEST_DAG_ID + '_first_child'
+        dag_core = dagbag.get_dag(dag_core_id)
+        dag_first_child = dagbag.get_dag(dag_first_child)
+        descendants = dag_core.descendants(dagbag, include_upstream=True)
+        self.assertEqual(len(descendants), 1)
+        self.assertEqual(descendants[0], dag_first_child.sub_dag(task_regex=r"^t1_first_child$"))
+
+    def test_descendants_downstream(self):
+        dagbag = models.DagBag(dag_folder=TEST_DAGS_FOLDER)
+        dag_core_id = TEST_DAG_ID + '_core'
+        dag_first_child = TEST_DAG_ID + '_first_child'
+        dag_core = dagbag.get_dag(dag_core_id)
+        dag_first_child = dagbag.get_dag(dag_first_child)
+        descendants = dag_core.descendants(dagbag, 'task_core', include_downstream=True)
+        self.assertEqual(len(descendants), 1)
+        self.assertEqual(descendants[0], dag_first_child.sub_dag(task_regex=r"^(t1_first_child|t2_first_child)$"))
+
+    def test_descendants_downstream_recursive(self):
+        dagbag = models.DagBag(dag_folder=TEST_DAGS_FOLDER)
+        dag_core_id = TEST_DAG_ID + '_core'
+        dag_first_child = TEST_DAG_ID + '_first_child'
+        dag_second_child = TEST_DAG_ID + '_second_child'
+        dag_core = dagbag.get_dag(dag_core_id)
+        dag_first_child = dagbag.get_dag(dag_first_child)
+        dag_second_child = dagbag.get_dag(dag_second_child)
+        descendants = dag_core.descendants(dagbag, include_downstream=True, recursive=True)
+        self.assertEqual(len(descendants), 2)
+        self.assertEqual(descendants[0], dag_first_child.sub_dag(task_regex=r"^(t1_first_child|t2_first_child)$"))
+        self.assertEqual(descendants[1], dag_second_child.sub_dag(task_regex=r"^t1_second_child$"))
 
 class DagStatTest(unittest.TestCase):
     def test_dagstats_crud(self):
