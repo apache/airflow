@@ -31,6 +31,8 @@ from airflow.bin import cli
 from airflow.executors import SequentialExecutor
 from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
+from airflow.notifiers.hipchat import HipChatNotifier
+from airflow.notifiers.slack import SlackNotifier
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.utils.db import provide_session
@@ -1674,6 +1676,129 @@ class SchedulerJobTest(unittest.TestCase):
         # make sure the counter has increased
         self.assertEqual(ti.try_number, 2)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
+        
+    def _test_failure_notification(self, mock_notifier, default_args):
+        executor = TestExecutor()
+        
+        dagbag = DagBag(executor=executor)
+        dagbag.dags.clear()
+        dagbag.executor = executor
+
+        dag = DAG(
+            dag_id='test_failure_notification',
+            start_date=DEFAULT_DATE,
+            schedule_interval="@once",
+            default_args=default_args)
+        
+        dag_task1 = BashOperator(
+            task_id='test_retry_handling_op',
+            bash_command='exit 1',
+            retries=1,
+            dag=dag,
+            owner='airflow')
+        
+        dag.clear()
+        dag.is_subdag = False
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        orm_dag.is_paused = False
+        session.merge(orm_dag)
+        session.commit()
+
+        dagbag.bag_dag(dag=dag, root_dag=dag, parent_dag=dag)
+
+        @mock.patch('airflow.models.DagBag', return_value=dagbag)
+        def do_schedule(_):
+            # Use a empty file since the above mock will return the
+            # expected DAGs. Also specify only a single file so that it doesn't
+            # try to schedule the above DAG repeatedly.
+            scheduler = SchedulerJob(num_runs=1,
+                                     executor=executor,
+                                     subdir=os.path.join(settings.DAGS_FOLDER,
+                                                         "no_dags.py"))
+            
+            scheduler.heartrate = 0
+            scheduler.run()
+        
+        def run_with_error():
+            ti_tuple = six.next(six.itervalues(executor.queued_tasks))
+            (_,_,_,ti) = ti_tuple
+            ti.task = dag_task1
+            
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        do_schedule()
+
+        run_with_error()
+        self.assertGreater(mock_notifier.call_count, 0)
+        call_args1, _ = mock_notifier.call_args
+        _call_count = mock_notifier.call_count
+
+        do_schedule()
+
+        run_with_error()
+        self.assertGreater(mock_notifier.call_count, _call_count)
+        call_args2, _ = mock_notifier.call_args
+
+        return call_args1, call_args2
+
+    @mock.patch('airflow.notifiers.email.send_email')
+    def test_failure_email_notification(self, mock_send_email):
+        """
+        Integration test of the scheduler sending a notification on failure
+        """
+        default_args = {'email': ['airflow@example.com'],
+                        'email_on_failure': True,
+                        'email_on_retry': True,
+                        'retry_delay': datetime.timedelta(seconds=0)}
+        
+        call_args1, call_args2 = self._test_failure_notification(mock_send_email, default_args)
+        
+        self.assertEqual(call_args1[0], ['airflow@example.com',])
+        self.assertEqual(call_args1[1], 'Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [up_for_retry]>')
+        
+        self.assertEqual(call_args2[0], ['airflow@example.com',])
+        self.assertEqual(call_args2[1], 'Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [failed]>')
+
+    @mock.patch('airflow.notifiers.hipchat.HipChatAPI.send_message')
+    def test_failure_hipchat_notification(self, mock_send_message):
+        """
+        Integration test of the scheduler sending a notification on failure
+        """
+        default_args = {'notifiers': {'hipchat': HipChatNotifier(42)},
+                        'retry_delay': datetime.timedelta(seconds=0)}
+        
+        call_args1, call_args2 = self._test_failure_notification(mock_send_message, default_args)
+        
+        self.assertEqual(call_args1[0], 'https://api.hipchat.com/v2/room/42/notification')
+        self.assertEqual(call_args1[1], '42')
+        self.assertTrue('Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [up_for_retry]>' in call_args1[2]['message'], call_args1[2])
+        
+        self.assertEqual(call_args2[0], 'https://api.hipchat.com/v2/room/42/notification')
+        self.assertEqual(call_args2[1], '42')
+        self.assertTrue('Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [failed]>' in call_args2[2]['message'], call_args2[2])      
+
+    @mock.patch('airflow.notifiers.slack.SlackAPI.send_message')
+    def test_failure_slack_notification(self, mock_send_message):
+        """
+        Integration test of the scheduler sending a notification on failure
+        """
+        default_args = {'notifiers': {'slack': SlackNotifier(42)},
+                        'retry_delay': datetime.timedelta(seconds=0)}
+        
+        call_args1, call_args2 = self._test_failure_notification(mock_send_message, default_args)
+        
+        self.assertEqual(call_args1[0], 'chat.postMessage')
+        self.assertEqual(call_args1[1], '42')
+        self.assertTrue('Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [up_for_retry]>' in call_args1[2]['text'], call_args1[2])
+        
+        self.assertEqual(call_args2[0], 'chat.postMessage')
+        self.assertEqual(call_args2[1], '42')
+        self.assertTrue('Airflow alert: <TaskInstance: test_failure_notification.test_retry_handling_op 2016-01-01 00:00:00 [failed]>' in call_args2[2]['text'], call_args2[2])
 
     def test_scheduler_run_duration(self):
         """

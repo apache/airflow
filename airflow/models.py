@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from future.standard_library import install_aliases
+from airflow.notifiers.email import EmailNotifier
 
 install_aliases()
 from builtins import str
@@ -72,7 +73,6 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
-from airflow.utils.email import send_email
 from airflow.utils.helpers import (
     as_tuple, is_container, is_in, validate_key, pprinttable)
 from airflow.utils.logging import LoggingMixin
@@ -1379,10 +1379,14 @@ class TaskInstance(Base):
             else:
                 msg = "Executing "
             msg += "{self.task} on {self.execution_date}"
+        msg = msg.format(self=self)
+
+        # Send notification of state change
+        self.send_notification(msg)
 
         context = {}
         try:
-            logging.info(msg.format(self=self))
+            logging.info(msg)
             if not mark_success:
                 context = self.get_template_context()
 
@@ -1445,7 +1449,7 @@ class TaskInstance(Base):
             self.handle_failure(e, test_mode, context)
             raise
 
-        # Recording SUCCESS
+        # Recording new state
         self.end_date = datetime.now()
         self.set_duration()
         if not test_mode:
@@ -1460,6 +1464,10 @@ class TaskInstance(Base):
         except Exception as e3:
             logging.error("Failed when executing success callback")
             logging.exception(e3)
+
+        # Notifying new state
+        msg = "Marking {self.state} for {self.task} on {self.execution_date}"
+        self.send_notification(msg.format(self=self))
 
         session.commit()
 
@@ -1485,24 +1493,18 @@ class TaskInstance(Base):
         session.add(TaskFail(task, self.execution_date, self.start_date, self.end_date))
 
         # Let's go deeper
-        try:
-            if task.retries and self.try_number % (task.retries + 1) != 0:
-                self.state = State.UP_FOR_RETRY
-                logging.info('Marking task as UP_FOR_RETRY')
-                if task.email_on_retry and task.email:
-                    self.email_alert(error, is_retry=True)
+        if task.retries and self.try_number % (task.retries + 1) != 0:
+            self.state = State.UP_FOR_RETRY
+            logging.info('Marking task as UP_FOR_RETRY')
+
+        else:
+            self.state = State.FAILED
+            if task.retries:
+                logging.info('All retries failed; marking task as FAILED')
             else:
-                self.state = State.FAILED
-                if task.retries:
-                    logging.info('All retries failed; marking task as FAILED')
-                else:
-                    logging.info('Marking task as FAILED.')
-                if task.email_on_failure and task.email:
-                    self.email_alert(error, is_retry=False)
-        except Exception as e2:
-            logging.error(
-                'Failed to send email to: ' + str(task.email))
-            logging.exception(e2)
+                logging.info('Marking task as FAILED.')
+
+        self.send_notification(error)
 
         # Handling callbacks pessimistically
         try:
@@ -1638,19 +1640,31 @@ class TaskInstance(Base):
                 setattr(task, attr, rendered_content)
 
     def email_alert(self, exception, is_retry=False):
-        task = self.task
-        title = "Airflow alert: {self}".format(**locals())
-        exception = str(exception).replace('\n', '<br>')
-        try_ = task.retries + 1
-        body = (
-            "Try {self.try_number} out of {try_}<br>"
-            "Exception:<br>{exception}<br>"
-            "Log: <a href='{self.log_url}'>Link</a><br>"
-            "Host: {self.hostname}<br>"
-            "Log file: {self.log_filepath}<br>"
-            "Mark success: <a href='{self.mark_success_url}'>Link</a><br>"
-        ).format(**locals())
-        send_email(task.email, title, body)
+        warnings.warn("TaskInstance.email_alert() is deprecated, use send_notification",
+                      category=DeprecationWarning)
+        self.send_notification(exception, notifier='email')
+
+    def send_notification(self, message, notifier=None):
+        """
+        Send a notification using all or one notifier
+
+        :param message: The message to send
+        :type message: something which can be converted to string
+        :param notifier: An optional notifier to use
+        :type notifier: string
+        """
+
+        def notify(notifier):
+            try:
+                notifier.send_notification(self, self.state, message)
+            except Exception:
+                logging.exception("Failed to send notification")
+
+        if notifier:
+            notify(self.task.notifiers[notifier])
+        else:
+            for notifier in self.task.notifiers.values():
+                notify(notifier)
 
     def set_duration(self):
         if self.end_date and self.start_date:
@@ -1964,6 +1978,10 @@ class BaseOperator(object):
     :type resources: dict
     :param run_as_user: unix username to impersonate while running the task
     :type run_as_user: str
+    :param notifiers: A dict of AirflowNotifiers which are called whenever the
+        state of a task changes. The key can be used in the send_notification method
+        to send a notification using a single notifier
+    :type notifiers: dict
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2006,6 +2024,7 @@ class BaseOperator(object):
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
+            notifiers=None,
             *args,
             **kwargs):
 
@@ -2026,6 +2045,21 @@ class BaseOperator(object):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
+        self.notifiers = notifiers or {}
+        if self.email:
+            if 'email' in self.notifiers:
+                raise AirflowException("Cannot have email and notifier.email \
+                    specified at the same time")
+
+            email_on = {}
+            if self.email_on_retry:
+                email_on[State.UP_FOR_RETRY] = ['text_title.tpl', 'html_body.tpl']
+            if self.email_on_failure:
+                email_on[State.FAILED] = ['text_title.tpl', 'html_body.tpl']
+
+            self.notifiers['email'] = EmailNotifier(email, email_on)
+
         self.start_date = start_date
         if start_date and not isinstance(start_date, datetime):
             logging.warning(
@@ -2084,7 +2118,7 @@ class BaseOperator(object):
             'task_id',
             'dag_id',
             'owner',
-            'email',
+            'notifiers',
             'email_on_retry',
             'retry_delay',
             'retry_exponential_backoff',
