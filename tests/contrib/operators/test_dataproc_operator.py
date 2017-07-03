@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 
+import re
 import unittest
 
 from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
@@ -33,12 +34,12 @@ WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
 NUM_PREEMPTIBLE_WORKERS = 2
 LABEL1 = {}
-LABEL2 = {'application':'test', 'year': 2017} 
+LABEL2 = {'application':'test', 'year': 2017}
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
     # Unitest for the DataprocClusterCreateOperator
     def setUp(self):
-        # instantiate two different test cases with different labels 
+        # instantiate two different test cases with different labels.
         self.labels = [LABEL1, LABEL2]
         self.dataproc_operators = []
         for labels in self.labels:
@@ -86,8 +87,11 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(cluster_data['config']['workerConfig']['numInstances'], NUM_WORKERS)
             self.assertEqual(cluster_data['config']['secondaryWorkerConfig']['numInstances'],
                              NUM_PREEMPTIBLE_WORKERS)
-            # test whether the default airflow_version label has been properly set to the dataproc operator 
+            # test whether the default airflow-version label has been properly
+            # set to the dataproc operator.
             merged_labels = {}
             merged_labels.update(self.labels[suffix])
-            merged_labels.update({'airflow_version': version})
+            merged_labels.update({'airflow-version': 'v' + version.replace('.', '-')})
+            self.assertTrue(re.match(r'[a-z]([-a-z0-9]*[a-z0-9])?',
+                                     cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
