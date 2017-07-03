@@ -48,6 +48,10 @@ class CeleryConfig(object):
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
+    if BROKER_URL.startswith('sqla'):
+        from karellen.kombu import register_transports
+        register_transports()
+
 
     celery_ssl_active = False
     try:

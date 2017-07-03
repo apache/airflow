@@ -117,7 +117,8 @@ async = [
 azure = ['azure-storage>=0.34.0']
 celery = [
     'celery>=3.1.17',
-    'flower>=0.7.3'
+    'flower>=0.7.3',
+    'karellen-kombu-ext==4.0.2'
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
