@@ -72,6 +72,9 @@ class DockerOperator(BaseOperator):
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
+    :param host_tmp_dir: Specify the location of the temporary directory on the host which will
+        be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
+    :type host_tmp_dir: str
     :type mem_limit: float or str
     :param network_mode: Network mode for the container.
     :type network_mode: str
@@ -125,6 +128,7 @@ class DockerOperator(BaseOperator):
             docker_url='unix://var/run/docker.sock',
             environment=None,
             force_pull=False,
+            host_tmp_dir=None,
             mem_limit=None,
             network_mode=None,
             tls_ca_cert=None,
@@ -156,6 +160,7 @@ class DockerOperator(BaseOperator):
         self.docker_url = docker_url
         self.environment = environment or {}
         self.force_pull = force_pull
+        self.host_tmp_dir = host_tmp_dir
         self.image = image
         self.mem_limit = mem_limit
         self.network_mode = network_mode
@@ -205,7 +210,7 @@ class DockerOperator(BaseOperator):
                 if 'status' in output:
                     self.log.info("%s", output['status'])
 
-        with TemporaryDirectory(prefix='airflowtmp') as host_tmp_dir:
+        with TemporaryDirectory(prefix='airflowtmp', dir=self.host_tmp_dir) as host_tmp_dir:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 

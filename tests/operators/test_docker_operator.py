@@ -57,6 +57,7 @@ class DockerOperatorTestCase(unittest.TestCase):
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
+                                  host_tmp_dir='/host/airflow',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000)
         operator.execute(None)
@@ -83,6 +84,7 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                           auto_remove=False,
                                                           dns=None,
                                                           dns_search=None)
+        mkdtemp_mock.assert_called_with(dir='/host/airflow', prefix='airflowtmp', suffix='')
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.logs.assert_called_with(container='some_id', stream=True)
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
