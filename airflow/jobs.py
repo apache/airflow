@@ -432,8 +432,9 @@ class DagFileProcessor(AbstractDagFileProcessor):
         if not self._result_queue.empty():
             self._result = self._result_queue.get_nowait()
             self._done = True
-            logging.debug("Waiting for %s", self._process)
-            self._process.join()
+            logging.debug("Result queue not empty. Waiting for %s", self._process)
+            # terminate the process to avoid deadlocks
+            self.terminate(sigkill=True)
             return True
 
         # Potential error case when process dies
@@ -442,8 +443,8 @@ class DagFileProcessor(AbstractDagFileProcessor):
             # Get the object from the queue or else join() can hang.
             if not self._result_queue.empty():
                 self._result = self._result_queue.get_nowait()
-            logging.debug("Waiting for %s", self._process)
-            self._process.join()
+            logging.debug("Process not alive. Waiting for %s", self._process)
+            self.terminate()
             return True
 
         return False
