@@ -20,6 +20,7 @@ except ImportError:  # python 3
     from urllib.parse import urlparse, parse_qsl
 
 from airflow.contrib.hooks import gcp_cloudml_hook as hook
+from apiclient import errors
 from apiclient.discovery import build
 from apiclient.http import HttpMockSequence
 from oauth2client.contrib.gce import HttpAccessTokenRefreshError
@@ -137,8 +138,8 @@ class TestCloudMLHook(unittest.TestCase):
 
         expected_requests = [
             ('{}projects/{}/models/{}/versions/{}:setDefault?alt=json'.format(
-                self._SERVICE_URI_PREFIX, project, model_name, version), 'POST',
-             '{}'),
+                self._SERVICE_URI_PREFIX, project, model_name, version),
+                'POST', '{}'),
         ]
 
         with _TestCloudMLHook(
@@ -175,7 +176,8 @@ class TestCloudMLHook(unittest.TestCase):
                 self._SERVICE_URI_PREFIX, project, model_name), 'GET',
              None),
         ] + [
-            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}&pageSize=100'.format(
+            ('{}projects/{}/models/{}/versions?alt=json&pageToken={}'
+             '&pageSize=100'.format(
                 self._SERVICE_URI_PREFIX, project, model_name, ix), 'GET',
              None) for ix in range(len(versions) - 1)
         ]
@@ -301,6 +303,109 @@ class TestCloudMLHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
                 project_name=project, job=my_job)
+            self.assertEquals(create_job_response, my_job)
+
+    @_SKIP_IF
+    def test_create_cloudml_job_reuse_existing_job_by_default(self):
+        project = 'test-project'
+        job_id = 'test-job-id'
+        my_job = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'state': 'SUCCEEDED',
+        }
+        response_body = json.dumps(my_job)
+        job_already_exist_response = ({'status': '409'}, json.dumps({}))
+        succeeded_response = ({'status': '200'}, response_body)
+
+        create_job_request = ('{}projects/{}/jobs?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project), 'POST', response_body)
+        ask_if_done_request = ('{}projects/{}/jobs/{}?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project, job_id), 'GET', None)
+        expected_requests = [
+            create_job_request,
+            ask_if_done_request,
+        ]
+        responses = [job_already_exist_response, succeeded_response]
+
+        # By default, 'create_job' reuse the existing job.
+        with _TestCloudMLHook(
+                self,
+                responses=responses,
+                expected_requests=expected_requests) as cml_hook:
+            create_job_response = cml_hook.create_job(
+                project_name=project, job=my_job)
+            self.assertEquals(create_job_response, my_job)
+
+    @_SKIP_IF
+    def test_create_cloudml_job_check_existing_job(self):
+        project = 'test-project'
+        job_id = 'test-job-id'
+        my_job = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'state': 'SUCCEEDED',
+            'someInput': {
+                'input': 'someInput'
+            }
+        }
+        different_job = {
+            'jobId': job_id,
+            'foo': 4815162342,
+            'state': 'SUCCEEDED',
+            'someInput': {
+                'input': 'someDifferentInput'
+            }
+        }
+
+        my_job_response_body = json.dumps(my_job)
+        different_job_response_body = json.dumps(different_job)
+        job_already_exist_response = ({'status': '409'}, json.dumps({}))
+        different_job_response = ({'status': '200'},
+                                  different_job_response_body)
+
+        create_job_request = ('{}projects/{}/jobs?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project), 'POST', my_job_response_body)
+        ask_if_done_request = ('{}projects/{}/jobs/{}?alt=json'.format(
+            self._SERVICE_URI_PREFIX, project, job_id), 'GET', None)
+        expected_requests = [
+            create_job_request,
+            ask_if_done_request,
+        ]
+
+        # Returns a different job (with different 'someInput' field) will
+        # cause 'create_job' request to fail.
+        responses = [job_already_exist_response, different_job_response]
+
+        def check_input(existing_job):
+            return existing_job.get('someInput', None) == \
+                my_job['someInput']
+        with _TestCloudMLHook(
+                self,
+                responses=responses,
+                expected_requests=expected_requests) as cml_hook:
+            with self.assertRaises(errors.HttpError):
+                cml_hook.create_job(
+                    project_name=project, job=my_job,
+                    use_existing_job_fn=check_input)
+
+        my_job_response = ({'status': '200'}, my_job_response_body)
+        expected_requests = [
+            create_job_request,
+            ask_if_done_request,
+            ask_if_done_request,
+        ]
+        responses = [
+            job_already_exist_response,
+            my_job_response,
+            my_job_response]
+        with _TestCloudMLHook(
+                self,
+                responses=responses,
+                expected_requests=expected_requests) as cml_hook:
+            create_job_response = cml_hook.create_job(
+                project_name=project, job=my_job,
+                use_existing_job_fn=check_input)
             self.assertEquals(create_job_response, my_job)
 
 
