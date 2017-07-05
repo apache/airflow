@@ -70,6 +70,9 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :param working_dir: Working directory to set on the container (equivalent to the -w switch
+        the docker client)
+    :type working_dir: str
     :param xcom_push: Does the stdout will be pushed to the next step using XCom.
            The default is False.
     :type xcom_push: bool
@@ -99,6 +102,7 @@ class DockerOperator(BaseOperator):
             tmp_dir='/tmp/airflow',
             user=None,
             volumes=None,
+            working_dir=None,
             xcom_push=False,
             xcom_all=False,
             *args,
@@ -122,6 +126,7 @@ class DockerOperator(BaseOperator):
         self.tmp_dir = tmp_dir
         self.user = user
         self.volumes = volumes or []
+        self.working_dir = working_dir
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
 
@@ -169,7 +174,8 @@ class DockerOperator(BaseOperator):
                                                             network_mode=self.network_mode),
                     image=image,
                     mem_limit=self.mem_limit,
-                    user=self.user
+                    user=self.user,
+                    working_dir=self.working_dir
             )
             self.cli.start(self.container['Id'])
 
