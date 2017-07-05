@@ -103,6 +103,7 @@ class DockerOperator(BaseOperator):
     :type volumes: list
     :param working_dir: Working directory to
         set on the container (equivalent to the -w switch the docker client)
+    :type working_dir: str
     :param xcom_all: Push all the stdout or just the last line.
         The default is False (last line).
     :type xcom_all: bool
