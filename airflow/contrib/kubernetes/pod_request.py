@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import logging
 import os
 import time
@@ -167,11 +181,14 @@ class ReturnValuePodRequestFactory(SimplePodRequestFactory):
             an etcd service running with airflow)
         """
         container = body['spec']['containers'][0]
-        pre_stop_hook = self._kube_com_service_factory().pod_pre_stop_hook(self._result_data_file, pod.name)
+        pre_stop_hook = self._kube_com_service_factory()\
+            .pod_pre_stop_hook(self._result_data_file, pod.name)
         # Pre-stop hook only works on containers that are deleted. If the container
         # naturally exists there would be no pre-stop hook execution. Therefore we
         # simulate the hook by wrapping the exe command inside a script
         if "'" in ' '.join(container['command']):
-            raise AirflowException('Please do not include single quote in your command for hyperparameterized pods')
+            raise AirflowException('Please do not include single quote '
+                                   'in your command for hyperparameterized pods')
         cmd = ' '.join(["'" + c + "'" if " " in c else c for c in container['command']])
-        container['command'] = ['/bin/bash', '-c', "({}) ; ({})".format(cmd, pre_stop_hook)]
+        container['command'] = ['/bin/bash', '-c', "({}) ; ({})"
+            .format(cmd, pre_stop_hook)]

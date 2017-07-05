@@ -1046,20 +1046,21 @@ class TaskInstance(Base, LoggingMixin):
         session.merge(self)
         session.commit()
 
-
     @provide_session
     def update_hostname(self, hostname, session=None):
         """
         For use in kubernetes mode. Update the session to allow heartbeating to SQL
         :param session: 
+       
         :return: 
+        
         """
-        TI = TaskInstance
+        t_i = TaskInstance
 
-        qry = session.query(TI).filter(
-            TI.dag_id == self.dag_id,
-            TI.task_id == self.task_id,
-            TI.execution_date == self.execution_date)
+        qry = session.query(t_i).filter(
+            t_i.dag_id == self.dag_id,
+            t_i.task_id == self.task_id,
+            t_i.execution_date == self.execution_date)
 
         ti = qry.first()
         if ti:
