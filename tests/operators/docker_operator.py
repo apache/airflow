@@ -51,6 +51,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
+                                  host_tmp_dir='/host/airflow',
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'])
         operator.execute(None)
@@ -66,6 +67,8 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                         host_config=host_config,
                                                         image='ubuntu:latest',
                                                         mem_limit=None, user=None)
+        mkdtemp_mock.assert_called_with(dir='/host/airflow',
+                prefix='airflowtmp', suffix='')
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
                                                           network_mode='bridge')
