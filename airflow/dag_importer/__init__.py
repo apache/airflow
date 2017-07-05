@@ -23,10 +23,15 @@ dag_import_spec = {}
 
 
 def import_dags():
-    # self._import_cinder()
-    _import_hostpath()
-    # _import_git()
+    if configuration.has_option('core','kube_mode'):
+        mode = configuration.get('core', 'kube_mode')
+        dag_import_func(mode)()
 
+def dag_import_func(mode):
+    return{
+        'git': _import_git,
+        'cinder': _import_cinder,
+    }.get(mode, _import_hostpath)[mode]
 
 def _import_hostpath():
     logging.info("importing dags locally")
