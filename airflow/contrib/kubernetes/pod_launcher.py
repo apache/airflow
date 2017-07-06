@@ -20,7 +20,7 @@ import urllib2
 
 from kubernetes import client, config
 
-from pod_request import KubernetesRequestFactory
+from kubernetes_request_factory import KubernetesRequestFactory
 from pod import Pod
 
 

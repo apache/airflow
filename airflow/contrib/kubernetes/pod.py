@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from kubernetes import client, config
-from pod_request import *
+from kubernetes_request_factory import *
 
 
 class Pod:

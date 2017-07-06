@@ -1050,9 +1050,9 @@ class TaskInstance(Base, LoggingMixin):
     def update_hostname(self, hostname, session=None):
         """
         For use in kubernetes mode. Update the session to allow heartbeating to SQL
-        :param session: 
-       
-        :return: 
+        :param session:
+   
+        :return:
         
         """
         t_i = TaskInstance

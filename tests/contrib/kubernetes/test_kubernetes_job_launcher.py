@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 
 import unittest
-from airflow.contrib.kubernetes.kubernetesjob import KubernetesJobBuilder
-from airflow.contrib.kubernetes.pod_request import SimpleJobRequestFactory
+from airflow.contrib.kubernetes.kubernetes_job_builder import KubernetesJobBuilder
+from airflow.contrib.kubernetes.kubernetes_request_factory import SimpleJobRequestFactory
 from airflow import configuration
 import json
 

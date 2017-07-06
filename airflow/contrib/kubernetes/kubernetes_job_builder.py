@@ -31,7 +31,7 @@ class KubernetesJobBuilder:
         self.envs = {}
         self.labels = {}
         self.secrets = {}
-        self.node_selectors=[]
+        self.node_selectors = []
         self.name = None
 
     def add_env_variables(self, env):

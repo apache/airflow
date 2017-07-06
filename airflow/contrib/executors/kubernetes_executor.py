@@ -16,12 +16,12 @@ import calendar
 import logging
 import time
 
-from airflow.contrib.kubernetes.kubernetesjob import KubernetesJobBuilder
+from airflow.contrib.kubernetes.kubernetes_job_builder import KubernetesJobBuilder
 from airflow.contrib.kubernetes.kubernetes_helper import KubernetesHelper
 from queue import Queue
 
 from airflow import settings
-from airflow.contrib.kubernetes.pod_request import SimpleJobRequestFactory
+from airflow.contrib.kubernetes.kubernetes_request_factory import SimpleJobRequestFactory
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.utils.state import State
