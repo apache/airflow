@@ -85,6 +85,8 @@ DAGS_FOLDER = None
 engine = None
 Session = None
 
+airflow_task_logging = None
+
 
 def policy(task_instance):
     """
@@ -162,8 +164,15 @@ def configure_orm(disable_connection_pool=False):
 try:
     from airflow_local_settings import *
     logging.info("Loaded airflow_local_settings.")
-except:
+except Exception:
     pass
+
+if 'AirflowTaskLogging' not in sys.modules:
+    # No user-defined task logging setting loaded in airflow_local_settings.
+    # Import default airflow logging configurations.
+    from airflow.utils.log.airflow_task_logging import AirflowTaskLogging
+
+airflow_task_logging = AirflowTaskLogging()
 
 configure_logging()
 configure_vars()
