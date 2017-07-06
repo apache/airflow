@@ -1472,6 +1472,11 @@ class CliTests(unittest.TestCase):
         with self.assertRaises(AirflowException):
             cli.get_dags(self.parser.parse_args(['clear', 'foobar', '-dx', '-c']))
 
+    def test_clear_no_reset(self):
+        args = self.parser.parse_args([
+            'clear', 'example_python_operator', '--no_dag_reset', '--no_confirm'])
+        cli.clear(args)
+
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
