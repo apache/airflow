@@ -72,8 +72,8 @@ class SSHHook(BaseHook):
 
     def _prepare_command(self, cmd):
         connection_cmd = ["ssh", self._host_ref(), "-o", "ControlMaster=no"]
-        if self.sshpass:
-            connection_cmd = ["sshpass", "-e"] + connection_cmd
+        if self.conn.password:
+            connection_cmd = ["sshpass", "-p", self.conn.password] + connection_cmd
         else:
             connection_cmd += ["-o", "BatchMode=yes"]  # no password prompts
 
