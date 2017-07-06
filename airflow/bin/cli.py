@@ -699,6 +699,7 @@ def clear(args):
         confirm_prompt=not args.no_confirm,
         include_subdags=not args.exclude_subdags,
         include_parentdag=not args.exclude_parentdag,
+        reset_dag_runs=not args.no_dag_reset,
     )
 
 
@@ -1615,6 +1616,9 @@ class CLIFactory(object):
         'dag_regex': Arg(
             ("-dx", "--dag_regex"),
             "Search dag_id as regex instead of exact string", "store_true"),
+        'no_dag_reset': Arg(
+            ("--no_dag_reset", ),
+            "Do not reset DAG state after clearing tasks", "store_true"),
         # trigger_dag
         'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
@@ -1971,7 +1975,8 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags', 'exclude_parentdag', 'dag_regex'),
+                'only_running', 'exclude_subdags', 'exclude_parentdag',
+                'dag_regex', 'no_dag_reset'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
