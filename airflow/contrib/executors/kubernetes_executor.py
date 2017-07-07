@@ -40,7 +40,7 @@ def _prep_command_for_container(command):
     :param command:
     
     :return:
-    
+
     """
     return '"' + '","'.join(command.split(' ')[1:]) + '"'
 
@@ -65,7 +65,7 @@ class AirflowKubernetesScheduler(object):
         status
 
         :return: 
-        
+
         """
         logging.info('job is {}'.format(str(next_job)))
         (key, command) = next_job
@@ -93,7 +93,7 @@ class AirflowKubernetesScheduler(object):
         be sent back to the scheduler.
 
         :return:
-         
+
         """
         current_jobs = iter(self.current_jobs.copy())
         for job_id in current_jobs:
@@ -123,11 +123,11 @@ class AirflowKubernetesScheduler(object):
         This function creates a unique name using the epoch time and internal counter
 
         :param key: 
-        
+
         :param epoch_time: 
-        
-        :return: 
-    
+
+        :return:
+
         """
 
         keystr = '-'.join([str(x).replace(' ', '-') for x in key[:2]])

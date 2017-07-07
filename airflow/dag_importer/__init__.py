@@ -37,10 +37,11 @@ def dag_import_func(mode):
 
 
 def _import_hostpath():
+
     logging.info("importing dags locally")
-    global dag_import_spec
     spec = {'name': 'shared-data', 'hostPath': {}}
     spec['hostPath']['path'] = '/tmp/dags'
+    global dag_import_spec
     dag_import_spec = spec
 
 

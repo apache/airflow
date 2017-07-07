@@ -13,8 +13,11 @@
 # limitations under the License.
 
 from kubernetes import client, config
-from kubernetes_request_factory import *
-
+from kubernetes_request_factory import KubernetesRequestFactory, SimplePodRequestFactory
+import logging
+from airflow import AirflowException
+import time
+import json
 
 class Pod:
     """
@@ -71,13 +74,9 @@ class Pod:
         resp = k8s_beta.create_namespaced_job(body=req, namespace=self.namespace)
         self.logger.info("Job created. status='%s', yaml:\n%s"
                          % (str(resp.status), str(req)))
-        for i in range(1, self.pod_timeout):
+        while not self._execution_finished():
             time.sleep(10)
-            self.logger.info("Waiting for success")
-            if self._execution_finished():
-                self.logger.info("Job finished!")
-                return self.result
-        raise Exception("Job timed out!")
+        return self.result
 
     def _kube_client(self):
         config.load_incluster_config()

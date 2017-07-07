@@ -94,4 +94,3 @@ thrift_sasl
 unicodecsv
 zdesk
 kubernetes
-yaml
