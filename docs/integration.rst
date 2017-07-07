@@ -273,7 +273,48 @@ DatastoreHook
 .. autoclass:: airflow.contrib.hooks.datastore_hook.DatastoreHook
     :members:
 
+Cloud ML Engine
+'''''''''''''''
 
+Cloud ML Engine Operators
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+- :ref:`CloudMLBatchPredictionOperator` : Start a Cloud ML Engine batch prediction job.
+- :ref:`CloudMLModelOperator` : Manages a Cloud ML Engine model.
+- :ref:`CloudMLTrainingOperator` : Start a Cloud ML Engine training job.
+- :ref:`CloudMLVersionOperator` : Manages a Cloud ML Engine model version.
+
+.. _CloudMLBatchPredictionOperator:
+
+CloudMLBatchPredictionOperator
+""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLBatchPredictionOperator
+    :members:
+
+.. _CloudMLModelOperator:
+
+CloudMLModelOperator
+""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLModelOperator
+    :members:
+
+.. _CloudMLTrainingOperator:
+
+CloudMLTrainingOperator
+"""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLTrainingOperator
+    :members:
+
+.. _CloudMLVersionOperator:
+
+CloudMLVersionOperator
+"""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLVersionOperator
+    :members:
 
 Cloud Storage
 '''''''''''''
