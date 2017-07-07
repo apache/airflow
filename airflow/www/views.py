@@ -2503,6 +2503,10 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
+    @action('set_sleep', "Set state to 'sleep'", None)
+    def action_set_sleep(self, ids):
+        self.set_task_instance_state(ids, State.SLEEP)
+
     @action('delete',
             lazy_gettext('Delete'),
             lazy_gettext('Are you sure you want to delete selected records?'))

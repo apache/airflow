@@ -888,7 +888,8 @@ class SchedulerJob(BaseJob):
             self.logger.debug("Examining active DAG run {}".format(run))
             # this needs a fresh session sometimes tis get detached
             tis = run.get_task_instances(state=(State.NONE,
-                                                State.UP_FOR_RETRY))
+                                                State.UP_FOR_RETRY,
+                                                State.SLEEP))
 
             # this loop is quite slow as it uses are_dependencies_met for
             # every task (in ti.is_runnable). This is also called in
@@ -1429,6 +1430,12 @@ class SchedulerJob(BaseJob):
                 self._change_state_for_tis_without_dagrun(simple_dag_bag,
                                                           [State.UP_FOR_RETRY],
                                                           State.FAILED)
+                # If a task instance is sleeping but the corresponding DAG run
+                # isn't running, mark the task instance as FAILED so we don't try
+                # to re-run it.
+                self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                          [State.SLEEP],
+                                                          State.FAILED)
                 # If a task instance is scheduled or queued, but the corresponding
                 # DAG run isn't running, set the state to NONE so we don't try to
                 # re-run it.
@@ -1702,6 +1709,12 @@ class BackfillJob(BaseJob):
                                     .format(ti))
                 started.pop(key)
                 tasks_to_run[key] = ti
+            # special case: if the task needs to run again put it back
+            elif ti.state == State.SLEEP:
+                self.logger.warning("Task instance {} is sleeping"
+                                    .format(ti))
+                started.pop(key)
+                tasks_to_run[key] = ti
             # special case: The state of the task can be set to NONE by the task itself
             # when it reaches concurrency limits. It could also happen when the state
             # is changed externally, e.g. by clearing tasks from the ui. We need to cover
@@ -1924,7 +1937,7 @@ class BackfillJob(BaseJob):
                             session=session,
                             verbose=True):
                         ti.refresh_from_db(lock_for_update=True, session=session)
-                        if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
+                        if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY or ti.state == State.SLEEP:
                             if executor.has_task(ti):
                                 self.logger.debug("Task Instance {} already in executor "
                                                   "waiting for queue to clear".format(ti))
@@ -1956,6 +1969,13 @@ class BackfillJob(BaseJob):
                     # special case
                     if ti.state == State.UP_FOR_RETRY:
                         self.logger.debug("Task instance {} retry period not expired yet"
+                                          .format(ti))
+                        if key in started:
+                            started.pop(key)
+                        tasks_to_run[key] = ti
+                        continue
+                    elif ti.state == State.SLEEP:
+                        self.logger.debug("Task instance {} sleep period not expired yet"
                                           .format(ti))
                         if key in started:
                             started.pop(key)
