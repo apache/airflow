@@ -57,6 +57,7 @@ class BigQueryOperator(BaseOperator):
                  delegate_to=None,
                  udf_config=False,
                  use_legacy_sql=True,
+                 maximum_billing_tier=1,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -68,6 +69,7 @@ class BigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.udf_config = udf_config
         self.use_legacy_sql = use_legacy_sql
+        self.maximum_billing_tier = maximum_billing_tier
 
     def execute(self, context):
         logging.info('Executing: %s', self.bql)
@@ -76,4 +78,5 @@ class BigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config, self.use_legacy_sql)
+                         self.allow_large_results, self.udf_config, self.use_legacy_sql,
+                         self.maximum_billing_tier)
