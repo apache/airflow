@@ -122,6 +122,7 @@ Currently **officially** using Airflow:
 1. [Hootsuite](https://github.com/hootsuite)
 1. [IFTTT](https://www.ifttt.com/) [[@apurvajoshi](https://github.com/apurvajoshi)]
 1. [iHeartRadio](http://www.iheart.com/)[[@yiwang](https://github.com/yiwang)]
+1. [imgix](https://www.imgix.com/) [[@dclubb](https://github.com/dclubb)]
 1. [ING](http://www.ing.com/)
 1. [Jampp](https://github.com/jampp)
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
