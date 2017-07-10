@@ -78,24 +78,24 @@ from __future__ import print_function
 
 import argparse
 import base64
-import dill
 import json
 import logging
 import os
 
 import apache_beam as beam
+import dill
 
 
 class JsonCoder(object):
     def encode(self, x):
-      return json.dumps(x)
+        return json.dumps(x)
 
     def decode(self, x):
-      return json.loads(x)
+        return json.loads(x)
 
 
 @beam.ptransform_fn
-def MakeSummary(pcoll, metric_fn, metric_keys):
+def MakeSummary(pcoll, metric_fn, metric_keys):  # pylint: disable=invalid-name
     return (
         pcoll
         | "ApplyMetricFnPerInstance" >> beam.Map(metric_fn)
@@ -140,6 +140,8 @@ def run(argv=None):
 
     with beam.Pipeline(
         options=beam.pipeline.PipelineOptions(pipeline_args)) as p:
+        # This is apache-beam ptransform's convention
+        # pylint: disable=no-value-for-parameter
         _ = (p
              | "ReadPredictionResult" >> beam.io.ReadFromText(
                  os.path.join(known_args.prediction_path,
@@ -151,8 +153,9 @@ def run(argv=None):
                               "prediction.summary.json"),
                  shard_name_template='',  # without trailing -NNNNN-of-NNNNN.
                  coder=JsonCoder()))
+        # pylint: enable=no-value-for-parameter
 
 
 if __name__ == "__main__":
-  logging.getLogger().setLevel(logging.INFO)
-  run()
+    logging.getLogger().setLevel(logging.INFO)
+    run()
