@@ -16,10 +16,8 @@ from builtins import str
 
 from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
-from airflow.exceptions import AirflowException
-import logging
-import requests
 import json
+from airflow.notifiers.hipchat import HipChatAPI
 
 
 class HipChatAPIOperator(BaseOperator):
@@ -44,13 +42,12 @@ class HipChatAPIOperator(BaseOperator):
         super(HipChatAPIOperator, self).__init__(*args, **kwargs)
         self.token = token
         self.base_url = base_url
-        self.method = None
         self.url = None
         self.body = None
 
     def prepare_request(self):
         """
-        Used by the execute function. Set the request method, url, and body of HipChat's
+        Used by the execute function. Set the request url and body of HipChat's
         REST API call.
         Override in child class. Each HipChatAPI child operator is responsible for having
         a prepare_request method call which sets self.method, self.url, and self.body.
@@ -59,18 +56,8 @@ class HipChatAPIOperator(BaseOperator):
 
     def execute(self, context):
         self.prepare_request()
-
-        response = requests.request(self.method,
-                                    self.url,
-                                    headers={
-                                        'Content-Type': 'application/json',
-                                        'Authorization': 'Bearer %s' % self.token},
-                                    data=self.body)
-        if response.status_code >= 400:
-            logging.error('HipChat API call failed: %s %s',
-                          response.status_code, response.reason)
-            raise AirflowException('HipChat API call failed: %s %s' %
-                                   (response.status_code, response.reason))
+        
+        HipChatAPI.send_message(self.url, self.token, self.body)
 
 
 class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
@@ -125,7 +112,6 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
             'card': self.card
         }
 
-        self.method = 'POST'
         self.url = '%s/room/%s/notification' % (self.base_url, self.room_id)
         self.body = json.dumps(dict(
             (str(k), str(v)) for k, v in params.items() if v))
