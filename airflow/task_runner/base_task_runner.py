@@ -94,7 +94,7 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if len(line) == 0:
                 break
-            self.logger.info('Subtask: {}'.format(line.rstrip('\n')))
+            self.logger.info('Subtask: {}'.format(line.rstrip('\n').encode('utf-8')).decode('utf-8'))
 
     def run_command(self, run_with, join_args=False):
         """
