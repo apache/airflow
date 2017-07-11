@@ -469,7 +469,7 @@ def run(args, dag=None):
             DeprecationWarning)
         remote_base = conf.get('core', 'S3_LOG_FOLDER')
 
-    if os.path.exists(filename):
+    if remote_base and os.path.exists(filename):
         # read log and remove old logs to get just the latest additions
 
         with open(filename, 'r') as logfile:
@@ -483,7 +483,7 @@ def run(args, dag=None):
         elif remote_base.startswith('gs:/'):
             logging_utils.GCSLog().write(log, remote_log_location)
         # Other
-        elif remote_base and remote_base != 'None':
+        elif remote_base != 'None':
             logging.error(
                 'Unsupported remote log location: {}'.format(remote_base))
 
