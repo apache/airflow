@@ -316,7 +316,7 @@ def run(args, dag=None):
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
-           conf_dict = json.load(conf_file)
+            conf_dict = json.load(conf_file)
 
         if os.path.exists(args.cfg_path):
             os.remove(args.cfg_path)
@@ -458,6 +458,10 @@ def run(args, dag=None):
     logging.root.handlers = []
 
     # store logs remotely
+    _store_logs_remotely(log_base, filename)
+
+
+def _store_logs_remotely(log_base, filename):
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
     # deprecated as of March 2016
@@ -469,7 +473,10 @@ def run(args, dag=None):
             DeprecationWarning)
         remote_base = conf.get('core', 'S3_LOG_FOLDER')
 
-    if os.path.exists(filename):
+    if remote_base == 'None':
+        remote_base = None
+
+    if remote_base and os.path.exists(filename):
         # read log and remove old logs to get just the latest additions
 
         with open(filename, 'r') as logfile:
@@ -483,7 +490,7 @@ def run(args, dag=None):
         elif remote_base.startswith('gs:/'):
             logging_utils.GCSLog().write(log, remote_log_location)
         # Other
-        elif remote_base and remote_base != 'None':
+        else:
             logging.error(
                 'Unsupported remote log location: {}'.format(remote_base))
 
