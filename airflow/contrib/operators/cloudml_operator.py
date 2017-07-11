@@ -272,9 +272,9 @@ class CloudMLModelOperator(BaseOperator):
         should contain the `name` of the model.
     :type model: dict
 
-    :param project_name: The Google Cloud project name to which CloudML
+    :param project_id: The Google Cloud project name to which CloudML
         model belongs.
-    :type project_name: string
+    :type project_id: string
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
@@ -291,12 +291,13 @@ class CloudMLModelOperator(BaseOperator):
 
     template_fields = [
         '_model',
+        '_model_name',
     ]
 
     @apply_defaults
     def __init__(self,
+                 project_id,
                  model,
-                 project_name,
                  gcp_conn_id='google_cloud_default',
                  operation='create',
                  delegate_to=None,
@@ -307,15 +308,15 @@ class CloudMLModelOperator(BaseOperator):
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self._project_name = project_name
+        self._project_id = project_id
 
     def execute(self, context):
         hook = CloudMLHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
         if self._operation == 'create':
-            hook.create_model(self._project_name, self._model)
+            hook.create_model(self._project_id, self._model)
         elif self._operation == 'get':
-            hook.get_model(self._project_name, self._model['name'])
+            hook.get_model(self._project_id, self._model['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
@@ -328,9 +329,9 @@ class CloudMLVersionOperator(BaseOperator):
         belongs to.
     :type model_name: string
 
-    :param project_name: The Google Cloud project name to which CloudML
+    :param project_id: The Google Cloud project name to which CloudML
         model belongs.
-    :type project_name: string
+    :type project_id: string
 
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
@@ -376,8 +377,8 @@ class CloudMLVersionOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  model_name,
-                 project_name,
-                 version=None,
+                 project_id,
+                 version,
                  gcp_conn_id='google_cloud_default',
                  operation='create',
                  delegate_to=None,
@@ -389,7 +390,7 @@ class CloudMLVersionOperator(BaseOperator):
         self._version = version
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self._project_name = project_name
+        self._project_id = project_id
         self._operation = operation
 
     def execute(self, context):
@@ -398,16 +399,16 @@ class CloudMLVersionOperator(BaseOperator):
 
         if self._operation == 'create':
             assert self._version is not None
-            return hook.create_version(self._project_name, self._model_name,
+            return hook.create_version(self._project_id, self._model_name,
                                        self._version)
         elif self._operation == 'set_default':
             return hook.set_default_version(
-                self._project_name, self._model_name,
+                self._project_id, self._model_name,
                 self._version['name'])
         elif self._operation == 'list':
-            return hook.list_versions(self._project_name, self._model_name)
+            return hook.list_versions(self._project_id, self._model_name)
         elif self._operation == 'delete':
-            return hook.delete_version(self._project_name, self._model_name,
+            return hook.delete_version(self._project_id, self._model_name,
                                        self._version['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
@@ -417,9 +418,9 @@ class CloudMLTrainingOperator(BaseOperator):
     """
     Operator for launching a CloudML training job.
 
-    :param project_name: The Google Cloud project name within which CloudML
+    :param project_id: The Google Cloud project name within which CloudML
         training job should run. This field could be templated.
-    :type project_name: string
+    :type project_id: string
 
     :param job_id: A unique templated id for the submitted Google CloudML
         training job.
@@ -461,7 +462,7 @@ class CloudMLTrainingOperator(BaseOperator):
     """
 
     template_fields = [
-        '_project_name',
+        '_project_id',
         '_job_id',
         '_package_uris',
         '_training_python_module',
@@ -472,7 +473,7 @@ class CloudMLTrainingOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 project_name,
+                 project_id,
                  job_id,
                  package_uris,
                  training_python_module,
@@ -485,7 +486,7 @@ class CloudMLTrainingOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(CloudMLTrainingOperator, self).__init__(*args, **kwargs)
-        self._project_name = project_name
+        self._project_id = project_id
         self._job_id = job_id
         self._package_uris = package_uris
         self._training_python_module = training_python_module
@@ -496,8 +497,8 @@ class CloudMLTrainingOperator(BaseOperator):
         self._delegate_to = delegate_to
         self._mode = mode
 
-        if not self._project_name:
-            raise AirflowException('Google Cloud project name is required.')
+        if not self._project_id:
+            raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
             raise AirflowException(
                 'An unique job id is required for Google CloudML training '
@@ -542,7 +543,7 @@ class CloudMLTrainingOperator(BaseOperator):
                 training_request['trainingInput']
         try:
             finished_training_job = hook.create_job(
-                self._project_name, training_request, check_existing_job)
+                self._project_id, training_request, check_existing_job)
         except errors.HttpError:
             raise
 

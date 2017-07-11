@@ -121,7 +121,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response] * 2,
                 expected_requests=expected_requests) as cml_hook:
             create_version_response = cml_hook.create_version(
-                project_name=project, model_name=model_name,
+                project_id=project, model_name=model_name,
                 version_spec=version)
             self.assertEquals(create_version_response, response_body)
 
@@ -147,7 +147,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             set_default_version_response = cml_hook.set_default_version(
-                project_name=project, model_name=model_name,
+                project_id=project, model_name=model_name,
                 version_name=version)
             self.assertEquals(set_default_version_response, response_body)
 
@@ -187,7 +187,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
             list_versions_response = cml_hook.list_versions(
-                project_name=project, model_name=model_name)
+                project_id=project, model_name=model_name)
             self.assertEquals(list_versions_response, versions)
 
     @_SKIP_IF
@@ -220,7 +220,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[not_done_response, succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             delete_version_response = cml_hook.delete_version(
-                project_name=project, model_name=model_name,
+                project_id=project, model_name=model_name,
                 version_name=version)
             self.assertEquals(delete_version_response, done_response_body)
 
@@ -245,7 +245,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             create_model_response = cml_hook.create_model(
-                project_name=project, model=model)
+                project_id=project, model=model)
             self.assertEquals(create_model_response, response_body)
 
     @_SKIP_IF
@@ -266,7 +266,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
             get_model_response = cml_hook.get_model(
-                project_name=project, model_name=model_name)
+                project_id=project, model_name=model_name)
             self.assertEquals(get_model_response, response_body)
 
     @_SKIP_IF
@@ -302,7 +302,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
-                project_name=project, job=my_job)
+                project_id=project, job=my_job)
             self.assertEquals(create_job_response, my_job)
 
     @_SKIP_IF
@@ -334,7 +334,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
-                project_name=project, job=my_job)
+                project_id=project, job=my_job)
             self.assertEquals(create_job_response, my_job)
 
     @_SKIP_IF
@@ -386,7 +386,7 @@ class TestCloudMLHook(unittest.TestCase):
                 expected_requests=expected_requests) as cml_hook:
             with self.assertRaises(errors.HttpError):
                 cml_hook.create_job(
-                    project_name=project, job=my_job,
+                    project_id=project, job=my_job,
                     use_existing_job_fn=check_input)
 
         my_job_response = ({'status': '200'}, my_job_response_body)
@@ -404,7 +404,7 @@ class TestCloudMLHook(unittest.TestCase):
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
             create_job_response = cml_hook.create_job(
-                project_name=project, job=my_job,
+                project_id=project, job=my_job,
                 use_existing_job_fn=check_input)
             self.assertEquals(create_job_response, my_job)
 
