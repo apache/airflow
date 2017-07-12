@@ -46,11 +46,9 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook):
 
     def __init__(self,
                  bigquery_conn_id='bigquery_default',
-                 use_legacy_sql=True,
                  delegate_to=None):
         super(BigQueryHook, self).__init__(
             conn_id=bigquery_conn_id,
-            use_legacy_sql=use_legacy_sql,
             delegate_to=delegate_to)
 
     def get_conn(self):

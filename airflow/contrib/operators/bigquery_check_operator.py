@@ -65,10 +65,7 @@ class BigQueryCheckOperator(CheckOperator):
         self.sql = sql
 
     def get_db_hook(self):
-        return BigQueryHook(
-            bigquery_conn_id=self.bigquery_conn_id,
-            use_legacy_sql=self.use_legacy_sql
-        )
+        return BigQueryHook(bigquery_conn_id=self.bigquery_conn_id)
 
 
 class BigQueryValueCheckOperator(ValueCheckOperator):
