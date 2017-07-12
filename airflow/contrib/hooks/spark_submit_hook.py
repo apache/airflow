@@ -26,7 +26,7 @@ log = logging.getLogger(__name__)
 class SparkSubmitHook(BaseHook):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
-    It requires that the "spark-submit" binary is in the PATH or the spark_home to be 
+    It requires that the "spark-submit" binary is in the PATH or the spark_home to be
     supplied.
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
@@ -211,21 +211,16 @@ class SparkSubmitHook(BaseHook):
         spark_submit_cmd = self._build_command(application)
         self._sp = subprocess.Popen(spark_submit_cmd,
                                     stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        # Using two iterators here to support 'real-time' logging
-        sources = [self._sp.stdout, self._sp.stderr]
+        self._process_log(iter(self._sp.stdout.readline, b''))
+        returncode = self._sp.wait()
 
-        for source in sources:
-            self._process_log(iter(source.readline, b''))
-
-        output, stderr = self._sp.communicate()
-
-        if self._sp.returncode:
+        if returncode:
             raise AirflowException(
-                "Cannot execute: {}. Error code is: {}. Output: {}, Stderr: {}".format(
-                    spark_submit_cmd, self._sp.returncode, output, stderr
+                "Cannot execute: {}. Error code is: {}.".format(
+                    spark_submit_cmd, returncode
                 )
             )
 
