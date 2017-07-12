@@ -56,12 +56,10 @@ class BigQueryCheckOperator(CheckOperator):
             self,
             sql,
             bigquery_conn_id='bigquery_default',
-            use_legacy_sql=True,
             *args,
             **kwargs):
         super(BigQueryCheckOperator, self).__init__(sql=sql, *args, **kwargs)
         self.bigquery_conn_id = bigquery_conn_id
-        self.use_legacy_sql=use_legacy_sql
         self.sql = sql
 
     def get_db_hook(self):
