@@ -30,7 +30,7 @@ from airflow.contrib.operators.cloudml_operator import CloudMLBatchPredictionOpe
 from airflow.contrib.operators.cloudml_operator import _normalize_cloudml_job_id
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
-from airflow.operators import PythonOperator
+from airflow.operators.python_operator import PythonOperator
 
 
 def create_evaluate_ops(task_prefix,
