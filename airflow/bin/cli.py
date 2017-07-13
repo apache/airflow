@@ -361,8 +361,9 @@ def run(args, dag=None):
             # Create the directory as globally writable using custom mkdirs
             # as os.makedirs doesn't set mode properly.
             mkdirs(directory, 0o775)
-        iso = args.execution_date.isoformat()
-        filename = "{directory}/{iso}".format(**locals())
+        pattern = conf.get('core', 'LOG_FILE_DATETIME_PATTERN')
+        log_file = args.execution_date.strftime(pattern)
+        filename = "{directory}/{log_file}".format(**locals())
 
         if not os.path.exists(filename):
             open(filename, "a").close()

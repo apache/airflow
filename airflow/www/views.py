@@ -700,17 +700,20 @@ class Airflow(BaseView):
     def log(self):
         BASE_LOG_FOLDER = os.path.expanduser(
             conf.get('core', 'BASE_LOG_FOLDER'))
+        pattern = conf.get('core', 'LOG_FILE_DATETIME_PATTERN')
+
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
+
+        dttm = dateutil.parser.parse(execution_date)
+        log_filename = dttm.strftime(pattern)
+        log_relative = "{dag_id}/{task_id}/{log_filename}".format(**locals())
         dag = dagbag.get_dag(dag_id)
-        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
-            **locals())
         loc = os.path.join(BASE_LOG_FOLDER, log_relative)
         loc = loc.format(**locals())
         log = ""
         TI = models.TaskInstance
-        dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         session = Session()
         ti = session.query(TI).filter(

@@ -939,10 +939,15 @@ class TaskInstance(Base):
 
     @property
     def log_filepath(self):
-        iso = self.execution_date.isoformat()
-        log = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
-        return (
-            "{log}/{self.dag_id}/{self.task_id}/{iso}.log".format(**locals()))
+        base_log_path = os.path.expanduser(
+            configuration.get('core', 'BASE_LOG_FOLDER')
+        )
+        pattern = configuration.get('core', 'LOG_FILE_DATETIME_PATTERN')
+        log_file = self.execution_date.strftime(pattern)
+        return ("{base_log_path}/"
+                "{self.dag_id}/"
+                "{self.task_id}/"
+                "{log_file}.log").format(**locals())
 
     @property
     def log_url(self):
