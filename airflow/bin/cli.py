@@ -1307,7 +1307,7 @@ class CLIFactory(object):
         'ignore_all_dependencies': Arg(
             ("-A", "--ignore_all_dependencies"),
             "Ignores all non-critical dependencies, including ignore_ti_state and "
-            "ignore_task_deps"
+            "ignore_task_deps",
             "store_true"),
         # TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
         # vague (e.g. a task being in the appropriate state to be run is also a dependency
