@@ -27,6 +27,7 @@ import unittest
 from airflow import configuration, DAG
 from airflow.contrib.operators.cloudml_operator import CloudMLBatchPredictionOperator
 from airflow.contrib.operators.cloudml_operator import CloudMLTrainingOperator
+from airflow.contrib.operators.cloudml_operator import CloudMLVersionOperator
 
 from mock import ANY
 from mock import patch
@@ -367,6 +368,45 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
             hook_instance.create_job.assert_called_with(
                 'test-project', self.TRAINING_INPUT, ANY)
             self.assertEquals('A failure message', str(context.exception))
+
+
+class CloudMLVersionOperatorTest(unittest.TestCase):
+
+    VERSION_DEFAULT_ARGS = {
+        'model_name': 'model-name',
+        'project_id': 'test-project',
+        'version': { },
+        'task_id': 'test-version'
+    }
+
+    def testCreateVersionWithVersionsBasePath(self):
+        path_prefix = 'path/prefix'
+        base_path = 'gs://bucket/{}'.format(path_prefix)
+        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+                as mock_cloudml_hook:
+            with patch('airflow.contrib.operators.cloudml_operator.GoogleCloudStorageHook') \
+                    as mock_gcs_hook:
+                mock_gcs_hook_instance = mock_gcs_hook.return_value
+                mock_gcs_hook_instance.list.return_value = [
+                    '{}/a'.format(path_prefix),
+                    '{}/1/a'.format(path_prefix),
+                    '{}/200/xyz'.format(path_prefix),
+                    '{}/2/abc'.format(path_prefix),
+                ]
+
+                mock_cloudml_hook_instance = mock_cloudml_hook.return_value
+                mock_cloudml_hook_instance.create_version.return_value = True
+
+                args = self.VERSION_DEFAULT_ARGS
+                args['versions_base_path'] = base_path
+                create_version_op = CloudMLVersionOperator(
+                    **self.VERSION_DEFAULT_ARGS)
+                create_version_op.execute(None)
+
+                mock_cloudml_hook_instance.create_version.assert_called_with(
+                    'test-project',
+                    'model-name',
+                    { 'deploymentUri': '{}/200'.format(base_path)})
 
 
 if __name__ == '__main__':

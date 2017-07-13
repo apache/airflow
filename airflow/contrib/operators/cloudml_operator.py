@@ -16,9 +16,14 @@
 
 import logging
 import re
+try:  # python 2
+    from urlparse import urlsplit
+except ImportError:  #python 3
+    from urllib.parse import urlsplit
 
 from airflow import settings
 from airflow.contrib.hooks.gcp_cloudml_hook import CloudMLHook
+from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -341,7 +346,20 @@ class CloudMLVersionOperator(BaseOperator):
         If it is None, the only `operation` possible would be `list`.
     :type version: dict
 
+    :param versions_base_path: A directory on GCS that contains one or more
+        subdirectories, each containing a servable TensorFlow model. Many
+        TensorFlow training libraries export their trained models to versioned
+        subdirectories to support re-starting the training process. Some use the
+        unix timestamp, while some use incrementing ids. If this argument is
+        set, then the operator will list the subdirectories in this path and
+        set the version's deploymentUri field to the subdirectory which is
+        numerically largest (the max of the subdirectories).
+    :type versions_base_path: string
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+        This connection must have the role `roles/ml.developer`.
+        If the `versions_base_path` argument is set, then the connection must
+        have the role `roles/datastore.viewer`.
     :type gcp_conn_id: string
 
     :param operation: The operation to perform. Available operations are:
@@ -372,6 +390,7 @@ class CloudMLVersionOperator(BaseOperator):
     template_fields = [
         '_model_name',
         '_version',
+        '_versions_base_path',
     ]
 
     @apply_defaults
@@ -379,15 +398,16 @@ class CloudMLVersionOperator(BaseOperator):
                  model_name,
                  project_id,
                  version,
+                 versions_base_path=None,
                  gcp_conn_id='google_cloud_default',
                  operation='create',
                  delegate_to=None,
                  *args,
                  **kwargs):
-
         super(CloudMLVersionOperator, self).__init__(*args, **kwargs)
         self._model_name = model_name
         self._version = version
+        self._versions_base_path = versions_base_path
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._project_id = project_id
@@ -399,6 +419,12 @@ class CloudMLVersionOperator(BaseOperator):
 
         if self._operation == 'create':
             assert self._version is not None
+
+            if self._versions_base_path is not None:
+                deployment_uri = self._get_deployment_uri(
+                    self._versions_base_path)
+                self._version['deploymentUri'] = deployment_uri
+
             return hook.create_version(self._project_id, self._model_name,
                                        self._version)
         elif self._operation == 'set_default':
@@ -413,6 +439,56 @@ class CloudMLVersionOperator(BaseOperator):
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
+    def _get_deployment_uri(self, base_path):
+        hook = GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self._gcp_conn_id,
+            delegate_to=self._delegate_to)
+        # Normalize the base paths to always end with '/', important for
+        # urlsplitting.
+        base_path = base_path.strip('/') + '/'
+        _, bucket, object_prefix, _, _ = urlsplit(base_path)
+
+        # Strip the '/' from the path to use as the object prefix, which
+        # returns an empty listing if the object prefix ends in '/'.
+        object_prefix = object_prefix.strip('/')
+        object_ids = hook.list(bucket=bucket, prefix=object_prefix)
+
+        # Iterate through the objects, stripping them down to include only their
+        # first path component. If it's numeric, and it's the highest numeric
+        # value in the base path, then use that as the deployment URI.
+        maximum = None
+        deployment_uri = None
+        for uri in object_ids:
+            # Strip the path prefix, so that the first characters are the
+            # subdirectory that we expect to be numeric.
+            #
+            # Add one to the length to accomodate the leading '/'s
+            without_prefix = uri[len(object_prefix)+1:]
+
+            # Strip any remaining path components. The GCS hook's list operation
+            # will return all objects contained in the parent path, not just the
+            # immediate subdirectories -- it's a recursive listing.
+            path_components = without_prefix.split('/')
+            if len(path_components) == 0:
+                continue
+            first_component = path_components[0]
+
+            # Convert the first subdirectory to a numeric value, for comparison.
+            numeric_first_component = None
+            try:
+                numeric_first_component = int(first_component)
+            except ValueError:
+                continue
+
+            # If this is the highest value we've encountered, then retain it.
+            if maximum is None or numeric_first_component > maximum:
+                maximum = numeric_first_component
+                deployment_uri = base_path + first_component
+
+        if deployment_uri is None:
+            logging.error("Could not find versioned TensorFlow model "
+                          "in base path %s", base_path)
+        return deployment_uri
 
 class CloudMLTrainingOperator(BaseOperator):
     """
