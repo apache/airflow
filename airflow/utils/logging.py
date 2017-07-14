@@ -40,6 +40,16 @@ class LoggingMixin(object):
             self._logger = logging.root.getChild(self.__class__.__module__ + '.' + self.__class__.__name__)
             return self._logger
 
+    def set_logger_contexts(self, task_instance):
+        """
+        Set the context for all handlers of current logger.
+        """
+        for handler in self.logger.handlers:
+            try:
+                handler.set_context(task_instance)
+            except AttributeError:
+                pass
+
 
 class S3Log(object):
     """
@@ -240,40 +250,3 @@ class GCSLog(object):
             bucket = parsed_url.netloc
             blob = parsed_url.path.strip('/')
             return (bucket, blob)
-
-
-# TODO: get_log_filename and get_log_directory are temporary helper
-# functions to get airflow log filename. Logic of using FileHandler
-# will be extract out and those two functions will be moved.
-# For more details, please check issue AIRFLOW-1385.
-def get_log_filename(dag_id, task_id, execution_date, try_number):
-    """
-    Return relative log path.
-    :arg dag_id: id of the dag
-    :arg task_id: id of the task
-    :arg execution_date: execution date of the task instance
-    :arg try_number: try_number of current task instance
-    """
-    relative_dir = get_log_directory(dag_id, task_id, execution_date)
-    # For reporting purposes and keeping logs consistent with web UI
-    # display, we report based on 1-indexed, not 0-indexed lists
-    filename = "{}/{}.log".format(relative_dir, try_number+1)
-
-    return filename
-
-
-def get_log_directory(dag_id, task_id, execution_date):
-    """
-    Return log directory path: dag_id/task_id/execution_date
-    :arg dag_id: id of the dag
-    :arg task_id: id of the task
-    :arg execution_date: execution date of the task instance
-    """
-    # execution_date could be parsed in as unicode character
-    # instead of datetime object.
-    if isinstance(execution_date, six.string_types):
-        execution_date = dateutil.parser.parse(execution_date)
-    iso = execution_date.isoformat()
-    relative_dir = '{}/{}/{}'.format(dag_id, task_id, iso)
-
-    return relative_dir

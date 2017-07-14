@@ -12,26 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import unittest
-
 import mock
+import unittest
 
 from airflow.utils import logging
 from datetime import datetime
 
-
-class TestLogging(unittest.TestCase):
-
-    def test_get_log_filename(self):
-        self.assertEqual(
-            logging.get_log_filename(
-                dag_id='dag_id',
-                task_id='task_id',
-                execution_date=datetime(2017, 1, 1, 0, 0, 0),
-                try_number=0,
-            ),
-            'dag_id/task_id/2017-01-01T00:00:00/1.log',
-        )
+DEFAULT_DATE = datetime(2016, 1, 1)
 
 
 class TestS3Log(unittest.TestCase):
