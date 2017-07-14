@@ -697,6 +697,31 @@ class Airflow(BaseView):
             form=form,
             title=title, )
 
+    @expose('/get_log_js')
+    @login_required
+    @wwwutils.action_logging
+    def get_log_js(self):
+        """ JavaScript endpoint for reading streaming logs. """
+        # TODO: move this logic to API.
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        try_number = request.args.get('try_number')
+        offset = request.args.get('offset')
+
+        logger = logging.getLogger('airflow.task')
+        task_log_reader = conf.get('core', 'task_log_reader')
+        handler = next((handler for handler in logger.handlers
+                        if handler.name == task_log_reader), None)
+        try:
+            logs = handler.streaming_read(dag_id, task_id, execution_date,
+                                          try_number, offset=offset)
+            next_offset = offset if not logs else logs[-1].offset
+            message = '\n'.join([log.message for log in logs])
+            return jsonify(message=message, next_offset=next_offset)
+        except (AttributeError, AirflowException) as e:
+            return jsonify(message=str(e), error=True)
+
     @expose('/log')
     @login_required
     @wwwutils.action_logging
@@ -724,6 +749,8 @@ class Airflow(BaseView):
             except AttributeError as e:
                 logs = ["Task log handler {} does not support read logs.\n{}\n" \
                             .format(task_log_reader, e.message)]
+            except AirflowException as e:
+                logs = ["Unable to read logs: {}".format(str(e))]
 
         for i, log in enumerate(logs):
             if PY2 and not isinstance(log, unicode):

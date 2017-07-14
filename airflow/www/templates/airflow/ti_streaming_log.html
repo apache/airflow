@@ -1,0 +1,86 @@
+{#
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+  this work for additional information regarding copyright ownership.
+  The ASF licenses this file to You under the Apache License, Version 2.0
+  (the "License"); you may not use this file except in compliance with
+  the License.  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+#}
+{% extends "airflow/ti_log.html" %}
+
+{% block tail %}
+  {{ lib.form_js() }}
+  {{ super() }}
+  <script>
+    // TODO: make those constants configurable.
+    // Time interval to wait before next log fetching. Default 2s.
+    const DELAY = 2e3;
+    // Distance away from page bottom to enable auto tailing.
+    const AUTO_TAILING_OFFSET = 30;
+    // Animation speed for auto tailing log display.
+    const ANIMATION_SPEED = 1000;
+    // Total number of tabs to show.
+    const TOTAL_ATTEMPTS = "{{ logs|length }}";
+    // Recursively fetch logs from flask endpoint.
+    function recurse(delay=DELAY) {
+      return new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    // Enable auto tailing only when users scroll down to the bottom
+    // of the page. This prevent auto tailing the page if users want
+    // to view earler rendered messages.
+    function checkAutoTailingCondition() {
+      const docHeight = $(document).height();
+      return $(window).scrollTop() + $(window).height() > docHeight - AUTO_TAILING_OFFSET;
+    }
+    // Streaming log with auto-tailing.
+    function autoTailingLog(try_number, offset=null, auto_tailing=false) {
+      return Promise.resolve(
+        $.ajax({
+          url: "{{ url_for("airflow.get_log_js") }}",
+          data: {
+            dag_id: "{{ dag_id }}",
+            task_id: "{{ task_id }}",
+            execution_date: "{{ execution_date }}",
+            try_number: try_number,
+            offset: offset,
+          },
+        })).then(res => {
+          if (res && res.message) {
+            $(`#try-${try_number}`).append(res.message + '\n');
+            // Auto scroll window to the end if current window location is near the end
+            if(auto_tailing && checkAutoTailingCondition()) {
+              $("html, body").animate({ scrollTop: $(document).height() }, ANIMATION_SPEED);
+            }
+          }
+          // Stop recursive call to backend when error occurs.
+          if (res && res.error) {
+            return;
+          }
+          return recurse().then(() => autoTailingLog(
+            try_number, res.next_offset, auto_tailing));
+        });
+    }
+    $(document).ready(function() {
+      // Lazily load all past task instance logs.
+      // TODO: We only need to have recursive queries for
+      // latest running task instances. Currently it does not
+      // work well with ElasticSearch becasue ES query only
+      // returns at most 10k documents. We want the ability
+      // to display all logs in the front-end.
+      // An optimation here is to render from latest attempt.
+      for(let i = TOTAL_ATTEMPTS; i >= 1; i--) {
+        // Only auto_tailing the page when streaming the latest attempt.
+        autoTailingLog(i, null, auto_tailing=(i == TOTAL_ATTEMPTS));
+      }
+    });
+  </script>
+{% endblock %}

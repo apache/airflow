@@ -33,7 +33,7 @@
   <div class="tab-content">
     {% for log in logs %}
       <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
-        <pre id="attempt-{{ loop.index }}">{{ log }}</pre>
+        <pre id="try-{{ loop.index }}">{{ log }}</pre>
       </div>
     {% endfor %}
   </div>

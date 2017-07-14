@@ -73,6 +73,13 @@ DEFAULT_LOGGING_CONFIG = {
             'gcs_log_folder': GCS_LOG_FOLDER,
             'filename_template': FILENAME_TEMPLATE,
         },
+        'es.task': {
+            'class': 'airflow.utils.log.elasticsearch_task_handler.ElasticsearchTaskHandler',
+            'formatter': 'airflow.task',
+            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+            'filename_template': FILENAME_TEMPLATE,
+            'host': 'localhost:9200',
+        },
     },
     'loggers': {
         'airflow.task': {
