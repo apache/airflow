@@ -36,6 +36,7 @@ class BaseTaskRunner(LoggingMixin):
         :type local_task_job: airflow.jobs.LocalTaskJob
         """
         self._task_instance = local_task_job.task_instance
+        self.set_logger_contexts(self._task_instance)
 
         popen_prepend = []
         cfg_path = None

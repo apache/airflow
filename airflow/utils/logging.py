@@ -35,8 +35,19 @@ class LoggingMixin(object):
         try:
             return self._logger
         except AttributeError:
+            print(self.__class__.__module__ + '.' + self.__class__.__name__)
             self._logger = logging.root.getChild(self.__class__.__module__ + '.' + self.__class__.__name__)
             return self._logger
+
+    def set_logger_contexts(self, task_instance):
+        """
+        Set the context for all handlers of the logger.
+        """
+        for handler in self.logger.handlers:
+            try:
+                handler.set_context(task_instance)
+            except AttributeError:
+                pass
 
 
 class S3Log(object):

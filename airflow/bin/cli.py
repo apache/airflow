@@ -339,17 +339,16 @@ def run(args, dag=None):
     ti = TaskInstance(task, args.execution_date)
     ti.refresh_from_db()
 
-    logger = logging.root
-    logger.handlers = []
+    logger = logging.getLogger('airflow.task')
     if args.raw:
-        # Output to STDOUT for the parent process to read and log
-        logging.basicConfig(
-            stream=sys.stdout,
-            level=settings.LOGGING_LEVEL,
-            format=settings.LOG_FORMAT)
-    else:
-        settings.airflow_task_logging.setup_task_logging(ti)
-        logger = settings.airflow_task_logging.get_task_logger(ti)
+        logger = logging.getLogger('airflow.task.raw')
+
+    for handler in logger.handlers:
+        try:
+            print("inside cli, setting up context")
+            handler.set_context(ti)
+        except AttributeError:
+            pass
 
     hostname = socket.getfqdn()
     logger.info("Running on host {}".format(hostname))
@@ -412,9 +411,13 @@ def run(args, dag=None):
     if args.raw:
         return
 
-    # Post task run logging operations
-    settings.airflow_task_logging.post_task_logging(ti)
-
+    # Force the log to flush. The flush is important because we
+    # subsequently read from the log to insert into S3 or Google
+    # cloud storage. Explicitly close the handler is needed in order
+    # to upload to remote storage services.
+    for handler in logger.handlers:
+        handler.flush()
+        handler.close()
 
 def task_failed_deps(args):
     """

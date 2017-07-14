@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import logging.config
 import os
 import sys
 
@@ -84,8 +85,6 @@ DAGS_FOLDER = None
 
 engine = None
 Session = None
-
-airflow_task_logging = None
 
 
 def policy(task_instance):
@@ -167,16 +166,19 @@ try:
 except Exception:
     pass
 
-if 'AirflowTaskLogging' not in sys.modules:
-    # No user-defined task logging setting loaded in airflow_local_settings.
-    # Import default airflow logging configurations.
-    from airflow.utils.log.airflow_task_logging import AirflowTaskLogging
-
-airflow_task_logging = AirflowTaskLogging()
-
 configure_logging()
 configure_vars()
 configure_orm()
+
+# TODO: Merge airflow logging configurations.
+logging_config_path = conf.get('core', 'logging_config_path')
+try:
+    from logging_config_path import LOGGING_CONFIG
+except Exception:
+    # Import default logging configuration
+    from airflow.config_templates.default_airflow_logging import \
+        DEFAULT_LOGGING_CONFIG as LOGGING_CONFIG
+logging.config.dictConfig(LOGGING_CONFIG)
 
 # Const stuff
 

@@ -16,6 +16,7 @@
 from past.builtins import basestring, unicode
 
 import ast
+import logging
 import os
 import pkg_resources
 import socket
@@ -702,7 +703,6 @@ class Airflow(BaseView):
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
-        log = ""
 
         session = Session()
         ti = session.query(models.TaskInstance).filter(
@@ -711,7 +711,18 @@ class Airflow(BaseView):
         if ti is None:
             log = "*** Task instance did not exist in the DB\n"
         else:
-            log = settings.airflow_task_logging.get_task_logs(ti)
+            logger = logging.getLogger('airflow.task')
+            task_log_reader = conf.get('core', 'task_log_reader')
+            for handler in logger.handlers:
+                print("handler name is {}".format(handler.name))
+            handler = next((handler for handler in logger.handlers
+                           if handler.name == task_log_reader), None)
+            try:
+                log = handler.read(ti)
+            except AttributeError as e:
+                log = "Task log handler {} does not support read logs.\n".format(
+                    task_log_reader)
+                log += e.message
 
         if PY2 and not isinstance(log, unicode):
             log = log.decode('utf-8')
