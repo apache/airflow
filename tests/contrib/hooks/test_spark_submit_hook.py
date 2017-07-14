@@ -140,15 +140,14 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Given
         mock_popen.return_value.stdout = StringIO(u'stdout')
         mock_popen.return_value.stderr = StringIO(u'stderr')
-        mock_popen.return_value.returncode = 0
-        mock_popen.return_value.communicate.return_value = [StringIO(u'stdout\nstdout'), StringIO(u'stderr\nstderr')]
+        mock_popen.return_value.wait.return_value = 0
 
         # When
         hook = SparkSubmitHook(conn_id='')
         hook.submit()
 
         # Then
-        self.assertEqual(mock_popen.mock_calls[0], call(['spark-submit', '--master', 'yarn', '--name', 'default-name', ''], stderr=-1, stdout=-1))
+        self.assertEqual(mock_popen.mock_calls[0], call(['spark-submit', '--master', 'yarn', '--name', 'default-name', ''], stdout=-1, stderr=-2))
 
     def test_resolve_connection_yarn_default(self):
         # Given
@@ -315,9 +314,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         # Given
         mock_popen.return_value.stdout = StringIO(u'stdout')
         mock_popen.return_value.stderr = StringIO(u'stderr')
-        mock_popen.return_value.returncode = 0
         mock_popen.return_value.poll.return_value = None
-        mock_popen.return_value.communicate.return_value = [StringIO(u'stderr\nstderr'), StringIO(u'stderr\nstderr')]
+        mock_popen.return_value.wait.return_value = 0
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
             'WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable',
