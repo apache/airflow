@@ -42,6 +42,8 @@ class BigQueryOperator(BaseOperator):
     :type udf_config: list
     :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     :type use_legacy_sql: boolean
+    :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
+    :type maximum_billing_tier: integer
     """
     template_fields = ('bql', 'destination_dataset_table')
     template_ext = ('.sql',)
