@@ -35,7 +35,8 @@ import time
 from time import sleep
 
 import psutil
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_, and_, not_
+from sqlalchemy import (
+    Column, Integer, String, DateTime, func, Index, or_, and_, not_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
 from tabulate import tabulate
@@ -212,26 +213,72 @@ class BaseJob(Base, LoggingMixin):
         raise NotImplementedError("This method needs to be overridden")
 
     @provide_session
-    def reset_state_for_orphaned_tasks(self, dag_run, session=None):
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
         """
-        This function checks for a DagRun if there are any tasks
+        This function checks if there are any tasks in the dagrun (or all)
         that have a scheduled state but are not known by the
         executor. If it finds those it will reset the state to None
         so they will get picked up again.
+        The batch option is for performance reasons as the queries are made in
+        sequence.
+
+        :param filter_by_dag_run: the dag_run we want to process, None if all
+        :type filter_by_dag_run: models.DagRun
+        :return: the TIs reset (in expired SQLAlchemy state)
+        :rtype: List(TaskInsance)
         """
         queued_tis = self.executor.queued_tasks
-
         # also consider running as the state might not have changed in the db yet
-        running = self.executor.running
-        tis = list()
-        tis.extend(dag_run.get_task_instances(state=State.SCHEDULED, session=session))
-        tis.extend(dag_run.get_task_instances(state=State.QUEUED, session=session))
+        running_tis = self.executor.running
 
-        for ti in tis:
-            if ti.key not in queued_tis and ti.key not in running:
-                self.logger.debug("Rescheduling orphaned task {}".format(ti))
-                ti.state = State.NONE
+        resettable_states = [State.SCHEDULED, State.QUEUED]
+        TI = models.TaskInstance
+        DR = models.DagRun
+        if filter_by_dag_run is None:
+            resettable_tis = (
+                session
+                .query(TI)
+                .join(
+                    DR,
+                    and_(
+                        TI.dag_id == DR.dag_id,
+                        TI.execution_date == DR.execution_date))
+                .filter(
+                    DR.state == State.RUNNING,
+                    DR.external_trigger.is_(False),
+                    DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
+                    TI.state.in_(resettable_states))).all()
+        else:
+            resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
+                                                                  session=session)
+        tis_to_reset = []
+        # Can't use an update here since it doesn't support joins
+        for ti in resettable_tis:
+            if ti.key not in queued_tis and ti.key not in running_tis:
+                tis_to_reset.append(ti)
+
+        filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                TI.task_id == ti.task_id,
+                                TI.execution_date == ti.execution_date)
+                           for ti in tis_to_reset])
+        if len(tis_to_reset) == 0:
+            return []
+        reset_tis = (
+            session
+            .query(TI)
+            .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
+            .with_for_update()
+            .all())
+        for ti in reset_tis:
+            ti.state = State.NONE
+            session.merge(ti)
+        task_instance_str = '\n\t'.join(
+            ["{}".format(x) for x in reset_tis])
         session.commit()
+
+        self.logger.info("Reset the following {} TaskInstances:\n\t{}"
+                         .format(len(reset_tis), task_instance_str))
+        return reset_tis
 
 
 class DagFileProcessor(AbstractDagFileProcessor):
@@ -1354,19 +1401,8 @@ class SchedulerJob(BaseJob):
         self.executor.start()
 
         session = settings.Session()
-        self.logger.info("Resetting state for orphaned tasks")
-        # grab orphaned tasks and make sure to reset their state
-        active_runs = DagRun.find(
-            state=State.RUNNING,
-            external_trigger=False,
-            session=session,
-            no_backfills=True,
-        )
-        for dr in active_runs:
-            self.logger.info("Resetting {} {}".format(dr.dag_id,
-                                                      dr.execution_date))
-            self.reset_state_for_orphaned_tasks(dr, session=session)
-
+        self.logger.info("Resetting orphaned tasks for active dag runs")
+        self.reset_state_for_orphaned_tasks(session=session)
         session.close()
 
         execute_start_time = datetime.now()
@@ -1828,8 +1864,7 @@ class BackfillJob(BaseJob):
             run.run_id = run_id
             run.verify_integrity(session=session)
 
-            # check if we have orphaned tasks
-            self.reset_state_for_orphaned_tasks(dag_run=run, session=session)
+            self.reset_state_for_orphaned_tasks(filter_by_dag_run=run, session=session)
 
             # for some reason if we dont refresh the reference to run is lost
             run.refresh_from_db()
