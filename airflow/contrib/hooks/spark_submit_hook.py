@@ -212,9 +212,11 @@ class SparkSubmitHook(BaseHook):
         self._sp = subprocess.Popen(spark_submit_cmd,
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.STDOUT,
+                                    bufsize=-1,
+                                    universal_newlines=True,
                                     **kwargs)
 
-        self._process_log(iter(self._sp.stdout.readline, b''))
+        self._process_log(iter(self._sp.stdout.readline, ''))
         returncode = self._sp.wait()
 
         if returncode:
@@ -232,7 +234,7 @@ class SparkSubmitHook(BaseHook):
         """
         # Consume the iterator
         for line in itr:
-            line = line.decode('utf-8').strip()
+            line = line.strip()
             # If we run yarn cluster mode, we want to extract the application id from
             # the logs so we can kill the application when we stop it unexpectedly
             if self._is_yarn and self._connection['deploy_mode'] == 'cluster':
