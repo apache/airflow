@@ -28,7 +28,7 @@ from tempfile import mkdtemp
 
 from airflow import AirflowException, settings, models
 from airflow.bin import cli
-from airflow.executors import SequentialExecutor
+from airflow.executors import BaseExecutor, SequentialExecutor
 from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -38,7 +38,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.dag_processing import SimpleDagBag, list_py_file_paths
 
-from mock import patch
+from mock import Mock, patch
 from sqlalchemy.orm.session import make_transient
 from tests.executors.test_executor import TestExecutor
 
@@ -718,8 +718,266 @@ class SchedulerJobTest(unittest.TestCase):
         ti1.refresh_from_db()
         self.assertEquals(State.SCHEDULED, ti1.state)
 
-    def test_concurrency(self):
-        dag_id = 'SchedulerJobTest.test_concurrency'
+    def test_find_executable_task_instances_backfill_nodagrun(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_backfill_nodagrun'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+        dr2.run_id = BackfillJob.ID_PREFIX + 'asdf'
+
+        ti_no_dagrun = TI(task1, DEFAULT_DATE - datetime.timedelta(days=1))
+        ti_backfill = TI(task1, dr2.execution_date)
+        ti_with_dagrun = TI(task1, dr1.execution_date)
+        # ti_with_paused
+        ti_no_dagrun.state = State.SCHEDULED
+        ti_backfill.state = State.SCHEDULED
+        ti_with_dagrun.state = State.SCHEDULED
+
+        session.merge(dr2)
+        session.merge(ti_no_dagrun)
+        session.merge(ti_backfill)
+        session.merge(ti_with_dagrun)
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(2, len(res))
+        res_keys = map(lambda x: x.key, res)
+        self.assertIn(ti_no_dagrun.key, res_keys)
+        self.assertIn(ti_with_dagrun.key, res_keys)
+        
+    def test_find_executable_task_instances_pool(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_pool'
+        task_id_1 = 'dummy'
+        task_id_2 = 'dummydummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1, pool='a')
+        task2 = DummyOperator(dag=dag, task_id=task_id_2, pool='b')
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+
+        tis = ([
+            TI(task1, dr1.execution_date),
+            TI(task2, dr1.execution_date),
+            TI(task1, dr2.execution_date),
+            TI(task2, dr2.execution_date)
+            ])
+        for ti in tis:
+            ti.state = State.SCHEDULED
+            session.merge(ti)
+        pool = models.Pool(pool='a', slots=1, description='haha')
+        pool2 = models.Pool(pool='b', slots=100, description='haha')
+        session.add(pool)
+        session.add(pool2)
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+        session.commit()
+        self.assertEqual(3, len(res))
+        res_keys = []
+        for ti in res:
+            res_keys.append(ti.key)
+        self.assertIn(tis[0].key, res_keys)
+        self.assertIn(tis[1].key, res_keys)
+        self.assertIn(tis[3].key, res_keys)
+
+    def test_find_executable_task_instances_none(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_none'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        session.commit()
+
+        self.assertEqual(0, len(scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)))
+
+    def test_find_executable_task_instances_concurrency(self):
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_concurrency'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+        dr3 = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dr1.execution_date)
+        ti2 = TI(task1, dr2.execution_date)
+        ti3 = TI(task1, dr3.execution_date)
+        ti1.state = State.RUNNING
+        ti2.state = State.SCHEDULED
+        ti3.state = State.SCHEDULED
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(1, len(res))
+        res_keys = map(lambda x: x.key, res)
+        self.assertIn(ti2.key, res_keys)
+
+        ti2.state = State.RUNNING
+        session.merge(ti2)
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+
+        self.assertEqual(0, len(res))
+
+    def test_change_state_for_executable_task_instances_no_tis(self):
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+        res = scheduler._change_state_for_executable_task_instances([], [State.NONE], session)
+        self.assertEqual(0, len(res))
+
+    def test_change_state_for_executable_task_instances_no_tis_with_state(self):
+        dag_id = 'SchedulerJobTest.test_change_state_for__no_tis_with_state'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+        dr3 = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dr1.execution_date)
+        ti2 = TI(task1, dr2.execution_date)
+        ti3 = TI(task1, dr3.execution_date)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.SCHEDULED
+        ti3.state = State.SCHEDULED
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.commit()
+
+        res = scheduler._change_state_for_executable_task_instances(
+            [ti1, ti2, ti3],
+            [State.RUNNING],
+            session)
+        self.assertEqual(0, len(res))
+
+    def test_change_state_for_executable_task_instances_none_state(self):
+        dag_id = 'SchedulerJobTest.test_change_state_for__none_state'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        dr2 = scheduler.create_dag_run(dag)
+        dr3 = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dr1.execution_date)
+        ti2 = TI(task1, dr2.execution_date)
+        ti3 = TI(task1, dr3.execution_date)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.QUEUED
+        ti3.state = State.NONE
+        session.merge(ti1)
+        session.merge(ti2)
+        session.merge(ti3)
+
+        session.commit()
+
+        res = scheduler._change_state_for_executable_task_instances(
+            [ti1, ti2, ti3],
+            [State.NONE, State.SCHEDULED],
+            session)
+        self.assertEqual(2, len(res))
+        ti1.refresh_from_db()
+        ti3.refresh_from_db()
+        self.assertEqual(State.QUEUED, ti1.state)
+        self.assertEqual(State.QUEUED, ti3.state)
+
+    def test_enqueue_task_instances_with_queued_state(self):
+        dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+
+        ti1 = TI(task1, dr1.execution_date)
+        session.merge(ti1)
+        session.commit()
+
+        with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
+            scheduler._enqueue_task_instances_with_queued_state(dagbag, [ti1])
+
+        mock_queue_command.assert_called()
+
+    def test_execute_task_instances_nothing(self):
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_nothing'
+        task_id_1 = 'dummy'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=2)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        dagbag = SimpleDagBag([])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr1 = scheduler.create_dag_run(dag)
+        ti1 = TI(task1, dr1.execution_date)
+        ti1.state = State.SCHEDULED
+        session.merge(ti1)
+        session.commit()
+
+        self.assertEqual(0, scheduler._execute_task_instances(dagbag, states=[State.SCHEDULED]))
+
+    def test_execute_task_instances(self):
+        dag_id = 'SchedulerJobTest.test_execute_task_instances'
         task_id_1 = 'dummy_task'
         task_id_2 = 'dummy_task_nonexistent_queue'
         # important that len(tasks) is less than concurrency
@@ -765,7 +1023,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         self.assertEqual(State.RUNNING, dr2.state)
 
-        scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+        res = scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
 
         # check that concurrency is respected
         ti1.refresh_from_db()
@@ -777,8 +1035,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertEqual(State.RUNNING, ti1.state)
         self.assertEqual(State.RUNNING, ti2.state)
         six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
-
-        session.close()
+        self.assertEqual(1, res)
 
     def test_change_state_for_tis_without_dagrun(self):
         dag = DAG(
