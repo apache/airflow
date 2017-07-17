@@ -550,7 +550,7 @@ class SchedulerJob(BaseJob):
         :type subdir: unicode
         :param num_runs: The number of times to try to schedule each DAG file.
         -1 for unlimited within the run_duration.
-        :param processor_poll_interval: The number of seconds to wait between
+        :param processor_poll_interval: The minimum number of seconds to wait between
         polls of running processors
         :param run_duration: how long to run (in seconds) before exiting
         :type run_duration: int
@@ -1611,11 +1611,14 @@ class SchedulerJob(BaseJob):
                 last_stat_print_time = datetime.now()
 
             loop_end_time = time.time()
+            time_since_last_heartbeat = loop_end_time - loop_start_time
             self.logger.debug("Ran scheduling loop in {:.2f}s"
-                              .format(loop_end_time - loop_start_time))
-            self.logger.debug("Sleeping for {:.2f}s"
-                              .format(self._processor_poll_interval))
-            time.sleep(self._processor_poll_interval)
+                              .format(time_since_last_heartbeat))
+            if time_since_last_heartbeat < self._processor_poll_interval:
+                time_to_sleep = self._processor_poll_interval - time_since_last_heartbeat
+                self.logger.debug("Sleeping for {:.2f}s"
+                                  .format(time_to_sleep))
+                time.sleep(time_to_sleep)
 
             # Exit early for a test mode
             if processor_manager.max_runs_reached():
