@@ -12,7 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import os
+import random
 import six
+import string
 import sys
 import unittest
 
@@ -60,6 +63,10 @@ class TestSparkSubmitHook(unittest.TestCase):
                 pos = list_cmd.index(arg)
                 return_dict[arg] = list_cmd[pos+1]
         return return_dict
+
+    @staticmethod
+    def gen_conn_name(length):
+        return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
 
     def setUp(self):
 
@@ -287,6 +294,106 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "spark_home": "/path/to/spark_home"}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/path/to/spark_home/bin/custom-spark-submit')
+
+    def test_resolve_connection_yarn_env_connection(self):
+        # Given
+        conn_name = self.gen_conn_name(10)
+        os.environ["AIRFLOW_CONN_SPARK_{}".format(conn_name.upper())] = "//yarn"
+        hook = SparkSubmitHook(conn_id='spark_{}'.format(conn_name))
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"master": "yarn",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "yarn")
+
+    def test_resolve_connection_yarn_cluster_env_connection(self):
+        # Given
+        conn_name = self.gen_conn_name(10)
+        os.environ["AIRFLOW_CONN_SPARK_{}".format(conn_name.upper())] = "yarn://yarn-master"
+        hook = SparkSubmitHook(conn_id='spark_{}'.format(conn_name))
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"master": "yarn://yarn-master",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "yarn://yarn-master")
+
+    def test_resolve_connection_spark_local_env_connection(self):
+        # Given
+        conn_name = self.gen_conn_name(10)
+        os.environ["AIRFLOW_CONN_SPARK_{}".format(conn_name.upper())] = "//local"
+        hook = SparkSubmitHook(conn_id='spark_{}'.format(conn_name))
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"master": "local",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "local")
+
+    def test_resolve_connection_spark_cluster_env_connection(self):
+        # Given
+        conn_name = self.gen_conn_name(10)
+        os.environ["AIRFLOW_CONN_SPARK_{}".format(conn_name.upper())] = "spark://spark-master:7077"
+        hook = SparkSubmitHook(conn_id='spark_{}'.format(conn_name))
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"master": "spark://spark-master:7077",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "spark://spark-master:7077")
+
+    def test_resolve_connection_mesos_cluster_env_connection(self):
+        # Given
+        conn_name = self.gen_conn_name(10)
+        os.environ["AIRFLOW_CONN_SPARK_{}".format(conn_name.upper())] = "mesos://mesos-master:5050"
+        hook = SparkSubmitHook(conn_id='spark_{}'.format(conn_name))
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_command(self._spark_job_file)
+
+        # Then
+        dict_cmd = self.cmd_args_to_dict(cmd)
+        expected_spark_connection = {"master": "mesos://mesos-master:5050",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": None,
+                                     "queue": None,
+                                     "spark_home": None}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(dict_cmd["--master"], "mesos://mesos-master:5050")
 
     def test_process_log(self):
         # Given

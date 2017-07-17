@@ -14,14 +14,14 @@
 #
 import logging
 import os
-import subprocess
+import random
 import re
+import subprocess
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 
 log = logging.getLogger(__name__)
-
 
 class SparkSubmitHook(BaseHook):
     """
@@ -103,6 +103,15 @@ class SparkSubmitHook(BaseHook):
         self._connection = self._resolve_connection()
         self._is_yarn = 'yarn' in self._connection['master']
 
+    @staticmethod
+    def _get_master_url(host, port = None, scheme = None):
+        master_url = host
+        if port:
+            master_url = "{}:{}".format(master_url, port)
+        if scheme:
+            master_url = "{}://{}".format(scheme, master_url)
+        return master_url
+
     def _resolve_connection(self):
         # Build from connection master or default to yarn if not available
         conn_data = {'master': 'yarn',
@@ -112,12 +121,16 @@ class SparkSubmitHook(BaseHook):
                      'spark_binary': 'spark-submit'}
 
         try:
-            # Master can be local, yarn, spark://HOST:PORT or mesos://HOST:PORT
-            conn = self.get_connection(self._conn_id)
-            if conn.port:
-                conn_data['master'] = "{}:{}".format(conn.host, conn.port)
+            # If we use an ENV to define the connection, master can be //local,
+            # //yarn, yarn://HOST:PORT, spark://HOST:PORT or mesos://HOST:PORT
+            conn = self._get_connection_from_env(self._conn_id)
+            if conn:
+                conn_data['master'] = self._get_master_url(conn.host, conn.port, conn.conn_type)
+            # If we the connection comes frmo the database, master can be local,
+            # yarn, yarn://HOST:PORT, spark://HOST:PORT or mesos://HOST:PORT
             else:
-                conn_data['master'] = conn.host
+                conn = random.choice(self._get_connections_from_db(self._conn_id))
+                conn_data['master'] = self._get_master_url(conn.host, conn.port)
 
             # Determine optional yarn queue from the extra field
             extra = conn.extra_dejson
