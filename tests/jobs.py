@@ -755,7 +755,7 @@ class SchedulerJobTest(unittest.TestCase):
         res_keys = map(lambda x: x.key, res)
         self.assertIn(ti_no_dagrun.key, res_keys)
         self.assertIn(ti_with_dagrun.key, res_keys)
-        
+
     def test_find_executable_task_instances_pool(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_pool'
         task_id_1 = 'dummy'
@@ -2285,7 +2285,7 @@ class SchedulerJobTest(unittest.TestCase):
         for file_path in list_py_file_paths(TEST_DAGS_FOLDER):
             detected_files.append(file_path)
         self.assertEqual(sorted(detected_files), sorted(expected_files))
-        
+
     def test_reset_orphaned_tasks_nothing(self):
         """Try with nothing. """
         scheduler = SchedulerJob(**self.default_scheduler_args)
@@ -2499,3 +2499,28 @@ class SchedulerJobTest(unittest.TestCase):
             self.assertEqual(state, ti.state)
 
         session.close()
+
+    def test_scheduler_updates_next_scheduler_run_dag_property(self):
+        """
+        [AIRFLOW-1424] Test if a scheduler run updates the 'next_scheduler_run'
+        property of the DAG.
+        """
+        dag = DAG(
+            dag_id='test_scheduler_process_execute_task',
+            start_date=DEFAULT_DATE)
+        dag_task1 = DummyOperator(
+            task_id='dummy',
+            dag=dag,
+            owner='airflow')
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag.clear()
+        dr = scheduler.create_dag_run(dag)
+        self.assertIsNotNone(dr)
+        self.assertIsNotNone(dag.next_scheduler_run)
