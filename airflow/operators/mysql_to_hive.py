@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
@@ -5,7 +19,8 @@ import logging
 from tempfile import NamedTemporaryFile
 import MySQLdb
 
-from airflow.hooks import HiveCliHook, MySqlHook
+from airflow.hooks.hive_hooks import HiveCliHook
+from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -43,6 +58,8 @@ class MySqlToHiveTransfer(BaseOperator):
     :type mysql_conn_id: str
     :param hive_conn_id: destination hive connection
     :type hive_conn_id: str
+    :param tblproperties: TBLPROPERTIES of the hive table being created
+    :type tblproperties: dict
     """
 
     template_fields = ('sql', 'partition', 'hive_table')
@@ -60,6 +77,7 @@ class MySqlToHiveTransfer(BaseOperator):
             delimiter=chr(1),
             mysql_conn_id='mysql_default',
             hive_cli_conn_id='hive_cli_default',
+            tblproperties=None,
             *args, **kwargs):
         super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -71,6 +89,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
+        self.tblproperties = tblproperties
 
     @classmethod
     def type_map(cls, mysql_type):
@@ -113,4 +132,5 @@ class MySqlToHiveTransfer(BaseOperator):
                 create=self.create,
                 partition=self.partition,
                 delimiter=self.delimiter,
-                recreate=self.recreate)
+                recreate=self.recreate,
+                tblproperties=self.tblproperties)

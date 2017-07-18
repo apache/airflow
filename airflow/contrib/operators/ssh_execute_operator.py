@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import bytes
 import logging
 import subprocess
@@ -24,9 +38,9 @@ class SSHTempFileContent(object):
 
     :param ssh_hook: A SSHHook that indicates a remote host
                      where you want to create tempfile
-    :param content: Initial content of creating temprary file
+    :param content: Initial content of creating temporary file
     :type content: string
-    :param prefix: The prefix string you want to use for the temprary file
+    :param prefix: The prefix string you want to use for the temporary file
     :type prefix: string
     """
 
@@ -41,7 +55,7 @@ class SSHTempFileContent(object):
         prefix = self._prefix
 
         pmktemp = ssh_hook.Popen(["-q",
-                                  "mktemp", "--tmpdir", prefix + "_XXXXXX"],
+                                  "mktemp", "-t", prefix + "_XXXXXX"],
                                  stdout=subprocess.PIPE,
                                  stderr=STDOUT)
         tempfile = pmktemp.communicate()[0].rstrip()
@@ -77,7 +91,7 @@ class SSHExecuteOperator(BaseOperator):
 
     :param ssh_hook: A SSHHook that indicates the remote host
                      you want to run the script
-    :param ssh_hook: SSHHook
+    :type ssh_hook: string
     :param bash_command: The command, set of commands or reference to a
         bash script (must be '.sh') to be executed.
     :type bash_command: string
@@ -115,6 +129,8 @@ class SSHExecuteOperator(BaseOperator):
             logging.info("Temporary script "
                          "location : {0}:{1}".format(host, remote_file_path))
             logging.info("Running command: " + bash_command)
+            if self.env is not None:
+                logging.info("env: " + str(self.env))
 
             sp = hook.Popen(
                 ['-q', 'bash', remote_file_path],
@@ -126,7 +142,7 @@ class SSHExecuteOperator(BaseOperator):
             logging.info("Output:")
             line = ''
             for line in iter(sp.stdout.readline, b''):
-                line = line.decode().strip()
+                line = line.decode('utf_8').strip()
                 logging.info(line)
             sp.wait()
             logging.info("Command exited with "

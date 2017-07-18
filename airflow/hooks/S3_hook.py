@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from __future__ import division
 from future import standard_library
 standard_library.install_aliases()
 import logging
@@ -24,7 +25,7 @@ from urllib.parse import urlparse
 import warnings
 
 import boto
-from boto.s3.connection import S3Connection
+from boto.s3.connection import S3Connection, NoHostProvided
 from boto.sts import STSConnection
 boto.set_stream_logger('boto')
 logging.getLogger("boto").setLevel(logging.INFO)
@@ -52,6 +53,8 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
     else:
         raise AirflowException("Couldn't read {0}".format(config_file_name))
     # Setting option names depending on file format
+    if config_format is None:
+        config_format = 'boto'
     conf_format = config_format.lower()
     if conf_format == 'boto':  # pragma: no cover
         if profile is not None and 'profile ' + profile in sections:
@@ -98,9 +101,12 @@ class S3Hook(BaseHook):
         self.extra_params = self.s3_conn.extra_dejson
         self.profile = self.extra_params.get('profile')
         self.calling_format = None
+        self.s3_host = None
         self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
+        if 'host' in self.extra_params:
+            self.s3_host = self.extra_params['host']
         if self._creds_in_conn:
             self._a_key = self.extra_params['aws_access_key_id']
             self._s_key = self.extra_params['aws_secret_access_key']
@@ -164,9 +170,13 @@ class S3Hook(BaseHook):
             a_key = self._a_key
             s_key = self._s_key
             calling_format = self.calling_format
+            s3_host = self.s3_host
 
         if calling_format is None:
             calling_format = 'boto.s3.connection.SubdomainCallingFormat'
+
+        if s3_host is None:
+            s3_host = NoHostProvided
 
         if self._sts_conn_required:
             sts_connection = STSConnection(aws_access_key_id=a_key,
@@ -187,8 +197,19 @@ class S3Hook(BaseHook):
             connection = S3Connection(aws_access_key_id=a_key,
                                       aws_secret_access_key=s_key,
                                       calling_format=calling_format,
+                                      host=s3_host,
                                       profile_name=self.profile)
         return connection
+
+    def get_credentials(self):
+        if self._creds_in_config_file:
+            a_key, s_key, calling_format = _parse_s3_config(self.s3_config_file,
+                                                            self.s3_config_format,
+                                                            self.profile)
+        elif self._creds_in_conn:
+            a_key = self._a_key
+            s_key = self._s_key
+        return a_key, s_key
 
     def check_for_bucket(self, bucket_name):
         """
@@ -307,7 +328,8 @@ class S3Hook(BaseHook):
             key,
             bucket_name=None,
             replace=False,
-            multipart_bytes=5 * (1024 ** 3)):
+            multipart_bytes=5 * (1024 ** 3),
+            encrypt=False):
         """
         Loads a local file to S3
 
@@ -327,6 +349,9 @@ class S3Hook(BaseHook):
             the file is smaller than the specified limit, the option will be
             ignored.
         :type multipart_bytes: int
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
@@ -340,7 +365,8 @@ class S3Hook(BaseHook):
         if multipart_bytes and key_size >= multipart_bytes:
             # multipart upload
             from filechunkio import FileChunkIO
-            mp = bucket.initiate_multipart_upload(key_name=key)
+            mp = bucket.initiate_multipart_upload(key_name=key,
+                                                  encrypt_key=encrypt)
             total_chunks = int(math.ceil(key_size / multipart_bytes))
             sent_bytes = 0
             try:
@@ -361,7 +387,8 @@ class S3Hook(BaseHook):
             if not key_obj:
                 key_obj = bucket.new_key(key_name=key)
             key_size = key_obj.set_contents_from_filename(filename,
-                                                      replace=replace)
+                                                          replace=replace,
+                                                          encrypt_key=encrypt)
         logging.info("The key {key} now contains"
                      " {key_size} bytes".format(**locals()))
 
@@ -385,6 +412,10 @@ class S3Hook(BaseHook):
         :param replace: A flag to decide whether or not to overwrite the key
             if it already exists
         :type replace: bool
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
+
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)

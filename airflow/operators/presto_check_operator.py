@@ -1,5 +1,19 @@
-from airflow.hooks import PrestoHook
-from airflow.operators import CheckOperator, ValueCheckOperator, IntervalCheckOperator
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from airflow.hooks.presto_hook import PrestoHook
+from airflow.operators.check_operator import CheckOperator, ValueCheckOperator, IntervalCheckOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -11,8 +25,9 @@ class PrestoCheckOperator(CheckOperator):
     values return ``False`` the check is failed and errors out.
 
     Note that Python bool casting evals the following as ``False``:
-    * False
-    * 0
+
+    * ``False``
+    * ``0``
     * Empty string (``""``)
     * Empty list (``[]``)
     * Empty dictionary or set (``{}``)
@@ -65,7 +80,9 @@ class PrestoValueCheckOperator(ValueCheckOperator):
             self, sql, pass_value, tolerance=None,
             presto_conn_id='presto_default',
             *args, **kwargs):
-        super(PrestoValueCheckOperator, self).__init__(sql, pass_value, tolerance, *args, **kwargs)
+        super(PrestoValueCheckOperator, self).__init__(
+            sql=sql, pass_value=pass_value, tolerance=tolerance,
+            *args, **kwargs)
         self.presto_conn_id = presto_conn_id
 
     def get_db_hook(self):
@@ -95,7 +112,8 @@ class PrestoIntervalCheckOperator(IntervalCheckOperator):
             presto_conn_id='presto_default',
             *args, **kwargs):
         super(PrestoIntervalCheckOperator, self).__init__(
-            table, metrics_thresholds, date_filter_column, days_back,
+            table=table, metrics_thresholds=metrics_thresholds,
+            date_filter_column=date_filter_column, days_back=days_back,
             *args, **kwargs)
         self.presto_conn_id = presto_conn_id
 

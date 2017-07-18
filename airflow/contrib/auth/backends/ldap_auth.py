@@ -1,3 +1,18 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+from future.utils import native
+
 import flask_login
 from flask_login import login_required, current_user, logout_user
 from flask import flash
@@ -18,9 +33,10 @@ from airflow.configuration import AirflowConfigException
 import logging
 
 import traceback
+import re
 
 login_manager = flask_login.LoginManager()
-login_manager.login_view = 'airflow.login'  # Calls login() bellow
+login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
 LOG = logging.getLogger(__name__)
@@ -28,6 +44,7 @@ LOG = logging.getLogger(__name__)
 
 class AuthenticationError(Exception):
     pass
+
 
 class LdapException(Exception):
     pass
@@ -44,7 +61,7 @@ def get_ldap_connection(dn=None, password=None):
         pass
 
     server = Server(configuration.get("ldap", "uri"), use_ssl, tls_configuration)
-    conn = Connection(server, dn, password)
+    conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
         LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
@@ -55,21 +72,60 @@ def get_ldap_connection(dn=None, password=None):
 
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
     search_filter = '(&({0}))'.format(group_filter)
-    if not conn.search(search_base, search_filter, attributes=[user_name_attr]):
-        LOG.warn("Unable to find group for %s %s", search_base, search_filter)
+    if not conn.search(native(search_base), native(search_filter),
+                       attributes=[native(user_name_attr)]):
+        LOG.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for resp in conn.response:
-            if 'attributes' in resp and resp['attributes'].get(user_name_attr)[0] == username:
+            if (
+                        'attributes' in resp and (
+                            resp['attributes'].get(user_name_attr)[0] == username or
+                            resp['attributes'].get(user_name_attr) == username
+                )
+            ):
                 return True
     return False
+
+
+def groups_user(conn, search_base, user_filter, user_name_att, username):
+    search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
+    try:
+        memberof_attr = configuration.get("ldap", "group_member_attr")
+    except:
+        memberof_attr = "memberOf"
+    res = conn.search(native(search_base), native(search_filter), attributes=[native(memberof_attr)])
+    if not res:
+        LOG.info("Cannot find user %s", username)
+        raise AuthenticationError("Invalid username or password")
+
+    if conn.response and memberof_attr not in conn.response[0]["attributes"]:
+        LOG.warning("""Missing attribute "%s" when looked-up in Ldap database.
+        The user does not seem to be a member of a group and therefore won't see any dag
+        if the option filter_by_owner=True and owner_mode=ldapgroup are set""", memberof_attr)
+        return []
+
+    user_groups = conn.response[0]["attributes"][memberof_attr]
+
+    regex = re.compile("cn=([^,]*).*", re.IGNORECASE)
+    groups_list = []
+    try:
+        groups_list = [regex.search(i).group(1) for i in user_groups]
+    except IndexError:
+        LOG.warning("Parsing error when retrieving the user's group(s)."
+                    " Check if the user belongs to at least one group"
+                    " or if the user's groups name do not contain special characters")
+
+    return groups_list
 
 
 class LdapUser(models.User):
     def __init__(self, user):
         self.user = user
+        self.ldap_groups = []
 
         # Load and cache superuser and data_profiler settings.
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
+                                   configuration.get("ldap", "bind_password"))
         try:
             self.superuser = group_contains_user(conn,
                                                  configuration.get("ldap", "basedn"),
@@ -90,9 +146,20 @@ class LdapUser(models.User):
             self.data_profiler = True
             LOG.debug("Missing configuration for dataprofiler settings. Skipping")
 
+        # Load the ldap group(s) a user belongs to
+        try:
+            self.ldap_groups = groups_user(conn,
+                                           configuration.get("ldap", "basedn"),
+                                           configuration.get("ldap", "user_filter"),
+                                           configuration.get("ldap", "user_name_attr"),
+                                           user.username)
+        except AirflowConfigException:
+            LOG.debug("Missing configuration for ldap settings. Skipping")
+
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"), configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
+                                   configuration.get("ldap", "bind_password"))
 
         search_filter = "(&({0})({1}={2}))".format(
             configuration.get("ldap", "user_filter"),
@@ -112,7 +179,9 @@ class LdapUser(models.User):
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(configuration.get("ldap", "basedn"), search_filter, search_scope=search_scope)
+        res = conn.search(native(configuration.get("ldap", "basedn")),
+                          native(search_filter),
+                          search_scope=native(search_scope))
 
         # todo: use list or result?
         if not res:
@@ -123,8 +192,8 @@ class LdapUser(models.User):
 
         conn.unbind()
 
-        if not 'dn' in entry:
-            # The search fitler for the user did not return any values, so an
+        if 'dn' not in entry:
+            # The search filter for the user did not return any values, so an
             # invalid user was used for credentials.
             raise AuthenticationError("Invalid username or password")
 

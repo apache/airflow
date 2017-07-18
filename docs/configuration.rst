@@ -4,6 +4,8 @@ Configuration
 Setting up the sandbox in the :doc:`start` section was easy;
 building a production-grade environment requires a bit more work!
 
+.. _setting-options:
+
 Setting Configuration Options
 '''''''''''''''''''''''''''''
 
@@ -81,6 +83,31 @@ within the metadata database. The ``crypto`` package is highly recommended
 during installation. The ``crypto`` package does require that your operating
 system have libffi-dev installed.
 
+If ``crypto`` package was not installed initially, you can still enable encryption for 
+connections by following steps below:
+
+1. Install crypto package ``pip install apache-airflow[crypto]``
+2. Generate fernet_key, using this code snippet below. fernet_key must be a base64-encoded 32-byte key.
+
+.. code:: python
+
+    from cryptography.fernet import Fernet
+    fernet_key= Fernet.generate_key()
+    print(fernet_key) # your fernet_key, keep it in secured place!
+    
+3. Replace ``airflow.cfg`` fernet_key value with the one from step 2. 
+Alternatively, you can store your fernet_key in OS environment variable. You
+do not need to change ``airflow.cfg`` in this case as AirFlow will use environment 
+variable over the value in ``airflow.cfg``:
+
+.. code-block:: bash
+  
+  # Note the double underscores
+  EXPORT AIRFLOW__CORE__FERNET_KEY = your_fernet_key
+ 
+4. Restart AirFlow webserver.
+5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.
+
 Connections in Airflow pipelines can be created using environment variables.
 The environment variable needs to have a prefix of ``AIRFLOW_CONN_`` for
 Airflow with the value in a URI format to use the connection properly. Please
@@ -107,7 +134,7 @@ Here are a few imperative requirements for your workers:
   ``MySqlOperator``, the required Python library needs to be available in
   the ``PYTHONPATH`` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
-  synchronize the filesystems by your own mean. A common setup would be to
+  synchronize the filesystems by your own means. A common setup would be to
   store your DAGS_FOLDER in a Git repository and sync it across machines using
   Chef, Puppet, Ansible, or whatever you use to configure machines in your
   environment. If all your boxes have a common mount point, having your
@@ -127,6 +154,41 @@ its direction.
 Note that you can also run "Celery Flower", a web UI built on top of Celery,
 to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
+
+
+Scaling Out with Dask
+'''''''''''''''''''''
+
+``DaskExecutor`` allows you to run Airflow tasks in a Dask Distributed cluster.
+
+Dask clusters can be run on a single machine or on remote networks. For complete
+details, consult the `Distributed documentation <https://distributed.readthedocs.io/>`_.
+
+To create a cluster, first start a Scheduler:
+
+.. code-block:: bash
+
+    # default settings for a local cluster
+    DASK_HOST=127.0.0.1
+    DASK_PORT=8786
+
+    dask-scheduler --host $DASK_HOST --port $DASK_PORT
+
+Next start at least one Worker on any machine that can connect to the host:
+
+.. code-block:: bash
+
+    dask-worker $DASK_HOST:$DASK_PORT
+
+Edit your ``airflow.cfg`` to set your executor to ``DaskExecutor`` and provide
+the Dask Scheduler address in the ``[dask]`` section.
+
+Please note:
+
+- Each Dask worker must be able to import Airflow and any dependencies you
+  require.
+- Dask does not support queues. If an Airflow task was created with a queue, a
+  warning will be raised but the task will be submitted to the cluster.
 
 
 Logs
@@ -228,3 +290,20 @@ integrated with upstart
 .. code-block:: bash
 
     initctl airflow-webserver status
+
+Test Mode
+'''''''''
+Airflow has a fixed set of "test mode" configuration options. You can load these
+at any time by calling ``airflow.configuration.load_test_config()`` (note this
+operation is not reversible!). However, some options (like the DAG_FOLDER) are
+loaded before you have a chance to call load_test_config(). In order to eagerly load
+the test configuration, set test_mode in airflow.cfg:
+
+.. code-block:: bash
+
+  [tests]
+  unit_test_mode = True
+
+Due to Airflow's automatic environment variable expansion (see :ref:`setting-options`),
+you can also set the env var ``AIRFLOW__CORE__UNIT_TEST_MODE`` to temporarily overwrite
+airflow.cfg.

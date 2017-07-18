@@ -13,10 +13,24 @@
 # limitations under the License.
 #
 
-# Imports the hooks dynamically while keeping the package API clean,
-# abstracting the underlying modules
-from airflow.utils.helpers import import_module_attrs as _import_module_attrs
 
+# Contrib hooks are not imported by default. They should be accessed
+# directly: from airflow.contrib.hooks.hook_module import Hook
+
+
+import sys
+
+
+# ------------------------------------------------------------------------
+#
+# #TODO #FIXME Airflow 2.0
+#
+# Old import machinary below.
+#
+# This is deprecated but should be kept until Airflow 2.0
+# for compatibility.
+#
+# ------------------------------------------------------------------------
 _hooks = {
     'ftp_hook': ['FTPHook'],
     'ftps_hook': ['FTPSHook'],
@@ -26,7 +40,17 @@ _hooks = {
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],
     'datastore_hook': ['DatastoreHook'],
-    'cloudant_hook': ['CloudantHook']
+    'gcp_cloudml_hook': ['CloudMLHook'],
+    'gcp_dataproc_hook': ['DataProcHook'],
+    'gcp_dataflow_hook': ['DataFlowHook'],
+    'spark_submit_operator': ['SparkSubmitOperator'],
+    'cloudant_hook': ['CloudantHook'],
+    'fs_hook': ['FSHook'],
+    'wasb_hook': ['WasbHook'],
+    'gcp_pubsub_hook': ['PubSubHook']
 }
 
-_import_module_attrs(globals(), _hooks)
+import os as _os
+if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+    from airflow.utils.helpers import AirflowImporter
+    airflow_importer = AirflowImporter(sys.modules[__name__], _hooks)

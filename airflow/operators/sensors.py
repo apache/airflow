@@ -1,16 +1,36 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from __future__ import print_function
 from future import standard_library
 standard_library.install_aliases()
 from builtins import str
+from past.builtins import basestring
+
 from datetime import datetime
 import logging
 from urllib.parse import urlparse
 from time import sleep
+import re
+import sys
 
-from airflow import hooks, settings
+from airflow import settings
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
-from airflow.models import BaseOperator, TaskInstance, Connection as DB
-from airflow.hooks import BaseHook
+from airflow.models import BaseOperator, TaskInstance
+from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.hdfs_hook import HDFSHook
+from airflow.hooks.http_hook import HttpHook
 from airflow.utils.state import State
 from airflow.utils.decorators import apply_defaults
 
@@ -54,12 +74,12 @@ class BaseSensorOperator(BaseOperator):
     def execute(self, context):
         started_at = datetime.now()
         while not self.poke(context):
-            sleep(self.poke_interval)
-            if (datetime.now() - started_at).seconds > self.timeout:
+            if (datetime.now() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
+            sleep(self.poke_interval)
         logging.info("Success criteria met. Exiting.")
 
 
@@ -75,6 +95,7 @@ class SqlSensor(BaseSensorOperator):
     """
     template_fields = ('sql',)
     template_ext = ('.hql', '.sql',)
+    ui_color = '#7c7287'
 
     @apply_defaults
     def __init__(self, conn_id, sql, *args, **kwargs):
@@ -118,6 +139,7 @@ class MetastorePartitionSensor(SqlSensor):
     :type mysql_conn_id: str
     """
     template_fields = ('partition_name', 'table', 'schema')
+    ui_color = '#8da7be'
 
     @apply_defaults
     def __init__(
@@ -130,6 +152,11 @@ class MetastorePartitionSensor(SqlSensor):
         self.schema = schema
         self.first_poke = True
         self.conn_id = mysql_conn_id
+        # TODO(aoen): We shouldn't be using SqlSensor here but MetastorePartitionSensor.
+        # The problem is the way apply_defaults works isn't compatible with inheritance.
+        # The inheritance model needs to be reworked in order to support overriding args/
+        # kwargs with arguments here, then 'conn_id' and 'sql' can be passed into the
+        # constructor below and apply_defaults will no longer throw an exception.
         super(SqlSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
@@ -164,9 +191,16 @@ class ExternalTaskSensor(BaseSensorOperator):
     :type allowed_states: list
     :param execution_delta: time difference with the previous execution to
         look at, the default is the same execution_date as the current task.
-        For yesterday, use [positive!] datetime.timedelta(days=1)
+        For yesterday, use [positive!] datetime.timedelta(days=1). Either
+        execution_delta or execution_date_fn can be passed to
+        ExternalTaskSensor, but not both.
     :type execution_delta: datetime.timedelta
+    :param execution_date_fn: function that receives the current execution date
+        and returns the desired execution date to query. Either execution_delta
+        or execution_date_fn can be passed to ExternalTaskSensor, but not both.
+    :type execution_date_fn: callable
     """
+    ui_color = '#19647e'
 
     @apply_defaults
     def __init__(
@@ -175,16 +209,25 @@ class ExternalTaskSensor(BaseSensorOperator):
             external_task_id,
             allowed_states=None,
             execution_delta=None,
+            execution_date_fn=None,
             *args, **kwargs):
         super(ExternalTaskSensor, self).__init__(*args, **kwargs)
         self.allowed_states = allowed_states or [State.SUCCESS]
+        if execution_delta is not None and execution_date_fn is not None:
+            raise ValueError(
+                'Only one of `execution_date` or `execution_date_fn` may'
+                'be provided to ExternalTaskSensor; not both.')
+
         self.execution_delta = execution_delta
+        self.execution_date_fn = execution_date_fn
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
 
     def poke(self, context):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
+        elif self.execution_date_fn:
+            dttm = self.execution_date_fn(context['execution_date'])
         else:
             dttm = context['execution_date']
 
@@ -207,23 +250,100 @@ class ExternalTaskSensor(BaseSensorOperator):
         return count
 
 
+class NamedHivePartitionSensor(BaseSensorOperator):
+    """
+    Waits for a set of partitions to show up in Hive.
+
+    :param partition_names: List of fully qualified names of the
+        partitions to wait for. A fully qualified name is of the
+        form ``schema.table/pk1=pv1/pk2=pv2``, for example,
+        default.users/ds=2016-01-01. This is passed as is to the metastore
+        Thrift client ``get_partitions_by_name`` method. Note that
+        you cannot use logical or comparison operators as in
+        HivePartitionSensor.
+    :type partition_names: list of strings
+    :param metastore_conn_id: reference to the metastore thrift service
+        connection id
+    :type metastore_conn_id: str
+    """
+
+    template_fields = ('partition_names', )
+    ui_color = '#8d99ae'
+
+    @apply_defaults
+    def __init__(
+            self,
+            partition_names,
+            metastore_conn_id='metastore_default',
+            poke_interval=60 * 3,
+            *args,
+            **kwargs):
+        super(NamedHivePartitionSensor, self).__init__(
+            poke_interval=poke_interval, *args, **kwargs)
+
+        if isinstance(partition_names, basestring):
+            raise TypeError('partition_names must be an array of strings')
+
+        self.metastore_conn_id = metastore_conn_id
+        self.partition_names = partition_names
+        self.next_poke_idx = 0
+
+    @classmethod
+    def parse_partition_name(self, partition):
+        try:
+            schema, table_partition = partition.split('.', 1)
+            table, partition = table_partition.split('/', 1)
+            return schema, table, partition
+        except ValueError as e:
+            raise ValueError('Could not parse ' + partition)
+
+    def poke(self, context):
+        if not hasattr(self, 'hook'):
+            from airflow.hooks.hive_hooks import HiveMetastoreHook
+            self.hook = HiveMetastoreHook(
+                metastore_conn_id=self.metastore_conn_id)
+
+        def poke_partition(partition):
+
+            schema, table, partition = self.parse_partition_name(partition)
+
+            logging.info(
+                'Poking for {schema}.{table}/{partition}'.format(**locals())
+            )
+            return self.hook.check_for_named_partition(
+                schema, table, partition)
+
+        while self.next_poke_idx < len(self.partition_names):
+            if poke_partition(self.partition_names[self.next_poke_idx]):
+                self.next_poke_idx += 1
+            else:
+                return False
+
+        return True
+
+
 class HivePartitionSensor(BaseSensorOperator):
     """
-    Waits for a partition to show up in Hive
+    Waits for a partition to show up in Hive.
+
+    Note: Because ``partition`` supports general logical operators, it
+    can be inefficient. Consider using NamedHivePartitionSensor instead if
+    you don't need the full flexibility of HivePartitionSensor.
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
     :type table: string
     :param partition: The partition clause to wait for. This is passed as
-        is to the Metastore Thrift client "get_partitions_by_filter" method,
-        and apparently supports SQL like notation as in `ds='2015-01-01'
-        AND type='value'` and > < sings as in "ds>=2015-01-01"
+        is to the metastore Thrift client ``get_partitions_by_filter`` method,
+        and apparently supports SQL like notation as in ``ds='2015-01-01'
+        AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
     :type partition: string
     :param metastore_conn_id: reference to the metastore thrift service
         connection id
     :type metastore_conn_id: str
     """
     template_fields = ('schema', 'table', 'partition',)
+    ui_color = '#2b2d42'
 
     @apply_defaults
     def __init__(
@@ -249,7 +369,8 @@ class HivePartitionSensor(BaseSensorOperator):
             'Poking for table {self.schema}.{self.table}, '
             'partition {self.partition}'.format(**locals()))
         if not hasattr(self, 'hook'):
-            self.hook = hooks.HiveMetastoreHook(
+            from airflow.hooks.hive_hooks import HiveMetastoreHook
+            self.hook = HiveMetastoreHook(
                 metastore_conn_id=self.metastore_conn_id)
         return self.hook.check_for_partition(
             self.schema, self.table, self.partition)
@@ -260,27 +381,79 @@ class HdfsSensor(BaseSensorOperator):
     Waits for a file or folder to land in HDFS
     """
     template_fields = ('filepath',)
+    ui_color = settings.WEB_COLORS['LIGHTBLUE']
 
     @apply_defaults
     def __init__(
             self,
             filepath,
             hdfs_conn_id='hdfs_default',
+            ignored_ext=['_COPYING_'],
+            ignore_copying=True,
+            file_size=None,
+            hook=HDFSHook,
             *args, **kwargs):
         super(HdfsSensor, self).__init__(*args, **kwargs)
         self.filepath = filepath
         self.hdfs_conn_id = hdfs_conn_id
+        self.file_size = file_size
+        self.ignored_ext = ignored_ext
+        self.ignore_copying = ignore_copying
+        self.hook = hook
+
+    @staticmethod
+    def filter_for_filesize(result, size=None):
+        """
+        Will test the filepath result and test if its size is at least self.filesize
+
+        :param result: a list of dicts returned by Snakebite ls
+        :param size: the file size in MB a file should be at least to trigger True
+        :return: (bool) depending on the matching criteria
+        """
+        if size:
+            logging.debug('Filtering for file size >= %s in files: %s', size, map(lambda x: x['path'], result))
+            size *= settings.MEGABYTE
+            result = [x for x in result if x['length'] >= size]
+            logging.debug('HdfsSensor.poke: after size filter result is %s', result)
+        return result
+
+    @staticmethod
+    def filter_for_ignored_ext(result, ignored_ext, ignore_copying):
+        """
+        Will filter if instructed to do so the result to remove matching criteria
+
+        :param result: (list) of dicts returned by Snakebite ls
+        :param ignored_ext: (list) of ignored extentions
+        :param ignore_copying: (bool) shall we ignore ?
+        :return: (list) of dicts which were not removed
+        """
+        if ignore_copying:
+            regex_builder = "^.*\.(%s$)$" % '$|'.join(ignored_ext)
+            ignored_extentions_regex = re.compile(regex_builder)
+            logging.debug('Filtering result for ignored extentions: %s in files %s', ignored_extentions_regex.pattern,
+                          map(lambda x: x['path'], result))
+            result = [x for x in result if not ignored_extentions_regex.match(x['path'])]
+            logging.debug('HdfsSensor.poke: after ext filter result is %s', result)
+        return result
 
     def poke(self, context):
-        sb = hooks.HDFSHook(self.hdfs_conn_id).get_conn()
+        sb = self.hook(self.hdfs_conn_id).get_conn()
         logging.getLogger("snakebite").setLevel(logging.WARNING)
-        logging.info(
-            'Poking for file {self.filepath} '.format(**locals()))
+        logging.info('Poking for file {self.filepath} '.format(**locals()))
         try:
-            files = [f for f in sb.ls([self.filepath])]
+            # IMOO it's not right here, as there no raise of any kind.
+            # if the filepath is let's say '/data/mydirectory', it's correct but if it is '/data/mydirectory/*',
+            # it's not correct as the directory exists and sb does not raise any error
+            # here is a quick fix
+            result = [f for f in sb.ls([self.filepath], include_toplevel=False)]
+            logging.debug('HdfsSensor.poke: result is %s', result)
+            result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
+            result = self.filter_for_filesize(result, self.file_size)
+            return bool(result)
         except:
+            e = sys.exc_info()
+            logging.debug("Caught an exception !: %s", str(e))
             return False
-        return True
 
 
 class WebHdfsSensor(BaseSensorOperator):
@@ -300,7 +473,8 @@ class WebHdfsSensor(BaseSensorOperator):
         self.webhdfs_conn_id = webhdfs_conn_id
 
     def poke(self, context):
-        c = hooks.WebHDFSHook(self.webhdfs_conn_id)
+        from airflow.hooks.webhdfs_hook import WebHDFSHook
+        c = WebHDFSHook(self.webhdfs_conn_id)
         logging.info(
             'Poking for file {self.filepath} '.format(**locals()))
         return c.check_for_path(hdfs_path=self.filepath)
@@ -333,10 +507,6 @@ class S3KeySensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3KeySensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
-        db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
-        if not db:
-            raise AirflowException("conn_id doesn't exist in the repository")
         # Parse
         if bucket_name is None:
             parsed_url = urlparse(bucket_key)
@@ -352,11 +522,10 @@ class S3KeySensor(BaseSensorOperator):
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
         self.s3_conn_id = s3_conn_id
-        session.commit()
-        session.close()
 
     def poke(self, context):
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        from airflow.hooks.S3_hook import S3Hook
+        hook = S3Hook(s3_conn_id=self.s3_conn_id)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         logging.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
@@ -392,23 +561,18 @@ class S3PrefixSensor(BaseSensorOperator):
             s3_conn_id='s3_default',
             *args, **kwargs):
         super(S3PrefixSensor, self).__init__(*args, **kwargs)
-        session = settings.Session()
-        db = session.query(DB).filter(DB.conn_id == s3_conn_id).first()
-        if not db:
-            raise AirflowException("conn_id doesn't exist in the repository")
         # Parse
         self.bucket_name = bucket_name
         self.prefix = prefix
         self.delimiter = delimiter
         self.full_url = "s3://" + bucket_name + '/' + prefix
         self.s3_conn_id = s3_conn_id
-        session.commit()
-        session.close()
 
     def poke(self, context):
         logging.info('Poking for prefix : {self.prefix}\n'
                      'in bucket s3://{self.bucket_name}'.format(**locals()))
-        hook = hooks.S3Hook(s3_conn_id=self.s3_conn_id)
+        from airflow.hooks.S3_hook import S3Hook
+        hook = S3Hook(s3_conn_id=self.s3_conn_id)
         return hook.check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,
@@ -467,10 +631,12 @@ class HttpSensor(BaseSensorOperator):
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: string
+    :param method: The HTTP request method to use
+    :type method: string
     :param endpoint: The relative part of the full url
     :type endpoint: string
-    :param params: The parameters to be added to the GET url
-    :type params: a dictionary of string key/value pairs
+    :param request_params: The parameters to be added to the GET url
+    :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request
     :type headers: a dictionary of string key/value pairs
     :param response_check: A check against the 'requests' response object.
@@ -482,38 +648,43 @@ class HttpSensor(BaseSensorOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint',)
+    template_fields = ('endpoint', 'request_params')
 
     @apply_defaults
     def __init__(self,
                  endpoint,
                  http_conn_id='http_default',
-                 params=None,
+                 method='GET',
+                 request_params=None,
                  headers=None,
                  response_check=None,
                  extra_options=None, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
-        self.params = params or {}
+        self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
         self.response_check = response_check
 
-        self.hook = hooks.HttpHook(method='GET', http_conn_id=http_conn_id)
+        self.hook = HttpHook(
+            method=method,
+            http_conn_id=http_conn_id)
 
     def poke(self, context):
         logging.info('Poking: ' + self.endpoint)
         try:
             response = self.hook.run(self.endpoint,
-                                     data=self.params,
+                                     data=self.request_params,
                                      headers=self.headers,
                                      extra_options=self.extra_options)
             if self.response_check:
                 # run content check on response
                 return self.response_check(response)
         except AirflowException as ae:
-            if ae.message.startswith("404"):
+            if str(ae).startswith("404"):
                 return False
+
+            raise ae
 
         return True

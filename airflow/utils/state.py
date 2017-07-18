@@ -22,7 +22,16 @@ class State(object):
     Static class with task instance states constants and color method to
     avoid hardcoding.
     """
+
+    # scheduler
     NONE = None
+    REMOVED = "removed"
+    SCHEDULED = "scheduled"
+
+    # set by the executor (t.b.d.)
+    # LAUNCHED = "launched"
+
+    # set by a task
     QUEUED = "queued"
     RUNNING = "running"
     SUCCESS = "success"
@@ -31,6 +40,21 @@ class State(object):
     UP_FOR_RETRY = "up_for_retry"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
+
+    task_states = (
+        SUCCESS,
+        RUNNING,
+        FAILED,
+        UPSTREAM_FAILED,
+        UP_FOR_RETRY,
+        QUEUED,
+    )
+
+    dag_states = (
+        SUCCESS,
+        RUNNING,
+        FAILED,
+    )
 
     state_color = {
         QUEUED: 'gray',
@@ -41,6 +65,8 @@ class State(object):
         UP_FOR_RETRY: 'gold',
         UPSTREAM_FAILED: 'orange',
         SKIPPED: 'pink',
+        REMOVED: 'lightgrey',
+        SCHEDULED: 'white',
     }
 
     @classmethod
@@ -57,17 +83,6 @@ class State(object):
             return 'white'
         else:
             return 'black'
-
-    @classmethod
-    def runnable(cls):
-        return [
-            cls.NONE,
-            cls.FAILED,
-            cls.UP_FOR_RETRY,
-            cls.UPSTREAM_FAILED,
-            cls.SKIPPED,
-            cls.QUEUED
-        ]
 
     @classmethod
     def finished(cls):
@@ -91,6 +106,7 @@ class State(object):
         """
         return [
             cls.NONE,
+            cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
             cls.UP_FOR_RETRY

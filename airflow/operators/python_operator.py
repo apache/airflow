@@ -1,11 +1,23 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from builtins import str
-from datetime import datetime
 import logging
 
-from airflow.models import BaseOperator, TaskInstance
-from airflow.utils.state import State
+from airflow.exceptions import AirflowException
+from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
-from airflow import settings
 
 
 class PythonOperator(BaseOperator):
@@ -49,6 +61,8 @@ class PythonOperator(BaseOperator):
             templates_exts=None,
             *args, **kwargs):
         super(PythonOperator, self).__init__(*args, **kwargs)
+        if not callable(python_callable):
+            raise AirflowException('`python_callable` param must be callable')
         self.python_callable = python_callable
         self.op_args = op_args or []
         self.op_kwargs = op_kwargs or {}
@@ -68,7 +82,7 @@ class PythonOperator(BaseOperator):
         return return_value
 
 
-class BranchPythonOperator(PythonOperator):
+class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to "branch" or follow a single path following the
     execution of this task.
@@ -89,23 +103,20 @@ class BranchPythonOperator(PythonOperator):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        logging.info("Following branch " + branch)
+        logging.info("Following branch {}".format(branch))
         logging.info("Marking other directly downstream tasks as skipped")
-        session = settings.Session()
-        for task in context['task'].downstream_list:
-            if task.task_id != branch:
-                ti = TaskInstance(
-                    task, execution_date=context['ti'].execution_date)
-                ti.state = State.SKIPPED
-                ti.start_date = datetime.now()
-                ti.end_date = datetime.now()
-                session.merge(ti)
-        session.commit()
-        session.close()
+
+        downstream_tasks = context['task'].downstream_list
+        logging.debug("Downstream task_ids {}".format(downstream_tasks))
+
+        skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
+
         logging.info("Done.")
 
 
-class ShortCircuitOperator(PythonOperator):
+class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
     Allows a workflow to continue only if a condition is met. Otherwise, the
     workflow "short-circuits" and downstream tasks are skipped.
@@ -120,19 +131,17 @@ class ShortCircuitOperator(PythonOperator):
     def execute(self, context):
         condition = super(ShortCircuitOperator, self).execute(context)
         logging.info("Condition result is {}".format(condition))
+
         if condition:
             logging.info('Proceeding with downstream tasks...')
             return
-        else:
-            logging.info('Skipping downstream tasks...')
-            session = settings.Session()
-            for task in context['task'].downstream_list:
-                ti = TaskInstance(
-                    task, execution_date=context['ti'].execution_date)
-                ti.state = State.SKIPPED
-                ti.start_date = datetime.now()
-                ti.end_date = datetime.now()
-                session.merge(ti)
-            session.commit()
-            session.close()
-            logging.info("Done.")
+
+        logging.info('Skipping downstream tasks...')
+
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        logging.debug("Downstream task_ids {}".format(downstream_tasks))
+
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
+
+        logging.info("Done.")

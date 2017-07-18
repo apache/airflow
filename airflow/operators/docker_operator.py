@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import json
 import logging
 from airflow.exceptions import AirflowException
@@ -56,6 +70,9 @@ class DockerOperator(BaseOperator):
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
+    :param working_dir: Working directory to set on the container (equivalent to the -w switch
+        the docker client)
+    :type working_dir: str
     :param xcom_push: Does the stdout will be pushed to the next step using XCom.
            The default is False.
     :type xcom_push: bool
@@ -85,6 +102,7 @@ class DockerOperator(BaseOperator):
             tmp_dir='/tmp/airflow',
             user=None,
             volumes=None,
+            working_dir=None,
             xcom_push=False,
             xcom_all=False,
             *args,
@@ -108,7 +126,8 @@ class DockerOperator(BaseOperator):
         self.tmp_dir = tmp_dir
         self.user = user
         self.volumes = volumes or []
-        self.xcom_push = xcom_push
+        self.working_dir = working_dir
+        self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
 
         self.cli = None
@@ -138,7 +157,7 @@ class DockerOperator(BaseOperator):
         if self.force_pull or len(self.cli.images(name=image)) == 0:
             logging.info('Pulling docker image ' + image)
             for l in self.cli.pull(image, stream=True):
-                output = json.loads(l)
+                output = json.loads(l.decode('utf-8'))
                 logging.info("{}".format(output['status']))
 
         cpu_shares = int(round(self.cpus * 1024))
@@ -155,20 +174,24 @@ class DockerOperator(BaseOperator):
                                                             network_mode=self.network_mode),
                     image=image,
                     mem_limit=self.mem_limit,
-                    user=self.user
+                    user=self.user,
+                    working_dir=self.working_dir
             )
             self.cli.start(self.container['Id'])
 
             line = ''
             for line in self.cli.logs(container=self.container['Id'], stream=True):
-                logging.info("{}".format(line.strip()))
+                line = line.strip()
+                if hasattr(line, 'decode'):
+                    line = line.decode('utf-8')
+                logging.info(line)
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
                 raise AirflowException('docker container failed')
 
-            if self.xcom_push:
-                return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line.strip())
+            if self.xcom_push_flag:
+                return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line)
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:

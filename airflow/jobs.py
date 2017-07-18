@@ -19,31 +19,49 @@ from __future__ import unicode_literals
 
 from past.builtins import basestring
 from collections import defaultdict, Counter
+
 from datetime import datetime
-from itertools import product
+
 import getpass
 import logging
 import socket
-import subprocess
 import multiprocessing
-import math
+import os
+import signal
+import six
+import sys
+import threading
+import time
 from time import sleep
 
-from sqlalchemy import Column, Integer, String, DateTime, func, Index, or_
+import psutil
+from sqlalchemy import (
+    Column, Integer, String, DateTime, func, Index, or_, and_, not_)
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
+from tabulate import tabulate
 
 from airflow import executors, models, settings
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
+from airflow.models import DAG, DagRun
+from airflow.settings import Stats
+from airflow.task_runner import get_task_runner
+from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils.state import State
 from airflow.utils.db import provide_session, pessimistic_connection_handling
+from airflow.utils.dag_processing import (AbstractDagFileProcessor,
+                                          DagFileProcessorManager,
+                                          SimpleDag,
+                                          SimpleDagBag,
+                                          list_py_file_paths)
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
 
+
 Base = models.Base
 ID_LEN = models.ID_LEN
-Stats = settings.Stats
 
 
 class BaseJob(Base, LoggingMixin):
@@ -78,10 +96,10 @@ class BaseJob(Base, LoggingMixin):
 
     def __init__(
             self,
-            executor=executors.DEFAULT_EXECUTOR,
+            executor=executors.GetDefaultExecutor(),
             heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
-        self.hostname = socket.gethostname()
+        self.hostname = socket.getfqdn()
         self.executor = executor
         self.executor_class = executor.__class__.__name__
         self.start_date = datetime.now()
@@ -115,7 +133,7 @@ class BaseJob(Base, LoggingMixin):
         '''
         pass
 
-    def heartbeat_callback(self):
+    def heartbeat_callback(self, session=None):
         pass
 
     def heartbeat(self):
@@ -138,28 +156,38 @@ class BaseJob(Base, LoggingMixin):
         sleep at all.
         '''
         session = settings.Session()
-        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
+        job = session.query(BaseJob).filter_by(id=self.id).one()
+        make_transient(job)
+        session.commit()
+        session.close()
 
         if job.state == State.SHUTDOWN:
             self.kill()
 
+        # Figure out how long to sleep for
+        sleep_for = 0
         if job.latest_heartbeat:
-            sleep_for = self.heartrate - (
-                datetime.now() - job.latest_heartbeat).total_seconds()
-            if sleep_for > 0:
-                sleep(sleep_for)
+            sleep_for = max(
+                0,
+                self.heartrate - (datetime.now() - job.latest_heartbeat).total_seconds())
 
+        # Don't keep session open while sleeping as it leaves a connection open
+        session.close()
+        sleep(sleep_for)
+
+        # Update last heartbeat time
+        session = settings.Session()
+        job = session.query(BaseJob).filter(BaseJob.id == self.id).first()
         job.latest_heartbeat = datetime.now()
-
         session.merge(job)
         session.commit()
-        session.close()
 
-        self.heartbeat_callback()
+        self.heartbeat_callback(session=session)
+        session.close()
         self.logger.debug('[heart] Boom.')
 
     def run(self):
-        Stats.incr(self.__class__.__name__.lower()+'_start', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         session = settings.Session()
         self.state = State.RUNNING
@@ -179,33 +207,321 @@ class BaseJob(Base, LoggingMixin):
         session.commit()
         session.close()
 
-        Stats.incr(self.__class__.__name__.lower()+'_end', 1, 1)
+        Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
     def _execute(self):
         raise NotImplementedError("This method needs to be overridden")
 
+    @provide_session
+    def reset_state_for_orphaned_tasks(self, filter_by_dag_run=None, session=None):
+        """
+        This function checks if there are any tasks in the dagrun (or all)
+        that have a scheduled state but are not known by the
+        executor. If it finds those it will reset the state to None
+        so they will get picked up again.
+        The batch option is for performance reasons as the queries are made in
+        sequence.
+
+        :param filter_by_dag_run: the dag_run we want to process, None if all
+        :type filter_by_dag_run: models.DagRun
+        :return: the TIs reset (in expired SQLAlchemy state)
+        :rtype: List(TaskInsance)
+        """
+        queued_tis = self.executor.queued_tasks
+        # also consider running as the state might not have changed in the db yet
+        running_tis = self.executor.running
+
+        resettable_states = [State.SCHEDULED, State.QUEUED]
+        TI = models.TaskInstance
+        DR = models.DagRun
+        if filter_by_dag_run is None:
+            resettable_tis = (
+                session
+                .query(TI)
+                .join(
+                    DR,
+                    and_(
+                        TI.dag_id == DR.dag_id,
+                        TI.execution_date == DR.execution_date))
+                .filter(
+                    DR.state == State.RUNNING,
+                    DR.external_trigger.is_(False),
+                    DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
+                    TI.state.in_(resettable_states))).all()
+        else:
+            resettable_tis = filter_by_dag_run.get_task_instances(state=resettable_states,
+                                                                  session=session)
+        tis_to_reset = []
+        # Can't use an update here since it doesn't support joins
+        for ti in resettable_tis:
+            if ti.key not in queued_tis and ti.key not in running_tis:
+                tis_to_reset.append(ti)
+
+        filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                TI.task_id == ti.task_id,
+                                TI.execution_date == ti.execution_date)
+                           for ti in tis_to_reset])
+        if len(tis_to_reset) == 0:
+            return []
+        reset_tis = (
+            session
+            .query(TI)
+            .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
+            .with_for_update()
+            .all())
+        for ti in reset_tis:
+            ti.state = State.NONE
+            session.merge(ti)
+        task_instance_str = '\n\t'.join(
+            ["{}".format(x) for x in reset_tis])
+        session.commit()
+
+        self.logger.info("Reset the following {} TaskInstances:\n\t{}"
+                         .format(len(reset_tis), task_instance_str))
+        return reset_tis
+
+
+class DagFileProcessor(AbstractDagFileProcessor):
+    """Helps call SchedulerJob.process_file() in a separate process."""
+
+    # Counter that increments everytime an instance of this class is created
+    class_creation_counter = 0
+
+    def __init__(self, file_path, pickle_dags, dag_id_white_list, log_file):
+        """
+        :param file_path: a Python file containing Airflow DAG definitions
+        :type file_path: unicode
+        :param pickle_dags: whether to serialize the DAG objects to the DB
+        :type pickle_dags: bool
+        :param dag_id_whitelist: If specified, only look at these DAG ID's
+        :type dag_id_whitelist: list[unicode]
+        :param log_file: the path to the file where log lines should be output
+        :type log_file: unicode
+        """
+        self._file_path = file_path
+        self._log_file = log_file
+        # Queue that's used to pass results from the child process.
+        self._result_queue = multiprocessing.Queue()
+        # The process that was launched to process the given .
+        self._process = None
+        self._dag_id_white_list = dag_id_white_list
+        self._pickle_dags = pickle_dags
+        # The result of Scheduler.process_file(file_path).
+        self._result = None
+        # Whether the process is done running.
+        self._done = False
+        # When the process started.
+        self._start_time = None
+        # This ID is use to uniquely name the process / thread that's launched
+        # by this processor instance
+        self._instance_id = DagFileProcessor.class_creation_counter
+        DagFileProcessor.class_creation_counter += 1
+
+    @property
+    def file_path(self):
+        return self._file_path
+
+    @property
+    def log_file(self):
+        return self._log_file
+
+    @staticmethod
+    def _launch_process(result_queue,
+                        file_path,
+                        pickle_dags,
+                        dag_id_white_list,
+                        thread_name,
+                        log_file):
+        """
+        Launch a process to process the given file.
+
+        :param result_queue: the queue to use for passing back the result
+        :type result_queue: multiprocessing.Queue
+        :param file_path: the file to process
+        :type file_path: unicode
+        :param pickle_dags: whether to pickle the DAGs found in the file and
+        save them to the DB
+        :type pickle_dags: bool
+        :param dag_id_white_list: if specified, only examine DAG ID's that are
+        in this list
+        :type dag_id_white_list: list[unicode]
+        :param thread_name: the name to use for the process that is launched
+        :type thread_name: unicode
+        :param log_file: the logging output for the process should be directed
+        to this file
+        :type log_file: unicode
+        :return: the process that was launched
+        :rtype: multiprocessing.Process
+        """
+        def helper():
+            # This helper runs in the newly created process
+
+            # Re-direct stdout and stderr to a separate log file. Otherwise,
+            # the main log becomes too hard to read. No buffering to enable
+            # responsive file tailing
+            parent_dir, _ = os.path.split(log_file)
+
+            # Create the parent directory for the log file if necessary.
+            if not os.path.isdir(parent_dir):
+                os.makedirs(parent_dir)
+
+            f = open(log_file, "a")
+            original_stdout = sys.stdout
+            original_stderr = sys.stderr
+
+            sys.stdout = f
+            sys.stderr = f
+
+            try:
+                # Re-configure logging to use the new output streams
+                log_format = settings.LOG_FORMAT_WITH_THREAD_NAME
+                settings.configure_logging(log_format=log_format)
+                # Re-configure the ORM engine as there are issues with multiple processes
+                settings.configure_orm()
+
+                # Change the thread name to differentiate log lines. This is
+                # really a separate process, but changing the name of the
+                # process doesn't work, so changing the thread name instead.
+                threading.current_thread().name = thread_name
+                start_time = time.time()
+
+                logging.info("Started process (PID=%s) to work on %s",
+                             os.getpid(),
+                             file_path)
+                scheduler_job = SchedulerJob(dag_ids=dag_id_white_list)
+                result = scheduler_job.process_file(file_path,
+                                                    pickle_dags)
+                result_queue.put(result)
+                end_time = time.time()
+                logging.info("Processing %s took %.3f seconds",
+                             file_path,
+                             end_time - start_time)
+            except:
+                # Log exceptions through the logging framework.
+                logging.exception("Got an exception! Propagating...")
+                raise
+            finally:
+                sys.stdout = original_stdout
+                sys.stderr = original_stderr
+                f.close()
+
+        p = multiprocessing.Process(target=helper,
+                                    args=(),
+                                    name="{}-Process".format(thread_name))
+        p.start()
+        return p
+
+    def start(self):
+        """
+        Launch the process and start processing the DAG.
+        """
+        self._process = DagFileProcessor._launch_process(
+            self._result_queue,
+            self.file_path,
+            self._pickle_dags,
+            self._dag_id_white_list,
+            "DagFileProcessor{}".format(self._instance_id),
+            self.log_file)
+        self._start_time = datetime.now()
+
+    def terminate(self, sigkill=False):
+        """
+        Terminate (and then kill) the process launched to process the file.
+        :param sigkill: whether to issue a SIGKILL if SIGTERM doesn't work.
+        :type sigkill: bool
+        """
+        if self._process is None:
+            raise AirflowException("Tried to call stop before starting!")
+        # The queue will likely get corrupted, so remove the reference
+        self._result_queue = None
+        self._process.terminate()
+        # Arbitrarily wait 5s for the process to die
+        self._process.join(5)
+        if sigkill and self._process.is_alive():
+            logging.warning("Killing PID %s", self._process.pid)
+            os.kill(self._process.pid, signal.SIGKILL)
+
+    @property
+    def pid(self):
+        """
+        :return: the PID of the process launched to process the given file
+        :rtype: int
+        """
+        if self._process is None:
+            raise AirflowException("Tried to get PID before starting!")
+        return self._process.pid
+
+    @property
+    def exit_code(self):
+        """
+        After the process is finished, this can be called to get the return code
+        :return: the exit code of the process
+        :rtype: int
+        """
+        if not self._done:
+            raise AirflowException("Tried to call retcode before process was finished!")
+        return self._process.exitcode
+
+    @property
+    def done(self):
+        """
+        Check if the process launched to process this file is done.
+        :return: whether the process is finished running
+        :rtype: bool
+        """
+        if self._process is None:
+            raise AirflowException("Tried to see if it's done before starting!")
+
+        if self._done:
+            return True
+
+        if not self._result_queue.empty():
+            self._result = self._result_queue.get_nowait()
+            self._done = True
+            logging.debug("Waiting for %s", self._process)
+            self._process.join()
+            return True
+
+        # Potential error case when process dies
+        if not self._process.is_alive():
+            self._done = True
+            # Get the object from the queue or else join() can hang.
+            if not self._result_queue.empty():
+                self._result = self._result_queue.get_nowait()
+            logging.debug("Waiting for %s", self._process)
+            self._process.join()
+            return True
+
+        return False
+
+    @property
+    def result(self):
+        """
+        :return: result of running SchedulerJob.process_file()
+        :rtype: SimpleDag
+        """
+        if not self.done:
+            raise AirflowException("Tried to get the result before it's done!")
+        return self._result
+
+    @property
+    def start_time(self):
+        """
+        :return: when this started to process the file
+        :rtype: datetime
+        """
+        if self._start_time is None:
+            raise AirflowException("Tried to get start time before it started!")
+        return self._start_time
+
 
 class SchedulerJob(BaseJob):
     """
-    This SchedulerJob runs indefinitely and constantly schedules the jobs
+    This SchedulerJob runs for a specific time interval and schedules the jobs
     that are ready to run. It figures out the latest runs for each
-    task and see if the dependencies for the next schedules are met.
-    If so it triggers the task instance. It does this for each task
-    in each DAG and repeats.
-
-    :param dag_id: to run the scheduler for a single specific DAG
-    :type dag_id: string
-    :param subdir: to search for DAG under a certain folder only
-    :type subdir: string
-    :param test_mode: used for unit testing this class only, runs a single
-        schedule run
-    :type test_mode: bool
-    :param refresh_dags_every: force refresh the DAG definition every N
-        runs, as specified here
-    :type refresh_dags_every: int
-    :param do_pickle: to pickle the DAG object and send over to workers
-        for non-local executors
-    :type do_pickle: bool
+    task and sees if the dependencies for the next schedules are met.
+    If so, it creates appropriate TaskInstances and sends run commands to the
+    executor. It does this for each task in each DAG and repeats.
     """
 
     __mapper_args__ = {
@@ -216,13 +532,32 @@ class SchedulerJob(BaseJob):
             self,
             dag_id=None,
             dag_ids=None,
-            subdir=None,
-            test_mode=False,
-            refresh_dags_every=10,
-            num_runs=None,
+            subdir=settings.DAGS_FOLDER,
+            num_runs=-1,
+            file_process_interval=conf.getint('scheduler',
+                                              'min_file_process_interval'),
+            processor_poll_interval=1.0,
+            run_duration=None,
             do_pickle=False,
             *args, **kwargs):
-
+        """
+        :param dag_id: if specified, only schedule tasks with this DAG ID
+        :type dag_id: unicode
+        :param dag_ids: if specified, only schedule tasks with these DAG IDs
+        :type dag_ids: list[unicode]
+        :param subdir: directory containing Python files with Airflow DAG
+        definitions, or a specific path to a file
+        :type subdir: unicode
+        :param num_runs: The number of times to try to schedule each DAG file.
+        -1 for unlimited within the run_duration.
+        :param processor_poll_interval: The number of seconds to wait between
+        polls of running processors
+        :param run_duration: how long to run (in seconds) before exiting
+        :type run_duration: int
+        :param do_pickle: once a DAG object is obtained by executing the Python
+        file, whether to serialize the DAG object to the DB
+        :type do_pickle: bool
+        """
         # for BaseJob compatibility
         self.dag_id = dag_id
         self.dag_ids = [dag_id] if dag_id else []
@@ -231,22 +566,38 @@ class SchedulerJob(BaseJob):
 
         self.subdir = subdir
 
-        if test_mode:
-            self.num_runs = 1
-        else:
-            self.num_runs = num_runs
+        self.num_runs = num_runs
+        self.run_duration = run_duration
+        self._processor_poll_interval = processor_poll_interval
 
-        self.refresh_dags_every = refresh_dags_every
         self.do_pickle = do_pickle
-        self.queued_tis = set()
         super(SchedulerJob, self).__init__(*args, **kwargs)
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
-        self.max_threads = min(conf.getint('scheduler', 'max_threads'), multiprocessing.cpu_count())
+        self.max_threads = conf.getint('scheduler', 'max_threads')
+        self.using_sqlite = False
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
             if self.max_threads > 1:
                 self.logger.error("Cannot use more than 1 thread when using sqlite. Setting max_threads to 1")
             self.max_threads = 1
+            self.using_sqlite = True
+
+        # How often to scan the DAGs directory for new files. Default to 5 minutes.
+        self.dag_dir_list_interval = conf.getint('scheduler',
+                                                 'dag_dir_list_interval')
+        # How often to print out DAG file processing stats to the log. Default to
+        # 30 seconds.
+        self.print_stats_interval = conf.getint('scheduler',
+                                                'print_stats_interval')
+        # Parse and schedule each file no faster than this interval. Default
+        # to 3 minutes.
+        self.file_process_interval = file_process_interval
+        # Directory where log files for the processes that scheduled the DAGs reside
+        self.child_process_log_directory = conf.get('scheduler',
+                                                    'child_process_log_directory')
+        if run_duration is None:
+            self.run_duration = conf.getint('scheduler',
+                                            'run_duration')
 
     @provide_session
     def manage_slas(self, dag, session=None):
@@ -257,12 +608,18 @@ class SchedulerJob(BaseJob):
         Where assuming that the scheduler runs often, so we only check for
         tasks that should have succeeded in the past hour.
         """
+        if not any([ti.sla for ti in dag.tasks]):
+            self.logger.info("Skipping SLA check for {} because "
+                             "no tasks in DAG have SLAs".format(dag))
+            return
+
         TI = models.TaskInstance
         sq = (
             session
             .query(
                 TI.task_id,
                 func.max(TI.execution_date).label('max_ti'))
+            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
             .filter(TI.state == State.SUCCESS)
             .filter(TI.task_id.in_(dag.task_ids))
@@ -296,7 +653,8 @@ class SchedulerJob(BaseJob):
         slas = (
             session
             .query(SlaMiss)
-            .filter(SlaMiss.email_sent == False or SlaMiss.notification_sent == False)
+            .filter(or_(SlaMiss.email_sent == False,
+                        SlaMiss.notification_sent == False))
             .filter(SlaMiss.dag_id == dag.dag_id)
             .all()
         )
@@ -320,8 +678,6 @@ class SchedulerJob(BaseJob):
                     session.delete(ti)
                     session.commit()
 
-            blocking_tis = ([ti for ti in blocking_tis
-                            if ti.are_dependencies_met(session=session)])
             task_list = "\n".join([
                 sla.task_id + ' on ' + sla.execution_date.isoformat()
                 for sla in slas])
@@ -370,251 +726,357 @@ class SchedulerJob(BaseJob):
             session.commit()
             session.close()
 
-    def import_errors(self, dagbag):
-        session = settings.Session()
-        session.query(models.ImportError).delete()
-        for filename, stacktrace in list(dagbag.import_errors.items()):
-            session.add(models.ImportError(
-                filename=filename, stacktrace=stacktrace))
+    @staticmethod
+    @provide_session
+    def clear_nonexistent_import_errors(session, known_file_paths):
+        """
+        Clears import errors for files that no longer exist.
+
+        :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
+        :param known_file_paths: The list of existing files that are parsed for DAGs
+        :type known_file_paths: list[unicode]
+        """
+        query = session.query(models.ImportError)
+        if known_file_paths:
+            query = query.filter(
+                ~models.ImportError.filename.in_(known_file_paths)
+            )
+        query.delete(synchronize_session='fetch')
         session.commit()
 
-    def schedule_dag(self, dag):
+    @staticmethod
+    def update_import_errors(session, dagbag):
+        """
+        For the DAGs in the given DagBag, record any associated import errors and clears
+        errors for files that no longer have them. These are usually displayed through the
+        Airflow UI so that users know that there are issues parsing DAGs.
+
+        :param session: session for ORM operations
+        :type session: sqlalchemy.orm.session.Session
+        :param dagbag: DagBag containing DAGs with import errors
+        :type dagbag: models.Dagbag
+        """
+        # Clear the errors of the processed files
+        for dagbag_file in dagbag.file_last_changed:
+            session.query(models.ImportError).filter(
+                models.ImportError.filename == dagbag_file
+            ).delete()
+
+        # Add the errors of the processed files
+        for filename, stacktrace in six.iteritems(dagbag.import_errors):
+            session.add(models.ImportError(
+                filename=filename,
+                stacktrace=stacktrace))
+        session.commit()
+
+    @provide_session
+    def create_dag_run(self, dag, session=None):
         """
         This method checks whether a new DagRun needs to be created
         for a DAG based on scheduling interval
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
         if dag.schedule_interval:
-            DagRun = models.DagRun
-            session = settings.Session()
-            qry = session.query(DagRun).filter(
-                DagRun.dag_id == dag.dag_id,
-                DagRun.external_trigger == False,
-                DagRun.state == State.RUNNING,
+            active_runs = DagRun.find(
+                dag_id=dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
             )
-            active_runs = qry.all()
-            if len(active_runs) >= dag.max_active_runs:
+            # return if already reached maximum active runs and no timeout setting
+            if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
                 return
+            timedout_runs = 0
             for dr in active_runs:
                 if (
                         dr.start_date and dag.dagrun_timeout and
                         dr.start_date < datetime.now() - dag.dagrun_timeout):
                     dr.state = State.FAILED
                     dr.end_date = datetime.now()
+                    timedout_runs += 1
             session.commit()
+            if len(active_runs) - timedout_runs >= dag.max_active_runs:
+                return
 
-            qry = session.query(func.max(DagRun.execution_date)).filter_by(
-                    dag_id = dag.dag_id).filter(
-                        or_(DagRun.external_trigger == False,
-                            # add % as a wildcard for the like query
-                            DagRun.run_id.like(DagRun.ID_PREFIX+'%')))
+            # this query should be replaced by find dagrun
+            qry = (
+                session.query(func.max(DagRun.execution_date))
+                .filter_by(dag_id=dag.dag_id)
+                .filter(or_(
+                    DagRun.external_trigger == False,
+                    # add % as a wildcard for the like query
+                    DagRun.run_id.like(DagRun.ID_PREFIX + '%')
+                ))
+            )
             last_scheduled_run = qry.scalar()
-            next_run_date = None
-            if dag.schedule_interval == '@once' and not last_scheduled_run:
-                next_run_date = datetime.now()
-            elif not last_scheduled_run:
-                # First run
-                TI = models.TaskInstance
-                latest_run = (
-                    session.query(func.max(TI.execution_date))
-                    .filter_by(dag_id=dag.dag_id)
-                    .scalar()
-                )
-                if latest_run:
-                    # Migrating from previous version
-                    # make the past 5 runs active
-                    next_run_date = dag.date_range(latest_run, -5)[0]
+
+            # don't schedule @once again
+            if dag.schedule_interval == '@once' and last_scheduled_run:
+                return None
+
+            # don't do scheduler catchup for dag's that don't have dag.catchup = True
+            if not dag.catchup:
+                # The logic is that we move start_date up until
+                # one period before, so that datetime.now() is AFTER
+                # the period end, and the job can be created...
+                now = datetime.now()
+                next_start = dag.following_schedule(now)
+                last_start = dag.previous_schedule(now)
+                if next_start <= now:
+                    new_start = last_start
                 else:
-                    task_start_dates = [t.start_date for t in dag.tasks]
-                    if task_start_dates:
-                        next_run_date = min(task_start_dates)
-                    else:
-                        next_run_date = None
-            elif dag.schedule_interval != '@once':
+                    new_start = dag.previous_schedule(last_start)
+
+                if dag.start_date:
+                    if new_start >= dag.start_date:
+                        dag.start_date = new_start
+                else:
+                    dag.start_date = new_start
+
+            next_run_date = None
+            if not last_scheduled_run:
+                # First run
+                task_start_dates = [t.start_date for t in dag.tasks]
+                if task_start_dates:
+                    next_run_date = dag.normalize_schedule(min(task_start_dates))
+                    self.logger.debug("Next run date based on tasks {}"
+                                      .format(next_run_date))
+            else:
                 next_run_date = dag.following_schedule(last_scheduled_run)
+
+            # make sure backfills are also considered
+            last_run = dag.get_last_dagrun(session=session)
+            if last_run and next_run_date:
+                while next_run_date <= last_run.execution_date:
+                    next_run_date = dag.following_schedule(next_run_date)
 
             # don't ever schedule prior to the dag's start_date
             if dag.start_date:
-                next_run_date = dag.start_date if not next_run_date else max(next_run_date, dag.start_date)
+                next_run_date = (dag.start_date if not next_run_date
+                                 else max(next_run_date, dag.start_date))
+                if next_run_date == dag.start_date:
+                    next_run_date = dag.normalize_schedule(dag.start_date)
+
+                self.logger.debug("Dag start date: {}. Next run date: {}"
+                                  .format(dag.start_date, next_run_date))
+
+            # don't ever schedule in the future
+            if next_run_date > datetime.now():
+                return
 
             # this structure is necessary to avoid a TypeError from concatenating
             # NoneType
             if dag.schedule_interval == '@once':
-                schedule_end = next_run_date
+                period_end = next_run_date
             elif next_run_date:
-                schedule_end = dag.following_schedule(next_run_date)
+                period_end = dag.following_schedule(next_run_date)
 
+            # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
                 return
 
-            if next_run_date and schedule_end and schedule_end <= datetime.now():
-                next_run = DagRun(
-                    dag_id=dag.dag_id,
+            # Don't schedule a dag beyond its end_date (as specified by the task params)
+            # Get the min task end date, which may come from the dag.default_args
+            min_task_end_date = []
+            task_end_dates = [t.end_date for t in dag.tasks if t.end_date]
+            if task_end_dates:
+                min_task_end_date = min(task_end_dates)
+            if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
+                return
+
+            if next_run_date and period_end and period_end <= datetime.now():
+                next_run = dag.create_dagrun(
                     run_id='scheduled__' + next_run_date.isoformat(),
                     execution_date=next_run_date,
                     start_date=datetime.now(),
                     state=State.RUNNING,
                     external_trigger=False
                 )
-                session.add(next_run)
-                session.commit()
                 return next_run
 
-    def process_dag(self, dag, queue):
+    def _process_task_instances(self, dag, queue):
         """
-        This method schedules a single DAG by looking at the latest
-        run for each task and attempting to schedule the following run.
-
-        As multiple schedulers may be running for redundancy, this
-        function takes a lock on the DAG and timestamps the last run
-        in ``last_scheduler_run``.
+        This method schedules the tasks for a single DAG by looking at the
+        active DAG runs and adding task instances that should run to the
+        queue.
         """
-        TI = models.TaskInstance
-        DagModel = models.DagModel
         session = settings.Session()
 
-        # picklin'
-        pickle_id = None
-        if self.do_pickle and self.executor.__class__ not in (
-                executors.LocalExecutor, executors.SequentialExecutor):
-            pickle_id = dag.pickle(session).id
-
-        db_dag = session.query(DagModel).filter_by(dag_id=dag.dag_id).first()
-        last_scheduler_run = db_dag.last_scheduler_run or datetime(2000, 1, 1)
-        secs_since_last = (
-            datetime.now() - last_scheduler_run).total_seconds()
-        # if db_dag.scheduler_lock or
-        if secs_since_last < self.heartrate:
-            session.commit()
-            session.close()
-            return None
-        else:
-            # Taking a lock
-            db_dag.scheduler_lock = True
-            db_dag.last_scheduler_run = datetime.now()
-            session.commit()
-
-        active_runs = dag.get_active_runs()
-
-        self.logger.info('Getting list of tasks to skip for active runs.')
-        skip_tis = set()
-        if active_runs:
-            qry = (
-                session.query(TI.task_id, TI.execution_date)
-                .filter(
-                    TI.dag_id == dag.dag_id,
-                    TI.execution_date.in_(active_runs),
-                    TI.state.in_((State.RUNNING, State.SUCCESS, State.FAILED)),
-                )
-            )
-            skip_tis = {(ti[0], ti[1]) for ti in qry.all()}
-
-        descartes = [obj for obj in product(dag.tasks, active_runs)]
-        could_not_run = set()
-        self.logger.info('Checking dependencies on {} tasks instances, minus {} '
-                     'skippable ones'.format(len(descartes), len(skip_tis)))
-
-        for task, dttm in descartes:
-            if task.adhoc or (task.task_id, dttm) in skip_tis:
+        # update the state of the previously active dag runs
+        dag_runs = DagRun.find(dag_id=dag.dag_id, state=State.RUNNING, session=session)
+        active_dag_runs = []
+        for run in dag_runs:
+            self.logger.info("Examining DAG run {}".format(run))
+            # don't consider runs that are executed in the future
+            if run.execution_date > datetime.now():
+                self.logger.error("Execution date is in future: {}"
+                                  .format(run.execution_date))
                 continue
-            ti = TI(task, dttm)
 
-            ti.refresh_from_db()
-            if ti.state in (
-                    State.RUNNING, State.QUEUED, State.SUCCESS, State.FAILED):
+            if len(active_dag_runs) >= dag.max_active_runs:
+                self.logger.info("Active dag runs > max_active_run.")
                 continue
-            elif ti.is_runnable(flag_upstream_failed=True):
-                self.logger.debug('Queuing task: {}'.format(ti))
-                queue.put((ti.key, pickle_id))
-            else:
-                could_not_run.add(ti)
 
-        # this type of deadlock happens when dagruns can't even start and so
-        # the TI's haven't been persisted to the     database.
-        if len(could_not_run) == len(descartes) and len(could_not_run) > 0:
-            self.logger.error(
-                'Dag runs are deadlocked for DAG: {}'.format(dag.dag_id))
-            (session
-                .query(models.DagRun)
-                .filter(
-                    models.DagRun.dag_id == dag.dag_id,
-                    models.DagRun.state == State.RUNNING,
-                    models.DagRun.execution_date.in_(active_runs))
-                .update(
-                    {models.DagRun.state: State.FAILED},
-                    synchronize_session='fetch'))
+            # skip backfill dagruns for now as long as they are not really scheduled
+            if run.is_backfill:
+                continue
 
-        # Releasing the lock
-        self.logger.debug("Unlocking DAG (scheduler_lock)")
-        db_dag = (
-            session.query(DagModel)
-            .filter(DagModel.dag_id == dag.dag_id)
-            .first()
-        )
-        db_dag.scheduler_lock = False
-        session.merge(db_dag)
-        session.commit()
+            # todo: run.dag is transient but needs to be set
+            run.dag = dag
+            # todo: preferably the integrity check happens at dag collection time
+            run.verify_integrity(session=session)
+            run.update_state(session=session)
+            if run.state == State.RUNNING:
+                make_transient(run)
+                active_dag_runs.append(run)
+
+        for run in active_dag_runs:
+            self.logger.debug("Examining active DAG run {}".format(run))
+            # this needs a fresh session sometimes tis get detached
+            tis = run.get_task_instances(state=(State.NONE,
+                                                State.UP_FOR_RETRY))
+
+            # this loop is quite slow as it uses are_dependencies_met for
+            # every task (in ti.is_runnable). This is also called in
+            # update_state above which has already checked these tasks
+            for ti in tis:
+                task = dag.get_task(ti.task_id)
+
+                # fixme: ti.task is transient but needs to be set
+                ti.task = task
+
+                # future: remove adhoc
+                if task.adhoc:
+                    continue
+
+                if ti.are_dependencies_met(
+                        dep_context=DepContext(flag_upstream_failed=True),
+                        session=session):
+                    self.logger.debug('Queuing task: {}'.format(ti))
+                    queue.append(ti.key)
 
         session.close()
 
-    def process_events(self, executor, dagbag):
+    @provide_session
+    def _change_state_for_tis_without_dagrun(self,
+                                             simple_dag_bag,
+                                             old_states,
+                                             new_state,
+                                             session=None):
         """
-        Respond to executor events.
+        For all DAG IDs in the SimpleDagBag, look for task instances in the
+        old_states and set them to new_state if the corresponding DagRun
+        exists but is not in the running state. This normally should not
+        happen, but it can if the state of DagRuns are changed manually.
 
-        Used to identify queued tasks and schedule them for further processing.
+        :param old_states: examine TaskInstances in this state
+        :type old_state: list[State]
+        :param new_state: set TaskInstances to this state
+        :type new_state: State
+        :param simple_dag_bag: TaskInstances associated with DAGs in the
+        simple_dag_bag and with states in the old_state will be examined
+        :type simple_dag_bag: SimpleDagBag
         """
-        for key, executor_state in list(executor.get_event_buffer().items()):
-            dag_id, task_id, execution_date = key
-            if dag_id not in dagbag.dags:
-                self.logger.error(
-                    'Executor reported a dag_id that was not found in the '
-                    'DagBag: {}'.format(dag_id))
-                continue
-            elif not dagbag.dags[dag_id].has_task(task_id):
-                self.logger.error(
-                    'Executor reported a task_id that was not found in the '
-                    'dag: {} in dag {}'.format(task_id, dag_id))
-                continue
-            task = dagbag.dags[dag_id].get_task(task_id)
-            ti = models.TaskInstance(task, execution_date)
-            ti.refresh_from_db()
+        tis_changed = 0
+        if self.using_sqlite:
+            tis_to_change = (
+                session
+                    .query(models.TaskInstance)
+                    .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
+                    .filter(models.TaskInstance.state.in_(old_states))
+                    .filter(and_(
+                        models.DagRun.dag_id == models.TaskInstance.dag_id,
+                        models.DagRun.execution_date == models.TaskInstance.execution_date,
+                        models.DagRun.state != State.RUNNING))
+                    .with_for_update()
+                    .all()
+            )
+            for ti in tis_to_change:
+                ti.set_state(new_state, session=session)
+                tis_changed += 1
+        else:
+            tis_changed = (
+                session
+                    .query(models.TaskInstance)
+                    .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
+                    .filter(models.TaskInstance.state.in_(old_states))
+                    .filter(and_(
+                        models.DagRun.dag_id == models.TaskInstance.dag_id,
+                        models.DagRun.execution_date == models.TaskInstance.execution_date,
+                        models.DagRun.state != State.RUNNING))
+                    .update({models.TaskInstance.state: new_state},
+                            synchronize_session=False)
+            )
+            session.commit()
 
-            if executor_state == State.SUCCESS:
-                # collect queued tasks for prioritiztion
-                if ti.state == State.QUEUED:
-                    self.queued_tis.add(ti)
-            else:
-                # special instructions for failed executions could go here
-                pass
+        if tis_changed > 0:
+            self.logger.warning("Set {} task instances to state={} as their associated "
+                                "DagRun was not in RUNNING state".format(
+                tis_changed, new_state))
 
     @provide_session
-    def prioritize_queued(self, session, executor, dagbag):
-        # Prioritizing queued task instances
+    def _find_executable_task_instances(self, simple_dag_bag, states, session=None):
+        """
+        Finds TIs that are ready for execution with respect to pool limits,
+        dag concurrency, executor state, and priority.
 
+        :param simple_dag_bag: TaskInstances associated with DAGs in the
+        simple_dag_bag will be fetched from the DB and executed
+        :type simple_dag_bag: SimpleDagBag
+        :param executor: the executor that runs task instances
+        :type executor: BaseExecutor
+        :param states: Execute TaskInstances in these states
+        :type states: Tuple[State]
+        :return: List[TaskInstance]
+        """
+        executable_tis = []
+
+        # Get all the queued task instances from associated with scheduled
+        # DagRuns which are not backfilled, in the given states,
+        # and the dag is not pasued
+        TI = models.TaskInstance
+        DR = models.DagRun
+        DM = models.DagModel
+        ti_query = (
+            session
+            .query(TI)
+            .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
+            .outerjoin(DR,
+                and_(DR.dag_id == TI.dag_id,
+                     DR.execution_date == TI.execution_date))
+            .filter(or_(DR.run_id == None,
+                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id==TI.dag_id)
+            .filter(or_(DM.dag_id == None,
+                    not_(DM.is_paused)))
+        )
+        if None in states:
+            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states)))
+        else:
+            ti_query = ti_query.filter(TI.state.in_(states))
+
+        task_instances_to_examine = ti_query.all()
+
+        if len(task_instances_to_examine) == 0:
+            self.logger.info("No tasks to consider for execution.")
+            return executable_tis
+
+        # Put one task instance on each line
+        task_instance_str = "\n\t".join(
+            ["{}".format(x) for x in task_instances_to_examine])
+        self.logger.info("Tasks up for execution:\n\t{}".format(task_instance_str))
+
+        # Get the pool settings
         pools = {p.pool: p for p in session.query(models.Pool).all()}
 
-        self.logger.info(
-            "Prioritizing {} queued jobs".format(len(self.queued_tis)))
-        session.expunge_all()
-        d = defaultdict(list)
-        for ti in self.queued_tis:
-            if ti.dag_id not in dagbag.dags:
-                self.logger.info(
-                    "DAG no longer in dagbag, deleting {}".format(ti))
-                session.delete(ti)
-                session.commit()
-            elif not dagbag.dags[ti.dag_id].has_task(ti.task_id):
-                self.logger.info(
-                    "Task no longer exists, deleting {}".format(ti))
-                session.delete(ti)
-                session.commit()
-            else:
-                d[ti.pool].append(ti)
+        pool_to_task_instances = defaultdict(list)
+        for task_instance in task_instances_to_examine:
+            pool_to_task_instances[task_instance.pool].append(task_instance)
 
-        self.queued_tis.clear()
-
-        dag_blacklist = set(dagbag.paused_dags())
-        for pool, tis in list(d.items()):
+        # Go through each pool, and queue up a task for execution if there are
+        # any open slots in the pool.
+        for pool, task_instances in pool_to_task_instances.items():
             if not pool:
                 # Arbitrary:
                 # If queued outside of a pool, trigger no more than
@@ -623,171 +1085,695 @@ class SchedulerJob(BaseJob):
             else:
                 open_slots = pools[pool].open_slots(session=session)
 
-            queue_size = len(tis)
-            self.logger.info("Pool {pool} has {open_slots} slots, {queue_size} "
+            num_queued = len(task_instances)
+            self.logger.info("Figuring out tasks to run in Pool(name={pool}) "
+                             "with {open_slots} open slots and {num_queued} "
                              "task instances in queue".format(**locals()))
-            if open_slots <= 0:
-                continue
-            tis = sorted(
-                tis, key=lambda ti: (-ti.priority_weight, ti.start_date))
-            for ti in tis:
+
+            priority_sorted_task_instances = sorted(
+                task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date))
+
+            # DAG IDs with running tasks that equal the concurrency limit of the dag
+            dag_id_to_possibly_running_task_count = {}
+
+            for task_instance in priority_sorted_task_instances:
                 if open_slots <= 0:
-                    continue
-                task = None
-                try:
-                    task = dagbag.dags[ti.dag_id].get_task(ti.task_id)
-                except:
-                    self.logger.error("Queued task {} seems gone".format(ti))
-                    session.delete(ti)
-                    session.commit()
+                    self.logger.info("Not scheduling since there are {} open slots in pool {}"
+                        .format(open_slots, pool))
+                    # Can't schedule any more since there are no more open slots.
+                    break
+
+                # Check to make sure that the task concurrency of the DAG hasn't been
+                # reached.
+                dag_id = task_instance.dag_id
+
+                if dag_id not in dag_id_to_possibly_running_task_count:
+                    # TODO(saguziel): also check against QUEUED state, see AIRFLOW-1104
+                    dag_id_to_possibly_running_task_count[dag_id] = \
+                        DAG.get_num_task_instances(
+                            dag_id,
+                            simple_dag_bag.get_dag(dag_id).task_ids,
+                            states=[State.RUNNING],
+                            session=session)
+
+                current_task_concurrency = dag_id_to_possibly_running_task_count[dag_id]
+                task_concurrency_limit = simple_dag_bag.get_dag(dag_id).concurrency
+                self.logger.info("DAG {} has {}/{} running and queued tasks"
+                                 .format(dag_id,
+                                         current_task_concurrency,
+                                         task_concurrency_limit))
+                if current_task_concurrency >= task_concurrency_limit:
+                    self.logger.info("Not executing {} since the number "
+                                     "of tasks running or queued from DAG {}"
+                                     " is >= to the "
+                                     "DAG's task concurrency limit of {}"
+                                     .format(task_instance,
+                                             dag_id,
+                                             task_concurrency_limit))
                     continue
 
-                if not task:
+
+                if self.executor.has_task(task_instance):
+                    self.logger.debug(("Not handling task {} as the executor " +
+                                      "reports it is running")
+                                      .format(task_instance.key))
                     continue
+                executable_tis.append(task_instance)
+                open_slots -= 1
+                dag_id_to_possibly_running_task_count[dag_id] += 1
 
-                ti.task = task
+        task_instance_str = "\n\t".join(
+            ["{}".format(x) for x in executable_tis])
+        self.logger.info("Setting the follow tasks to queued state:\n\t{}"
+                         .format(task_instance_str))
+        return executable_tis
 
-                # picklin'
-                dag = dagbag.dags[ti.dag_id]
-                pickle_id = None
-                if self.do_pickle and self.executor.__class__ not in (
-                        executors.LocalExecutor,
-                        executors.SequentialExecutor):
-                    self.logger.info("Pickling DAG {}".format(dag))
-                    pickle_id = dag.pickle(session).id
-
-                if dag.dag_id in dag_blacklist:
-                    continue
-                if dag.concurrency_reached:
-                    dag_blacklist.add(dag.dag_id)
-                    continue
-                if ti.are_dependencies_met():
-                    executor.queue_task_instance(ti, pickle_id=pickle_id)
-                    open_slots -= 1
-                else:
-                    session.delete(ti)
-                    continue
-                ti.task = task
-
-                session.commit()
-
-    def _split_dags(self, dags, size):
+    @provide_session
+    def _change_state_for_executable_task_instances(self, task_instances,
+                                                    acceptable_states, session=None):
         """
-        This function splits a list of dags into chunks of int size.
-        _split_dags([1,2,3,4,5,6], 3) becomes [[1,2,3],[4,5,6]]
-        """
-        size = max(1, size)
-        return [dags[i:i + size] for i in range(0, len(dags), size)]
+        Changes the state of task instances in the list with one of the given states
+        to QUEUED atomically, and returns the TIs changed.
 
-    def _do_dags(self, dagbag, dags, tis_out):
+        :param task_instances: TaskInstances to change the state of
+        :type task_instances: List[TaskInstance]
+        :param acceptable_states: Filters the TaskInstances updated to be in these states
+        :type acceptable_states: Iterable[State]
+        :return: List[TaskInstance]
         """
-        Iterates over the dags and schedules and processes them
+        if len(task_instances) == 0:
+            session.commit()
+            return []
+
+        TI = models.TaskInstance
+        filter_for_ti_state_change = (
+            [and_(
+                TI.dag_id == ti.dag_id,
+                TI.task_id == ti.task_id,
+                TI.execution_date == ti.execution_date)
+                for ti in task_instances])
+        ti_query = (
+            session
+            .query(TI)
+            .filter(or_(*filter_for_ti_state_change)))
+
+        if None in acceptable_states:
+            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(acceptable_states)))
+        else:
+            ti_query = ti_query.filter(TI.state.in_(acceptable_states))
+
+        tis_to_set_to_queued = (
+            ti_query
+            .with_for_update()
+            .all())
+        if len(tis_to_set_to_queued) == 0:
+            self.logger.info("No tasks were able to have their state changed to queued.")
+            session.commit()
+            return []
+
+        # set TIs to queued state
+        for task_instance in tis_to_set_to_queued:
+            task_instance.state = State.QUEUED
+            task_instance.queued_dttm = (datetime.now()
+                                         if not task_instance.queued_dttm
+                                         else task_instance.queued_dttm)
+            session.merge(task_instance)
+
+        # save which TIs we set before session expires them
+        filter_for_ti_enqueue = ([and_(TI.dag_id == ti.dag_id,
+                                  TI.task_id == ti.task_id,
+                                  TI.execution_date == ti.execution_date)
+                             for ti in tis_to_set_to_queued])
+        session.commit()
+
+        # requery in batch since above was expired by commit
+        tis_to_be_queued = (
+            session
+            .query(TI)
+            .filter(or_(*filter_for_ti_enqueue))
+            .all())
+
+        task_instance_str = "\n\t".join(
+            ["{}".format(x) for x in tis_to_be_queued])
+        self.logger.info("Setting the follow tasks to queued state:\n\t{}"
+                         .format(task_instance_str))
+        return tis_to_be_queued
+
+    def _enqueue_task_instances_with_queued_state(self, simple_dag_bag, task_instances):
+        """
+        Takes task_instances, which should have been set to queued, and enqueues them
+        with the executor.
+
+        :param task_instances: TaskInstances to enqueue
+        :type task_instances: List[TaskInstance]
+        :param simple_dag_bag: Should contains all of the task_instances' dags
+        :type simple_dag_bag: SimpleDagBag
+        """
+        TI = models.TaskInstance
+        # actually enqueue them
+        for task_instance in task_instances:
+            command = " ".join(TI.generate_command(
+                task_instance.dag_id,
+                task_instance.task_id,
+                task_instance.execution_date,
+                local=True,
+                mark_success=False,
+                ignore_all_deps=False,
+                ignore_depends_on_past=False,
+                ignore_task_deps=False,
+                ignore_ti_state=False,
+                pool=task_instance.pool,
+                file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
+                pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id))
+
+            priority = task_instance.priority_weight
+            queue = task_instance.queue
+            self.logger.info("Sending {} to executor with priority {} and queue {}"
+                             .format(task_instance.key, priority, queue))
+
+            # save attributes so sqlalchemy doesnt expire them
+            copy_dag_id = task_instance.dag_id
+            copy_task_id = task_instance.task_id
+            copy_execution_date = task_instance.execution_date
+            make_transient(task_instance)
+            task_instance.dag_id = copy_dag_id
+            task_instance.task_id = copy_task_id
+            task_instance.execution_date = copy_execution_date
+
+            self.executor.queue_command(
+                task_instance,
+                command,
+                priority=priority,
+                queue=queue)
+
+    @provide_session
+    def _execute_task_instances(self,
+                                simple_dag_bag,
+                                states,
+                                session=None):
+        """
+        Attempts to execute TaskInstances that should be executed by the scheduler.
+
+        There are three steps:
+        1. Pick TIs by priority with the constraint that they are in the expected states
+        and that we do exceed max_active_runs or pool limits.
+        2. Change the state for the TIs above atomically.
+        3. Enqueue the TIs in the executor.
+
+        :param simple_dag_bag: TaskInstances associated with DAGs in the
+        simple_dag_bag will be fetched from the DB and executed
+        :type simple_dag_bag: SimpleDagBag
+        :param states: Execute TaskInstances in these states
+        :type states: Tuple[State]
+        :return: None
+        """
+        executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
+                                                              session=session)
+        tis_with_state_changed = self._change_state_for_executable_task_instances(
+            executable_tis,
+            states,
+            session=session)
+        self._enqueue_task_instances_with_queued_state(
+            simple_dag_bag,
+            tis_with_state_changed)
+        session.commit()
+        return len(tis_with_state_changed)
+
+    def _process_dags(self, dagbag, dags, tis_out):
+        """
+        Iterates over the dags and processes them. Processing includes:
+
+        1. Create appropriate DagRun(s) in the DB.
+        2. Create appropriate TaskInstance(s) in the DB.
+        3. Send emails for tasks that have missed SLAs.
+
+        :param dagbag: a collection of DAGs to process
+        :type dagbag: models.DagBag
+        :param dags: the DAGs from the DagBag to process
+        :type dags: DAG
+        :param tis_out: A queue to add generated TaskInstance objects
+        :type tis_out: multiprocessing.Queue[TaskInstance]
+        :return: None
         """
         for dag in dags:
-            self.logger.debug("Scheduling {}".format(dag.dag_id))
             dag = dagbag.get_dag(dag.dag_id)
-            if not dag:
+            if dag.is_paused:
+                self.logger.info("Not processing DAG {} since it's paused"
+                                 .format(dag.dag_id))
                 continue
-            try:
-                self.schedule_dag(dag)
-                self.process_dag(dag, tis_out)
-                self.manage_slas(dag)
-            except Exception as e:
-                self.logger.exception(e)
+
+            if not dag:
+                self.logger.error("DAG ID {} was not found in the DagBag"
+                                  .format(dag.dag_id))
+                continue
+
+            self.logger.info("Processing {}".format(dag.dag_id))
+
+            dag_run = self.create_dag_run(dag)
+            if dag_run:
+                self.logger.info("Created {}".format(dag_run))
+            self._process_task_instances(dag, tis_out)
+            self.manage_slas(dag)
+
+        models.DagStat.update([d.dag_id for d in dags])
+
+    def _process_executor_events(self):
+        """
+        Respond to executor events.
+
+        :param executor: the executor that's running the task instances
+        :type executor: BaseExecutor
+        :return: None
+        """
+        for key, executor_state in list(self.executor.get_event_buffer().items()):
+            dag_id, task_id, execution_date = key
+            self.logger.info("Executor reports {}.{} execution_date={} as {}"
+                             .format(dag_id,
+                                     task_id,
+                                     execution_date,
+                                     executor_state))
+
+    def _log_file_processing_stats(self,
+                                   known_file_paths,
+                                   processor_manager):
+        """
+        Print out stats about how files are getting processed.
+
+        :param known_file_paths: a list of file paths that may contain Airflow
+        DAG definitions
+        :type known_file_paths: list[unicode]
+        :param processor_manager: manager for the file processors
+        :type stats: DagFileProcessorManager
+        :return: None
+        """
+
+        # File Path: Path to the file containing the DAG definition
+        # PID: PID associated with the process that's processing the file. May
+        # be empty.
+        # Runtime: If the process is currently running, how long it's been
+        # running for in seconds.
+        # Last Runtime: If the process ran before, how long did it take to
+        # finish in seconds
+        # Last Run: When the file finished processing in the previous run.
+        headers = ["File Path",
+                   "PID",
+                   "Runtime",
+                   "Last Runtime",
+                   "Last Run"]
+
+        rows = []
+        for file_path in known_file_paths:
+            last_runtime = processor_manager.get_last_runtime(file_path)
+            processor_pid = processor_manager.get_pid(file_path)
+            processor_start_time = processor_manager.get_start_time(file_path)
+            runtime = ((datetime.now() - processor_start_time).total_seconds()
+                       if processor_start_time else None)
+            last_run = processor_manager.get_last_finish_time(file_path)
+
+            rows.append((file_path,
+                         processor_pid,
+                         runtime,
+                         last_runtime,
+                         last_run))
+
+        # Sort by longest last runtime. (Can't sort None values in python3)
+        rows = sorted(rows, key=lambda x: x[3] or 0.0)
+
+        formatted_rows = []
+        for file_path, pid, runtime, last_runtime, last_run in rows:
+            formatted_rows.append((file_path,
+                                   pid,
+                                   "{:.2f}s".format(runtime)
+                                   if runtime else None,
+                                   "{:.2f}s".format(last_runtime)
+                                   if last_runtime else None,
+                                   last_run.strftime("%Y-%m-%dT%H:%M:%S")
+                                   if last_run else None))
+        log_str = ("\n" +
+                   "=" * 80 +
+                   "\n" +
+                   "DAG File Processing Stats\n\n" +
+                   tabulate(formatted_rows, headers=headers) +
+                   "\n" +
+                   "=" * 80)
+
+        self.logger.info(log_str)
 
     def _execute(self):
-        TI = models.TaskInstance
-
+        self.logger.info("Starting the scheduler")
         pessimistic_connection_handling()
 
         logging.basicConfig(level=logging.DEBUG)
-        self.logger.info("Starting the scheduler")
 
-        dagbag = models.DagBag(self.subdir, sync_to_db=True)
-        executor = self.executor = dagbag.executor
-        executor.start()
-        self.runs = 0
-        while not self.num_runs or self.num_runs > self.runs:
-            try:
-                loop_start_dttm = datetime.now()
+        # DAGs can be pickled for easier remote execution by some executors
+        pickle_dags = False
+        if self.do_pickle and self.executor.__class__ not in \
+                (executors.LocalExecutor, executors.SequentialExecutor):
+            pickle_dags = True
+
+        # Use multiple processes to parse and generate tasks for the
+        # DAGs in parallel. By processing them in separate processes,
+        # we can get parallelism and isolation from potentially harmful
+        # user code.
+        self.logger.info("Processing files using up to {} processes at a time "
+                         .format(self.max_threads))
+        self.logger.info("Running execute loop for {} seconds"
+                         .format(self.run_duration))
+        self.logger.info("Processing each file at most {} times"
+                         .format(self.num_runs))
+        self.logger.info("Process each file at most once every {} seconds"
+                         .format(self.file_process_interval))
+        self.logger.info("Checking for new files in {} every {} seconds"
+                         .format(self.subdir, self.dag_dir_list_interval))
+
+        # Build up a list of Python files that could contain DAGs
+        self.logger.info("Searching for files in {}".format(self.subdir))
+        known_file_paths = list_py_file_paths(self.subdir)
+        self.logger.info("There are {} files in {}"
+                         .format(len(known_file_paths), self.subdir))
+
+        def processor_factory(file_path, log_file_path):
+            return DagFileProcessor(file_path,
+                                    pickle_dags,
+                                    self.dag_ids,
+                                    log_file_path)
+
+        processor_manager = DagFileProcessorManager(self.subdir,
+                                                    known_file_paths,
+                                                    self.max_threads,
+                                                    self.file_process_interval,
+                                                    self.child_process_log_directory,
+                                                    self.num_runs,
+                                                    processor_factory)
+
+        try:
+            self._execute_helper(processor_manager)
+        finally:
+            self.logger.info("Exited execute loop")
+
+            # Kill all child processes on exit since we don't want to leave
+            # them as orphaned.
+            pids_to_kill = processor_manager.get_all_pids()
+            if len(pids_to_kill) > 0:
+                # First try SIGTERM
+                this_process = psutil.Process(os.getpid())
+                # Only check child processes to ensure that we don't have a case
+                # where we kill the wrong process because a child process died
+                # but the PID got reused.
+                child_processes = [x for x in this_process.children(recursive=True)
+                                   if x.is_running() and x.pid in pids_to_kill]
+                for child in child_processes:
+                    self.logger.info("Terminating child PID: {}".format(child.pid))
+                    child.terminate()
+                timeout = 5
+                self.logger.info("Waiting up to {}s for processes to exit..."
+                                 .format(timeout))
                 try:
-                    self.process_events(executor=executor, dagbag=dagbag)
-                    self.prioritize_queued(executor=executor, dagbag=dagbag)
-                except Exception as e:
-                    self.logger.exception(e)
+                    psutil.wait_procs(child_processes, timeout)
+                except psutil.TimeoutExpired:
+                    self.logger.debug("Ran out of time while waiting for "
+                                      "processes to exit")
 
-                self.runs += 1
-                try:
-                    if self.runs % self.refresh_dags_every == 0:
-                        dagbag = models.DagBag(self.subdir, sync_to_db=True)
-                    else:
-                        dagbag.collect_dags(only_if_updated=True)
-                except Exception as e:
-                    self.logger.error("Failed at reloading the dagbag. {}".format(e))
-                    Stats.incr('dag_refresh_error', 1, 1)
-                    sleep(5)
+                # Then SIGKILL
+                child_processes = [x for x in this_process.children(recursive=True)
+                                   if x.is_running() and x.pid in pids_to_kill]
+                if len(child_processes) > 0:
+                    for child in child_processes:
+                        self.logger.info("Killing child PID: {}".format(child.pid))
+                        child.kill()
+                        child.wait()
 
-                if len(self.dag_ids) > 0:
-                    dags = [dag for dag in dagbag.dags.values() if dag.dag_id in self.dag_ids]
-                else:
-                    dags = [
-                        dag for dag in dagbag.dags.values()
-                        if not dag.parent_dag]
+    def _execute_helper(self, processor_manager):
+        """
+        :param processor_manager: manager to use
+        :type processor_manager: DagFileProcessorManager
+        :return: None
+        """
+        self.executor.start()
 
-                paused_dag_ids = dagbag.paused_dags()
-                dags = [x for x in dags if x.dag_id not in paused_dag_ids]
-                # dags = filter(lambda x: x.dag_id not in paused_dag_ids, dags)
+        session = settings.Session()
+        self.logger.info("Resetting orphaned tasks for active dag runs")
+        self.reset_state_for_orphaned_tasks(session=session)
+        session.close()
 
-                self.logger.debug("Total Cores: {} Max Threads: {} DAGs:{}".
-                                  format(multiprocessing.cpu_count(),
-                                         self.max_threads,
-                                         len(dags)))
-                dags = self._split_dags(dags, math.ceil(len(dags) / self.max_threads))
-                tis_q = multiprocessing.Queue()
-                jobs = [multiprocessing.Process(target=self._do_dags,
-                                                args=(dagbag, dags[i], tis_q))
-                        for i in range(len(dags))]
+        execute_start_time = datetime.now()
 
-                self.logger.info("Starting {} scheduler jobs".format(len(jobs)))
-                for j in jobs:
-                    j.start()
-                for j in jobs:
-                    j.join()
+        # Last time stats were printed
+        last_stat_print_time = datetime(2000, 1, 1)
+        # Last time that self.heartbeat() was called.
+        last_self_heartbeat_time = datetime.now()
+        # Last time that the DAG dir was traversed to look for files
+        last_dag_dir_refresh_time = datetime.now()
 
-                while not tis_q.empty():
-                    ti_key, pickle_id = tis_q.get()
-                    dag = dagbag.dags[ti_key[0]]
-                    task = dag.get_task(ti_key[1])
-                    ti = TI(task, ti_key[2])
-                    self.executor.queue_task_instance(ti, pickle_id=pickle_id)
+        # Use this value initially
+        known_file_paths = processor_manager.file_paths
 
-                self.logger.info("Done queuing tasks, calling the executor's "
-                              "heartbeat")
-                duration_sec = (datetime.now() - loop_start_dttm).total_seconds()
-                self.logger.info("Loop took: {} seconds".format(duration_sec))
-                try:
-                    self.import_errors(dagbag)
-                except Exception as e:
-                    self.logger.exception(e)
-                try:
-                    dagbag.kill_zombies()
-                except Exception as e:
-                    self.logger.exception(e)
-                try:
-                    # We really just want the scheduler to never ever stop.
-                    executor.heartbeat()
-                    self.heartbeat()
-                except Exception as e:
-                    self.logger.exception(e)
-                    self.logger.error("Tachycardia!")
-            except Exception as deep_e:
-                self.logger.exception(deep_e)
-                raise
-            finally:
-                settings.Session.remove()
-        executor.end()
+        # For the execute duration, parse and schedule DAGs
+        while (datetime.now() - execute_start_time).total_seconds() < \
+                self.run_duration or self.run_duration < 0:
+            self.logger.debug("Starting Loop...")
+            loop_start_time = time.time()
 
-    def heartbeat_callback(self):
+            # Traverse the DAG directory for Python files containing DAGs
+            # periodically
+            elapsed_time_since_refresh = (datetime.now() -
+                                          last_dag_dir_refresh_time).total_seconds()
+
+            if elapsed_time_since_refresh > self.dag_dir_list_interval:
+                # Build up a list of Python files that could contain DAGs
+                self.logger.info("Searching for files in {}".format(self.subdir))
+                known_file_paths = list_py_file_paths(self.subdir)
+                last_dag_dir_refresh_time = datetime.now()
+                self.logger.info("There are {} files in {}"
+                                 .format(len(known_file_paths), self.subdir))
+                processor_manager.set_file_paths(known_file_paths)
+
+                self.logger.debug("Removing old import errors")
+                self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
+
+            # Kick of new processes and collect results from finished ones
+            self.logger.info("Heartbeating the process manager")
+            simple_dags = processor_manager.heartbeat()
+
+            if self.using_sqlite:
+                # For the sqlite case w/ 1 thread, wait until the processor
+                # is finished to avoid concurrent access to the DB.
+                self.logger.debug("Waiting for processors to finish since we're "
+                                  "using sqlite")
+                processor_manager.wait_until_finished()
+
+            # Send tasks for execution if available
+            if len(simple_dags) > 0:
+                simple_dag_bag = SimpleDagBag(simple_dags)
+
+                # Handle cases where a DAG run state is set (perhaps manually) to
+                # a non-running state. Handle task instances that belong to
+                # DAG runs in those states
+
+                # If a task instance is up for retry but the corresponding DAG run
+                # isn't running, mark the task instance as FAILED so we don't try
+                # to re-run it.
+                self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                          [State.UP_FOR_RETRY],
+                                                          State.FAILED)
+                # If a task instance is scheduled or queued, but the corresponding
+                # DAG run isn't running, set the state to NONE so we don't try to
+                # re-run it.
+                self._change_state_for_tis_without_dagrun(simple_dag_bag,
+                                                          [State.QUEUED,
+                                                           State.SCHEDULED],
+                                                          State.NONE)
+
+                self._execute_task_instances(simple_dag_bag,
+                                             (State.SCHEDULED,))
+
+            # Call hearbeats
+            self.logger.info("Heartbeating the executor")
+            self.executor.heartbeat()
+
+            # Process events from the executor
+            self._process_executor_events()
+
+            # Heartbeat the scheduler periodically
+            time_since_last_heartbeat = (datetime.now() -
+                                         last_self_heartbeat_time).total_seconds()
+            if time_since_last_heartbeat > self.heartrate:
+                self.logger.info("Heartbeating the scheduler")
+                self.heartbeat()
+                last_self_heartbeat_time = datetime.now()
+
+            # Occasionally print out stats about how fast the files are getting processed
+            if ((datetime.now() - last_stat_print_time).total_seconds() >
+                    self.print_stats_interval):
+                if len(known_file_paths) > 0:
+                    self._log_file_processing_stats(known_file_paths,
+                                                    processor_manager)
+                last_stat_print_time = datetime.now()
+
+            loop_end_time = time.time()
+            self.logger.debug("Ran scheduling loop in {:.2f}s"
+                              .format(loop_end_time - loop_start_time))
+            self.logger.debug("Sleeping for {:.2f}s"
+                              .format(self._processor_poll_interval))
+            time.sleep(self._processor_poll_interval)
+
+            # Exit early for a test mode
+            if processor_manager.max_runs_reached():
+                self.logger.info("Exiting loop as all files have been processed "
+                                 "{} times".format(self.num_runs))
+                break
+
+        # Stop any processors
+        processor_manager.terminate()
+
+        # Verify that all files were processed, and if so, deactivate DAGs that
+        # haven't been touched by the scheduler as they likely have been
+        # deleted.
+        all_files_processed = True
+        for file_path in known_file_paths:
+            if processor_manager.get_last_finish_time(file_path) is None:
+                all_files_processed = False
+                break
+        if all_files_processed:
+            self.logger.info("Deactivating DAGs that haven't been touched since {}"
+                             .format(execute_start_time.isoformat()))
+            models.DAG.deactivate_stale_dags(execute_start_time)
+
+        self.executor.end()
+
+        settings.Session.remove()
+
+    @provide_session
+    def process_file(self, file_path, pickle_dags=False, session=None):
+        """
+        Process a Python file containing Airflow DAGs.
+
+        This includes:
+
+        1. Execute the file and look for DAG objects in the namespace.
+        2. Pickle the DAG and save it to the DB (if necessary).
+        3. For each DAG, see what tasks should run and create appropriate task
+        instances in the DB.
+        4. Record any errors importing the file into ORM
+        5. Kill (in ORM) any task instances belonging to the DAGs that haven't
+        issued a heartbeat in a while.
+
+        Returns a list of SimpleDag objects that represent the DAGs found in
+        the file
+
+        :param file_path: the path to the Python file that should be executed
+        :type file_path: unicode
+        :param pickle_dags: whether serialize the DAGs found in the file and
+        save them to the db
+        :type pickle_dags: bool
+        :return: a list of SimpleDags made from the Dags found in the file
+        :rtype: list[SimpleDag]
+        """
+        self.logger.info("Processing file {} for tasks to queue".format(file_path))
+        # As DAGs are parsed from this file, they will be converted into SimpleDags
+        simple_dags = []
+
+        try:
+            dagbag = models.DagBag(file_path)
+        except Exception:
+            self.logger.exception("Failed at reloading the DAG file {}".format(file_path))
+            Stats.incr('dag_file_refresh_error', 1, 1)
+            return []
+
+        if len(dagbag.dags) > 0:
+            self.logger.info("DAG(s) {} retrieved from {}"
+                             .format(dagbag.dags.keys(),
+                                     file_path))
+        else:
+            self.logger.warning("No viable dags retrieved from {}".format(file_path))
+            self.update_import_errors(session, dagbag)
+            return []
+
+        # Save individual DAGs in the ORM and update DagModel.last_scheduled_time
+        sync_time = datetime.now()
+        for dag in dagbag.dags.values():
+            models.DAG.sync_to_db(dag, dag.owner, sync_time)
+
+        paused_dag_ids = [dag.dag_id for dag in dagbag.dags.values()
+                          if dag.is_paused]
+
+        # Pickle the DAGs (if necessary) and put them into a SimpleDag
+        for dag_id in dagbag.dags:
+            dag = dagbag.get_dag(dag_id)
+            pickle_id = None
+            if pickle_dags:
+                pickle_id = dag.pickle(session).id
+
+            task_ids = [task.task_id for task in dag.tasks]
+
+            # Only return DAGs that are not paused
+            if dag_id not in paused_dag_ids:
+                simple_dags.append(SimpleDag(dag.dag_id,
+                                             task_ids,
+                                             dag.full_filepath,
+                                             dag.concurrency,
+                                             dag.is_paused,
+                                             pickle_id))
+
+        if len(self.dag_ids) > 0:
+            dags = [dag for dag in dagbag.dags.values()
+                    if dag.dag_id in self.dag_ids and
+                    dag.dag_id not in paused_dag_ids]
+        else:
+            dags = [dag for dag in dagbag.dags.values()
+                    if not dag.parent_dag and
+                    dag.dag_id not in paused_dag_ids]
+
+        # Not using multiprocessing.Queue() since it's no longer a separate
+        # process and due to some unusual behavior. (empty() incorrectly
+        # returns true?)
+        ti_keys_to_schedule = []
+
+        self._process_dags(dagbag, dags, ti_keys_to_schedule)
+
+        for ti_key in ti_keys_to_schedule:
+            dag = dagbag.dags[ti_key[0]]
+            task = dag.get_task(ti_key[1])
+            ti = models.TaskInstance(task, ti_key[2])
+
+            ti.refresh_from_db(session=session, lock_for_update=True)
+            # We can defer checking the task dependency checks to the worker themselves
+            # since they can be expensive to run in the scheduler.
+            dep_context = DepContext(deps=QUEUE_DEPS, ignore_task_deps=True)
+
+            # Only schedule tasks that have their dependencies met, e.g. to avoid
+            # a task that recently got it's state changed to RUNNING from somewhere
+            # other than the scheduler from getting it's state overwritten.
+            # TODO(aoen): It's not great that we have to check all the task instance
+            # dependencies twice; once to get the task scheduled, and again to actually
+            # run the task. We should try to come up with a way to only check them once.
+            if ti.are_dependencies_met(
+                    dep_context=dep_context,
+                    session=session,
+                    verbose=True):
+                # Task starts out in the scheduled state. All tasks in the
+                # scheduled state will be sent to the executor
+                ti.state = State.SCHEDULED
+
+            # Also save this task instance to the DB.
+            self.logger.info("Creating / updating {} in ORM".format(ti))
+            session.merge(ti)
+            session.commit()
+
+        # Record import errors into the ORM
+        try:
+            self.update_import_errors(session, dagbag)
+        except Exception:
+            self.logger.exception("Error logging import errors!")
+        try:
+            dagbag.kill_zombies()
+        except Exception:
+            self.logger.exception("Error killing zombies!")
+
+        return simple_dags
+
+    @provide_session
+    def heartbeat_callback(self, session=None):
         Stats.gauge('scheduler_heartbeat', 1, 1)
 
 
@@ -797,6 +1783,8 @@ class BackfillJob(BaseJob):
     triggers a set of task instance runs, in the right order and lasts for
     as long as it takes for the set of task instance to be completed.
     """
+    ID_PREFIX = 'backfill_'
+    ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
 
     __mapper_args__ = {
         'polymorphic_identity': 'BackfillJob'
@@ -804,11 +1792,14 @@ class BackfillJob(BaseJob):
 
     def __init__(
             self,
-            dag, start_date=None, end_date=None, mark_success=False,
+            dag,
+            start_date=None,
+            end_date=None,
+            mark_success=False,
             include_adhoc=False,
             donot_pickle=False,
-            ignore_dependencies=False,
             ignore_first_depends_on_past=False,
+            ignore_task_deps=False,
             pool=None,
             *args, **kwargs):
         self.dag = dag
@@ -818,16 +1809,110 @@ class BackfillJob(BaseJob):
         self.mark_success = mark_success
         self.include_adhoc = include_adhoc
         self.donot_pickle = donot_pickle
-        self.ignore_dependencies = ignore_dependencies
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
+        self.ignore_task_deps = ignore_task_deps
         self.pool = pool
         super(BackfillJob, self).__init__(*args, **kwargs)
+
+    def _update_counters(self, started, succeeded, skipped, failed, tasks_to_run):
+        """
+        Updates the counters per state of the tasks that were running. Can re-add
+        to tasks to run in case required.
+        :param started:
+        :param succeeded:
+        :param skipped:
+        :param failed:
+        :param tasks_to_run:
+        """
+        for key, ti in list(started.items()):
+            ti.refresh_from_db()
+            if ti.state == State.SUCCESS:
+                succeeded.add(key)
+                self.logger.debug("Task instance {} succeeded. "
+                                  "Don't rerun.".format(ti))
+                started.pop(key)
+                continue
+            elif ti.state == State.SKIPPED:
+                skipped.add(key)
+                self.logger.debug("Task instance {} skipped. "
+                                  "Don't rerun.".format(ti))
+                started.pop(key)
+                continue
+            elif ti.state == State.FAILED:
+                self.logger.error("Task instance {} failed".format(ti))
+                failed.add(key)
+                started.pop(key)
+                continue
+            # special case: if the task needs to run again put it back
+            elif ti.state == State.UP_FOR_RETRY:
+                self.logger.warning("Task instance {} is up for retry"
+                                    .format(ti))
+                started.pop(key)
+                tasks_to_run[key] = ti
+            # special case: The state of the task can be set to NONE by the task itself
+            # when it reaches concurrency limits. It could also happen when the state
+            # is changed externally, e.g. by clearing tasks from the ui. We need to cover
+            # for that as otherwise those tasks would fall outside of the scope of
+            # the backfill suddenly.
+            elif ti.state == State.NONE:
+                self.logger.warning("FIXME: task instance {} state was set to "
+                                    "None externally or reaching concurrency limits. "
+                                    "Re-adding task to queue.".format(ti))
+                session = settings.Session()
+                ti.set_state(State.SCHEDULED, session=session)
+                session.close()
+                started.pop(key)
+                tasks_to_run[key] = ti
+
+    def _manage_executor_state(self, started):
+        """
+        Checks if the executor agrees with the state of task instances
+        that are running
+        :param started: dict of key, task to verify
+        """
+        executor = self.executor
+
+        for key, state in list(executor.get_event_buffer().items()):
+            if key not in started:
+                self.logger.warning("{} state {} not in started={}"
+                                    .format(key, state, started.values()))
+                continue
+
+            ti = started[key]
+            ti.refresh_from_db()
+
+            self.logger.debug("Executor state: {} task {}".format(state, ti))
+
+            if state == State.FAILED or state == State.SUCCESS:
+                if ti.state == State.RUNNING or ti.state == State.QUEUED:
+                    msg = ("Executor reports task instance {} finished ({}) "
+                           "although the task says its {}. Was the task "
+                           "killed externally?".format(ti, state, ti.state))
+                    self.logger.error(msg)
+                    ti.handle_failure(msg)
 
     def _execute(self):
         """
         Runs a dag for a specified date range.
         """
         session = settings.Session()
+        DagRun = models.DagRun
+
+        # consider max_active_runs but ignore when running subdags
+        # "parent.child" as a dag_id is by convention a subdag
+        if self.dag.schedule_interval and not self.dag.is_subdag:
+            active_runs = DagRun.find(
+                dag_id=self.dag.dag_id,
+                state=State.RUNNING,
+                external_trigger=False,
+                session=session
+            )
+
+            # return if already reached maximum active runs
+            if len(active_runs) >= self.dag.max_active_runs:
+                self.logger.info("Dag {} has reached maximum amount of {} dag runs"
+                                 .format(self.dag.dag_id, self.dag.max_active_runs))
+                return
 
         start_date = self.bf_start_date
         end_date = self.bf_end_date
@@ -843,183 +1928,251 @@ class BackfillJob(BaseJob):
 
         executor = self.executor
         executor.start()
-        executor_fails = Counter()
 
         # Build a list of all instances to run
         tasks_to_run = {}
         failed = set()
         succeeded = set()
-        started = set()
+        started = {}
         skipped = set()
         not_ready = set()
         deadlocked = set()
 
-        for task in self.dag.tasks:
-            if (not self.include_adhoc) and task.adhoc:
-                continue
+        # create dag runs
+        dr_start_date = start_date or min([t.start_date for t in self.dag.tasks])
+        end_date = end_date or datetime.now()
+        # next run date for a subdag isn't relevant (schedule_interval for subdags
+        # is ignored) so we use the dag run's start date in the case of a subdag
+        next_run_date = (self.dag.normalize_schedule(dr_start_date)
+                         if not self.dag.is_subdag else dr_start_date)
 
-            start_date = start_date or task.start_date
-            end_date = end_date or task.end_date or datetime.now()
-            for dttm in self.dag.date_range(start_date, end_date=end_date):
-                ti = models.TaskInstance(task, dttm)
+        active_dag_runs = []
+        while next_run_date and next_run_date <= end_date:
+            run_id = BackfillJob.ID_FORMAT_PREFIX.format(next_run_date.isoformat())
+
+            # check if we are scheduling on top of a already existing dag_run
+            # we could find a "scheduled" run instead of a "backfill"
+            run = DagRun.find(dag_id=self.dag.dag_id,
+                              execution_date=next_run_date,
+                              session=session)
+            if not run:
+                run = self.dag.create_dagrun(
+                    run_id=run_id,
+                    execution_date=next_run_date,
+                    start_date=datetime.now(),
+                    state=State.RUNNING,
+                    external_trigger=False,
+                    session=session,
+                )
+            else:
+                run = run[0]
+
+            # set required transient field
+            run.dag = self.dag
+
+            # explictely mark running as we can fill gaps
+            run.state = State.RUNNING
+            run.run_id = run_id
+            run.verify_integrity(session=session)
+
+            self.reset_state_for_orphaned_tasks(filter_by_dag_run=run, session=session)
+
+            # for some reason if we dont refresh the reference to run is lost
+            run.refresh_from_db()
+            make_transient(run)
+            active_dag_runs.append(run)
+
+            for ti in run.get_task_instances():
+                # all tasks part of the backfill are scheduled to run
+                if ti.state == State.NONE:
+                    ti.set_state(State.SCHEDULED, session=session)
                 tasks_to_run[ti.key] = ti
-                session.merge(ti)
-        session.commit()
+
+            next_run_date = self.dag.following_schedule(next_run_date)
+
+        finished_runs = 0
+        total_runs = len(active_dag_runs)
 
         # Triggering what is ready to get triggered
-        while tasks_to_run and not deadlocked:
+        while (len(tasks_to_run) > 0 or len(started) > 0) and not deadlocked:
+            self.logger.debug("*** Clearing out not_ready list ***")
             not_ready.clear()
-            for key, ti in list(tasks_to_run.items()):
 
-                ti.refresh_from_db()
-                ignore_depends_on_past = (
-                    self.ignore_first_depends_on_past and
-                    ti.execution_date == (start_date or ti.start_date))
+            # we need to execute the tasks bottom to top
+            # or leaf to root, as otherwise tasks might be
+            # determined deadlocked while they are actually
+            # waiting for their upstream to finish
+            for task in self.dag.topological_sort():
+                for key, ti in list(tasks_to_run.items()):
+                    if task.task_id != ti.task_id:
+                        continue
 
-                # The task was already marked successful or skipped by a
-                # different Job. Don't rerun it.
-                if key not in started:
+                    ti.refresh_from_db()
+
+                    task = self.dag.get_task(ti.task_id)
+                    ti.task = task
+
+                    ignore_depends_on_past = (
+                        self.ignore_first_depends_on_past and
+                        ti.execution_date == (start_date or ti.start_date))
+                    self.logger.debug("Task instance to run {} state {}"
+                                      .format(ti, ti.state))
+
+                    # guard against externally modified tasks instances or
+                    # in case max concurrency has been reached at task runtime
+                    if ti.state == State.NONE:
+                        self.logger.warning("FIXME: task instance {} state was set to "
+                                            "None externally. This should not happen")
+                        ti.set_state(State.SCHEDULED, session=session)
+
+                    # The task was already marked successful or skipped by a
+                    # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
                         succeeded.add(key)
+                        self.logger.debug("Task instance {} succeeded. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
+                        if key in started:
+                            started.pop(key)
                         continue
                     elif ti.state == State.SKIPPED:
                         skipped.add(key)
+                        self.logger.debug("Task instance {} skipped. "
+                                          "Don't rerun.".format(ti))
                         tasks_to_run.pop(key)
+                        if key in started:
+                            started.pop(key)
+                        continue
+                    elif ti.state == State.FAILED:
+                        self.logger.error("Task instance {} failed".format(ti))
+                        failed.add(key)
+                        tasks_to_run.pop(key)
+                        if key in started:
+                            started.pop(key)
+                        continue
+                    elif ti.state == State.UPSTREAM_FAILED:
+                        self.logger.error("Task instance {} upstream failed".format(ti))
+                        failed.add(key)
+                        tasks_to_run.pop(key)
+                        if key in started:
+                            started.pop(key)
+                        continue
+                    backfill_context = DepContext(
+                        deps=RUN_DEPS,
+                        ignore_depends_on_past=ignore_depends_on_past,
+                        ignore_task_deps=self.ignore_task_deps,
+                        flag_upstream_failed=True)
+
+                    # Is the task runnable? -- then run it
+                    # the dependency checker can change states of tis
+                    if ti.are_dependencies_met(
+                            dep_context=backfill_context,
+                            session=session,
+                            verbose=True):
+                        ti.refresh_from_db(lock_for_update=True, session=session)
+                        if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
+                            if executor.has_task(ti):
+                                self.logger.debug("Task Instance {} already in executor "
+                                                  "waiting for queue to clear".format(ti))
+                            else:
+                                self.logger.debug('Sending {} to executor'.format(ti))
+                                # Skip scheduled state, we are executing immediately
+                                ti.state = State.QUEUED
+                                session.merge(ti)
+                                executor.queue_task_instance(
+                                    ti,
+                                    mark_success=self.mark_success,
+                                    pickle_id=pickle_id,
+                                    ignore_task_deps=self.ignore_task_deps,
+                                    ignore_depends_on_past=ignore_depends_on_past,
+                                    pool=self.pool)
+                                started[key] = ti
+                                tasks_to_run.pop(key)
+                        session.commit()
                         continue
 
-                # Is the task runnable? -- then run it
-                if ti.is_queueable(
-                        include_queued=True,
-                        ignore_depends_on_past=ignore_depends_on_past,
-                        flag_upstream_failed=True):
-                    self.logger.debug('Sending {} to executor'.format(ti))
-                    executor.queue_task_instance(
-                        ti,
-                        mark_success=self.mark_success,
-                        pickle_id=pickle_id,
-                        ignore_dependencies=self.ignore_dependencies,
-                        ignore_depends_on_past=ignore_depends_on_past,
-                        pool=self.pool)
-                    started.add(key)
+                    if ti.state == State.UPSTREAM_FAILED:
+                        self.logger.error("Task instance {} upstream failed".format(ti))
+                        failed.add(key)
+                        tasks_to_run.pop(key)
+                        if key in started:
+                            started.pop(key)
+                        continue
 
-                # Mark the task as not ready to run
-                elif ti.state in (State.NONE, State.UPSTREAM_FAILED):
+                    # special case
+                    if ti.state == State.UP_FOR_RETRY:
+                        self.logger.debug("Task instance {} retry period not expired yet"
+                                          .format(ti))
+                        if key in started:
+                            started.pop(key)
+                        tasks_to_run[key] = ti
+                        continue
+
+                    # all remaining tasks
+                    self.logger.debug('Adding {} to not_ready'.format(ti))
                     not_ready.add(key)
 
+            # execute the tasks in the queue
             self.heartbeat()
             executor.heartbeat()
 
             # If the set of tasks that aren't ready ever equals the set of
-            # tasks to run, then the backfill is deadlocked
-            if not_ready and not_ready == set(tasks_to_run):
+            # tasks to run and there are no running tasks then the backfill
+            # is deadlocked
+            if not_ready and not_ready == set(tasks_to_run) and len(started) == 0:
+                self.logger.warning("Deadlock discovered for tasks_to_run={}"
+                                    .format(tasks_to_run.values()))
                 deadlocked.update(tasks_to_run.values())
                 tasks_to_run.clear()
 
-            # Reacting to events
-            for key, state in list(executor.get_event_buffer().items()):
-                dag_id, task_id, execution_date = key
-                if key not in tasks_to_run:
-                    continue
-                ti = tasks_to_run[key]
-                ti.refresh_from_db()
+            # check executor state
+            self._manage_executor_state(started)
 
-                # executor reports failure
-                if state == State.FAILED:
+            # update the task counters
+            self._update_counters(started=started, succeeded=succeeded,
+                                  skipped=skipped, failed=failed,
+                                  tasks_to_run=tasks_to_run)
 
-                    # task reports running
-                    if ti.state == State.RUNNING:
-                        msg = (
-                            'Executor reports that task instance {} failed '
-                            'although the task says it is running.'.format(key))
-                        self.logger.error(msg)
-                        ti.handle_failure(msg)
-                        tasks_to_run.pop(key)
+            # update dag run state
+            _dag_runs = active_dag_runs[:]
+            for run in _dag_runs:
+                run.update_state(session=session)
+                if run.state in State.finished():
+                    finished_runs += 1
+                    active_dag_runs.remove(run)
 
-                    # task reports skipped
-                    elif ti.state == State.SKIPPED:
-                        self.logger.error("Skipping {} ".format(key))
-                        skipped.add(key)
-                        tasks_to_run.pop(key)
-
-                    # anything else is a failure
-                    else:
-                        self.logger.error("Task instance {} failed".format(key))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-
-                # executor reports success
-                elif state == State.SUCCESS:
-
-                    # task reports success
-                    if ti.state == State.SUCCESS:
-                        self.logger.info(
-                            'Task instance {} succeeded'.format(key))
-                        succeeded.add(key)
-                        tasks_to_run.pop(key)
-
-                    # task reports failure
-                    elif ti.state == State.FAILED:
-                        self.logger.error("Task instance {} failed".format(key))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-
-                    # task reports skipped
-                    elif ti.state == State.SKIPPED:
-                        self.logger.info("Task instance {} skipped".format(key))
-                        skipped.add(key)
-                        tasks_to_run.pop(key)
-
-                    # this probably won't ever be triggered
-                    elif ti in not_ready:
-                        self.logger.info(
-                            "{} wasn't expected to run, but it did".format(ti))
-
-                    # executor reports success but task does not - this is weird
-                    elif ti.state not in (
-                            State.SUCCESS,
-                            State.QUEUED,
-                            State.UP_FOR_RETRY):
-                        self.logger.error(
-                            "The airflow run command failed "
-                            "at reporting an error. This should not occur "
-                            "in normal circumstances. Task state is '{}',"
-                            "reported state is '{}'. TI is {}"
-                            "".format(ti.state, state, ti))
-
-                        # if the executor fails 3 or more times, stop trying to
-                        # run the task
-                        executor_fails[key] += 1
-                        if executor_fails[key] >= 3:
-                            msg = (
-                                'The airflow run command failed to report an '
-                                'error for task {} three or more times. The '
-                                'task is being marked as failed. This is very '
-                                'unusual and probably means that an error is '
-                                'taking place before the task even '
-                                'starts.'.format(key))
-                            self.logger.error(msg)
-                            ti.handle_failure(msg)
-                            tasks_to_run.pop(key)
+                if run.dag.is_paused:
+                    models.DagStat.update([run.dag_id], session=session)
 
             msg = ' | '.join([
                 "[backfill progress]",
-                "waiting: {0}",
-                "succeeded: {1}",
-                "kicked_off: {2}",
-                "failed: {3}",
-                "skipped: {4}",
-                "deadlocked: {5}"
+                "finished run {0} of {1}",
+                "tasks waiting: {2}",
+                "succeeded: {3}",
+                "kicked_off: {4}",
+                "failed: {5}",
+                "skipped: {6}",
+                "deadlocked: {7}",
+                "not ready: {8}"
             ]).format(
+                finished_runs,
+                total_runs,
                 len(tasks_to_run),
                 len(succeeded),
                 len(started),
                 len(failed),
                 len(skipped),
-                len(deadlocked))
+                len(deadlocked),
+                len(not_ready))
             self.logger.info(msg)
 
+            self.logger.debug("Finished dag run loop iteration. "
+                              "Remaining tasks {}"
+                              .format(tasks_to_run.values()))
+
         executor.end()
+
+        session.commit()
         session.close()
 
         err = ''
@@ -1032,8 +2185,14 @@ class BackfillJob(BaseJob):
                 '---------------------------------------------------\n'
                 'BackfillJob is deadlocked.')
             deadlocked_depends_on_past = any(
-                t.are_dependencies_met() != t.are_dependencies_met(
-                    ignore_depends_on_past=True)
+                t.are_dependencies_met(
+                    dep_context=DepContext(ignore_depends_on_past=False),
+                    session=session,
+                    verbose=True) !=
+                t.are_dependencies_met(
+                    dep_context=DepContext(ignore_depends_on_past=True),
+                    session=session,
+                    verbose=True)
                 for t in deadlocked)
             if deadlocked_depends_on_past:
                 err += (
@@ -1042,7 +2201,11 @@ class BackfillJob(BaseJob):
                     'backfill with the option '
                     '"ignore_first_depends_on_past=True" or passing "-I" at '
                     'the command line.')
-            err += ' These tasks were unable to run:\n{}\n'.format(deadlocked)
+            err += ' These tasks have succeeded:\n{}\n'.format(succeeded)
+            err += ' These tasks have started:\n{}\n'.format(started)
+            err += ' These tasks have failed:\n{}\n'.format(failed)
+            err += ' These tasks are skipped:\n{}\n'.format(skipped)
+            err += ' These tasks are deadlocked:\n{}\n'.format(deadlocked)
         if err:
             raise AirflowException(err)
 
@@ -1058,59 +2221,126 @@ class LocalTaskJob(BaseJob):
     def __init__(
             self,
             task_instance,
-            ignore_dependencies=False,
+            ignore_all_deps=False,
             ignore_depends_on_past=False,
-            force=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
             mark_success=False,
             pickle_id=None,
             pool=None,
             *args, **kwargs):
         self.task_instance = task_instance
-        self.ignore_dependencies = ignore_dependencies
+        self.ignore_all_deps = ignore_all_deps
         self.ignore_depends_on_past = ignore_depends_on_past
-        self.force = force
+        self.ignore_task_deps = ignore_task_deps
+        self.ignore_ti_state = ignore_ti_state
         self.pool = pool
         self.pickle_id = pickle_id
         self.mark_success = mark_success
+
+        # terminating state is used so that a job don't try to
+        # terminate multiple times
+        self.terminating = False
+
+        # Keeps track of the fact that the task instance has been observed
+        # as running at least once
+        self.was_running = False
+
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
-        command = self.task_instance.command(
-            raw=True,
-            ignore_dependencies=self.ignore_dependencies,
-            ignore_depends_on_past=self.ignore_depends_on_past,
-            force=self.force,
-            pickle_id=self.pickle_id,
-            mark_success=self.mark_success,
-            job_id=self.id,
-            pool=self.pool,
-        )
-        self.process = subprocess.Popen(['bash', '-c', command])
-        return_code = None
-        while return_code is None:
-            self.heartbeat()
-            return_code = self.process.poll()
+        self.task_runner = get_task_runner(self)
+
+        def signal_handler(signum, frame):
+            '''Setting kill signal handler'''
+            logging.error("Killing subprocess")
+            self.on_kill()
+            raise AirflowException("LocalTaskJob received SIGTERM signal")
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        try:
+            self.task_runner.start()
+
+            last_heartbeat_time = time.time()
+            heartbeat_time_limit = conf.getint('scheduler',
+                                               'scheduler_zombie_task_threshold')
+            while True:
+                # Monitor the task to see if it's done
+                return_code = self.task_runner.return_code()
+                if return_code is not None:
+                    self.logger.info("Task exited with return code {}"
+                                     .format(return_code))
+                    return
+
+                # Periodically heartbeat so that the scheduler doesn't think this
+                # is a zombie
+                try:
+                    self.heartbeat()
+                    last_heartbeat_time = time.time()
+                except OperationalError:
+                    Stats.incr('local_task_job_heartbeat_failure', 1, 1)
+                    self.logger.exception("Exception while trying to heartbeat! "
+                                          "Sleeping for {}s".format(self.heartrate))
+                    time.sleep(self.heartrate)
+
+                # If it's been too long since we've heartbeat, then it's possible that
+                # the scheduler rescheduled this task, so kill launched processes.
+                time_since_last_heartbeat = time.time() - last_heartbeat_time
+                if time_since_last_heartbeat > heartbeat_time_limit:
+                    Stats.incr('local_task_job_prolonged_heartbeat_failure', 1, 1)
+                    self.logger.error("Heartbeat time limited exceeded!")
+                    raise AirflowException("Time since last heartbeat({:.2f}s) "
+                                           "exceeded limit ({}s)."
+                                           .format(time_since_last_heartbeat,
+                                                   heartbeat_time_limit))
+        finally:
+            self.on_kill()
 
     def on_kill(self):
-        self.process.terminate()
+        self.task_runner.terminate()
+        self.task_runner.on_finish()
 
-    """
-    def heartbeat_callback(self):
-        if datetime.now() - self.start_date < timedelta(seconds=300):
+    def _is_descendant_process(self, pid):
+        """Checks if pid is a descendant of the current process.
+
+        :param pid: process id to check
+        :type pid: int
+        :rtype: bool
+        """
+        try:
+            return psutil.Process(pid) in psutil.Process().children(recursive=True)
+        except psutil.NoSuchProcess:
+            return False
+
+    @provide_session
+    def heartbeat_callback(self, session=None):
+        """Self destruct task if state has been moved away from running externally"""
+
+        if self.terminating:
+            # task is already terminating, let it breathe
             return
-        # Suicide pill
-        TI = models.TaskInstance
+
+        self.task_instance.refresh_from_db()
         ti = self.task_instance
-        session = settings.Session()
-        state = session.query(TI.state).filter(
-            TI.dag_id==ti.dag_id, TI.task_id==ti.task_id,
-            TI.execution_date==ti.execution_date).scalar()
-        session.commit()
-        session.close()
-        if state != State.RUNNING:
+        if ti.state == State.RUNNING:
+            self.was_running = True
+            fqdn = socket.getfqdn()
+            if fqdn != ti.hostname:
+                logging.warning("The recorded hostname {ti.hostname} "
+                                "does not match this instance's hostname "
+                                "{fqdn}".format(**locals()))
+                raise AirflowException("Hostname of job runner does not match")
+            elif not self._is_descendant_process(ti.pid):
+                current_pid = os.getpid()
+                logging.warning("Recorded pid {ti.pid} is not a "
+                                "descendant of the current pid "
+                                "{current_pid}".format(**locals()))
+                raise AirflowException("PID of job runner does not match")
+        elif (self.was_running
+              and self.task_runner.return_code() is None
+              and hasattr(self.task_runner, 'process')):
             logging.warning(
                 "State of this instance has been externally set to "
-                "{self.task_instance.state}. "
-                "Taking the poison pill. So long.".format(**locals()))
-            self.process.terminate()
-    """
+                "{}. Taking the poison pill. So long.".format(ti.state))
+            self.task_runner.terminate()
+            self.terminating = True

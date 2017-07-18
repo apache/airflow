@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
+
 from builtins import str
 import logging
 
@@ -37,9 +37,13 @@ class HttpHook(BaseHook):
         """
         conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
-        self.base_url = conn.host
-        if not self.base_url.startswith('http'):
-            self.base_url = 'http://' + self.base_url
+
+        if "://" in conn.host:
+            self.base_url = conn.host
+        else:
+            # schema defaults to HTTP
+            schema = conn.schema if conn.schema else "http"
+            self.base_url = schema + "://" + conn.host
 
         if conn.port:
             self.base_url = self.base_url + ":" + str(conn.port) + "/"
@@ -65,6 +69,11 @@ class HttpHook(BaseHook):
             req = requests.Request(self.method,
                                    url,
                                    params=data,
+                                   headers=headers)
+        elif self.method == 'HEAD':
+            # HEAD doesn't use params
+            req = requests.Request(self.method,
+                                   url,
                                    headers=headers)
         else:
             # Others use data
@@ -100,7 +109,7 @@ class HttpHook(BaseHook):
             # to get reason and code for failure by checking first 3 chars
             # for the code, or do a split on ':'
             logging.error("HTTP error: " + response.reason)
-            if self.method != 'GET':
+            if self.method not in ('GET', 'HEAD'):
                 # The sensor uses GET, so this prevents filling up the log
                 # with the body every time the GET 'misses'.
                 # That's ok to do, because GETs should be repeatable and

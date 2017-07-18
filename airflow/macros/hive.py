@@ -1,3 +1,17 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 import datetime
 
 
@@ -25,7 +39,7 @@ def max_partition(
     >>> max_partition('airflow.static_babynames_partitioned')
     '2015-01-01'
     '''
-    from airflow.hooks import HiveMetastoreHook
+    from airflow.hooks.hive_hooks import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
     hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
@@ -47,8 +61,8 @@ def _closest_date(target_dt, date_list, before_target=None):
     :returns: The closest date
     :rtype: datetime.date or None
     '''
-    fb = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
-    fa = lambda d: d - target_dt if d <= target_dt else datetime.timedelta.min
+    fb = lambda d: target_dt - d if d <= target_dt else datetime.timedelta.max
+    fa = lambda d: d - target_dt if d >= target_dt else datetime.timedelta.max
     fnone = lambda d: target_dt - d if d < target_dt else d - target_dt
     if before_target is None:
         return min(date_list, key=fnone).date()
@@ -78,7 +92,7 @@ def closest_ds_partition(
     >>> closest_ds_partition(tbl, '2015-01-02')
     '2015-01-01'
     '''
-    from airflow.hooks import HiveMetastoreHook
+    from airflow.hooks.hive_hooks import HiveMetastoreHook
     if '.' in table:
         schema, table = table.split('.')
     hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)

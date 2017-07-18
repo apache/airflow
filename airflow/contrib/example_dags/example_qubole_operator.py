@@ -1,23 +1,38 @@
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 from airflow import DAG
-from airflow.operators import DummyOperator, PythonOperator, BranchPythonOperator
-from airflow.contrib.operators import QuboleOperator
-from datetime import datetime, timedelta
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
+from airflow.contrib.operators.qubole_operator import QuboleOperator
 import filecmp
 import random
 
-seven_days_ago = datetime.combine(datetime.today() - timedelta(7),
-                                  datetime.min.time())
+
 
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': seven_days_ago,
-    'email': ['airflow@airflow.com'],
+    'start_date': airflow.utils.dates.days_ago(2)
+    'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
 }
 
-dag = DAG('example_qubole_operator', default_args=default_args)
+# NOTE:: This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
+# some of the tasks may or may not work based on your QDS account setup
+dag = DAG('example_qubole_operator', default_args=default_args, schedule_interval='@daily')
 
 def compare_result(ds, **kwargs):
     ti = kwargs['ti']
@@ -30,16 +45,19 @@ t1 = QuboleOperator(
     command_type='hivecmd',
     query='show tables',
     cluster_label='default',
-    fetch_logs=True,
-    tags='aiflow_example_run',
+    fetch_logs=True, # If true, will fetch qubole command logs and concatenate them into corresponding airflow task logs
+    tags='aiflow_example_run',  # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
+    qubole_conn_id='qubole_default',  # Connection id to submit commands inside QDS, if not set "qubole_default" is used
     dag=dag)
 
 t2 = QuboleOperator(
     task_id='hive_s3_location',
     command_type="hivecmd",
-    script_location="s3n://dev.canopydata.com/airflow/show_table.hql",
+    script_location="s3n://public-qubole/qbol-library/scripts/show_table.hql",
     notfiy=True,
-    tags='aiflow_example_run',
+    tags=['tag1', 'tag2'],
+    # If the script at s3 location has any qubole specific macros to be replaced
+    # macros='[{"date": "{{ ds }}"}, {"name" : "abc"}]',
     trigger_rule="all_done",
     dag=dag)
 
@@ -61,13 +79,11 @@ branching = BranchPythonOperator(
     dag=dag)
 branching.set_upstream(t3)
 
-
 join = DummyOperator(
     task_id='join',
     trigger_rule='one_success',
     dag=dag
 )
-
 
 t4 = QuboleOperator(
     task_id='hadoop_jar_cmd',
@@ -80,7 +96,7 @@ t4 = QuboleOperator(
 t5 = QuboleOperator(
     task_id='pig_cmd',
     command_type="pigcmd",
-    script_location="s3://paid-qubole/PigAPIDemo/scripts/script1-hadoop-s3-small.pig",
+    script_location="s3://public-qubole/qbol-library/scripts/script1-hadoop-s3-small.pig",
     parameters="key1=value1 key2=value2",
     trigger_rule="all_done",
     dag=dag)
@@ -88,7 +104,6 @@ t5 = QuboleOperator(
 t4.set_upstream(branching)
 t5.set_upstream(t4)
 t5.set_downstream(join)
-
 
 t6 = QuboleOperator(
     task_id='presto_cmd',
@@ -99,7 +114,7 @@ t6 = QuboleOperator(
 t7 = QuboleOperator(
     task_id='shell_cmd',
     command_type="shellcmd",
-    script_location="s3://paid-qubole/ShellDemo/data/excite-small.sh",
+    script_location="s3://public-qubole/qbol-library/scripts/shellx.sh",
     parameters="param1 param2",
     trigger_rule="all_done",
     dag=dag)
@@ -107,7 +122,6 @@ t7 = QuboleOperator(
 t6.set_upstream(branching)
 t7.set_upstream(t6)
 t7.set_downstream(join)
-
 
 t8 = QuboleOperator(
     task_id='db_query',
@@ -130,7 +144,6 @@ t9 = QuboleOperator(
 t8.set_upstream(branching)
 t9.set_upstream(t8)
 t9.set_downstream(join)
-
 
 t10 = QuboleOperator(
     task_id='db_import',
@@ -171,7 +184,7 @@ t11 = QuboleOperator(
     task_id='spark_cmd',
     command_type="sparkcmd",
     program=prog,
-    language='python',
+    language='scala',
     arguments='--class SparkPi',
     tags='aiflow_example_run',
     dag=dag)
@@ -179,4 +192,3 @@ t11 = QuboleOperator(
 t11.set_upstream(branching)
 t11.set_downstream(t10)
 t10.set_downstream(join)
-

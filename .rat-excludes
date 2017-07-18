@@ -2,7 +2,7 @@
 .gitattributes
 .coverage
 .coveragerc
-.coveralls.yml
+.codecov.yml
 .rat-excludes
 requirements.txt
 .*log
@@ -13,9 +13,15 @@ docs
 dist
 build
 airflow.egg-info
+apache_airflow.egg-info
 .idea
 metastore_db
 .*sql
 .*csv
 CHANGELOG.txt
 .*zip
+# Apache Rat does not detect BSD-2 clause properly
+# it is compatible according to http://www.apache.org/legal/resolved.html#category-a
+kerberos_auth.py
+airflow_api_auth_backend_kerberos_auth_py.html
+licenses/*
