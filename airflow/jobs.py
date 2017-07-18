@@ -777,7 +777,9 @@ class SchedulerJob(BaseJob):
         for a DAG based on scheduling interval
         Returns DagRun if one is scheduled. Otherwise returns None.
         """
-        if dag.schedule_interval:
+        if dag.schedule_interval is None:
+            self.logger.warning("Dag has no 'schedule_interval' configuration")
+        else:
             active_runs = DagRun.find(
                 dag_id=dag.dag_id,
                 state=State.RUNNING,
@@ -786,6 +788,9 @@ class SchedulerJob(BaseJob):
             )
             # return if already reached maximum active runs and no timeout setting
             if len(active_runs) >= dag.max_active_runs and not dag.dagrun_timeout:
+                self.logger.info(
+                    "Dag reached maximum of {} active runs (no timeout)".
+                    format(len(active_runs)))
                 return
             timedout_runs = 0
             for dr in active_runs:
@@ -797,6 +802,9 @@ class SchedulerJob(BaseJob):
                     timedout_runs += 1
             session.commit()
             if len(active_runs) - timedout_runs >= dag.max_active_runs:
+                self.logger.info(
+                    "Dag reached maximum of {} active runs ({} timeouts)".
+                    format(len(active_runs), timedout_runs))
                 return
 
             # this query should be replaced by find dagrun
@@ -813,7 +821,8 @@ class SchedulerJob(BaseJob):
 
             # don't schedule @once again
             if dag.schedule_interval == '@once' and last_scheduled_run:
-                return None
+                self.logger.debug("Dag schedule of '@once' has been reached")
+                return
 
             # don't do scheduler catchup for dag's that don't have dag.catchup = True
             if not dag.catchup:
@@ -863,6 +872,8 @@ class SchedulerJob(BaseJob):
 
             # don't ever schedule in the future
             if next_run_date > datetime.now():
+                self.logger.debug("Dag next run date {} is in the future"
+                                    .format(next_run_date.isoformat()))
                 return
 
             # this structure is necessary to avoid a TypeError from concatenating
@@ -874,6 +885,8 @@ class SchedulerJob(BaseJob):
 
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
+                self.logger.debug("Dag end date {} is reached"
+                                 .format(dag.end_date))
                 return
 
             # Don't schedule a dag beyond its end_date (as specified by the task params)
@@ -883,6 +896,8 @@ class SchedulerJob(BaseJob):
             if task_end_dates:
                 min_task_end_date = min(task_end_dates)
             if next_run_date and min_task_end_date and next_run_date > min_task_end_date:
+                self.logger.debug("Dag end date {} based on tasks is reached"
+                                 .format(dag.end_date))
                 return
 
             if next_run_date and period_end and period_end <= datetime.now():
@@ -894,6 +909,9 @@ class SchedulerJob(BaseJob):
                     external_trigger=False
                 )
                 return next_run
+            elif period_end:
+                self.logger.info("Next run date {} will be scheduled after {}"
+                                 .format(next_run_date, period_end))
 
     def _process_task_instances(self, dag, queue):
         """
