@@ -195,7 +195,7 @@ class BigQueryBaseCursor(object):
             allow_large_results=False,
             udf_config = False,
             use_legacy_sql=True,
-            maximum_billing_tier=1):
+            maximum_billing_tier=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
