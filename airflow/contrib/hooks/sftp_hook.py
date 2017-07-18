@@ -11,27 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
+import stat
 import pysftp
 import logging
 import datetime
 from airflow.hooks.base_hook import BaseHook
 
+
 class SFTPHook(BaseHook):
     """
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
-    Pitfalls: - In contrast with FTPHook describe_directory only returns size and modify. It doesn't return unix.owner,
-                unix.mode, perm, unix.group, unique and type.
-              - retrieve_file and store_file only take a local full path and not a buffer.
-              - If no mode is passed to create_directory it will be created with 777 permissions.
+    Pitfalls: - In contrast with FTPHook describe_directory only returns size, type and
+                modify. It doesn't return unix.owner, unix.mode, perm, unix.group and
+                unique.
+              - retrieve_file and store_file only take a local full path and not a
+                buffer.
+              - If no mode is passed to create_directory it will be created with 777
+                permissions.
 
-    Errors that may occur throughout but should be handled
-    downstream.
+    Errors that may occur throughout but should be handled downstream.
     """
 
-    def __init__(self, ftp_conn_id):
+    def __init__(self, ftp_conn_id='sftp_default'):
         self.ftp_conn_id = ftp_conn_id
         self.conn = None
 
@@ -41,8 +44,23 @@ class SFTPHook(BaseHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            self.conn = pysftp.Connection(host=params.host, port=params.port, username=params.login, password=params.password)
-
+            cnopts = pysftp.CnOpts()
+            if ('ignore_hostkey_verification' in params.extra_dejson
+                    and params.extra_dejson['ignore_hostkey_verification']):
+                cnopts.hostkeys = None
+            conn_params = {
+                'host': params.host,
+                'port': params.port,
+                'username': params.login,
+                'cnopts': cnopts
+            }
+            if params.password is not None:
+                conn_params['password'] = params.password
+            if 'private_key' in params.extra_dejson:
+                conn_params['private_key'] = params.extra_dejson['private_key']
+            if 'private_key_pass' in params.extra_dejson:
+                conn_params['private_key_pass'] = params.extra_dejson['private_key_pass']
+            self.conn = pysftp.Connection(**conn_params)
         return self.conn
 
     def close_conn(self):
@@ -52,11 +70,12 @@ class SFTPHook(BaseHook):
         """
         conn = self.conn
         conn.close()
+        self.conn = None
 
     def describe_directory(self, path):
         """
         Returns a dictionary of {filename: {attributes}} for all files
-        on the remote system.
+        on the remote system (where the MLSD command is supported).
         :param path: full path to the remote directory
         :type path: str
         """
@@ -65,10 +84,13 @@ class SFTPHook(BaseHook):
         files = {}
         for f in flist:
             modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
-            files[f.filename] = {'size': f.st_size, 'modify': modify}
+            files[f.filename] = {
+                'size': f.st_size,
+                'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',
+                'modify': modify}
         return files
 
-    def list_directory(self, path, nlst=False):
+    def list_directory(self, path):
         """
         Returns a list of files on the remote system.
         :param path: full path to the remote directory to list
@@ -110,7 +132,8 @@ class SFTPHook(BaseHook):
         conn = self.get_conn()
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.get(remote_full_path, local_full_path)
-        logging.info('Finished retrieving file from FTP: {}'.format(remote_full_path))
+        logging.info('Finished retrieving file from FTP: {}'.format(
+            remote_full_path))
 
     def store_file(self, remote_full_path, local_full_path):
         """
@@ -138,4 +161,3 @@ class SFTPHook(BaseHook):
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
-
