@@ -77,6 +77,8 @@ def extract_secrets(pod, req):
 
 
 def attach_volume_mounts(req):
+    logging.info("preparing to import dags")
+    dag_importer.import_dags()
     logging.info("using file mount {}".format(dag_importer.dag_import_spec))
     req['spec']['template']['spec']['volumes'] = [dag_importer.dag_import_spec]
 

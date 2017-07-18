@@ -52,6 +52,7 @@ spec:
         if len(pod.node_selectors) > 0:
             extract_node_selector(pod, req)
         extract_secrets(pod, req)
+        print("attaching volume mounts")
         attach_volume_mounts(req)
         return req
 

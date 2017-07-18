@@ -24,9 +24,12 @@ dag_import_spec = {}
 
 
 def import_dags():
+    logging.info("importing dags")
     if configuration.has_option('core', 'kube_mode'):
         mode = configuration.get('core', 'kube_mode')
         dag_import_func(mode)()
+    else:
+        _import_hostpath()
 
 
 def dag_import_func(mode):

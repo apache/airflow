@@ -24,7 +24,8 @@ base_job = {'kind': 'Job',
                 'template': {
                     'spec': {
                         'restartPolicy': 'Never',
-                        'volumes': [{}], 'containers': [
+                        'volumes': [{'hostPath': {'path': '/tmp/dags'}, 'name': 'shared-data'}],
+                        'containers': [
                             {'command': ['try', 'this', 'first'],
                              'image': 'foo.image', 'volumeMounts': [
                                 {
