@@ -49,6 +49,7 @@ ipython
 jaydebeapi
 jinja2<2.9.0
 jira
+kubernetes>=2.0.0
 ldap3
 lxml
 markdown

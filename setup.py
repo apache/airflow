@@ -148,6 +148,7 @@ gcp_api = [
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 jira = ['JIRA>1.0.7']
+kubernetes = ['kubernetes>=2.0.0']
 hive = [
     'hive-thrift-py>=0.0.1',
     'pyhive>=0.1.3',
@@ -202,7 +203,7 @@ devel = [
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh
+devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + kubernetes + ssh
 
 
 def do_setup():
@@ -274,6 +275,7 @@ def do_setup():
             'hive': hive,
             'jdbc': jdbc,
             'kerberos': kerberos,
+            'kubernetes': kubernetes,
             'ldap': ldap,
             'mssql': mssql,
             'mysql': mysql,
