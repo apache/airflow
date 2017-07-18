@@ -18,6 +18,7 @@ import logging
 import datetime
 from airflow.hooks.base_hook import BaseHook
 
+
 class SFTPHook(BaseHook):
     """
     Interact with SFTP. Aims to be interchangeable with FTPHook.
@@ -52,6 +53,7 @@ class SFTPHook(BaseHook):
         """
         conn = self.conn
         conn.close()
+        self.conn = None
 
     def describe_directory(self, path):
         """
