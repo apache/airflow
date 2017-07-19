@@ -117,6 +117,13 @@ If you experience problems connecting with your operator make sure you set the c
 Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service 
 account.
 
+### SSH Hook updates, along with new SSH Operator & SFTP Operator
+  SSH Hook now uses Paramiko library to create ssh client connection, instead of sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
+  - update SSHHook constructor
+  - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer test_ssh_operator.py for usage info.
+  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info. 
+  - No updates are required if you are using ftpHook, it will continue work as is. 
+  
 ### Deprecated Features
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer 
 supported and will be removed entirely in Airflow 2.0

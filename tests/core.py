@@ -2381,58 +2381,6 @@ class S3HookTest(unittest.TestCase):
                          "Incorrect parsing of the s3 url")
 
 
-HELLO_SERVER_CMD = """
-import socket, sys
-listener = socket.socket()
-listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-listener.bind(('localhost', 2134))
-listener.listen(1)
-sys.stdout.write('ready')
-sys.stdout.flush()
-conn = listener.accept()[0]
-conn.sendall(b'hello')
-"""
-
-
-class SSHHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        from airflow.contrib.hooks.ssh_hook import SSHHook
-        self.hook = SSHHook()
-        self.hook.no_host_key_check = True
-
-    def test_remote_cmd(self):
-        output = self.hook.check_output(["echo", "-n", "airflow"])
-        self.assertEqual(output, b"airflow")
-
-    def test_tunnel(self):
-        print("Setting up remote listener")
-        import subprocess
-        import socket
-
-        self.handle = self.hook.Popen([
-            "python", "-c", '"{0}"'.format(HELLO_SERVER_CMD)
-        ], stdout=subprocess.PIPE)
-
-        print("Setting up tunnel")
-        with self.hook.tunnel(2135, 2134):
-            print("Tunnel up")
-            server_output = self.handle.stdout.read(5)
-            self.assertEqual(server_output, b"ready")
-            print("Connecting to server via tunnel")
-            s = socket.socket()
-            s.connect(("localhost", 2135))
-            print("Receiving...", )
-            response = s.recv(5)
-            self.assertEqual(response, b"hello")
-            print("Closing connection")
-            s.close()
-            print("Waiting for listener...")
-            output, _ = self.handle.communicate()
-            self.assertEqual(self.handle.returncode, 0)
-            print("Closing tunnel")
-
-
 send_email_test = mock.Mock()
 
 

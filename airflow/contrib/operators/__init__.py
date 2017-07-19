@@ -32,7 +32,7 @@ import sys
 #
 # ------------------------------------------------------------------------
 _operators = {
-    'ssh_execute_operator': ['SSHExecuteOperator'],
+    'ssh_operator': ['SSHOperator'],
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
     'qubole_operator': ['QuboleOperator'],
