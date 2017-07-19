@@ -33,7 +33,7 @@ class SFTPHookTest(unittest.TestCase):
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as f:
-                f.write('Test file')
+            f.write('Test file')
 
     def test_get_conn(self):
         output = self.hook.get_conn()
@@ -64,15 +64,15 @@ class SFTPHookTest(unittest.TestCase):
 
     def test_store_retrieve_and_delete_file(self):
         self.hook.store_file(
-                remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-                local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
         )
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         self.assertEqual(output, [TMP_FILE_FOR_TESTS])
         retrieved_file_name = 'retrieved.txt'
         self.hook.retrieve_file(
-                remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-                local_full_path=os.path.join(TMP_PATH, retrieved_file_name)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, retrieved_file_name)
         )
         self.assertTrue(retrieved_file_name in os.listdir(TMP_PATH))
         os.remove(os.path.join(TMP_PATH, retrieved_file_name))
@@ -82,8 +82,8 @@ class SFTPHookTest(unittest.TestCase):
 
     def test_get_mod_time(self):
         self.hook.store_file(
-                remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
-                local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
+            remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
+            local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS)
         )
         output = self.hook.get_mod_time(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         self.assertEqual(len(output), 14)
