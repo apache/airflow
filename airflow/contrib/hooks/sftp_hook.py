@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 import pysftp
 import logging
@@ -32,7 +31,7 @@ class SFTPHook(BaseHook):
     downstream.
     """
 
-    def __init__(self, ftp_conn_id):
+    def __init__(self, ftp_conn_id='sftp_default'):
         self.ftp_conn_id = ftp_conn_id
         self.conn = None
 
