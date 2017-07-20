@@ -1,8 +1,8 @@
 FROM lyft/pythonlibrary:fd03a394897fe765bfd4a917192c500515922581
-RUN mkdir /code/lyftairflow
-RUN cp /code/containers/pythonlibrary/Makefile /code/lyftairflow/Makefile
-COPY ops /code/lyftairflow/ops
+RUN mkdir /code/incubator-airflow
+RUN cp /code/containers/pythonlibrary/Makefile /code/incubator-airflow/Makefile
+COPY ops /code/incubator-airflow/ops
 COPY requirements.* piptools_requirements.* /code/lyftairflow/
-RUN pip install -r /code/lyftairflow/requirements.txt
-WORKDIR /code/lyftairflow
-COPY . /code/lyftairflow
+RUN pip install -r /code/incubator-airflow/piptools_requirements.txt
+RUN pip install -r /code/incubator-airflow/requirements.txt
+COPY . /code/incubator-airflow
