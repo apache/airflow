@@ -872,6 +872,13 @@ class SchedulerJob(BaseJob):
             elif next_run_date:
                 period_end = dag.following_schedule(next_run_date)
 
+            # update the DAG's next scheduler run property so users can get
+            # a clear view of the next expected run period of the job
+            if dag.next_scheduler_run != period_end:
+                session.query(models.DagModel).filter_by(
+                    dag_id=dag.dag_id).update(
+                    {models.DagModel.next_scheduler_run : period_end})
+
             # Don't schedule a dag beyond its end_date (as specified by the dag param)
             if next_run_date and dag.end_date and next_run_date > dag.end_date:
                 return

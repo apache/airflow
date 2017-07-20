@@ -2634,6 +2634,8 @@ class DagModel(Base):
     fileloc = Column(String(2000))
     # String representing the owners
     owners = Column(String(2000))
+    # Next time the scheduler will run this DAG
+    next_scheduler_run = Column(DateTime)
 
     def __repr__(self):
         return "<DAG: {self.dag_id}>".format(self=self)
@@ -3007,6 +3009,16 @@ class DAG(BaseDag, LoggingMixin):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    @property
+    @provide_session
+    def next_scheduler_run(self, session=None):
+        """
+        Returns a boolean indicating whether this DAG is paused
+        """
+        qry = session.query(DagModel).filter(
+            DagModel.dag_id == self.dag_id)
+        return qry.value('next_scheduler_run')
 
     @provide_session
     def get_active_runs(self, session=None):
