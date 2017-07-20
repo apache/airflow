@@ -1291,7 +1291,7 @@ class TaskInstance(Base):
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
-        self.hostname = socket.getfqdn()
+        self.hostname = configuration.get('celery', 'WORKER_LOG_SERVER_HOSTNAME', socket.getfqdn())
         self.operator = task.__class__.__name__
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:

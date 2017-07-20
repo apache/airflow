@@ -909,6 +909,9 @@ def worker(args):
         'concurrency': args.concurrency,
     }
 
+    hostname = args.hostname or conf.get('celery', 'WORKER_LOG_SERVER_HOSTNAME', socket.getfqdn())
+    conf.set('worker', 'WORKER_LOG_SERVER_HOSTNAME', hostname)
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
         handle = setup_logging(log_file)
@@ -1415,6 +1418,11 @@ class CLIFactory(object):
             type=int,
             help="The number of worker processes",
             default=conf.get('celery', 'celeryd_concurrency')),
+        'hostname': Arg(
+            ('-H', '--hostname'),
+            help='Hostname to set in task instances (eg to access log server)',
+            type=str,
+            default=conf.get('celery', 'WORKER_LOG_SERVER_HOSTNAME', socket.getfqdn())),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
