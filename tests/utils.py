@@ -17,45 +17,12 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import logging
 import unittest
 
-import airflow.utils.logging
 from airflow import configuration
 from airflow.exceptions import AirflowException
 from airflow.utils.operator_resources import Resources
 
-
-class LogUtilsTest(unittest.TestCase):
-
-    def test_gcs_url_parse(self):
-        """
-        Test GCS url parsing
-        """
-        logging.info(
-            'About to create a GCSLog object without a connection. This will '
-            'log an error but testing will proceed.')
-        glog = airflow.utils.logging.GCSLog()
-
-        self.assertEqual(
-            glog.parse_gcs_url('gs://bucket/path/to/blob'),
-            ('bucket', 'path/to/blob'))
-
-        # invalid URI
-        self.assertRaises(
-            AirflowException,
-            glog.parse_gcs_url,
-            'gs:/bucket/path/to/blob')
-
-        # trailing slash
-        self.assertEqual(
-            glog.parse_gcs_url('gs://bucket/path/to/blob/'),
-            ('bucket', 'path/to/blob'))
-
-        # bucket only
-        self.assertEqual(
-            glog.parse_gcs_url('gs://bucket/'),
-            ('bucket', ''))
 
 class OperatorResourcesTest(unittest.TestCase):
 

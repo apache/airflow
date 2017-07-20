@@ -482,6 +482,9 @@ def run(args, dag=None):
         # GCS
         elif remote_base.startswith('gs:/'):
             logging_utils.GCSLog().write(log, remote_log_location)
+        # HDFS
+        elif remote_base.startswith('hdfs:/'):
+            logging_utils.HDFSLog().write(log, remote_log_location)
         # Other
         elif remote_base and remote_base != 'None':
             logging.error(
