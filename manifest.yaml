@@ -1,4 +1,4 @@
-name: incubatorairflow
+name: lyftairflow
 description: Lyft internal fork of Airflow
 repository: git@github.com:lyft/incubator-airflow.git
 report_ci: True
