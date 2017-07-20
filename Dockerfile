@@ -1,4 +1,4 @@
-FROM lyft/opsbase:294cbad348ad4db579087e22f65386ca6762ebfe
+FROM lyft/pythonlibrary:294cbad348ad4db579087e22f65386ca6762ebfe
 ARG IAM_ROLE
 RUN mkdir /code/incubator-airflow
 RUN cp /code/containers/pythonlibrary/Makefile /code/incubator-airflow/Makefile
