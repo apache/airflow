@@ -41,8 +41,22 @@ class SFTPHook(BaseHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            self.conn = pysftp.Connection(host=params.host, port=params.port, username=params.login, password=params.password)
-
+            cnopts = pysftp.CnOpts()
+            if 'ignore_hostkey_verification' in params.extra_dejson and params.extra_dejson['ignore_hostkey_verification']:
+                cnopts.hostkeys = None
+            conn_params = {
+                'host': params.host,
+                'port': params.port,
+                'username': params.login,
+                'cnopts': cnopts
+            }
+            if params.password is not None:
+                conn_params['password'] = params.password
+            if 'private_key' in params.extra_dejson:
+                conn_params['private_key'] = params.extra_dejson['private_key']
+            if 'private_key_pass' in params.extra_dejson:
+                conn_params['private_key_pass'] = params.extra_dejson['private_key_pass']
+            self.conn = pysftp.Connection(**conn_params)
         return self.conn
 
     def close_conn(self):
@@ -139,4 +153,3 @@ class SFTPHook(BaseHook):
         conn = self.get_conn()
         ftp_mdtm = conn.stat(path).st_mtime
         return datetime.datetime.fromtimestamp(ftp_mdtm).strftime('%Y%m%d%H%M%S')
-
