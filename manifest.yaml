@@ -8,13 +8,12 @@ groups:
   - name: dev
     members:
       - control.dev
-      # - TODO dev dependencies (can be dynamodb.server, redis.server, etc)
-      - incubator-airflow.legacy
+      - lyftairflow.legacy
 
 tests:
   - name: startup
     type: startup
-    group: incubator-airflow.dev
+    group: lyftairflow.dev
 
 deploy:
   - name: development
@@ -23,6 +22,14 @@ deploy:
   - name: staging
     role: lyftpypi-staging-iad-deploy
     legacy: True
+    automatic: True
+    orca:
+      - orca_location: ops
+        region: iad
   - name: production
-    role: lyftpypi-staging-iad-deploy
+    role: lyftpypi-production-iad-deploy
     legacy: True
+    automatic: True
+    orca:
+      - orca_location: ops
+        region: iad

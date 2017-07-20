@@ -1,9 +1,8 @@
-FROM lyft/pythonlibrary:294cbad348ad4db579087e22f65386ca6762ebfe
-ARG IAM_ROLE
-RUN mkdir /code/incubator-airflow
-RUN cp /code/containers/pythonlibrary/Makefile /code/incubator-airflow/Makefile
-COPY ops /code/incubator-airflow/ops
-COPY requirements.* /code/incubator-airflow/
-RUN pip install -r /code/incubator-airflow/requirements.txt
-WORKDIR /code/incubator-airflow
-COPY . /code/incubator-airflow
+FROM lyft/pythonlibrary:fd03a394897fe765bfd4a917192c500515922581
+RUN mkdir /code/lyftairflow
+RUN cp /code/containers/pythonlibrary/Makefile /code/lyftairflow/Makefile
+COPY ops /code/lyftairflow/ops
+COPY requirements.* piptools_requirements.* /code/lyftairflow/
+RUN pip install -r /code/lyftairflow/requirements.txt
+WORKDIR /code/lyftairflow
+COPY . /code/lyftairflow
