@@ -3056,6 +3056,37 @@ class DAG(BaseDag, LoggingMixin):
         return execution_date
 
     @property
+    def next_run_date(self):
+        """
+        Returns the next run date for which the dag will be scheduled
+        """
+        next_run_date = None
+        if not self.latest_execution_date:
+            # First run
+            task_start_dates = [t.start_date for t in self.tasks]
+            if task_start_dates:
+                next_run_date = self.normalize_schedule(min(task_start_dates))
+        else:
+            next_run_date = self.following_schedule(self.latest_execution_date)
+        return next_run_date
+
+    @property
+    def next_execution_date(self):
+        """
+        Returns the next execution date at which the dag will be scheduled by
+        the scheduler (period end)
+        """
+        if self.schedule_interval is None:
+            return None
+        else:
+            execution_date = None
+            if self.schedule_interval == '@once':
+                execution_date = self.next_run_date
+            elif self.next_run_date:
+                execution_date = self.following_schedule(self.next_run_date)
+            return execution_date
+
+    @property
     def subdags(self):
         """
         Returns a list of the subdag objects associated to this DAG
