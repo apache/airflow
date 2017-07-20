@@ -35,7 +35,8 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    redirect, url_for, request, Markup, Response, current_app, render_template, make_response)
+    redirect, url_for, request, Markup, Response, current_app,
+    render_template, make_response, jsonify)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
@@ -59,6 +60,7 @@ from airflow import configuration as conf
 from airflow import models
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import set_dag_run_state
+from airflow.logging_backend import cached_logging_backend
 from airflow.exceptions import AirflowException
 from airflow.settings import Session
 from airflow.models import XCom, DagRun
@@ -694,24 +696,52 @@ class Airflow(BaseView):
             form=form,
             title=title,)
 
+    @expose('/get_log')
+    @login_required
+    @wwwutils.action_logging
+    def get_log(self):
+        """ The endpoint for fetching logs. """
+        logging_backend = cached_logging_backend()
+        if not logging_backend:
+            raise AirflowException("Logging backend not found.")
+
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+        start_ts = request.args.get('start_ts')
+
+        logs = logging_backend.get_logs(dag_id, task_id, execution_date,
+                                        gt_ts=start_ts)
+        next_start_ts = start_ts if not logs else logs[-1].timestamp
+        message = '\n'.join([log.message for log in logs])
+
+        return jsonify(message=message, next_start_ts=next_start_ts)
+
     @expose('/log')
     @login_required
     @wwwutils.action_logging
     def log(self):
-        BASE_LOG_FOLDER = os.path.expanduser(
-            conf.get('core', 'BASE_LOG_FOLDER'))
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
         dag = dagbag.get_dag(dag_id)
-        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
-            **locals())
-        loc = os.path.join(BASE_LOG_FOLDER, log_relative)
+        dttm = dateutil.parser.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+
+        if conf.get('core', 'logging_backend_url'):
+            return self.render(
+                'airflow/ti_logs.html',
+                dag=dag, title="Log", dag_id=dag_id, task_id=task_id,
+                execution_date=execution_date, form=form)
+
+        base_log_folder = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+        log_relative = "{dag_id}/{task_id}/{execution_date}".format(**locals())
+        loc = os.path.join(base_log_folder, log_relative)
         loc = loc.format(**locals())
         log = ""
         TI = models.TaskInstance
-        dttm = dateutil.parser.parse(execution_date)
-        form = DateTimeForm(data={'execution_date': dttm})
+
         session = Session()
         ti = session.query(TI).filter(
             TI.dag_id == dag_id, TI.task_id == task_id,

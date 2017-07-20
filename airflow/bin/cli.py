@@ -469,7 +469,8 @@ def run(args, dag=None):
             DeprecationWarning)
         remote_base = conf.get('core', 'S3_LOG_FOLDER')
 
-    if os.path.exists(filename):
+    # Only move log to remote storage if logging backend is not setup.
+    if os.path.exists(filename) and not conf.get('core', 'logging_backend_url'):
         # read log and remove old logs to get just the latest additions
 
         with open(filename, 'r') as logfile:
