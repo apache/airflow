@@ -16,6 +16,7 @@
 from past.builtins import basestring, unicode
 
 import ast
+import logging
 import os
 import pkg_resources
 import socket
@@ -72,12 +73,10 @@ from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils import logging as log_utils
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
-from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -698,99 +697,32 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     def log(self):
-        BASE_LOG_FOLDER = os.path.expanduser(
-            conf.get('core', 'BASE_LOG_FOLDER'))
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
-        dag = dagbag.get_dag(dag_id)
-        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
-            **locals())
-        loc = os.path.join(BASE_LOG_FOLDER, log_relative)
-        loc = loc.format(**locals())
-        log = ""
-        TI = models.TaskInstance
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
-        session = Session()
-        ti = session.query(TI).filter(
-            TI.dag_id == dag_id, TI.task_id == task_id,
-            TI.execution_date == dttm).first()
+        dag = dagbag.get_dag(dag_id)
 
+        session = Session()
+        ti = session.query(models.TaskInstance).filter(
+            models.TaskInstance.dag_id == dag_id, models.TaskInstance.task_id == task_id,
+            models.TaskInstance.execution_date == dttm).first()
         if ti is None:
             log = "*** Task instance did not exist in the DB\n"
         else:
-            # load remote logs
-            remote_log_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
-            remote_log_loaded = False
-            if remote_log_base:
-                remote_log_path = os.path.join(remote_log_base, log_relative)
-                remote_log = ""
-
-                # Only display errors reading the log if the task completed or ran at least
-                # once before (otherwise there won't be any remote log stored).
-                ti_execution_completed = ti.state in {State.SUCCESS, State.FAILED}
-                ti_ran_more_than_once = ti.try_number > 1
-                surface_log_retrieval_errors = (
-                    ti_execution_completed or ti_ran_more_than_once)
-
-                # S3
-                if remote_log_path.startswith('s3:/'):
-                    remote_log += log_utils.S3Log().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
-                    remote_log_loaded = True
-                # GCS
-                elif remote_log_path.startswith('gs:/'):
-                    remote_log += log_utils.GCSLog().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
-                    remote_log_loaded = True
-                # unsupported
-                else:
-                    remote_log += '*** Unsupported remote log location.'
-
-                if remote_log:
-                    log += ('*** Reading remote log from {}.\n{}\n'.format(
-                        remote_log_path, remote_log))
-
-            # We only want to display the
-            # local logs while the task is running if a remote log configuration is set up
-            # since the logs will be transfered there after the run completes.
-            # TODO(aoen): One problem here is that if a task is running on a worker it
-            # already ran on, then duplicate logs will be printed for all of the previous
-            # runs of the task that already completed since they will have been printed as
-            # part of the remote log section above. This can be fixed either by streaming
-            # logs to the log servers as tasks are running, or by creating a proper
-            # abstraction for multiple task instance runs).
-            if not remote_log_loaded or ti.state == State.RUNNING:
-                if os.path.exists(loc):
-                    try:
-                        f = open(loc)
-                        log += "*** Reading local log.\n" + "".join(f.readlines())
-                        f.close()
-                    except:
-                        log = "*** Failed to load local log file: {0}.\n".format(loc)
-                else:
-                    WORKER_LOG_SERVER_PORT = \
-                        conf.get('celery', 'WORKER_LOG_SERVER_PORT')
-                    url = os.path.join(
-                        "http://{ti.hostname}:{WORKER_LOG_SERVER_PORT}/log", log_relative
-                    ).format(**locals())
-                    log += "*** Log file isn't local.\n"
-                    log += "*** Fetching here: {url}\n".format(**locals())
-                    try:
-                        import requests
-                        timeout = None  # No timeout
-                        try:
-                            timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
-                        except (AirflowConfigException, ValueError):
-                            pass
-
-                        response = requests.get(url, timeout=timeout)
-                        response.raise_for_status()
-                        log += '\n' + response.text
-                    except:
-                        log += "*** Failed to fetch log file from worker.\n".format(
-                            **locals())
+            logger = logging.getLogger('airflow.task')
+            task_log_reader = conf.get('core', 'task_log_reader')
+            for handler in logger.handlers:
+                print("handler name is {}".format(handler.name))
+            handler = next((handler for handler in logger.handlers
+                           if handler.name == task_log_reader), None)
+            try:
+                log = handler.read(ti)
+            except AttributeError as e:
+                log = "Task log handler {} does not support read logs.\n".format(
+                    task_log_reader)
+                log += e.message
 
         if PY2 and not isinstance(log, unicode):
             log = log.decode('utf-8')

@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import logging.config
 import os
 import sys
 
@@ -162,12 +163,22 @@ def configure_orm(disable_connection_pool=False):
 try:
     from airflow_local_settings import *
     logging.info("Loaded airflow_local_settings.")
-except:
+except Exception:
     pass
 
 configure_logging()
 configure_vars()
 configure_orm()
+
+# TODO: Merge airflow logging configurations.
+logging_config_path = conf.get('core', 'logging_config_path')
+try:
+    from logging_config_path import LOGGING_CONFIG
+except Exception:
+    # Import default logging configuration
+    from airflow.config_templates.default_airflow_logging import \
+        DEFAULT_LOGGING_CONFIG as LOGGING_CONFIG
+logging.config.dictConfig(LOGGING_CONFIG)
 
 # Const stuff
 
