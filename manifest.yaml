@@ -1,0 +1,28 @@
+name: incubatorairflow
+description: Lyft internal fork of Airflow
+repository: git@github.com:lyft/incubator-airflow.git
+report_ci: True
+credentials: True # Confidant credentials require a development IAM role
+
+groups:
+  - name: dev
+    members:
+      - control.dev
+      # - TODO dev dependencies (can be dynamodb.server, redis.server, etc)
+      - incubator-airflow.legacy
+
+tests:
+  - name: startup
+    type: startup
+    group: incubator-airflow.dev
+
+deploy:
+  - name: development
+    automatic: True
+    legacy: True
+  - name: staging
+    role: lyftpypi-staging-iad-deploy
+    legacy: True
+  - name: production
+    role: lyftpypi-staging-iad-deploy
+    legacy: True
