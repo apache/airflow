@@ -795,9 +795,14 @@ class Airflow(BaseView):
         if PY2 and not isinstance(log, unicode):
             log = log.decode('utf-8')
 
+        if request.is_xhr:
+            return log
+
+        title = "Log"
+
         return self.render(
-            'airflow/ti_code.html',
-            code=log, dag=dag, title="Log", task_id=task_id,
+            'airflow/log.html',
+            log=log, dag=dag, title=title, task_id=task_id,
             execution_date=execution_date, form=form)
 
     @expose('/task')
