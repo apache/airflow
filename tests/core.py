@@ -1326,6 +1326,32 @@ class CliTests(unittest.TestCase):
             'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
 
+    def test_cli_store_logs_remotely_no_remote_base(self):
+        with mock.patch('__main__.open', mock.mock_open(read_data='42'), create=True) as open_mock:
+            with mock.patch('os.path.exists') as path_mock:
+                path_mock.return_value = True
+
+                cli._store_logs_remotely("42", "existing_file")
+
+            # remote base not specified, hence no call to open
+            self.assertEqual(open_mock.call_count, 0)
+
+    def test_cli_store_logs_remotely_with_remote_base(self):
+        orig_base_log_folder = configuration.get('core', 'REMOTE_BASE_LOG_FOLDER')
+        configuration.set("core", "REMOTE_BASE_LOG_FOLDER", "42")
+
+        try:
+            with mock.patch('airflow.bin.cli.open', mock.mock_open(read_data='42'), create=True) as open_mock:
+                with mock.patch('os.path.exists') as path_mock:
+                    path_mock.return_value = True
+
+                    cli._store_logs_remotely("42", "existing_file")
+
+                # remote base specified, hence one call to open
+                self.assertEqual(open_mock.call_count, 1)
+        finally:    
+            configuration.set("core", "REMOTE_BASE_LOG_FOLDER", orig_base_log_folder)
+
     def test_task_state(self):
         cli.task_state(self.parser.parse_args([
             'task_state', 'example_bash_operator', 'runme_0',
