@@ -934,7 +934,7 @@ class TaskInstance(Base):
         cmd.extend(["--mark_success"]) if mark_success else None
         cmd.extend(["--pickle", str(pickle_id)]) if pickle_id else None
         cmd.extend(["--job_id", str(job_id)]) if job_id else None
-        cmd.extend(["-A "]) if ignore_all_deps else None
+        cmd.extend(["-A"]) if ignore_all_deps else None
         cmd.extend(["-i"]) if ignore_task_deps else None
         cmd.extend(["-I"]) if ignore_depends_on_past else None
         cmd.extend(["--force"]) if ignore_ti_state else None
