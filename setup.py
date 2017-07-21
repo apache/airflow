@@ -192,10 +192,10 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 def do_setup():
     write_version()
     setup(
-        name='airflow',
+        name='lyft-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
-        version=version,
+        version='0.0.1',
         packages=find_packages(),
         package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
         include_package_data=True,
