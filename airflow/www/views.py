@@ -67,7 +67,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
-from airflow.utils.logging import LoggingMixin
+from airflow.utils.logging import LoggingMixin, get_log_filename
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
@@ -694,110 +694,112 @@ class Airflow(BaseView):
             form=form,
             title=title,)
 
-    @expose('/log')
-    @login_required
-    @wwwutils.action_logging
-    def log(self):
-        BASE_LOG_FOLDER = os.path.expanduser(
-            conf.get('core', 'BASE_LOG_FOLDER'))
-        dag_id = request.args.get('dag_id')
-        task_id = request.args.get('task_id')
-        execution_date = request.args.get('execution_date')
-        dag = dagbag.get_dag(dag_id)
-        log_relative = "{dag_id}/{task_id}/{execution_date}".format(
-            **locals())
-        loc = os.path.join(BASE_LOG_FOLDER, log_relative)
-        loc = loc.format(**locals())
-        log = ""
-        TI = models.TaskInstance
-        dttm = dateutil.parser.parse(execution_date)
-        form = DateTimeForm(data={'execution_date': dttm})
-        session = Session()
-        ti = session.query(TI).filter(
-            TI.dag_id == dag_id, TI.task_id == task_id,
-            TI.execution_date == dttm).first()
+    def _get_log(self, ti, log_filename):
+        """
+        Get log for a specific try number.
+        :param ti: current task instance
+        :param log_filename: relative filename to fetch the log
+        """
+        # TODO: This is not the best practice. Log handler and
+        # reader should be configurable and separated from the
+        # frontend. The new airflow logging design is in progress.
+        # Please refer to #2422(https://github.com/apache/incubator-airflow/pull/2422).
+        log = ''
+        # Load remote log
+        remote_log_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
+        remote_log_loaded = False
+        if remote_log_base:
+            remote_log_path = os.path.join(remote_log_base, log_filename)
+            remote_log = ""
 
-        if ti is None:
-            log = "*** Task instance did not exist in the DB\n"
-        else:
-            # load remote logs
-            remote_log_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
-            remote_log_loaded = False
-            if remote_log_base:
-                remote_log_path = os.path.join(remote_log_base, log_relative)
-                remote_log = ""
-
-                # Only display errors reading the log if the task completed or ran at least
-                # once before (otherwise there won't be any remote log stored).
-                ti_execution_completed = ti.state in {State.SUCCESS, State.FAILED}
-                ti_ran_more_than_once = ti.try_number > 1
-                surface_log_retrieval_errors = (
-                    ti_execution_completed or ti_ran_more_than_once)
-
-                # S3
-                if remote_log_path.startswith('s3:/'):
-                    remote_log += log_utils.S3Log().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
+            # S3
+            if remote_log_path.startswith('s3:/'):
+                s3_log = log_utils.S3Log()
+                if s3_log.log_exists(remote_log_path):
+                    remote_log += s3_log.read(remote_log_path, return_error=True)
                     remote_log_loaded = True
-                # GCS
-                elif remote_log_path.startswith('gs:/'):
-                    remote_log += log_utils.GCSLog().read(
-                        remote_log_path, return_error=surface_log_retrieval_errors)
+            # GCS
+            elif remote_log_path.startswith('gs:/'):
+                gcs_log = log_utils.GCSLog()
+                if gcs_log.log_exists(remote_log_path):
+                    remote_log += gcs_log.read(remote_log_path, return_error=True)
                     remote_log_loaded = True
-                # unsupported
-                else:
-                    remote_log += '*** Unsupported remote log location.'
+            # unsupported
+            else:
+                remote_log += '*** Unsupported remote log location.'
 
-                if remote_log:
-                    log += ('*** Reading remote log from {}.\n{}\n'.format(
-                        remote_log_path, remote_log))
+            if remote_log:
+                log += ('*** Reading remote log from {}.\n{}\n'.format(
+                    remote_log_path, remote_log))
 
-            # We only want to display the
-            # local logs while the task is running if a remote log configuration is set up
-            # since the logs will be transfered there after the run completes.
-            # TODO(aoen): One problem here is that if a task is running on a worker it
-            # already ran on, then duplicate logs will be printed for all of the previous
-            # runs of the task that already completed since they will have been printed as
-            # part of the remote log section above. This can be fixed either by streaming
-            # logs to the log servers as tasks are running, or by creating a proper
-            # abstraction for multiple task instance runs).
-            if not remote_log_loaded or ti.state == State.RUNNING:
-                if os.path.exists(loc):
+        # We only want to display local log if the remote log is not loaded.
+        if not remote_log_loaded:
+            # Load local log
+            local_log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
+            local_log_path = os.path.join(local_log_base, log_filename)
+            if os.path.exists(local_log_path):
+                try:
+                    f = open(local_log_path)
+                    log += "*** Reading local log.\n" + "".join(f.readlines())
+                    f.close()
+                except:
+                    log = "*** Failed to load local log file: {0}.\n".format(local_log_path)
+            else:
+                WORKER_LOG_SERVER_PORT = conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+                url = os.path.join(
+                    "http://{ti.hostname}:{WORKER_LOG_SERVER_PORT}/log", log_filename
+                ).format(**locals())
+                log += "*** Log file isn't local.\n"
+                log += "*** Fetching here: {url}\n".format(**locals())
+                try:
+                    import requests
+                    timeout = None  # No timeout
                     try:
-                        f = open(loc)
-                        log += "*** Reading local log.\n" + "".join(f.readlines())
-                        f.close()
-                    except:
-                        log = "*** Failed to load local log file: {0}.\n".format(loc)
-                else:
-                    WORKER_LOG_SERVER_PORT = \
-                        conf.get('celery', 'WORKER_LOG_SERVER_PORT')
-                    url = os.path.join(
-                        "http://{ti.hostname}:{WORKER_LOG_SERVER_PORT}/log", log_relative
-                    ).format(**locals())
-                    log += "*** Log file isn't local.\n"
-                    log += "*** Fetching here: {url}\n".format(**locals())
-                    try:
-                        import requests
-                        timeout = None  # No timeout
-                        try:
-                            timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
-                        except (AirflowConfigException, ValueError):
-                            pass
+                        timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
+                    except (AirflowConfigException, ValueError):
+                        pass
 
-                        response = requests.get(url, timeout=timeout)
-                        response.raise_for_status()
-                        log += '\n' + response.text
-                    except:
-                        log += "*** Failed to fetch log file from worker.\n".format(
-                            **locals())
+                    response = requests.get(url, timeout=timeout)
+                    response.raise_for_status()
+                    log += '\n' + response.text
+                except:
+                    log += "*** Failed to fetch log file from work r.\n".format(
+                        **locals())
 
         if PY2 and not isinstance(log, unicode):
             log = log.decode('utf-8')
 
+        return log
+
+    @expose('/log')
+    @login_required
+    @wwwutils.action_logging
+    def log(self):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = dateutil.parser.parse(execution_date)
+        form = DateTimeForm(data={'execution_date': dttm})
+        dag = dagbag.get_dag(dag_id)
+        TI = models.TaskInstance
+        session = Session()
+        ti = session.query(TI).filter(
+            TI.dag_id == dag_id,
+            TI.task_id == task_id,
+            TI.execution_date == dttm).first()
+        logs = []
+        if ti is None:
+            logs = ["*** Task instance did not exist in the DB\n"]
+        else:
+            logs = [''] * ti.try_number
+            for try_number in range(ti.try_number):
+                log_filename = get_log_filename(
+                    dag_id, task_id, execution_date, try_number)
+                logs[try_number] += self._get_log(ti, log_filename)
+
         return self.render(
-            'airflow/ti_code.html',
-            code=log, dag=dag, title="Log", task_id=task_id,
+            'airflow/ti_log.html',
+            logs=logs, dag=dag, title="Log by attempts", task_id=task_id,
             execution_date=execution_date, form=form)
 
     @expose('/task')

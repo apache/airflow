@@ -147,8 +147,19 @@ To Keep in Mind
 
 Here are some of the ways you can **unblock tasks**:
 
-* From the UI, you can **clear** (as in delete the status of) individual task instances from the task instances dialog, while defining whether you want to includes the past/future and the upstream/downstream dependencies. Note that a confirmation window comes next and allows you to see the set you are about to clear.
-* The CLI command ``airflow clear -h`` has lots of options when it comes to clearing task instance states, including specifying date ranges, targeting task_ids by specifying a regular expression, flags for including upstream and downstream relatives, and targeting task instances in specific states (``failed``, or ``success``)
-* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or for instance when the fix has been applied outside of Airflow.
-* The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting subsections of the DAG as well as specifying date ranges.
+* From the UI, you can **clear** (as in delete the status of) individual task instances
+  from the task instances dialog, while defining whether you want to includes the past/future
+  and the upstream/downstream dependencies. Note that a confirmation window comes next and
+  allows you to see the set you are about to clear. You can also clear all task instances
+  associated with the dag.
+* The CLI command ``airflow clear -h`` has lots of options when it comes to clearing task instance
+  states, including specifying date ranges, targeting task_ids by specifying a regular expression,
+  flags for including upstream and downstream relatives, and targeting task instances in specific
+  states (``failed``, or ``success``)
+* Clearing a task instance will no longer delete the task instance record. Instead it updates
+  max_tries and set the current task instance state to be None.
+* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
+  or for instance when the fix has been applied outside of Airflow.
+* The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
+  subsections of the DAG as well as specifying date ranges.
 
