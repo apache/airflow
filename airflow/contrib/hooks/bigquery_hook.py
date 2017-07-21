@@ -194,7 +194,8 @@ class BigQueryBaseCursor(object):
             write_disposition = 'WRITE_EMPTY',
             allow_large_results=False,
             udf_config = False,
-            use_legacy_sql=True):
+            use_legacy_sql=True,
+            maximum_billing_tier=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -216,11 +217,14 @@ class BigQueryBaseCursor(object):
         :type udf_config: list
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
         :type use_legacy_sql: boolean
+        :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
+        :type maximum_billing_tier: integer
         """
         configuration = {
             'query': {
                 'query': bql,
-                'useLegacySql': use_legacy_sql
+                'useLegacySql': use_legacy_sql,
+                'maximumBillingTier': maximum_billing_tier
             }
         }
 
