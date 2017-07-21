@@ -23,6 +23,7 @@ from mock import patch
 from datetime import datetime, timedelta
 
 from airflow import DAG, configuration
+from airflow.models import TaskInstance as TI
 from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import (AirflowException,
@@ -32,7 +33,6 @@ configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_dag'
-
 
 class TimeoutTestSensor(BaseSensorOperator):
     """
@@ -254,3 +254,47 @@ class HdfsSensorTests(unittest.TestCase):
         # Then
         with self.assertRaises(AirflowSensorTimeout):
             task.execute(None)
+
+class ReturnSensor(BaseSensorOperator):
+    """
+    Sensor that returns some value through xcom
+    """
+
+    @apply_defaults
+    def __init__(
+            self,
+            *args,
+            **kwargs):
+        super(ReturnSensor, self).__init__(*args, **kwargs)
+
+    def poke(self, context):
+        value = ['file1', 'file2', 'file3']
+        return value
+
+
+class ReturnSensorTests(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        args = {
+            'owner': 'airflow',
+            'mysql_conn_id': 'airflow_db',
+            'start_date': DEFAULT_DATE
+        }
+        dag = DAG(TEST_DAG_ID, default_args=args)
+        self.dag = dag
+
+    def test_return_sensor(self):
+        """
+        Test that the sensor returns an xcom through return value
+        """
+        value = ['file1', 'file2', 'file3']
+
+        t = ReturnSensor(
+            task_id='test_return_sensor',
+            dag=self.dag)
+        ti = TI(
+            task=t, execution_date=DEFAULT_DATE)
+        ti.run(ignore_all_deps=True)
+
+        self.assertEqual(ti.xcom_pull(task_ids='test_return_sensor'), value)

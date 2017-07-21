@@ -81,6 +81,7 @@ class BaseSensorOperator(BaseOperator):
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             sleep(self.poke_interval)
         logging.info("Success criteria met. Exiting.")
+        return self.poke(context)
 
 
 class SqlSensor(BaseSensorOperator):
