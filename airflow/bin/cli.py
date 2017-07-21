@@ -54,6 +54,7 @@ from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
 from airflow.utils.file import mkdirs
+from airflow.utils.net import get_hostname
 from airflow.www.app import cached_app
 
 from sqlalchemy import func
