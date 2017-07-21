@@ -188,7 +188,7 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='sftp_default', conn_type='sftp',
-            host='localhost', port=22, login='root',
+            host='localhost', port=22, login='travis',
             extra='{"private_key": "~/.ssh/id_rsa", "ignore_hostkey_verification": true}'))
     merge_conn(
         models.Connection(
