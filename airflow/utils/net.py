@@ -1,7 +1,5 @@
-from airflow.configuration import conf
+from airflow.configuration import conf, AirflowConfigException
 import socket
-
-_sentinel = object()
 
 
 def get_hostname(default=socket.getfqdn):
@@ -10,7 +8,9 @@ def get_hostname(default=socket.getfqdn):
 
     :param callable|str default: Default if config does not specify. If a callable is given it will be called.
     """
-    hostname = conf.get('core', 'HOSTNAME', default)
-    if callable(hostname):
-        hostname = hostname()
+    try:
+        # If this is called `get`, why does it not match python semantics?
+        hostname = conf.get('core', 'hostname')
+    except AirflowConfigException:
+        hostname = callable(default) and default() or default
     return hostname
