@@ -71,6 +71,7 @@ TEMP_DAG_FILENAME = "temp_dag.py"
 TEST_DAGS_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
 
+
 class BackfillJobTest(unittest.TestCase):
 
     def setUp(self):
@@ -302,6 +303,72 @@ class BackfillJobTest(unittest.TestCase):
         self.assertEqual(ti.state, State.SUCCESS)
         dag.clear()
 
+    def _get_dag_test_max_active_limits(self, dag_id, max_active_runs=1):
+        dag = DAG(
+            dag_id=dag_id,
+            start_date=DEFAULT_DATE,
+            schedule_interval="@hourly",
+            max_active_runs=max_active_runs
+        )
+
+        with dag:
+            op1 = DummyOperator(task_id='leave1')
+            op2 = DummyOperator(task_id='leave2')
+            op3 = DummyOperator(task_id='upstream_level_1')
+            op4 = DummyOperator(task_id='upstream_level_2')
+
+            op1 >> op2 >> op3
+            op4 >> op3
+
+        dag.clear()
+        return dag
+
+    def test_backfill_max_limit_check_within_limit(self):
+        dag = self._get_dag_test_max_active_limits(
+            'test_backfill_max_limit_check_within_limit',
+            max_active_runs=16)
+
+        start_date = DEFAULT_DATE - datetime.timedelta(hours=3)
+        end_date = DEFAULT_DATE
+
+        executor = TestExecutor(do_update=True)
+        job = BackfillJob(dag=dag,
+                          start_date=start_date,
+                          end_date=end_date,
+                          executor=executor,
+                          donot_pickle=True)
+        job.run()
+
+        # dag run could not run since the max_active_runs has been reached
+        dagruns = DagRun.find(dag_id=dag.dag_id)
+        self.assertEqual(4, len(dagruns))
+        self.assertTrue(all([run.state == State.SUCCESS for run in dagruns]))
+
+    def test_backfill_max_limit_check(self):
+        dag = self._get_dag_test_max_active_limits('test_backfill_max_limit_check')
+
+        start_date = DEFAULT_DATE - datetime.timedelta(hours=3)
+        end_date = DEFAULT_DATE
+
+        # Existing dagrun that is not within the backfill range
+        dr = dag.create_dagrun(run_id="test_dagrun",
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE + datetime.timedelta(hours=1),
+                               start_date=DEFAULT_DATE)
+
+        executor = TestExecutor(do_update=True)
+        job = BackfillJob(dag=dag,
+                          start_date=start_date,
+                          end_date=end_date,
+                          executor=executor,
+                          donot_pickle=True)
+        job.run()
+
+        # dag run could not run since the max_active_runs has been reached
+        dagruns = DagRun.find(dag_id=dag.dag_id)
+        self.assertEqual(1, len(dagruns))
+        self.assertEqual(dagruns[0].run_id, dr.run_id)
+
     def test_sub_set_subdag(self):
         dag = DAG(
             'test_sub_set_subdag',
@@ -467,69 +534,83 @@ class BackfillJobTest(unittest.TestCase):
         ti = TI(task1, dr.execution_date)
         ti.refresh_from_db()
 
-        started = {}
-        tasks_to_run = {}
-        failed = set()
-        succeeded = set()
-        started = {}
-        skipped = set()
+        ti_status = BackfillJob._DagRunTaskStatus()
 
         # test for success
         ti.set_state(State.SUCCESS, session)
-        started[ti.key] = ti
-        job._update_counters(started=started, succeeded=succeeded,
-                                     skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
-        self.assertTrue(len(started) == 0)
-        self.assertTrue(len(succeeded) == 1)
-        self.assertTrue(len(skipped) == 0)
-        self.assertTrue(len(failed) == 0)
-        self.assertTrue(len(tasks_to_run) == 0)
+        ti_status.started[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 1)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 0)
 
-        succeeded.clear()
+        ti_status.succeeded.clear()
 
         # test for skipped
         ti.set_state(State.SKIPPED, session)
-        started[ti.key] = ti
-        job._update_counters(started=started, succeeded=succeeded,
-                                     skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
-        self.assertTrue(len(started) == 0)
-        self.assertTrue(len(succeeded) == 0)
-        self.assertTrue(len(skipped) == 1)
-        self.assertTrue(len(failed) == 0)
-        self.assertTrue(len(tasks_to_run) == 0)
+        ti_status.started[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 1)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 0)
 
-        skipped.clear()
+        ti_status.skipped.clear()
 
         # test for failed
         ti.set_state(State.FAILED, session)
-        started[ti.key] = ti
-        job._update_counters(started=started, succeeded=succeeded,
-                                     skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
-        self.assertTrue(len(started) == 0)
-        self.assertTrue(len(succeeded) == 0)
-        self.assertTrue(len(skipped) == 0)
-        self.assertTrue(len(failed) == 1)
-        self.assertTrue(len(tasks_to_run) == 0)
+        ti_status.started[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 1)
+        self.assertTrue(len(ti_status.to_run) == 0)
 
-        failed.clear()
+        ti_status.failed.clear()
 
         # test for reschedule
         # test for failed
         ti.set_state(State.NONE, session)
-        started[ti.key] = ti
-        job._update_counters(started=started, succeeded=succeeded,
-                                     skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
-        self.assertTrue(len(started) == 0)
-        self.assertTrue(len(succeeded) == 0)
-        self.assertTrue(len(skipped) == 0)
-        self.assertTrue(len(failed) == 0)
-        self.assertTrue(len(tasks_to_run) == 1)
+        ti_status.started[ti.key] = ti
+        job._update_counters(ti_status=ti_status)
+        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.succeeded) == 0)
+        self.assertTrue(len(ti_status.skipped) == 0)
+        self.assertTrue(len(ti_status.failed) == 0)
+        self.assertTrue(len(ti_status.to_run) == 1)
 
         session.close()
+
+    def test_dag_get_run_dates(self):
+
+        def get_test_dag_for_backfill(schedule_interval=None):
+            dag = DAG(
+                dag_id='test_get_dates',
+                start_date=DEFAULT_DATE,
+                schedule_interval=schedule_interval)
+            DummyOperator(
+                task_id='dummy',
+                dag=dag,
+                owner='airflow')
+            return dag
+
+        test_dag = get_test_dag_for_backfill()
+        self.assertEqual([DEFAULT_DATE], test_dag.get_run_dates(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE))
+
+        test_dag = get_test_dag_for_backfill(schedule_interval="@hourly")
+        self.assertEqual([DEFAULT_DATE - datetime.timedelta(hours=3),
+                          DEFAULT_DATE - datetime.timedelta(hours=2),
+                          DEFAULT_DATE - datetime.timedelta(hours=1),
+                          DEFAULT_DATE],
+                         test_dag.get_run_dates(
+                             start_date=DEFAULT_DATE - datetime.timedelta(hours=3),
+                             end_date=DEFAULT_DATE,))
 
 
 class LocalTaskJobTest(unittest.TestCase):
@@ -558,7 +639,9 @@ class LocalTaskJobTest(unittest.TestCase):
         ti.hostname = "blablabla"
         session.commit()
 
-        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
         is_descendant.return_value = True
@@ -597,7 +680,9 @@ class LocalTaskJobTest(unittest.TestCase):
         session.commit()
 
         ti_run = TI(task=task, execution_date=DEFAULT_DATE)
-        job1 = LocalTaskJob(task_instance=ti_run, ignore_ti_state=True, executor=SequentialExecutor())
+        job1 = LocalTaskJob(task_instance=ti_run,
+                            ignore_ti_state=True,
+                            executor=SequentialExecutor())
         self.assertRaises(AirflowException, job1.run)
 
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
@@ -755,7 +840,7 @@ class SchedulerJobTest(unittest.TestCase):
         res_keys = map(lambda x: x.key, res)
         self.assertIn(ti_no_dagrun.key, res_keys)
         self.assertIn(ti_with_dagrun.key, res_keys)
-        
+
     def test_find_executable_task_instances_pool(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_pool'
         task_id_1 = 'dummy'
@@ -2323,7 +2408,7 @@ class SchedulerJobTest(unittest.TestCase):
         for file_path in list_py_file_paths(TEST_DAGS_FOLDER):
             detected_files.append(file_path)
         self.assertEqual(sorted(detected_files), sorted(expected_files))
-        
+
     def test_reset_orphaned_tasks_nothing(self):
         """Try with nothing. """
         scheduler = SchedulerJob(**self.default_scheduler_args)
