@@ -26,4 +26,4 @@ class Logging(unittest.TestCase):
         execution_date = datetime(2017, 1, 1, 0, 0, 0)
         try_number = 0
         filename = logging_utils.get_log_filename(dag_id, task_id, execution_date, try_number)
-        self.assertEqual(filename, 'dag_id/task_id/2017-01-01T00:00:00/0.log')
+        self.assertEqual(filename, 'dag_id/task_id/2017-01-01T00:00:00/1.log')

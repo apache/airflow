@@ -248,14 +248,16 @@ class GCSLog(object):
 # For more details, please check issue AIRFLOW-1385.
 def get_log_filename(dag_id, task_id, execution_date, try_number):
     """
-    Return full log filename: dag_id/task_id/execution_date/try_number.log
+    Return relative log path.
     :arg dag_id: id of the dag
     :arg task_id: id of the task
     :arg execution_date: execution date of the task instance
     :arg try_number: try_number of current task instance
     """
     relative_dir = get_log_directory(dag_id, task_id, execution_date)
-    filename = "{}/{}.log".format(relative_dir, try_number)
+    # For reporting purposes and keeping logs consistent with web UI
+    # display, we report based on 1-indexed, not 0-indexed lists
+    filename = "{}/{}.log".format(relative_dir, try_number+1)
 
     return filename
 
