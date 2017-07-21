@@ -910,7 +910,7 @@ def worker(args):
     }
 
     hostname = args.hostname or conf.get('celery', 'WORKER_LOG_SERVER_HOSTNAME', socket.getfqdn())
-    conf.set('worker', 'WORKER_LOG_SERVER_HOSTNAME', hostname)
+    conf.set('celery', 'WORKER_LOG_SERVER_HOSTNAME', hostname)
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
