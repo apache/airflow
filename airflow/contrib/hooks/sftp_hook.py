@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 
+import stat
 import pysftp
 import logging
 import datetime
@@ -42,11 +43,23 @@ class SFTPHook(BaseHook):
         """
         if self.conn is None:
             params = self.get_connection(self.ftp_conn_id)
-            self.conn = pysftp.Connection(
-                host=params.host,
-                port=params.port,
-                username=params.login,
-                password=params.password)
+
+            if params.password is not None:
+                self.conn = pysftp.Connection(
+                    host=params.host,
+                    port=params.port,
+                    username=params.login,
+                    password=params.password)
+            else:
+                private_key = db_conn.extra_dejson['private_key'] #Todo test not specified
+                private_key_pass = db_conn.extra_dejson['private_key_pass'] if 'private_key_pass' in db_conn.extra_dejson else None #Todo test not specified
+                self.conn = pysftp.Connection(
+                    host=params.host,
+                    port=params.port,
+                    username=params.login,
+                    private_key=private_key,
+                    private_key_pass=private_key_pass)
+
 
         return self.conn
 
@@ -57,11 +70,12 @@ class SFTPHook(BaseHook):
         """
         conn = self.conn
         conn.close()
+        self.conn = None
 
     def describe_directory(self, path):
         """
         Returns a dictionary of {filename: {attributes}} for all files
-        on the remote system.
+        on the remote system (where the MLSD command is supported).
         :param path: full path to the remote directory
         :type path: str
         """
@@ -69,9 +83,11 @@ class SFTPHook(BaseHook):
         flist = conn.listdir_attr(path)
         files = {}
         for f in flist:
-            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime(
-                '%Y%m%d%H%M%S')
-            files[f.filename] = {'size': f.st_size, 'modify': modify}
+            modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
+            files[f.filename] = {
+                'size': f.st_size,
+                'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',
+                'modify': modify}
         return files
 
     def list_directory(self, path, nlst=False):
