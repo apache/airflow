@@ -595,6 +595,7 @@ class SchedulerJob(BaseJob):
         # Directory where log files for the processes that scheduled the DAGs reside
         self.child_process_log_directory = conf.get('scheduler',
                                                     'child_process_log_directory')
+        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
@@ -1146,6 +1147,15 @@ class SchedulerJob(BaseJob):
             ["{}".format(x) for x in executable_tis])
         self.logger.info("Setting the follow tasks to queued state:\n\t{}"
                          .format(task_instance_str))
+        # so these dont expire on commit
+        for ti in executable_tis:
+            copy_dag_id = ti.dag_id
+            copy_execution_date = ti.execution_date
+            copy_task_id = ti.task_id
+            make_transient(ti)
+            ti.dag_id = copy_dag_id
+            ti.execution_date = copy_execution_date
+            ti.task_id = copy_task_id
         return executable_tis
 
     @provide_session
@@ -1289,15 +1299,32 @@ class SchedulerJob(BaseJob):
         """
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
                                                               session=session)
-        tis_with_state_changed = self._change_state_for_executable_task_instances(
-            executable_tis,
-            states,
-            session=session)
-        self._enqueue_task_instances_with_queued_state(
-            simple_dag_bag,
-            tis_with_state_changed)
-        session.commit()
-        return len(tis_with_state_changed)
+        if self.max_tis_per_query == 0:
+            tis_with_state_changed = self._change_state_for_executable_task_instances(
+                executable_tis,
+                states,
+                session=session)
+            self._enqueue_task_instances_with_queued_state(
+                simple_dag_bag,
+                tis_with_state_changed)
+            session.commit()
+            return len(tis_with_state_changed)
+        else:
+            # makes chunks of max_tis_per_query size
+            chunks = ([executable_tis[i:i + self.max_tis_per_query]
+                      for i in range(0, len(executable_tis), self.max_tis_per_query)])
+            total_tis_queued = 0
+            for chunk in chunks:
+                tis_with_state_changed = self._change_state_for_executable_task_instances(
+                    chunk,
+                    states,
+                    session=session)
+                self._enqueue_task_instances_with_queued_state(
+                    simple_dag_bag,
+                    tis_with_state_changed)
+                session.commit()
+                total_tis_queued += len(tis_with_state_changed)
+            return total_tis_queued
 
     def _process_dags(self, dagbag, dags, tis_out):
         """

@@ -1037,6 +1037,44 @@ class SchedulerJobTest(unittest.TestCase):
         six.assertCountEqual(self, [State.QUEUED, State.SCHEDULED], [ti3.state, ti4.state])
         self.assertEqual(1, res)
 
+    def test_execute_task_instances_limit(self):
+        dag_id = 'SchedulerJobTest.test_execute_task_instances_limit'
+        task_id_1 = 'dummy_task'
+        task_id_2 = 'dummy_task_2'
+        # important that len(tasks) is less than concurrency
+        # because before scheduler._execute_task_instances would only
+        # check the num tasks once so if concurrency was 3,
+        # we could execute arbitrarily many tasks in the second run
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        task2 = DummyOperator(dag=dag, task_id=task_id_2)
+        dagbag = SimpleDagBag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        scheduler.max_tis_per_query = 3
+        session = settings.Session()
+
+        tis = []
+        for i in range(0, 4):
+            dr = scheduler.create_dag_run(dag)
+            ti1 = TI(task1, dr.execution_date)
+            ti2 = TI(task2, dr.execution_date)
+            tis.append(ti1)
+            tis.append(ti2)
+            ti1.refresh_from_db()
+            ti2.refresh_from_db()
+            ti1.state = State.SCHEDULED
+            ti2.state = State.SCHEDULED
+            session.merge(ti1)
+            session.merge(ti2)
+            session.commit()
+        res = scheduler._execute_task_instances(dagbag, [State.SCHEDULED])
+
+        self.assertEqual(8, res)
+        for ti in tis:
+            ti.refresh_from_db()
+            self.assertEqual(State.QUEUED, ti.state)
+
     def test_change_state_for_tis_without_dagrun(self):
         dag = DAG(
             dag_id='test_change_state_for_tis_without_dagrun',
