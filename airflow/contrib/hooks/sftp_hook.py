@@ -87,7 +87,7 @@ class SFTPHook(BaseHook):
                 'modify': modify}
         return files
 
-    def list_directory(self, path, nlst=False):
+    def list_directory(self, path):
         """
         Returns a list of files on the remote system.
         :param path: full path to the remote directory to list
