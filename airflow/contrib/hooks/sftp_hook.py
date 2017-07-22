@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import stat
 import pysftp
 import logging
 import datetime
@@ -22,8 +23,8 @@ class SFTPHook(BaseHook):
     """
     Interact with SFTP. Aims to be interchangeable with FTPHook.
 
-    Pitfalls: - In contrast with FTPHook describe_directory only returns size and modify. It doesn't return unix.owner,
-                unix.mode, perm, unix.group, unique and type.
+    Pitfalls: - In contrast with FTPHook describe_directory only returns size, type and modify. It doesn't return unix.owner,
+                unix.mode, perm, unix.group and unique.
               - retrieve_file and store_file only take a local full path and not a buffer.
               - If no mode is passed to create_directory it will be created with 777 permissions.
 
@@ -71,7 +72,7 @@ class SFTPHook(BaseHook):
     def describe_directory(self, path):
         """
         Returns a dictionary of {filename: {attributes}} for all files
-        on the remote system.
+        on the remote system (where the MLSD command is supported).
         :param path: full path to the remote directory
         :type path: str
         """
@@ -80,7 +81,10 @@ class SFTPHook(BaseHook):
         files = {}
         for f in flist:
             modify = datetime.datetime.fromtimestamp(f.st_mtime).strftime('%Y%m%d%H%M%S')
-            files[f.filename] = {'size': f.st_size, 'modify': modify}
+            files[f.filename] = {
+                'size': f.st_size,
+                'type': 'dir' if stat.S_ISDIR(f.st_mode) else 'file',
+                'modify': modify}
         return files
 
     def list_directory(self, path, nlst=False):
@@ -125,7 +129,8 @@ class SFTPHook(BaseHook):
         conn = self.get_conn()
         logging.info('Retrieving file from FTP: {}'.format(remote_full_path))
         conn.get(remote_full_path, local_full_path)
-        logging.info('Finished retrieving file from FTP: {}'.format(remote_full_path))
+        logging.info('Finished retrieving file from FTP: {}'.format(
+            remote_full_path))
 
     def store_file(self, remote_full_path, local_full_path):
         """
