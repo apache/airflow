@@ -90,6 +90,7 @@ class FTPHook(BaseHook):
         """
         conn = self.conn
         conn.quit()
+        self.conn = None
 
     def describe_directory(self, path):
         """
