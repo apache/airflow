@@ -196,7 +196,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         ExternalTaskSensor, but not both.
     :type execution_delta: datetime.timedelta
     :param execution_date_fn: function that receives the current execution date
-        and returns the desired execution date to query. Either execution_delta
+        and returns the desired execution dates to query. Either execution_delta
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
     :type execution_date_fn: callable
     """
@@ -231,11 +231,15 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm = context['execution_date']
 
+        dttm_filter = dttm if isinstance(dttm, list) else [dttm]
+        serialized_dttm_filter = ','.join(
+            [datetime.isoformat() for datetime in dttm_filter])
+
         logging.info(
             'Poking for '
             '{self.external_dag_id}.'
             '{self.external_task_id} on '
-            '{dttm} ... '.format(**locals()))
+            '{} ... '.format(serialized_dttm_filter, **locals()))
         TI = TaskInstance
 
         session = settings.Session()
@@ -243,11 +247,11 @@ class ExternalTaskSensor(BaseSensorOperator):
             TI.dag_id == self.external_dag_id,
             TI.task_id == self.external_task_id,
             TI.state.in_(self.allowed_states),
-            TI.execution_date == dttm,
+            TI.execution_date.in_(dttm_filter),
         ).count()
         session.commit()
         session.close()
-        return count
+        return count == len(dttm_filter)
 
 
 class NamedHivePartitionSensor(BaseSensorOperator):
