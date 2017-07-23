@@ -58,7 +58,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
 from airflow.utils.email import send_email
 from airflow.utils.logging import LoggingMixin
 from airflow.utils import asciiart
-
+from airflow.utils.net import get_hostname
 
 Base = models.Base
 ID_LEN = models.ID_LEN
@@ -99,7 +99,7 @@ class BaseJob(Base, LoggingMixin):
             executor=executors.GetDefaultExecutor(),
             heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.executor = executor
         self.executor_class = executor.__class__.__name__
         self.start_date = datetime.now()
@@ -2351,7 +2351,7 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
         if ti.state == State.RUNNING:
             self.was_running = True
-            fqdn = socket.getfqdn()
+            fqdn = get_hostname()
             if fqdn != ti.hostname:
                 logging.warning("The recorded hostname {ti.hostname} "
                                 "does not match this instance's hostname "

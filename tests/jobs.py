@@ -37,6 +37,7 @@ from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.dag_processing import SimpleDagBag, list_py_file_paths
+from airflow.utils.net import get_hostname
 
 from mock import Mock, patch
 from sqlalchemy.orm.session import make_transient
@@ -563,7 +564,7 @@ class LocalTaskJobTest(unittest.TestCase):
 
         is_descendant.return_value = True
         ti.state = State.RUNNING
-        ti.hostname = socket.getfqdn()
+        ti.hostname = get_hostname()
         ti.pid = 1
         session.merge(ti)
         session.commit()
@@ -592,7 +593,7 @@ class LocalTaskJobTest(unittest.TestCase):
                                session=session)
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
         ti.state = State.RUNNING
-        ti.hostname = socket.getfqdn()
+        ti.hostname = get_hostname()
         ti.pid = 1
         session.commit()
 

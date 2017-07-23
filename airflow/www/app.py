@@ -30,6 +30,7 @@ from airflow.www.blueprints import routes
 from airflow import jobs
 from airflow import settings
 from airflow import configuration
+from airflow.utils.net import get_hostname
 
 
 def create_app(config=None, testing=False):
@@ -143,7 +144,7 @@ def create_app(config=None, testing=False):
         @app.context_processor
         def jinja_globals():
             return {
-                'hostname': socket.getfqdn(),
+                'hostname': get_hostname(),
             }
 
         @app.teardown_appcontext
