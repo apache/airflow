@@ -915,6 +915,7 @@ def worker(args):
         'O': 'fair',
         'queues': args.queues,
         'concurrency': args.concurrency,
+        'hostname': args.celery_hostname,
     }
 
     if args.daemon:
@@ -1423,6 +1424,10 @@ class CLIFactory(object):
             type=int,
             help="The number of worker processes",
             default=conf.get('celery', 'celeryd_concurrency')),
+        'celery_hostname': Arg(
+            ("-cn", "--celery_hostname"),
+            help=("Set the hostname of celery worker "
+                  "if you have multiple workers on a single machine.")),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
@@ -1582,7 +1587,7 @@ class CLIFactory(object):
         }, {
             'func': worker,
             'help': "Start a Celery worker node",
-            'args': ('do_pickle', 'queues', 'concurrency',
+            'args': ('do_pickle', 'queues', 'concurrency', 'celery_hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'log_file'),
         }, {
             'func': flower,
