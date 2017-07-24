@@ -461,10 +461,6 @@ def run(args, dag=None):
     logging.root.handlers = []
 
     # store logs remotely
-    _store_logs_remotely(log_base, filename)
-
-
-def _store_logs_remotely(log_base, filename):
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
     # deprecated as of March 2016
@@ -476,10 +472,7 @@ def _store_logs_remotely(log_base, filename):
             DeprecationWarning)
         remote_base = conf.get('core', 'S3_LOG_FOLDER')
 
-    if remote_base == 'None':
-        remote_base = None
-
-    if remote_base and os.path.exists(filename):
+    if os.path.exists(filename):
         # read log and remove old logs to get just the latest additions
 
         with open(filename, 'r') as logfile:
@@ -494,7 +487,7 @@ def _store_logs_remotely(log_base, filename):
         elif remote_base.startswith('gs:/'):
             logging_utils.GCSLog().write(log, remote_log_location)
         # Other
-        else:
+        elif remote_base and remote_base != 'None':
             logging.error(
                 'Unsupported remote log location: {}'.format(remote_base))
 
