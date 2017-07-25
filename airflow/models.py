@@ -4255,6 +4255,7 @@ class DagRun(Base):
             # skip in db?
             if ti.state == State.REMOVED:
                 tis.remove(ti)
+                session.delete(ti)
             else:
                 ti.task = dag.get_task(ti.task_id)
 
