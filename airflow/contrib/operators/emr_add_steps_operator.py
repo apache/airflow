@@ -28,7 +28,7 @@ class EmrAddStepsOperator(BaseOperator):
     :param steps: boto3 style steps to be added to the jobflow
     :type steps: list
     """
-    template_fields = ['job_flow_id']
+    template_fields = ['job_flow_id', 'steps']
     template_ext = ()
     ui_color = '#f9c915'
 
