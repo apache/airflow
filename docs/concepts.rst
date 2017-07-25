@@ -47,7 +47,7 @@ scope.
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
-    def my_function()
+    def my_function():
         dag_2 = DAG('but_this_dag_will_not')
 
     my_function()
@@ -64,9 +64,10 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
 .. code:: python
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1),
-        owner='Airflow')
+    default_args = {
+        'start_date': datetime(2016, 1, 1),
+        'owner': 'Airflow'
+    }
 
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
