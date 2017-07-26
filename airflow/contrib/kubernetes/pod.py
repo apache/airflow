@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from kubernetes import client, config
-from kubernetes_request_factory import KubernetesRequestFactory, SimplePodRequestFactory
 import logging
-from airflow import AirflowException
-import time
-import json
 
 class Pod:
     """
@@ -43,49 +38,21 @@ class Pod:
             envs,
             cmds,
             secrets,
-            labels,
-            node_selectors,
-            kube_req_factory,
-            name,
+            labels=None,
+            node_selectors=None,
+            name=None,
+            volumes = [],
             namespace='default',
             result=None):
         self.image = image
-        self.envs = envs
+        self.envs = envs if envs else {}
         self.cmds = cmds
         self.secrets = secrets
         self.result = result
-        self.labels = labels
+        self.labels = labels if labels else []
         self.name = name
-        self.node_selectors = node_selectors
-        self.kube_req_factory = (kube_req_factory or SimplePodRequestFactory)()
+        self.volumes = volumes
+        self.node_selectors = node_selectors if node_selectors else []
         self.namespace = namespace
         self.logger = logging.getLogger(self.__class__.__name__)
-        if not isinstance(self.kube_req_factory, KubernetesRequestFactory):
-            raise AirflowException('`kube_req_factory`'
-                                   '  should implement KubernetesRequestFactory')
 
-    def launch(self):
-        """
-            Launches the pod synchronously and waits for completion.
-        """
-        k8s_beta = self._kube_client()
-        req = self.kube_req_factory.create(self)
-        print(json.dumps(req))
-        resp = k8s_beta.create_namespaced_job(body=req, namespace=self.namespace)
-        self.logger.info("Job created. status='%s', yaml:\n%s"
-                         % (str(resp.status), str(req)))
-        while not self._execution_finished():
-            time.sleep(10)
-        return self.result
-
-    def _kube_client(self):
-        config.load_incluster_config()
-        return client.BatchV1Api()
-
-    def _execution_finished(self):
-        k8s_beta = self._kube_client()
-        resp = k8s_beta.read_namespaced_job_status(self.name, namespace=self.namespace)
-        self.logger.info('status : ' + str(resp.status))
-        if resp.status.phase == 'Failed':
-            raise Exception("Job " + self.name + " failed!")
-        return resp.status.phase != 'Running'

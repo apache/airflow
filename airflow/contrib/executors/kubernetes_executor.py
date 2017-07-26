@@ -17,20 +17,20 @@ import logging
 import time
 import os
 import multiprocessing
-from airflow.contrib.kubernetes.kubernetes_pod_builder import KubernetesPodBuilder
-from airflow.contrib.kubernetes.kubernetes_helper import KubernetesHelper
 from queue import Queue
 from kubernetes import watch
 from airflow import settings
-from airflow.contrib.kubernetes.kubernetes_request_factory import SimplePodRequestFactory
+from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
+from airflow.contrib.kubernetes.pod import Pod
 from airflow.utils.state import State
 from airflow import configuration
-import json
-# TODO this is just for proof of concept. remove before merging.
+from kubernetes import client
 
-
+class KubeConfig:
+    kube_image = configuration.get('core', 'k8s_image')
+    git_repo = configuration.get('core', 'k8s_git_repo')
 
 
 def _prep_command_for_container(command):
@@ -48,6 +48,9 @@ def _prep_command_for_container(command):
     return '"' + '","'.join(command.split(' ')[1:]) + '"'
 
 
+PARALLELISM = configuration.getint('core', 'PARALLELISM')
+
+
 class KubernetesJobWatcher(multiprocessing.Process, object):
     def __init__(self, watch_function, namespace, result_queue, watcher_queue):
         self.logger = logging.getLogger(__name__)
@@ -60,26 +63,26 @@ class KubernetesJobWatcher(multiprocessing.Process, object):
 
     def run(self):
         self.logger.info("Event: and now my watch begins")
-        self.logger.info("Event: proof of image change")
-        self.logger.info("Event: running {} with {}".format(str(self._watch_function),
-                                                     self.namespace))
-        for event in self._watch.stream(self._watch_function, self.namespace):
-            task= event['object']
-            self.logger.info("Event: {} had an event of type {}".format(task.metadata.name,
-                                                                        event['type']))
+        for event in self._watch.stream(self._watch_function, self.namespace,
+                                        label_selector='airflow-slave'):
+            task = event['object']
+            self.logger.info(
+                "Event: {} had an event of type {}".format(task.metadata.name,
+                                                           event['type']))
             self.process_status(task.metadata.name, task.status.phase)
 
     def process_status(self, job_id, status):
         if status == 'Pending':
             self.logger.info("Event: {} Pending".format(job_id))
         elif status == 'Failed':
-            self.logger.info("Event: {} Failed".format(job_id))
+            # self.logger.info("Event: {} Failed".format(job_id))
             self.watcher_queue.put((job_id, State.FAILED))
         elif status == 'Succeeded':
-            self.logger.info("Event: {} Succeeded".format(job_id))
+            # self.logger.info("Event: {} Succeeded".format(job_id))
             self.watcher_queue.put((job_id, None))
         elif status == 'Running':
-            self.logger.info("Event: {} is Running".format(job_id))
+            # self.logger.info("Event: {} is Running".format(job_id))
+            self.watcher_queue.put((job_id, State.RUNNING))
         else:
             self.logger.info("Event: Invalid state {} on job {}".format(status, job_id))
 
@@ -92,15 +95,19 @@ class AirflowKubernetesScheduler(object):
         self.logger = logging.getLogger(__name__)
         self.logger.info("creating kubernetes executor")
         self.task_queue = task_queue
+        self.pending_jobs = set()
         self.namespace = os.environ['k8s_POD_NAMESPACE']
         self.logger.info("k8s: using namespace {}".format(self.namespace))
         self.result_queue = result_queue
+        self.launcher = PodLauncher()
         self.current_jobs = {}
         self.running = running
         self._task_counter = 0
         self.watcher_queue = multiprocessing.Queue()
-        self.helper = KubernetesHelper()
-        w = KubernetesJobWatcher(self.helper.pod_api.list_namespaced_pod, self.namespace,
+        self.api = client.CoreV1Api()
+
+        watch_function = self.api.read_namespaced_pod
+        w = KubernetesJobWatcher(watch_function, self.namespace,
                                  self.result_queue, self.watcher_queue)
         w.start()
 
@@ -119,28 +126,28 @@ class AirflowKubernetesScheduler(object):
         (key, command) = next_job
         self.logger.info("running for command {}".format(command))
         epoch_time = calendar.timegm(time.gmtime())
-        command_list = ["/usr/local/airflow/entrypoint.sh"] + command.split()[1:] + \
-                       ['-km']
-        self._set_host_id(key)
+        cmd_args = "mkdir -p $AIRFLOW_HOME/dags/synched/git && " \
+                   "git clone {} /tmp/tmp_git && " \
+                   "mv /tmp/tmp_git/* $AIRFLOW_HOME/dags/synched/git/ &&" \
+                   "rm -rf /tmp/tmp_git &&" \
+                   "{} -km".format(KubeConfig.git_repo, command)
         pod_id = self._create_job_id_from_key(key=key, epoch_time=epoch_time)
         self.current_jobs[pod_id] = key
 
-        image = configuration.get('core','k8s_image')
-        print("k8s: launching image {}".format(image))
         pod = KubernetesPodBuilder(
-            image= image,
-            cmds=command_list,
+            image=KubeConfig.kube_image,
+            cmds=["bash", "-cx", "--"],
+            args=[cmd_args],
             kub_req_factory=SimplePodRequestFactory(),
-            namespace=self.namespace)
+            namespace=self.namespace
+        )
         pod.add_name(pod_id)
         pod.launch()
         self._task_counter += 1
 
+        # the watcher will monitor pods, so we do not block.
+        self.launcher.run_pod_async(pod)
         self.logger.info("k8s: Job created!")
-
-    def delete_job(self, key):
-        job_id = self.current_jobs[key]
-        self.helper.delete_job(job_id, namespace=self.namespace)
 
     def sync(self):
         """
@@ -153,17 +160,21 @@ class AirflowKubernetesScheduler(object):
 
         """
         while not self.watcher_queue.empty():
-            self.end_task()
+            self.process_watcher_task()
 
-    def end_task(self):
+    def process_watcher_task(self):
         job_id, state = self.watcher_queue.get()
-        if job_id in self.current_jobs:
-            key = self.current_jobs[job_id]
-            self.logger.info("finishing job {}".format(key))
-            if state:
-                self.result_queue.put((key, state))
-            self.current_jobs.pop(job_id)
-            self.running.pop(key)
+        if state == State.RUNNING and job_id in self.pending_jobs:
+            self.pending_jobs.remove(job_id)
+        elif job_id in self.current_jobs:
+            self._complete_job(job_id, state)
+
+    def _complete_job(self, job_id, state):
+        key = self.current_jobs[job_id]
+        self.logger.info("finishing job {}".format(key))
+        self.result_queue.put((key, state))
+        self.current_jobs.pop(job_id)
+        self.running.pop(key)
 
     def _create_job_id_from_key(self, key, epoch_time):
         """
@@ -186,23 +197,22 @@ class AirflowKubernetesScheduler(object):
         job_id = unformatted_job_id.replace('_', '-')
         return job_id
 
-    def _set_host_id(self, key):
-        (dag_id, task_id, ex_time) = key
-        session = settings.Session()
-        item = session.query(TaskInstance) \
-            .filter_by(dag_id=dag_id, task_id=task_id, execution_date=ex_time).one()
-
-        host_id = item.hostname
-        print("host is {}".format(host_id))
-
 
 class KubernetesExecutor(BaseExecutor):
+    def __init__(self):
+        super(KubernetesExecutor, self).__init__(parallelism=PARALLELISM)
+        self.task_queue = None
+        self._session = None
+        self.result_queue = None
+        self.pending_tasks = None
+        self.kub_client = None
 
     def start(self):
         self.logger.info('k8s: starting kubernetes executor')
         self.task_queue = Queue()
         self._session = settings.Session()
         self.result_queue = Queue()
+        self.pending_tasks = {}
         self.kub_client = AirflowKubernetesScheduler(self.task_queue,
                                                      self.result_queue,
                                                      running=self.running)
@@ -215,7 +225,7 @@ class KubernetesExecutor(BaseExecutor):
             self.change_state(*results)
 
         # TODO this could be a job_counter based on max jobs a user wants
-        if len(self.kub_client.current_jobs) > 3:
+        if self.job_queue_full() or self.cluster_at_capacity():
             self.logger.info("currently a job is running")
         else:
             self.logger.info("queue ready, running next")
@@ -223,13 +233,20 @@ class KubernetesExecutor(BaseExecutor):
                 (key, command) = self.task_queue.get()
                 self.kub_client.run_next((key, command))
 
+    def job_queue_full(self):
+        return len(self.kub_client.current_jobs) > PARALLELISM
+
+    def cluster_at_capacity(self):
+        return len(self.pending_tasks) > 5
+
     def terminate(self):
         pass
 
     def change_state(self, key, state):
         self.logger.info("k8s: setting state of {} to {}".format(key, state))
         if state != State.RUNNING:
-            self.kub_client.delete_job(key)
+            # self.kub_client.delete_job(key)
+            self.logger.info("current running {}".format(self.running))
             self.running.pop(key)
         self.event_buffer[key] = state
         (dag_id, task_id, ex_time) = key
