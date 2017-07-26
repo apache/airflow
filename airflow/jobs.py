@@ -2351,7 +2351,7 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
         if ti.state == State.RUNNING:
             self.was_running = True
-            fqdn = socket.getfqdn()
+            fqdn = socket.gethostname()
             if fqdn != ti.hostname:
                 logging.warning("The recorded hostname {ti.hostname} "
                                 "does not match this instance's hostname "
