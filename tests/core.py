@@ -1088,6 +1088,7 @@ class CliTests(unittest.TestCase):
 
         session.query(models.Pool).delete()
         session.query(models.Variable).delete()
+        session.query(models.TaskInstance).delete()
         session.commit()
         session.close()
 
@@ -1325,6 +1326,24 @@ class CliTests(unittest.TestCase):
         cli.run(self.parser.parse_args([
             'run', 'example_bash_operator', 'runme_0', '-l',
             DEFAULT_DATE.isoformat()]))
+
+    def test_cli_run_import_failure(self):
+        task = DummyOperator(dag_id='no_such_dag', task_id='no_such_task')
+        self.session.add(
+            models.TaskInstance(
+                task,
+                execution_date=DEFAULT_DATE,
+                state=State.QUEUED
+            )
+        )
+        self.session.commit()
+        with self.assertRaises(Exception):
+            cli.run(self.parser.parse_args([
+                'run', task.dag_id, task.task_id, '-l',
+                DEFAULT_DATE.isoformat()]))
+        ti = self.session.query(models.TaskInstance).filter_by(
+            dag_id=task.dag_id, task_id=task.task_id).first()
+        self.assertTrue(ti.state == State.NONE)
 
     def test_task_state(self):
         cli.task_state(self.parser.parse_args([
