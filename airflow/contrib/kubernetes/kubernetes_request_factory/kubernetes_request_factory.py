@@ -12,10 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from abc import ABCMeta, abstractmethod
-from airflow import dag_importer
-
 
 class KubernetesRequestFactory():
     """
@@ -35,73 +32,75 @@ class KubernetesRequestFactory():
         """
         pass
 
+    @staticmethod
+    def extract_image(pod, req):
+        req['spec']['containers'][0]['image'] = pod.image
 
-def extract_image(pod, req):
-    req['spec']['containers'][0]['image'] = pod.image
-
-
-def add_secret_to_env(env, secret):
-    env.append({
-        'name': secret.deploy_target,
-        'valueFrom': {
-            'secretKeyRef': {
-                'name': secret.secret,
-                'key': secret.key
-            }
-        }
-    })
-
-
-def extract_labels(pod, req):
-    for k in pod.labels.keys():
-        req['metadata']['labels'][k] = pod.labels[k]
-
-
-def extract_cmds(pod, req):
-    req['spec']['containers'][0]['command'] = pod.cmds
-
-
-def extract_node_selector(pod, req):
-    req['spec']['nodeSelector'] = pod.node_selectors
-
-
-def extract_secrets(pod, req):
-    env_secrets = [s for s in pod.secrets if s.deploy_type == 'env']
-    if len(pod.envs) > 0 or len(env_secrets) > 0:
-        env = []
-        for k in pod.envs.keys():
-            env.append({'name': k, 'value': pod.envs[k]})
-        for secret in env_secrets:
-            add_secret_to_env(env, secret)
-        req['spec']['containers'][0]['env'] = env
-
-
-def attach_volume_mounts(req):
-    logging.info("preparing to import dags")
-    dag_importer.import_dags()
-    logging.info("using file mount {}".format(dag_importer.dag_import_spec))
-    req['spec']['volumes'] = [dag_importer.dag_import_spec]
-
-
-def extract_name(pod, req):
-    req['metadata']['name'] = pod.name
-
-
-def extract_volume_secrets(pod, req):
-    vol_secrets = [s for s in pod.secrets if s.deploy_type == 'volume']
-    if any(vol_secrets):
-        req['spec']['containers'][0]['volumeMounts'] = []
-        req['spec']['volumes'] = []
-    for idx, vol in enumerate(vol_secrets):
-        vol_id = 'secretvol' + str(idx)
-        req['spec']['containers'][0]['volumeMounts'].append({
-            'mountPath': vol.deploy_target,
-            'name': vol_id,
-            'readOnly': True
-        })
-        req['spec']['volumes'].append({
-            'name': vol_id,
-            'secret': {
-                'secretName': vol.secret
+    @staticmethod
+    def add_secret_to_env(env, secret):
+        env.append({
+            'name':secret.deploy_target,
+            'valueFrom':{
+                'secretKeyRef':{
+                    'name':secret.secret,
+                    'key':secret.key
+                }
             }
         })
+
+    @staticmethod
+    def extract_labels(pod, req):
+        for k in pod.labels.keys():
+            req['metadata']['labels'][k] = pod.labels[k]
+
+    @staticmethod
+    def extract_cmds(pod, req):
+        req['spec']['containers'][0]['command'] = pod.cmds
+
+    @staticmethod
+    def extract_args(pod, req):
+        req['spec']['containers'][0]['args'] = pod.args
+
+    @staticmethod
+    def extract_node_selector(pod, req):
+        req['spec']['nodeSelector'] = pod.node_selectors
+
+
+    @staticmethod
+    def attach_volume_mounts(pod, req):
+        req['spec']['volumes'] = pod.volumes
+
+    @staticmethod
+    def extract_name(pod, req):
+        req['metadata']['name'] = pod.name
+
+    @staticmethod
+    def extract_volume_secrets(pod, req):
+        vol_secrets = [s for s in pod.secrets if s.deploy_type == 'volume']
+        if any(vol_secrets):
+            req['spec']['containers'][0]['volumeMounts'] = []
+            req['spec']['volumes'] = []
+        for idx, vol in enumerate(vol_secrets):
+            vol_id = 'secretvol' + str(idx)
+            req['spec']['containers'][0]['volumeMounts'].append({
+                'mountPath':vol.deploy_target,
+                'name':vol_id,
+                'readOnly':True
+            })
+            req['spec']['volumes'].append({
+                'name':vol_id,
+                'secret':{
+                    'secretName':vol.secret
+                }
+            })
+
+    @staticmethod
+    def extract_secrets(pod, req):
+        env_secrets = [s for s in pod.secrets if s.deploy_type == 'env']
+        if len(pod.envs) > 0 or len(env_secrets) > 0:
+            env = []
+            for k in pod.envs.keys():
+                env.append({'name':k, 'value':pod.envs[k]})
+            for secret in env_secrets:
+                KubernetesRequestFactory.add_secret_to_env(env, secret)
+            req['spec']['containers'][0]['env'] = env

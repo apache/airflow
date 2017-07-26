@@ -10,9 +10,9 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-
+import logging
 import yaml
-from .kubernetes_request_factory import *
+from .kubernetes_request_factory import KubernetesRequestFactory, KubernetesRequestFactoryHelper as kreq
 
 
 class SimpleJobRequestFactory(KubernetesRequestFactory):
@@ -21,7 +21,7 @@ class SimpleJobRequestFactory(KubernetesRequestFactory):
     """
 
     def __init__(self):
-        pass
+        super(SimpleJobRequestFactory, self).__init__()
 
     _yaml = """apiVersion: batch/v1
 kind: Job
@@ -36,25 +36,22 @@ spec:
       - name: base
         image: airflow-slave:latest
         command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
-        volumeMounts:
-          - name: shared-data
-            mountPath: "/usr/local/airflow/dags"
       restartPolicy: Never
     """
 
-    def create(self, pod):
+    def create_body(self, pod):
         req = yaml.load(self._yaml)
-        sub_req = req['spec']['template']
-        extract_name(pod, sub_req)
-        extract_labels(pod, sub_req)
-        extract_image(pod, sub_req)
-        extract_cmds(pod, sub_req)
+        kreq.extract_name(pod, req)
+        kreq.extract_labels(pod, req)
+        kreq.extract_image(pod, req)
+        kreq.extract_cmds(pod, req)
+        kreq.extract_args(pod, req)
         if len(pod.node_selectors) > 0:
-            extract_node_selector(pod, sub_req)
-        extract_secrets(pod, sub_req)
-        print("attaching volume mounts")
-        attach_volume_mounts(sub_req)
+            kreq.extract_node_selector(pod, req)
+            kreq.extract_secrets(pod, req)
+        logging.info("attaching volume mounts")
+        kreq.attach_volume_mounts(req)
         return req
 
-
-
+    def after_create(self, body, pod):
+        pass
