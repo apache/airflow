@@ -35,6 +35,7 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks = {}
         self.running = {}
         self.event_buffer = {}
+        self.logger.setLevel(10)
 
     def start(self):  # pragma: no cover
         """

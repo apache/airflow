@@ -16,7 +16,7 @@ import json
 import logging
 
 
-class KubernetesJobBuilder:
+class KubernetesPodBuilder:
     def __init__(
         self,
         image,
@@ -57,13 +57,13 @@ class KubernetesJobBuilder:
         k8s_beta = self._kube_client()
         req = self.kub_req_factory.create(self)
         print(json.dumps(req))
-        resp = k8s_beta.create_namespaced_job(body=req, namespace=self.namespace)
+        resp = k8s_beta.create_namespaced_pod(body=req, namespace=self.namespace)
         self.logger.info("Job created. status='%s', yaml:\n%s",
                          str(resp.status), str(req))
 
     def _kube_client(self):
         config.load_incluster_config()
-        return client.BatchV1Api()
+        return client.CoreV1Api()
 
     def _execution_finished(self):
         k8s_beta = self._kube_client()

@@ -17,15 +17,16 @@ import logging
 import time
 import os
 import multiprocessing
-from airflow.contrib.kubernetes.kubernetes_job_builder import KubernetesJobBuilder
+from airflow.contrib.kubernetes.kubernetes_pod_builder import KubernetesPodBuilder
 from airflow.contrib.kubernetes.kubernetes_helper import KubernetesHelper
 from queue import Queue
 from kubernetes import watch
 from airflow import settings
-from airflow.contrib.kubernetes.kubernetes_request_factory import SimpleJobRequestFactory
+from airflow.contrib.kubernetes.kubernetes_request_factory import SimplePodRequestFactory
 from airflow.executors.base_executor import BaseExecutor
 from airflow.models import TaskInstance
 from airflow.utils.state import State
+from airflow import configuration
 import json
 # TODO this is just for proof of concept. remove before merging.
 
@@ -58,24 +59,29 @@ class KubernetesJobWatcher(multiprocessing.Process, object):
         self.watcher_queue = watcher_queue
 
     def run(self):
-        self.logger.info("and now my watch begins")
-        self.logger.info("running {} with {}".format(str(self._watch_function),
+        self.logger.info("Event: and now my watch begins")
+        self.logger.info("Event: proof of image change")
+        self.logger.info("Event: running {} with {}".format(str(self._watch_function),
                                                      self.namespace))
         for event in self._watch.stream(self._watch_function, self.namespace):
-            job = event['object']
-            self.logger.info("Event: {} had an event of type {}".format(job.metadata.name,
+            task= event['object']
+            self.logger.info("Event: {} had an event of type {}".format(task.metadata.name,
                                                                         event['type']))
-            self.process_status(job.metadata.name, job.status)
+            self.process_status(task.metadata.name, task.status.phase)
 
     def process_status(self, job_id, status):
-        if status.failed:
+        if status == 'Pending':
+            self.logger.info("Event: {} Pending".format(job_id))
+        elif status == 'Failed':
             self.logger.info("Event: {} Failed".format(job_id))
             self.watcher_queue.put((job_id, State.FAILED))
-        elif status.succeeded:
+        elif status == 'Succeeded':
             self.logger.info("Event: {} Succeeded".format(job_id))
             self.watcher_queue.put((job_id, None))
-        elif status.active:
+        elif status == 'Running':
             self.logger.info("Event: {} is Running".format(job_id))
+        else:
+            self.logger.info("Event: Invalid state {} on job {}".format(status, job_id))
 
 
 class AirflowKubernetesScheduler(object):
@@ -87,13 +93,14 @@ class AirflowKubernetesScheduler(object):
         self.logger.info("creating kubernetes executor")
         self.task_queue = task_queue
         self.namespace = os.environ['k8s_POD_NAMESPACE']
+        self.logger.info("k8s: using namespace {}".format(self.namespace))
         self.result_queue = result_queue
         self.current_jobs = {}
         self.running = running
         self._task_counter = 0
         self.watcher_queue = multiprocessing.Queue()
         self.helper = KubernetesHelper()
-        w = KubernetesJobWatcher(self.helper.api.list_namespaced_job, self.namespace,
+        w = KubernetesJobWatcher(self.helper.pod_api.list_namespaced_pod, self.namespace,
                                  self.result_queue, self.watcher_queue)
         w.start()
 
@@ -117,10 +124,14 @@ class AirflowKubernetesScheduler(object):
         self._set_host_id(key)
         pod_id = self._create_job_id_from_key(key=key, epoch_time=epoch_time)
         self.current_jobs[pod_id] = key
-        pod = KubernetesJobBuilder(
-            image='airflow-slave:latest',
+
+        image = configuration.get('core','k8s_image')
+        print("k8s: launching image {}".format(image))
+        pod = KubernetesPodBuilder(
+            image= image,
             cmds=command_list,
-            kub_req_factory=SimpleJobRequestFactory())
+            kub_req_factory=SimplePodRequestFactory(),
+            namespace=self.namespace)
         pod.add_name(pod_id)
         pod.launch()
         self._task_counter += 1
@@ -149,10 +160,8 @@ class AirflowKubernetesScheduler(object):
         if job_id in self.current_jobs:
             key = self.current_jobs[job_id]
             self.logger.info("finishing job {}".format(key))
-            namespace = 'default'
             if state:
                 self.result_queue.put((key, state))
-            self.helper.delete_job(job_id, namespace=namespace)
             self.current_jobs.pop(job_id)
             self.running.pop(key)
 

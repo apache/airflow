@@ -25,8 +25,8 @@ dag_import_spec = {}
 
 def import_dags():
     logging.info("importing dags")
-    if configuration.has_option('core', 'kube_mode'):
-        mode = configuration.get('core', 'kube_mode')
+    if configuration.has_option('core', 'k8s_mode'):
+        mode = configuration.get('core', 'k8s_mode')
         dag_import_func(mode)()
     else:
         _import_hostpath()
@@ -36,7 +36,7 @@ def dag_import_func(mode):
     return {
         'git': _import_git,
         'cinder': _import_cinder,
-    }.get(mode, _import_hostpath)[mode]
+    }.get(mode, _import_hostpath)
 
 
 def _import_hostpath():
@@ -75,8 +75,9 @@ def _import_git():
     logging.info("importing dags from github")
     global dag_import_spec
     git_link = configuration.get('core', 'k8s_git_link')
-    revision = configuration.get('core', 'k8s_git_revision')
     spec = {'name': 'shared-data', 'gitRepo': {}}
     spec['gitRepo']['repository'] = git_link
-    spec['gitRepo']['revision'] = revision
+    if configuration.has_option('core','k8s_git_revision'):
+        revision = configuration.get('core', 'k8s_git_revision')
+        spec['gitRepo']['revision'] = revision
     dag_import_spec = spec

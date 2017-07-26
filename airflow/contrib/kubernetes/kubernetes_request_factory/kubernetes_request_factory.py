@@ -37,7 +37,7 @@ class KubernetesRequestFactory():
 
 
 def extract_image(pod, req):
-    req['spec']['template']['spec']['containers'][0]['image'] = pod.image
+    req['spec']['containers'][0]['image'] = pod.image
 
 
 def add_secret_to_env(env, secret):
@@ -58,7 +58,7 @@ def extract_labels(pod, req):
 
 
 def extract_cmds(pod, req):
-    req['spec']['template']['spec']['containers'][0]['command'] = pod.cmds
+    req['spec']['containers'][0]['command'] = pod.cmds
 
 
 def extract_node_selector(pod, req):
@@ -80,7 +80,7 @@ def attach_volume_mounts(req):
     logging.info("preparing to import dags")
     dag_importer.import_dags()
     logging.info("using file mount {}".format(dag_importer.dag_import_spec))
-    req['spec']['template']['spec']['volumes'] = [dag_importer.dag_import_spec]
+    req['spec']['volumes'] = [dag_importer.dag_import_spec]
 
 
 def extract_name(pod, req):

@@ -35,7 +35,6 @@ spec:
       containers:
       - name: base
         image: airflow-slave:latest
-        imagePullPolicy: Never
         command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
         volumeMounts:
           - name: shared-data
@@ -45,15 +44,16 @@ spec:
 
     def create(self, pod):
         req = yaml.load(self._yaml)
-        extract_name(pod, req)
-        extract_labels(pod, req)
-        extract_image(pod, req)
-        extract_cmds(pod, req)
+        sub_req = req['spec']['template']
+        extract_name(pod, sub_req)
+        extract_labels(pod, sub_req)
+        extract_image(pod, sub_req)
+        extract_cmds(pod, sub_req)
         if len(pod.node_selectors) > 0:
-            extract_node_selector(pod, req)
-        extract_secrets(pod, req)
+            extract_node_selector(pod, sub_req)
+        extract_secrets(pod, sub_req)
         print("attaching volume mounts")
-        attach_volume_mounts(req)
+        attach_volume_mounts(sub_req)
         return req
 
 

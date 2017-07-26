@@ -23,16 +23,17 @@ class SimplePodRequestFactory(kreq.KubernetesRequestFactory):
     _yaml = """apiVersion: v1
 kind: Pod
 metadata:
-  name: job_id
-  labels:
-      type: airflow
+  name: name
 spec:
-      containers:
-      - name: base
-        image: image
-        command: ["/usr/entrypoint"]
-      restartPolicy: Never
-"""
+  containers:
+    - name: base
+      image: airflow-slave:latest
+      command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
+      volumeMounts:
+        - name: shared-data
+          mountPath: "/usr/local/airflow/dags"
+  restartPolicy: Never
+    """
 
     def __init__(self):
         pass
@@ -47,6 +48,7 @@ spec:
             kreq.extract_node_selector(pod, req)
         kreq.extract_secrets(pod, req)
         kreq.extract_volume_secrets(pod, req)
+        kreq.attach_volume_mounts(req)
         return req
 
 
