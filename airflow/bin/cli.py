@@ -305,7 +305,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 
 def mark_task_as(dag_id, task_id, execution_date, state):
-    """Finds task instance with specified dag_id, task_id and execution_date, and changes state.
+    """Finds task instance with specified fields, and changes state.
 
     If the task instance doesn't exist, it does nothing.
 
@@ -320,7 +320,9 @@ def mark_task_as(dag_id, task_id, execution_date, state):
         )
     ).all()
     if tis:
-        assert len(tis) == 1, "There must be at most one task instance with given properties"
+        assert len(tis) == 1, (
+            "There must be at most one task instance with given properties"
+        )
         ti = tis[0]
         ti.state = state
         session.merge(ti)
@@ -353,8 +355,10 @@ def run(args, dag=None):
         try:
             dag = get_dag(args)
         except Exception as e:
-            # DAG import can fail, it's an app dev code, we cannot require it to be reliable,
-            # so we catch this error here and set task instance state to NONE to reschedule it
+            # DAG import can fail
+            # it's an app dev code, we cannot require it to be reliable,
+            # so we catch this error here and set task instance state to NONE
+            # to reschedule it
             # DAG import errors are observed and expected to be transient
             print('Failed to load DAG, reason: %r' % e)
             print('Setting the task state back to NONE')
