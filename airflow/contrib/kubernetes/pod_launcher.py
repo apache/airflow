@@ -12,34 +12,38 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import base64
 import json
 import logging
+import os
 import time
-import urllib2
+import requests
+import kubernetes
 
-from kubernetes import client, config
-
-from kubernetes_request_factory import KubernetesRequestFactory
+from airflow import AirflowException
 from pod import Pod
 
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
-def kube_client():
+from kubernetes_request_factory import KubernetesRequestFactory, KubernetesRequestFactoryHelper
+
+
+def kube_core_api():
     config.load_incluster_config()
     return client.CoreV1Api()
 
 
 def incluster_namespace():
     """
-    :return: The incluster namespace.
+    :return: Extracted in cluster namespace from kube config file
     """
-    config.load_incluster_config()
-    k8s_configuration = config.incluster_config.configuration
-    encoded_namespace = k8s_configuration.api_key['authorization'].split(' ')[-1]
-    api_key = str(base64.b64decode(encoded_namespace))
-    key_with_namespace = [k for k in api_key.split(',') if 'namespace' in k][0]
-    unformatted_namespace = key_with_namespace.split(':')[-1]
-    return unformatted_namespace.replace('"', '')
+    mounted_ns = '/var/run/secrets/kubernetes.io/serviceaccount/namespace'
+    if not os.path.exists(mounted_ns):
+       logging.error('Incluster namespace mount not found')
+       raise AirflowException('Incluster namespace mount was not found!')
+    with open(mounted_ns, 'rt') as f:
+        ns = f.read()
+        return ns
 
 
 class KubernetesLauncher:
@@ -48,6 +52,7 @@ class KubernetesLauncher:
     Extend this class to launch exotic objects.
     Before trying to extend this method check if augmenting the request factory
     is enough for your use-case
+
     :param kube_object: A pod or anything that represents a Kubernetes object
     :type kube_object: Pod
     :param request_factory: A factory method to create kubernetes requests.
@@ -58,23 +63,26 @@ class KubernetesLauncher:
     def __init__(self, kube_object, request_factory):
         if not isinstance(kube_object, Pod):
             raise Exception('`kube_object` must inherit from Pod')
-        if not isinstance(request_factory, KubernetesRequestFactory):
-            raise Exception('`request_factory` must inherit from '
-                            'KubernetesRequestFactory')
+        if not callable(request_factory):
+            raise Exception('`request_factory` must be callable')
+        the_request_factory = request_factory()
+        if not isinstance(the_request_factory, KubernetesRequestFactory):
+            raise Exception('`request_factory()` must inherit from KubernetesRequestFactory but is '
+                            + str(type(the_request_factory)))
         self.pod = kube_object
-        self.request_factory = request_factory
+        self.request_factory = the_request_factory
 
     def launch(self):
         """
             Launches the pod synchronously and waits for completion.
             No return value from execution. Will raise an exception if things failed
         """
-        k8s_beta = kube_client()
-        req = self.request_factory.create(self)
+        k8s_beta = kube_core_api()
+        req = self.request_factory.create(self.pod)
         logging.info(json.dumps(req))
-        resp = k8s_beta.create_namespaced_pod(body=req, namespace=self.pod.namespace)
-        logging.info("Job created. status='%s', yaml:\n%s"
-                     % (str(resp.status), str(req)))
+        self._delete_existing_pod(k8s_beta)
+        resp = k8s_beta.create_namespaced_pod(body=req, namespace=self.pod.namespace or incluster_namespace())
+        logging.info("Job created. status='%s', request:\n%s" % (str(resp.status), str(req)))
         for i in range(1, self.pod_timeout):
             time.sleep(10)
             logging.info('Waiting for success')
@@ -84,15 +92,28 @@ class KubernetesLauncher:
         raise Exception("Job timed out!")
 
     def _execution_finished(self):
-        k8s_beta = kube_client()
+        k8s_beta = kube_core_api()
         resp = k8s_beta.read_namespaced_pod_status(
-            self.pod.name,
-            namespace=self.pod.namespace)
+            KubernetesRequestFactoryHelper.sanitize_name(self.pod.name), namespace=self.pod.namespace)
         logging.info('status : ' + str(resp.status))
-        logging.info('phase : i' + str(resp.status.phase))
+        logging.info('phase : ' + str(resp.status.phase))
         if resp.status.phase == 'Failed':
             raise Exception("Job " + self.pod.name + " failed!")
-        return resp.status.phase != 'Running'
+        return resp.status.phase != 'Running' and resp.status.phase != 'Pending'
+
+    def _delete_existing_pod(self, k8client):
+        logging.info('deleting pod ' + self.pod.name)
+        try:
+            resp = k8client.delete_namespaced_pod(
+                name=KubernetesRequestFactoryHelper.sanitize_name(self.pod.name),
+                namespace=self.pod.namespace,
+                body=kubernetes.client.models.V1DeleteOptions())
+            logging.info('delete result: ' + str(resp))
+        except ApiException as e:
+            if e.status == 404:
+                logging.info('but there was nothing to delete')
+            else:
+                raise
 
 
 class KubernetesCommunicationService:
@@ -110,28 +131,25 @@ class KubernetesCommunicationService:
 
     def pod_pre_stop_hook(self, return_data_file, task_id):
         return 'echo value=$(cat %s) | curl -d "@-" -X PUT %s:%s/v2/keys/pod_metrics/%s' \
-               % (
-                   return_data_file, self.etcd_host, self.etcd_port, task_id)
+               % (return_data_file, self.etcd_host, self.etcd_port, task_id)
 
     def pod_return_data(self, task_id):
         """
-            Returns the pod's return data. The pod_pre_stop_hook is responsible to upload 
-            the return data to etcd. 
-            
-            If the return_data_file is generated by the application, the pre stop hook 
+            Returns the pod's return data. The pod_pre_stop_hook is responsible to upload
+            the return data to etcd.
+
+            If the return_data_file is generated by the application, the pre stop hook
             will upload it to etcd and we will be download it back to airflow.
         """
         logging.info('querying {} for task id {}'.format(self.url, task_id))
-        try:
-            result = urllib2.urlopen(self.url + '/v2/keys/pod_metrics/' + task_id).read()
-            logging.info('result for querying {} for task id {}: {}'
-                         .format(self.url, task_id, result))
-            result = json.loads(result)['node']['value']
-            return result
-        except urllib2.HTTPError as err:
-            if err.code == 404:
-                return None  # Data not found
-            raise
+        result = requests.get(self.url + '/v2/keys/pod_metrics/' + task_id)
+        logging.info('result for querying {} for task id {}: {}'
+                     .format(self.url, task_id, result.text))
+        if result.status_code == 200:
+            return json.loads(result.text)['node']['value']
+        if result.status_code == 404:
+            return None  # Data not found
+        result.raise_for_status()
 
     @staticmethod
     def from_dag_default_args(dag):

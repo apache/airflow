@@ -12,22 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from kubernetes import client, config
-from kubernetes_request_factory import KubernetesRequestFactory, SimplePodRequestFactory
-import logging
-from airflow import AirflowException
-import time
-import json
 
-class Pod:
+class Pod(object):
     """
         Represents a kubernetes pod and manages execution of a single pod.
+
         :param image: The docker image
         :type image: str
-        :param env: A dict containing the environment variables
-        :type env: dict
+        :param envs: A dict containing the environment variables
+        :type envs: dict
         :param cmds: The command to be run on the pod
-        :type cmd: list str
+        :type cmds: list str
         :param secrets: Secrets to be launched to the pod
         :type secrets: list Secret
         :param result: The result that will be returned to the operator after
@@ -35,57 +30,73 @@ class Pod:
         :type result: any
 
     """
-    pod_timeout = 3600
 
     def __init__(
             self,
             image,
-            envs,
-            cmds,
-            secrets,
-            labels,
-            node_selectors,
-            kube_req_factory,
-            name,
-            namespace='default',
-            result=None):
+            envs=None,
+            cmds=None,
+            secrets=None,
+            labels=None,
+            node_selectors=None,
+            name=None,
+            namespace=None,
+            result=None,
+            configs=None,
+            privileged=False,
+            mount_dags=False):
+        if envs is None:
+            envs = {}
         self.image = image
-        self.envs = envs
-        self.cmds = cmds
-        self.secrets = secrets
+        self.envs = envs or {}
+        self.cmds = cmds or []
+        self.secrets = secrets or []
+        self.labels = labels or {}
+        self.configs = configs or []
         self.result = result
-        self.labels = labels
         self.name = name
-        self.node_selectors = node_selectors
-        self.kube_req_factory = (kube_req_factory or SimplePodRequestFactory)()
+        self.node_selectors = node_selectors or []
+        self.privileged = privileged
+        self.mount_dags = mount_dags
         self.namespace = namespace
-        self.logger = logging.getLogger(self.__class__.__name__)
-        if not isinstance(self.kube_req_factory, KubernetesRequestFactory):
-            raise AirflowException('`kube_req_factory`'
-                                   '  should implement KubernetesRequestFactory')
 
-    def launch(self):
-        """
-            Launches the pod synchronously and waits for completion.
-        """
-        k8s_beta = self._kube_client()
-        req = self.kube_req_factory.create(self)
-        print(json.dumps(req))
-        resp = k8s_beta.create_namespaced_job(body=req, namespace=self.namespace)
-        self.logger.info("Job created. status='%s', yaml:\n%s"
-                         % (str(resp.status), str(req)))
-        while not self._execution_finished():
-            time.sleep(10)
-        return self.result
 
-    def _kube_client(self):
-        config.load_incluster_config()
-        return client.BatchV1Api()
+class Secret:
+    """
+        Data model for a secret
 
-    def _execution_finished(self):
-        k8s_beta = self._kube_client()
-        resp = k8s_beta.read_namespaced_job_status(self.name, namespace=self.namespace)
-        self.logger.info('status : ' + str(resp.status))
-        if resp.status.phase == 'Failed':
-            raise Exception("Job " + self.name + " failed!")
-        return resp.status.phase != 'Running'
+        :param deploy_type: The secret deploy type. Can be one of the following:
+                            See https://kubernetes.io/docs/concepts/configuration/secret/
+                            'env': to deploy secret as environment variable
+                            'volume': to deploy secrets as a volume
+        :type deploy_type: str
+        :param deploy_target: The target of deployment. Depending on the deploy type can be
+                              either an environment variable 'env' name or a volume mount
+                              path 'volume'
+        :type deploy_target: str
+        :param secret: The secret name in Kubernetes.
+        :type secret: str
+        :param key: The secret key
+        :type key: str
+    """
+
+    def __init__(self, deploy_type, deploy_target, secret, key):
+        self.deploy_type = deploy_type
+        self.deploy_target = deploy_target
+        self.secret = secret
+        self.key = key
+
+
+class Config:
+    """
+        Data model for configuration data to be mounted as a file
+
+        :param file_name: The file name for the config to be mounted
+        :type file_name: str
+
+        :param json_config: Configuration as a dict
+        :type json_config: dict
+    """
+    def __init__(self, file_name, json_config):
+        self.file_name = file_name
+        self.json_config = json_config

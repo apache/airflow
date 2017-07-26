@@ -61,10 +61,6 @@ class KubernetesJobBuilder:
         self.logger.info("Job created. status='%s', yaml:\n%s",
                          str(resp.status), str(req))
 
-    def _kube_client(self):
-        config.load_incluster_config()
-        return client.BatchV1Api()
-
     def _execution_finished(self):
         k8s_beta = self._kube_client()
         resp = k8s_beta.read_namespaced_job_status(self.name, namespace=self.namespace)
@@ -72,3 +68,8 @@ class KubernetesJobBuilder:
         if resp.status.phase == 'Failed':
             raise Exception("Job " + self.name + " failed!")
         return resp.status.phase != 'Running'
+
+    @staticmethod
+    def _kube_client():
+        config.load_incluster_config()
+        return client.BatchV1Api()

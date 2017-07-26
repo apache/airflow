@@ -15,8 +15,10 @@ from kubernetes import client, config
 import json
 import logging
 
+from airflow.contrib.kubernetes.pod import Pod
 
-class KubernetesPodBuilder:
+
+class KubernetesPodBuilder(Pod):
     def __init__(
         self,
         image,
@@ -24,6 +26,7 @@ class KubernetesPodBuilder:
         namespace,
         kub_req_factory=None
     ):
+        super(KubernetesPodBuilder, self).__init__(image, mount_dags=True)
         self.image = image
         self.cmds = cmds
         self.kub_req_factory = kub_req_factory
