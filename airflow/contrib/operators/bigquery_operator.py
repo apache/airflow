@@ -61,13 +61,13 @@ class BigQueryOperator(BaseOperator):
                  bql,
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
-                 create_disposition='CREATE_IF_NEEDED',
                  allow_large_results=False,
                  bigquery_conn_id='bigquery_default',
                  delegate_to=None,
                  udf_config=False,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
+                 create_disposition='CREATE_IF_NEEDED',
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -89,5 +89,6 @@ class BigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.create_disposition, self.allow_large_results, self.udf_config,
-                         self.use_legacy_sql, self.maximum_billing_tier)
+                         self.allow_large_results, self.udf_config,
+                         self.use_legacy_sql, self.maximum_billing_tier,
+                         self.create_disposition)

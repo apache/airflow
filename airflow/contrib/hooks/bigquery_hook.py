@@ -192,11 +192,11 @@ class BigQueryBaseCursor(object):
     def run_query(
             self, bql, destination_dataset_table = False,
             write_disposition = 'WRITE_EMPTY',
-            create_disposition='CREATE_IF_NEEDED',
             allow_large_results=False,
             udf_config = False,
             use_legacy_sql=True,
-            maximum_billing_tier=None):
+            maximum_billing_tier=None,
+            create_disposition='CREATE_IF_NEEDED'):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
