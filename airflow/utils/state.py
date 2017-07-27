@@ -38,6 +38,7 @@ class State(object):
     SHUTDOWN = "shutdown"  # External request to shut down
     FAILED = "failed"
     UP_FOR_RETRY = "up_for_retry"
+    SLEEP = "sleep"
     UPSTREAM_FAILED = "upstream_failed"
     SKIPPED = "skipped"
 
@@ -47,6 +48,7 @@ class State(object):
         FAILED,
         UPSTREAM_FAILED,
         UP_FOR_RETRY,
+        SLEEP,
         QUEUED,
     )
 
@@ -63,6 +65,7 @@ class State(object):
         SHUTDOWN: 'blue',
         FAILED: 'red',
         UP_FOR_RETRY: 'gold',
+        SLEEP: 'lightgray',
         UPSTREAM_FAILED: 'orange',
         SKIPPED: 'pink',
         REMOVED: 'lightgrey',
@@ -109,5 +112,6 @@ class State(object):
             cls.SCHEDULED,
             cls.QUEUED,
             cls.RUNNING,
-            cls.UP_FOR_RETRY
+            cls.UP_FOR_RETRY,
+            cls.SLEEP
         ]

@@ -26,7 +26,7 @@ import re
 import sys
 
 from airflow import settings
-from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSensorTimeout, AirflowSkipException, AirflowSleepException
 from airflow.models import BaseOperator, TaskInstance
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.hdfs_hook import HDFSHook
@@ -59,6 +59,7 @@ class BaseSensorOperator(BaseOperator):
             timeout=60*60*24*7,
             soft_fail=False,
             *args, **kwargs):
+        kwargs['sleep_delay'] = poke_interval
         super(BaseSensorOperator, self).__init__(*args, **kwargs)
         self.poke_interval = poke_interval
         self.soft_fail = soft_fail
@@ -79,7 +80,7 @@ class BaseSensorOperator(BaseOperator):
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
-            sleep(self.poke_interval)
+            raise AirflowSleepException('Snap. Time is OUT.')
         logging.info("Success criteria met. Exiting.")
 
 

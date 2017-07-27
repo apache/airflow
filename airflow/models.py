@@ -62,9 +62,10 @@ import six
 from airflow import settings, utils
 from airflow.executors import GetDefaultExecutor, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import AirflowException, AirflowSkipException, AirflowSleepException, AirflowTaskTimeout
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
+from airflow.ti_deps.deps.not_in_sleep_period_dep import NotInSleepPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 
@@ -1067,10 +1068,11 @@ class TaskInstance(Base):
     def is_premature(self):
         """
         Returns whether a task is in UP_FOR_RETRY state and its retry interval
-        has elapsed.
+        has elapsed or is in SLEEP state and its sleep interval has elapsed.
         """
         # is the task still in the retry waiting period?
-        return self.state == State.UP_FOR_RETRY and not self.ready_for_retry()
+        return (self.state == State.UP_FOR_RETRY and not self.ready_for_retry() or
+                self.state == State.SLEEP and not self.ready_for_wake_up())
 
     @provide_session
     def are_dependents_done(self, session=None):
@@ -1217,6 +1219,13 @@ class TaskInstance(Base):
                 delay = min(self.task.max_retry_delay, delay)
         return self.end_date + delay
 
+    def next_wake_up_datetime(self):
+        """
+        Get datetime of the next wake up if the task instance sleeps.
+        """
+        delay = self.task.sleep_delay
+        return self.end_date + delay
+
     def ready_for_retry(self):
         """
         Checks on whether the task instance is in the right state and timeframe
@@ -1224,6 +1233,14 @@ class TaskInstance(Base):
         """
         return (self.state == State.UP_FOR_RETRY and
                 self.next_retry_datetime() < datetime.now())
+
+    def ready_for_wake_up(self):
+        """
+        Checks on whether the task instance is in the right state and timeframe
+        to be waked up.
+        """
+        return (self.state == State.SLEEP and
+                self.next_wake_up_datetime() < datetime.now())
 
     @provide_session
     def pool_full(self, session):
@@ -1449,6 +1466,8 @@ class TaskInstance(Base):
             self.state = State.SUCCESS
         except AirflowSkipException:
             self.state = State.SKIPPED
+        except AirflowSleepException:
+            self.state = State.SLEEP
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
@@ -1463,7 +1482,7 @@ class TaskInstance(Base):
 
         # Success callback
         try:
-            if task.on_success_callback:
+            if self.state != State.SLEEP and task.on_success_callback:
                 task.on_success_callback(context)
         except Exception as e3:
             logging.error("Failed when executing success callback")
@@ -1896,6 +1915,8 @@ class BaseOperator(object):
     :type retry_exponential_backoff: bool
     :param max_retry_delay: maximum delay interval between retries
     :type max_retry_delay: timedelta
+    :param sleep_delay: delay between wake ups
+    :type sleep_delay: timedelta
     :param start_date: The ``start_date`` for the task, determines
         the ``execution_date`` for the first task instance. The best practice
         is to have the start_date rounded
@@ -2000,6 +2021,7 @@ class BaseOperator(object):
             retry_delay=timedelta(seconds=300),
             retry_exponential_backoff=False,
             max_retry_delay=None,
+            sleep_delay=timedelta(seconds=300),
             start_date=None,
             end_date=None,
             schedule_interval=None,  # not hooked as of now
@@ -2078,6 +2100,11 @@ class BaseOperator(object):
             logging.debug("retry_delay isn't timedelta object, assuming secs")
             self.retry_delay = timedelta(seconds=retry_delay)
         self.retry_exponential_backoff = retry_exponential_backoff
+        if isinstance(sleep_delay, timedelta):
+            self.sleep_delay = sleep_delay
+        else:
+            logging.debug("sleep_delay isn't timedelta object, assuming secs")
+            self.sleep_delay = timedelta(seconds=sleep_delay)
         self.max_retry_delay = max_retry_delay
         self.params = params or {}  # Available in templates!
         self.adhoc = adhoc
@@ -2239,6 +2266,7 @@ class BaseOperator(object):
         """
         return {
             NotInRetryPeriodDep(),
+            NotInSleepPeriodDep(),
             PrevDagrunDep(),
             TriggerRuleDep(),
         }
@@ -4043,7 +4071,9 @@ class DagRun(Base):
 
     ID_PREFIX = 'scheduled__'
     ID_FORMAT_PREFIX = ID_PREFIX + '{0}'
-    DEADLOCK_CHECK_DEP_CONTEXT = DepContext(ignore_in_retry_period=True)
+    DEADLOCK_CHECK_DEP_CONTEXT = DepContext(
+        ignore_in_retry_period=True,
+        ignore_in_sleep_period=True)
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
@@ -4271,8 +4301,8 @@ class DagRun(Base):
             # todo: this can actually get pretty slow: one task costs between 0.01-015s
             no_dependencies_met = all(
                 # Use a special dependency context that ignores task's up for retry
-                # dependency, since a task that is up for retry is not necessarily
-                # deadlocked.
+                # and sleep dependency, since a task that is up for retry or sleeping
+                # is not necessarily deadlocked.
                 not t.are_dependencies_met(dep_context=self.DEADLOCK_CHECK_DEP_CONTEXT,
                                            session=session)
                 for t in unfinished_tasks)
