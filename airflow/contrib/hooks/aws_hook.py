@@ -28,19 +28,22 @@ class AwsHook(BaseHook):
         self.aws_conn_id = aws_conn_id
 
     def get_client_type(self, client_type, region_name=None):
-        try:
-            connection_object = self.get_connection(self.aws_conn_id)
-            aws_access_key_id = connection_object.login
-            aws_secret_access_key = connection_object.password
-
-            if region_name is None:
-                region_name = connection_object.extra_dejson.get('region_name')
-
-        except AirflowException:
-            # No connection found: fallback on boto3 credential strategy
-            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
-            aws_access_key_id = None
-            aws_secret_access_key = None
+        aws_access_key_id = None
+        aws_secret_access_key = None
+        
+        if self.aws_conn_id:
+            try:
+                connection_object = self.get_connection(self.aws_conn_id)
+                aws_access_key_id = connection_object.login
+                aws_secret_access_key = connection_object.password
+    
+                if region_name is None:
+                    region_name = connection_object.extra_dejson.get('region_name')
+    
+            except AirflowException:
+                # No connection found: fallback on boto3 credential strategy
+                # http://boto3.readthedocs.io/en/latest/guide/configuration.html
+                pass
 
         return boto3.client(
             client_type,
