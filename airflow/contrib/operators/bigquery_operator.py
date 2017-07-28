@@ -31,6 +31,12 @@ class BigQueryOperator(BaseOperator):
         (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
         of the query.
     :type destination_dataset_table: string
+    :param write_disposition: Specifies the action that occurs if the destination table
+        already exists. (default: 'WRITE_EMPTY')
+    :type write_disposition: string
+    :param create_disposition: Specifies whether the job is allowed to create new tables.
+        (default: 'CREATE_IF_NEEDED')
+    :type create_disposition: string
     :param bigquery_conn_id: reference to a specific BigQuery hook.
     :type bigquery_conn_id: string
     :param delegate_to: The account to impersonate, if any.
@@ -61,12 +67,14 @@ class BigQueryOperator(BaseOperator):
                  udf_config=False,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
+                 create_disposition='CREATE_IF_NEEDED',
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
+        self.create_disposition = create_disposition
         self.allow_large_results = allow_large_results
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
@@ -81,5 +89,6 @@ class BigQueryOperator(BaseOperator):
         conn = hook.get_conn()
         cursor = conn.cursor()
         cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config, self.use_legacy_sql,
-                         self.maximum_billing_tier)
+                         self.allow_large_results, self.udf_config,
+                         self.use_legacy_sql, self.maximum_billing_tier,
+                         self.create_disposition)

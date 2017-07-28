@@ -195,7 +195,8 @@ class BigQueryBaseCursor(object):
             allow_large_results=False,
             udf_config = False,
             use_legacy_sql=True,
-            maximum_billing_tier=None):
+            maximum_billing_tier=None,
+            create_disposition='CREATE_IF_NEEDED'):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -210,6 +211,9 @@ class BigQueryBaseCursor(object):
             BigQuery table to save the query results.
         :param write_disposition: What to do if the table already exists in
             BigQuery.
+        :type write_disposition: string
+        :param create_disposition: Specifies whether the job is allowed to create new tables.
+        :type create_disposition: string
         :param allow_large_results: Whether to allow large results.
         :type allow_large_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
@@ -238,6 +242,7 @@ class BigQueryBaseCursor(object):
             configuration['query'].update({
                 'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
+                'createDisposition': create_disposition,
                 'destinationTable': {
                     'projectId': destination_project,
                     'datasetId': destination_dataset,
