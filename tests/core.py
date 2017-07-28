@@ -1354,6 +1354,16 @@ class CliTests(unittest.TestCase):
             'clear', 'example_subdag_operator', '--no_confirm', '--exclude_subdags'])
         cli.clear(args)
 
+    def test_get_dags(self):
+        dags = cli.get_dags(self.parser.parse_args(['clear', 'example_subdag_operator', '-c']))
+        self.assertEqual(len(dags), 1)
+
+        dags = cli.get_dags(self.parser.parse_args(['clear', 'subdag', '-dx', '-c']))
+        self.assertGreater(len(dags), 1)
+
+        with self.assertRaises(AirflowException):
+            cli.get_dags(self.parser.parse_args(['clear', 'foobar', '-dx', '-c']))
+
     def test_backfill(self):
         cli.backfill(self.parser.parse_args([
             'backfill', 'example_bash_operator',
