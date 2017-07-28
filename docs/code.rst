@@ -239,6 +239,7 @@ Community contributed hooks
         VerticaHook,
         FTPHook,
         SSHHook,
+        SFTPHook,
         CloudantHook
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
