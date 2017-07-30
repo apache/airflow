@@ -23,6 +23,7 @@ import re
 import unittest
 import multiprocessing
 import mock
+from mock.mock import patch, MagicMock
 from numpy.testing import assert_array_almost_equal
 import tempfile
 from datetime import datetime, time, timedelta
@@ -38,7 +39,7 @@ import sqlalchemy
 
 from airflow import configuration
 from airflow.executors import SequentialExecutor, LocalExecutor
-from airflow.models import Variable
+from airflow.models import Variable, Connection
 from tests.test_utils.fake_datetime import FakeDatetime
 
 configuration.load_test_config()
@@ -2379,6 +2380,24 @@ class S3HookTest(unittest.TestCase):
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
+
+    def test_get_host_from_connection(self):
+        host_value = "some_host"
+        connection_obj = MagicMock(
+            spec_set=Connection,
+            host=host_value
+        )
+
+        with patch.object(
+            S3Hook,
+            "get_connection",
+            return_value=connection_obj) as mocked_get_connection,\
+            patch.object(
+                S3Hook,
+                "get_conn",
+                return_value=None) as mocked_get_coon:
+            hook = S3Hook()
+            self.assertEqual(host_value, hook.s3_host)
 
 
 send_email_test = mock.Mock()

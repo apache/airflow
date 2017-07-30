@@ -105,7 +105,9 @@ class S3Hook(BaseHook):
         self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
-        if 'host' in self.extra_params:
+        if self.s3_conn.host is not None:
+            self.s3_host = self.s3_conn.host
+        elif 'host' in self.extra_params:
             self.s3_host = self.extra_params['host']
         if self._creds_in_conn:
             self._a_key = self.extra_params['aws_access_key_id']
