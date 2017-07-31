@@ -18,31 +18,26 @@ import base64
 import json
 import os
 import re
-try:  # python 2
-    from urlparse import urlsplit
-except ImportError:  # python 3
-    from urllib.parse import urlsplit
 
 import dill
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.operators.cloudml_operator import CloudMLBatchPredictionOperator
-from airflow.contrib.operators.cloudml_operator import _normalize_cloudml_job_id
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
-
+from six.moves.urllib.parse import urlsplit
 
 def create_evaluate_ops(task_prefix,
-                        project_id,
-                        job_id,
-                        region,
                         data_format,
                         input_paths,
                         prediction_path,
                         metric_fn_and_keys,
                         validate_fn,
-                        dataflow_options,
+                        batch_prediction_job_id=None,
+                        project_id=None,
+                        region=None,
+                        dataflow_options=None,
                         model_uri=None,
                         model_name=None,
                         version_name=None,
@@ -114,22 +109,6 @@ def create_evaluate_ops(task_prefix,
         job name, which doesn't allow other characters.
     :type task_prefix: string
 
-    :param model_uri: GCS path of the model exported by Tensorflow using
-        tensorflow.estimator.export_savedmodel(). It cannot be used with
-        model_name or version_name below. See CloudMLBatchPredictionOperator for
-        more detail.
-    :type model_uri: string
-
-    :param model_name: Used to indicate a model to use for prediction. Can be
-        used in combination with version_name, but cannot be used together with
-        model_uri. See CloudMLBatchPredictionOperator for more detail.
-    :type model_name: string
-
-    :param version_name: Used to indicate a model version to use for prediciton,
-        in combination with model_name. Cannot be used together with model_uri.
-        See CloudMLBatchPredictionOperator for more detail.
-    :type version_name: string
-
     :param data_format: either of 'TEXT', 'TF_RECORD', 'TF_RECORD_GZIP'
     :type data_format: string
 
@@ -149,8 +128,45 @@ def create_evaluate_ops(task_prefix,
         good enough to push the model.
     :type validate_fn: function
 
-    :param dataflow_options: options to run Dataflow jobs.
+    :param batch_prediction_job_id: the id to use for the Cloud ML Batch
+        prediction job. Passed directly to the CloudMLBatchPredictionOperator as
+        the job_id argument.
+    :type batch_prediction_job_id: string
+
+    :param project_id: the Google Cloud Platform project id in which to execute
+        Cloud ML Batch Prediction and Dataflow jobs. If None, then the `dag`'s
+        `default_args['project_id']` will be used.
+    :type project_id: string
+
+    :param region: the Google Cloud Platform region in which to execute Cloud ML
+        Batch Prediction and Dataflow jobs. If None, then the `dag`'s
+        `default_args['region']` will be used.
+    :type region: string
+
+    :param dataflow_options: options to run Dataflow jobs. If None, then the
+        `dag`'s `default_args['dataflow_default_options']` will be used.
     :type dataflow_options: dictionary
+
+    :param model_uri: GCS path of the model exported by Tensorflow using
+        tensorflow.estimator.export_savedmodel(). It cannot be used with
+        model_name or version_name below. See CloudMLBatchPredictionOperator for
+        more detail.
+    :type model_uri: string
+
+    :param model_name: Used to indicate a model to use for prediction. Can be
+        used in combination with version_name, but cannot be used together with
+        model_uri. See CloudMLBatchPredictionOperator for more detail. If None,
+        then the `dag`'s `default_args['model_name']` will be used.
+    :type model_name: string
+
+    :param version_name: Used to indicate a model version to use for prediciton,
+        in combination with model_name. Cannot be used together with model_uri.
+        See CloudMLBatchPredictionOperator for more detail. If None, then the
+        `dag`'s `default_args['version_name']` will be used.
+    :type version_name: string
+
+    :param dag: The `DAG` to use for all Operators.
+    :type dag: airflow.DAG
 
     :returns: a tuple of three operators, (prediction, summary, validation)
     :rtype: tuple(DataFlowPythonOperator, DataFlowPythonOperator,
@@ -170,10 +186,19 @@ def create_evaluate_ops(task_prefix,
     if not callable(validate_fn):
         raise AirflowException("`validate_fn` param must be callable.")
 
+    if dag is not None and dag.default_args is not None:
+        default_args = dag.default_args
+        project_id = project_id or default_args.get('project_id')
+        region = region or default_args.get('region')
+        model_name = model_name or default_args.get('model_name')
+        version_name = version_name or default_args.get('version_name')
+        dataflow_options = dataflow_options or \
+            default_args.get('dataflow_default_options')
+
     evaluate_prediction = CloudMLBatchPredictionOperator(
         task_id=(task_prefix + "-prediction"),
         project_id=project_id,
-        job_id=_normalize_cloudml_job_id(job_id),
+        job_id=batch_prediction_job_id,
         region=region,
         data_format=data_format,
         input_paths=input_paths,
@@ -195,9 +220,6 @@ def create_evaluate_ops(task_prefix,
             "metric_keys": ','.join(metric_keys)
         },
         dag=dag)
-    # TODO: "options" is not template_field of DataFlowPythonOperator (not sure
-    # if intended or by mistake); consider fixing in the DataFlowPythonOperator.
-    evaluate_summary.template_fields.append("options")
     evaluate_summary.set_upstream(evaluate_prediction)
 
     def apply_validate_fn(*args, **kwargs):

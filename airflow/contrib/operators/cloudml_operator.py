@@ -341,6 +341,12 @@ class CloudMLVersionOperator(BaseOperator):
         If it is None, the only `operation` possible would be `list`.
     :type version: dict
 
+    :param version_name: A name to use for the version being operated upon. If
+        not None and the `version` argument is None or does not have a value for
+        the `name` key, then this will be populated in the payload for the
+        `name` key.
+    :type version_name: string
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
 
@@ -372,13 +378,15 @@ class CloudMLVersionOperator(BaseOperator):
     template_fields = [
         '_model_name',
         '_version',
+        '_version_name',
     ]
 
     @apply_defaults
     def __init__(self,
                  model_name,
                  project_id,
-                 version,
+                 version=None,
+                 version_name=None,
                  gcp_conn_id='google_cloud_default',
                  operation='create',
                  delegate_to=None,
@@ -387,13 +395,17 @@ class CloudMLVersionOperator(BaseOperator):
 
         super(CloudMLVersionOperator, self).__init__(*args, **kwargs)
         self._model_name = model_name
-        self._version = version
+        self._version = version or {}
+        self._version_name = version_name
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._project_id = project_id
         self._operation = operation
 
     def execute(self, context):
+        if 'name' not in self._version:
+            self._version['name'] = self._version_name
+
         hook = CloudMLHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
