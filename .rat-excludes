@@ -25,3 +25,13 @@ CHANGELOG.txt
 kerberos_auth.py
 airflow_api_auth_backend_kerberos_auth_py.html
 licenses/*
+airflow/www/static/docs
+parallel.js
+underscore.js
+jquery.dataTables.min.js
+jqClock.min.js
+dagre-d3.min.js
+bootstrap-toggle.min.js
+bootstrap-toggle.min.css
+d3.v3.min.js
+ace.js
