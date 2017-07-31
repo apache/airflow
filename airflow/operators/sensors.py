@@ -347,7 +347,7 @@ class HivePartitionSensor(BaseSensorOperator):
     :type metastore_conn_id: str
     """
     template_fields = ('schema', 'table', 'partition',)
-    ui_color = '#2b2d42'
+    ui_color = '#C5CAE9'
 
     @apply_defaults
     def __init__(
