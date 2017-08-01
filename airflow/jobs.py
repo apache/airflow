@@ -1837,26 +1837,29 @@ class BackfillJob(BaseJob):
                      not_ready=None,
                      deadlocked=None,
                      active_runs=None,
+                     executed_dag_run_dates=None,
                      finished_runs=0,
                      total_runs=0,
                      ):
             """
             :param to_run: Tasks to run in the backfill
-            :type to_run: dict
+            :type to_run: dict[Tuple[String, String, DateTime], TaskInstance]
             :param started: Maps started task instance key to task instance object
-            :type started: dict
+            :type started: dict[Tuple[String, String, DateTime], TaskInstance]
             :param skipped: Tasks that have been skipped
-            :type skipped: set
+            :type skipped: set[Tuple[String, String, DateTime]]
             :param succeeded: Tasks that have succeeded so far
-            :type succeeded: set
+            :type succeeded: set[Tuple[String, String, DateTime]]
             :param failed: Tasks that have failed
-            :type failed: set
+            :type failed: set[Tuple[String, String, DateTime]]
             :param not_ready: Tasks not ready for execution
-            :type not_ready: set
+            :type not_ready: set[Tuple[String, String, DateTime]]
             :param deadlocked: Deadlocked tasks
-            :type deadlocked: set
-            :param active_runs: Active tasks at a certain point in time
-            :type active_runs: list
+            :type deadlocked: set[Tuple[String, String, DateTime]]
+            :param active_runs: Active dag runs at a certain point in time
+            :type active_runs: list[DagRun]
+            :param executed_dag_run_dates: Datetime objects for the executed dag runs
+            :type executed_dag_run_dates: set[Datetime]
             :param finished_runs: Number of finished runs so far
             :type finished_runs: int
             :param total_runs: Number of total dag runs able to run
@@ -1870,6 +1873,7 @@ class BackfillJob(BaseJob):
             self.not_ready = not_ready or set()
             self.deadlocked = deadlocked or set()
             self.active_runs = active_runs or list()
+            self.executed_dag_run_dates = executed_dag_run_dates or set()
             self.finished_runs = finished_runs
             self.total_runs = total_runs
 
@@ -1884,6 +1888,7 @@ class BackfillJob(BaseJob):
             ignore_first_depends_on_past=False,
             ignore_task_deps=False,
             pool=None,
+            delay_on_limit_secs=1.0,
             *args, **kwargs):
         self.dag = dag
         self.dag_id = dag.dag_id
@@ -1895,6 +1900,7 @@ class BackfillJob(BaseJob):
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
+        self.delay_on_limit_secs = delay_on_limit_secs
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -1975,14 +1981,23 @@ class BackfillJob(BaseJob):
     def _get_dag_run(self, run_date, session=None):
         """
         Returns a dag run for the given run date, which will be matched to an existing
-        dag run if available or create a new dag run otherwise.
+        dag run if available or create a new dag run otherwise. If the max_active_runs
+        limit is reached, this function will return None.
         :param run_date: the execution date for the dag run
         :type run_date: datetime
         :param session: the database session object
         :type session: Session
-        :return: the dag run for the run date
+        :return: a DagRun in state RUNNING or None
         """
         run_id = BackfillJob.ID_FORMAT_PREFIX.format(run_date.isoformat())
+
+        # consider max_active_runs but ignore when running subdags
+        respect_dag_max_active_limit = (True
+                                        if (self.dag.schedule_interval and
+                                            not self.dag.is_subdag)
+                                        else False)
+
+        current_active_dag_count = self.dag.get_num_active_runs(external_trigger=False)
 
         # check if we are scheduling on top of a already existing dag_run
         # we could find a "scheduled" run instead of a "backfill"
@@ -1990,17 +2005,27 @@ class BackfillJob(BaseJob):
                           execution_date=run_date,
                           session=session)
 
-        if run is None or len(run) == 0:
-            run = self.dag.create_dagrun(
-                run_id=run_id,
-                execution_date=run_date,
-                start_date=datetime.now(),
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session
-            )
-        else:
+        if run is not None and len(run) > 0:
             run = run[0]
+            if run.state == State.RUNNING:
+                respect_dag_max_active_limit = False
+        else:
+            run = None
+
+        # enforce max_active_runs limit for dag, special cases already
+        # handled by respect_dag_max_active_limit
+        if (respect_dag_max_active_limit and
+                current_active_dag_count >= self.dag.max_active_runs):
+            return None
+
+        run = run or self.dag.create_dagrun(
+            run_id=run_id,
+            execution_date=run_date,
+            start_date=datetime.now(),
+            state=State.RUNNING,
+            external_trigger=False,
+            session=session
+        )
 
         # set required transient field
         run.dag = self.dag
@@ -2308,23 +2333,25 @@ class BackfillJob(BaseJob):
         :type start_date: datetime
         :param session: the current session object
         :type session: Session
-        :return: list of execution dates of the dag runs that were executed.
-        :rtype: list
         """
         for next_run_date in run_dates:
             dag_run = self._get_dag_run(next_run_date, session=session)
             tis_map = self._task_instances_for_dag_run(dag_run,
                                                        session=session)
+            if dag_run is None:
+                continue
+
             ti_status.active_runs.append(dag_run)
             ti_status.to_run.update(tis_map or {})
 
-        ti_status.total_runs = len(ti_status.active_runs)
+        processed_dag_run_dates = self._process_backfill_task_instances(
+            ti_status=ti_status,
+            executor=executor,
+            pickle_id=pickle_id,
+            start_date=start_date,
+            session=session)
 
-        return self._process_backfill_task_instances(ti_status=ti_status,
-                                                     executor=executor,
-                                                     pickle_id=pickle_id,
-                                                     start_date=start_date,
-                                                     session=session)
+        ti_status.executed_dag_run_dates.update(processed_dag_run_dates)
 
     def _execute(self):
         """
@@ -2333,22 +2360,6 @@ class BackfillJob(BaseJob):
         """
         session = settings.Session()
         ti_status = BackfillJob._DagRunTaskStatus()
-
-        # consider max_active_runs but ignore when running subdags
-        # "parent.child" as a dag_id is by convention a subdag
-        if self.dag.schedule_interval and not self.dag.is_subdag:
-            all_active_runs = DagRun.find(
-                dag_id=self.dag.dag_id,
-                state=State.RUNNING,
-                external_trigger=False,
-                session=session
-            )
-
-            # return if already reached maximum active runs
-            if len(all_active_runs) >= self.dag.max_active_runs:
-                self.logger.info("Dag {} has reached maximum amount of {} dag runs"
-                                 .format(self.dag.dag_id, self.dag.max_active_runs))
-                return
 
         start_date = self.bf_start_date
 
@@ -2372,20 +2383,37 @@ class BackfillJob(BaseJob):
         executor = self.executor
         executor.start()
 
-        self._execute_for_run_dates(run_dates=run_dates,
-                                    ti_status=ti_status,
-                                    executor=executor,
-                                    pickle_id=pickle_id,
-                                    start_date=start_date,
-                                    session=session)
+        ti_status.total_runs = len(run_dates)  # total dag runs in backfill
 
-        executor.end()
-        session.commit()
-        session.close()
+        try:
+            remaining_dates = ti_status.total_runs
+            while remaining_dates > 0:
+                dates_to_process = [run_date for run_date in run_dates
+                                    if run_date not in ti_status.executed_dag_run_dates]
 
-        err = self._collect_errors(ti_status=ti_status, session=session)
-        if err:
-            raise AirflowException(err)
+                self._execute_for_run_dates(run_dates=dates_to_process,
+                                            ti_status=ti_status,
+                                            executor=executor,
+                                            pickle_id=pickle_id,
+                                            start_date=start_date,
+                                            session=session)
+
+                remaining_dates = (
+                    ti_status.total_runs - len(ti_status.executed_dag_run_dates)
+                )
+                err = self._collect_errors(ti_status=ti_status, session=session)
+                if err:
+                    raise AirflowException(err)
+
+                if remaining_dates > 0:
+                    self.logger.info(("max_active_runs limit for dag {} has been reached "
+                                     " - waiting for other dag runs to finish")
+                                     .format(self.dag_id))
+                    time.sleep(self.delay_on_limit_secs)
+        finally:
+            executor.end()
+            session.commit()
+            session.close()
 
         self.logger.info("Backfill done. Exiting.")
 
