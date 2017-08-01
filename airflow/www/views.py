@@ -2095,9 +2095,22 @@ class ChartModelView(wwwutils.DataProfilingMixin, AirflowModelView):
         'height',
         'sql_layout',
         'sql',
-        'default_params',)
+        'default_params',
+    )
     column_list = (
-        'label', 'conn_id', 'chart_type', 'owner', 'last_modified',)
+        'label',
+        'conn_id',
+        'chart_type',
+        'owner',
+        'last_modified',
+    )
+    column_sortable_list = (
+        'label',
+        'conn_id',
+        'chart_type',
+        ('owner', 'owner.username'),
+        'last_modified',
+    )
     column_formatters = dict(label=label_link, last_modified=datetime_f)
     column_default_sort = ('last_modified', True)
     create_template = 'airflow/chart/create.html'

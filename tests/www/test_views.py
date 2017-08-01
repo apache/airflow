@@ -20,6 +20,68 @@ from airflow.settings import Session
 from airflow.www import app as application
 
 
+class TestChartModelView(unittest.TestCase):
+
+    CREATE_ENDPOINT = '/admin/chart/new/?url=/admin/chart/'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestChartModelView, cls).setUpClass()
+        session = Session()
+        session.query(models.Chart).delete()
+        session.query(models.User).delete()
+        session.commit()
+        user = models.User(username='airflow')
+        session.add(user)
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestChartModelView, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.session = Session()
+        self.chart = {
+            'label': 'chart',
+            'owner': 'airflow',
+            'conn_id': 'airflow_ci',
+        }
+
+    def tearDown(self):
+        self.session.query(models.Chart).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestChartModelView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        session = Session()
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
+        super(TestChartModelView, cls).tearDownClass()
+
+    def test_create_chart(self):
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=self.chart,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.session.query(models.Chart).count(), 1)
+
+    def test_get_chart(self):
+        response = self.app.get(
+            '/admin/chart?sort=3',
+            follow_redirects=True,
+        )
+        print(response.data)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Sort by Owner', response.data.decode('utf-8'))
+
+
 class TestKnownEventView(unittest.TestCase):
 
     CREATE_ENDPOINT = '/admin/knownevent/new/?url=/admin/knownevent/'
