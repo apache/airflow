@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from builtins import object
+import itertools
 import logging
 import subprocess
 import ssl
@@ -20,6 +21,7 @@ import time
 import traceback
 
 from celery import Celery
+from celery.result import AsyncResult
 from celery import states as celery_states
 
 from airflow.exceptions import AirflowConfigException, AirflowException
@@ -83,6 +85,26 @@ def execute_command(command):
         raise AirflowException('Celery command failed')
 
 
+def recover_command(command):
+    """Recover the celery AsyncResult object for a command, if possible.
+
+    Note:
+        - We use iterables and generators to minimize backend calls.
+        - Functionality is dependent on features presented by the celery
+          backend in use.
+    """
+    insp = app.control.inspect()
+    task_providers = [insp.active, insp.scheduled, insp.reserved]
+    task_lists = (
+        itertools.chain.from_iterable(tp().values())
+        for tp in task_providers)
+    tasks = itertools.chain.from_iterable(task_lists)
+    for task in tasks:
+        if task['args'] == [command]:
+            return AsyncResult(id=task['id'], app=app)
+    return None
+
+
 class CeleryExecutor(BaseExecutor):
     """
     CeleryExecutor is recommended for production use of Airflow. It allows
@@ -98,17 +120,29 @@ class CeleryExecutor(BaseExecutor):
         self.last_state = {}
 
     def execute_async(self, key, command, queue=DEFAULT_QUEUE):
-        self.logger.info( "[celery] queuing {key} through celery, "
-                       "queue={queue}".format(**locals()))
-        self.tasks[key] = execute_command.apply_async(
-            args=[command], queue=queue)
+        if key in self.tasks:
+            self.logger.warning('[celery] existing command scheduled '
+                                'for {key}'.format(key=key))
+            return
+
+        async_command = recover_command(command)
+        if async_command is not None:
+            self.logger.warning('[celery] recovering already scheduled '
+                                'command {command}'.format(command=command))
+        else:
+            self.logger.info('[celery] queuing {key} through celery, '
+                             'queue={queue}'.format(key=key, queue=queue))
+            async_command = execute_command.apply_async(
+                args=[command], queue=queue)
+
+        self.tasks[key] = async_command
         self.last_state[key] = celery_states.PENDING
 
     def sync(self):
 
         self.logger.debug(
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
-        for key, async in list(self.tasks.items()):
+        for key, async in self.tasks.items():
             try:
                 state = async.state
                 if self.last_state[key] != state:
@@ -129,7 +163,7 @@ class CeleryExecutor(BaseExecutor):
                     self.last_state[key] = async.state
             except Exception as e:
                 logging.error("Error syncing the celery executor, ignoring "
-                              "it:\n{}\n".format(e, traceback.format_exc()))
+                              "it:\n{}\n{}".format(e, traceback.format_exc()))
 
     def end(self, synchronous=False):
         if synchronous:
