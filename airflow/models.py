@@ -4454,13 +4454,12 @@ class DagRun(Base):
     @classmethod
     @provide_session
     def get_latest_runs(cls, session):
-        """Returns the latest running DagRun for each DAG. """
+        """Returns the latest DagRun for each DAG. """
         subquery = (
             session
             .query(
                 cls.dag_id,
                 func.max(cls.execution_date).label('execution_date'))
-            .filter(cls.state == State.RUNNING)
             .group_by(cls.dag_id)
             .subquery()
         )
