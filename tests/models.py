@@ -1264,6 +1264,69 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ti0.try_number, 1)
         self.assertEqual(ti0.max_tries, 1)
 
+    def test_dags_clear(self):
+        # setup
+        session = settings.Session()
+        dags, tis = [], []
+        num_of_dags = 5
+        for i in range(num_of_dags):
+            dag = DAG('test_dag_clear_' + str(i), start_date=DEFAULT_DATE,
+                      end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+            ti = TI(task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag),
+                    execution_date=DEFAULT_DATE)
+            dags.append(dag)
+            tis.append(ti)
+
+        # test clear all dags
+        for i in range(num_of_dags):
+            tis[i].run()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].max_tries, 0)
+
+        DAG.clear_dags(dags)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            self.assertEqual(tis[i].state, State.NONE)
+            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        # test dry_run
+        for i in range(num_of_dags):
+            tis[i].run()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        DAG.clear_dags(dags, dry_run=True)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        # test only_failed
+        from random import randint
+        failed_dag_idx = randint(0, len(tis) - 1)
+        tis[failed_dag_idx].state = State.FAILED
+        session.merge(tis[failed_dag_idx])
+        session.commit()
+
+        DAG.clear_dags(dags, only_failed=True)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            if i != failed_dag_idx:
+                self.assertEqual(tis[i].state, State.SUCCESS)
+                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].max_tries, 1)
+            else:
+                self.assertEqual(tis[i].state, State.NONE)
+                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].max_tries, 2)
+
     def test_operator_clear(self):
         dag = DAG('test_operator_clear', start_date=DEFAULT_DATE,
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))

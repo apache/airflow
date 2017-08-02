@@ -3249,11 +3249,10 @@ class DAG(BaseDag, LoggingMixin):
             # Crafting the right filter for dag_id and task_ids combo
             conditions = []
             for dag in self.subdags + [self]:
-                if dag.task_ids:
-                    conditions.append(
-                        TI.dag_id.like(dag.dag_id) &
-                        TI.task_id.in_(dag.task_ids)
-                    )
+                conditions.append(
+                    TI.dag_id.like(dag.dag_id) &
+                    TI.task_id.in_(dag.task_ids)
+                )
             tis = tis.filter(or_(*conditions))
         else:
             tis = session.query(TI).filter(TI.dag_id == self.dag_id)
@@ -3276,7 +3275,6 @@ class DAG(BaseDag, LoggingMixin):
         count = tis.count()
         do_it = True
         if count == 0:
-            print("Nothing to clear.")
             return 0
         if confirm_prompt:
             ti_list = "\n".join([str(t) for t in tis])
@@ -3296,6 +3294,61 @@ class DAG(BaseDag, LoggingMixin):
 
         session.commit()
         session.close()
+        return count
+
+    @classmethod
+    def clear_dags(
+            cls, dags,
+            start_date=None,
+            end_date=None,
+            only_failed=False,
+            only_running=False,
+            confirm_prompt=False,
+            include_subdags=True,
+            reset_dag_runs=True,
+            dry_run=False):
+        all_tis = []
+        for dag in dags:
+            tis = dag.clear(
+                start_date=start_date,
+                end_date=end_date,
+                only_failed=only_failed,
+                only_running=only_running,
+                confirm_prompt=False,
+                include_subdags=include_subdags,
+                reset_dag_runs=reset_dag_runs,
+                dry_run=True)
+            all_tis.extend(tis)
+
+        if dry_run:
+            return all_tis
+
+        count = len(all_tis)
+        do_it = True
+        if count == 0:
+            print("Nothing to clear.")
+            return 0
+        if confirm_prompt:
+            ti_list = "\n".join([str(t) for t in all_tis])
+            question = (
+                "You are about to delete these {} tasks:\n"
+                "{}\n\n"
+                "Are you sure? (yes/no): ").format(count, ti_list)
+            do_it = utils.helpers.ask_yesno(question)
+
+        if do_it:
+            for dag in dags:
+                dag.clear(start_date=start_date,
+                          end_date=end_date,
+                          only_failed=only_failed,
+                          only_running=only_running,
+                          confirm_prompt=False,
+                          include_subdags=include_subdags,
+                          reset_dag_runs=reset_dag_runs,
+                          dry_run=False)
+        else:
+            count = 0
+            print("Bail. Nothing was cleared.")
         return count
 
     def __deepcopy__(self, memo):
