@@ -1453,7 +1453,7 @@ class TaskInstance(Base):
             self.state = State.SKIPPED
         except (Exception, KeyboardInterrupt) as e:
             self.refresh_from_db()
-            if self.state != STATE.SUCCESS:
+            if self.state != State.SUCCESS:
                 self.handle_failure(e, test_mode, context)
                 raise
             else:
