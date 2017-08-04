@@ -381,12 +381,8 @@ def run(args, dag=None):
             pool=args.pool)
         run_job.run()
     elif args.raw:
-        ti.run(
+        ti._run_raw_task(
             mark_success=args.mark_success,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
             job_id=args.job_id,
             pool=args.pool,
         )
