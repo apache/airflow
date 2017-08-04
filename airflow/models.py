@@ -1301,8 +1301,6 @@ class TaskInstance(Base):
         self.job_id = job_id
         self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
-        # need to track
-        marked_success = False
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
             Stats.incr('previously_succeeded', 1, 1)
@@ -1456,17 +1454,14 @@ class TaskInstance(Base):
             if self.state != State.SUCCESS:
                 self.handle_failure(e, test_mode, context)
                 raise
-            else:
-                marked_success = True
 
-        if not marked_success:
-            # Recording SUCCESS
-            self.end_date = datetime.now()
-            self.set_duration()
-            if not test_mode:
-                session.add(Log(self.state, self))
-                session.merge(self)
-            session.commit()
+        # Recording SUCCESS
+        self.end_date = datetime.now()
+        self.set_duration()
+        if not test_mode:
+            session.add(Log(self.state, self))
+            session.merge(self)
+        session.commit()
 
         # Success callback
         try:
