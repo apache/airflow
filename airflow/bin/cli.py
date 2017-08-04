@@ -179,7 +179,8 @@ def backfill(args, dag=None):
                           conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool)
+            pool=args.pool,
+            delay_on_limit_secs=args.delay_on_limit)
 
 
 def trigger_dag(args):
@@ -1234,6 +1235,14 @@ class CLIFactory(object):
                 "DO respect depends_on_past)."),
             "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
+        'delay_on_limit': Arg(
+            ("--delay_on_limit",),
+            help=("Amount of time in seconds to wait when the limit "
+                  "on maximum active dag runs (max_active_runs) has "
+                  "been reached before trying to execute a dag run "
+                  "again."),
+            type=float,
+            default=1.0),
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1491,7 +1500,7 @@ class CLIFactory(object):
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle', 'include_adhoc',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'dry_run')
+                'subdir', 'pool', 'delay_on_limit', 'dry_run')
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",

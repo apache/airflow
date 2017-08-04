@@ -3054,7 +3054,7 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def get_active_runs(self, session=None):
         """
-        Returns a list of "running" tasks
+        Returns a list of dag run execution dates currently running
         :param session:
         :return: List of execution dates
         """
@@ -3065,6 +3065,25 @@ class DAG(BaseDag, LoggingMixin):
             active_dates.append(run.execution_date)
 
         return active_dates
+
+    @provide_session
+    def get_num_active_runs(self, external_trigger=None, session=None):
+        """
+        Returns the number of active "running" dag runs
+        :param external_trigger: True for externally triggered active dag runs
+        :type external_trigger: bool
+        :param session:
+        :return: number greater than 0 for active dag runs
+        """
+        query = (session
+                 .query(DagRun)
+                 .filter(DagRun.dag_id == self.dag_id)
+                 .filter(DagRun.state == State.RUNNING))
+
+        if external_trigger is not None:
+            query = query.filter(DagRun.external_trigger == external_trigger)
+
+        return query.count()
 
     @provide_session
     def get_dagrun(self, execution_date, session=None):
@@ -3524,9 +3543,34 @@ class DAG(BaseDag, LoggingMixin):
             donot_pickle=configuration.getboolean('core', 'donot_pickle'),
             ignore_task_deps=False,
             ignore_first_depends_on_past=False,
-            pool=None):
+            pool=None,
+            delay_on_limit_secs=1.0):
         """
         Runs the DAG.
+        :param start_date: the start date of the range to run
+        :type start_date: datetime
+        :param end_date: the end date of the range to run
+        :type end_date: datetime
+        :param mark_success: True to mark jobs as succeeded without running them
+        :type mark_success: bool
+        :param include_adhoc: True to include dags with the adhoc parameter
+        :type include_adhoc: bool
+        :param local: True to run the tasks using the LocalExecutor
+        :type local: bool
+        :param executor: The executor instance to run the tasks
+        :type executor: BaseExecutor
+        :param donot_pickle: True to avoid pickling DAG object and send to workers
+        :type donot_pickle: bool
+        :param ignore_task_deps: True to skip upstream tasks
+        :type ignore_task_deps: bool
+        :param ignore_first_depends_on_past: True to ignore depends_on_past
+            dependencies for the first set of tasks only
+        :type ignore_first_depends_on_past: bool
+        :param pool: Resource pool to use
+        :type pool: string
+        :param delay_on_limit_secs: Time in seconds to wait before next attempt to run
+            dag run when max_active_runs limit has been reached
+        :type delay_on_limit_secs: float
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
@@ -3543,7 +3587,8 @@ class DAG(BaseDag, LoggingMixin):
             donot_pickle=donot_pickle,
             ignore_task_deps=ignore_task_deps,
             ignore_first_depends_on_past=ignore_first_depends_on_past,
-            pool=pool)
+            pool=pool,
+            delay_on_limit_secs=delay_on_limit_secs)
         job.run()
 
     def cli(self):
