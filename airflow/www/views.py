@@ -91,6 +91,8 @@ logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
 
+PAGE_SIZE = conf.getint('webserver', 'page_size')
+
 if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
     # filter_by_owner if authentication is enabled and filter_by_owner is true
     FILTER_BY_OWNER = not current_app.config['LOGIN_DISABLED']
@@ -1966,7 +1968,7 @@ class AirflowModelView(ModelView):
     edit_template = 'airflow/model_edit.html'
     create_template = 'airflow/model_create.html'
     column_display_actions = True
-    page_size = 500
+    page_size = PAGE_SIZE
 
 
 class ModelViewOnly(wwwutils.LoginMixin, AirflowModelView):
@@ -2283,7 +2285,6 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
 class XComView(wwwutils.SuperUserMixin, AirflowModelView):
     verbose_name = "XCom"
     verbose_name_plural = "XComs"
-    page_size = 20
 
     form_columns = (
         'key',
@@ -2438,7 +2439,7 @@ class TaskInstanceModelView(ModelViewOnly):
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
         'pool', 'log_url')
     can_delete = True
-    page_size = 500
+    page_size = PAGE_SIZE
 
     @action('set_running', "Set state to 'running'", None)
     def action_set_running(self, ids):
@@ -2704,7 +2705,7 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
     )
     can_delete = False
     can_create = False
-    page_size = 50
+    page_size = PAGE_SIZE
     list_template = 'airflow/list_dags.html'
     named_filter_urls = True
 
