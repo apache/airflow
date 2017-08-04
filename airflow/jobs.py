@@ -2449,7 +2449,7 @@ class LocalTaskJob(BaseJob):
         self.terminating = False
 
         # Keeps track of the fact that the task instance has been observed
-        # as running at least once
+        # as running from this PID
         self.was_running = False
 
         super(LocalTaskJob, self).__init__(*args, **kwargs)
@@ -2528,15 +2528,19 @@ class LocalTaskJob(BaseJob):
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
+
+        fqdn = socket.getfqdn()
+        same_hostname = fqdn == ti.hostname
+        same_process = self._is_descendant_process(ti.pid)
+        self.was_running = self.was_running or (same_hostname and same_process)
+
         if ti.state == State.RUNNING:
-            self.was_running = True
-            fqdn = socket.getfqdn()
-            if fqdn != ti.hostname:
+            if not same_hostname:
                 logging.warning("The recorded hostname {ti.hostname} "
                                 "does not match this instance's hostname "
                                 "{fqdn}".format(**locals()))
                 raise AirflowException("Hostname of job runner does not match")
-            elif not self._is_descendant_process(ti.pid):
+            elif not same_process:
                 current_pid = os.getpid()
                 logging.warning("Recorded pid {ti.pid} is not a "
                                 "descendant of the current pid "
