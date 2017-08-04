@@ -91,10 +91,13 @@ class S3Log(object):
             except:
                 pass
 
-        # raise/return error if we get here
-        err = 'Could not read logs from {}'.format(remote_log_location)
-        logging.error(err)
-        return err if return_error else ''
+        # return error if needed
+        if return_error:
+            msg = 'Could not read logs from {}'.format(remote_log_location)
+            logging.error(msg)
+            return msg
+
+        return ''
 
     def write(self, log, remote_log_location, append=True):
         """
@@ -108,25 +111,21 @@ class S3Log(object):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
-
         """
         if self.hook:
-
             if append:
                 old_log = self.read(remote_log_location)
-                log = old_log + '\n' + log
+                log = '\n'.join([old_log, log])
+
             try:
                 self.hook.load_string(
                     log,
                     key=remote_log_location,
                     replace=True,
-                    encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'))
-                return
+                    encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                )
             except:
-                pass
-
-        # raise/return error if we get here
-        logging.error('Could not write logs to {}'.format(remote_log_location))
+                logging.error('Could not write logs to {}'.format(remote_log_location))
 
 
 class GCSLog(object):
@@ -183,10 +182,13 @@ class GCSLog(object):
             except:
                 pass
 
-        # raise/return error if we get here
-        err = 'Could not read logs from {}'.format(remote_log_location)
-        logging.error(err)
-        return err if return_error else ''
+        # return error if needed
+        if return_error:
+            msg = 'Could not read logs from {}'.format(remote_log_location)
+            logging.error(msg)
+            return msg
+
+        return ''
 
     def write(self, log, remote_log_location, append=True):
         """
@@ -200,12 +202,11 @@ class GCSLog(object):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
-
         """
         if self.hook:
             if append:
                 old_log = self.read(remote_log_location)
-                log = old_log + '\n' + log
+                log = '\n'.join([old_log, log])
 
             try:
                 bkt, blob = self.parse_gcs_url(remote_log_location)
@@ -218,7 +219,6 @@ class GCSLog(object):
                     tmpfile.flush()
                     self.hook.upload(bkt, blob, tmpfile.name)
             except:
-                # raise/return error if we get here
                 logging.error('Could not write logs to {}'.format(remote_log_location))
 
     def parse_gcs_url(self, gsurl):
