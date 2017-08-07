@@ -1788,7 +1788,7 @@ class Airflow(BaseView):
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
             'taskStatus': states,
-            'height': len(tis) * 25,
+            'height': len(tis) * 25 + 25,
         }
 
         session.commit()
