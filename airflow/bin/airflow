@@ -14,8 +14,32 @@
 # limitations under the License.
 import logging
 import os
+import socket
+import requests
 from airflow import configuration
 from airflow.bin.cli import CLIFactory
+
+
+def get_private_ip(name=''):
+    r = requests.get("http://169.254.169.254/latest/meta-data/local-ipv4")
+    return str(r.text)
+
+
+def getfqdn(name=''):
+    return get_private_ip()
+
+
+should_patch_socket = False
+try:
+    should_patch_socket = configuration.getboolean('lyft',
+                                                   'prefer_ip_over_hostname')
+except configuration.AirflowConfigException:
+    pass  # Default to False if not configured
+
+if should_patch_socket:
+    logging.info("Using IP addresses instead of hostnames.")
+    socket.gethostname = socket.getfqdn = getfqdn
+
 
 if __name__ == '__main__':
 
