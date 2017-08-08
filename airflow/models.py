@@ -1446,6 +1446,7 @@ class TaskInstance(Base):
 
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
+                Stats.incr('ti_successes')
             self.state = State.SUCCESS
         except AirflowSkipException:
             self.state = State.SKIPPED
@@ -1486,6 +1487,7 @@ class TaskInstance(Base):
         self.end_date = datetime.now()
         self.set_duration()
         Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
+        Stats.incr('ti_failures')
         if not test_mode:
             session.add(Log(State.FAILED, self))
 
