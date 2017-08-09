@@ -144,6 +144,8 @@ def create_app(config=None, testing=False):
         def jinja_globals():
             return {
                 'hostname': socket.getfqdn(),
+                'ga_track_id': configuration.get('webserver', 'GA_TRACK_ID')
+                    if configuration.has_option('webserver', 'GA_TRACK_ID') else None
             }
 
         @app.teardown_appcontext
