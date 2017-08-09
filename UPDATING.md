@@ -9,8 +9,11 @@ assists people when migrating to a new version.
   SSH Hook now uses Paramiko library to create ssh client connection, instead of sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
   - update SSHHook constructor
   - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer test_ssh_operator.py for usage info.
-  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info. 
-  - No updates are required if you are using ftpHook, it will continue work as is. 
+  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info.
+  - No updates are required if you are using ftpHook, it will continue work as is.
+
+### Logging update
+  Logs now are stored in the log folder as ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``.
 
 ### New Features
 
@@ -61,8 +64,8 @@ interfere.
 Please read through these options, defaults have changed since 1.7.1.
 
 #### child_process_log_directory
-In order the increase the robustness of the scheduler, DAGS our now processed in their own process. Therefore each 
-DAG has its own log file for the scheduler. These are placed in `child_process_log_directory` which defaults to 
+In order the increase the robustness of the scheduler, DAGS our now processed in their own process. Therefore each
+DAG has its own log file for the scheduler. These are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 
 > DAG logs or processor logs ignore and command line settings for log file locations.
@@ -72,7 +75,7 @@ Previously the command line option `num_runs` was used to let the scheduler term
 loops. This is now time bound and defaults to `-1`, which means run continuously. See also num_runs.
 
 #### num_runs
-Previously `num_runs` was used to let the scheduler terminate after a certain amount of loops. Now num_runs specifies 
+Previously `num_runs` was used to let the scheduler terminate after a certain amount of loops. Now num_runs specifies
 the number of times to try to schedule each DAG file within `run_duration` time. Defaults to `-1`, which means try
 indefinitely. This is only available on the command line.
 
@@ -85,7 +88,7 @@ dags are not being picked up, have a look at this number and decrease it when ne
 
 #### catchup_by_default
 By default the scheduler will fill any missing interval DAG Runs between the last execution date and the current date.
-This setting changes that behavior to only execute the latest interval. This can also be specified per DAG as 
+This setting changes that behavior to only execute the latest interval. This can also be specified per DAG as
 `catchup = False / True`. Command line backfills will still work.
 
 ### Faulty Dags do not show an error in the Web UI
@@ -109,33 +112,33 @@ convenience variables to the config. In case your run a sceure Hadoop setup it m
 required to whitelist these variables by adding the following to your configuration:
 
 ```
-<property> 
+<property>
      <name>hive.security.authorization.sqlstd.confwhitelist.append</name>
      <value>airflow\.ctx\..*</value>
 </property>
 ```
 ### Google Cloud Operator and Hook alignment
 
-All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection 
+All Google Cloud Operators and Hooks are aligned and use the same client library. Now you have a single connection
 type for all kinds of Google Cloud Operators.
 
 If you experience problems connecting with your operator make sure you set the connection type "Google Cloud Platform".
 
-Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service 
+Also the old P12 key file type is not supported anymore and only the new JSON key files are supported as a service
 account.
-  
+
 ### Deprecated Features
-These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer 
+These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer
 supported and will be removed entirely in Airflow 2.0
 
 - Hooks and operators must be imported from their respective submodules
 
-  `airflow.operators.PigOperator` is no longer supported; `from airflow.operators.pig_operator import PigOperator` is. 
+  `airflow.operators.PigOperator` is no longer supported; `from airflow.operators.pig_operator import PigOperator` is.
   (AIRFLOW-31, AIRFLOW-200)
 
 - Operators no longer accept arbitrary arguments
 
-  Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without 
+  Previously, `Operator.__init__()` accepted any arguments (either positional `*args` or keyword `**kwargs`) without
   complaint. Now, invalid arguments will be rejected. (https://github.com/apache/incubator-airflow/pull/1285)
 
 ### Known Issues
