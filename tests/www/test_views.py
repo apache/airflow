@@ -82,6 +82,64 @@ class TestChartModelView(unittest.TestCase):
         self.assertIn('Sort by Owner', response.data.decode('utf-8'))
 
 
+class TestVariableView(unittest.TestCase):
+
+    CREATE_ENDPOINT = '/admin/variable/new/?url=/admin/variable/'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestVariableView, cls).setUpClass()
+        session = Session()
+        session.query(models.Variable).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestVariableView, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.session = Session()
+        self.variable = {
+            'key': 'test_key',
+            'val': 'text_val',
+            'is_encrypted': True
+        }
+
+    def tearDown(self):
+        self.session.query(models.Variable).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestVariableView, self).tearDown()
+
+    def test_can_handle_error_on_decrypt(self):
+        # create valid variable
+        response = self.app.post(
+            self.CREATE_ENDPOINT,
+            data=self.variable,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+
+        # update the variable with a wrong value, given that is encrypted
+        Var = models.Variable
+        (self.session.query(Var)
+            .filter(Var.key == self.variable['key'])
+            .update({
+                'val': 'failed_value_not_encrypted'
+            }, synchronize_session=False))
+        self.session.commit()
+
+        # retrieve Variables page, should not fail and contain the Invalid
+        # label for the variable
+        response = self.app.get('/admin/variable', follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.session.query(models.Variable).count(), 1)
+        self.assertIn('<span class="label label-danger">Invalid</span>',
+                      response.data.decode('utf-8'))
+
+
 class TestKnownEventView(unittest.TestCase):
 
     CREATE_ENDPOINT = '/admin/knownevent/new/?url=/admin/knownevent/'

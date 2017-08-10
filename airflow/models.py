@@ -3831,7 +3831,12 @@ class Variable(Base):
                 raise AirflowException(
                     "Can't decrypt _val for key={}, FERNET_KEY configuration \
                     missing".format(self.key))
-            return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
+            try:
+                return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
+            except:
+                raise AirflowException(
+                    "Can't decrypt _val for key={}, invalid token or value"
+                    .format(self.key))
         else:
             return self._val
 
