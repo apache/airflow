@@ -46,6 +46,7 @@ import warnings
 import hashlib
 from urllib.parse import urlparse
 
+from flask import url_for
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float, LargeBinary)
@@ -4363,6 +4364,21 @@ class DagRun(Base, LoggingMixin):
             run_id=self.run_id,
             external_trigger=self.external_trigger)
 
+    def to_json(self):
+        return {
+            'dag_id': self.dag_id,
+            'dag_run_url': url_for(
+                'airflow.graph',
+                dag_id=self.dag_id,
+                execution_date=self.execution_date,
+            ),
+            'execution_date': self.execution_date.strftime("%Y-%m-%d %H:%M"),
+            'run_id': self.run_id,
+            'start_date': ((self.start_date or '') and
+                           self.start_date.strftime("%Y-%m-%d %H:%M")),
+            'state': self.state,
+        }
+
     def get_state(self):
         return self._state
 
@@ -4409,7 +4425,7 @@ class DagRun(Base, LoggingMixin):
              state=None, external_trigger=None, no_backfills=False,
              session=None):
         """
-        Returns a set of dag runs for the given search criteria.
+        Returns a list of dag runs for the given search criteria.
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: integer, list
         :param run_id: defines the the run id for this dag run
@@ -4427,7 +4443,6 @@ class DagRun(Base, LoggingMixin):
         :type session: Session
         """
         DR = DagRun
-
         qry = session.query(DR)
         if dag_id:
             qry = qry.filter(DR.dag_id == dag_id)
@@ -4447,9 +4462,26 @@ class DagRun(Base, LoggingMixin):
             from airflow.jobs import BackfillJob
             qry = qry.filter(DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'))
 
-        dr = qry.order_by(DR.execution_date).all()
+        return qry.order_by(DR.execution_date).all()
 
-        return dr
+    @staticmethod
+    @provide_session
+    def search(query, session=None):
+        """
+        Returns a list of dag runs for the given search query.
+
+        :param query: search query
+        :type query: string
+        :param session: database session
+        :type session: Session
+        :return:
+        """
+        DR = DagRun
+        qry = session.query(DR)
+        if qry:
+            qry = qry.filter(DR.run_id.like('%' + query + '%'))
+
+        return qry.order_by(DR.execution_date).all()
 
     @provide_session
     def get_task_instances(self, state=None, session=None):
