@@ -23,6 +23,8 @@ class PostgresHook(DbApiHook):
     Interact with Postgres.
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
+
+    Note: For Redshift, set the keepalives_idle to less than 300 seconds!
     """
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
