@@ -19,7 +19,7 @@ from airflow.utils.decorators import apply_defaults
 
 class BigQueryCheckOperator(CheckOperator):
     """
-    Performs checks against Presto. The ``BigQueryCheckOperator`` expects
+    Performs checks against BigQuery. The ``BigQueryCheckOperator`` expects
     a sql query that will return a single row. Each value on that
     first row is evaluated using python ``bool`` casting. If any of the
     values return ``False`` the check is failed and errors out.
@@ -48,7 +48,7 @@ class BigQueryCheckOperator(CheckOperator):
     :param sql: the sql to be executed
     :type sql: string
     :param bigquery_conn_id: reference to the BigQuery database
-    :type presto_conn_id: string
+    :type bigquery_conn_id: string
     """
 
     @apply_defaults

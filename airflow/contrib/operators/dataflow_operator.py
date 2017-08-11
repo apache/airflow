@@ -123,6 +123,8 @@ class DataFlowJavaOperator(BaseOperator):
 
 class DataFlowPythonOperator(BaseOperator):
 
+    template_fields = ['options', 'dataflow_default_options']
+
     @apply_defaults
     def __init__(
             self,

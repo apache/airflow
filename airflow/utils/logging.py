@@ -19,7 +19,9 @@ from __future__ import unicode_literals
 
 from builtins import object
 
+import dateutil.parser
 import logging
+import six
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -57,6 +59,19 @@ class S3Log(object):
                 'Please make sure that airflow[s3] is installed and '
                 'the S3 connection exists.'.format(remote_conn_id))
 
+    def log_exists(self, remote_log_location):
+        """
+        Check if remote_log_location exists in remote storage
+        :param remote_log_location: log's location in remote storage
+        :return: True if location exists else False
+        """
+        if self.hook:
+            try:
+                return self.hook.get_key(remote_log_location) is not None
+            except Exception:
+                pass
+        return False
+
     def read(self, remote_log_location, return_error=False):
         """
         Returns the log found at the remote_log_location. Returns '' if no
@@ -76,10 +91,13 @@ class S3Log(object):
             except:
                 pass
 
-        # raise/return error if we get here
-        err = 'Could not read logs from {}'.format(remote_log_location)
-        logging.error(err)
-        return err if return_error else ''
+        # return error if needed
+        if return_error:
+            msg = 'Could not read logs from {}'.format(remote_log_location)
+            logging.error(msg)
+            return msg
+
+        return ''
 
     def write(self, log, remote_log_location, append=True):
         """
@@ -93,25 +111,21 @@ class S3Log(object):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
-
         """
         if self.hook:
-
             if append:
                 old_log = self.read(remote_log_location)
-                log = old_log + '\n' + log
+                log = '\n'.join([old_log, log])
+
             try:
                 self.hook.load_string(
                     log,
                     key=remote_log_location,
                     replace=True,
-                    encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'))
-                return
+                    encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                )
             except:
-                pass
-
-        # raise/return error if we get here
-        logging.error('Could not write logs to {}'.format(remote_log_location))
+                logging.error('Could not write logs to {}'.format(remote_log_location))
 
 
 class GCSLog(object):
@@ -137,6 +151,20 @@ class GCSLog(object):
                 '"{}". Please make sure that airflow[gcp_api] is installed '
                 'and the GCS connection exists.'.format(remote_conn_id))
 
+    def log_exists(self, remote_log_location):
+        """
+        Check if remote_log_location exists in remote storage
+        :param remote_log_location: log's location in remote storage
+        :return: True if location exists else False
+        """
+        if self.hook:
+            try:
+                bkt, blob = self.parse_gcs_url(remote_log_location)
+                return self.hook.exists(bkt, blob)
+            except Exception:
+                pass
+        return False
+
     def read(self, remote_log_location, return_error=False):
         """
         Returns the log found at the remote_log_location.
@@ -154,10 +182,13 @@ class GCSLog(object):
             except:
                 pass
 
-        # raise/return error if we get here
-        err = 'Could not read logs from {}'.format(remote_log_location)
-        logging.error(err)
-        return err if return_error else ''
+        # return error if needed
+        if return_error:
+            msg = 'Could not read logs from {}'.format(remote_log_location)
+            logging.error(msg)
+            return msg
+
+        return ''
 
     def write(self, log, remote_log_location, append=True):
         """
@@ -171,12 +202,11 @@ class GCSLog(object):
         :param append: if False, any existing log file is overwritten. If True,
             the new log is appended to any existing logs.
         :type append: bool
-
         """
         if self.hook:
             if append:
                 old_log = self.read(remote_log_location)
-                log = old_log + '\n' + log
+                log = '\n'.join([old_log, log])
 
             try:
                 bkt, blob = self.parse_gcs_url(remote_log_location)
@@ -189,7 +219,6 @@ class GCSLog(object):
                     tmpfile.flush()
                     self.hook.upload(bkt, blob, tmpfile.name)
             except:
-                # raise/return error if we get here
                 logging.error('Could not write logs to {}'.format(remote_log_location))
 
     def parse_gcs_url(self, gsurl):
@@ -211,3 +240,40 @@ class GCSLog(object):
             bucket = parsed_url.netloc
             blob = parsed_url.path.strip('/')
             return (bucket, blob)
+
+
+# TODO: get_log_filename and get_log_directory are temporary helper
+# functions to get airflow log filename. Logic of using FileHandler
+# will be extract out and those two functions will be moved.
+# For more details, please check issue AIRFLOW-1385.
+def get_log_filename(dag_id, task_id, execution_date, try_number):
+    """
+    Return relative log path.
+    :arg dag_id: id of the dag
+    :arg task_id: id of the task
+    :arg execution_date: execution date of the task instance
+    :arg try_number: try_number of current task instance
+    """
+    relative_dir = get_log_directory(dag_id, task_id, execution_date)
+    # For reporting purposes and keeping logs consistent with web UI
+    # display, we report based on 1-indexed, not 0-indexed lists
+    filename = "{}/{}.log".format(relative_dir, try_number+1)
+
+    return filename
+
+
+def get_log_directory(dag_id, task_id, execution_date):
+    """
+    Return log directory path: dag_id/task_id/execution_date
+    :arg dag_id: id of the dag
+    :arg task_id: id of the task
+    :arg execution_date: execution date of the task instance
+    """
+    # execution_date could be parsed in as unicode character
+    # instead of datetime object.
+    if isinstance(execution_date, six.string_types):
+        execution_date = dateutil.parser.parse(execution_date)
+    iso = execution_date.isoformat()
+    relative_dir = '{}/{}/{}'.format(dag_id, task_id, iso)
+
+    return relative_dir

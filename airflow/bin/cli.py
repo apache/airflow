@@ -40,6 +40,7 @@ import threading
 import traceback
 import time
 import psutil
+import re
 
 import airflow
 from airflow import api
@@ -49,7 +50,8 @@ from airflow.exceptions import AirflowException
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
-                            Connection)
+                            Connection, DAG)
+
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
 from airflow.utils import logging as logging_utils
@@ -58,7 +60,6 @@ from airflow.www.app import cached_app
 
 from sqlalchemy import func
 from sqlalchemy.orm import exc
-
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))
@@ -128,6 +129,19 @@ def get_dag(args):
     return dagbag.dags[args.dag_id]
 
 
+def get_dags(args):
+    if not args.dag_regex:
+        return [get_dag(args)]
+    dagbag = DagBag(process_subdir(args.subdir))
+    matched_dags = [dag for dag in dagbag.dags.values() if re.search(
+        args.dag_id, dag.dag_id)]
+    if not matched_dags:
+        raise AirflowException(
+            'dag_id could not be found with regex: {}. Either the dag did not exist '
+            'or it failed to parse.'.format(args.dag_id))
+    return matched_dags
+
+
 def backfill(args, dag=None):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
@@ -165,7 +179,8 @@ def backfill(args, dag=None):
                           conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             ignore_task_deps=args.ignore_dependencies,
-            pool=args.pool)
+            pool=args.pool,
+            delay_on_limit_secs=args.delay_on_limit)
 
 
 def trigger_dag(args):
@@ -316,7 +331,7 @@ def run(args, dag=None):
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
-           conf_dict = json.load(conf_file)
+            conf_dict = json.load(conf_file)
 
         if os.path.exists(args.cfg_path):
             os.remove(args.cfg_path)
@@ -326,6 +341,21 @@ def run(args, dag=None):
                 conf.set(section, option, value)
         settings.configure_vars()
         settings.configure_orm()
+
+    if not args.pickle and not dag:
+        dag = get_dag(args)
+    elif not dag:
+        session = settings.Session()
+        logging.info('Loading pickle id {args.pickle}'.format(args=args))
+        dag_pickle = session.query(
+            DagPickle).filter(DagPickle.id == args.pickle).first()
+        if not dag_pickle:
+            raise AirflowException("Who hid the pickle!? [missing pickle]")
+        dag = dag_pickle.pickle
+
+    task = dag.get_task(task_id=args.task_id)
+    ti = TaskInstance(task, args.execution_date)
+    ti.refresh_from_db()
 
     logging.root.handlers = []
     if args.raw:
@@ -350,19 +380,23 @@ def run(args, dag=None):
         # writable by both users, then it's possible that re-running a task
         # via the UI (or vice versa) results in a permission error as the task
         # tries to write to a log file created by the other user.
+        try_number = ti.try_number
         log_base = os.path.expanduser(conf.get('core', 'BASE_LOG_FOLDER'))
-        directory = log_base + "/{args.dag_id}/{args.task_id}".format(args=args)
+        log_relative_dir = logging_utils.get_log_directory(args.dag_id, args.task_id,
+                                                           args.execution_date)
+        directory = os.path.join(log_base, log_relative_dir)
         # Create the log file and give it group writable permissions
         # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag
         # operator is not compatible with impersonation (e.g. if a Celery executor is used
         # for a SubDag operator and the SubDag operator has a different owner than the
         # parent DAG)
-        if not os.path.exists(directory):
+        if not os.path.isdir(directory):
             # Create the directory as globally writable using custom mkdirs
             # as os.makedirs doesn't set mode properly.
             mkdirs(directory, 0o775)
-        iso = args.execution_date.isoformat()
-        filename = "{directory}/{iso}".format(**locals())
+        log_relative = logging_utils.get_log_filename(
+            args.dag_id, args.task_id, args.execution_date, try_number)
+        filename = os.path.join(log_base, log_relative)
 
         if not os.path.exists(filename):
             open(filename, "a").close()
@@ -375,21 +409,6 @@ def run(args, dag=None):
 
     hostname = socket.getfqdn()
     logging.info("Running on host {}".format(hostname))
-
-    if not args.pickle and not dag:
-        dag = get_dag(args)
-    elif not dag:
-        session = settings.Session()
-        logging.info('Loading pickle id {args.pickle}'.format(**locals()))
-        dag_pickle = session.query(
-            DagPickle).filter(DagPickle.id == args.pickle).first()
-        if not dag_pickle:
-            raise AirflowException("Who hid the pickle!? [missing pickle]")
-        dag = dag_pickle.pickle
-    task = dag.get_task(task_id=args.task_id)
-
-    ti = TaskInstance(task, args.execution_date)
-    ti.refresh_from_db()
 
     if args.local:
         print("Logging into: " + filename)
@@ -424,8 +443,8 @@ def run(args, dag=None):
                 session.commit()
                 pickle_id = pickle.id
                 print((
-                    'Pickled dag {dag} '
-                    'as pickle_id:{pickle_id}').format(**locals()))
+                          'Pickled dag {dag} '
+                          'as pickle_id:{pickle_id}').format(**locals()))
             except Exception as e:
                 print('Could not pickle the DAG')
                 print(e)
@@ -475,7 +494,8 @@ def run(args, dag=None):
         with open(filename, 'r') as logfile:
             log = logfile.read()
 
-        remote_log_location = filename.replace(log_base, remote_base)
+        remote_log_location = os.path.join(remote_base, log_relative)
+        logging.debug("Uploading to remote log location {}".format(remote_log_location))
         # S3
         if remote_base.startswith('s3:/'):
             logging_utils.S3Log().write(log, remote_log_location)
@@ -595,15 +615,17 @@ def clear(args):
     logging.basicConfig(
         level=settings.LOGGING_LEVEL,
         format=settings.SIMPLE_LOG_FORMAT)
-    dag = get_dag(args)
+    dags = get_dags(args)
 
     if args.task_regex:
-        dag = dag.sub_dag(
-            task_regex=args.task_regex,
-            include_downstream=args.downstream,
-            include_upstream=args.upstream,
-        )
-    dag.clear(
+        for idx, dag in enumerate(dags):
+            dags[idx] = dag.sub_dag(
+                task_regex=args.task_regex,
+                include_downstream=args.downstream,
+                include_upstream=args.upstream)
+
+    DAG.clear_dags(
+        dags,
         start_date=args.start_date,
         end_date=args.end_date,
         only_failed=args.only_failed,
@@ -669,10 +691,10 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
             gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
             wait_until_true(lambda: num_workers_expected + excess ==
-                            get_num_workers_running(gunicorn_master_proc))
+                                    get_num_workers_running(gunicorn_master_proc))
 
     wait_until_true(lambda: num_workers_expected ==
-                    get_num_workers_running(gunicorn_master_proc))
+                            get_num_workers_running(gunicorn_master_proc))
 
     while True:
         num_workers_running = get_num_workers_running(gunicorn_master_proc)
@@ -695,7 +717,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
                 gunicorn_master_proc.send_signal(signal.SIGTTOU)
                 excess -= 1
                 wait_until_true(lambda: num_workers_expected + excess ==
-                                get_num_workers_running(gunicorn_master_proc))
+                                        get_num_workers_running(gunicorn_master_proc))
 
         # Start a new worker by asking gunicorn to increase number of workers
         elif num_workers_running == num_workers_expected:
@@ -887,6 +909,7 @@ def serve_logs(args):
             filename,
             mimetype="application/json",
             as_attachment=False)
+
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(
@@ -947,8 +970,8 @@ def initdb(args):  # noqa
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
     if args.yes or input(
-            "This will drop existing tables if they exist. "
-            "Proceed? (y/n)").upper() == "Y":
+        "This will drop existing tables if they exist. "
+        "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
                             format=settings.SIMPLE_LOG_FORMAT)
         db_utils.resetdb()
@@ -966,7 +989,7 @@ def upgradedb(args):  # noqa
     if not ds_rows:
         qry = (
             session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-            .group_by(DagRun.dag_id, DagRun.state)
+                .group_by(DagRun.dag_id, DagRun.state)
         )
         for dag_id, state, count in qry:
             session.add(DagStat(dag_id=dag_id, state=state, count=count))
@@ -1065,8 +1088,8 @@ def connections(args):
 
         session = settings.Session()
         if not (session
-                .query(Connection)
-                .filter(Connection.conn_id == new_conn.conn_id).first()):
+                    .query(Connection)
+                    .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             session.commit()
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
@@ -1168,16 +1191,16 @@ class CLIFactory(object):
         'dry_run': Arg(
             ("-dr", "--dry_run"), "Perform a dry run", "store_true"),
         'pid': Arg(
-            ("--pid", ), "PID file location",
+            ("--pid",), "PID file location",
             nargs='?'),
         'daemon': Arg(
             ("-D", "--daemon"), "Daemonize instead of running "
                                 "in the foreground",
             "store_true"),
         'stderr': Arg(
-            ("--stderr", ), "Redirect stderr to this file"),
+            ("--stderr",), "Redirect stderr to this file"),
         'stdout': Arg(
-            ("--stdout", ), "Redirect stdout to this file"),
+            ("--stdout",), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
 
@@ -1212,6 +1235,14 @@ class CLIFactory(object):
                 "DO respect depends_on_past)."),
             "store_true"),
         'pool': Arg(("--pool",), "Resource pool to use"),
+        'delay_on_limit': Arg(
+            ("--delay_on_limit",),
+            help=("Amount of time in seconds to wait when the limit "
+                  "on maximum active dag runs (max_active_runs) has "
+                  "been reached before trying to execute a dag run "
+                  "again."),
+            type=float,
+            default=1.0),
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1232,6 +1263,9 @@ class CLIFactory(object):
         'exclude_subdags': Arg(
             ("-x", "--exclude_subdags"),
             "Exclude subdags", "store_true"),
+        'dag_regex': Arg(
+            ("-dx", "--dag_regex"),
+            "Search dag_id as regex instead of exact string", "store_true"),
         # trigger_dag
         'run_id': Arg(("-r", "--run_id"), "Helps to identify this run"),
         'conf': Arg(
@@ -1307,7 +1341,7 @@ class CLIFactory(object):
         'ignore_all_dependencies': Arg(
             ("-A", "--ignore_all_dependencies"),
             "Ignores all non-critical dependencies, including ignore_ti_state and "
-            "ignore_task_deps"
+            "ignore_task_deps",
             "store_true"),
         # TODO(aoen): ignore_dependencies is a poor choice of name here because it is too
         # vague (e.g. a task being in the appropriate state to be run is also a dependency
@@ -1333,7 +1367,7 @@ class CLIFactory(object):
             "Serialized pickle object of the entire dag (used internally)"),
         'job_id': Arg(("-j", "--job_id"), argparse.SUPPRESS),
         'cfg_path': Arg(
-            ("--cfg_path", ), "Path to config file to use instead of airflow.cfg"),
+            ("--cfg_path",), "Path to config file to use instead of airflow.cfg"),
         # webserver
         'port': Arg(
             ("-p", "--port"),
@@ -1341,11 +1375,11 @@ class CLIFactory(object):
             type=int,
             help="The port on which to run the server"),
         'ssl_cert': Arg(
-            ("--ssl_cert", ),
+            ("--ssl_cert",),
             default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
             help="Path to the SSL certificate for the webserver"),
         'ssl_key': Arg(
-            ("--ssl_key", ),
+            ("--ssl_key",),
             default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
             help="Path to the key to use with the SSL certificate"),
         'workers': Arg(
@@ -1466,7 +1500,7 @@ class CLIFactory(object):
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle', 'include_adhoc',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'dry_run')
+                'subdir', 'pool', 'delay_on_limit', 'dry_run')
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",
@@ -1477,7 +1511,7 @@ class CLIFactory(object):
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date', 'subdir',
                 'upstream', 'downstream', 'no_confirm', 'only_failed',
-                'only_running', 'exclude_subdags'),
+                'only_running', 'exclude_subdags', 'dag_regex'),
         }, {
             'func': pause,
             'help': "Pause a DAG",
