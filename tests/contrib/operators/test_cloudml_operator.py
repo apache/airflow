@@ -285,7 +285,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
 
 class CloudMLTrainingOperatorTest(unittest.TestCase):
     TRAINING_DEFAULT_ARGS = {
-        'project_name': 'test-project',
+        'project_id': 'test-project',
         'job_id': 'test_training',
         'package_uris': ['gs://some-bucket/package1'],
         'training_python_module': 'trainer',

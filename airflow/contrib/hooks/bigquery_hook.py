@@ -194,7 +194,9 @@ class BigQueryBaseCursor(object):
             write_disposition = 'WRITE_EMPTY',
             allow_large_results=False,
             udf_config = False,
-            use_legacy_sql=True):
+            use_legacy_sql=True,
+            maximum_billing_tier=None,
+            create_disposition='CREATE_IF_NEEDED'):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -209,6 +211,9 @@ class BigQueryBaseCursor(object):
             BigQuery table to save the query results.
         :param write_disposition: What to do if the table already exists in
             BigQuery.
+        :type write_disposition: string
+        :param create_disposition: Specifies whether the job is allowed to create new tables.
+        :type create_disposition: string
         :param allow_large_results: Whether to allow large results.
         :type allow_large_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
@@ -216,11 +221,14 @@ class BigQueryBaseCursor(object):
         :type udf_config: list
         :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
         :type use_legacy_sql: boolean
+        :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
+        :type maximum_billing_tier: integer
         """
         configuration = {
             'query': {
                 'query': bql,
-                'useLegacySql': use_legacy_sql
+                'useLegacySql': use_legacy_sql,
+                'maximumBillingTier': maximum_billing_tier
             }
         }
 
@@ -234,6 +242,7 @@ class BigQueryBaseCursor(object):
             configuration['query'].update({
                 'allowLargeResults': allow_large_results,
                 'writeDisposition': write_disposition,
+                'createDisposition': create_disposition,
                 'destinationTable': {
                     'projectId': destination_project,
                     'datasetId': destination_dataset,
@@ -375,6 +384,7 @@ class BigQueryBaseCursor(object):
                  write_disposition='WRITE_EMPTY',
                  field_delimiter=',',
                  max_bad_records=0,
+                 quote_character=None,
                  schema_update_options=()):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -409,6 +419,8 @@ class BigQueryBaseCursor(object):
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
+        :param quote_character: The value that is used to quote data sections in a CSV file.
+        :type quote_character: string
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
@@ -484,6 +496,9 @@ class BigQueryBaseCursor(object):
 
         if max_bad_records:
             configuration['load']['maxBadRecords'] = max_bad_records
+
+        if quote_character:
+            configuration['load']['quote'] = quote_character
 
         return self.run_with_configuration(configuration)
 
