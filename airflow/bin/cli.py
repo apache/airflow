@@ -476,6 +476,20 @@ def run(args, dag=None):
     logging.root.handlers[0].flush()
     logging.root.handlers = []
 
+    # truncate log files
+    max_log_file_size = conf.get('core', 'MAX_LOG_FILE_SIZE_BYTES')
+    if (
+        max_log_file_size and
+        os.path.exists(filename) and
+        os.path.getsize(filename) > int(max_log_file_size)
+    ):
+        command = 'truncate -s %s %s' % (max_log_file_size, filename)
+        try:
+            subprocess.check_call(command, shell=True)
+        except subprocess.CalledProcessError as e:
+            # don't fail the process just because log file truncate fails
+            logging.error(e)
+
     # store logs remotely
     remote_base = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
