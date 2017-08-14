@@ -1451,8 +1451,10 @@ class TaskInstance(Base):
         except AirflowSkipException:
             self.state = State.SKIPPED
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context)
-            raise
+            self.refresh_from_db()
+            if self.state != State.SUCCESS:
+                self.handle_failure(e, test_mode, context)
+                raise
 
         # Recording SUCCESS
         self.end_date = datetime.now()
