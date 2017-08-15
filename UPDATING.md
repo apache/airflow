@@ -32,6 +32,12 @@ supported and will be removed entirely in Airflow 2.0
 
 - `contrib.hooks.gcp_dataflow_hook.DataFlowHook` starts to use `--runner=DataflowRunner` instead of `DataflowPipelineRunner`, which is removed from the package `google-cloud-dataflow-0.6.0`.
 
+- The pickle type for XCom messages has been replaced by json to prevent RCE attacks.
+  Note that JSON serialization is stricter than pickling, so if you want to e.g. pass
+  raw bytes through XCom you must encode them using an encoding like base64.
+  By default pickling is still enabled until Airflow 2.0. To disable it 
+  Set enable_xcom_pickling = False in your Airflow config.
+
 ## Airflow 1.8.1
 
 The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall your

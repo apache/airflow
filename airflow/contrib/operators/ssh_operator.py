@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from base64 import b64encode
 import logging
 
+from airflow import configuration
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -90,7 +92,13 @@ class SSHOperator(BaseOperator):
                 # only returning on output if do_xcom_push is set
                 # otherwise its not suppose to be disclosed
                 if self.do_xcom_push:
-                    return stdout.read()
+                    enable_pickling = configuration.getboolean('core',
+                                                               'enable_xcom_pickling')
+                    if enable_pickling:
+                        return stdout.read()
+                    else:
+                        return b64encode(stdout.read()).decode('utf-8')
+
             else:
                 error_msg = stderr.read()
                 raise AirflowException("error running cmd: {0}, error: {1}"

@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import unittest
+from base64 import b64encode
 from datetime import datetime
 
 from airflow import configuration
@@ -51,7 +52,27 @@ class SSHOperatorTest(unittest.TestCase):
         self.hook = hook
         self.dag = dag
 
-    def test_command_execution(self):
+    def test_json_command_execution(self):
+        configuration.set("core", "enable_xcom_pickling", "False")
+        task = SSHOperator(
+                task_id="test",
+                ssh_hook=self.hook,
+                command="echo -n airflow",
+                do_xcom_push=True,
+                dag=self.dag,
+        )
+
+        self.assertIsNotNone(task)
+
+        ti = TaskInstance(
+                task=task, execution_date=datetime.now())
+        ti.run()
+        self.assertIsNotNone(ti.duration)
+        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'),
+                         b64encode(b'airflow').decode('utf-8'))
+
+    def test_pickle_command_execution(self):
+        configuration.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
                 task_id="test",
                 ssh_hook=self.hook,
@@ -69,6 +90,7 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_command_execution_with_env(self):
+        configuration.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
