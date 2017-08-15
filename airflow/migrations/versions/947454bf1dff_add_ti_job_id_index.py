@@ -14,15 +14,15 @@
 
 """add ti job_id index
 
-Revision ID: 7171349d4c73
-Revises: cc1e65623dc7
-Create Date: 2017-08-14 18:08:50.196042
+Revision ID: 947454bf1dff
+Revises: bdaa763e6c56
+Create Date: 2017-08-15 15:12:13.845074
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '7171349d4c73'
-down_revision = 'cc1e65623dc7'
+revision = '947454bf1dff'
+down_revision = 'bdaa763e6c56'
 branch_labels = None
 depends_on = None
 
