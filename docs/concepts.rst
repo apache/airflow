@@ -782,7 +782,8 @@ Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the
 as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated"
-in the documentation.
+in the documentation. Template substitution occurs just before the pre_execute
+function of your operator is called.
 
 Packaged dags
 '''''''''''''
