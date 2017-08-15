@@ -71,6 +71,7 @@ pygments
 pyhive
 pykerberos
 PyOpenSSL
+pysftp
 PySmbClient
 python-daemon
 python-dateutil
