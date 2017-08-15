@@ -36,6 +36,7 @@ from airflow import configuration
 
 import logging
 import requests
+
 import json
 
 login_manager = flask_login.LoginManager()
@@ -75,13 +76,12 @@ class AstronomerUser(models.User):
 
     @staticmethod
     def authenticate(username, password):
-        # TODO: make API call to API server
-        # TODO: allow hostname/port/protocol to be configured, set sane default
         hostname = configuration.get("astronomer-api", "hostname")
         port = configuration.get("astronomer-api", "port")
         protocol = configuration.get("astronomer-api", "protocol")
-        endpoint = '%s://%s:%s/v1' % (protocol, hostname, port)
 
+        base = '{}://{}:{}'.format(protocol, hostname, port)
+        endpoint = requests.compat.urljoin(base, 'v1')
         try:
             request_data = {
                 'query': '''
