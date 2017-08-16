@@ -1757,11 +1757,6 @@ class WebUiTests(unittest.TestCase):
             'execution_date={}'.format(DEFAULT_DATE_ISO))
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/log?task_id=run_this_last&'
-            'dag_id=example_bash_operator&execution_date={}'
-            ''.format(DEFAULT_DATE_ISO))
-        self.assertIn("run_this_last", response.data.decode('utf-8'))
-        response = self.app.get(
             '/admin/airflow/task?'
             'task_id=runme_0&dag_id=example_bash_operator&'
             'execution_date={}'.format(DEFAULT_DATE_DS))
@@ -1824,6 +1819,37 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("OK", response.data.decode('utf-8'))
         response = self.app.get("/admin/xcom", follow_redirects=True)
         self.assertIn("Xcoms", response.data.decode('utf-8'))
+
+    @mock.patch("airflow.www.views.Airflow._log")
+    def test_log(self, mocked):
+        mocked.return_value = ["not so many logs", ], "example_bash_operator", "runme_0", DEFAULT_DATE, {'execution_date': lambda class_: DEFAULT_DATE}
+
+        response = self.app.get(
+            '/admin/airflow/log?task_id=runme_0&'
+            'dag_id=test_example_bash_operator&execution_date={}'
+            ''.format(DEFAULT_DATE_ISO))
+        self.assertIn("not so many logs", response.data.decode('utf-8'))
+
+    @mock.patch("airflow.www.views.Airflow._log")
+    def test_truncated_log(self, mocked):
+        mocked.return_value = ["abcdefghijklmnopqrstuwvxyz\n"*5000, ] , "example_bash_operator", "runme_0", DEFAULT_DATE, {'execution_date': lambda class_: DEFAULT_DATE}
+
+        response = self.app.get(
+            '/admin/airflow/log?task_id=runme_0&'
+            'dag_id=test_example_bash_operator&execution_date={}'
+            ''.format(DEFAULT_DATE_ISO))
+        self.assertIn("*** Log file too big, showing tail", response.data.decode('utf-8'))
+
+    @mock.patch("airflow.www.views.Airflow._log")
+    def test_big_raw_log(self, mocked):
+        log = "abcdefghijklmnopqrstuwvxyz\n"*5000
+        mocked.return_value = [log, ] , "example_bash_operator", "runme_0", DEFAULT_DATE, {'execution_date': lambda class_: DEFAULT_DATE}
+
+        response = self.app.get(
+            '/admin/airflow/log_raw?task_id=runme_0&'
+            'dag_id=test_example_bash_operator&execution_date={}'
+            ''.format(DEFAULT_DATE_ISO))
+        self.assertEqual(log, response.data.decode('utf-8'))
 
     def test_charts(self):
         session = Session()

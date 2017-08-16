@@ -83,6 +83,7 @@ from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
+LOG_LIMIT = 100000
 
 dagbag = models.DagBag(settings.DAGS_FOLDER)
 
@@ -690,10 +691,7 @@ class Airflow(BaseView):
             form=form,
             title=title, )
 
-    @expose('/log')
-    @login_required
-    @wwwutils.action_logging
-    def log(self):
+    def _log(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
         execution_date = request.args.get('execution_date')
@@ -723,10 +721,45 @@ class Airflow(BaseView):
             if PY2 and not isinstance(log, unicode):
                 logs[i] = log.decode('utf-8')
 
+        return logs, dag, task_id, execution_date, form
+
+    @expose('/log')
+    @login_required
+    @wwwutils.action_logging
+    def log(self):
+        logs, dag, task_id, execution_date, form = self._log()
+
+        def limit_size(log):
+            # limit size of log
+            if len(log) > LOG_LIMIT:
+                first_new_line = log.find("\n", -LOG_LIMIT)
+
+                if first_new_line != -1:
+                    log = log[first_new_line:].lstrip()
+                else:
+                    log = log[-LOG_LIMIT:]
+
+                return "*** Log file too big, showing tail...\n"+log
+            return log
+
+        logs = [limit_size(log) for log in logs]
+
         return self.render(
             'airflow/ti_log.html',
             logs=logs, dag=dag, title="Log by attempts", task_id=task_id,
             execution_date=execution_date, form=form)
+
+    @expose('/log_raw')
+    @login_required
+    @wwwutils.action_logging
+    def log_raw(self):
+        logs = self._log()[0]
+        log_index = int(request.args.get('log_index', 0))
+
+        response = make_response(logs[log_index])
+        response.headers["content-type"] = "text/plain"
+
+        return response
 
     @expose('/task')
     @login_required

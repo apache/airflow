@@ -34,6 +34,7 @@
     {% for log in logs %}
       <div role="tabpanel" class="tab-pane {{ 'active' if loop.last else '' }}" id="{{ loop.index }}">
         <pre id="attempt-{{ loop.index }}">{{ log }}</pre>
+        <a href="{{ url_for("airflow.log_raw", dag_id=dag.dag_id, task_id=task_id, execution_date=execution_date, log_index=loop.index0) }}">Open raw log</a>
       </div>
     {% endfor %}
   </div>
