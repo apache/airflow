@@ -128,3 +128,7 @@ ENV/
 
 # Spark
 rat-results.txt
+
+# Kubernetes generated templated files
+kube/.generated/
+airflow.tar.gz

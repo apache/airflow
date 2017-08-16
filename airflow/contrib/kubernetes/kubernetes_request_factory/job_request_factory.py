@@ -45,6 +45,7 @@ spec:
         kreq.extract_labels(pod, req)
         kreq.extract_image(pod, req)
         kreq.extract_cmds(pod, req)
+        kreq.extract_args(pod, req)
         if len(pod.node_selectors) > 0:
             kreq.extract_node_selector(pod, req)
             kreq.extract_secrets(pod, req)
