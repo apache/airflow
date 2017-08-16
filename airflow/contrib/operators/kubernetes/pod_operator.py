@@ -17,8 +17,9 @@ import logging
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.decorators import apply_defaults
-from airflow.contrib.kubernetes.pod_launcher import KubernetesLauncher, \
+from airflow.contrib.kubernetes.k8s_launcher import KubernetesLauncher, \
     KubernetesCommunicationService
+from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kubernetes_request_factory import \
     SimplePodRequestFactory, \
     ReturnValuePodRequestFactory
@@ -45,6 +46,61 @@ class PodOperator(PythonOperator):
     def __init__(
         self,
         dag_run_id,
+        *args,
+        **kwargs
+    ):
+        super(PodOperator, self).__init__(
+            python_callable=lambda _:1,
+            provide_context=True,
+            *args,
+            **kwargs)
+        self.logger = logging.getLogger(self.__class__.__name__)
+        self.pod_factory = SimplePodRequestFactory()
+        self.dag_run_id = dag_run_id
+        self.op_context = OpContext(self.task_id)
+        self.launcher = PodLauncher()
+        self.kwargs = kwargs
+
+    def execute(self, context):
+        task_instance = context.get('task_instance')
+        if task_instance is None:
+            raise AirflowException('`task_instance` is empty! This should not happen')
+        pod = self.pod_factory.create(context)
+        # Customize the pod
+        pod.name = self.task_id
+        pod.labels['run_id'] = self.dag_run_id
+        pod.namespace = self.dag.default_args.get('namespace', pod.namespace)
+
+        self.launcher.run_pod(pod)
+        # Launch the pod and wait for it to finish
+        self.op_context.result = pod.result
+
+        # Cache the output
+        custom_return_value = self.on_pod_success(context)
+        if custom_return_value:
+            self.op_context.custom_return_value = custom_return_value
+
+
+class aPodOperator(PythonOperator):
+    """
+        Executes a pod and waits for the job to finish.
+        :param dag_run_id: The unique run ID that would be attached to the pod as a label
+        :type dag_run_id: str
+        :param pod_factory: Reference to the function that creates the pod with format:
+                            function (OpContext) => Pod
+        :type pod_factory: callable
+        :param cache_output: If set to true, the output of the pod would be saved in a
+                            cache object using md5 hash of all the pod parameters
+                            and in case of success, the cached results will be returned
+                            on consecutive calls. Only use this
+    """
+    # template_fields = tuple('dag_run_id')
+    ui_color = '#8da7be'
+
+    @apply_defaults
+    def __init__(
+        self,
+        dag_run_id,
         pod_factory,
         cache_output,
         kube_request_factory=None,
@@ -52,7 +108,7 @@ class PodOperator(PythonOperator):
         **kwargs
     ):
         super(PodOperator, self).__init__(
-            python_callable=lambda _: 1,
+            python_callable=lambda _:1,
             provide_context=True,
             *args,
             **kwargs)
