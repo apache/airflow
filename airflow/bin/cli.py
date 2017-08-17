@@ -798,11 +798,12 @@ def webserver(args):
 def scheduler(args):
     print(settings.HEADER)
     job = jobs.SchedulerJob(
-        dag_id=args.dag_id,
+        dag_ids=args.dag_id,
         subdir=process_subdir(args.subdir),
         run_duration=args.run_duration,
         num_runs=args.num_runs,
-        do_pickle=args.do_pickle)
+        do_pickle=args.do_pickle,
+    )
 
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
@@ -1353,14 +1354,19 @@ class CLIFactory(object):
             "store_true",
             default=False),
         # scheduler
-        'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
+        'dag_ids': Arg(
+            ("-d", "--dag_id"),
+            action='append',
+            help="The id of the dag to run"),
         'run_duration': Arg(
             ("-r", "--run-duration"),
-            default=None, type=int,
+            default=None,
+            type=int,
             help="Set number of seconds to execute before exiting"),
         'num_runs': Arg(
             ("-n", "--num_runs"),
-            default=-1, type=int,
+            default=-1,
+            type=int,
             help="Set the number of runs to execute before exiting"),
         # worker
         'do_pickle': Arg(
@@ -1537,7 +1543,7 @@ class CLIFactory(object):
         }, {
             'func': scheduler,
             'help': "Start a scheduler instance",
-            'args': ('dag_id_opt', 'subdir', 'run_duration', 'num_runs',
+            'args': ('dag_ids', 'subdir', 'run_duration', 'num_runs',
                      'do_pickle', 'pid', 'daemon', 'stdout', 'stderr',
                      'log_file'),
         }, {
