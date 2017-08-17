@@ -12,13 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from kubernetes import client, config
-from kubernetes_request_factory import KubernetesRequestFactory, SimplePodRequestFactory
 import logging
-from airflow import AirflowException
-import time
-import json
-
 
 class Pod:
     """

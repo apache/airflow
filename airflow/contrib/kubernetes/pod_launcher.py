@@ -1,6 +1,7 @@
 from airflow.contrib.kubernetes.pod import Pod
 from airflow.contrib.kubernetes.kubernetes_request_factory import SimplePodRequestFactory
 from kubernetes import config, client, watch
+from kubernetes.client import V1Pod
 from airflow.utils.state import State
 import json
 import logging
@@ -19,7 +20,7 @@ class PodLauncher:
             Launches the pod synchronously and waits for completion.
         """
 
-        req = self.kube_req_factory.create(self)
+        req = self.kube_req_factory.create(pod)
         print(json.dumps(req))
         resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
         self.logger.info("Job created. status='%s', yaml:\n%s"
@@ -28,19 +29,25 @@ class PodLauncher:
         return final_status
 
     def _kube_client(self):
+        #TODO: This should also allow people to point to a cluster.
         config.load_incluster_config()
         return client.CoreV1Api()
 
     def _monitor_pod(self, pod):
         # type: (Pod) -> State
         for event in self._watch.stream(self.read_pod(pod), pod.namespace):
-            task = event['object']
-            self.logger.info(
-                "Event: {} had an event of type {}".format(task.metadata.name,
-                                                           event['type']))
-            status = self.process_status(task.metadata.name, task.status.phase)
+            status = self._task_status(event)
             if status == State.SUCCESS or status == State.FAILED:
                 return status
+
+    def _task_status(self, event):
+        # type: (V1Pod) -> State
+        task = event['object']
+        self.logger.info(
+            "Event: {} had an event of type {}".format(task.metadata.name,
+                                                       event['type']))
+        status = self.process_status(task.metadata.name, task.status.phase)
+        return status
 
     def read_pod(self, pod):
         return self._client.read_namespaced_pod(pod.name, pod.namespace)
