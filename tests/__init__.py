@@ -22,7 +22,7 @@ from .executors import *
 from .jobs import *
 from .impersonation import *
 from .models import *
-from .plugin_manager import *
+from .plugins_manager import *
 from .operators import *
 from .security import *
 from .test_utils import *
