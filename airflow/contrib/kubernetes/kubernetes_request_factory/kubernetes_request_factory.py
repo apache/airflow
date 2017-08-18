@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 from abc import ABCMeta, abstractmethod
 
 class KubernetesRequestFactory():
@@ -64,11 +63,8 @@ class KubernetesRequestFactory():
 
 
     @staticmethod
-    def attach_volume_mounts(req):
-        logging.info("preparing to import dags")
-        dag_importer.import_dags()
-        logging.info("using file mount {}".format(dag_importer.dag_import_spec))
-        req['spec']['volumes'] = [dag_importer.dag_import_spec]
+    def attach_volume_mounts(pod, req):
+        req['spec']['volumes'] = pod.volumes
 
     @staticmethod
     def extract_name(pod, req):

@@ -50,5 +50,5 @@ spec:
             self.extract_node_selector(pod, req)
         self.extract_secrets(pod, req)
         self.extract_volume_secrets(pod, req)
-        self.attach_volume_mounts(req)
+        self.attach_volume_mounts(req=req, pod=pod)
         return req

@@ -41,6 +41,7 @@ class Pod:
             labels,
             node_selectors,
             name,
+            volumes = [],
             namespace='default',
             result=None):
         self.image = image
@@ -50,6 +51,7 @@ class Pod:
         self.result = result
         self.labels = labels
         self.name = name
+        self.volumes = volumes
         self.node_selectors = node_selectors
         self.namespace = namespace
         self.logger = logging.getLogger(self.__class__.__name__)
