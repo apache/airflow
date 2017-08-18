@@ -37,7 +37,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
         requested table does not exist.
     :type ignore_if_missing: boolean
     """
-    template_fields = ('deletion_dataset_table')
+    template_fields = ('deletion_dataset_table',)
     ui_color = '#ffd1dc'
 
     @apply_defaults
