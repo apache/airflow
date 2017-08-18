@@ -34,6 +34,7 @@ from airflow import settings
 from airflow import models
 from airflow import configuration
 
+import os
 import logging
 import requests
 
@@ -75,25 +76,27 @@ class AstronomerUser(models.User):
         self.user = user
 
     @staticmethod
-    def authenticate(username, password):
+    def authenticate(username, password, org_id):
         hostname = configuration.get("astronomer-api", "hostname")
         port = configuration.get("astronomer-api", "port")
         protocol = configuration.get("astronomer-api", "protocol")
 
         base = '{}://{}:{}'.format(protocol, hostname, port)
         endpoint = requests.compat.urljoin(base, 'v1')
+
+
         try:
             request_data = {
                 'query': '''
-                mutation Login($username: String!, $password: String!) {
-                  createToken(username: $username, password: $password) {
+                mutation Login($username: String!, $password: String!, $orgId: String) {
+                  createToken(username: $username, password: $password, orgId: $orgId) {
                     success,
                     message,
                     token
                   }
                 }
                 ''',
-                'variables': {'username': username, 'password': password}
+                'variables': {'username': username, 'password': password, 'orgId': org_id}
             }
 
             headers = {'Accept': 'application/json',
@@ -104,9 +107,15 @@ class AstronomerUser(models.User):
             response = requests.post(endpoint, data=post_data, headers=headers)
 
             data = response.json()
+
             data = data['data']['createToken']
-            if not data['success']:
+
+            if data and 'success' in data and not data['success']:
                 raise Exception(data['message'])
+
+            if not data or 'success' not in data:
+                return False
+
             return True
         except requests.exceptions.RequestException as e:
             LOG.info("Problem communicating with API: %s", str(e))
@@ -174,9 +183,13 @@ def login(self, request):
 
         session = settings.Session()
 
-        if not AstronomerUser.authenticate(username, password):
+        if 'ASTRONOMER_ORG_ID' not in os.environ:
+            raise AuthenticationError("Unknown organization, server not configured correctly")
+        astro_org_id = os.environ['ASTRONOMER_ORG_ID']
+
+        if not AstronomerUser.authenticate(username, password, astro_org_id):
             session.close()
-            raise AuthenticationError()
+            raise AuthenticationError("Incorrect login details")
 
         LOG.info("User %s successfully authenticated", username)
 
@@ -195,8 +208,8 @@ def login(self, request):
         session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
-    except AuthenticationError:
-        flash("Incorrect login details")
+    except AuthenticationError as e:
+        flash(str(e))
         return self.render('airflow/login.html',
                            title="Airflow - Login",
                            form=form)
