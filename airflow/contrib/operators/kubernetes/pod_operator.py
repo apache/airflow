@@ -38,11 +38,15 @@ class PodOperator(PythonOperator):
     # template_fields = tuple('dag_run_id')
     ui_color = '#8da7be'
 
+    def blank_func(self, context):
+        return None
+
     @apply_defaults
     def __init__(
         self,
         dag_run_id,
         pod,
+        on_pod_success_func = blank_func,
         *args,
         **kwargs
     ):
@@ -57,6 +61,7 @@ class PodOperator(PythonOperator):
         self.dag_run_id = dag_run_id
         self.pod_launcher = PodLauncher()
         self.kwargs = kwargs
+        self._on_pod_success_func = on_pod_success_func
 
     def execute(self, context):
         task_instance = context.get('task_instance')
@@ -77,6 +82,8 @@ class PodOperator(PythonOperator):
 
         # Launch the pod and wait for it to finish
         self.op_context.result = pod.result
+        if pod_result == State.FAILED:
+            raise AirflowException("Pod failed")
 
         # Cache the output
         custom_return_value = self.on_pod_success(context)
@@ -94,4 +101,4 @@ class PodOperator(PythonOperator):
                      be stored in xcom
                      
         """
-        return None
+        return self._on_pod_success_func(context=context)

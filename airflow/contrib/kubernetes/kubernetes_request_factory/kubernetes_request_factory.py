@@ -14,8 +14,6 @@
 
 import logging
 from abc import ABCMeta, abstractmethod
-from airflow import dag_importer
-
 
 class KubernetesRequestFactory():
     """
