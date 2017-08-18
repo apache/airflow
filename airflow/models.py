@@ -94,9 +94,18 @@ def get_fernet():
 
     This function could fail either because Cryptography is not installed
     or because the Fernet key is invalid.
+    :return: Fernet object
+    :raises: AirflowException if there's a problem trying to load Fernet
     """
-    from cryptography.fernet import Fernet
-    return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
+    try:
+        from cryptography.fernet import Fernet
+    except ImportError:
+        raise AirflowException('Failed to import Fernet, it may not be installed')
+    try:
+        return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
+    except ValueError as ve:
+        raise AirflowException("Could not create Fernet object: {}"
+                               .format(ve.message))
 
 
 if 'mysql' in settings.SQL_ALCHEMY_CONN:
@@ -608,7 +617,9 @@ class Connection(Base):
                 fernet = get_fernet()
                 self._password = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_encrypted = True
-            except NameError:
+            except AirflowException:
+                self.logger.exception("Failed to load fernet while encrypting value, "
+                                      "using non-encrypted value.")
                 self._password = value
                 self.is_encrypted = False
 
@@ -635,7 +646,9 @@ class Connection(Base):
                 fernet = get_fernet()
                 self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_extra_encrypted = True
-            except NameError:
+            except AirflowException:
+                self.logger.exception("Failed to load fernet while encrypting value, "
+                                      "using non-encrypted value.")
                 self._extra = value
                 self.is_extra_encrypted = False
 
@@ -3846,7 +3859,9 @@ class Variable(Base):
                 fernet = get_fernet()
                 self._val = fernet.encrypt(bytes(value, 'utf-8')).decode()
                 self.is_encrypted = True
-            except NameError:
+            except AirflowException:
+                self.logger.exception("Failed to load fernet while encrypting value, "
+                                      "using non-encrypted value.")
                 self._val = value
                 self.is_encrypted = False
 
