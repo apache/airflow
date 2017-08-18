@@ -60,6 +60,10 @@ class TestS3TaskHandler(unittest.TestCase):
         self.hook_inst_mock.get_key.side_effect = Exception('error')
         self.assertFalse(S3TaskHandler().log_exists(self.remote_log_location))
 
+    def test_log_exists_false(self):
+        self.hook_inst_mock.check_for_key.return_value = False
+        self.assertFalse(S3TaskHandler().log_exists(self.remote_log_location))
+
     def test_log_exists_no_hook(self):
         self.hook_mock.side_effect = Exception('Failed to connect')
         self.assertFalse(S3TaskHandler().log_exists(self.remote_log_location))
@@ -100,6 +104,7 @@ class TestS3TaskHandler(unittest.TestCase):
         )
 
     def test_write_raises(self):
+        self.hook_inst_mock.read_key.return_value = ''
         self.hook_inst_mock.load_string.side_effect = Exception('error')
         handler = S3TaskHandler()
         with mock.patch.object(handler.log, 'error') as mock_error:
