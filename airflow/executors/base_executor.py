@@ -120,7 +120,7 @@ class BaseExecutor(LoggingMixin):
             self.queued_tasks.pop(key)
             ti.refresh_from_db()
             if ti.state != State.RUNNING:
-                self.running[key] = command
+                self.running[key] = True
                 self.execute_async(key, command=command, queue=queue)
             else:
                 self.logger.debug(

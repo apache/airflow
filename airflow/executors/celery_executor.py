@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from builtins import object
+
 import logging
 import subprocess
 import ssl
@@ -20,10 +21,13 @@ import time
 import traceback
 
 from celery import Celery
+from celery.result import AsyncResult
 from celery import states as celery_states
 
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import BaseExecutor
+from airflow.models import ExecutorQueueManager
+
 from airflow import configuration
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
@@ -49,10 +53,13 @@ class CeleryConfig(object):
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
     CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
 
+    #CELERY_SEND_EVENTS = True
+    #CELERY_EVENT_QUEUE_EXPIRES = 120
+
     celery_ssl_active = False
     try:
         celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
-    except AirflowConfigException as e:
+    except AirflowConfigException:
         logging.warning("Celery Executor will run without SSL")
 
     try:
@@ -61,10 +68,10 @@ class CeleryConfig(object):
                               'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
                               'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
                               'cert_reqs': ssl.CERT_REQUIRED}
-    except AirflowConfigException as e:
+    except AirflowConfigException:
         raise AirflowException('AirflowConfigException: CELERY_SSL_ACTIVE is True, please ensure CELERY_SSL_KEY, '
                                'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
-    except Exception as e:
+    except Exception:
         raise AirflowException('Exception: There was an unknown Celery SSL Error.  Please ensure you want to use '
                                'SSL and/or have all necessary certs and key.')
 
@@ -74,13 +81,13 @@ app = Celery(
 
 
 @app.task
-def execute_command(command):
-    logging.info("Executing command in Celery " + command)
+def execute_command(command, key):
+    logging.info("[celery] executing command {} for {} ".format(command, key))
     try:
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
         logging.error(e)
-        raise AirflowException('Celery command failed')
+        raise AirflowException('Celery command failed for {}'.format(key))
 
 
 class CeleryExecutor(BaseExecutor):
@@ -92,49 +99,60 @@ class CeleryExecutor(BaseExecutor):
     vast amounts of messages, while providing operations with the tools
     required to maintain such a system.
     """
+    def __init__(self, parallelism=PARALLELISM):
+        super(CeleryExecutor, self).__init__(parallelism=parallelism)
+        self.tasks = ExecutorQueueManager()
 
     def start(self):
-        self.tasks = {}
-        self.last_state = {}
+        self._recover_queue()
 
     def execute_async(self, key, command, queue=DEFAULT_QUEUE):
-        self.logger.info( "[celery] queuing {key} through celery, "
-                       "queue={queue}".format(**locals()))
+        self.logger.info("[celery] queuing {key} through celery, "
+                         "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
-            args=[command], queue=queue)
-        self.last_state[key] = celery_states.PENDING
+            args=[command, key], queue=queue)
 
     def sync(self):
-
         self.logger.debug(
             "Inquiring about {} celery task(s)".format(len(self.tasks)))
-        for key, async in list(self.tasks.items()):
+        for key, uuid in list(self.tasks.items()):
+            async = AsyncResult(id=uuid, app=app)
             try:
                 state = async.state
-                if self.last_state[key] != state:
-                    if state == celery_states.SUCCESS:
-                        self.success(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    elif state == celery_states.FAILURE:
-                        self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    elif state == celery_states.REVOKED:
-                        self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
-                    else:
-                        self.logger.info("Unexpected state: " + async.state)
-                    self.last_state[key] = async.state
+                if state == celery_states.SUCCESS:
+                    self.success(key)
+                    del self.tasks[key]
+                elif state == celery_states.FAILURE:
+                    self.fail(key)
+                    del self.tasks[key]
+                elif state == celery_states.REVOKED:
+                    self.fail(key)
+                    del self.tasks[key]
+                else:
+                    self.logger.warning("Unexpected state: " + async.state)
             except Exception as e:
                 logging.error("Error syncing the celery executor, ignoring "
                               "it:\n{}\n".format(e, traceback.format_exc()))
 
     def end(self, synchronous=False):
         if synchronous:
+            tasks = []
+            for uuid in self.tasks.values():
+                tasks.append(AsyncResult(id=uuid, app=app))
+
             while any([
-                    async.state not in celery_states.READY_STATES
-                    for async in self.tasks.values()]):
+                    not task.ready()
+                    for task in tasks]):
                 time.sleep(5)
         self.sync()
+
+    def _recover_queue(self):
+        """
+        In case of a scheduler (re)start figure out if there are already tasks
+        in the queue which have been sent to the workers.
+        :return: None
+        """
+        self.logger.info("Recovering task queue")
+        for key, uuid in self.tasks.items():
+            self.logger.info("Recovering command for {}".format(key))
+            self.running[key] = True

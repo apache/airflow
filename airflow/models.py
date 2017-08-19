@@ -2630,6 +2630,65 @@ class BaseOperator(object):
             include_prior_dates=include_prior_dates)
 
 
+class ExecutorQueue(Base):
+    __tablename__ = "executor_queue"
+
+    key = Column(String(ID_LEN), primary_key=True)
+    id = Column(String(ID_LEN), nullable=False)
+    updated = Column(DateTime, nullable=False)
+
+
+class ExecutorQueueManager(dict):
+    def __init__(self, *args, **kwargs):
+        super(ExecutorQueueManager, self).__init__(*args, **kwargs)
+        self.session = settings.Session()
+
+    def __getitem__(self, key):
+        qry = (self.session.query(ExecutorQueue)
+               .filter(ExecutorQueue.key == key)
+               .value(ExecutorQueue.id))
+
+        return qry
+
+    def __setitem__(self, key, value):
+        """
+        :param key: task_id
+        :param value: AsyncResult
+        :return:
+        """
+        task = ExecutorQueue()
+        task.key = key
+        task.id = value.id
+        task.updated = datetime.utcnow()
+        self.session.merge(task)
+        self.session.commit()
+
+    def __contains__(self, item):
+        if self.__getitem__(item):
+            return True
+
+        return False
+
+    def __iter__(self):
+        return self.session.query(ExecutorQueue).values(ExecutorQueue.key,
+                                                        ExecutorQueue.id)
+
+    def __delitem__(self, key):
+        self.session.query(ExecutorQueue).filter(ExecutorQueue.key == key).delete()
+        self.session.commit()
+
+    def iteritems(self):
+        return self.__iter__()
+
+    def items(self):
+        return list(self.__iter__())
+
+    def values(self):
+        qry = self.session.query(ExecutorQueue).values(ExecutorQueue.id)
+        l = [val[0] for val in qry]
+        return l
+
+
 class DagModel(Base):
 
     __tablename__ = "dag"
