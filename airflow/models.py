@@ -3886,7 +3886,7 @@ class Variable(Base):
         :return: Mixed
         """
         default_sentinel = object()
-        obj = Variable.get(key, default_var=default_sentinel, deserialize_json=False)
+        obj = Variable.get(key, default_var=default_sentinel, deserialize_json=deserialize_json)
         if obj is default_sentinel:
             if default is not None:
                 Variable.set(key, default, serialize_json=deserialize_json)
@@ -3894,10 +3894,7 @@ class Variable(Base):
             else:
                 raise ValueError('Default Value must be set')
         else:
-            if deserialize_json:
-                return json.loads(obj.val)
-            else:
-                return obj.val
+            return obj
 
     @classmethod
     @provide_session
