@@ -116,10 +116,10 @@ actually start, if it wasn't the case, the backfill just wouldn't start.
 How can I create DAGs dynamically?
 ----------------------------------
 
-Airflow looks in you ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
+Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace, and adds the objects it finds in the
 ``DagBag``. Knowing this all we need is a way to dynamically assign
-variable in the global namespace, which is easily done in python using the
+variables in the global namespace, which is easily done in python using the
 ``globals()`` function for the standard library which behaves like a
 simple dictionary.
 
