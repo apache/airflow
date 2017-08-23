@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,28 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""job_id indices
+"""add pid field to TaskInstance
 
-Revision ID: 52d714495f0
-Revises: 338e90f54d61
-Create Date: 2015-10-20 03:17:01.962542
+Revision ID: 5e7d17757c7a
+Revises: 8504051e801b
+Create Date: 2016-12-07 15:51:37.119478
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '52d714495f0'
-down_revision = '338e90f54d61'
+revision = '5e7d17757c7a'
+down_revision = '8504051e801b'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 
 def upgrade():
-    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
+    op.add_column('task_instance', sa.Column('pid', sa.Integer))
 
 
 def downgrade():
-    op.drop_index('idx_job_state_heartbeat', table_name='job')
+    op.drop_column('task_instance', 'pid')

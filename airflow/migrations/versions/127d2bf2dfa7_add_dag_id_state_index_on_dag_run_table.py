@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,28 +11,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""job_id indices
+"""Add dag_id/state index on dag_run table
 
-Revision ID: 52d714495f0
-Revises: 338e90f54d61
-Create Date: 2015-10-20 03:17:01.962542
+Revision ID: 127d2bf2dfa7
+Revises: 5e7d17757c7a
+Create Date: 2017-01-25 11:43:51.635667
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '52d714495f0'
-down_revision = '338e90f54d61'
+revision = '127d2bf2dfa7'
+down_revision = '5e7d17757c7a'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
-
 
 def upgrade():
-    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
+    op.create_index('dag_id_state', 'dag_run', ['dag_id', 'state'], unique=False)
 
 
 def downgrade():
-    op.drop_index('idx_job_state_heartbeat', table_name='job')
+    op.drop_index('dag_id_state', table_name='dag_run')
+
