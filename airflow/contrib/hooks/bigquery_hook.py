@@ -385,6 +385,7 @@ class BigQueryBaseCursor(object):
                  field_delimiter=',',
                  max_bad_records=0,
                  quote_character=None,
+                 allow_quoted_newlines=False,
                  schema_update_options=()):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
@@ -421,6 +422,8 @@ class BigQueryBaseCursor(object):
         :type max_bad_records: int
         :param quote_character: The value that is used to quote data sections in a CSV file.
         :type quote_character: string
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :type allow_quoted_newlines: boolean
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
@@ -499,6 +502,9 @@ class BigQueryBaseCursor(object):
 
         if quote_character:
             configuration['load']['quote'] = quote_character
+
+        if allow_quoted_newlines:
+            configuration['load']['allowQuotedNewlines'] = allow_quoted_newlines
 
         return self.run_with_configuration(configuration)
 
