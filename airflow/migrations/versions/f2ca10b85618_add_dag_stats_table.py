@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,28 +11,32 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""job_id indices
+"""add dag_stats table
 
-Revision ID: 52d714495f0
-Revises: 338e90f54d61
-Create Date: 2015-10-20 03:17:01.962542
+Revision ID: f2ca10b85618
+Revises: 64de9cddf6c9
+Create Date: 2016-07-20 15:08:28.247537
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '52d714495f0'
-down_revision = '338e90f54d61'
+revision = 'f2ca10b85618'
+down_revision = '64de9cddf6c9'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 
 def upgrade():
-    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
+    op.create_table('dag_stats',
+                    sa.Column('dag_id', sa.String(length=250), nullable=False),
+                    sa.Column('state', sa.String(length=50), nullable=False),
+                    sa.Column('count', sa.Integer(), nullable=False, default=0),
+                    sa.Column('dirty', sa.Boolean(), nullable=False, default=False),
+                    sa.PrimaryKeyConstraint('dag_id', 'state'))
 
 
 def downgrade():
-    op.drop_index('idx_job_state_heartbeat', table_name='job')
+    op.drop_table('dag_stats')

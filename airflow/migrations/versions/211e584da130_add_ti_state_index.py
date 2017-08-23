@@ -12,28 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""job_id indices
+"""add TI state index
 
-Revision ID: 52d714495f0
-Revises: 338e90f54d61
-Create Date: 2015-10-20 03:17:01.962542
+Revision ID: 211e584da130
+Revises: 2e82aab8ef20
+Create Date: 2016-06-30 10:54:24.323588
 
 """
 
 # revision identifiers, used by Alembic.
-revision = '52d714495f0'
-down_revision = '338e90f54d61'
+revision = '211e584da130'
+down_revision = '2e82aab8ef20'
 branch_labels = None
 depends_on = None
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import mysql
 
 
 def upgrade():
-    op.create_index('idx_job_state_heartbeat', 'job', ['state', 'latest_heartbeat'], unique=False)
+    op.create_index('ti_state', 'task_instance', ['state'], unique=False)
 
 
 def downgrade():
-    op.drop_index('idx_job_state_heartbeat', table_name='job')
+    op.drop_index('ti_state', table_name='task_instance')
