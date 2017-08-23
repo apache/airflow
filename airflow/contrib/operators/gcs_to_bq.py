@@ -45,6 +45,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         field_delimiter=',',
         max_bad_records=0,
         quote_character=None,
+        allow_quoted_newlines=False,
         max_id_key=None,
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
@@ -87,6 +88,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type max_bad_records: int
         :param quote_character: The value that is used to quote data sections in a CSV file.
         :type quote_character: string
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :type allow_quoted_newlines: boolean
         :param max_id_key: If set, the name of a column in the BigQuery table
             that's to be loaded. Thsi will be used to select the MAX value from
             BigQuery after the load occurs. The results will be returned by the
@@ -124,6 +127,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
+        self.allow_quoted_newlines = allow_quoted_newlines
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -161,6 +165,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             field_delimiter=self.field_delimiter,
             max_bad_records=self.max_bad_records,
             quote_character=self.quote_character,
+            allow_quoted_newlines=self.allow_quoted_newlines,
             schema_update_options=self.schema_update_options)
 
         if self.max_id_key:
