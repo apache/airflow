@@ -3408,7 +3408,7 @@ class DAG(BaseDag, LoggingMixin):
         upstream and downstream neighbours based on the flag passed.
         """
 
-        dag = copy.deepcopy(self)
+        dag = copy.copy(self)
 
         regex_match = [
             t for t in dag.tasks if re.findall(task_regex, t.task_id)]

@@ -37,3 +37,4 @@ class BashTaskRunner(BaseTaskRunner):
 
     def on_finish(self):
         super(BashTaskRunner, self).on_finish()
+        self.process.kill()
