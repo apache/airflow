@@ -60,7 +60,7 @@ class DingDingAPIOperator(BaseOperator):
             self.construct_api_call_params()
         r = self.do(self.token, self.api_params)
         logging.info("DingDingRobot API call return ({})".format(r.text))
-        if r.status_code != 200:
+        if json.loads(r.text)['errcode'] != 0:
             logging.error("DingDingRobot API call failed ({})".format(r.text))
             raise AirflowException("DingDing API call failed: ({})".format(r.text))
 
