@@ -201,6 +201,12 @@ def login(self, request):
                 username=username,
                 is_superuser=False)
 
+            # Add to database immediately, then query for the full object
+            session.merge(user)
+            session.commit()
+            user = session.query(models.User).filter(
+                models.User.username == username).first()
+
         session.merge(user)
         session.commit()
         flask_login.login_user(AstronomerUser(user))
