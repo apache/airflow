@@ -16,11 +16,11 @@ from __future__ import print_function
 
 import unittest
 import datetime
-from airflow import configuration,DAG,operators
+from airflow import configuration, DAG, operators
 
 DEFAULT_DATE = datetime.datetime(2017, 8, 22)
 TEST_DAG_ID = 'unit_test_dingding'
-DINGDING_TOKEN="91fd22f6d9b65091528457e925f15a91e511ccec7ec88693d7d462fcd66cd9a7"
+DINGDING_TOKEN = "91fd22f6d9b65091528457e925f15a91e511ccec7ec88693d7d462fcd66cd9a7"
 configuration.load_test_config()
 
 
@@ -43,7 +43,10 @@ class DingDingAPIOperatorTest(unittest.TestCase):
             text="This is detail msg",
             messageUrl="https://airflow.incubator.apache.org/",
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        t.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True)
 
     def test_dingding_text_operator(self):
         import airflow.operators.dingding_operator
@@ -53,7 +56,11 @@ class DingDingAPIOperatorTest(unittest.TestCase):
             content="This is my airflow msg",
             isAtAll=True,
             dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        t.run(
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE,
+            ignore_ti_state=True)
+
 
 if __name__ == '__main__':
     unittest.main()

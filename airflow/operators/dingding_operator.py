@@ -24,14 +24,15 @@ class DingDingAPIOperator(BaseOperator):
     """
     Base DingDingAPI Operator
     The DingDingAPIOperator is derived from this operator.
-    In the future additional DingDing API Operators will be derived from this class as well
-
+    In the future additional DingDing API Operators will be 
+    derived from this class as well
     :param token: DingDing API token (https://open-doc.dingtalk.com)
     :type token: string
-    :param api_params: API Method call parameters (https://open-doc.dingtalk.com/docs/doc.htm?spm=0.0.0.0.Aed6Oe&treeId=385&articleId=104981&docType=1)
+    :param api_params: API Method call parameters 
+    (https://open-doc.dingtalk.com/docs/doc.htm?
+    spm=0.0.0.0.Aed6Oe&treeId=385&articleId=104981&docType=1)
     :type api_params: dict
     """
-
 
     @apply_defaults
     def __init__(self,
@@ -44,10 +45,13 @@ class DingDingAPIOperator(BaseOperator):
 
     def construct_api_call_params(self):
         """
-        Used by the execute function. Allows templating on the source fields of the api_call_params dict before construction
-        Override in child classes.
-        Each DingDingAPIOperator child class is responsible for having a construct_api_call_params function
-        which sets self.api_call_params with a dict of API call parameters (https://open-doc.dingtalk.com/docs/doc.htm?spm=a219a.7629140.0.0.03YixU&treeId=257&articleId=105735&docType=1)
+        Used by the execute function. Allows templating on the source fields of 
+        the api_call_params dict before construction Override in child classes.
+        Each DingDingAPIOperator child class is responsible for having a 
+        construct_api_call_params function
+        which sets self.api_call_params with a dict of API call parameters
+        (https://open-doc.dingtalk.com/docs/doc.htm?
+         spm=a219a.7629140.0.0.03YixU&treeId=257&articleId=105735&docType=1)
         """
         pass
 
@@ -62,17 +66,24 @@ class DingDingAPIOperator(BaseOperator):
         logging.info("DingDingRobot API call return ({})".format(r.text))
         if json.loads(r.text)['errcode'] != 0:
             logging.error("DingDingRobot API call failed ({})".format(r.text))
-            raise AirflowException("DingDing API call failed: ({})".format(r.text))
+            raise AirflowException(
+                "DingDing API call failed: ({})".format(
+                    r.text))
 
-    def do(self, token=None, post_data=None, domain="oapi.dingtalk.com", timeout=None):
+    def do(
+            self,
+            token=None,
+            post_data=None,
+            domain="oapi.dingtalk.com",
+            timeout=None):
         """
         Perform a POST request to the DingDing Robot  API
         Args:
             token (str): your authentication token
             timeout (float): stop waiting for a response after a given number of seconds
             post_data (dict): key/value arguments to pass for the request.
-            domain (str): if for some reason you want to send your request to something other
-                than oapi.dingtalk.com
+            domain (str): if for some reason you want to send your request to 
+            something other than oapi.dingtalk.com
         """
         post_data = post_data or {}
         url = 'https://{0}/robot/send?access_token={1}'.format(domain, token)
@@ -92,7 +103,7 @@ class DingDingAPITextOperator(DingDingAPIOperator):
     :type content: string
     :param atMobiles: mobiles list to @
     :type atMobiles: array of mobile number
-    :param isAtAll: @ ALL or Not 
+    :param isAtAll: @ ALL or Not
     :type isAtAll: bool
     """
     template_fields = ('content', 'atMobiles', 'isAtAll')
@@ -127,7 +138,7 @@ class DingDingAPILinkOperator(DingDingAPIOperator):
 
     :param text: text message to send to dingding
     :type text: string
-    :param title: message title 
+    :param title: message title
     :type title: string
     :param picUrl: url link to show a pic in dingding ,default airflow icon
     :type picUrl: string
