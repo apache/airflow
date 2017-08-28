@@ -38,11 +38,13 @@ class SlackAPIOperator(BaseOperator):
     def __init__(self,
                  token='unset',
                  method='unset',
+                 proxies=None,
                  api_params=None,
                  *args, **kwargs):
         super(SlackAPIOperator, self).__init__(*args, **kwargs)
         self.token = token
         self.method = method
+        self.proxies = proxies
         self.api_params = api_params
 
     def construct_api_call_params(self):
@@ -63,7 +65,7 @@ class SlackAPIOperator(BaseOperator):
         """
         if not self.api_params:
             self.construct_api_call_params()
-        sc = SlackClient(self.token)
+        sc = SlackClient(self.token, self.proxies)
         rc = sc.api_call(self.method, **self.api_params)
         if not rc['ok']:
             logging.error("Slack API call failed ({})".format(rc['error']))
