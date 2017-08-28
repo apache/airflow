@@ -424,7 +424,7 @@ class Airflow(BaseView):
                 nvd3_chart = NVd3ChartClass(x_is_date=chart.x_is_date)
 
                 for col in df.columns:
-                    nvd3_chart.add_serie(name=col, y=df[col].tolist(), x=df[col].index.tolist())
+                    nvd3_chart.add_serie(name=col, y=df[col].tolist(), x=df[col].index.get_values().tolist())
                 try:
                     nvd3_chart.buildcontent()
                     payload['chart_type'] = nvd3_chart.__class__.__name__
