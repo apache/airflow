@@ -103,7 +103,7 @@ def get_fernet():
         raise AirflowException('Failed to import Fernet, it may not be installed')
     try:
         return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
-    except ValueError as ve:
+    except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}"
                                .format(ve.message))
 
@@ -518,7 +518,7 @@ class User(Base):
         return self.superuser
 
 
-class Connection(Base):
+class Connection(Base, LoggingMixin):
     """
     Placeholder to store information about different database instances
     connection information. The idea here is that scripts use references to
@@ -3824,7 +3824,7 @@ class KnownEvent(Base):
         return self.label
 
 
-class Variable(Base):
+class Variable(Base, LoggingMixin):
     __tablename__ = "variable"
 
     id = Column(Integer, primary_key=True)
