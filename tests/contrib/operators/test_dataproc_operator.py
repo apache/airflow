@@ -41,6 +41,10 @@ WORKER_DISK_SIZE = 100
 NUM_PREEMPTIBLE_WORKERS = 2
 LABEL1 = {}
 LABEL2 = {'application':'test', 'year': 2017}
+SERVICE_ACCOUNT_SCOPES = [
+    'https://www.googleapis.com/auth/bigquery',
+    'https://www.googleapis.com/auth/bigtable.data'
+]
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
@@ -64,7 +68,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     worker_machine_type=WORKER_MACHINE_TYPE,
                     worker_disk_size=WORKER_DISK_SIZE,
                     num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
-                    labels = deepcopy(labels)
+                    labels = deepcopy(labels),
+                    service_account_scopes = SERVICE_ACCOUNT_SCOPES
                 )
              )
         self.dag = DAG(
@@ -91,6 +96,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.worker_disk_size, WORKER_DISK_SIZE)
             self.assertEqual(dataproc_operator.num_preemptible_workers, NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])
+            self.assertEqual(dataproc_operator.service_account_scopes, SERVICE_ACCOUNT_SCOPES)
 
     def test_build_cluster_data(self):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
@@ -102,6 +108,8 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(cluster_data['config']['workerConfig']['numInstances'], NUM_WORKERS)
             self.assertEqual(cluster_data['config']['secondaryWorkerConfig']['numInstances'],
                              NUM_PREEMPTIBLE_WORKERS)
+            self.assertEqual(cluster_data['config']['gceClusterConfig']['serviceAccountScopes'],
+                SERVICE_ACCOUNT_SCOPES)
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
