@@ -34,6 +34,8 @@ class PigOperator(BaseOperator):
         ``DAG(user_defined_macros=myargs)`` parameter. View the DAG
         object documentation for more details.
     :type pigparams_jinja_translate: boolean
+    :param env: environment variables to pass to the Pig CLI
+    :type env: dict
     """
 
     template_fields = ('pig',)
@@ -45,15 +47,17 @@ class PigOperator(BaseOperator):
             self, pig,
             pig_cli_conn_id='pig_cli_default',
             pigparams_jinja_translate=False,
+            env=None,
             *args, **kwargs):
 
         super(PigOperator, self).__init__(*args, **kwargs)
         self.pigparams_jinja_translate = pigparams_jinja_translate
         self.pig = pig
+        self.env = env or {}
         self.pig_cli_conn_id = pig_cli_conn_id
 
     def get_hook(self):
-        return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id)
+        return PigCliHook(pig_cli_conn_id=self.pig_cli_conn_id, env=self.env)
 
     def prepare_template(self):
         if self.pigparams_jinja_translate:

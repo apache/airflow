@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from __future__ import print_function
+import os
 import logging
 import subprocess
 from tempfile import NamedTemporaryFile
@@ -31,13 +32,25 @@ class PigCliHook(BaseHook):
     ``pig_properties`` to be used in your connection as in
     ``{"pig_properties": "-Dpig.tmpfilecompression=true"}``
 
+    Environment variables can be passed using the ``env`` property
+    in the connection. This should be a dict that maps variable
+    names to values, for example:
+    ``{"env": {"PIG_OPTS": "-Xmx512M"}}``
+
+    Environment variables defined in the connection can be overriden
+    by passing the ``env`` keyword argument to the constructor.
+
     """
 
     def __init__(
             self,
-            pig_cli_conn_id="pig_cli_default"):
+            pig_cli_conn_id="pig_cli_default",
+            env=None):
         conn = self.get_connection(pig_cli_conn_id)
         self.pig_properties = conn.extra_dejson.get('pig_properties', '')
+        self.env = conn.extra_dejson.get('env', {})
+        if env is not None:
+            self.env = dict(self.env, **env)
         self.conn = conn
 
     def run_cli(self, pig, verbose=True):
@@ -69,7 +82,8 @@ class PigCliHook(BaseHook):
                     pig_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    cwd=tmp_dir)
+                    cwd=tmp_dir,
+                    env=dict(os.environ, **self.env))
                 self.sp = sp
                 stdout = ''
                 for line in iter(sp.stdout.readline, ''):
