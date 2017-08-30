@@ -14,6 +14,10 @@
 
 from builtins import str
 import logging
+try:
+    from urllib.parse import urljoin
+except ImportError:
+    from urlparse import urljoin
 
 import requests
 
@@ -62,7 +66,7 @@ class HttpHook(BaseHook):
 
         session = self.get_conn(headers)
 
-        url = self.base_url + endpoint
+        url = urljoin(str(self.base_url), str(endpoint))
         req = None
         if self.method == 'GET':
             # GET uses params
