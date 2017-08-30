@@ -86,7 +86,7 @@ class SlackAPIPostOperator(SlackAPIOperator):
     :type attachments: array of hashes
     """
 
-    template_fields = ('username', 'text', 'attachments')
+    template_fields = ('username', 'text', 'attachments', 'channel')
     ui_color = '#FFBA40'
 
     @apply_defaults
