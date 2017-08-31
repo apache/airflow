@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import time
+import zipfile
 
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
@@ -187,7 +188,7 @@ def list_py_file_paths(directory, safe_mode=True):
                         continue
                     mod_name, file_ext = os.path.splitext(
                         os.path.split(file_path)[-1])
-                    if file_ext != '.py':
+                    if file_ext != '.py' and not zipfile.is_zipfile(file_path):
                         continue
                     if any([re.findall(p, file_path) for p in patterns]):
                         continue
@@ -195,7 +196,7 @@ def list_py_file_paths(directory, safe_mode=True):
                     # Heuristic that guesses whether a Python file contains an
                     # Airflow DAG definition.
                     might_contain_dag = True
-                    if safe_mode:
+                    if safe_mode and not zipfile.is_zipfile(file_path):
                         with open(file_path, 'rb') as f:
                             content = f.read()
                             might_contain_dag = all(

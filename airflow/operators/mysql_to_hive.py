@@ -58,6 +58,8 @@ class MySqlToHiveTransfer(BaseOperator):
     :type mysql_conn_id: str
     :param hive_conn_id: destination hive connection
     :type hive_conn_id: str
+    :param tblproperties: TBLPROPERTIES of the hive table being created
+    :type tblproperties: dict
     """
 
     template_fields = ('sql', 'partition', 'hive_table')
@@ -75,6 +77,7 @@ class MySqlToHiveTransfer(BaseOperator):
             delimiter=chr(1),
             mysql_conn_id='mysql_default',
             hive_cli_conn_id='hive_cli_default',
+            tblproperties=None,
             *args, **kwargs):
         super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -86,6 +89,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
+        self.tblproperties = tblproperties
 
     @classmethod
     def type_map(cls, mysql_type):
@@ -128,4 +132,5 @@ class MySqlToHiveTransfer(BaseOperator):
                 create=self.create,
                 partition=self.partition,
                 delimiter=self.delimiter,
-                recreate=self.recreate)
+                recreate=self.recreate,
+                tblproperties=self.tblproperties)

@@ -58,6 +58,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                  region='global',
                  google_cloud_conn_id='google_cloud_default',
                  delegate_to=None,
+                 service_account=None,
+                 service_account_scopes=None,
                  *args,
                  **kwargs):
         """
@@ -111,6 +113,10 @@ class DataprocClusterCreateOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param service_account: The service account of the dataproc instances.
+        :type service_account: string
+        :param service_account_scopes: The URIs of service account scopes to be included.
+        :type service_account_scopes: list[string]
         """
         super(DataprocClusterCreateOperator, self).__init__(*args, **kwargs)
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -131,6 +137,8 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.labels = labels
         self.zone = zone
         self.region = region
+        self.service_account = service_account
+        self.service_account_scopes = service_account_scopes
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
@@ -229,7 +237,11 @@ class DataprocClusterCreateOperator(BaseOperator):
             }
 
         cluster_data['labels'] = self.labels if self.labels else {}
-        cluster_data['labels'].update({'airflow_version': version})
+        # Dataproc labels must conform to the following regex:
+        # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
+        # semantic versioning spec: x.y.z).
+        cluster_data['labels'].update({'airflow-version':
+                                       'v' + version.replace('.', '-')})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:
@@ -243,9 +255,16 @@ class DataprocClusterCreateOperator(BaseOperator):
                 {'executableFile': uri} for uri in self.init_actions_uris
             ]
             cluster_data['config']['initializationActions'] = init_actions_dict
+        if self.service_account:
+            cluster_data['config']['gceClusterConfig']['serviceAccount'] =\
+                    self.service_account
+        if self.service_account_scopes:
+            cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
+                    self.service_account_scopes
         return cluster_data
 
     def execute(self, context):
+        logging.info('Creating cluster: {}'.format(self.cluster_name))
         hook = DataProcHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to
@@ -337,6 +356,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
             time.sleep(15)
 
     def execute(self, context):
+        logging.info('Deleting cluster: {}'.format(self.cluster_name))
         hook = DataProcHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to

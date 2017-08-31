@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import logging.config
 import os
 import sys
 
@@ -168,6 +169,19 @@ except:
 configure_logging()
 configure_vars()
 configure_orm()
+
+# TODO: Unify airflow logging setups. Please see AIRFLOW-1457.
+logging_config_path = conf.get('core', 'logging_config_path')
+try:
+    from logging_config_path import LOGGING_CONFIG
+    logging.debug("Successfully imported user-defined logging config.")
+except Exception as e:
+    # Import default logging configurations.
+    logging.debug("Unable to load custom logging config file: {}."
+                  " Using default airflow logging config instead".format(str(e)))
+    from airflow.config_templates.default_airflow_logging import \
+        DEFAULT_LOGGING_CONFIG as LOGGING_CONFIG
+logging.config.dictConfig(LOGGING_CONFIG)
 
 # Const stuff
 

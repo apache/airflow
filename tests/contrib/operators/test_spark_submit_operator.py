@@ -46,10 +46,11 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'driver_memory': '3g',
         'java_class': 'com.foo.bar.AppMain',
         'application_args': [
-            '-f foo',
-            '--bar bar',
-            '--start {{ macros.ds_add(ds, -1)}}',
-            '--end {{ ds }}'
+            '-f', 'foo',
+            '--bar', 'bar',
+            '--start', '{{ macros.ds_add(ds, -1)}}',
+            '--end', '{{ ds }}',
+            '--with-spaces', 'args should keep embdedded spaces',
         ]
     }
 
@@ -95,10 +96,11 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'driver_memory': '3g',
             'java_class': 'com.foo.bar.AppMain',
             'application_args': [
-                '-f foo',
-                '--bar bar',
-                '--start {{ macros.ds_add(ds, -1)}}',
-                '--end {{ ds }}'
+                '-f', 'foo',
+                '--bar', 'bar',
+                '--start', '{{ macros.ds_add(ds, -1)}}',
+                '--end', '{{ ds }}',
+                '--with-spaces', 'args should keep embdedded spaces',
             ]
 
         }
@@ -130,14 +132,15 @@ class TestSparkSubmitOperator(unittest.TestCase):
         ti.render_templates()
 
         # Then
-        expected_application_args = [u'-f foo',
-                                     u'--bar bar',
-                                     u'--start %s' % (DEFAULT_DATE - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
-                                     u'--end %s' % DEFAULT_DATE.strftime("%Y-%m-%d")]
+        expected_application_args = [u'-f', 'foo',
+                                     u'--bar', 'bar',
+                                     u'--start', (DEFAULT_DATE - datetime.timedelta(days=1)).strftime("%Y-%m-%d"),
+                                     u'--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
+                                     u'--with-spaces', u'args should keep embdedded spaces',
+                                     ]
         expected_name = "spark_submit_job"
-        self.assertListEqual(sorted(expected_application_args), sorted(getattr(operator, '_application_args')))
+        self.assertListEqual(expected_application_args, getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
-
 
 if __name__ == '__main__':
     unittest.main()

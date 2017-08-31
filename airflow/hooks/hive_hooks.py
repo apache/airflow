@@ -343,7 +343,8 @@ class HiveCliHook(BaseHook):
             create=True,
             overwrite=True,
             partition=None,
-            recreate=False):
+            recreate=False,
+            tblproperties=None):
         """
         Loads a local file into Hive
 
@@ -354,19 +355,28 @@ class HiveCliHook(BaseHook):
         stage the data into a temporary table before loading it into its
         final destination using a ``HiveOperator``.
 
+        :param filepath: local filepath of the file to load
+        :type filepath: str       
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
+        :param delimiter: field delimiter in the file
+        :type delimiter: str
+        :param field_dict: A dictionary of the fields name in the file
+            as keys and their Hive types as values
+        :type field_dict: dict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
-        :param recreate: whether to drop and recreate the table at every
-            execution
-        :type recreate: bool
+        :param overwrite: whether to overwrite the data in table or partition
+        :type overwrite: bool
         :param partition: target partition as a dict of partition columns
             and values
         :type partition: dict
-        :param delimiter: field delimiter in the file
-        :type delimiter: str
+        :param recreate: whether to drop and recreate the table at every
+            execution
+        :type recreate: bool
+        :param tblproperties: TBLPROPERTIES of the hive table being created
+        :type tblproperties: dict
         """
         hql = ''
         if recreate:
@@ -383,7 +393,12 @@ class HiveCliHook(BaseHook):
                 hql += "PARTITIONED BY ({pfields})\n"
             hql += "ROW FORMAT DELIMITED\n"
             hql += "FIELDS TERMINATED BY '{delimiter}'\n"
-            hql += "STORED AS textfile;"
+            hql += "STORED AS textfile\n"
+            if tblproperties is not None:
+                tprops = ", ".join(
+                    ["'{0}'='{1}'".format(k, v) for k, v in tblproperties.items()])
+                hql += "TBLPROPERTIES({tprops})\n"
+        hql += ";" 
         hql = hql.format(**locals())
         logging.info(hql)
         self.run_cli(hql)

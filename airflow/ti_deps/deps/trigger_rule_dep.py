@@ -124,8 +124,8 @@ class TriggerRuleDep(BaseTIDep):
         tr = task.trigger_rule
         upstream_done = done >= upstream
         upstream_tasks_state = {
-            "successes": successes, "skipped": skipped, "failed": failed,
-            "upstream_failed": upstream_failed, "done": done
+            "total": upstream, "successes": successes, "skipped": skipped,
+            "failed": failed, "upstream_failed": upstream_failed, "done": done
         }
         # TODO(aoen): Ideally each individual trigger rules would be it's own class, but
         # this isn't very feasible at the moment since the database queries need to be

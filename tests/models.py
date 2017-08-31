@@ -29,12 +29,15 @@ from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
+from airflow.models import clear_task_instances
+from airflow.models import XCom
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils.state import State
+from airflow.utils.trigger_rule import TriggerRule
 from mock import patch
 from parameterized import parameterized
 
@@ -481,10 +484,38 @@ class DagRunTest(unittest.TestCase):
         state = dr.update_state()
         self.assertEqual(State.SUCCESS, state)
 
-        # upstream dependency failed, root has not run
-        ti_op1.set_state(State.NONE, session)
-        state = dr.update_state()
-        self.assertEqual(State.FAILED, state)
+    def test_dagrun_deadlock(self):
+        session = settings.Session()
+        dag = DAG(
+            'text_dagrun_deadlock',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            op1 = DummyOperator(task_id='A')
+            op2 = DummyOperator(task_id='B')
+            op2.trigger_rule = TriggerRule.ONE_FAILED
+            op2.set_upstream(op1)
+
+        dag.clear()
+        now = datetime.datetime.now()
+        dr = dag.create_dagrun(run_id='test_dagrun_deadlock',
+                               state=State.RUNNING,
+                               execution_date=now,
+                               start_date=now)
+
+        ti_op1 = dr.get_task_instance(task_id=op1.task_id)
+        ti_op1.set_state(state=State.SUCCESS, session=session)
+        ti_op2 = dr.get_task_instance(task_id=op2.task_id)
+        ti_op2.set_state(state=State.NONE, session=session)
+
+        dr.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
+
+        ti_op2.set_state(state=State.NONE, session=session)
+        op2.trigger_rule = 'invalid'
+        dr.update_state()
+        self.assertEqual(dr.state, State.FAILED)
 
     def test_get_task_instance_on_empty_dagrun(self):
         """
@@ -912,7 +943,7 @@ class TaskInstanceTest(unittest.TestCase):
 
         # Clear the TI state since you can't run a task with a FAILED state without
         # clearing it first
-        ti.set_state(None, settings.Session())
+        dag.clear()
 
         # third run -- up for retry
         run_with_error(ti)
@@ -1154,3 +1185,286 @@ class TaskInstanceTest(unittest.TestCase):
 
         with self.assertRaises(TestError):
             ti.run()
+
+
+class ClearTasksTest(unittest.TestCase):
+    def test_clear_task_instances(self):
+        dag = DAG('test_clear_task_instances', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task0 = DummyOperator(task_id='0', owner='test', dag=dag)
+        task1 = DummyOperator(task_id='1', owner='test', dag=dag, retries=2)
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+
+        ti0.run()
+        ti1.run()
+        session = settings.Session()
+        qry = session.query(TI).filter(
+            TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session, dag=dag)
+        session.commit()
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.max_tries, 1)
+        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.max_tries, 3)
+
+    def test_clear_task_instances_without_task(self):
+        dag = DAG('test_clear_task_instances_without_task', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task0 = DummyOperator(task_id='task0', owner='test', dag=dag)
+        task1 = DummyOperator(task_id='task1', owner='test', dag=dag, retries=2)
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti0.run()
+        ti1.run()
+
+        # Remove the task from dag.
+        dag.task_dict = {}
+        self.assertFalse(dag.has_task(task0.task_id))
+        self.assertFalse(dag.has_task(task1.task_id))
+
+        session = settings.Session()
+        qry = session.query(TI).filter(
+            TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session)
+        session.commit()
+        # When dag is None, max_tries will be maximum of original max_tries or try_number.
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.max_tries, 1)
+        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.max_tries, 2)
+
+    def test_clear_task_instances_without_dag(self):
+        dag = DAG('test_clear_task_instances_without_dag', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task0 = DummyOperator(task_id='task_0', owner='test', dag=dag)
+        task1 = DummyOperator(task_id='task_1', owner='test', dag=dag, retries=2)
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        ti0.run()
+        ti1.run()
+
+        session = settings.Session()
+        qry = session.query(TI).filter(
+            TI.dag_id == dag.dag_id).all()
+        clear_task_instances(qry, session)
+        session.commit()
+        # When dag is None, max_tries will be maximum of original max_tries or try_number.
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.max_tries, 1)
+        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.max_tries, 2)
+
+    def test_dag_clear(self):
+        dag = DAG('test_dag_clear', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        task0 = DummyOperator(task_id='test_dag_clear_task_0', owner='test', dag=dag)
+        ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
+        self.assertEqual(ti0.try_number, 0)
+        ti0.run()
+        self.assertEqual(ti0.try_number, 1)
+        dag.clear()
+        ti0.refresh_from_db()
+        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.state, State.NONE)
+        self.assertEqual(ti0.max_tries, 1)
+
+        task1 = DummyOperator(task_id='test_dag_clear_task_1', owner='test',
+                              dag=dag, retries=2)
+        ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
+        self.assertEqual(ti1.max_tries, 2)
+        ti1.try_number = 1
+        ti1.run()
+        self.assertEqual(ti1.try_number, 2)
+        self.assertEqual(ti1.max_tries, 2)
+
+        dag.clear()
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        # after clear dag, ti2 should show attempt 3 of 5
+        self.assertEqual(ti1.max_tries, 4)
+        self.assertEqual(ti1.try_number, 2)
+        # after clear dag, ti1 should show attempt 2 of 2
+        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.max_tries, 1)
+
+    def test_dags_clear(self):
+        # setup
+        session = settings.Session()
+        dags, tis = [], []
+        num_of_dags = 5
+        for i in range(num_of_dags):
+            dag = DAG('test_dag_clear_' + str(i), start_date=DEFAULT_DATE,
+                      end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+            ti = TI(task=DummyOperator(task_id='test_task_clear_' + str(i), owner='test', dag=dag),
+                    execution_date=DEFAULT_DATE)
+            dags.append(dag)
+            tis.append(ti)
+
+        # test clear all dags
+        for i in range(num_of_dags):
+            tis[i].run()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].max_tries, 0)
+
+        DAG.clear_dags(dags)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            self.assertEqual(tis[i].state, State.NONE)
+            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        # test dry_run
+        for i in range(num_of_dags):
+            tis[i].run()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        DAG.clear_dags(dags, dry_run=True)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            self.assertEqual(tis[i].state, State.SUCCESS)
+            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].max_tries, 1)
+
+        # test only_failed
+        from random import randint
+        failed_dag_idx = randint(0, len(tis) - 1)
+        tis[failed_dag_idx].state = State.FAILED
+        session.merge(tis[failed_dag_idx])
+        session.commit()
+
+        DAG.clear_dags(dags, only_failed=True)
+
+        for i in range(num_of_dags):
+            tis[i].refresh_from_db()
+            if i != failed_dag_idx:
+                self.assertEqual(tis[i].state, State.SUCCESS)
+                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].max_tries, 1)
+            else:
+                self.assertEqual(tis[i].state, State.NONE)
+                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].max_tries, 2)
+
+    def test_operator_clear(self):
+        dag = DAG('test_operator_clear', start_date=DEFAULT_DATE,
+                  end_date=DEFAULT_DATE + datetime.timedelta(days=10))
+        t1 = DummyOperator(task_id='bash_op', owner='test', dag=dag)
+        t2 = DummyOperator(task_id='dummy_op', owner='test', dag=dag, retries=1)
+
+        t2.set_upstream(t1)
+
+        ti1 = TI(task=t1, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
+        ti2.run()
+        # Dependency not met
+        self.assertEqual(ti2.try_number, 0)
+        self.assertEqual(ti2.max_tries, 1)
+
+        t2.clear(upstream=True)
+        ti1.run()
+        ti2.run()
+        self.assertEqual(ti1.try_number, 1)
+        # max_tries is 0 because there is no task instance in db for ti1
+        # so clear won't change the max_tries.
+        self.assertEqual(ti1.max_tries, 0)
+        self.assertEqual(ti2.try_number, 1)
+        # try_number (0) + retries(1)
+        self.assertEqual(ti2.max_tries, 1)
+
+    def test_xcom_disable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test1"
+        dag_id = "test_dag1"
+        task_id = "test_task1"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=False)
+
+        ret_value = XCom.get_one(key=key,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=False)
+
+        self.assertEqual(ret_value, json_obj)
+
+    def test_xcom_enable_pickle_type(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test2"
+        dag_id = "test_dag2"
+        task_id = "test_task2"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        ret_value = XCom.get_one(key=key,
+                 dag_id=dag_id,
+                 task_id=task_id,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        self.assertEqual(ret_value, json_obj)
+
+    def test_xcom_disable_pickle_type_fail_on_non_json(self):
+        class PickleRce(object):
+            def __reduce__(self):
+                return (os.system, ("ls -alt",))
+        self.assertRaises(TypeError, XCom.set,
+                          key="xcom_test3",
+                          value=PickleRce(),
+                          dag_id="test_dag3",
+                          task_id="test_task3",
+                          execution_date=datetime.datetime.now(),
+                          enable_pickling=False)
+
+    def test_xcom_get_many(self):
+        json_obj = {"key": "value"}
+        execution_date = datetime.datetime.now()
+        key = "xcom_test4"
+        dag_id1 = "test_dag4"
+        task_id1 = "test_task4"
+        dag_id2 = "test_dag5"
+        task_id2 = "test_task5"
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id1,
+                 task_id=task_id1,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        XCom.set(key=key,
+                 value=json_obj,
+                 dag_id=dag_id2,
+                 task_id=task_id2,
+                 execution_date=execution_date,
+                 enable_pickling=True)
+
+        results = XCom.get_many(key=key,
+                                execution_date=execution_date,
+                                enable_pickling=True)
+
+        for result in results:
+            self.assertEqual(result.value, json_obj)
