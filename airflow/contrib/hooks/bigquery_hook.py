@@ -196,7 +196,8 @@ class BigQueryBaseCursor(object):
             udf_config = False,
             use_legacy_sql=True,
             maximum_billing_tier=None,
-            create_disposition='CREATE_IF_NEEDED'):
+            create_disposition='CREATE_IF_NEEDED',
+            query_params=None):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -254,6 +255,9 @@ class BigQueryBaseCursor(object):
             configuration['query'].update({
                 'userDefinedFunctionResources': udf_config
             })
+
+        if query_params:
+            configuration['query']['queryParameters'] = query_params
 
         return self.run_with_configuration(configuration)
 
