@@ -14,6 +14,8 @@
 
 import yaml
 from kubernetes import client, config
+from kubernetes.client.rest import ApiException
+import kubernetes
 
 
 class KubernetesHelper(object):
@@ -33,3 +35,11 @@ class KubernetesHelper(object):
     def delete_job(self, job_id, namespace):
         body = client.V1DeleteOptions()
         self.job_api.delete_namespaced_job(name=job_id, namespace=namespace, body=body)
+
+    def delete_pod(self, pod_id, namespace):
+        body = client.V1DeleteOptions()
+        try:
+            self.pod_api.delete_namespaced_pod(pod_id, namespace, body=body)
+        except ApiException as e:
+            if e.status != 404:
+                raise
