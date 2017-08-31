@@ -32,6 +32,25 @@ class KubernetesRequestFactory():
         """
         pass
 
+    @abstractmethod
+    def after_create(self, body, pod):
+        """
+            Is called after the create to augment the body.
+
+            :param body: The request body
+            :param pod:  The pod
+        """
+        pass
+
+
+class KubernetesRequestFactoryHelper(object):
+    """
+    Helper methods to build a request for kubernetes
+    """
+    @staticmethod
+    def extract_image_pull_policy(pod, req):
+        req['spec']['containers'][0]['imagePullPolicy'] = pod.image_pull_policy
+
     @staticmethod
     def extract_image(pod, req):
         req['spec']['containers'][0]['image'] = pod.image
