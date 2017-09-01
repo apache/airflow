@@ -25,6 +25,7 @@ from celery import states as celery_states
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
+from airflow.config_templates import default_celery
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
@@ -35,43 +36,16 @@ airflow worker
 
 DEFAULT_QUEUE = configuration.get('celery', 'DEFAULT_QUEUE')
 
+if configuration.has_option('celery', 'celery_config_module'):
+    celery_configuration = configuration.get('celery', 'celery_config_module')
+else:
+    celery_configuration = default_celery
 
-class CeleryConfig(object):
-    CELERY_ACCEPT_CONTENT = ['json', 'pickle']
-    CELERY_EVENT_SERIALIZER = 'json'
-    CELERY_RESULT_SERIALIZER = 'pickle'
-    CELERY_TASK_SERIALIZER = 'pickle'
-    CELERYD_PREFETCH_MULTIPLIER = 1
-    CELERY_ACKS_LATE = True
-    BROKER_URL = configuration.get('celery', 'BROKER_URL')
-    CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
-    CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
-    CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE
-    CELERY_DEFAULT_EXCHANGE = DEFAULT_QUEUE
-
-    celery_ssl_active = False
-    try:
-        celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
-    except AirflowConfigException as e:
-        logging.warning("Celery Executor will run without SSL")
-
-    try:
-        if celery_ssl_active:
-            BROKER_USE_SSL = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
-                              'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
-                              'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
-                              'cert_reqs': ssl.CERT_REQUIRED}
-    except AirflowConfigException as e:
-        raise AirflowException('AirflowConfigException: CELERY_SSL_ACTIVE is True, please ensure CELERY_SSL_KEY, '
-                               'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
-    except Exception as e:
-        raise AirflowException('Exception: There was an unknown Celery SSL Error.  Please ensure you want to use '
-                               'SSL and/or have all necessary certs and key.')
+logging.info("Using celery configuration module " + celery_configuration)
 
 app = Celery(
     configuration.get('celery', 'CELERY_APP_NAME'),
-    config_source=CeleryConfig)
-
+    config_source=celery_configuration)
 
 @app.task
 def execute_command(command):
