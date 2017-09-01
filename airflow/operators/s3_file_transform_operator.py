@@ -14,6 +14,7 @@
 
 import logging
 from tempfile import NamedTemporaryFile
+import six
 import subprocess
 
 from airflow.exceptions import AirflowException
@@ -81,7 +82,7 @@ class S3FileTransformOperator(BaseOperator):
             raise AirflowException("The source key {0} does not exist"
                             "".format(self.source_s3_key))
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
-        with NamedTemporaryFile("w") as f_source, NamedTemporaryFile("w") as f_dest:
+        with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
             logging.info("Dumping S3 file {0} contents to local file {1}"
                          "".format(self.source_s3_key, f_source.name))
             source_s3_key_object.get_contents_to_file(f_source)
@@ -91,9 +92,13 @@ class S3FileTransformOperator(BaseOperator):
                 [self.transform_script, f_source.name, f_dest.name],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (transform_script_stdoutdata, transform_script_stderrdata) = transform_script_process.communicate()
+            if six.PY3:
+                transform_script_stdoutdata = transform_script_stdoutdata.decode()
             logging.info("Transform script stdout "
                          "" + transform_script_stdoutdata)
             if transform_script_process.returncode > 0:
+                if six.PY3:
+                    transform_script_stderrdata = transform_script_stderrdata.decode()
                 raise AirflowException("Transform script failed "
                                 "" + transform_script_stderrdata)
             else:
