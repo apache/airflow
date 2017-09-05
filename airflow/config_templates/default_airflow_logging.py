@@ -37,7 +37,7 @@ if REMOTE_BASE_LOG_FOLDER.startswith('s3:/'):
 elif REMOTE_BASE_LOG_FOLDER.startswith('gs:/'):
     GCS_LOG_FOLDER = REMOTE_BASE_LOG_FOLDER
 
-FILENAME_TEMPLATE = '{dag_id}/{task_id}/{execution_date}/{try_number}.log'
+FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log'
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
