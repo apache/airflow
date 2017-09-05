@@ -1362,9 +1362,10 @@ class SchedulerJob(BaseJob):
             no_backfills=True,
         )
         for dr in active_runs:
-            self.logger.info("Resetting {} {}".format(dr.dag_id,
-                                                      dr.execution_date))
-            self.reset_state_for_orphaned_tasks(dr, session=session)
+            if dr.dag_id in ['long_running_test']:
+                self.logger.info("Resetting {} {}".format(dr.dag_id,
+                                                        dr.execution_date))
+                self.reset_state_for_orphaned_tasks(dr, session=session)
 
         session.close()
 
