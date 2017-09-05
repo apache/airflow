@@ -291,7 +291,6 @@ class MLEngineModelOperator(BaseOperator):
 
     template_fields = [
         '_model',
-        '_model_name',
     ]
 
     @apply_defaults
@@ -314,9 +313,9 @@ class MLEngineModelOperator(BaseOperator):
         hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
         if self._operation == 'create':
-            hook.create_model(self._project_id, self._model)
+            return hook.create_model(self._project_id, self._model)
         elif self._operation == 'get':
-            hook.get_model(self._project_id, self._model['name'])
+            return hook.get_model(self._project_id, self._model['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
@@ -333,6 +332,12 @@ class MLEngineVersionOperator(BaseOperator):
         belongs to.
     :type model_name: string
 
+    :param version_name: A name to use for the version being operated upon. If
+        not None and the `version` argument is None or does not have a value for
+        the `name` key, then this will be populated in the payload for the
+        `name` key.
+    :type version_name: string
+
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
         information about this version such as name, and deploymentUrl.
@@ -340,12 +345,6 @@ class MLEngineVersionOperator(BaseOperator):
         should contain the `name` of the version.
         If it is None, the only `operation` possible would be `list`.
     :type version: dict
-
-    :param version_name: A name to use for the version being operated upon. If
-        not None and the `version` argument is None or does not have a value for
-        the `name` key, then this will be populated in the payload for the
-        `name` key.
-    :type version_name: string
 
     :param operation: The operation to perform. Available operations are:
         'create': Creates a new version in the model specified by `model_name`,
@@ -377,16 +376,16 @@ class MLEngineVersionOperator(BaseOperator):
 
     template_fields = [
         '_model_name',
-        '_version',
         '_version_name',
+        '_version',
     ]
 
     @apply_defaults
     def __init__(self,
                  project_id,
                  model_name,
-                 version=None,
                  version_name=None,
+                 version=None,
                  operation='create',
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
@@ -396,8 +395,8 @@ class MLEngineVersionOperator(BaseOperator):
         super(MLEngineVersionOperator, self).__init__(*args, **kwargs)
         self._project_id = project_id
         self._model_name = model_name
-        self._version = version or {}
         self._version_name = version_name
+        self._version = version or {}
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
