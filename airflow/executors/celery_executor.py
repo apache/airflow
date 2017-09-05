@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
+import datetime
 import subprocess
 import time
 
@@ -67,6 +67,9 @@ class CeleryExecutor(BaseExecutor):
     def start(self):
         self.tasks = {}
         self.last_state = {}
+        self.enqueue_time = {}
+        self.command = {}
+        self.queue = {}
 
     def execute_async(self, key, command,
                       queue=DEFAULT_CELERY_CONFIG['task_default_queue']):
@@ -75,6 +78,9 @@ class CeleryExecutor(BaseExecutor):
         self.tasks[key] = execute_command.apply_async(
             args=[command], queue=queue)
         self.last_state[key] = celery_states.PENDING
+        self.enqueue_time[key] = datetime.datetime.now()
+        self.command[key] = command
+        self.queue[key] = queue
 
     def sync(self):
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
@@ -94,6 +100,16 @@ class CeleryExecutor(BaseExecutor):
                         self.fail(key)
                         del self.tasks[key]
                         del self.last_state[key]
+                    elif state == celery_states.RESERVED:
+                        last_acceptable_time = (
+                                self.enqueue_time[key] +
+                                datetime.timedelta(seconds=conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1))
+                        if datetime.datetime.now() > last_acceptable_time:
+                            self.logger.warning("Requeueing task with key {key} as "
+                                                "it has been reserved for too long."
+                                                .format(key=key))
+                            async.revoke()
+                            self.execute_async(key, self.command[key], queue=self.queue[key])
                     else:
                         self.log.info("Unexpected state: %s", async.state)
                     self.last_state[key] = async.state
