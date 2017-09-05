@@ -25,8 +25,8 @@ import httplib2
 import unittest
 
 from airflow import configuration, DAG
-from airflow.contrib.operators.cloudml_operator import CloudMLBatchPredictionOperator
-from airflow.contrib.operators.cloudml_operator import CloudMLTrainingOperator
+from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
+from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator
 
 from mock import ANY
 from mock import patch
@@ -34,7 +34,7 @@ from mock import patch
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 
 
-class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
+class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
     INPUT_MISSING_ORIGIN = {
         'dataFormat': 'TEXT',
         'inputPaths': ['gs://legal-bucket/fake-input-path/*'],
@@ -63,7 +63,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
     }
 
     def setUp(self):
-        super(CloudMLBatchPredictionOperatorTest, self).setUp()
+        super(MLEngineBatchPredictionOperatorTest, self).setUp()
         configuration.load_test_config()
         self.dag = DAG(
             'test_dag',
@@ -75,7 +75,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
             schedule_interval='@daily')
 
     def testSuccessWithModel(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
 
             input_with_model = self.INPUT_MISSING_ORIGIN.copy()
@@ -91,7 +91,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 }), content=b'some bytes')
             hook_instance.create_job.return_value = success_message
 
-            prediction_task = CloudMLBatchPredictionOperator(
+            prediction_task = MLEngineBatchPredictionOperator(
                 job_id='test_prediction',
                 project_id='test-project',
                 region=input_with_model['region'],
@@ -115,7 +115,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 prediction_output)
 
     def testSuccessWithVersion(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
 
             input_with_version = self.INPUT_MISSING_ORIGIN.copy()
@@ -131,7 +131,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 }), content=b'some bytes')
             hook_instance.create_job.return_value = success_message
 
-            prediction_task = CloudMLBatchPredictionOperator(
+            prediction_task = MLEngineBatchPredictionOperator(
                 job_id='test_prediction', project_id='test-project',
                 region=input_with_version['region'],
                 data_format=input_with_version['dataFormat'],
@@ -155,7 +155,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 prediction_output)
 
     def testSuccessWithURI(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
 
             input_with_uri = self.INPUT_MISSING_ORIGIN.copy()
@@ -170,7 +170,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 }), content=b'some bytes')
             hook_instance.create_job.return_value = success_message
 
-            prediction_task = CloudMLBatchPredictionOperator(
+            prediction_task = MLEngineBatchPredictionOperator(
                 job_id='test_prediction',
                 project_id='test-project',
                 region=input_with_uri['region'],
@@ -199,7 +199,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
         task_args['uri'] = 'gs://fake-uri/saved_model'
         task_args['model_name'] = 'fake_model'
         with self.assertRaises(ValueError) as context:
-            CloudMLBatchPredictionOperator(**task_args).execute(None)
+            MLEngineBatchPredictionOperator(**task_args).execute(None)
         self.assertEquals('Ambiguous model origin.', str(context.exception))
 
         # Test that both uri and model/version is given
@@ -208,14 +208,14 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
         task_args['model_name'] = 'fake_model'
         task_args['version_name'] = 'fake_version'
         with self.assertRaises(ValueError) as context:
-            CloudMLBatchPredictionOperator(**task_args).execute(None)
+            MLEngineBatchPredictionOperator(**task_args).execute(None)
         self.assertEquals('Ambiguous model origin.', str(context.exception))
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args['version_name'] = 'bare_version'
         with self.assertRaises(ValueError) as context:
-            CloudMLBatchPredictionOperator(**task_args).execute(None)
+            MLEngineBatchPredictionOperator(**task_args).execute(None)
         self.assertEquals(
             'Missing model origin.',
             str(context.exception))
@@ -223,7 +223,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
         # Test that none of uri, model, model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         with self.assertRaises(ValueError) as context:
-            CloudMLBatchPredictionOperator(**task_args).execute(None)
+            MLEngineBatchPredictionOperator(**task_args).execute(None)
         self.assertEquals(
             'Missing model origin.',
             str(context.exception))
@@ -231,7 +231,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
     def testHttpError(self):
         http_error_code = 403
 
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             input_with_model = self.INPUT_MISSING_ORIGIN.copy()
             input_with_model['modelName'] = \
@@ -244,7 +244,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
                 }), content=b'Forbidden')
 
             with self.assertRaises(errors.HttpError) as context:
-                prediction_task = CloudMLBatchPredictionOperator(
+                prediction_task = MLEngineBatchPredictionOperator(
                     job_id='test_prediction',
                     project_id='test-project',
                     region=input_with_model['region'],
@@ -267,7 +267,7 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
             self.assertEquals(http_error_code, context.exception.resp.status)
 
     def testFailedJobError(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             hook_instance = mock_hook.return_value
             hook_instance.create_job.return_value = {
@@ -278,12 +278,12 @@ class CloudMLBatchPredictionOperatorTest(unittest.TestCase):
             task_args['uri'] = 'a uri'
 
             with self.assertRaises(RuntimeError) as context:
-                CloudMLBatchPredictionOperator(**task_args).execute(None)
+                MLEngineBatchPredictionOperator(**task_args).execute(None)
 
             self.assertEquals('A failure message', str(context.exception))
 
 
-class CloudMLTrainingOperatorTest(unittest.TestCase):
+class MLEngineTrainingOperatorTest(unittest.TestCase):
     TRAINING_DEFAULT_ARGS = {
         'project_id': 'test-project',
         'job_id': 'test_training',
@@ -306,14 +306,14 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
     }
 
     def testSuccessCreateTrainingJob(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             success_response = self.TRAINING_INPUT.copy()
             success_response['state'] = 'SUCCEEDED'
             hook_instance = mock_hook.return_value
             hook_instance.create_job.return_value = success_response
 
-            training_op = CloudMLTrainingOperator(**self.TRAINING_DEFAULT_ARGS)
+            training_op = MLEngineTrainingOperator(**self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
             mock_hook.assert_called_with(gcp_conn_id='google_cloud_default',
@@ -325,7 +325,7 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
 
     def testHttpError(self):
         http_error_code = 403
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             hook_instance = mock_hook.return_value
             hook_instance.create_job.side_effect = errors.HttpError(
@@ -334,7 +334,7 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
                 }), content=b'Forbidden')
 
             with self.assertRaises(errors.HttpError) as context:
-                training_op = CloudMLTrainingOperator(
+                training_op = MLEngineTrainingOperator(
                     **self.TRAINING_DEFAULT_ARGS)
                 training_op.execute(None)
 
@@ -347,7 +347,7 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
             self.assertEquals(http_error_code, context.exception.resp.status)
 
     def testFailedJobError(self):
-        with patch('airflow.contrib.operators.cloudml_operator.CloudMLHook') \
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
                 as mock_hook:
             failure_response = self.TRAINING_INPUT.copy()
             failure_response['state'] = 'FAILED'
@@ -356,7 +356,7 @@ class CloudMLTrainingOperatorTest(unittest.TestCase):
             hook_instance.create_job.return_value = failure_response
 
             with self.assertRaises(RuntimeError) as context:
-                training_op = CloudMLTrainingOperator(
+                training_op = MLEngineTrainingOperator(
                     **self.TRAINING_DEFAULT_ARGS)
                 training_op.execute(None)
 

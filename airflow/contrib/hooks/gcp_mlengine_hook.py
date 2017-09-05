@@ -24,7 +24,7 @@ from apiclient.discovery import build
 from apiclient import errors
 from oauth2client.client import GoogleCredentials
 
-logging.getLogger('GoogleCloudML').setLevel(settings.LOGGING_LEVEL)
+logging.getLogger('GoogleCloudMLEngine').setLevel(settings.LOGGING_LEVEL)
 
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
@@ -49,28 +49,28 @@ def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
 
-class CloudMLHook(GoogleCloudBaseHook):
+class MLEngineHook(GoogleCloudBaseHook):
 
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
-        super(CloudMLHook, self).__init__(gcp_conn_id, delegate_to)
-        self._cloudml = self.get_conn()
+        super(MLEngineHook, self).__init__(gcp_conn_id, delegate_to)
+        self._mlengine = self.get_conn()
 
     def get_conn(self):
         """
-        Returns a Google CloudML service object.
+        Returns a Google MLEngine service object.
         """
         credentials = GoogleCredentials.get_application_default()
         return build('ml', 'v1', credentials=credentials)
 
     def create_job(self, project_id, job, use_existing_job_fn=None):
         """
-        Launches a CloudML job and wait for it to reach a terminal state.
+        Launches a MLEngine job and wait for it to reach a terminal state.
 
-        :param project_id: The Google Cloud project id within which CloudML
+        :param project_id: The Google Cloud project id within which MLEngine
             job will be launched.
         :type project_id: string
 
-        :param job: CloudML Job object that should be provided to the CloudML
+        :param job: MLEngine Job object that should be provided to the MLEngine
             API, such as:
             {
               'jobId': 'my_job_id',
@@ -81,20 +81,20 @@ class CloudMLHook(GoogleCloudBaseHook):
             }
         :type job: dict
 
-        :param use_existing_job_fn: In case that a CloudML job with the same
+        :param use_existing_job_fn: In case that a MLEngine job with the same
             job_id already exist, this method (if provided) will decide whether
             we should use this existing job, continue waiting for it to finish
-            and returning the job object. It should accepts a CloudML job
+            and returning the job object. It should accepts a MLEngine job
             object, and returns a boolean value indicating whether it is OK to
             reuse the existing job. If 'use_existing_job_fn' is not provided,
-            we by default reuse the existing CloudML job.
+            we by default reuse the existing MLEngine job.
         :type use_existing_job_fn: function
 
-        :return: The CloudML job object if the job successfully reach a
+        :return: The MLEngine job object if the job successfully reach a
             terminal state (which might be FAILED or CANCELLED state).
         :rtype: dict
         """
-        request = self._cloudml.projects().jobs().create(
+        request = self._mlengine.projects().jobs().create(
             parent='projects/{}'.format(project_id),
             body=job)
         job_id = job['jobId']
@@ -116,22 +116,22 @@ class CloudMLHook(GoogleCloudBaseHook):
                     'Job with job_id {} already exist. Will waiting for it to '
                     'finish'.format(job_id))
             else:
-                logging.error('Failed to create CloudML job: {}'.format(e))
+                logging.error('Failed to create MLEngine job: {}'.format(e))
                 raise
         return self._wait_for_job_done(project_id, job_id)
 
     def _get_job(self, project_id, job_id):
         """
-        Gets a CloudML job based on the job name.
+        Gets a MLEngine job based on the job name.
 
-        :return: CloudML job object if succeed.
+        :return: MLEngine job object if succeed.
         :rtype: dict
 
         Raises:
             apiclient.errors.HttpError: if HTTP error is returned from server
         """
         job_name = 'projects/{}/jobs/{}'.format(project_id, job_id)
-        request = self._cloudml.projects().jobs().get(name=job_name)
+        request = self._mlengine.projects().jobs().get(name=job_name)
         while True:
             try:
                 return request.execute()
@@ -140,7 +140,7 @@ class CloudMLHook(GoogleCloudBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    logging.error('Failed to get CloudML job: {}'.format(e))
+                    logging.error('Failed to get MLEngine job: {}'.format(e))
                     raise
 
     def _wait_for_job_done(self, project_id, job_id, interval=30):
@@ -163,16 +163,16 @@ class CloudMLHook(GoogleCloudBaseHook):
 
     def create_version(self, project_id, model_name, version_spec):
         """
-        Creates the Version on Cloud ML.
+        Creates the Version on Google Cloud ML Engine.
 
         Returns the operation if the version was created successfully and
         raises an error otherwise.
         """
         parent_name = 'projects/{}/models/{}'.format(project_id, model_name)
-        create_request = self._cloudml.projects().models().versions().create(
+        create_request = self._mlengine.projects().models().versions().create(
             parent=parent_name, body=version_spec)
         response = create_request.execute()
-        get_request = self._cloudml.projects().operations().get(
+        get_request = self._mlengine.projects().operations().get(
             name=response['name'])
 
         return _poll_with_exponential_delay(
@@ -187,7 +187,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         """
         full_version_name = 'projects/{}/models/{}/versions/{}'.format(
             project_id, model_name, version_name)
-        request = self._cloudml.projects().models().versions().setDefault(
+        request = self._mlengine.projects().models().versions().setDefault(
             name=full_version_name, body={})
 
         try:
@@ -206,14 +206,14 @@ class CloudMLHook(GoogleCloudBaseHook):
         result = []
         full_parent_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
-        request = self._cloudml.projects().models().versions().list(
+        request = self._mlengine.projects().models().versions().list(
             parent=full_parent_name, pageSize=100)
 
         response = request.execute()
         next_page_token = response.get('nextPageToken', None)
         result.extend(response.get('versions', []))
         while next_page_token is not None:
-            next_request = self._cloudml.projects().models().versions().list(
+            next_request = self._mlengine.projects().models().versions().list(
                 parent=full_parent_name,
                 pageToken=next_page_token,
                 pageSize=100)
@@ -229,10 +229,10 @@ class CloudMLHook(GoogleCloudBaseHook):
         """
         full_name = 'projects/{}/models/{}/versions/{}'.format(
             project_id, model_name, version_name)
-        delete_request = self._cloudml.projects().models().versions().delete(
+        delete_request = self._mlengine.projects().models().versions().delete(
             name=full_name)
         response = delete_request.execute()
-        get_request = self._cloudml.projects().operations().get(
+        get_request = self._mlengine.projects().operations().get(
             name=response['name'])
 
         return _poll_with_exponential_delay(
@@ -248,7 +248,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         assert model['name'] is not None and model['name'] is not ''
         project = 'projects/{}'.format(project_id)
 
-        request = self._cloudml.projects().models().create(
+        request = self._mlengine.projects().models().create(
             parent=project, body=model)
         return request.execute()
 
@@ -259,7 +259,7 @@ class CloudMLHook(GoogleCloudBaseHook):
         assert model_name is not None and model_name is not ''
         full_model_name = 'projects/{}/models/{}'.format(
             project_id, model_name)
-        request = self._cloudml.projects().models().get(name=full_model_name)
+        request = self._mlengine.projects().models().get(name=full_model_name)
         try:
             return request.execute()
         except errors.HttpError as e:
