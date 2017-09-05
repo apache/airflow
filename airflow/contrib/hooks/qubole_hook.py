@@ -16,12 +16,12 @@
 import os
 import time
 import datetime
-import logging
 import six
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
+from airflow.utils.log.LoggingMixin import LoggingMixin
 from airflow.utils.state import State
 
 from qds_sdk.qubole import Qubole
@@ -68,7 +68,7 @@ COMMAND_ARGS = {
 }
 
 
-class QuboleHook(BaseHook):
+class QuboleHook(BaseHook, LoggingMixin):
     def __init__(self, *args, **kwargs):
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -84,31 +84,33 @@ class QuboleHook(BaseHook):
         cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
 
         if cmd_id is not None:
-            logger = logging.getLogger("QuboleHook")
             cmd = Command.find(cmd_id)
             if cmd is not None:
+                log = LoggingMixin().logger
                 if cmd.status == 'done':
-                    logger.info('Command ID: %s has been succeeded, hence marking this '
+                    log.info('Command ID: %s has been succeeded, hence marking this '
                                 'TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
-                    logger.info('Cancelling the Qubole Command Id: %s', cmd_id)
+                    log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
     def execute(self, context):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        logging.info("Qubole command created with Id: %s and Status: %s",
-                     self.cmd.id, self.cmd.status)
+        self.logger.info(
+            "Qubole command created with Id: %s and Status: %s",
+            self.cmd.id, self.cmd.status
+        )
 
         while not Command.is_done(self.cmd.status):
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)
-            logging.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
+            self.logger.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
-            logging.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
+            self.logger.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
             raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
@@ -124,7 +126,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
-            logging.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
+            self.logger.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):

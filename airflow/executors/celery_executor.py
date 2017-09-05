@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from builtins import object
-import logging
 import subprocess
 import ssl
 import time
@@ -25,6 +24,7 @@ from celery import states as celery_states
 from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
@@ -53,7 +53,8 @@ class CeleryConfig(object):
     try:
         celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
     except AirflowConfigException as e:
-        logging.warning("Celery Executor will run without SSL")
+        log = LoggingMixin().logger
+        log.warning("Celery Executor will run without SSL")
 
     try:
         if celery_ssl_active:
@@ -75,11 +76,12 @@ app = Celery(
 
 @app.task
 def execute_command(command):
-    logging.info("Executing command in Celery " + command)
+    log = LoggingMixin().logger
+    log.info("Executing command in Celery: %s", command)
     try:
         subprocess.check_call(command, shell=True)
     except subprocess.CalledProcessError as e:
-        logging.error(e)
+        log.error(e)
         raise AirflowException('Celery command failed')
 
 
@@ -92,22 +94,18 @@ class CeleryExecutor(BaseExecutor):
     vast amounts of messages, while providing operations with the tools
     required to maintain such a system.
     """
-
     def start(self):
         self.tasks = {}
         self.last_state = {}
 
     def execute_async(self, key, command, queue=DEFAULT_QUEUE):
-        self.logger.info( "[celery] queuing {key} through celery, "
-                       "queue={queue}".format(**locals()))
+        self.logger.info("[celery] queuing {key} through celery, queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
             args=[command], queue=queue)
         self.last_state[key] = celery_states.PENDING
 
     def sync(self):
-
-        self.logger.debug(
-            "Inquiring about {} celery task(s)".format(len(self.tasks)))
+        self.logger.debug("Inquiring about %s celery task(s)", len(self.tasks))
         for key, async in list(self.tasks.items()):
             try:
                 state = async.state
@@ -125,11 +123,11 @@ class CeleryExecutor(BaseExecutor):
                         del self.tasks[key]
                         del self.last_state[key]
                     else:
-                        self.logger.info("Unexpected state: " + async.state)
+                        self.logger.info("Unexpected state: %s", async.state)
                     self.last_state[key] = async.state
             except Exception as e:
-                logging.error("Error syncing the celery executor, ignoring "
-                              "it:\n{}\n".format(e, traceback.format_exc()))
+                self.logger.error("Error syncing the celery executor, ignoring it:")
+                self.logger.exception(e)
 
     def end(self, synchronous=False):
         if synchronous:

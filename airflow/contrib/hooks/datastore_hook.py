@@ -15,7 +15,6 @@
 
 import json
 import time
-import logging
 from apiclient.discovery import build
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 
@@ -137,7 +136,7 @@ class DatastoreHook(GoogleCloudBaseHook):
             result = self.get_operation(name)
             state = result['metadata']['common']['state']
             if state == 'PROCESSING':
-                logging.info('Operation is processing. Re-polling state in {} seconds'
+                self.logger.info('Operation is processing. Re-polling state in {} seconds'
                         .format(polling_interval_in_seconds))
                 time.sleep(polling_interval_in_seconds)
             else:

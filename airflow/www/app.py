@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 import socket
 import six
 
@@ -23,7 +22,7 @@ from flask_wtf.csrf import CSRFProtect
 csrf = CSRFProtect()
 
 import airflow
-from airflow import models
+from airflow import models, LoggingMixin
 from airflow.settings import Session
 
 from airflow.www.blueprints import routes
@@ -114,16 +113,17 @@ def create_app(config=None, testing=False):
 
         def integrate_plugins():
             """Integrate plugins to the context"""
+            log = LoggingMixin().logger
             from airflow.plugins_manager import (
                 admin_views, flask_blueprints, menu_links)
             for v in admin_views:
-                logging.debug('Adding view ' + v.name)
+                log.debug('Adding view %s', v.name)
                 admin.add_view(v)
             for bp in flask_blueprints:
-                logging.debug('Adding blueprint ' + bp.name)
+                log.debug('Adding blueprint %s', bp.name)
                 app.register_blueprint(bp)
             for ml in sorted(menu_links, key=lambda x: x.name):
-                logging.debug('Adding menu link ' + ml.name)
+                log.debug('Adding menu link %s', ml.name)
                 admin.add_link(ml)
 
         integrate_plugins()

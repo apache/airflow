@@ -15,17 +15,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
+import socket
 import subprocess
 import sys
 import time
-import socket
 
-from airflow import configuration
-
-LOG = logging.getLogger(__name__)
+from airflow import configuration, LoggingMixin
 
 NEED_KRB181_WORKAROUND = None
+
+log = LoggingMixin().logger
 
 
 def renew_from_kt():
@@ -37,10 +36,10 @@ def renew_from_kt():
     cmdv = [configuration.get('kerberos', 'kinit_path'),
             "-r", renewal_lifetime,
             "-k",  # host ticket
-            "-t", configuration.get('kerberos', 'keytab'),   # specify keytab
-            "-c", configuration.get('kerberos', 'ccache'),   # specify credentials cache
+            "-t", configuration.get('kerberos', 'keytab'),  # specify keytab
+            "-c", configuration.get('kerberos', 'ccache'),  # specify credentials cache
             principal]
-    LOG.info("Reinitting kerberos from keytab: " + " ".join(cmdv))
+    log.info("Reinitting kerberos from keytab: " + " ".join(cmdv))
 
     subp = subprocess.Popen(cmdv,
                             stdout=subprocess.PIPE,
@@ -50,7 +49,7 @@ def renew_from_kt():
                             universal_newlines=True)
     subp.wait()
     if subp.returncode != 0:
-        LOG.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
+        log.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
             subp.returncode,
             "\n".join(subp.stdout.readlines()),
             "\n".join(subp.stderr.readlines())))
@@ -71,7 +70,7 @@ def perform_krb181_workaround():
             "-c", configuration.get('kerberos', 'ccache'),
             "-R"]  # Renew ticket_cache
 
-    LOG.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
+    log.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
              " ".join(cmdv))
 
     ret = subprocess.call(cmdv)
@@ -80,7 +79,7 @@ def perform_krb181_workaround():
         principal = "%s/%s" % (configuration.get('kerberos', 'principal'), socket.getfqdn())
         fmt_dict = dict(princ=principal,
                         ccache=configuration.get('kerberos', 'principal'))
-        LOG.error("Couldn't renew kerberos ticket in order to work around "
+        log.error("Couldn't renew kerberos ticket in order to work around "
                   "Kerberos 1.8.1 issue. Please check that the ticket for "
                   "'%(princ)s' is still renewable:\n"
                   "  $ kinit -f -c %(ccache)s\n"
@@ -105,8 +104,8 @@ def detect_conf_var():
 
 
 def run():
-    if configuration.get('kerberos','keytab') is None:
-        LOG.debug("Keytab renewer not starting, no keytab configured")
+    if configuration.get('kerberos', 'keytab') is None:
+        log.debug("Keytab renewer not starting, no keytab configured")
         sys.exit(0)
 
     while True:

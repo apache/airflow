@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-
 import flask_login
 
 # Need to expose these downstream
@@ -29,8 +27,9 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models, configuration, settings
 from airflow.configuration import AirflowConfigException
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-_log = logging.getLogger(__name__)
+log = LoggingMixin().logger
 
 
 def get_config_param(param):

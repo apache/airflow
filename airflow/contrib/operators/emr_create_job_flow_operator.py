@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.contrib.hooks.emr_hook import EmrHook
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
@@ -53,11 +50,14 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id)
 
-        logging.info('Creating JobFlow')
+        self.logger.info(
+            'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s',
+            self.aws_conn_id, self.emr_conn_id
+        )
         response = emr.create_job_flow(self.job_flow_overrides)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow creation failed: %s' % response)
         else:
-            logging.info('JobFlow with id %s created', response['JobFlowId'])
+            self.logger.info('JobFlow with id %s created', response['JobFlowId'])
             return response['JobFlowId']

@@ -23,10 +23,12 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from future.standard_library import install_aliases
+
+from airflow.utils.log.LoggingMixin import LoggingMixin
+
 install_aliases()
 
 import kerberos
-import logging
 import os
 
 from airflow import configuration as conf
@@ -45,6 +47,8 @@ client_auth = HTTPKerberosAuth(service='airflow')
 
 _SERVICE_NAME = None
 
+log = LoggingMixin().logger
+
 
 def init_app(app):
     global _SERVICE_NAME
@@ -52,7 +56,7 @@ def init_app(app):
     hostname = app.config.get('SERVER_NAME')
     if not hostname:
         hostname = getfqdn()
-    logging.info("Kerberos: hostname {}".format(hostname))
+    log.info("Kerberos: hostname %s", hostname)
 
     service = 'airflow'
 
@@ -62,12 +66,12 @@ def init_app(app):
         os.environ['KRB5_KTNAME'] = conf.get('kerberos', 'keytab')
 
     try:
-        logging.info("Kerberos init: {} {}".format(service, hostname))
+        log.info("Kerberos init: %s %s", service, hostname)
         principal = kerberos.getServerPrincipalDetails(service, hostname)
     except kerberos.KrbError as err:
-        logging.warning("Kerberos: {}".format(err))
+        log.warning("Kerberos: %s", err)
     else:
-        logging.info("Kerberos API: server is {}".format(principal))
+        log.info("Kerberos API: server is %s", principal)
 
 
 def _unauthorized():

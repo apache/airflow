@@ -13,14 +13,12 @@
 # limitations under the License.
 
 import json
-import logging
 import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from collections import OrderedDict
 from datetime import date, datetime
 from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
@@ -170,7 +168,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                 'mode': field_mode,
             })
 
-        logging.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.logger.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         json.dump(schema, tmp_schema_file_handle)
         return {self.schema_filename: tmp_schema_file_handle}

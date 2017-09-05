@@ -12,16 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
-
 from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 from googleapiclient import errors
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-
-logging.getLogger("google_cloud_storage").setLevel(logging.INFO)
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -187,8 +182,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     ts = ts.replace(tzinfo=dateutil.tz.tzutc())
 
                 updated = dateutil.parser.parse(response['updated'])
-                logging.log(logging.INFO, "Verify object date: " + str(updated)
-                            + " > " + str(ts))
+                self.logger.info("Verify object date: %s > %s", updated, ts)
 
                 if updated > ts:
                     return True
@@ -253,7 +247,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             ).execute()
 
             if 'items' not in response:
-                logging.info("No items found for prefix:{}".format(prefix))
+                self.logger.info("No items found for prefix: %s", prefix)
                 break
 
             for item in response['items']:

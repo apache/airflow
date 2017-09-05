@@ -21,9 +21,10 @@ in their PYTHONPATH. airflow_login should be based off the
 """
 from builtins import object
 from airflow import version
+from airflow.utils.log.LoggingMixin import LoggingMixin
+
 __version__ = version.version
 
-import logging
 import sys
 
 from airflow import configuration as conf
@@ -40,13 +41,15 @@ login = None
 
 
 def load_login():
+    log = LoggingMixin().logger
+
     auth_backend = 'airflow.default_login'
     try:
         if conf.getboolean('webserver', 'AUTHENTICATE'):
             auth_backend = conf.get('webserver', 'auth_backend')
     except conf.AirflowConfigException:
         if conf.getboolean('webserver', 'AUTHENTICATE'):
-            logging.warning(
+            log.warning(
                 "auth_backend not found in webserver config reverting to "
                 "*deprecated*  behavior of importing airflow_login")
             auth_backend = "airflow_login"
@@ -55,7 +58,7 @@ def load_login():
         global login
         login = import_module(auth_backend)
     except ImportError as err:
-        logging.critical(
+        log.critical(
             "Cannot import authentication module %s. "
             "Please correct your authentication backend or disable authentication: %s",
             auth_backend, err
@@ -76,7 +79,6 @@ from airflow import operators
 from airflow import hooks
 from airflow import executors
 from airflow import macros
-from airflow import contrib
 
 operators._integrate_plugins()
 hooks._integrate_plugins()

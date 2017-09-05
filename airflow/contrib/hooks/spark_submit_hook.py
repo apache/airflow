@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 import os
 import subprocess
 import re
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-log = logging.getLogger(__name__)
 
-
-class SparkSubmitHook(BaseHook):
+class SparkSubmitHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
     It requires that the "spark-submit" binary is in the PATH or the spark_home to be
@@ -63,7 +61,6 @@ class SparkSubmitHook(BaseHook):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
-
     def __init__(self,
                  conf=None,
                  conn_id='spark_default',
@@ -126,10 +123,9 @@ class SparkSubmitHook(BaseHook):
             conn_data['spark_home'] = extra.get('spark-home', None)
             conn_data['spark_binary'] = extra.get('spark-binary', 'spark-submit')
         except AirflowException:
-            logging.debug(
-                "Could not load connection string {}, defaulting to {}".format(
-                    self._conn_id, conn_data['master']
-                )
+            self.logger.debug(
+                "Could not load connection string %s, defaulting to %s",
+                self._conn_id, conn_data['master']
             )
 
         return conn_data
@@ -196,7 +192,7 @@ class SparkSubmitHook(BaseHook):
         if self._application_args:
             connection_cmd += self._application_args
 
-        logging.debug("Spark-Submit cmd: {}".format(connection_cmd))
+        self.logger.debug("Spark-Submit cmd: %s", connection_cmd)
 
         return connection_cmd
 
@@ -243,15 +239,15 @@ class SparkSubmitHook(BaseHook):
                     self._yarn_application_id = match.groups()[0]
 
             # Pass to logging
-            logging.info(line)
+            self.logger.info(line)
 
     def on_kill(self):
         if self._sp and self._sp.poll() is None:
-            logging.info('Sending kill signal to {}'.format(self._connection['spark_binary']))
+            self.logger.info('Sending kill signal to %s', self._connection['spark_binary'])
             self._sp.kill()
 
             if self._yarn_application_id:
-                logging.info('Killing application on YARN')
+                self.logger.info('Killing application on YARN')
                 kill_cmd = "yarn application -kill {0}".format(self._yarn_application_id).split()
                 yarn_kill = subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                logging.info("YARN killed with return code: {0}".format(yarn_kill.wait()))
+                self.logger.info("YARN killed with return code: %s", yarn_kill.wait())

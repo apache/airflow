@@ -14,16 +14,18 @@
 
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
-import logging
 
 from hdfs import InsecureClient, HdfsError
+
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 _kerberos_security_mode = configuration.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient
     except ImportError:
-        logging.error("Could not load the Kerberos extension for the WebHDFSHook.")
+        log = LoggingMixin().logger
+        log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
 from airflow.exceptions import AirflowException
 
@@ -47,7 +49,7 @@ class WebHDFSHook(BaseHook):
         nn_connections = self.get_connections(self.webhdfs_conn_id)
         for nn in nn_connections:
             try:
-                logging.debug('Trying namenode {}'.format(nn.host))
+                self.logger.debug('Trying namenode %s', nn.host)
                 connection_str = 'http://{nn.host}:{nn.port}'.format(nn=nn)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
@@ -55,11 +57,12 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                logging.debug('Using namenode {} for hook'.format(nn.host))
+                self.logger.debug('Using namenode %s for hook', nn.host)
                 return client
             except HdfsError as e:
-                logging.debug("Read operation on namenode {nn.host} failed with"
-                              " error: {e.message}".format(**locals()))
+                self.logger.debug(
+                    "Read operation on namenode {nn.host} failed witg error: {e.message}".format(**locals())
+                )
         nn_hosts = [c.host for c in nn_connections]
         no_nn_error = "Read operations failed on the namenodes below:\n{}".format("\n".join(nn_hosts))
         raise AirflowWebHDFSHookException(no_nn_error)
@@ -98,4 +101,4 @@ class WebHDFSHook(BaseHook):
                  overwrite=overwrite,
                  n_threads=parallelism,
                  **kwargs)
-        logging.debug("Uploaded file {} to {}".format(source, destination))
+        self.logger.debug("Uploaded file %s to %s", source, destination)

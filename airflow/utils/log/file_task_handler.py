@@ -14,6 +14,7 @@
 
 import logging
 import os
+import requests
 
 from jinja2 import Template
 
@@ -65,16 +66,16 @@ class FileTaskHandler(logging.Handler):
     def close(self):
         if self.handler is not None:
             self.handler.close()
-            
+
     def _render_filename(self, ti, try_number):
         if self.filename_jinja_template:
             jinja_context = ti.get_template_context()
             jinja_context['try_number'] = try_number
-            return self.filename_jinja_template.render(**jinja_context) 
-            
-        return self.filename_template.format(dag_id=ti.dag_id, 
+            return self.filename_jinja_template.render(**jinja_context)
+
+        return self.filename_template.format(dag_id=ti.dag_id,
                                              task_id=ti.task_id,
-                                             execution_date=ti.execution_date.isoformat(), 
+                                             execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
 
     def _read(self, ti, try_number):
@@ -89,32 +90,37 @@ class FileTaskHandler(logging.Handler):
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
         log_relative_path = self._render_filename(ti, try_number + 1)
-        loc = os.path.join(self.local_base, log_relative_path)
+        location = os.path.join(self.local_base, log_relative_path)
+
         log = ""
 
-        if os.path.exists(loc):
+        if os.path.exists(location):
             try:
-                with open(loc) as f:
+                with open(location) as f:
                     log += "*** Reading local log.\n" + "".join(f.readlines())
             except Exception as e:
-                log = "*** Failed to load local log file: {}. {}\n".format(loc, str(e))
+                log = "*** Failed to load local log file: {}. {}\n".format(location, str(e))
         else:
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log",
-                               log_relative_path).format(
+            url = os.path.join(
+                "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
+            ).format(
                 ti=ti,
-                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
+                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+            )
             log += "*** Log file isn't local.\n"
             log += "*** Fetching here: {url}\n".format(**locals())
             try:
-                import requests
                 timeout = None  # No timeout
                 try:
                     timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = requests.get(url, timeout=timeout)
+                response = requests.get(url, timeout=self.timeout)
+
+                # Check if the resource was properly fetched
                 response.raise_for_status()
+
                 log += '\n' + response.text
             except Exception as e:
                 log += "*** Failed to fetch log file from worker. {}\n".format(str(e))

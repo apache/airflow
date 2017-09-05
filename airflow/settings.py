@@ -27,7 +27,9 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
+log = LoggingMixin().logger
 
 class DummyStatsLogger(object):
 
@@ -130,8 +132,9 @@ def configure_logging(log_format=LOG_FORMAT):
     try:
         _configure_logging(logging_level)
     except ValueError:
-        logging.warning("Logging level {} is not defined. "
-                        "Use default.".format(logging_level))
+        logging.warning(
+            "Logging level %s is not defined. Use default.", logging_level
+        )
         _configure_logging(logging.INFO)
 
 
@@ -162,7 +165,7 @@ def configure_orm(disable_connection_pool=False):
 
 try:
     from airflow_local_settings import *
-    logging.info("Loaded airflow_local_settings.")
+    log.info("Loaded airflow_local_settings.")
 except:
     pass
 
@@ -174,11 +177,13 @@ configure_orm()
 logging_config_path = conf.get('core', 'logging_config_path')
 try:
     from logging_config_path import LOGGING_CONFIG
-    logging.debug("Successfully imported user-defined logging config.")
+    log.debug("Successfully imported user-defined logging config.")
 except Exception as e:
     # Import default logging configurations.
-    logging.debug("Unable to load custom logging config file: {}."
-                  " Using default airflow logging config instead".format(str(e)))
+    log.debug(
+        "Unable to load custom logging config file: %s. Using default airflow logging config instead",
+        e
+    )
     from airflow.config_templates.default_airflow_logging import \
         DEFAULT_LOGGING_CONFIG as LOGGING_CONFIG
 logging.config.dictConfig(LOGGING_CONFIG)

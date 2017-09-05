@@ -12,18 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
-import json
-
 import httplib2
 from oauth2client.client import GoogleCredentials
 from oauth2client.service_account import ServiceAccountCredentials
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-class GoogleCloudBaseHook(BaseHook):
+
+class GoogleCloudBaseHook(BaseHook, LoggingMixin):
     """
     A base hook for Google cloud-related hooks. Google cloud has a shared REST
     API client that is built in the same way no matter which service you use.
@@ -43,7 +41,6 @@ class GoogleCloudBaseHook(BaseHook):
 
     Legacy P12 key files are not supported.
     """
-
     def __init__(self, conn_id, delegate_to=None):
         """
         :param conn_id: The connection ID to use when fetching connection info.
@@ -69,7 +66,7 @@ class GoogleCloudBaseHook(BaseHook):
             kwargs['sub'] = self.delegate_to
 
         if not key_path:
-            logging.info('Getting connection using `gcloud auth` user, since no key file '
+            self.logger.info('Getting connection using `gcloud auth` user, since no key file '
                          'is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
         else:
@@ -77,7 +74,7 @@ class GoogleCloudBaseHook(BaseHook):
                 raise AirflowException('Scope should be defined when using a key file.')
             scopes = [s.strip() for s in scope.split(',')]
             if key_path.endswith('.json'):
-                logging.info('Getting connection using a JSON key file.')
+                self.logger.info('Getting connection using a JSON key file.')
                 credentials = ServiceAccountCredentials\
                     .from_json_keyfile_name(key_path, scopes)
             elif key_path.endswith('.p12'):

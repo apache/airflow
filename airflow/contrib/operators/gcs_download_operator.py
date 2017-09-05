@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import sys
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -48,7 +47,6 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     template_fields = ('bucket', 'object', 'filename', 'store_to_xcom_key',)
     ui_color = '#f0eee4'
 
-    @apply_defaults
     def __init__(self,
                  bucket,
                  object,
@@ -67,7 +65,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
+        self.logger.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
         hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                                       delegate_to=self.delegate_to)
         file_bytes = hook.download(self.bucket, self.object, self.filename)
@@ -76,4 +74,4 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise RuntimeError('The size of the downloaded file is too large to push to XCom!')
-        logging.info(file_bytes)
+        self.logger.info(file_bytes)

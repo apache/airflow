@@ -13,14 +13,14 @@
 # limitations under the License.
 
 import time
-import logging
-
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 from datadog import initialize, api
 
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-class DatadogHook(BaseHook):
+
+class DatadogHook(BaseHook, LoggingMixin):
     """
     Uses datadog API to send metrics of practically anything measurable,
     so it's possible to track # of db records inserted/deleted, records read
@@ -32,7 +32,6 @@ class DatadogHook(BaseHook):
     :param datadog_conn_id: The connection to datadog, containing metadata for api keys.
     :param datadog_conn_id: string
     """
-
     def __init__(self, datadog_conn_id='datadog_default'):
         conn = self.get_connection(datadog_conn_id)
         self.api_key = conn.extra_dejson.get('api_key', None)
@@ -48,7 +47,7 @@ class DatadogHook(BaseHook):
         if self.app_key is None:
             raise AirflowException("app_key must be specified in the Datadog connection details")
 
-        logging.info("Setting up api keys for datadog")
+        self.logger.info("Setting up api keys for Datadog")
         options = {
             'api_key': self.api_key,
             'app_key': self.app_key
@@ -57,8 +56,8 @@ class DatadogHook(BaseHook):
 
     def validate_response(self, response):
         if response['status'] != 'ok':
-            logging.error("Data dog returned: " + response)
-            raise AirflowException("Error status received from datadog")
+            self.logger.error("Datadog returned: %s", response)
+            raise AirflowException("Error status received from Datadog")
 
     def send_metric(self, metric_name, datapoint, tags=None):
         """

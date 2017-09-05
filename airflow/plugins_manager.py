@@ -20,13 +20,14 @@ from __future__ import unicode_literals
 from builtins import object
 import imp
 import inspect
-import logging
 import os
 import re
 import sys
 
 from airflow import configuration
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
+log = LoggingMixin().logger
 
 class AirflowPluginException(Exception):
     pass
@@ -72,7 +73,7 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
             if file_ext != '.py':
                 continue
 
-            logging.debug('Importing plugin module ' + filepath)
+            log.debug('Importing plugin module %s', filepath)
             # normalize root path as namespace
             namespace = '_'.join([re.sub(norm_pattern, '__', root), mod_name])
 
@@ -87,12 +88,12 @@ for root, dirs, files in os.walk(plugins_folder, followlinks=True):
                         plugins.append(obj)
 
         except Exception as e:
-            logging.exception(e)
-            logging.error('Failed to import plugin ' + filepath)
+            log.exception(e)
+            log.error('Failed to import plugin %s', filepath)
 
 
 def make_module(name, objects):
-    logging.debug('Creating module ' + name)
+    log.debug('Creating module %s', name)
     name = name.lower()
     module = imp.new_module(name)
     module._name = name.split('.')[-1]

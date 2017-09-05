@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -52,7 +49,7 @@ class PostgresOperator(BaseOperator):
         self.database = database
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        self.logger.info('Executing: %s', self.sql)
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id,
                                  schema=self.database)
         self.hook.run(self.sql, self.autocommit, parameters=self.parameters)

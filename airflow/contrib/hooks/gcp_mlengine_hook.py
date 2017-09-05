@@ -13,44 +13,40 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
-import logging
 import random
 import time
-from airflow import settings
-from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from apiclient.discovery import build
 from apiclient import errors
+from apiclient.discovery import build
 from oauth2client.client import GoogleCredentials
 
-logging.getLogger('GoogleCloudMLEngine').setLevel(settings.LOGGING_LEVEL)
+from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
+    log = LoggingMixin().logger
 
     for i in range(0, max_n):
         try:
             response = request.execute()
             if is_error_func(response):
                 raise ValueError(
-                    'The response contained an error: {}'.format(response))
+                    'The response contained an error: {}'.format(response)
+                )
             elif is_done_func(response):
-                logging.info('Operation is done: {}'.format(response))
+                log.info('Operation is done: %s', response)
                 return response
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
         except errors.HttpError as e:
             if e.resp.status != 429:
-                logging.info(
-                    'Something went wrong. Not retrying: {}'.format(e))
+                log.info('Something went wrong. Not retrying: %s', format(e))
                 raise
             else:
                 time.sleep((2**i) + (random.randint(0, 1000) / 1000))
 
 
 class MLEngineHook(GoogleCloudBaseHook):
-
     def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
         super(MLEngineHook, self).__init__(gcp_conn_id, delegate_to)
         self._mlengine = self.get_conn()
@@ -107,17 +103,20 @@ class MLEngineHook(GoogleCloudBaseHook):
                 if use_existing_job_fn is not None:
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
-                        logging.error(
-                            'Job with job_id {} already exist, but it does '
-                            'not match our expectation: {}'.format(
-                                job_id, existing_job))
+                        self.logger.error(
+                            'Job with job_id %s already exist, but it does '
+                            'not match our expectation: %s',
+                            job_id, existing_job
+                        )
                         raise
-                logging.info(
-                    'Job with job_id {} already exist. Will waiting for it to '
-                    'finish'.format(job_id))
+                self.logger.info(
+                    'Job with job_id %s already exist. Will waiting for it to finish',
+                    job_id
+                )
             else:
-                logging.error('Failed to create MLEngine job: {}'.format(e))
+                self.logger.error('Failed to create MLEngine job: {}'.format(e))
                 raise
+
         return self._wait_for_job_done(project_id, job_id)
 
     def _get_job(self, project_id, job_id):
@@ -140,7 +139,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    logging.error('Failed to get MLEngine job: {}'.format(e))
+                    self.logger.error('Failed to get MLEngine job: {}'.format(e))
                     raise
 
     def _wait_for_job_done(self, project_id, job_id, interval=30):
@@ -192,11 +191,10 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         try:
             response = request.execute()
-            logging.info(
-                'Successfully set version: {} to default'.format(response))
+            self.logger.info('Successfully set version: %s to default', response)
             return response
         except errors.HttpError as e:
-            logging.error('Something went wrong: {}'.format(e))
+            self.logger.error('Something went wrong: %s', e)
             raise
 
     def list_versions(self, project_id, model_name):
@@ -264,6 +262,6 @@ class MLEngineHook(GoogleCloudBaseHook):
             return request.execute()
         except errors.HttpError as e:
             if e.resp.status == 404:
-                logging.error('Model was not found: {}'.format(e))
+                self.logger.error('Model was not found: %s', e)
                 return None
             raise

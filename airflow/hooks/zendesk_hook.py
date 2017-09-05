@@ -12,19 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-
-"""
-A hook to talk to Zendesk
-"""
-
-import logging
 import time
 from zdesk import Zendesk, RateLimitError, ZendeskError
 from airflow.hooks.base_hook import BaseHook
 
 
 class ZendeskHook(BaseHook):
+    """
+    A hook to talk to Zendesk
+    """
     def __init__(self, zendesk_conn_id):
         self.__zendesk_conn_id = zendesk_conn_id
         self.__url = None
@@ -41,10 +37,10 @@ class ZendeskHook(BaseHook):
         """
         retry_after = int(
             rate_limit_exception.response.headers.get('Retry-After', 60))
-        logging.info(
-            "Hit Zendesk API rate limit. Pausing for {} "
-            "seconds".format(
-                retry_after))
+        self.logger.info(
+            "Hit Zendesk API rate limit. Pausing for %s seconds",
+            retry_after
+        )
         time.sleep(retry_after)
 
     def call(self, path, query=None, get_all_pages=True):
@@ -79,7 +75,7 @@ class ZendeskHook(BaseHook):
                     # `github.zendesk...`
                     # in it, but the call function needs it removed.
                     next_url = next_page.split(self.__url)[1]
-                    logging.info("Calling {}".format(next_url))
+                    self.logger.info("Calling %s", next_url)
                     more_res = zendesk.call(next_url)
                     results.extend(more_res[key])
                     if next_page == more_res['next_page']:

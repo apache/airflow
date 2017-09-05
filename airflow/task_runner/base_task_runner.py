@@ -19,8 +19,9 @@ import json
 import subprocess
 import threading
 
+from airflow.utils.log.LoggingMixin import LoggingMixin
+
 from airflow import configuration as conf
-from airflow.utils.logging import LoggingMixin
 from tempfile import mkstemp
 
 
@@ -53,7 +54,7 @@ class BaseTaskRunner(LoggingMixin):
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         if self.run_as_user and (self.run_as_user != getpass.getuser()):
-            self.logger.debug("Planning to run as the {} user".format(self.run_as_user))
+            self.logger.debug("Planning to run as the %s user", self.run_as_user)
             cfg_dict = conf.as_dict(display_sensitive=True)
             cfg_subset = {
                 'core': cfg_dict.get('core', {}),
@@ -94,7 +95,7 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if len(line) == 0:
                 break
-            self.logger.info(u'Subtask: {}'.format(line.rstrip('\n')))
+            self.logger.info('Subtask: %s', line.rstrip('\n'))
 
     def run_command(self, run_with, join_args=False):
         """
@@ -111,7 +112,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         cmd = [" ".join(self._command)] if join_args else self._command
         full_cmd = run_with + cmd
-        self.logger.info('Running: {}'.format(full_cmd))
+        self.logger.info('Running: %s', full_cmd)
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,

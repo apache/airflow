@@ -14,7 +14,6 @@
 
 import datetime
 import getpass
-import subprocess
 import os
 import uuid
 
@@ -73,13 +72,13 @@ class CgroupTaskRunner(BaseTaskRunner):
         for path_element in path_split:
             name_to_node = {x.name: x for x in node.children}
             if path_element not in name_to_node:
-                self.logger.debug("Creating cgroup {} in {}"
-                                  .format(path_element, node.path))
+                self.logger.debug("Creating cgroup %s in %s", path_element, node.path)
                 node = node.create_cgroup(path_element)
             else:
-                self.logger.debug("Not creating cgroup {} in {} "
-                                  "since it already exists"
-                                  .format(path_element, node.path))
+                self.logger.debug(
+                    "Not creating cgroup %s in %s since it already exists",
+                    path_element, node.path
+                )
                 node = name_to_node[path_element]
         return node
 
@@ -95,24 +94,23 @@ class CgroupTaskRunner(BaseTaskRunner):
         for path_element in path_split:
             name_to_node = {x.name: x for x in node.children}
             if path_element not in name_to_node:
-                self.logger.warning("Cgroup does not exist: {}"
-                                    .format(path))
+                self.logger.warning("Cgroup does not exist: %s", path)
                 return
             else:
                 node = name_to_node[path_element]
         # node is now the leaf node
         parent = node.parent
-        self.logger.debug("Deleting cgroup {}/{}".format(parent, node.name))
+        self.logger.debug("Deleting cgroup %s/%s", parent, node.name)
         parent.delete_cgroup(node.name)
 
     def start(self):
         # Use bash if it's already in a cgroup
         cgroups = self._get_cgroup_names()
         if cgroups["cpu"] != "/" or cgroups["memory"] != "/":
-            self.logger.debug("Already running in a cgroup (cpu: {} memory: {} so "
-                              "not creating another one"
-                              .format(cgroups.get("cpu"),
-                                      cgroups.get("memory")))
+            self.logger.debug(
+                "Already running in a cgroup (cpu: %s memory: %s) so not creating another one",
+                cgroups.get("cpu"), cgroups.get("memory")
+            )
             self.process = self.run_command(['bash', '-c'], join_args=True)
             return
 
@@ -135,21 +133,27 @@ class CgroupTaskRunner(BaseTaskRunner):
         mem_cgroup_node = self._create_cgroup(self.mem_cgroup_name)
         self._created_mem_cgroup = True
         if self._mem_mb_limit > 0:
-            self.logger.debug("Setting {} with {} MB of memory"
-                              .format(self.mem_cgroup_name, self._mem_mb_limit))
+            self.logger.debug(
+                "Setting %s with %s MB of memory",
+                self.mem_cgroup_name, self._mem_mb_limit
+            )
             mem_cgroup_node.controller.limit_in_bytes = self._mem_mb_limit * 1024 * 1024
 
         # Create the CPU cgroup
         cpu_cgroup_node = self._create_cgroup(self.cpu_cgroup_name)
         self._created_cpu_cgroup = True
         if self._cpu_shares > 0:
-            self.logger.debug("Setting {} with {} CPU shares"
-                              .format(self.cpu_cgroup_name, self._cpu_shares))
+            self.logger.debug(
+                "Setting %s with %s CPU shares",
+                self.cpu_cgroup_name, self._cpu_shares
+            )
             cpu_cgroup_node.controller.shares = self._cpu_shares
 
         # Start the process w/ cgroups
-        self.logger.debug("Starting task process with cgroups cpu,memory:{}"
-                          .format(cgroup_name))
+        self.logger.debug(
+            "Starting task process with cgroups cpu,memory: %s",
+            cgroup_name
+        )
         self.process = self.run_command(
             ['cgexec', '-g', 'cpu,memory:{}'.format(cgroup_name)]
         )
@@ -165,10 +169,9 @@ class CgroupTaskRunner(BaseTaskRunner):
         # we might want to revisit that approach at some other point.
         if return_code == 137:
             self.logger.warning("Task failed with return code of 137. This may indicate "
-                                "that it was killed due to excessive memory usage. "
-                                "Please consider optimizing your task or using the "
-                                "resources argument to reserve more memory for your "
-                                "task")
+                              "that it was killed due to excessive memory usage. "
+                              "Please consider optimizing your task or using the "
+                              "resources argument to reserve more memory for your task")
         return return_code
 
     def terminate(self):

@@ -16,7 +16,6 @@
 # limitations under the License.
 
 import getpass
-import logging
 import os
 
 import paramiko
@@ -24,9 +23,10 @@ import paramiko
 from contextlib import contextmanager
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
-class SSHHook(BaseHook):
+class SSHHook(BaseHook, LoggingMixin):
     """
     Hook for ssh remote execution using Paramiko.
     ref: https://github.com/paramiko/paramiko
@@ -70,7 +70,7 @@ class SSHHook(BaseHook):
 
     def get_conn(self):
         if not self.client:
-            logging.debug('creating ssh client for conn_id: {0}'.format(self.ssh_conn_id))
+            self.logger.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
             if self.ssh_conn_id is not None:
                 conn = self.get_connection(self.ssh_conn_id)
                 if self.username is None:
@@ -98,9 +98,11 @@ class SSHHook(BaseHook):
 
             # Auto detecting username values from system
             if not self.username:
-                logging.debug("username to ssh to host: {0} is not specified, using "
-                             "system's default provided by getpass.getuser()"
-                             .format(self.remote_host, self.ssh_conn_id))
+                self.logger.debug(
+                    "username to ssh to host: %s is not specified for connection id"
+                    " %s. Using system's default provided by getpass.getuser()",
+                    self.remote_host, self.ssh_conn_id
+                )
                 self.username = getpass.getuser()
 
             host_proxy = None
@@ -140,14 +142,20 @@ class SSHHook(BaseHook):
 
                 self.client = client
             except paramiko.AuthenticationException as auth_error:
-                logging.error("Auth failed while connecting to host: {0}, error: {1}"
-                              .format(self.remote_host, auth_error))
+                self.logger.error(
+                    "Auth failed while connecting to host: %s, error: %s",
+                    self.remote_host, auth_error
+                )
             except paramiko.SSHException as ssh_error:
-                logging.error("Failed connecting to host: {0}, error: {1}"
-                              .format(self.remote_host, ssh_error))
+                self.logger.error(
+                    "Failed connecting to host: %s, error: %s",
+                    self.remote_host, ssh_error
+                )
             except Exception as error:
-                logging.error("Error connecting to host: {0}, error: {1}"
-                              .format(self.remote_host, error))
+                self.logger.error(
+                    "Error connecting to host: %s, error: %s",
+                    self.remote_host, error
+                )
         return self.client
 
     @contextmanager
@@ -183,7 +191,7 @@ class SSHHook(BaseHook):
                           ]
 
         ssh_cmd += ssh_tunnel_cmd
-        logging.debug("creating tunnel with cmd: {0}".format(ssh_cmd))
+        self.logger.debug("Creating tunnel with cmd: %s", ssh_cmd)
 
         proc = subprocess.Popen(ssh_cmd,
                                 stdin=subprocess.PIPE,

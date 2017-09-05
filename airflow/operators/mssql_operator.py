@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -47,7 +44,7 @@ class MsSqlOperator(BaseOperator):
         self.database = database
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        self.logger.info('Executing: %s', self.sql)
         hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id,
                          schema=self.database)
         hook.run(self.sql, autocommit=self.autocommit,

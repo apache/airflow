@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import select
 import subprocess
 import time
@@ -21,10 +19,10 @@ import uuid
 from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
-class _DataflowJob(object):
-
+class _DataflowJob(LoggingMixin):
     def __init__(self, dataflow, project_number, name):
         self._dataflow = dataflow
         self._project_number = project_number
@@ -49,11 +47,15 @@ class _DataflowJob(object):
             job = self._dataflow.projects().jobs().get(projectId=self._project_number,
                                                        jobId=self._job_id).execute()
         if 'currentState' in job:
-            logging.info('Google Cloud DataFlow job %s is %s', job['name'],
-                         job['currentState'])
+            self.logger.info(
+                'Google Cloud DataFlow job %s is %s',
+                job['name'], job['currentState']
+            )
         else:
-            logging.info('Google Cloud DataFlow with job_id %s has name %s', self._job_id,
-                         job['name'])
+            self.logger.info(
+                'Google Cloud DataFlow with job_id %s has name %s',
+                self._job_id, job['name']
+            )
         return job
 
     def wait_for_done(self):
@@ -70,7 +72,7 @@ class _DataflowJob(object):
                 elif 'JOB_STATE_RUNNING' == self._job['currentState']:
                     time.sleep(10)
                 else:
-                    logging.debug(str(self._job))
+                    self.logger.debug(str(self._job))
                     raise Exception(
                         "Google Cloud Dataflow job {} was unknown state: {}".format(
                             self._job['name'], self._job['currentState']))
@@ -83,8 +85,7 @@ class _DataflowJob(object):
         return self._job
 
 
-class _Dataflow(object):
-
+class _Dataflow(LoggingMixin):
     def __init__(self, cmd):
         self._proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
@@ -105,15 +106,15 @@ class _Dataflow(object):
 
     def wait_for_done(self):
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
-        logging.info("Start waiting for DataFlow process to complete.")
+        self.logger.info("Start waiting for DataFlow process to complete.")
         while self._proc.poll() is None:
             ret = select.select(reads, [], [], 5)
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
-                    logging.debug(line[:-1])
+                    self.logger.debug(line[:-1])
             else:
-                logging.info("Waiting for DataFlow process to complete.")
+                self.logger.info("Waiting for DataFlow process to complete.")
         if self._proc.returncode is not 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))

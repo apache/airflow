@@ -14,7 +14,6 @@
 #
 
 from os import walk
-import logging
 
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.contrib.hooks.fs_hook import FSHook
@@ -49,8 +48,7 @@ class FileSensor(BaseSensorOperator):
         hook = FSHook(self.fs_conn_id)
         basepath = hook.get_path()
         full_path = "/".join([basepath, self.filepath])
-        logging.info(
-            'Poking for file {full_path} '.format(**locals()))
+        self.logger.info('Poking for file {full_path}'.format(**locals()))
         try:
             files = [f for f in walk(full_path)]
         except:

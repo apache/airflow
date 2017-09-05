@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 import time
 import uuid
 
 from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
-class _DataProcJob:
+class _DataProcJob(LoggingMixin):
     def __init__(self, dataproc_api, project_id, job):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
@@ -30,8 +30,10 @@ class _DataProcJob:
             region='global',
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
-        logging.info('DataProc job %s is %s', self.job_id,
-                     str(self.job['status']['state']))
+        self.logger.info(
+            'DataProc job %s is %s',
+            self.job_id, str(self.job['status']['state'])
+        )
 
     def wait_for_done(self):
         while True:
@@ -41,21 +43,23 @@ class _DataProcJob:
                 jobId=self.job_id).execute()
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
-                logging.error('DataProc job %s has errors', self.job_id)
-                logging.error(self.job['status']['details'])
-                logging.debug(str(self.job))
+                self.logger.error('DataProc job %s has errors', self.job_id)
+                self.logger.error(self.job['status']['details'])
+                self.logger.debug(str(self.job))
                 return False
             if 'CANCELLED' == self.job['status']['state']:
                 print(str(self.job))
-                logging.warning('DataProc job %s is cancelled', self.job_id)
+                self.logger.warning('DataProc job %s is cancelled', self.job_id)
                 if 'details' in self.job['status']:
-                    logging.warning(self.job['status']['details'])
-                logging.debug(str(self.job))
+                    self.logger.warning(self.job['status']['details'])
+                self.logger.debug(str(self.job))
                 return False
             if 'DONE' == self.job['status']['state']:
                 return True
-            logging.debug('DataProc job %s is %s', self.job_id,
-                          str(self.job['status']['state']))
+            self.logger.debug(
+                'DataProc job %s is %s',
+                self.job_id, str(self.job['status']['state'])
+            )
             time.sleep(5)
 
     def raise_error(self, message=None):

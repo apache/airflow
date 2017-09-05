@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from base64 import b64encode
-import logging
 
 from airflow import configuration
 from airflow.contrib.hooks.ssh_hook import SSHHook

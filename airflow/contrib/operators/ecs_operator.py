@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import sys
-import logging
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -57,12 +56,11 @@ class ECSOperator(BaseOperator):
         self.hook = self.get_hook()
 
     def execute(self, context):
-
-        logging.info('Running ECS Task - Task definition: {} - on cluster {}'.format(
-            self.task_definition,
-            self.cluster
-        ))
-        logging.info('ECSOperator overrides: {}'.format(self.overrides))
+        self.logger.info(
+            'Running ECS Task - Task definition: %s - on cluster %s',
+            self.task_definition,self.cluster
+        )
+        self.logger.info('ECSOperator overrides: %s', self.overrides)
 
         self.client = self.hook.get_client_type(
             'ecs',
@@ -77,15 +75,15 @@ class ECSOperator(BaseOperator):
         )
 
         failures = response['failures']
-        if (len(failures) > 0):
+        if len(failures) > 0:
             raise AirflowException(response)
-        logging.info('ECS Task started: {}'.format(response))
+        self.logger.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
         self._wait_for_task_ended()
 
         self._check_success_task()
-        logging.info('ECS Task has been successfully executed: {}'.format(response))
+        self.logger.info('ECS Task has been successfully executed: %s', response)
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
@@ -100,9 +98,9 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             tasks=[self.arn]
         )
-        logging.info('ECS Task stopped, check status: {}'.format(response))
+        self.logger.info('ECS Task stopped, check status: %s', response)
 
-        if (len(response.get('failures', [])) > 0):
+        if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
 
         for task in response['tasks']:
@@ -126,4 +124,4 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             task=self.arn,
             reason='Task killed by the user')
-        logging.info(response)
+        self.logger.info(response)

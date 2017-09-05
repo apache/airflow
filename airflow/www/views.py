@@ -68,17 +68,14 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
-from airflow.utils.logging import LoggingMixin
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils import logging as log_utils
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
-from airflow.configuration import AirflowConfigException
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
@@ -2604,7 +2601,7 @@ class UserModelView(wwwutils.SuperUserMixin, AirflowModelView):
     column_default_sort = 'username'
 
 
-class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
+class VersionView(wwwutils.SuperUserMixin, BaseView):
     @expose('/')
     def version(self):
         # Look at the version from setup.py
@@ -2612,7 +2609,7 @@ class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
             airflow_version = pkg_resources.require("apache-airflow")[0].version
         except Exception as e:
             airflow_version = None
-            self.logger.error(e)
+            logging.error(e)
 
         # Get the Git repo and git hash
         git_version = None
@@ -2620,7 +2617,7 @@ class VersionView(wwwutils.SuperUserMixin, LoggingMixin, BaseView):
             with open(os.path.join(*[settings.AIRFLOW_HOME, 'airflow', 'git_version'])) as f:
                 git_version = f.readline()
         except Exception as e:
-            self.logger.error(e)
+            logging.error(e)
 
         # Render information
         title = "Version Info"

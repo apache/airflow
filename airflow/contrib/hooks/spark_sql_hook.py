@@ -12,16 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 import subprocess
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-log = logging.getLogger(__name__)
 
-
-class SparkSqlHook(BaseHook):
+class SparkSqlHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the spark-sql binary. It requires that the
     "spark-sql" binary is in the PATH.
@@ -123,7 +121,7 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--queue", self._yarn_queue]
 
         connection_cmd += cmd
-        logging.debug("Spark-Sql cmd: {}".format(connection_cmd))
+        self.logger.debug("Spark-Sql cmd: %s", connection_cmd)
 
         return connection_cmd
 
@@ -153,5 +151,5 @@ class SparkSqlHook(BaseHook):
 
     def kill(self):
         if self._sp and self._sp.poll() is None:
-            logging.info("Killing the Spark-Sql job")
+            self.logger.info("Killing the Spark-Sql job")
             self._sp.kill()

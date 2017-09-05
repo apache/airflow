@@ -16,17 +16,14 @@
 """
 This module contains a sqoop 1.x hook
 """
-
-import logging
 import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-log = logging.getLogger(__name__)
 
-
-class SqoopHook(BaseHook):
+class SqoopHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
@@ -79,7 +76,7 @@ class SqoopHook(BaseHook):
             password_index = cmd.index('--password')
             cmd[password_index + 1] = 'MASKED'
         except ValueError:
-            logging.debug("No password in sqoop cmd")
+            self.logger.debug("No password in sqoop cmd")
         return cmd
 
     def Popen(self, cmd, **kwargs):
@@ -90,21 +87,21 @@ class SqoopHook(BaseHook):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        logging.info("Executing command: {}".format(' '.join(cmd)))
+        self.logger.info("Executing command: %s", ' '.join(cmd))
         sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
 
         for line in iter(sp.stdout):
-            logging.info(line.strip())
+            self.logger.info(line.strip())
 
         sp.wait()
 
-        logging.info("Command exited with return code {0}".format(sp.returncode))
+        self.logger.info("Command exited with return code %s", sp.returncode)
 
         if sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(' '.join(cmd)))
+            raise AirflowException("Sqoop command failed: %s", ' '.join(cmd))
 
     def _prepare_command(self, export=False):
         if export:

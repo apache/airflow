@@ -29,7 +29,6 @@ from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
-from time import time as timetime
 from time import sleep
 import warnings
 
@@ -37,7 +36,7 @@ from dateutil.relativedelta import relativedelta
 import sqlalchemy
 
 from airflow import configuration
-from airflow.executors import SequentialExecutor, LocalExecutor
+from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 from tests.test_utils.fake_datetime import FakeDatetime
 
@@ -53,13 +52,11 @@ from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.operators import sensors
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
-from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
@@ -804,17 +801,6 @@ class CoreTest(unittest.TestCase):
 
         # restore the envvar back to the original state
         del os.environ[key]
-
-    def test_class_with_logger_should_have_logger_with_correct_name(self):
-
-        # each class should automatically receive a logger with a correct name
-
-        class Blah(LoggingMixin):
-            pass
-
-        self.assertEqual("tests.core.Blah", Blah().logger.name)
-        self.assertEqual("airflow.executors.sequential_executor.SequentialExecutor", SequentialExecutor().logger.name)
-        self.assertEqual("airflow.executors.local_executor.LocalExecutor", LocalExecutor().logger.name)
 
     def test_round_time(self):
 

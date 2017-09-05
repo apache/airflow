@@ -53,6 +53,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
+from airflow.utils.log.LoggingMixin import LoggingMixin
 from airflow.www.app import cached_app
 
 from sqlalchemy import func
@@ -62,6 +63,8 @@ api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))
 api_client = api_module.Client(api_base_url=conf.get('cli', 'endpoint_url'),
                                auth=api.api_auth.client_auth)
+
+log = LoggingMixin().logger
 
 
 def sigint_handler(sig, frame):
@@ -186,19 +189,21 @@ def trigger_dag(args):
     :param args:
     :return:
     """
+    log = LoggingMixin().logger
     try:
         message = api_client.trigger_dag(dag_id=args.dag_id,
                                          run_id=args.run_id,
                                          conf=args.conf,
                                          execution_date=args.exec_date)
     except IOError as err:
-        logging.error(err)
+        log.error(err)
         raise AirflowException(err)
-
-    logging.info(message)
+    log.info(message)
 
 
 def pool(args):
+    log = LoggingMixin().logger
+
     def _tabulate(pools):
         return "\n%s" % tabulate(pools, ['Pool', 'Slots', 'Description'],
                                  tablefmt="fancy_grid")
@@ -215,9 +220,9 @@ def pool(args):
         else:
             pools = api_client.get_pools()
     except (AirflowException, IOError) as err:
-        logging.error(err)
+        log.error(err)
     else:
-        logging.info(_tabulate(pools=pools))
+        log.info(_tabulate(pools=pools))
 
 
 def variables(args):
@@ -325,6 +330,8 @@ def run(args, dag=None):
     if dag:
         args.dag_id = dag.dag_id
 
+    log = LoggingMixin().logger
+
     # Load custom airflow config
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
@@ -343,7 +350,7 @@ def run(args, dag=None):
         dag = get_dag(args)
     elif not dag:
         session = settings.Session()
-        logging.info('Loading pickle id {args.pickle}'.format(args=args))
+        log.info('Loading pickle id {args.pickle}'.format(args=args))
         dag_pickle = session.query(
             DagPickle).filter(DagPickle.id == args.pickle).first()
         if not dag_pickle:
@@ -354,11 +361,11 @@ def run(args, dag=None):
     ti = TaskInstance(task, args.execution_date)
     ti.refresh_from_db()
 
-    logger = logging.getLogger('airflow.task')
+    log = logging.getLogger('airflow.task')
     if args.raw:
-        logger = logging.getLogger('airflow.task.raw')
+        log = logging.getLogger('airflow.task.raw')
 
-    for handler in logger.handlers:
+    for handler in log.handlers:
         try:
             handler.set_context(ti)
         except AttributeError:
@@ -367,7 +374,7 @@ def run(args, dag=None):
             pass
 
     hostname = socket.getfqdn()
-    logging.info("Running on host {}".format(hostname))
+    log.info("Running on host %s", hostname)
 
     if args.local:
         run_job = jobs.LocalTaskJob(
@@ -396,6 +403,7 @@ def run(args, dag=None):
                 session.add(pickle)
                 session.commit()
                 pickle_id = pickle.id
+                # TODO: This should be written to a log
                 print((
                           'Pickled dag {dag} '
                           'as pickle_id:{pickle_id}').format(**locals()))
@@ -427,7 +435,7 @@ def run(args, dag=None):
     # might subsequently read from the log to insert into S3 or
     # Google cloud storage. Explicitly close the handler is
     # needed in order to upload to remote storage services.
-    for handler in logger.handlers:
+    for handler in log.handlers:
         handler.flush()
         handler.close()
 
@@ -449,6 +457,7 @@ def task_failed_deps(args):
 
     dep_context = DepContext(deps=SCHEDULER_DEPS)
     failed_deps = list(ti.get_failed_dep_statuses(dep_context=dep_context))
+    # TODO, Do we want to print or log this
     if failed_deps:
         print("Task instance dependencies not met:")
         for dep in failed_deps:
@@ -605,8 +614,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
-        logging.debug('%s doing a refresh of %s workers',
-                      state, batch_size)
+        log.debug('%s doing a refresh of %s workers', state, batch_size)
         sys.stdout.flush()
         sys.stderr.flush()
 
@@ -628,14 +636,14 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
         # Whenever some workers are not ready, wait until all workers are ready
         if num_ready_workers_running < num_workers_running:
-            logging.debug('%s some workers are starting up, waiting...', state)
+            log.debug('%s some workers are starting up, waiting...', state)
             sys.stdout.flush()
             time.sleep(1)
 
         # Kill a worker gracefully by asking gunicorn to reduce number of workers
         elif num_workers_running > num_workers_expected:
             excess = num_workers_running - num_workers_expected
-            logging.debug('%s killing %s workers', state, excess)
+            log.debug('%s killing %s workers', state, excess)
 
             for _ in range(excess):
                 gunicorn_master_proc.send_signal(signal.SIGTTOU)
@@ -646,7 +654,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
         # Start a new worker by asking gunicorn to increase number of workers
         elif num_workers_running == num_workers_expected:
             refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-            logging.debug(
+            log.debug(
                 '%s sleeping for %ss starting doing a refresh...',
                 state, refresh_interval
             )
@@ -655,7 +663,7 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 
         else:
             # num_ready_workers_running == num_workers_running < num_workers_expected
-            logging.error((
+            log.error((
                 "%s some workers seem to have died and gunicorn"
                 "did not restart them as expected"
             ), state)
@@ -770,7 +778,7 @@ def webserver(args):
                             gunicorn_master_proc_pid = int(f.read())
                             break
                     except IOError:
-                        logging.debug("Waiting for gunicorn's pid file to be created.")
+                        log.debug("Waiting for gunicorn's pid file to be created.")
                         time.sleep(0.1)
 
                 gunicorn_master_proc = psutil.Process(gunicorn_master_proc_pid)
@@ -896,8 +904,6 @@ def resetdb(args):
     if args.yes or input(
         "This will drop existing tables if they exist. "
         "Proceed? (y/n)").upper() == "Y":
-        logging.basicConfig(level=settings.LOGGING_LEVEL,
-                            format=settings.SIMPLE_LOG_FORMAT)
         db_utils.resetdb()
     else:
         print("Bail.")

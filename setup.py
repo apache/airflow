@@ -99,16 +99,6 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-
-def check_previous():
-    installed_packages = ([package.project_name for package
-                           in pip.get_installed_distributions()])
-    if 'airflow' in installed_packages:
-        print("An earlier non-apache version of Airflow was installed, "
-              "please uninstall it first. Then reinstall.")
-        sys.exit(1)
-
-
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
@@ -206,7 +196,6 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 
 
 def do_setup():
-    check_previous()
     write_version()
     setup(
         name='apache-airflow',

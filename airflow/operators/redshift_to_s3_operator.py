@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.hooks.postgres_hook import PostgresHook
 from airflow.hooks.S3_hook import S3Hook
 from airflow.models import BaseOperator
@@ -71,9 +68,9 @@ class RedshiftToS3Transfer(BaseOperator):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
         a_key, s_key = self.s3.get_credentials()
-        unload_options = ('\n\t\t\t').join(self.unload_options)
+        unload_options = '\n\t\t\t'.join(self.unload_options)
 
-        logging.info("Retrieving headers from %s.%s..." % (self.schema, self.table))
+        self.logger.info("Retrieving headers from %s.%s...", self.schema, self.table)
 
         columns_query = """SELECT column_name
                             FROM information_schema.columns
@@ -86,9 +83,9 @@ class RedshiftToS3Transfer(BaseOperator):
         cursor.execute(columns_query)
         rows = cursor.fetchall()
         columns = map(lambda row: row[0], rows)
-        column_names = (', ').join(map(lambda c: "\\'{0}\\'".format(c), columns))
-        column_castings = (', ').join(map(lambda c: "CAST({0} AS text) AS {0}".format(c),
-                                            columns))
+        column_names = ', '.join(map(lambda c: "\\'{0}\\'".format(c), columns))
+        column_castings = ', '.join(map(lambda c: "CAST({0} AS text) AS {0}".format(c),
+                                        columns))
 
         unload_query = """
                         UNLOAD ('SELECT {0}
@@ -102,6 +99,6 @@ class RedshiftToS3Transfer(BaseOperator):
                         """.format(column_names, column_castings, self.schema, self.table,
                                 self.s3_bucket, self.s3_key, a_key, s_key, unload_options)
 
-        logging.info('Executing UNLOAD command...')
+        self.logger.info('Executing UNLOAD command...')
         self.hook.run(unload_query, self.autocommit)
-        logging.info("UNLOAD command complete...")
+        self.logger.info("UNLOAD command complete...")

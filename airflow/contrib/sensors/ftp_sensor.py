@@ -11,9 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 import ftplib
-import logging
 
 from airflow.contrib.hooks.ftp_hook import FTPHook, FTPSHook
 from airflow.operators.sensors import BaseSensorOperator
@@ -44,7 +42,7 @@ class FTPSensor(BaseSensorOperator):
 
     def poke(self, context):
         with self._create_hook() as hook:
-            logging.info('Poking for %s', self.path)
+            self.logger.info('Poking for %s', self.path)
             try:
                 hook.get_mod_time(self.path)
             except ftplib.error_perm as e:

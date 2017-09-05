@@ -13,8 +13,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import re
 
 from airflow import settings
@@ -24,8 +22,9 @@ from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from apiclient import errors
 
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-logging.getLogger('GoogleCloudMLEngine').setLevel(settings.LOGGING_LEVEL)
+log = LoggingMixin().logger
 
 
 def _create_prediction_input(project_id,
@@ -52,7 +51,6 @@ def _create_prediction_input(project_id,
     Raises:
         ValueError: if a unique model/version origin cannot be determined.
     """
-
     prediction_input = {
         'dataFormat': data_format,
         'inputPaths': input_paths,
@@ -62,9 +60,9 @@ def _create_prediction_input(project_id,
 
     if uri:
         if model_name or version_name:
-            logging.error(
-                'Ambiguous model origin: Both uri and model/version name are '
-                'provided.')
+            log.error(
+                'Ambiguous model origin: Both uri and model/version name are provided.'
+            )
             raise ValueError('Ambiguous model origin.')
         prediction_input['uri'] = uri
     elif model_name:
@@ -75,7 +73,7 @@ def _create_prediction_input(project_id,
             prediction_input['versionName'] = \
                 origin_name + '/versions/{}'.format(version_name)
     else:
-        logging.error(
+        log.error(
             'Missing model origin: Batch prediction expects a model, '
             'a model & version combination, or a URI to savedModel.')
         raise ValueError('Missing model origin.')
@@ -227,9 +225,10 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                 model_name, version_name, uri, max_worker_count,
                 runtime_version)
         except ValueError as e:
-            logging.error(
-                'Cannot create batch prediction job request due to: {}'
-                .format(str(e)))
+            self.logger.error(
+                'Cannot create batch prediction job request due to: %s',
+                e
+            )
             raise
 
         self.prediction_job_request = {
@@ -252,7 +251,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
-            logging.error(
+            self.logger.error(
                 'Batch prediction job failed: %s',
                 str(finished_prediction_job))
             raise RuntimeError(finished_prediction_job['errorMessage'])
@@ -539,9 +538,8 @@ class MLEngineTrainingOperator(BaseOperator):
         }
 
         if self._mode == 'DRY_RUN':
-            logging.info('In dry_run mode.')
-            logging.info(
-                'MLEngine Training job request is: {}'.format(training_request))
+            self.logger.info('In dry_run mode.')
+            self.logger.info('MLEngine Training job request is: {}'.format(training_request))
             return
 
         hook = MLEngineHook(
@@ -559,6 +557,6 @@ class MLEngineTrainingOperator(BaseOperator):
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':
-            logging.error('MLEngine training job failed: {}'.format(
+            self.logger.error('MLEngine training job failed: {}'.format(
                 str(finished_training_job)))
             raise RuntimeError(finished_training_job['errorMessage'])

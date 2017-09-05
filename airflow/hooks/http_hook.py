@@ -13,7 +13,6 @@
 # limitations under the License.
 
 from builtins import str
-import logging
 
 import requests
 
@@ -83,7 +82,7 @@ class HttpHook(BaseHook):
                                    headers=headers)
 
         prepped_request = session.prepare_request(req)
-        logging.info("Sending '" + self.method + "' to url: " + url)
+        self.logger.info("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
     def run_and_check(self, session, prepped_request, extra_options):
@@ -108,12 +107,12 @@ class HttpHook(BaseHook):
             # Tried rewrapping, but not supported. This way, it's possible
             # to get reason and code for failure by checking first 3 chars
             # for the code, or do a split on ':'
-            logging.error("HTTP error: " + response.reason)
+            self.logger.error("HTTP error: %s", response.reason)
             if self.method not in ('GET', 'HEAD'):
                 # The sensor uses GET, so this prevents filling up the log
                 # with the body every time the GET 'misses'.
                 # That's ok to do, because GETs should be repeatable and
                 # all data should be visible in the log (no post data)
-                logging.error(response.text)
+                self.logger.error(response.text)
             raise AirflowException(str(response.status_code)+":"+response.reason)
         return response

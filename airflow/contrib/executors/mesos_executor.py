@@ -13,9 +13,12 @@
 # limitations under the License.
 
 from future import standard_library
+
+from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.www.utils import LoginMixin
+
 standard_library.install_aliases()
 from builtins import str
-import logging
 from queue import Queue
 
 import mesos.interface
@@ -41,7 +44,7 @@ def get_framework_name():
 
 # AirflowMesosScheduler, implements Mesos Scheduler interface
 # To schedule airflow jobs on mesos
-class AirflowMesosScheduler(mesos.interface.Scheduler):
+class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
     """
     Airflow Mesos scheduler implements mesos scheduler interface
     to schedule airflow tasks on mesos.
@@ -49,7 +52,6 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
     'airflow run <dag_id> <task_instance_id> <start_date> --local -p=<pickle>'
     to run on a mesos slave.
     """
-
     def __init__(self,
                  task_queue,
                  result_queue,
@@ -63,7 +65,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
         self.task_key_map = {}
 
     def registered(self, driver, frameworkId, masterInfo):
-        logging.info("AirflowScheduler registered to mesos with framework ID %s", frameworkId.value)
+        self.logger.info("AirflowScheduler registered to Mesos with framework ID %s", frameworkId.value)
 
         if configuration.getboolean('mesos', 'CHECKPOINT') and configuration.get('mesos', 'FAILOVER_TIMEOUT'):
             # Import here to work around a circular import error
@@ -84,25 +86,25 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
             Session.remove()
 
     def reregistered(self, driver, masterInfo):
-        logging.info("AirflowScheduler re-registered to mesos")
+        self.logger.info("AirflowScheduler re-registered to mesos")
 
     def disconnected(self, driver):
-        logging.info("AirflowScheduler disconnected from mesos")
+        self.logger.info("AirflowScheduler disconnected from mesos")
 
     def offerRescinded(self, driver, offerId):
-        logging.info("AirflowScheduler offer %s rescinded", str(offerId))
+        self.logger.info("AirflowScheduler offer %s rescinded", str(offerId))
 
     def frameworkMessage(self, driver, executorId, slaveId, message):
-        logging.info("AirflowScheduler received framework message %s", message)
+        self.logger.info("AirflowScheduler received framework message %s", message)
 
     def executorLost(self, driver, executorId, slaveId, status):
-        logging.warning("AirflowScheduler executor %s lost", str(executorId))
+        self.logger.warning("AirflowScheduler executor %s lost", str(executorId))
 
     def slaveLost(self, driver, slaveId):
-        logging.warning("AirflowScheduler slave %s lost", str(slaveId))
+        self.logger.warning("AirflowScheduler slave %s lost", str(slaveId))
 
     def error(self, driver, message):
-        logging.error("AirflowScheduler driver aborted %s", message)
+        self.logger.error("AirflowScheduler driver aborted %s", message)
         raise AirflowException("AirflowScheduler driver aborted %s" % message)
 
     def resourceOffers(self, driver, offers):
@@ -116,7 +118,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
                 elif resource.name == "mem":
                     offerMem += resource.scalar.value
 
-            logging.info("Received offer %s with cpus: %s and mem: %s", offer.id.value, offerCpus, offerMem)
+            self.logger.info("Received offer %s with cpus: %s and mem: %s", offer.id.value, offerCpus, offerMem)
 
             remainingCpus = offerCpus
             remainingMem = offerMem
@@ -129,7 +131,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
                 self.task_counter += 1
                 self.task_key_map[str(tid)] = key
 
-                logging.info("Launching task %d using offer %s", tid, offer.id.value)
+                self.logger.info("Launching task %d using offer %s", tid, offer.id.value)
 
                 task = mesos_pb2.TaskInfo()
                 task.task_id.value = str(tid)
@@ -159,15 +161,17 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
             driver.launchTasks(offer.id, tasks)
 
     def statusUpdate(self, driver, update):
-        logging.info("Task %s is in state %s, data %s",
-                     update.task_id.value, mesos_pb2.TaskState.Name(update.state), str(update.data))
+        self.logger.info(
+            "Task %s is in state %s, data %s",
+            update.task_id.value, mesos_pb2.TaskState.Name(update.state), str(update.data)
+        )
 
         try:
             key = self.task_key_map[update.task_id.value]
         except KeyError:
             # The map may not contain an item if the framework re-registered after a failover.
             # Discard these tasks.
-            logging.warning("Unrecognised task key %s" % update.task_id.value)
+            self.logger.warning("Unrecognised task key %s", update.task_id.value)
             return
 
         if update.state == mesos_pb2.TASK_FINISHED:
@@ -181,7 +185,7 @@ class AirflowMesosScheduler(mesos.interface.Scheduler):
             self.task_queue.task_done()
 
 
-class MesosExecutor(BaseExecutor):
+class MesosExecutor(BaseExecutor, LoginMixin):
     """
     MesosExecutor allows distributing the execution of task
     instances to multiple mesos workers.
@@ -192,7 +196,6 @@ class MesosExecutor(BaseExecutor):
     elastic distributed systems to easily be built and run effectively.
     See http://mesos.apache.org/
     """
-
     def start(self):
         self.task_queue = Queue()
         self.result_queue = Queue()
@@ -200,7 +203,7 @@ class MesosExecutor(BaseExecutor):
         framework.user = ''
 
         if not configuration.get('mesos', 'MASTER'):
-            logging.error("Expecting mesos master URL for mesos executor")
+            self.logger.error("Expecting mesos master URL for mesos executor")
             raise AirflowException("mesos.master not provided for mesos executor")
 
         master = configuration.get('mesos', 'MASTER')
@@ -236,17 +239,19 @@ class MesosExecutor(BaseExecutor):
         else:
             framework.checkpoint = False
 
-        logging.info('MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
-            master, framework.name, str(task_cpu), str(task_memory), str(framework.checkpoint))
+        self.logger.info(
+            'MesosFramework master : %s, name : %s, cpu : %s, mem : %s, checkpoint : %s',
+            master, framework.name, str(task_cpu), str(task_memory), str(framework.checkpoint)
+        )
 
         implicit_acknowledgements = 1
 
         if configuration.getboolean('mesos', 'AUTHENTICATE'):
             if not configuration.get('mesos', 'DEFAULT_PRINCIPAL'):
-                logging.error("Expecting authentication principal in the environment")
+                self.logger.error("Expecting authentication principal in the environment")
                 raise AirflowException("mesos.default_principal not provided in authenticated mode")
             if not configuration.get('mesos', 'DEFAULT_SECRET'):
-                logging.error("Expecting authentication secret in the environment")
+                self.logger.error("Expecting authentication secret in the environment")
                 raise AirflowException("mesos.default_secret not provided in authenticated mode")
 
             credential = mesos_pb2.Credential()

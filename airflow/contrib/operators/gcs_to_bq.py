@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import json
-import logging
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
@@ -190,7 +189,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 self.destination_project_dataset_table))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
-            logging.info('Loaded BQ data with max {}.{}={}'.format(
-                self.destination_project_dataset_table,
-                self.max_id_key, max_id))
+            self.logger.info(
+                'Loaded BQ data with max %s.%s=%s',
+                self.destination_project_dataset_table, self.max_id_key, max_id
+            )
             return max_id

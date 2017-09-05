@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
 from airflow.models import BaseOperator
@@ -45,7 +43,7 @@ class SimpleHttpOperator(BaseOperator):
         depends on the option that's being modified.
     """
 
-    template_fields = ('endpoint','data',)
+    template_fields = ('endpoint', 'data',)
     template_ext = ()
     ui_color = '#f4a460'
 
@@ -75,7 +73,9 @@ class SimpleHttpOperator(BaseOperator):
 
     def execute(self, context):
         http = HttpHook(self.method, http_conn_id=self.http_conn_id)
-        logging.info("Calling HTTP method")
+
+        self.logger.info("Calling HTTP method")
+
         response = http.run(self.endpoint,
                             self.data,
                             self.headers,
