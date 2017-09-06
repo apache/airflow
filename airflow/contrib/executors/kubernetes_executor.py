@@ -102,7 +102,7 @@ class AirflowKubernetesScheduler(object):
         self.logger.info("running for command {}".format(command))
         cmd_args = "mkdir -p $AIRFLOW_HOME/dags/synched/git && cd $AIRFLOW_HOME/dags/synched/git &&" \
                    "git init && git remote add origin {git_repo} && git pull origin {git_branch} --depth=1 &&" \
-                   "{command} -km".format(git_repo=self.kube_config.git_repo, git_branch=self.kube_config.git_branch,
+                   "{command}".format(git_repo=self.kube_config.git_repo, git_branch=self.kube_config.git_branch,
                                           command=command)
         pod_id = self._create_job_id_from_key(key=key)
         pod = KubernetesPodBuilder(
