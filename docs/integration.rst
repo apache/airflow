@@ -295,52 +295,52 @@ Cloud ML Engine
 Cloud ML Engine Operators
 """""""""""""""""""""""""
 
-- :ref:`CloudMLBatchPredictionOperator` : Start a Cloud ML Engine batch prediction job.
-- :ref:`CloudMLModelOperator` : Manages a Cloud ML Engine model.
-- :ref:`CloudMLTrainingOperator` : Start a Cloud ML Engine training job.
-- :ref:`CloudMLVersionOperator` : Manages a Cloud ML Engine model version.
+- :ref:`MLEngineBatchPredictionOperator` : Start a Cloud ML Engine batch prediction job.
+- :ref:`MLEngineModelOperator` : Manages a Cloud ML Engine model.
+- :ref:`MLEngineTrainingOperator` : Start a Cloud ML Engine training job.
+- :ref:`MLEngineVersionOperator` : Manages a Cloud ML Engine model version.
 
-.. _CloudMLBatchPredictionOperator:
+.. _MLEngineBatchPredictionOperator:
 
-CloudMLBatchPredictionOperator
+MLEngineBatchPredictionOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLBatchPredictionOperator
+.. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator
     :members:
 
-.. _CloudMLModelOperator:
+.. _MLEngineModelOperator:
 
-CloudMLModelOperator
+MLEngineModelOperator
 ^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLModelOperator
+.. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
     :members:
 
-.. _CloudMLTrainingOperator:
+.. _MLEngineTrainingOperator:
 
-CloudMLTrainingOperator
+MLEngineTrainingOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLTrainingOperator
+.. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
     :members:
 
-.. _CloudMLVersionOperator:
+.. _MLEngineVersionOperator:
 
-CloudMLVersionOperator
+MLEngineVersionOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.cloudml_operator.CloudMLVersionOperator
+.. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator
     :members:
 
 Cloud ML Engine Hook
 """"""""""""""""""""
 
-.. _CloudMLHook:
+.. _MLEngineHook:
 
-CloudMLHook
+MLEngineHook
 ^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.hooks.gcp_cloudml_hook.CloudMLHook
+.. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
     :members:
 
 
