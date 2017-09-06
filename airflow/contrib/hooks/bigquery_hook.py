@@ -505,8 +505,8 @@ class BigQueryBaseCursor(object):
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
-        if 'skip_leading_rows' not in src_fmt_configs:
-            src_fmt_configs['skip_leading_rows'] = skip_leading_rows
+        if 'skipLeadingRows' not in src_fmt_configs:
+            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
         if 'fieldDelimiter' not in src_fmt_configs:
             src_fmt_configs['fieldDelimiter'] = field_delimiter
         if quote_character:
