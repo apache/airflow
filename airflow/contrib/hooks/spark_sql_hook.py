@@ -58,6 +58,7 @@ class SparkSqlHook(BaseHook):
                  executor_cores=None,
                  executor_memory=None,
                  keytab=None,
+                 principal=None,
                  master='yarn',
                  name='default-name',
                  num_executors=None,
@@ -71,6 +72,7 @@ class SparkSqlHook(BaseHook):
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
         self._keytab = keytab
+        self._principal = principal
         self._master = master
         self._name = name
         self._num_executors = num_executors
@@ -101,6 +103,8 @@ class SparkSqlHook(BaseHook):
             connection_cmd += ["--executor-memory", self._executor_memory]
         if self._keytab:
             connection_cmd += ["--keytab", self._keytab]
+        if self._principal:
+            connection_cmd += ["--principal", self._principal]
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._sql:
@@ -130,25 +134,22 @@ class SparkSqlHook(BaseHook):
         :param cmd: command to remotely execute
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
-        prefixed_cmd = self._prepare_command(cmd)
-        self._sp = subprocess.Popen(prefixed_cmd,
+        spark_sql_cmd = self._prepare_command(cmd)
+        self._sp = subprocess.Popen(spark_sql_cmd,
                                     stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
                                     **kwargs)
-        # using two iterators here to support 'real-time' logging
-        for line in iter(self._sp.stdout.readline, b''):
-            line = line.decode('utf-8').strip()
-            logging.info(line)
-        for line in iter(self._sp.stderr.readline, b''):
-            line = line.decode('utf-8').strip()
-            logging.info(line)
-        output, stderr = self._sp.communicate()
 
-        if self._sp.returncode:
-            raise AirflowException("Cannot execute {} on {}. Error code is: "
-                                   "{}. Output: {}, Stderr: {}"
-                                   .format(cmd, self._conn.host,
-                                           self._sp.returncode, output, stderr))
+        self._process_log(iter(self._sp.stdout.readline, b''))
+
+        returncode = self._sp.wait()
+
+        if returncode:
+            raise AirflowException(
+                "Cannot execute {} on {}. Process exit code: {}.".format(
+                    cmd, self._conn.host, returncode
+                )
+            )
 
     def kill(self):
         if self._sp and self._sp.poll() is None:

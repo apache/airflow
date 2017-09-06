@@ -51,6 +51,10 @@ class BigQueryOperator(BaseOperator):
     :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
         Defaults to None, in which case it uses the value set in the project.
     :type maximum_billing_tier: integer
+    :param query_params: a dictionary containing query parameter types and values, passed to
+        BigQuery.
+    :type query_params: dict
+
     """
     template_fields = ('bql', 'destination_dataset_table')
     template_ext = ('.sql',)
@@ -68,6 +72,7 @@ class BigQueryOperator(BaseOperator):
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
                  create_disposition='CREATE_IF_NEEDED',
+                 query_params=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -81,6 +86,7 @@ class BigQueryOperator(BaseOperator):
         self.udf_config = udf_config
         self.use_legacy_sql = use_legacy_sql
         self.maximum_billing_tier = maximum_billing_tier
+        self.query_params = query_params
 
     def execute(self, context):
         logging.info('Executing: %s', self.bql)
@@ -91,4 +97,4 @@ class BigQueryOperator(BaseOperator):
         cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
                          self.allow_large_results, self.udf_config,
                          self.use_legacy_sql, self.maximum_billing_tier,
-                         self.create_disposition)
+                         self.create_disposition, self.query_params)
