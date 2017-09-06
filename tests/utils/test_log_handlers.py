@@ -23,6 +23,7 @@ from datetime import datetime
 from airflow.models import TaskInstance, DAG
 from airflow.config_templates.default_airflow_logging import DEFAULT_LOGGING_CONFIG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.log.file_task_handler import FileTaskHandler
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -71,3 +72,25 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
+
+    
+class TestFilenameRendering(unittest.TestCase):
+    
+    def setUp(self):
+        dag = DAG('dag_for_testing_filename_rendering', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='task_for_testing_filename_rendering', dag=dag)
+        self.ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+    
+    def test_python_formatting(self):
+        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        
+        fth = FileTaskHandler('', '{dag_id}/{task_id}/{execution_date}/{try_number}.log')
+        rendered_filename = fth._render_filename(self.ti, 42)
+        self.assertEqual(expected_filename, rendered_filename)
+        
+    def test_jinja_rendering(self):
+        expected_filename = 'dag_for_testing_filename_rendering/task_for_testing_filename_rendering/%s/42.log' % DEFAULT_DATE.isoformat()
+        
+        fth = FileTaskHandler('', '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log')
+        rendered_filename = fth._render_filename(self.ti, 42)
+        self.assertEqual(expected_filename, rendered_filename)
