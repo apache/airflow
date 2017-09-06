@@ -865,7 +865,7 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=datetime.datetime.now())
         ti.run()
-        self.assertTrue(ti.state == models.State.SKIPPED)
+        self.assertEqual(models.State.SKIPPED, ti.state)
 
     def test_retry_delay(self):
         """
@@ -1186,6 +1186,22 @@ class TaskInstanceTest(unittest.TestCase):
         with self.assertRaises(TestError):
             ti.run()
 
+    def test_check_and_change_state_before_execution(self):
+        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        ti = TI(
+            task=task, execution_date=datetime.datetime.now())
+        self.assertTrue(ti._check_and_change_state_before_execution())
+
+    def test_check_and_change_state_before_execution_dep_not_met(self):
+        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        task2= DummyOperator(task_id='task2', dag=dag, start_date=DEFAULT_DATE)
+        task >> task2
+        ti = TI(
+            task=task2, execution_date=datetime.datetime.now())
+        self.assertFalse(ti._check_and_change_state_before_execution())
+        
 
 class ClearTasksTest(unittest.TestCase):
     def test_clear_task_instances(self):

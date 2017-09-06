@@ -79,9 +79,6 @@ class BaseTaskRunner(LoggingMixin):
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
             raw=True,
-            ignore_all_deps=local_task_job.ignore_all_deps,
-            ignore_depends_on_past=local_task_job.ignore_depends_on_past,
-            ignore_ti_state=local_task_job.ignore_ti_state,
             pickle_id=local_task_job.pickle_id,
             mark_success=local_task_job.mark_success,
             job_id=local_task_job.id,

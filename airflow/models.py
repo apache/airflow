@@ -1275,7 +1275,7 @@ class TaskInstance(Base):
         return dr
 
     @provide_session
-    def run(
+    def _check_and_change_state_before_execution(
             self,
             verbose=True,
             ignore_all_deps=False,
@@ -1288,7 +1288,9 @@ class TaskInstance(Base):
             pool=None,
             session=None):
         """
-        Runs the task instance.
+        Checks dependencies and then sets state to RUNNING if they are met. Returns
+        True if and only if state is set to RUNNING, which implies that task should be
+        executed, in preparation for _run_raw_task
 
         :param verbose: whether to turn on more verbose logging
         :type verbose: boolean
@@ -1306,6 +1308,8 @@ class TaskInstance(Base):
         :type test_mode: boolean
         :param pool: specifies the pool to use to run the task instance
         :type pool: str
+        :return: whether the state was changed to running or not
+        :rtype: bool
         """
         task = self.task
         self.pool = pool or task.pool
@@ -1329,7 +1333,7 @@ class TaskInstance(Base):
                 session=session,
                 verbose=True):
             session.commit()
-            return
+            return False
 
         hr = "\n" + ("-" * 80) + "\n"  # Line break
 
@@ -1368,7 +1372,7 @@ class TaskInstance(Base):
             logging.info(msg)
             session.merge(self)
             session.commit()
-            return
+            return False
 
         # Another worker might have started running this task instance while
         # the current worker process was blocked on refresh_from_db
@@ -1376,7 +1380,7 @@ class TaskInstance(Base):
             msg = "Task Instance already running {}".format(self)
             logging.warning(msg)
             session.commit()
-            return
+            return False
 
         # print status message
         logging.info(hr + msg + hr)
@@ -1396,14 +1400,44 @@ class TaskInstance(Base):
         settings.engine.dispose()
         if verbose:
             if mark_success:
-                msg = "Marking success for "
+                msg = "Marking success for {} on {}".format(self.task, self.execution_date)
+                logging.info(msg)
             else:
-                msg = "Executing "
-            msg += "{self.task} on {self.execution_date}"
+                msg = "Executing {} on {}".format(self.task, self.execution_date)
+                logging.info(msg)
+        return True
+
+    @provide_session
+    def _run_raw_task(
+            self,
+            mark_success=False,
+            test_mode=False,
+            job_id=None,
+            pool=None,
+            session=None):
+        """
+        Immediately runs the task (without checking or changing db state
+        before execution) and then sets the appropriate final state after
+        completion and runs any post-execute callbacks. Meant to be called
+        only after another function changes the state to running.
+
+        :param mark_success: Don't run the task, mark its state as success
+        :type mark_success: boolean
+        :param test_mode: Doesn't record success or failure in the DB
+        :type test_mode: boolean
+        :param pool: specifies the pool to use to run the task instance
+        :type pool: str
+        """
+        task = self.task
+        self.pool = pool or task.pool
+        self.test_mode = test_mode
+        self.refresh_from_db(session=session)
+        self.job_id = job_id
+        self.hostname = socket.getfqdn()
+        self.operator = task.__class__.__name__
 
         context = {}
         try:
-            logging.info(msg.format(self=self))
             if not mark_success:
                 context = self.get_template_context()
 
@@ -1460,9 +1494,20 @@ class TaskInstance(Base):
                 Stats.incr('operator_successes_{}'.format(
                     self.task.__class__.__name__), 1, 1)
                 Stats.incr('ti_successes')
+            self.refresh_from_db(lock_for_update=True)
             self.state = State.SUCCESS
         except AirflowSkipException:
+            self.refresh_from_db(lock_for_update=True)
             self.state = State.SKIPPED
+        except AirflowException as e:
+            self.refresh_from_db()
+            # for case when task is marked as success externally
+            # current behavior doesn't hit the success callback
+            if self.state == State.SUCCESS:
+                return
+            else:
+                self.handle_failure(e, test_mode, context)
+                raise
         except (Exception, KeyboardInterrupt) as e:
             self.handle_failure(e, test_mode, context)
             raise
@@ -1484,6 +1529,38 @@ class TaskInstance(Base):
             logging.exception(e3)
 
         session.commit()
+
+    @provide_session
+    def run(
+            self,
+            verbose=True,
+            ignore_all_deps=False,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            mark_success=False,
+            test_mode=False,
+            job_id=None,
+            pool=None,
+            session=None):
+        res = self._check_and_change_state_before_execution(
+                verbose=verbose,
+                ignore_all_deps=ignore_all_deps,
+                ignore_depends_on_past=ignore_depends_on_past,
+                ignore_task_deps=ignore_task_deps,
+                ignore_ti_state=ignore_ti_state,
+                mark_success=mark_success,
+                test_mode=test_mode,
+                job_id=job_id,
+                pool=pool,
+                session=session)
+        if res:
+            self._run_raw_task(
+                    mark_success=mark_success,
+                    test_mode=test_mode,
+                    job_id=job_id,
+                    pool=pool,
+                    session=session)
 
     def dry_run(self):
         task = self.task
