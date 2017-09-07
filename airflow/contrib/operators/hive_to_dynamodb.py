@@ -35,8 +35,6 @@ class HiveToDynamoDBTransfer(BaseOperator):
     :type table_keys: list
     :param aws_conn_id: aws connection
     :type aws_conn_id: str
-    :param dynamodb_conn_id: dynamodb connection
-    :type dynamodb_conn_id: str
     :param hiveserver2_conn_id: source hive connection
     :type hiveserver2_conn_id: str
     """
