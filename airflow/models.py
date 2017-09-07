@@ -56,7 +56,7 @@ from urllib.parse import urlparse, quote
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float, LargeBinary)
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -1116,28 +1116,6 @@ class TaskInstance(Base, LoggingMixin):
         self.state = State.FAILED
         session.merge(self)
         session.commit()
-
-    @provide_session
-    def update_hostname(self, hostname, session=None):
-        """
-        For use in kubernetes mode. Update the session to allow heartbeating to SQL
-        :param session:
-   
-        :return:
-        
-        """
-        t_i = TaskInstance
-
-        qry = session.query(t_i).filter(
-            t_i.dag_id == self.dag_id,
-            t_i.task_id == self.task_id,
-            t_i.execution_date == self.execution_date)
-
-        ti = qry.first()
-        if ti:
-            ti.hostname = hostname
-            session.add(ti)
-            session.commit()
 
     @provide_session
     def refresh_from_db(self, session=None, lock_for_update=False):
@@ -5121,3 +5099,24 @@ class ImportError(Base):
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+
+
+class KubeResourceVersion(Base):
+    __tablename__ = "kube_resource_version"
+    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
+    resource_version = Column(String(255))
+
+    @staticmethod
+    @provide_session
+    def get_current_resource_version(session=None):
+        (resource_version,) = session.query(KubeResourceVersion.resource_version).one()
+        return resource_version
+
+    @staticmethod
+    @provide_session
+    def checkpoint_resource_version(resource_version, session=None):
+        if resource_version:
+            session.query(KubeResourceVersion).update({
+                KubeResourceVersion.resource_version: resource_version
+            })
+            session.commit()

@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -17,24 +15,15 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+IMAGE=${1:-airflow/ci}
+TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
-AIRFLOW_ROOT="$DIRNAME/../.."
-cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
+AIRFLOW_ROOT="$DIRNAME/../../../.."
 
-if [ -z "$RUN_KUBE_INTEGRATION" ];
-then
-  tox -e $TOX_ENV
-else
-  $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.executors.integration \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
+ENVCONFIG=$(minikube docker-env)
+if [ $? -eq 0 ]; then
+  eval $ENVCONFIG
 fi
+
+cd $AIRFLOW_ROOT && python setup.py sdist && cp $AIRFLOW_ROOT/dist/*.tar.gz $DIRNAME/airflow.tar.gz && \
+cd $DIRNAME && docker build $DIRNAME --tag=${IMAGE}:${TAG}

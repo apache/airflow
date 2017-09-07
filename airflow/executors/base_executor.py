@@ -39,7 +39,6 @@ class BaseExecutor(LoggingMixin):
         self.queued_tasks = {}
         self.running = {}
         self.event_buffer = {}
-        self.logger.setLevel(10)
 
     def start(self):  # pragma: no cover
         """
@@ -106,7 +105,7 @@ class BaseExecutor(LoggingMixin):
         """
         pass
 
-    def heartbeat(self, km=False):
+    def heartbeat(self):
         # Triggering new jobs
         if not self.parallelism:
             open_slots = len(self.queued_tasks)
@@ -132,7 +131,7 @@ class BaseExecutor(LoggingMixin):
             # does NOT eliminate it.
             self.queued_tasks.pop(key)
             ti.refresh_from_db()
-            if ti.state != State.RUNNING or km:
+            if ti.state != State.RUNNING:
                 self.running[key] = command
                 self.execute_async(key, command=command, queue=queue)
             else:
