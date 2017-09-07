@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
 
-class DynamoDBHook(AwsHook):
+class AwsDynamoDBHook(AwsHook):
     """
     Interact with AWS DynamoDB.
     """
@@ -23,7 +24,7 @@ class DynamoDBHook(AwsHook):
     def __init__(self, table_keys=None, table_name=None, *args, **kwargs):
         self.table_keys = table_keys
         self.table_name = table_name
-        super(DynamoDBHook, self).__init__(*args, **kwargs)
+        super(AwsDynamoDBHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_resource_type('dynamodb')
@@ -35,9 +36,17 @@ class DynamoDBHook(AwsHook):
         """
 
         dynamodb_conn = self.get_conn()
-        table = dynamodb_conn.Table(self.table_name)
 
-        with table.batch_writer(overwrite_by_pkeys=self.table_keys) as batch:
-            for item in items:
-                batch.put_item(Item=item)
-        return True
+        try:
+            table = dynamodb_conn.Table(self.table_name)
+
+            with table.batch_writer(overwrite_by_pkeys=self.table_keys) as batch:
+                for item in items:
+                    batch.put_item(Item=item)
+            return True
+        except Exception as general_error:
+            raise AirflowException(
+                'Failed to insert items in dynamodb, error: {error}'.format(
+                    error=str(general_error)
+                )
+            )

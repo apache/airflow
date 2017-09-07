@@ -18,7 +18,7 @@ import mock
 from airflow import configuration, DAG
 configuration.load_test_config()
 import datetime
-from airflow.contrib.hooks.dynamodb_hook import DynamoDBHook
+from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 import airflow.contrib.operators.hive_to_dynamodb
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
@@ -48,7 +48,7 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
     def test_get_conn_returns_a_boto3_connection(self):
-        hook = DynamoDBHook(aws_conn_id='aws_default')
+        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
         self.assertIsNotNone(hook.get_conn())
 
     @mock.patch('airflow.hooks.hive_hooks.HiveServer2Hook.get_results', return_value={'data': [{"id": "1", "name": "siddharth"}]})
@@ -59,7 +59,7 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
         # Configure
         sql = "SELECT 1"
 
-        hook = DynamoDBHook(aws_conn_id='aws_default')
+        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
         # this table needs to be created in production
         table = hook.get_conn().create_table(
             TableName="test_airflow",
@@ -107,7 +107,7 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
         # Configure
         sql = "SELECT 1"
 
-        hook = DynamoDBHook(aws_conn_id='aws_default')
+        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
         # this table needs to be created in production
         table = hook.get_conn().create_table(
             TableName="test_airflow",

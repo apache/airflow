@@ -15,7 +15,7 @@
 import logging
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
-from airflow.contrib.hooks.dynamodb_hook import DynamoDBHook
+from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -68,8 +68,8 @@ class HiveToDynamoDBTransfer(BaseOperator):
         logging.info(self.sql)
 
         results = hive.get_records(self.sql)
-        dynamodb = DynamoDBHook(aws_conn_id=self.aws_conn_id,
-                                table_name=self.table_name, table_keys=self.table_keys)
+        dynamodb = AwsDynamoDBHook(aws_conn_id=self.aws_conn_id,
+                                   table_name=self.table_name, table_keys=self.table_keys)
 
         logging.info("Inserting rows into dynamodb")
 
