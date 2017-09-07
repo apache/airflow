@@ -63,9 +63,6 @@ class HiveToDynamoDBTransfer(BaseOperator):
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.aws_conn_id = aws_conn_id
 
-    def pre_process(self, results):
-        return results
-
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
@@ -81,6 +78,7 @@ class HiveToDynamoDBTransfer(BaseOperator):
         if self.pre_process is None:
             dynamodb.write_batch_data(results)
         else:
-            dynamodb.write_batch_data(self.pre_process(results))
+            dynamodb.write_batch_data(
+                self.pre_process.process_data(results=results))
 
         logging.info("Done.")

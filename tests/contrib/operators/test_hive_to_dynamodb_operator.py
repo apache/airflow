@@ -31,6 +31,11 @@ except ImportError:
     mock_dynamodb2 = None
 
 
+class ProcessData:
+    def process_data(self, results):
+        return results
+
+
 class HiveToDynamoDBTransferTest(unittest.TestCase):
 
     def setUp(self):
@@ -90,6 +95,7 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
             'table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
 
+    @staticmethod
     def pre_process(self, results):
         return results
 
@@ -123,12 +129,14 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
             }
         )
 
+        pre_process = ProcessData()
+
         operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransfer(
             sql=sql,
             table_name="test_airflow",
             task_id='hive_to_dynamodb_check',
             table_keys=['id'],
-            pre_process=self.pre_process,
+            pre_process=pre_process,
             dag=self.dag)
 
         operator.execute(None)
