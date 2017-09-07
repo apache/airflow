@@ -90,6 +90,54 @@ class HiveToDynamoDBTransferTest(unittest.TestCase):
             'table_exists').wait(TableName='test_airflow')
         self.assertEqual(table.item_count, 1)
 
+    def pre_process(self, results):
+        return results
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveServer2Hook.get_results', return_value={'data': [{"id": "1", "name": "siddharth"}, {"id": "1", "name": "gupta"}]})
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
+    @mock_dynamodb2
+    def test_pre_process_records_with_schema(self, get_results_mock):
+
+        # Configure
+        sql = "SELECT 1"
+
+        hook = DynamoDBHook(aws_conn_id='aws_default')
+        # this table needs to be created in production
+        table = hook.get_conn().create_table(
+            TableName="test_airflow",
+            KeySchema=[
+                {
+                    'AttributeName': 'id',
+                    'KeyType': 'HASH'
+                },
+            ],
+            AttributeDefinitions=[
+                {
+                    "AttributeName": "name",
+                    "AttributeType": "S"
+                }
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 10,
+                'WriteCapacityUnits': 10
+            }
+        )
+
+        operator = airflow.contrib.operators.hive_to_dynamodb.HiveToDynamoDBTransfer(
+            sql=sql,
+            table_name="test_airflow",
+            task_id='hive_to_dynamodb_check',
+            table_keys=['id'],
+            pre_process=self.pre_process,
+            dag=self.dag)
+
+        operator.execute(None)
+
+        table = hook.get_conn().Table('test_airflow')
+        table.meta.client.get_waiter(
+            'table_exists').wait(TableName='test_airflow')
+        self.assertEqual(table.item_count, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -51,6 +51,7 @@ class HiveToDynamoDBTransfer(BaseOperator):
             sql,
             table_name,
             table_keys,
+            pre_process=None,
             hiveserver2_conn_id='hiveserver2_default',
             aws_conn_id='aws_default',
             *args, **kwargs):
@@ -58,8 +59,12 @@ class HiveToDynamoDBTransfer(BaseOperator):
         self.sql = sql
         self.table_name = table_name
         self.table_keys = table_keys
+        self.pre_process = pre_process
         self.hiveserver2_conn_id = hiveserver2_conn_id
         self.aws_conn_id = aws_conn_id
+
+    def pre_process(self, results):
+        return results
 
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
@@ -73,6 +78,9 @@ class HiveToDynamoDBTransfer(BaseOperator):
 
         logging.info("Inserting rows into dynamodb")
 
-        dynamodb.write_batch_data(results)
+        if self.pre_process is None:
+            dynamodb.write_batch_data(results)
+        else:
+            dynamodb.write_batch_data(self.pre_process(results))
 
         logging.info("Done.")
