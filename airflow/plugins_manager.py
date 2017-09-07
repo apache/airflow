@@ -48,7 +48,6 @@ class AirflowPlugin(object):
     admin_views = []
     flask_blueprints = []
     menu_links = []
-    dag_importer = None
 
     @classmethod
     def validate(cls):
