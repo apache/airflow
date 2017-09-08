@@ -391,7 +391,6 @@ class BigQueryBaseCursor(object):
                  quote_character=None,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
-                 schema_update_options=()):
                  schema_update_options=(),
                  src_fmt_configs={}):
         """
