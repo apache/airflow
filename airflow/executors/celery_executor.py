@@ -82,8 +82,19 @@ class CeleryExecutor(BaseExecutor):
         self.command[key] = command
         self.queue[key] = queue
 
+    def _get_reserved_task_ids(self):
+        global app
+        inspector = app.control.inspect()
+        return [item['id'] for sublist in inspector.reserved().values() for item in sublist]
+
     def sync(self):
+<<<<<<< 1aa203d1a2f3f149eff75fe397da5cb0cf96c750
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
+=======
+        self.logger.debug(
+            "Inquiring about {} celery task(s)".format(len(self.tasks)))
+        reserved_task_ids = self._get_reserved_task_ids()
+>>>>>>> fix issue
         for key, async in list(self.tasks.items()):
             try:
                 state = async.state
@@ -100,19 +111,19 @@ class CeleryExecutor(BaseExecutor):
                         self.fail(key)
                         del self.tasks[key]
                         del self.last_state[key]
-                    elif state == celery_states.RESERVED:
-                        last_acceptable_time = (
-                                self.enqueue_time[key] +
-                                datetime.timedelta(seconds=conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1))
-                        if datetime.datetime.now() > last_acceptable_time:
-                            self.logger.warning("Requeueing task with key {key} as "
-                                                "it has been reserved for too long."
-                                                .format(key=key))
-                            async.revoke()
-                            self.execute_async(key, self.command[key], queue=self.queue[key])
                     else:
                         self.log.info("Unexpected state: %s", async.state)
                     self.last_state[key] = async.state
+                elif async.task_id in reserved_task_ids:
+                    last_acceptable_time = (
+                            self.enqueue_time[key] +
+                            datetime.timedelta(seconds=conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1))
+                    if datetime.datetime.now() > last_acceptable_time:
+                        self.logger.warning("Requeueing task with key {key} as "
+                                            "it has been reserved for too long."
+                                            .format(key=key))
+                        async.revoke()
+                        self.execute_async(key, self.command[key], queue=self.queue[key])
             except Exception as e:
                 self.log.error("Error syncing the celery executor, ignoring it:")
                 self.log.exception(e)
