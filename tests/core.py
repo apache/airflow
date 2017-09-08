@@ -1686,10 +1686,6 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get('/health')
         self.assertIn('The server is healthy!', response.data.decode('utf-8'))
 
-    def test_headers(self):
-        response = self.app.get('/admin/airflow/headers')
-        self.assertIn('"headers":', response.data.decode('utf-8'))
-
     def test_noaccess(self):
         response = self.app.get('/admin/airflow/noaccess')
         self.assertIn("You don't seem to have access.", response.data.decode('utf-8'))

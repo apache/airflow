@@ -629,20 +629,6 @@ class Airflow(BaseView):
     def noaccess(self):
         return self.render('airflow/noaccess.html')
 
-    @expose('/headers')
-    def headers(self):
-        d = {
-            'headers': {k: v for k, v in request.headers},
-        }
-        if hasattr(current_user, 'is_superuser'):
-            d['is_superuser'] = current_user.is_superuser()
-            d['data_profiling'] = current_user.data_profiling()
-            d['is_anonymous'] = current_user.is_anonymous()
-            d['is_authenticated'] = current_user.is_authenticated()
-        if hasattr(current_user, 'username'):
-            d['username'] = current_user.username
-        return wwwutils.json_response(d)
-
     @expose('/pickle_info')
     @login_required
     def pickle_info(self):
