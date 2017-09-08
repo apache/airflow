@@ -167,7 +167,7 @@ class LdapUser(models.User):
 
         if configuration.has_option("ldap", "dn_template"):
             dn_template = configuration.get("ldap", "dn_template")
-            bind_user = dn_template.format(username)
+            bind_user = dn_template.replace('%%', username)
 
         conn = get_ldap_connection(bind_user, bind_password)
 

@@ -84,8 +84,8 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     bind_user = cn=Manager,dc=example,dc=com
     bind_password = insecure
     basedn = dc=example,dc=com
-    # Optional template to format the user login to
-    #dn_template = {0}@gmail.com
+    # Optional template to format the user login string. %% replaced with user id
+    #dn_template = %%@gmail.com
     cacert = /etc/ca/ldap_ca.crt
     # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit
