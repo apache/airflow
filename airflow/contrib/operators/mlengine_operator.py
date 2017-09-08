@@ -18,14 +18,14 @@ import logging
 import re
 
 from airflow import settings
-from airflow.contrib.hooks.gcp_cloudml_hook import CloudMLHook
+from airflow.contrib.hooks.gcp_mlengine_hook import MLEngineHook
 from airflow.exceptions import AirflowException
 from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from apiclient import errors
 
 
-logging.getLogger('GoogleCloudML').setLevel(settings.LOGGING_LEVEL)
+logging.getLogger('GoogleCloudMLEngine').setLevel(settings.LOGGING_LEVEL)
 
 
 def _create_prediction_input(project_id,
@@ -43,7 +43,7 @@ def _create_prediction_input(project_id,
 
     Args:
         A subset of arguments documented in __init__ method of class
-        CloudMLBatchPredictionOperator
+        MLEngineBatchPredictionOperator
 
     Returns:
         A dictionary representing the predictionInput object as documented
@@ -88,9 +88,9 @@ def _create_prediction_input(project_id,
     return prediction_input
 
 
-def _normalize_cloudml_job_id(job_id):
+def _normalize_mlengine_job_id(job_id):
     """
-    Replaces invalid CloudML job_id characters with '_'.
+    Replaces invalid MLEngine job_id characters with '_'.
 
     This also adds a leading 'z' in case job_id starts with an invalid
     character.
@@ -107,9 +107,9 @@ def _normalize_cloudml_job_id(job_id):
     return re.sub('[^0-9a-zA-Z]+', '_', job_id)
 
 
-class CloudMLBatchPredictionOperator(BaseOperator):
+class MLEngineBatchPredictionOperator(BaseOperator):
     """
-    Start a Cloud ML prediction job.
+    Start a Google Cloud ML Engine prediction job.
 
     NOTE: For model origin, users should consider exactly one from the
     three options below:
@@ -122,7 +122,7 @@ class CloudMLBatchPredictionOperator(BaseOperator):
 
     In options 2 and 3, both model and version name should contain the
     minimal identifier. For instance, call
-        CloudMLBatchPredictionOperator(
+        MLEngineBatchPredictionOperator(
             ...,
             model_name='my_model',
             version_name='my_version',
@@ -156,14 +156,14 @@ class CloudMLBatchPredictionOperator(BaseOperator):
         prediction job in.:
     :type region: string
 
-    :param model_name: The Google Cloud ML model to use for prediction.
+    :param model_name: The Google Cloud ML Engine model to use for prediction.
         If version_name is not provided, the default version of this
         model will be used.
         Should not be None if version_name is provided.
         Should be None if uri is provided.
     :type model_name: string
 
-    :param version_name: The Google Cloud ML model version to use for
+    :param version_name: The Google Cloud ML Engine model version to use for
         prediction.
         Should be None if uri is provided.
     :type version_name: string
@@ -177,7 +177,7 @@ class CloudMLBatchPredictionOperator(BaseOperator):
         for parallel processing. Defaults to 10 if not specified.
     :type max_worker_count: int
 
-    :param runtime_version: The Google Cloud ML runtime version to use
+    :param runtime_version: The Google Cloud ML Engine runtime version to use
         for batch prediction.
     :type runtime_version: string
 
@@ -215,7 +215,7 @@ class CloudMLBatchPredictionOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(CloudMLBatchPredictionOperator, self).__init__(*args, **kwargs)
+        super(MLEngineBatchPredictionOperator, self).__init__(*args, **kwargs)
 
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
@@ -233,12 +233,12 @@ class CloudMLBatchPredictionOperator(BaseOperator):
             raise
 
         self.prediction_job_request = {
-            'jobId': _normalize_cloudml_job_id(job_id),
+            'jobId': _normalize_mlengine_job_id(job_id),
             'predictionInput': prediction_input
         }
 
     def execute(self, context):
-        hook = CloudMLHook(self.gcp_conn_id, self.delegate_to)
+        hook = MLEngineHook(self.gcp_conn_id, self.delegate_to)
 
         def check_existing_job(existing_job):
             return existing_job.get('predictionInput', None) == \
@@ -260,9 +260,13 @@ class CloudMLBatchPredictionOperator(BaseOperator):
         return finished_prediction_job['predictionOutput']
 
 
-class CloudMLModelOperator(BaseOperator):
+class MLEngineModelOperator(BaseOperator):
     """
-    Operator for managing a Google Cloud ML model.
+    Operator for managing a Google Cloud ML Engine model.
+
+    :param project_id: The Google Cloud project name to which MLEngine
+        model belongs.
+    :type project_id: string
 
     :param model: A dictionary containing the information about the model.
         If the `operation` is `create`, then the `model` parameter should
@@ -272,16 +276,12 @@ class CloudMLModelOperator(BaseOperator):
         should contain the `name` of the model.
     :type model: dict
 
-    :param project_id: The Google Cloud project name to which CloudML
-        model belongs.
-    :type project_id: string
-
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
-
     :param operation: The operation to perform. Available operations are:
         'create': Creates a new model as provided by the `model` parameter.
         'get': Gets a particular model where the name is specified in `model`.
+
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: string
 
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
@@ -291,47 +291,52 @@ class CloudMLModelOperator(BaseOperator):
 
     template_fields = [
         '_model',
-        '_model_name',
     ]
 
     @apply_defaults
     def __init__(self,
                  project_id,
                  model,
-                 gcp_conn_id='google_cloud_default',
                  operation='create',
+                 gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(CloudMLModelOperator, self).__init__(*args, **kwargs)
+        super(MLEngineModelOperator, self).__init__(*args, **kwargs)
+        self._project_id = project_id
         self._model = model
         self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self._project_id = project_id
 
     def execute(self, context):
-        hook = CloudMLHook(
+        hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
         if self._operation == 'create':
-            hook.create_model(self._project_id, self._model)
+            return hook.create_model(self._project_id, self._model)
         elif self._operation == 'get':
-            hook.get_model(self._project_id, self._model['name'])
+            return hook.get_model(self._project_id, self._model['name'])
         else:
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
 
-class CloudMLVersionOperator(BaseOperator):
+class MLEngineVersionOperator(BaseOperator):
     """
-    Operator for managing a Google Cloud ML version.
+    Operator for managing a Google Cloud ML Engine version.
 
-    :param model_name: The name of the Google Cloud ML model that the version
+    :param project_id: The Google Cloud project name to which MLEngine
+        model belongs.
+    :type project_id: string
+
+    :param model_name: The name of the Google Cloud ML Engine model that the version
         belongs to.
     :type model_name: string
 
-    :param project_id: The Google Cloud project name to which CloudML
-        model belongs.
-    :type project_id: string
+    :param version_name: A name to use for the version being operated upon. If
+        not None and the `version` argument is None or does not have a value for
+        the `name` key, then this will be populated in the payload for the
+        `name` key.
+    :type version_name: string
 
     :param version: A dictionary containing the information about the version.
         If the `operation` is `create`, `version` should contain all the
@@ -340,15 +345,6 @@ class CloudMLVersionOperator(BaseOperator):
         should contain the `name` of the version.
         If it is None, the only `operation` possible would be `list`.
     :type version: dict
-
-    :param version_name: A name to use for the version being operated upon. If
-        not None and the `version` argument is None or does not have a value for
-        the `name` key, then this will be populated in the payload for the
-        `name` key.
-    :type version_name: string
-
-    :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: string
 
     :param operation: The operation to perform. Available operations are:
         'create': Creates a new version in the model specified by `model_name`,
@@ -369,6 +365,9 @@ class CloudMLVersionOperator(BaseOperator):
             parameter.
      :type operation: string
 
+    :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: string
+
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -377,36 +376,36 @@ class CloudMLVersionOperator(BaseOperator):
 
     template_fields = [
         '_model_name',
-        '_version',
         '_version_name',
+        '_version',
     ]
 
     @apply_defaults
     def __init__(self,
-                 model_name,
                  project_id,
-                 version=None,
+                 model_name,
                  version_name=None,
-                 gcp_conn_id='google_cloud_default',
+                 version=None,
                  operation='create',
+                 gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
 
-        super(CloudMLVersionOperator, self).__init__(*args, **kwargs)
+        super(MLEngineVersionOperator, self).__init__(*args, **kwargs)
+        self._project_id = project_id
         self._model_name = model_name
-        self._version = version or {}
         self._version_name = version_name
+        self._version = version or {}
+        self._operation = operation
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
-        self._project_id = project_id
-        self._operation = operation
 
     def execute(self, context):
         if 'name' not in self._version:
             self._version['name'] = self._version_name
 
-        hook = CloudMLHook(
+        hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
         if self._operation == 'create':
@@ -426,36 +425,36 @@ class CloudMLVersionOperator(BaseOperator):
             raise ValueError('Unknown operation: {}'.format(self._operation))
 
 
-class CloudMLTrainingOperator(BaseOperator):
+class MLEngineTrainingOperator(BaseOperator):
     """
-    Operator for launching a CloudML training job.
+    Operator for launching a MLEngine training job.
 
-    :param project_id: The Google Cloud project name within which CloudML
+    :param project_id: The Google Cloud project name within which MLEngine
         training job should run. This field could be templated.
     :type project_id: string
 
-    :param job_id: A unique templated id for the submitted Google CloudML
+    :param job_id: A unique templated id for the submitted Google MLEngine
         training job.
     :type job_id: string
 
-    :param package_uris: A list of package locations for CloudML training job,
+    :param package_uris: A list of package locations for MLEngine training job,
         which should include the main training program + any additional
         dependencies.
     :type package_uris: string
 
-    :param training_python_module: The Python module name to run within CloudML
+    :param training_python_module: The Python module name to run within MLEngine
         training job after installing 'package_uris' packages.
     :type training_python_module: string
 
     :param training_args: A list of templated command line arguments to pass to
-        the CloudML training program.
+        the MLEngine training program.
     :type training_args: string
 
-    :param region: The Google Compute Engine region to run the CloudML training
+    :param region: The Google Compute Engine region to run the MLEngine training
         job in. This field could be templated.
     :type region: string
 
-    :param scale_tier: Resource tier for CloudML training job.
+    :param scale_tier: Resource tier for MLEngine training job.
     :type scale_tier: string
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
@@ -467,8 +466,8 @@ class CloudMLTrainingOperator(BaseOperator):
     :type delegate_to: string
 
     :param mode: Can be one of 'DRY_RUN'/'CLOUD'. In 'DRY_RUN' mode, no real
-        training job will be launched, but the CloudML training job request
-        will be printed out. In 'CLOUD' mode, a real CloudML training job
+        training job will be launched, but the MLEngine training job request
+        will be printed out. In 'CLOUD' mode, a real MLEngine training job
         creation request will be issued.
     :type mode: string
     """
@@ -497,7 +496,7 @@ class CloudMLTrainingOperator(BaseOperator):
                  mode='PRODUCTION',
                  *args,
                  **kwargs):
-        super(CloudMLTrainingOperator, self).__init__(*args, **kwargs)
+        super(MLEngineTrainingOperator, self).__init__(*args, **kwargs)
         self._project_id = project_id
         self._job_id = job_id
         self._package_uris = package_uris
@@ -513,11 +512,11 @@ class CloudMLTrainingOperator(BaseOperator):
             raise AirflowException('Google Cloud project id is required.')
         if not self._job_id:
             raise AirflowException(
-                'An unique job id is required for Google CloudML training '
+                'An unique job id is required for Google MLEngine training '
                 'job.')
         if not package_uris:
             raise AirflowException(
-                'At least one python package is required for CloudML '
+                'At least one python package is required for MLEngine '
                 'Training job.')
         if not training_python_module:
             raise AirflowException(
@@ -527,7 +526,7 @@ class CloudMLTrainingOperator(BaseOperator):
             raise AirflowException('Google Compute Engine region is required.')
 
     def execute(self, context):
-        job_id = _normalize_cloudml_job_id(self._job_id)
+        job_id = _normalize_mlengine_job_id(self._job_id)
         training_request = {
             'jobId': job_id,
             'trainingInput': {
@@ -542,10 +541,10 @@ class CloudMLTrainingOperator(BaseOperator):
         if self._mode == 'DRY_RUN':
             logging.info('In dry_run mode.')
             logging.info(
-                'CloudML Training job request is: {}'.format(training_request))
+                'MLEngine Training job request is: {}'.format(training_request))
             return
 
-        hook = CloudMLHook(
+        hook = MLEngineHook(
             gcp_conn_id=self._gcp_conn_id, delegate_to=self._delegate_to)
 
         # Helper method to check if the existing job's training input is the
@@ -560,6 +559,6 @@ class CloudMLTrainingOperator(BaseOperator):
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':
-            logging.error('CloudML training job failed: {}'.format(
+            logging.error('MLEngine training job failed: {}'.format(
                 str(finished_training_job)))
             raise RuntimeError(finished_training_job['errorMessage'])

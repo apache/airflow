@@ -52,6 +52,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         google_cloud_storage_conn_id='google_cloud_storage_default',
         delegate_to=None,
         schema_update_options=(),
+        src_fmt_configs={},
         *args,
         **kwargs):
         """
@@ -63,6 +64,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :param bucket: The bucket to load from.
         :type bucket: string
         :param source_objects: List of Google cloud storage URIs to load from.
+            If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
         :type object: list
         :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
             BigQuery table to load data into. If <project> is not included, project will
@@ -70,6 +72,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type destination_project_dataset_table: string
         :param schema_fields: If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+            Should not be set when source_format is 'DATASTORE_BACKUP'.
         :type schema_fields: list
         :param schema_object: If set, a GCS object path pointing to a .json file that
             contains the schema for the table.
@@ -115,6 +118,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
+        :param src_fmt_configs: configure optional fields specific to the source format
+        :type src_fmt_configs: dict
         """
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
@@ -142,12 +147,14 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
+        self.src_fmt_configs = src_fmt_configs
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and self.schema_object:
+        if not self.schema_fields and self.schema_object \
+                                  and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
@@ -175,6 +182,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             allow_quoted_newlines=self.allow_quoted_newlines,
             allow_jagged_rows=self.allow_jagged_rows,
             schema_update_options=self.schema_update_options)
+            schema_update_options=self.schema_update_options,
+            src_fmt_configs=self.src_fmt_configs)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(

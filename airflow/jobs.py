@@ -2448,10 +2448,6 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
-        # Keeps track of the fact that the task instance has been observed
-        # as running at least once
-        self.was_running = False
-
         super(LocalTaskJob, self).__init__(*args, **kwargs)
 
     def _execute(self):
@@ -2463,6 +2459,17 @@ class LocalTaskJob(BaseJob):
             self.on_kill()
             raise AirflowException("LocalTaskJob received SIGTERM signal")
         signal.signal(signal.SIGTERM, signal_handler)
+
+        if not self.task_instance._check_and_change_state_before_execution(
+                mark_success=self.mark_success,
+                ignore_all_deps=self.ignore_all_deps,
+                ignore_depends_on_past=self.ignore_depends_on_past,
+                ignore_task_deps=self.ignore_task_deps,
+                ignore_ti_state=self.ignore_ti_state,
+                job_id=self.id,
+                pool=self.pool):
+            self.logger.info("Task is not able to be run") 
+            return 
 
         try:
             self.task_runner.start()
@@ -2506,44 +2513,34 @@ class LocalTaskJob(BaseJob):
         self.task_runner.terminate()
         self.task_runner.on_finish()
 
-    def _is_descendant_process(self, pid):
-        """Checks if pid is a descendant of the current process.
-
-        :param pid: process id to check
-        :type pid: int
-        :rtype: bool
-        """
-        try:
-            return psutil.Process(pid) in psutil.Process().children(recursive=True)
-        except psutil.NoSuchProcess:
-            return False
-
     @provide_session
     def heartbeat_callback(self, session=None):
         """Self destruct task if state has been moved away from running externally"""
 
         if self.terminating:
-            # task is already terminating, let it breathe
+            # ensure termination if processes are created later
+            self.task_runner.terminate()
             return
 
         self.task_instance.refresh_from_db()
         ti = self.task_instance
+
+        fqdn = socket.getfqdn()
+        same_hostname = fqdn == ti.hostname
+        same_process = ti.pid == os.getpid()
+
         if ti.state == State.RUNNING:
-            self.was_running = True
-            fqdn = socket.getfqdn()
-            if fqdn != ti.hostname:
+            if not same_hostname:
                 logging.warning("The recorded hostname {ti.hostname} "
                                 "does not match this instance's hostname "
                                 "{fqdn}".format(**locals()))
                 raise AirflowException("Hostname of job runner does not match")
-            elif not self._is_descendant_process(ti.pid):
+            elif not same_process:
                 current_pid = os.getpid()
-                logging.warning("Recorded pid {ti.pid} is not a "
-                                "descendant of the current pid "
+                logging.warning("Recorded pid {ti.pid} does not match the current pid "
                                 "{current_pid}".format(**locals()))
                 raise AirflowException("PID of job runner does not match")
-        elif (self.was_running
-              and self.task_runner.return_code() is None
+        elif (self.task_runner.return_code() is None
               and hasattr(self.task_runner, 'process')):
             logging.warning(
                 "State of this instance has been externally set to "

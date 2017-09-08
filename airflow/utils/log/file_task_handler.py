@@ -15,6 +15,8 @@
 import logging
 import os
 
+from jinja2 import Template
+
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
 from airflow.utils.file import mkdirs
@@ -37,6 +39,10 @@ class FileTaskHandler(logging.Handler):
         self.handler = None
         self.local_base = base_log_folder
         self.filename_template = filename_template
+        self.filename_jinja_template = None
+
+        if "{{" in self.filename_template: #jinja mode
+            self.filename_jinja_template = Template(self.filename_template)
 
     def set_context(self, ti):
         """
@@ -59,6 +65,17 @@ class FileTaskHandler(logging.Handler):
     def close(self):
         if self.handler is not None:
             self.handler.close()
+            
+    def _render_filename(self, ti, try_number):
+        if self.filename_jinja_template:
+            jinja_context = ti.get_template_context()
+            jinja_context['try_number'] = try_number
+            return self.filename_jinja_template.render(**jinja_context) 
+            
+        return self.filename_template.format(dag_id=ti.dag_id, 
+                                             task_id=ti.task_id,
+                                             execution_date=ti.execution_date.isoformat(), 
+                                             try_number=try_number)
 
     def _read(self, ti, try_number):
         """
@@ -71,9 +88,7 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        log_relative_path = self.filename_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=try_number + 1)
+        log_relative_path = self._render_filename(ti, try_number + 1)
         loc = os.path.join(self.local_base, log_relative_path)
         log = ""
 
@@ -153,9 +168,7 @@ class FileTaskHandler(logging.Handler):
         # writable by both users, then it's possible that re-running a task
         # via the UI (or vice versa) results in a permission error as the task
         # tries to write to a log file created by the other user.
-        relative_path = self.filename_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=ti.try_number + 1)
+        relative_path = self._render_filename(ti, ti.try_number + 1)
         full_path = os.path.join(self.local_base, relative_path)
         directory = os.path.dirname(full_path)
         # Create the log file and give it group writable permissions

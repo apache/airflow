@@ -39,9 +39,7 @@ class GCSTaskHandler(FileTaskHandler):
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
-        self.log_relative_path = self.filename_template(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=ti.try_number + 1)
+        self.log_relative_path = self._render_filename(ti, ti.try_number + 1)
 
     def close(self):
         """
@@ -76,9 +74,7 @@ class GCSTaskHandler(FileTaskHandler):
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
         # in set_context method.
-        log_relative_path = self.filename_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=try_number + 1)
+        log_relative_path = self._render_filename(ti, try_number + 1)
         remote_loc = os.path.join(self.remote_base, log_relative_path)
 
         gcs_log = logging_utils.GCSLog()

@@ -58,6 +58,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                  region='global',
                  google_cloud_conn_id='google_cloud_default',
                  delegate_to=None,
+                 service_account=None,
+                 service_account_scopes=None,
                  *args,
                  **kwargs):
         """
@@ -111,6 +113,10 @@ class DataprocClusterCreateOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param service_account: The service account of the dataproc instances.
+        :type service_account: string
+        :param service_account_scopes: The URIs of service account scopes to be included.
+        :type service_account_scopes: list[string]
         """
         super(DataprocClusterCreateOperator, self).__init__(*args, **kwargs)
         self.google_cloud_conn_id = google_cloud_conn_id
@@ -131,6 +137,8 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.labels = labels
         self.zone = zone
         self.region = region
+        self.service_account = service_account
+        self.service_account_scopes = service_account_scopes
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
@@ -247,6 +255,12 @@ class DataprocClusterCreateOperator(BaseOperator):
                 {'executableFile': uri} for uri in self.init_actions_uris
             ]
             cluster_data['config']['initializationActions'] = init_actions_dict
+        if self.service_account:
+            cluster_data['config']['gceClusterConfig']['serviceAccount'] =\
+                    self.service_account
+        if self.service_account_scopes:
+            cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
+                    self.service_account_scopes
         return cluster_data
 
     def execute(self, context):
