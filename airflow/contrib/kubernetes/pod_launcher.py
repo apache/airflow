@@ -12,18 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from airflow.contrib.kubernetes.pod import Pod
-from airflow.contrib.kubernetes.kubernetes_request_factory import SimplePodRequestFactory
-from kubernetes import config, client, watch
+from airflow.contrib.kubernetes.kubernetes_request_factory.pod_request_factory import SimplePodRequestFactory
+from kubernetes import watch
 from kubernetes.client import V1Pod
 from airflow.utils.state import State
 import json
 import logging
 
+from .kube_client import get_kube_client
+
 
 class PodLauncher:
-    def __init__(self):
+    def __init__(self, kube_client=None):
         self.kube_req_factory = SimplePodRequestFactory()
-        self._client = self._kube_client()
+        self._client = kube_client or get_kube_client()
         self._watch = watch.Watch()
         self.logger = logging.getLogger(__name__)
 
@@ -41,11 +43,6 @@ class PodLauncher:
         resp = self.run_pod_async(pod)
         final_status = self._monitor_pod(pod)
         return final_status
-
-    def _kube_client(self):
-        #TODO: This should also allow people to point to a cluster.
-        config.load_incluster_config()
-        return client.CoreV1Api()
 
     def _monitor_pod(self, pod):
         # type: (Pod) -> State

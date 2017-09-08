@@ -11,10 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 
-import kubernetes_request_factory as kreq
 import yaml
+import airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory as kreq
 from airflow.contrib.kubernetes.pod import Pod
-from airflow import AirflowException
 
 
 class SimplePodRequestFactory(kreq.KubernetesRequestFactory):
