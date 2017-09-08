@@ -434,8 +434,7 @@ class BigQueryBaseCursor(object):
         :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
             The missing values are treated as nulls. If false, records with missing trailing columns
             are treated as bad records, and if there are too many bad records, an invalid error is
-            returned in the job result. The default value is false. Only applicable to CSV, ignored
-            for other formats.
+            returned in the job result. Only applicable when soure_format is CSV.
         :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
