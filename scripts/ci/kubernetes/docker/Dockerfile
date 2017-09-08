@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -17,24 +15,39 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
-AIRFLOW_ROOT="$DIRNAME/../.."
-cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
+FROM ubuntu:16.04
 
-if [ -z "$RUN_KUBE_INTEGRATION" ];
-then
-  tox -e $TOX_ENV
-else
-  $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.executors.integration \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
-fi
+# install deps
+RUN apt-get update -y && apt-get install -y \
+        wget \
+        python-dev \
+        python-pip \
+        libczmq-dev \
+        libcurlpp-dev \
+        curl \
+        libssl-dev \
+        git \
+        inetutils-telnet \
+        bind9utils
+
+RUN pip install -U setuptools && \
+    pip install -U pip
+
+RUN pip install kubernetes && \
+    pip install cryptography && \
+    pip install psycopg2==2.7.3.1  # I had issues with older versions of psycopg2, just a warning
+
+# install airflow
+COPY airflow.tar.gz /tmp/airflow.tar.gz
+RUN pip install /tmp/airflow.tar.gz
+
+# prep airflow
+ENV AIRFLOW_HOME=/root/airflow
+ENV AIRFLOW__CORE__EXECUTOR=KubernetesExecutor
+ENV AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
+
+
+COPY bootstrap.sh /bootstrap.sh
+RUN chmod +x /bootstrap.sh
+
+ENTRYPOINT ["/bootstrap.sh"]

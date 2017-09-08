@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -17,24 +15,28 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
+IMAGE=${1:-airflow/ci}
+TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
-AIRFLOW_ROOT="$DIRNAME/../.."
-cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
 
-if [ -z "$RUN_KUBE_INTEGRATION" ];
-then
-  tox -e $TOX_ENV
-else
-  $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.executors.integration \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
-fi
+# create an emptydir for postgres to store it's volume data in
+sudo mkdir -p /data/postgres-airflow
+
+mkdir -p $DIRNAME/.generated
+kubectl apply -f $DIRNAME/postgres.yaml
+sed "s#{{docker_image}}#$IMAGE:$TAG#g" $DIRNAME/airflow.yaml.template > $DIRNAME/.generated/airflow.yaml && kubectl apply -f $DIRNAME/.generated/airflow.yaml
+
+
+# wait for up to 10 minutes for everything to be deployed
+for i in {1..150}
+do
+  echo "------- Running kubectl get pods -------"
+  PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
+  echo "$PODS"
+  NUM_AIRFLOW_READY=$(echo $PODS | grep airflow | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l)
+  NUM_POSTGRES_READY=$(echo $PODS | grep postgres | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l)
+  if [ "$NUM_AIRFLOW_READY" == "1" ] && [ "$NUM_POSTGRES_READY" == "1" ]; then
+    break
+  fi
+  sleep 4
+done

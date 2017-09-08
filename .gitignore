@@ -134,5 +134,5 @@ rat-results.txt
 # Git stuff
 .gitattributes
 # Kubernetes generated templated files
-kube/.generated/
-airflow.tar.gz
+*.generated
+*.tar.gz

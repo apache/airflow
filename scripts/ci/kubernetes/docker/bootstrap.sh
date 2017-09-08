@@ -1,5 +1,4 @@
-#!/usr/bin/env bash
-
+#!/bin/bash
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -17,24 +16,14 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
-AIRFLOW_ROOT="$DIRNAME/../.."
-cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
+# launch the appropriate process
 
-if [ -z "$RUN_KUBE_INTEGRATION" ];
+if [ "$1" = "webserver" ]
 then
-  tox -e $TOX_ENV
-else
-  $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.executors.integration \
-                     --with-coverage \
-                     --cover-erase \
-                     --cover-html \
-                     --cover-package=airflow \
-                     --cover-html-dir=airflow/www/static/coverage \
-                     --with-ignore-docstrings \
-                     --rednose \
-                     --with-timer \
-                     -v \
-                     --logging-level=DEBUG
+	exec airflow webserver
+fi
+
+if [ "$1" = "scheduler" ]
+then
+	exec airflow scheduler
 fi
