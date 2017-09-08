@@ -79,9 +79,13 @@ Valid search_scope options can be found in the `ldap3 Documentation <http://ldap
     group_member_attr = memberOf
     superuser_filter = memberOf=CN=airflow-super-users,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
     data_profiler_filter = memberOf=CN=airflow-data-profilers,OU=Groups,OU=RWC,OU=US,OU=NORAM,DC=example,DC=com
+    # If True bind using the user and password of the user logging in, bind_user and bind_password properties aren't used in this case.
+    direct_bind = False
     bind_user = cn=Manager,dc=example,dc=com
     bind_password = insecure
     basedn = dc=example,dc=com
+    # Optional template to format the user login to
+    #dn_template = {0}@gmail.com
     cacert = /etc/ca/ldap_ca.crt
     # Set search_scope to one of them:  BASE, LEVEL , SUBTREE
     # Set search_scope to SUBTREE if using Active Directory, and not specifying an Organizational Unit

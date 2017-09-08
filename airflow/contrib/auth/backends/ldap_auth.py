@@ -158,8 +158,18 @@ class LdapUser(models.User):
 
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
-                                   configuration.get("ldap", "bind_password"))
+        if configuration.has_option("ldap", "direct_bind") and configuration.getboolean("ldap", "direct_bind") is True:
+            bind_user = username
+            bind_password = password
+        else:
+            bind_user = configuration.get("ldap", "bind_user")
+            bind_password = configuration.get("ldap", "bind_password")
+
+        if configuration.has_option("ldap", "dn_template"):
+            dn_template = configuration.get("ldap", "dn_template")
+            bind_user = dn_template.format(username)
+
+        conn = get_ldap_connection(bind_user, bind_password)
 
         search_filter = "(&({0})({1}={2}))".format(
             configuration.get("ldap", "user_filter"),
