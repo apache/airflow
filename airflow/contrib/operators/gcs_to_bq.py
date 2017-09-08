@@ -181,7 +181,6 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             quote_character=self.quote_character,
             allow_quoted_newlines=self.allow_quoted_newlines,
             allow_jagged_rows=self.allow_jagged_rows,
-            schema_update_options=self.schema_update_options)
             schema_update_options=self.schema_update_options,
             src_fmt_configs=self.src_fmt_configs)
 
