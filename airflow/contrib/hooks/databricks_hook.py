@@ -20,6 +20,7 @@ from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
+from requests.auth import AuthBase
 
 
 try:
@@ -99,7 +100,12 @@ class DatabricksHook(BaseHook):
         url = 'https://{host}/{endpoint}'.format(
             host=self._parse_host(self.databricks_conn.host),
             endpoint=endpoint)
-        auth = (self.databricks_conn.login, self.databricks_conn.password)
+        if 'token' in self.databricks_conn.extra_dejson:
+            logging.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+        else:
+            logging.info('Using basic auth.')
+            auth = (self.databricks_conn.login, self.databricks_conn.password)
         if method == 'GET':
             request_func = requests.get
         elif method == 'POST':
@@ -200,3 +206,16 @@ class RunState:
 
     def __repr__(self):
         return str(self.__dict__)
+
+
+class _TokenAuth(AuthBase):
+    """
+    Helper class for requests Auth field. AuthBase requires you to implement the __call__
+    magic function.
+    """
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, r):
+        r.headers['Authorization'] = 'Bearer ' + self.token
+        return r

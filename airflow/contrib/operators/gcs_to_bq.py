@@ -46,6 +46,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         max_bad_records=0,
         quote_character=None,
         allow_quoted_newlines=False,
+        allow_jagged_rows=False,
         max_id_key=None,
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
@@ -93,6 +94,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type quote_character: string
         :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
         :type allow_quoted_newlines: boolean
+        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
+            The missing values are treated as nulls. If false, records with missing trailing columns
+            are treated as bad records, and if there are too many bad records, an invalid error is
+            returned in the job result. Only applicable to CSV, ignored for other formats.
+        :type allow_jagged_rows: bool
         :param max_id_key: If set, the name of a column in the BigQuery table
             that's to be loaded. Thsi will be used to select the MAX value from
             BigQuery after the load occurs. The results will be returned by the
@@ -109,7 +115,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
-        :param schema_update_options: Allows the schema of the desitination 
+        :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
         :param src_fmt_configs: configure optional fields specific to the source format
@@ -133,6 +139,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
         self.allow_quoted_newlines = allow_quoted_newlines
+        self.allow_jagged_rows = allow_jagged_rows
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -173,6 +180,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             max_bad_records=self.max_bad_records,
             quote_character=self.quote_character,
             allow_quoted_newlines=self.allow_quoted_newlines,
+            allow_jagged_rows=self.allow_jagged_rows,
             schema_update_options=self.schema_update_options,
             src_fmt_configs=self.src_fmt_configs)
 

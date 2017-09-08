@@ -390,6 +390,7 @@ class BigQueryBaseCursor(object):
                  max_bad_records=0,
                  quote_character=None,
                  allow_quoted_newlines=False,
+                 allow_jagged_rows=False,
                  schema_update_options=(),
                  src_fmt_configs={}):
         """
@@ -429,6 +430,11 @@ class BigQueryBaseCursor(object):
         :type quote_character: string
         :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
         :type allow_quoted_newlines: boolean
+        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
+            The missing values are treated as nulls. If false, records with missing trailing columns
+            are treated as bad records, and if there are too many bad records, an invalid error is
+            returned in the job result. Only applicable when soure_format is CSV.
+        :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
@@ -505,8 +511,8 @@ class BigQueryBaseCursor(object):
 
         # if following fields are not specified in src_fmt_configs,
         # honor the top-level params for backward-compatibility
-        if 'skip_leading_rows' not in src_fmt_configs:
-            src_fmt_configs['skip_leading_rows'] = skip_leading_rows
+        if 'skipLeadingRows' not in src_fmt_configs:
+            src_fmt_configs['skipLeadingRows'] = skip_leading_rows
         if 'fieldDelimiter' not in src_fmt_configs:
             src_fmt_configs['fieldDelimiter'] = field_delimiter
         if quote_character:
@@ -526,6 +532,9 @@ class BigQueryBaseCursor(object):
         src_fmt_configs = {k: v for k, v in src_fmt_configs.items()
                            if k in valid_configs}
         configuration['load'].update(src_fmt_configs)
+
+        if allow_jagged_rows:
+            configuration['load']['allowJaggedRows'] = allow_jagged_rows
 
         return self.run_with_configuration(configuration)
 

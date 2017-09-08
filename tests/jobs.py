@@ -19,12 +19,14 @@ from __future__ import unicode_literals
 
 import datetime
 import logging
+import multiprocessing
 import os
 import shutil
-import unittest
 import six
 import socket
 import threading
+import time
+import unittest
 from tempfile import mkdtemp
 
 from airflow import AirflowException, settings, models
@@ -34,6 +36,7 @@ from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
+from airflow.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
@@ -729,8 +732,8 @@ class LocalTaskJobTest(unittest.TestCase):
     def setUp(self):
         pass
 
-    @patch.object(LocalTaskJob, "_is_descendant_process")
-    def test_localtaskjob_heartbeat(self, is_descendant):
+    @patch('os.getpid')
+    def test_localtaskjob_heartbeat(self, mock_pid):
         session = settings.Session()
         dag = DAG(
             'test_localtaskjob_heartbeat',
@@ -756,7 +759,7 @@ class LocalTaskJobTest(unittest.TestCase):
                             executor=SequentialExecutor())
         self.assertRaises(AirflowException, job1.heartbeat_callback)
 
-        is_descendant.return_value = True
+        mock_pid.return_value = 1
         ti.state = State.RUNNING
         ti.hostname = socket.getfqdn()
         ti.pid = 1
@@ -766,8 +769,49 @@ class LocalTaskJobTest(unittest.TestCase):
         ret = job1.heartbeat_callback()
         self.assertEqual(ret, None)
 
-        is_descendant.return_value = False
+        mock_pid.return_value = 2
         self.assertRaises(AirflowException, job1.heartbeat_callback)
+
+    def test_mark_success_no_kill(self):
+        """
+        Test that ensures that mark_success in the UI doesn't cause
+        the task to fail, and that the task exits
+        """
+        dagbag = models.DagBag(
+            dag_folder=TEST_DAG_FOLDER,
+            include_examples=False,
+        )
+        dag = dagbag.dags.get('test_mark_success')
+        task = dag.get_task('task1')
+
+        session = settings.Session()
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id="test",
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE,
+                               session=session)
+        ti = TI(task=task, execution_date=DEFAULT_DATE)
+        ti.refresh_from_db()
+        job1 = LocalTaskJob(task_instance=ti, ignore_ti_state=True)
+        process = multiprocessing.Process(target=job1.run)
+        process.start()
+        ti.refresh_from_db()
+        for i in range(0, 50):
+            if ti.state == State.RUNNING:
+                break
+            time.sleep(0.1)
+            ti.refresh_from_db()
+        self.assertEqual(State.RUNNING, ti.state)
+        ti.state = State.SUCCESS
+        session.merge(ti)
+        session.commit()
+
+        process.join(timeout=5)
+        self.assertFalse(process.is_alive())
+        ti.refresh_from_db()
+        self.assertEqual(State.SUCCESS, ti.state)
 
     def test_localtaskjob_double_trigger(self):
         dagbag = models.DagBag(
@@ -795,7 +839,9 @@ class LocalTaskJobTest(unittest.TestCase):
         job1 = LocalTaskJob(task_instance=ti_run,
                             ignore_ti_state=True,
                             executor=SequentialExecutor())
-        self.assertRaises(AirflowException, job1.run)
+        with patch.object(BaseTaskRunner, 'start', return_value=None) as mock_method:
+            job1.run()
+            mock_method.assert_not_called()
 
         ti = dr.get_task_instance(task_id=task.task_id, session=session)
         self.assertEqual(ti.pid, 1)

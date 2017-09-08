@@ -13,10 +13,11 @@
 # limitations under the License.
 #
 
+import json
 import unittest
 
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT
+from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT, _TokenAuth
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
@@ -45,6 +46,7 @@ HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
+TOKEN = 'token'
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
@@ -202,6 +204,39 @@ class DatabricksHookTest(unittest.TestCase):
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
+
+
+class DatabricksHookTokenTest(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with token.
+    """
+    @db.provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection) \
+            .filter(Connection.conn_id == DEFAULT_CONN_ID) \
+            .first()
+        conn.extra = json.dumps({'token': TOKEN})
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {
+          'notebook_task': NOTEBOOK_TASK,
+          'new_cluster': NEW_CLUSTER
+        }
+        run_id = self.hook.submit_run(json)
+
+        self.assertEquals(run_id, '1')
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        self.assertEquals(kwargs['auth'].token, TOKEN)
+
 
 class RunStateTest(unittest.TestCase):
     def test_is_terminal_true(self):
