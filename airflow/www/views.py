@@ -695,6 +695,7 @@ class Airflow(BaseView):
         dttm = dateutil.parser.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+        task = dag.get_task(task_id)
         session = Session()
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
@@ -703,6 +704,7 @@ class Airflow(BaseView):
         if ti is None:
             logs = ["*** Task instance did not exist in the DB\n"]
         else:
+            ti.task = task
             logger = logging.getLogger('airflow.task')
             task_log_reader = conf.get('core', 'task_log_reader')
             handler = next((handler for handler in logger.handlers
