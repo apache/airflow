@@ -217,7 +217,7 @@ def do_setup():
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
             'flask-wtf==0.14',
-            'funcsigs==1.0.0',
+            'funcsigs>=1.0.0, <=1.0.2',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
             #'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
