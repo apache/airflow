@@ -60,10 +60,102 @@ WasbHook
 
 .. _AWS:
 
-AWS: Amazon Webservices
+AWS: Amazon Web Services
 -----------------------
 
-To be filled.
+Airflow has extensive support for Amazon Web Services. But note that the Hooks, Sensors and
+Operators are in the contrib section.
+
+AWS EMR
+''''''''
+
+- :ref:`EmrAddStepsOperator` : Adds steps to an existing EMR JobFlow.
+- :ref:`EmrCreateJobFlowOperator` : Creates an EMR JobFlow, reading the config from the EMR connection.
+- :ref:`EmrTerminateJobFlowOperator` : Terminates an EMR JobFlow.
+- :ref:`EmrHook` : Interact with AWS EMR.
+
+.. _EmrAddStepsOperator:
+
+EmrAddStepsOperator
+""""""""
+
+.. autoclass:: airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator
+
+.. _EmrCreateJobFlowOperator:
+
+EmrCreateJobFlowOperator
+""""""""
+
+.. autoclass:: airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator
+
+.. _EmrTerminateJobFlowOperator:
+
+EmrTerminateJobFlowOperator
+""""""""
+
+.. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
+
+.. _EmrHook:
+
+EmrHook
+""""""""
+
+.. autoclass:: airflow.contrib.hooks.emr_hook.EmrHook
+
+
+AWS S3
+'''''''
+
+- :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
+- :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
+- :ref:`S3Hook` : Interact with AWS S3.
+
+.. _S3FileTransformOperator:
+
+S3FileTransformOperator
+""""""""""""""""""""""""
+
+.. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
+
+.. _S3ToHiveTransfer:
+
+S3ToHiveTransfer
+"""""""""""""""""
+
+.. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
+
+.. _S3Hook:
+
+S3Hook
+"""""""
+
+.. autoclass:: airflow.hooks.S3_hook.S3Hook
+
+
+AWS EC2 Container Service
+''''''''''''''''''''''''''
+
+- :ref:`ECSOperator` : Execute a task on AWS EC2 Container Service.
+
+.. _ECSOperator:
+
+ECSOperator
+""""""""""""
+
+.. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
+
+
+AWS RedShift
+'''''''''''''
+
+- :ref:`RedshiftToS3Transfer` : Executes an unload command to S3 as a CSV with headers.
+
+.. _RedshiftToS3Transfer:
+
+RedshiftToS3Transfer
+"""""""""""""""""""""
+
+.. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
 
 
 
