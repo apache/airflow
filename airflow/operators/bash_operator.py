@@ -24,6 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
+from airflow import configuration as conf
 
 
 class BashOperator(BaseOperator):
@@ -68,8 +69,12 @@ class BashOperator(BaseOperator):
         which will be cleaned afterwards
         """
         bash_command = self.bash_command
-        logging.info("tmp dir root location: \n" + gettempdir())
-        with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+        try:
+            tempdir = conf.get("core", "tempdir")
+        except conf.AirflowConfigException:
+            tempdir = gettempdir()
+        logging.info("tmp dir root location: \n" + tempdir)
+        with TemporaryDirectory(prefix='airflowtmp', dir=tempdir) as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 
                 f.write(bytes(bash_command, 'utf_8'))
