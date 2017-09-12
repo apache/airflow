@@ -160,7 +160,7 @@ def initdb():
     merge_conn(
         models.Connection(
             conn_id='sqlite_default', conn_type='sqlite',
-            host='/tmp/sqlite_default.db'))
+            schema='/tmp/sqlite_default.db'))
     merge_conn(
         models.Connection(
             conn_id='http_default', conn_type='http',
