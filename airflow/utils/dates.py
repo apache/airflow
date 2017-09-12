@@ -17,7 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 import six
 
@@ -83,7 +83,7 @@ def date_range(
             else:
                 start_date += delta
     else:
-        for i in range(abs(num)):
+        for _ in range(abs(num)):
             l.append(start_date)
             if delta_iscron:
                 if num > 0:
