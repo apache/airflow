@@ -213,7 +213,7 @@ def do_setup():
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(),
+        packages=find_packages(exclude=['tests*']),
         package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
         include_package_data=True,
         zip_safe=False,
