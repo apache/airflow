@@ -212,7 +212,7 @@ def do_setup():
             'croniter>=0.3.8, <0.4',
             'dill>=0.2.2, <0.3',
             'flask>=0.11, <=0.12.1',
-            'flask-admin==1.4.1',
+            'flask-admin>=1.4.1, <=1.5.0',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
