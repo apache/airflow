@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from builtins import object
+import json
 import logging
 import subprocess
 import ssl
@@ -44,6 +45,7 @@ class CeleryConfig(object):
     CELERYD_PREFETCH_MULTIPLIER = 1
     CELERY_ACKS_LATE = True
     BROKER_URL = configuration.get('celery', 'BROKER_URL')
+    BROKER_TRANSPORT_OPTIONS = json.loads(configuration.get('celery', 'BROKER_TRANSPORT_OPTIONS'))
     CELERY_RESULT_BACKEND = configuration.get('celery', 'CELERY_RESULT_BACKEND')
     CELERYD_CONCURRENCY = configuration.getint('celery', 'CELERYD_CONCURRENCY')
     CELERY_DEFAULT_QUEUE = DEFAULT_QUEUE

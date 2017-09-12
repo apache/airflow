@@ -139,6 +139,27 @@ Here are a few imperative requirements for your workers:
   Chef, Puppet, Ansible, or whatever you use to configure machines in your
   environment. If all your boxes have a common mount point, having your
   pipelines files shared there should work as well
+- You can configure the Celery broker transport options via the
+  ``broker_transport_options`` option in the ``celery`` section of the config
+  file. You might need this if you are using something other than RabbitMQ as
+  the trasport in a few cases.
+
+  For example, when using Redis with sub-dags, or when backfilling tasks, that
+  take longer than an hour to execute the default visiblity timeout will need
+  changing, otherwise the task will mysteriously be marked as failed, or end up
+  running two copies of the task at once.
+
+  .. code-block:: bash
+
+    [celery]
+    broker_transport_options = {"visibility_timeout": 86400}
+
+
+  This config option should be valid JSON and should be a directory. See the
+  Celery documentation for the brokers,
+  `Amazon SQS <http://docs.celeryproject.org/en/latest/getting-started/brokers/sqs.html>`_,
+  or `Redis <http://docs.celeryproject.org/en/latest/getting-started/brokers/redis.html>`_,
+  for possible values.
 
 
 To kick off a worker, you need to setup Airflow and kick off the worker
