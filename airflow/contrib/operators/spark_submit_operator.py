@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
-
 from airflow.contrib.hooks.spark_submit_hook import SparkSubmitHook
 from airflow.models import BaseOperator
-from airflow.utils.decorators import apply_defaults
 from airflow.settings import WEB_COLORS
-
-log = logging.getLogger(__name__)
+from airflow.utils.decorators import apply_defaults
 
 
 class SparkSubmitOperator(BaseOperator):

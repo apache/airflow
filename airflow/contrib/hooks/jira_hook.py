@@ -11,24 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from jira import JIRA
 from jira.exceptions import JIRAError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
-class JiraHook(BaseHook):
+class JiraHook(BaseHook, LoggingMixin):
     """
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
     :type jira_conn_id: string
     """
-
     def __init__(self,
                  jira_conn_id='jira_default'):
         super(JiraHook, self).__init__(jira_conn_id)
@@ -38,7 +35,7 @@ class JiraHook(BaseHook):
 
     def get_conn(self):
         if not self.client:
-            logging.debug('creating jira client for conn_id: {0}'.format(self.jira_conn_id))
+            self.logger.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
 
             get_server_info = True
             validate = True

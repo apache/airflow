@@ -11,29 +11,32 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-
 import logging
-import os
 import sys
 import time
 import unittest
-
-from mock import patch
 from datetime import datetime, timedelta
+from mock import patch
 
-from airflow import DAG, configuration, jobs, settings
-from airflow.jobs import BackfillJob, SchedulerJob
-from airflow.models import TaskInstance, DagModel, DagBag
-from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, ExternalTaskSensor
-from airflow.operators.bash_operator import BashOperator
-from airflow.operators.dummy_operator import DummyOperator
-from airflow.utils.decorators import apply_defaults
+from airflow import DAG, configuration, settings
 from airflow.exceptions import (AirflowException,
                                 AirflowSensorTimeout,
                                 AirflowSkipException)
+from airflow.models import TaskInstance
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, ExternalTaskSensor
+from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
-from tests.core import TEST_DAG_FOLDER
+
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
+
 configuration.load_test_config()
 
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -72,7 +75,7 @@ class TimeoutTestSensor(BaseSensorOperator):
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             time.sleep(self.poke_interval)
-        logging.info("Success criteria met. Exiting.")
+        self.logger.info("Success criteria met. Exiting.")
 
 
 class SensorTimeoutTest(unittest.TestCase):
@@ -158,10 +161,8 @@ class HttpSensorTests(unittest.TestCase):
         self.assertTrue(prep_request.method, received_request.method)
 
     @patch("airflow.hooks.http_hook.requests.Session.send")
-    @patch("airflow.hooks.http_hook.logging.error")
     def test_logging_head_error_request(
         self,
-        mock_error_logging,
         mock_session_send
     ):
 
@@ -183,13 +184,15 @@ class HttpSensorTests(unittest.TestCase):
             method='HEAD',
             response_check=resp_check,
             timeout=5,
-            poke_interval=1)
+            poke_interval=1
+        )
 
-        with self.assertRaises(AirflowSensorTimeout):
-            task.execute(None)
+        with mock.patch.object(task.hook.logger, 'error') as mock_errors:
+            with self.assertRaises(AirflowSensorTimeout):
+                task.execute(None)
 
-        self.assertTrue(mock_error_logging.called)
-        mock_error_logging.assert_called_with('HTTP error: Not Found')
+            self.assertTrue(mock_errors.called)
+            mock_errors.assert_called_with('HTTP error: %s', 'Not Found')
 
 
 class HdfsSensorTests(unittest.TestCase):
@@ -199,8 +202,6 @@ class HdfsSensorTests(unittest.TestCase):
             raise unittest.SkipTest('HdfsSensor won\'t work with python3. No need to test anything here')
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
 
     def test_legacy_file_exist(self):
         """
@@ -208,7 +209,7 @@ class HdfsSensorTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.info("Test for existing file with the legacy behaviour")
+        logging.info("Test for existing file with the legacy behaviour")
         # When
         task = HdfsSensor(task_id='Should_be_file_legacy',
                           filepath='/datadirectory/datafile',
@@ -227,7 +228,7 @@ class HdfsSensorTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.info("Test for existing file with the legacy behaviour")
+        logging.info("Test for existing file with the legacy behaviour")
         # When
         task = HdfsSensor(task_id='Should_be_file_legacy',
                           filepath='/datadirectory/datafile',
@@ -248,7 +249,7 @@ class HdfsSensorTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.info("Test for non existing file with the legacy behaviour")
+        logging.info("Test for non existing file with the legacy behaviour")
         task = HdfsSensor(task_id='Should_not_be_file_legacy',
                           filepath='/datadirectory/not_existing_file_or_directory',
                           timeout=1,

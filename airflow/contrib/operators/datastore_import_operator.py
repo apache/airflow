@@ -12,12 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
-
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
+
 
 class DatastoreImportOperator(BaseOperator):
     """
@@ -74,7 +72,7 @@ class DatastoreImportOperator(BaseOperator):
         self.xcom_push = xcom_push
 
     def execute(self, context):
-        logging.info('Importing data from Cloud Storage bucket ' + self.bucket)
+        self.logger.info('Importing data from Cloud Storage bucket %s', self.bucket)
         ds_hook = DatastoreHook(self.datastore_conn_id, self.delegate_to)
         result = ds_hook.import_from_storage_bucket(bucket=self.bucket,
                                                     file=self.file,

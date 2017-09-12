@@ -19,13 +19,16 @@ from __future__ import unicode_literals
 
 from datetime import datetime
 from functools import wraps
-import logging
+
 import os
 
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
 
 from airflow import settings
+from airflow.utils.log.LoggingMixin import LoggingMixin
+
+log = LoggingMixin().logger
 
 def provide_session(func):
     """
@@ -308,7 +311,8 @@ def upgradedb():
     from alembic import command
     from alembic.config import Config
 
-    logging.info("Creating tables")
+    log.info("Creating tables")
+
     current_dir = os.path.dirname(os.path.abspath(__file__))
     package_dir = os.path.normpath(os.path.join(current_dir, '..'))
     directory = os.path.join(package_dir, 'migrations')
@@ -326,7 +330,8 @@ def resetdb():
     # alembic adds significant import time, so we import it lazily
     from alembic.migration import MigrationContext
 
-    logging.info("Dropping tables that exist")
+    log.info("Dropping tables that exist")
+
     models.Base.metadata.drop_all(settings.engine)
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):

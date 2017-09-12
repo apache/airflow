@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import distributed
-
 import subprocess
 import warnings
 
@@ -41,8 +40,8 @@ class DaskExecutor(BaseExecutor):
     def execute_async(self, key, command, queue=None):
         if queue is not None:
             warnings.warn(
-                'DaskExecutor does not support queues. All tasks will be run '
-                'in the same cluster')
+                'DaskExecutor does not support queues. All tasks will be run in the same cluster'
+            )
 
         def airflow_run():
             return subprocess.check_call(command, shell=True)
@@ -54,12 +53,11 @@ class DaskExecutor(BaseExecutor):
         if future.done():
             key = self.futures[future]
             if future.exception():
+                self.logger.error("Failed to execute task: %s", repr(future.exception()))
                 self.fail(key)
-                self.logger.error("Failed to execute task: {}".format(
-                    repr(future.exception())))
             elif future.cancelled():
-                self.fail(key)
                 self.logger.error("Failed to execute task")
+                self.fail(key)
             else:
                 self.success(key)
             self.futures.pop(future)

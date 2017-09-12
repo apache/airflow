@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from airflow.operators.sensors import HdfsSensor
-import logging
 
 
 class HdfsSensorRegex(HdfsSensor):
@@ -29,9 +28,9 @@ class HdfsSensorRegex(HdfsSensor):
         :return: Bool depending on the search criteria
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
-        logging.getLogger("snakebite").setLevel(logging.WARNING)
-        logging.info(
-            'Poking for {self.filepath} to be a directory with files matching {self.regex.pattern}'.format(**locals()))
+        self.logger.info(
+            'Poking for {self.filepath} to be a directory with files matching {self.regex.pattern}'.format(**locals())
+        )
         result = [f for f in sb.ls([self.filepath], include_toplevel=False) if
                   f['file_type'] == 'f' and self.regex.match(f['path'].replace('%s/' % self.filepath, ''))]
         result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
@@ -53,15 +52,14 @@ class HdfsSensorFolder(HdfsSensor):
         :return: Bool depending on the search criteria
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
-        logging.getLogger("snakebite").setLevel(logging.WARNING)
         result = [f for f in sb.ls([self.filepath], include_toplevel=True)]
         result = self.filter_for_ignored_ext(result, self.ignored_ext, self.ignore_copying)
         result = self.filter_for_filesize(result, self.file_size)
         if self.be_empty:
-            logging.info('Poking for filepath {self.filepath} to a empty directory'.format(**locals()))
+            self.logger.info('Poking for filepath {self.filepath} to a empty directory'.format(**locals()))
             return len(result) == 1 and result[0]['path'] == self.filepath
         else:
-            logging.info('Poking for filepath {self.filepath} to a non empty directory'.format(**locals()))
+            self.logger.info('Poking for filepath {self.filepath} to a non empty directory'.format(**locals()))
             result.pop(0)
             return bool(result) and result[0]['file_type'] == 'f'
 

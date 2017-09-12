@@ -30,16 +30,16 @@ from airflow import models
 from airflow import configuration
 from airflow.configuration import AirflowConfigException
 
-import logging
-
 import traceback
 import re
+
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
-LOG = logging.getLogger(__name__)
+log = LoggingMixin().logger
 
 
 class AuthenticationError(Exception):
@@ -64,7 +64,7 @@ def get_ldap_connection(dn=None, password=None):
     conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
-        LOG.error("Cannot bind to ldap server: %s ", conn.last_error)
+        log.error("Cannot bind to ldap server: %s ", conn.last_error)
         raise AuthenticationError("Cannot bind to ldap server")
 
     return conn
@@ -74,7 +74,7 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
     search_filter = '(&({0}))'.format(group_filter)
     if not conn.search(native(search_base), native(search_filter),
                        attributes=[native(user_name_attr)]):
-        LOG.warning("Unable to find group for %s %s", search_base, search_filter)
+        log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for resp in conn.response:
             if (
@@ -95,11 +95,11 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter), attributes=[native(memberof_attr)])
     if not res:
-        LOG.info("Cannot find user %s", username)
+        log.info("Cannot find user %s", username)
         raise AuthenticationError("Invalid username or password")
 
     if conn.response and memberof_attr not in conn.response[0]["attributes"]:
-        LOG.warning("""Missing attribute "%s" when looked-up in Ldap database.
+        log.warning("""Missing attribute "%s" when looked-up in Ldap database.
         The user does not seem to be a member of a group and therefore won't see any dag
         if the option filter_by_owner=True and owner_mode=ldapgroup are set""", memberof_attr)
         return []
@@ -111,7 +111,7 @@ def groups_user(conn, search_base, user_filter, user_name_att, username):
     try:
         groups_list = [regex.search(i).group(1) for i in user_groups]
     except IndexError:
-        LOG.warning("Parsing error when retrieving the user's group(s)."
+        log.warning("Parsing error when retrieving the user's group(s)."
                     " Check if the user belongs to at least one group"
                     " or if the user's groups name do not contain special characters")
 
@@ -134,7 +134,7 @@ class LdapUser(models.User):
                                                  user.username)
         except AirflowConfigException:
             self.superuser = True
-            LOG.debug("Missing configuration for superuser settings.  Skipping.")
+            log.debug("Missing configuration for superuser settings.  Skipping.")
 
         try:
             self.data_profiler = group_contains_user(conn,
@@ -144,7 +144,7 @@ class LdapUser(models.User):
                                                      user.username)
         except AirflowConfigException:
             self.data_profiler = True
-            LOG.debug("Missing configuration for dataprofiler settings. Skipping")
+            log.debug("Missing configuration for dataprofiler settings. Skipping")
 
         # Load the ldap group(s) a user belongs to
         try:
@@ -154,7 +154,7 @@ class LdapUser(models.User):
                                            configuration.get("ldap", "user_name_attr"),
                                            user.username)
         except AirflowConfigException:
-            LOG.debug("Missing configuration for ldap settings. Skipping")
+            log.debug("Missing configuration for ldap settings. Skipping")
 
     @staticmethod
     def try_login(username, password):
@@ -185,7 +185,7 @@ class LdapUser(models.User):
 
         # todo: use list or result?
         if not res:
-            LOG.info("Cannot find user %s", username)
+            log.info("Cannot find user %s", username)
             raise AuthenticationError("Invalid username or password")
 
         entry = conn.response[0]
@@ -200,14 +200,14 @@ class LdapUser(models.User):
         try:
             conn = get_ldap_connection(entry['dn'], password)
         except KeyError as e:
-            LOG.error("""
+            log.error("""
             Unable to parse LDAP structure. If you're using Active Directory and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
             """ % traceback.format_exc())
             raise LdapException("Could not parse LDAP structure. Try setting search_scope in airflow.cfg, or check logs")
 
         if not conn:
-            LOG.info("Password incorrect for user %s", username)
+            log.info("Password incorrect for user %s", username)
             raise AuthenticationError("Invalid username or password")
 
     def is_active(self):
@@ -237,7 +237,7 @@ class LdapUser(models.User):
 
 @login_manager.user_loader
 def load_user(userid):
-    LOG.debug("Loading user %s", userid)
+    log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -270,7 +270,7 @@ def login(self, request):
 
     try:
         LdapUser.try_login(username, password)
-        LOG.info("User %s successfully authenticated", username)
+        log.info("User %s successfully authenticated", username)
 
         session = settings.Session()
         user = session.query(models.User).filter(

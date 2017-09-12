@@ -12,12 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
+
 from slackclient import SlackClient
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.exceptions import AirflowException
-import json
-import logging
 
 
 class SlackAPIOperator(BaseOperator):
@@ -66,8 +66,9 @@ class SlackAPIOperator(BaseOperator):
         sc = SlackClient(self.token)
         rc = sc.api_call(self.method, **self.api_params)
         if not rc['ok']:
-            logging.error("Slack API call failed ({})".format(rc['error']))
-            raise AirflowException("Slack API call failed: ({})".format(rc['error']))
+            msg = "Slack API call failed (%s)".format(rc['error'])
+            self.logger.error(msg)
+            raise AirflowException(msg)
 
 
 class SlackAPIPostOperator(SlackAPIOperator):

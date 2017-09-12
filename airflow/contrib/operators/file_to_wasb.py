@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
-
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -23,7 +20,7 @@ from airflow.utils.decorators import apply_defaults
 class FileToWasbOperator(BaseOperator):
     """
     Uploads a file to Azure Blob Storage.
-    
+
     :param file_path: Path to the file to load.
     :type file_path: str
     :param container_name: Name of the container.
@@ -54,8 +51,7 @@ class FileToWasbOperator(BaseOperator):
     def execute(self, context):
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        logging.info(
-            'Uploading {self.file_path} to wasb://{self.container_name} as '
-            '{self.blob_name}'.format(**locals()))
-        hook.load_file(self.file_path, self.container_name, self.blob_name,
-                       **self.load_options)
+        self.logger.info(
+            'Uploading {self.file_path} to wasb://{self.container_name} as {self.blob_name}'.format(**locals())
+        )
+        hook.load_file(self.file_path, self.container_name, self.blob_name, **self.load_options)

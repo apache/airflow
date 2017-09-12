@@ -21,7 +21,6 @@ from builtins import str
 from past.builtins import basestring
 
 import importlib
-import logging
 import os
 import smtplib
 
@@ -32,6 +31,7 @@ from email.utils import formatdate
 
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
 def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
@@ -88,6 +88,8 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
 
 
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
+    log = LoggingMixin().logger
+
     SMTP_HOST = configuration.get('smtp', 'SMTP_HOST')
     SMTP_PORT = configuration.getint('smtp', 'SMTP_PORT')
     SMTP_STARTTLS = configuration.getboolean('smtp', 'SMTP_STARTTLS')
@@ -99,7 +101,7 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
         SMTP_USER = configuration.get('smtp', 'SMTP_USER')
         SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
     except AirflowConfigException:
-        logging.debug("No user/password found for SMTP, so logging in with no authentication.")
+        log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
     if not dryrun:
         s = smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) if SMTP_SSL else smtplib.SMTP(SMTP_HOST, SMTP_PORT)
@@ -107,7 +109,7 @@ def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
             s.starttls()
         if SMTP_USER and SMTP_PASSWORD:
             s.login(SMTP_USER, SMTP_PASSWORD)
-        logging.info("Sent an alert email to " + str(e_to))
+        log.info("Sent an alert email to %s", e_to)
         s.sendmail(e_from, e_to, mime_msg.as_string())
         s.quit()
 

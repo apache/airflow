@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.contrib.hooks.ssh_hook import SSHHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -84,12 +81,12 @@ class SFTPOperator(BaseOperator):
             if self.operation.lower() == SFTPOperation.GET:
                 file_msg = "from {0} to {1}".format(self.remote_filepath,
                                                     self.local_filepath)
-                logging.debug("Starting to transfer {0}".format(file_msg))
+                self.logger.debug("Starting to transfer %s", file_msg)
                 sftp_client.get(self.remote_filepath, self.local_filepath)
             else:
                 file_msg = "from {0} to {1}".format(self.local_filepath,
                                                     self.remote_filepath)
-                logging.debug("Starting to transfer file {0}".format(file_msg))
+                self.logger.debug("Starting to transfer file %s", file_msg)
                 sftp_client.put(self.local_filepath, self.remote_filepath)
 
         except Exception as e:

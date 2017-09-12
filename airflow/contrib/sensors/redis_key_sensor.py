@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.contrib.hooks.redis_hook import RedisHook
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -37,7 +34,6 @@ class RedisKeySensor(BaseSensorOperator):
         :type redis_conn_id: string
         """
         super(RedisKeySensor, self).__init__(*args, **kwargs)
-        self.logger = logging.getLogger(__name__)
         self.redis_conn_id = redis_conn_id
         self.key = key
 

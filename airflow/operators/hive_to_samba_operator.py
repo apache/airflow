@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import tempfile
 
 from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -55,7 +53,7 @@ class Hive2SambaOperator(BaseOperator):
         samba = SambaHook(samba_conn_id=self.samba_conn_id)
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
         tmpfile = tempfile.NamedTemporaryFile()
-        logging.info("Fetching file from Hive")
+        self.logger.info("Fetching file from Hive")
         hive.to_csv(hql=self.hql, csv_filepath=tmpfile.name)
-        logging.info("Pushing to samba")
+        self.logger.info("Pushing to samba")
         samba.push_from_local(self.destination_filepath, tmpfile.name)

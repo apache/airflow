@@ -108,18 +108,17 @@ class DatabricksHookTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             DatabricksHook(retry_limit = 0)
 
-    @mock.patch('airflow.contrib.hooks.databricks_hook.logging')
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
-    def test_do_api_call_with_error_retry(self, mock_requests, mock_logging):
+    def test_do_api_call_with_error_retry(self, mock_requests):
         for exception in [requests_exceptions.ConnectionError, requests_exceptions.Timeout]:
-            mock_requests.reset_mock()
-            mock_logging.reset_mock()
-            mock_requests.post.side_effect = exception()
+            with mock.patch.object(self.hook.logger, 'error') as mock_errors:
+                mock_requests.reset_mock()
+                mock_requests.post.side_effect = exception()
 
-            with self.assertRaises(AirflowException):
-                self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                with self.assertRaises(AirflowException):
+                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-            self.assertEquals(len(mock_logging.error.mock_calls), self.hook.retry_limit)
+                self.assertEquals(len(mock_errors.mock_calls), self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_with_bad_status_code(self, mock_requests):

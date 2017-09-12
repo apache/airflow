@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from jira.resources import Resource
 
 from airflow.contrib.operators.jira_operator import JIRAError
@@ -100,8 +97,7 @@ class JiraTicketSensor(JiraSensor):
                                                *args, **kwargs)
 
     def poke(self, context):
-        logging.info('Jira Sensor checking for change in ticket : {0}'
-                     .format(self.ticket_id))
+        self.logger.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
         self.jira_operator.method_name = "issue"
         self.jira_operator.jira_method_args = {
@@ -127,20 +123,19 @@ class JiraTicketSensor(JiraSensor):
                             and getattr(field_value, 'name'):
                         result = self.expected_value.lower() == field_value.name.lower()
                     else:
-                        logging.warning("not implemented checker for issue field {0} "
-                                        "which is neither string nor list nor "
-                                        "jira Resource".format(self.field))
+                        self.logger.warning(
+                            "Not implemented checker for issue field %s which "
+                            "is neither string nor list nor Jira Resource",
+                            self.field
+                        )
 
         except JIRAError as jira_error:
-            logging.error("jira error while checking with expected value: {0}"
-                          .format(jira_error))
+            self.logger.error("Jira error while checking with expected value: %s", jira_error)
         except Exception as e:
-            logging.error("error while checking with expected value {0}, error: {1}"
-                          .format(self.expected_value, e))
+            self.logger.error("Error while checking with expected value %s:", self.expected_value)
+            self.logger.exception(e)
         if result is True:
-            logging.info("issue field {0} has expected value {1}, returning success"
-                         .format(self.field, self.expected_value))
+            self.logger.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
         else:
-            logging.info("issue field {0} dont have expected value {1} yet."
-                         .format(self.field, self.expected_value))
+            self.logger.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
         return result

@@ -37,14 +37,14 @@ class SequentialExecutor(BaseExecutor):
 
     def sync(self):
         for key, command in self.commands_to_run:
-            self.logger.info("Executing command: {}".format(command))
+            self.logger.info("Executing command: %s", command)
 
             try:
                 subprocess.check_call(command, shell=True)
                 self.change_state(key, State.SUCCESS)
             except subprocess.CalledProcessError as e:
                 self.change_state(key, State.FAILED)
-                self.logger.error("Failed to execute task {}:".format(str(e)))
+                self.logger.error("Failed to execute task %s.", str(e))
 
         self.commands_to_run = []
 

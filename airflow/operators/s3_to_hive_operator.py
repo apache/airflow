@@ -14,7 +14,6 @@
 
 from builtins import next
 from builtins import zip
-import logging
 from tempfile import NamedTemporaryFile
 from airflow.utils.file import TemporaryDirectory
 import gzip
@@ -28,6 +27,7 @@ from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.compression import uncompress_file
+
 
 class S3ToHiveTransfer(BaseOperator):
     """
@@ -129,7 +129,7 @@ class S3ToHiveTransfer(BaseOperator):
         # Downloading file from S3
         self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
-        logging.info("Downloading S3 file")
+        self.logger.info("Downloading S3 file")
 
         if self.wildcard_match:
             if not self.s3.check_for_wildcard_key(self.s3_key):
@@ -146,13 +146,13 @@ class S3ToHiveTransfer(BaseOperator):
                 NamedTemporaryFile(mode="w",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
-            logging.info("Dumping S3 key {0} contents to local"
-                         " file {1}".format(s3_key_object.key, f.name))
+            self.logger.info("Dumping S3 key {0} contents to local file {1}"
+                             .format(s3_key_object.key, f.name))
             s3_key_object.get_contents_to_file(f)
             f.flush()
             self.s3.connection.close()
             if not self.headers:
-                logging.info("Loading file {0} into Hive".format(f.name))
+                self.logger.info("Loading file %s into Hive", f.name)
                 self.hive.load_file(
                     f.name,
                     self.hive_table,
@@ -165,11 +165,11 @@ class S3ToHiveTransfer(BaseOperator):
             else:
                 # Decompressing file
                 if self.input_compressed:
-                    logging.info("Uncompressing file {0}".format(f.name))
+                    self.logger.info("Uncompressing file %s", f.name)
                     fn_uncompressed = uncompress_file(f.name,
                                                       file_ext,
                                                       tmp_dir)
-                    logging.info("Uncompressed to {0}".format(fn_uncompressed))
+                    self.logger.info("Uncompressed to %s", fn_uncompressed)
                     # uncompressed file available now so deleting
                     # compressed file to save disk space
                     f.close()
@@ -178,20 +178,19 @@ class S3ToHiveTransfer(BaseOperator):
 
                 # Testing if header matches field_dict
                 if self.check_headers:
-                    logging.info("Matching file header against field_dict")
+                    self.logger.info("Matching file header against field_dict")
                     header_list = self._get_top_row_as_list(fn_uncompressed)
                     if not self._match_headers(header_list):
                         raise AirflowException("Header check failed")
 
                 # Deleting top header row
-                logging.info("Removing header from file {0}".
-                             format(fn_uncompressed))
+                self.logger.info("Removing header from file %s", fn_uncompressed)
                 headless_file = (
                     self._delete_top_row_and_compress(fn_uncompressed,
                                                       file_ext,
                                                       tmp_dir))
-                logging.info("Headless file {0}".format(headless_file))
-                logging.info("Loading file {0} into Hive".format(headless_file))
+                self.logger.info("Headless file %s", headless_file)
+                self.logger.info("Loading file %s into Hive", headless_file)
                 self.hive.load_file(headless_file,
                                     self.hive_table,
                                     field_dict=self.field_dict,
@@ -212,18 +211,18 @@ class S3ToHiveTransfer(BaseOperator):
             raise AirflowException("Unable to retrieve header row from file")
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
-            logging.warning("Headers count mismatch"
-                            "File headers:\n {header_list}\n"
-                            "Field names: \n {field_names}\n"
-                            "".format(**locals()))
+            self.logger.warning("Headers count mismatch"
+                              "File headers:\n {header_list}\n"
+                              "Field names: \n {field_names}\n"
+                              "".format(**locals()))
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
-            logging.warning("Headers do not match field names"
-                            "File headers:\n {header_list}\n"
-                            "Field names: \n {field_names}\n"
-                            "".format(**locals()))
+            self.logger.warning("Headers do not match field names"
+                              "File headers:\n {header_list}\n"
+                              "Field names: \n {field_names}\n"
+                              "".format(**locals()))
             return False
         else:
             return True

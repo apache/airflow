@@ -13,7 +13,9 @@ assists people when migrating to a new version.
   - No updates are required if you are using ftpHook, it will continue work as is.
 
 ### Logging update
-  Logs now are stored in the log folder as ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``.
+Airflow's logging has been rewritten to uses Python’s builtin `logging` module to perform system logging. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. The main benefit that this brings to us is the easy configuration of the logging through `default_airflow_logging.py` and the ability to use different handlers for logging.
+
+Logs now are stored in the log folder as `{dag_id}/{task_id}/{execution_date}/{try_number}.log`.
 
 ### New Features
 

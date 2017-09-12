@@ -12,9 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
-
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
@@ -23,7 +20,7 @@ from airflow.utils.decorators import apply_defaults
 class WasbBlobSensor(BaseSensorOperator):
     """
     Waits for a blob to arrive on Azure Blob Storage.
-    
+
     :param container_name: Name of the container.
     :type container_name: str
     :param blob_name: Name of the blob.
@@ -50,7 +47,7 @@ class WasbBlobSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context):
-        logging.info(
+        self.logger.info(
             'Poking for blob: {self.blob_name}\n'
             'in wasb://{self.container_name}'.format(**locals())
         )
@@ -62,7 +59,7 @@ class WasbBlobSensor(BaseSensorOperator):
 class WasbPrefixSensor(BaseSensorOperator):
     """
     Waits for blobs matching a prefix to arrive on Azure Blob Storage.
-    
+
     :param container_name: Name of the container.
     :type container_name: str
     :param prefix: Prefix of the blob.
@@ -88,7 +85,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context):
-        logging.info(
+        self.logger.info(
             'Poking for prefix: {self.prefix}\n'
             'in wasb://{self.container_name}'.format(**locals())
         )

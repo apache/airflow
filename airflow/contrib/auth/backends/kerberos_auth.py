@@ -29,8 +29,7 @@ from flask import url_for, redirect
 from airflow import settings
 from airflow import models
 from airflow import configuration
-
-import logging
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
@@ -41,7 +40,7 @@ class AuthenticationError(Exception):
     pass
 
 
-class KerberosUser(models.User):
+class KerberosUser(models.User, LoggingMixin):
     def __init__(self, user):
         self.user = user
 

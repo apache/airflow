@@ -24,14 +24,15 @@ NOTE:   this hook also relies on the simple_salesforce package:
 from simple_salesforce import Salesforce
 from airflow.hooks.base_hook import BaseHook
 
-import logging
 import json
 
 import pandas as pd
 import time
 
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
-class SalesforceHook(BaseHook):
+
+class SalesforceHook(BaseHook, LoggingMixin):
     def __init__(
             self,
             conn_id,
@@ -91,13 +92,12 @@ class SalesforceHook(BaseHook):
         """
         self.sign_in()
 
-        logging.info("Querying for all objects")
+        self.logger.info("Querying for all objects")
         query = self.sf.query_all(query)
 
-        logging.info(
-            "Received results: Total size: {0}; Done: {1}".format(
-                query['totalSize'], query['done']
-            )
+        self.logger.info(
+            "Received results: Total size: %s; Done: %s",
+            query['totalSize'], query['done']
         )
 
         query = json.loads(json.dumps(query))
@@ -144,11 +144,9 @@ class SalesforceHook(BaseHook):
         field_string = self._build_field_list(fields)
 
         query = "SELECT {0} FROM {1}".format(field_string, obj)
-        logging.info(
-            "Making query to salesforce: {0}".format(
-                query if len(query) < 30
-                else " ... ".join([query[:15], query[-15:]])
-            )
+        self.logger.info(
+            "Making query to Salesforce: %s",
+            query if len(query) < 30 else " ... ".join([query[:15], query[-15:]])
         )
         return self.make_query(query)
 
@@ -171,8 +169,9 @@ class SalesforceHook(BaseHook):
         try:
             col = pd.to_datetime(col)
         except ValueError:
-            logging.warning(
-                "Could not convert field to timestamps: {0}".format(col.name)
+            log = LoggingMixin().logger
+            log.warning(
+                "Could not convert field to timestamps: %s", col.name
             )
             return col
 
@@ -266,7 +265,7 @@ class SalesforceHook(BaseHook):
             # for each returned record
             object_name = query_results[0]['attributes']['type']
 
-            logging.info("Coercing timestamps for: {0}".format(object_name))
+            self.logger.info("Coercing timestamps for: %s", object_name)
 
             schema = self.describe_object(object_name)
 
@@ -300,7 +299,7 @@ class SalesforceHook(BaseHook):
             # there are also a ton of newline objects
             # that mess up our ability to write to csv
             # we remove these newlines so that the output is a valid CSV format
-            logging.info("Cleaning data and writing to CSV")
+            self.logger.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
             df[possible_strings] = df[possible_strings].apply(
                 lambda x: x.str.replace("\r\n", "")

@@ -11,10 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from builtins import str
-import logging
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
@@ -78,7 +74,7 @@ class PythonOperator(BaseOperator):
             self.op_kwargs = context
 
         return_value = self.python_callable(*self.op_args, **self.op_kwargs)
-        logging.info("Done. Returned value was: " + str(return_value))
+        self.logger.info("Done. Returned value was: %s", return_value)
         return return_value
 
 
@@ -103,17 +99,17 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        logging.info("Following branch {}".format(branch))
-        logging.info("Marking other directly downstream tasks as skipped")
+        self.logger.info("Following branch %s", branch)
+        self.logger.info("Marking other directly downstream tasks as skipped")
 
         downstream_tasks = context['task'].downstream_list
-        logging.debug("Downstream task_ids {}".format(downstream_tasks))
+        self.logger.debug("Downstream task_ids %s", downstream_tasks)
 
         skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
 
-        logging.info("Done.")
+        self.logger.info("Done.")
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -130,18 +126,18 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         condition = super(ShortCircuitOperator, self).execute(context)
-        logging.info("Condition result is {}".format(condition))
+        self.logger.info("Condition result is %s", condition)
 
         if condition:
-            logging.info('Proceeding with downstream tasks...')
+            self.logger.info('Proceeding with downstream tasks...')
             return
 
-        logging.info('Skipping downstream tasks...')
+        self.logger.info('Skipping downstream tasks...')
 
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        logging.debug("Downstream task_ids {}".format(downstream_tasks))
+        self.logger.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
-        logging.info("Done.")
+        self.logger.info("Done.")

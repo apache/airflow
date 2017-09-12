@@ -16,8 +16,6 @@ from builtins import str
 from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
-import numpy
-import logging
 import sys
 
 from sqlalchemy import create_engine
@@ -88,8 +86,8 @@ class DbApiHook(BaseHook):
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         import pandas.io.sql as psql
-        
-        with closing(self.get_conn()) as conn:        
+
+        with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters)
 
     def get_records(self, sql, parameters=None):
@@ -104,7 +102,7 @@ class DbApiHook(BaseHook):
         """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
-            
+
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -125,7 +123,7 @@ class DbApiHook(BaseHook):
         """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
-        
+
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -151,21 +149,21 @@ class DbApiHook(BaseHook):
         """
         if isinstance(sql, basestring):
             sql = [sql]
-        
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
-            
+
             with closing(conn.cursor()) as cur:
                 for s in sql:
                     if sys.version_info[0] < 3:
                         s = s.encode('utf-8')
-                    logging.info(s)
+                    self.logger.info(s)
                     if parameters is not None:
                         cur.execute(s, parameters)
                     else:
                         cur.execute(s)
-            
+
             conn.commit()
 
     def set_autocommit(self, conn, autocommit):
@@ -197,13 +195,13 @@ class DbApiHook(BaseHook):
             target_fields = "({})".format(target_fields)
         else:
             target_fields = ''
-            
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)
-            
+
             conn.commit()
-            
+
             with closing(conn.cursor()) as cur:
                 for i, row in enumerate(rows, 1):
                     l = []
@@ -218,11 +216,12 @@ class DbApiHook(BaseHook):
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
-                        logging.info(
-                            "Loaded {i} into {table} rows so far".format(**locals()))
-            
+                        self.logger.info(
+                            "Loaded {i} into {table} rows so far".format(**locals())
+                        )
+
             conn.commit()
-        logging.info(
+        self.logger.info(
             "Done loading. Loaded a total of {i} rows".format(**locals()))
 
     @staticmethod

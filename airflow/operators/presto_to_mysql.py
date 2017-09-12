@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.hooks.presto_hook import PrestoHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
@@ -64,15 +61,14 @@ class PrestoToMySqlTransfer(BaseOperator):
 
     def execute(self, context):
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        logging.info("Extracting data from Presto")
-        logging.info(self.sql)
+        self.logger.info("Extracting data from Presto: %s", self.sql)
         results = presto.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
-            logging.info("Running MySQL preoperator")
-            logging.info(self.mysql_preoperator)
+            self.logger.info("Running MySQL preoperator")
+            self.logger.info(self.mysql_preoperator)
             mysql.run(self.mysql_preoperator)
 
-        logging.info("Inserting rows into MySQL")
+        self.logger.info("Inserting rows into MySQL")
         mysql.insert_rows(table=self.mysql_table, rows=results)

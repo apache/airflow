@@ -32,15 +32,13 @@ from sqlalchemy.ext.hybrid import hybrid_property
 
 from airflow import settings
 from airflow import models
-from airflow import configuration
-
-import logging
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
-LOG = logging.getLogger(__name__)
+log = LoggingMixin().logger
 PY3 = version_info[0] == 3
 
 
@@ -94,7 +92,7 @@ class PasswordUser(models.User):
 
 @login_manager.user_loader
 def load_user(userid):
-    LOG.debug("Loading user %s", userid)
+    log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
@@ -137,7 +135,7 @@ def login(self, request):
         if not user.authenticate(password):
             session.close()
             raise AuthenticationError()
-        LOG.info("User %s successfully authenticated", username)
+        log.info("User %s successfully authenticated", username)
 
         flask_login.login_user(user)
         session.commit()

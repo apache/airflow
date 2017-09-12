@@ -13,13 +13,11 @@
 # limitations under the License.
 
 from datetime import datetime
-import logging
 
 from airflow.models import BaseOperator, DagBag
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 from airflow import settings
-from airflow import configuration as conf
 
 
 class DagRunOrder(object):
@@ -71,9 +69,9 @@ class TriggerDagRunOperator(BaseOperator):
                 state=State.RUNNING,
                 conf=dro.payload,
                 external_trigger=True)
-            logging.info("Creating DagRun {}".format(dr))
+            self.logger.info("Creating DagRun %s", dr)
             session.add(dr)
             session.commit()
             session.close()
         else:
-            logging.info("Criteria not met, moving on")
+            self.logger.info("Criteria not met, moving on")

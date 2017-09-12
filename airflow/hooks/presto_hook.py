@@ -13,15 +13,11 @@
 # limitations under the License.
 
 from builtins import str
-import logging
 
 from pyhive import presto
 from pyhive.exc import DatabaseError
 
 from airflow.hooks.dbapi_hook import DbApiHook
-
-logging.getLogger("pyhive").setLevel(logging.INFO)
-
 
 class PrestoException(Exception):
     pass

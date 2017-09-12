@@ -11,9 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils import apply_defaults
 from airflow.exceptions import AirflowException
@@ -23,7 +20,7 @@ class EmrBaseSensor(BaseSensorOperator):
     """
     Contains general sensor behavior for EMR.
     Subclasses should implement get_emr_response() and state_from_response() methods.
-    Subclasses should also implment NON_TERMINAL_STATES and FAILED_STATE constants.
+    Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE constants.
     """
     ui_color = '#66c3ff'
 
@@ -39,11 +36,11 @@ class EmrBaseSensor(BaseSensorOperator):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            logging.info('Bad HTTP response: %s' % response)
+            self.logger.info('Bad HTTP response: %s', response)
             return False
 
         state = self.state_from_response(response)
-        logging.info('Job flow currently %s' % state)
+        self.logger.info('Job flow currently %s', state)
 
         if state in self.NON_TERMINAL_STATES:
             return False

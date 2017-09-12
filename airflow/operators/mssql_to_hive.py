@@ -15,10 +15,8 @@
 from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
-import logging
 from tempfile import NamedTemporaryFile
 import pymssql
-
 
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.hooks.mssql_hook import MsSqlHook
@@ -104,7 +102,7 @@ class MsSqlToHiveTransfer(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
 
-        logging.info("Dumping Microsoft SQL Server query results to local file")
+        self.logger.info("Dumping Microsoft SQL Server query results to local file")
         conn = mssql.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
@@ -120,7 +118,7 @@ class MsSqlToHiveTransfer(BaseOperator):
             f.flush()
             cursor.close()
             conn.close()
-            logging.info("Loading file into Hive")
+            self.logger.info("Loading file into Hive")
             hive.load_file(
                 f.name,
                 self.hive_table,

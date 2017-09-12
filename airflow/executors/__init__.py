@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import sys
 
 from airflow import configuration
@@ -21,6 +19,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
 from airflow.exceptions import AirflowException
+from airflow.utils.log.LoggingMixin import LoggingMixin
 
 DEFAULT_EXECUTOR = None
 
@@ -42,14 +41,15 @@ def GetDefaultExecutor():
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 
-    logging.info("Using executor " + executor_name)
+    log = LoggingMixin().logger
+    log.info("Using executor %s", executor_name)
 
     return DEFAULT_EXECUTOR
 
 
 def _get_executor(executor_name):
     """
-    Creates a new instance of the named executor. In case the executor name is not know in airflow, 
+    Creates a new instance of the named executor. In case the executor name is not know in airflow,
     look for it in the plugins
     """
     if executor_name == 'LocalExecutor':
