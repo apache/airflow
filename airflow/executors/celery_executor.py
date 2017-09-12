@@ -70,9 +70,10 @@ class CeleryExecutor(BaseExecutor):
         self.enqueue_time = {}
         self.command = {}
         self.queue = {}
+        self.attempt = {}
 
     def execute_async(self, key, command,
-                      queue=DEFAULT_CELERY_CONFIG['task_default_queue']):
+                      queue=DEFAULT_CELERY_CONFIG['task_default_queue'], attempt=0):
         self.log.info( "[celery] queuing {key} through celery, "
                        "queue={queue}".format(**locals()))
         self.tasks[key] = execute_command.apply_async(
@@ -81,49 +82,63 @@ class CeleryExecutor(BaseExecutor):
         self.enqueue_time[key] = datetime.datetime.now()
         self.command[key] = command
         self.queue[key] = queue
+        self.attempt[key] = attempt
 
     def _get_reserved_task_ids(self):
         global app
-        inspector = app.control.inspect()
-        return [item['id'] for sublist in inspector.reserved().values() for item in sublist]
+        reserved_tasks = app.control.inspect().reserved()
+        if reserved_tasks is None:
+            return []
+        else:
+            return [item['id'] for sublist in reserved_tasks.values() for item in sublist]
+
+    def _check_task_delayed(self, key):
+        max_timedelta_secs = datetime.timedelta.max.total_seconds()
+        max_delay = datetime.timedelta(
+                seconds=min(max_timedelta_secs, int(2**attempt[key] * configuration.getint('scheduler', 'JOB_MAX_TIME_QUEUED'))))
+        return datetime.datetime.now() > self.enqueue_time[key] + max_delay
+
+    def _delete_key(self, key):
+        del self.tasks[key]
+        del self.last_state[key]
+        del self.enqueue_time[key]
+        del self.command[key]
+        del self.queue[key]
+        del self.attempt[key]
 
     def sync(self):
-<<<<<<< 1aa203d1a2f3f149eff75fe397da5cb0cf96c750
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
-=======
-        self.logger.debug(
-            "Inquiring about {} celery task(s)".format(len(self.tasks)))
         reserved_task_ids = self._get_reserved_task_ids()
->>>>>>> fix issue
         for key, async in list(self.tasks.items()):
             try:
                 state = async.state
                 if self.last_state[key] != state:
                     if state == celery_states.SUCCESS:
                         self.success(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
+                        self._delete_key(key)
                     elif state == celery_states.FAILURE:
                         self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
+                        self._delete_key(key)
                     elif state == celery_states.REVOKED:
                         self.fail(key)
-                        del self.tasks[key]
-                        del self.last_state[key]
+                        self._delete_key(key)
+                    elif state == celery_states.STARTED:
+                        pass
                     else:
                         self.log.info("Unexpected state: %s", async.state)
                     self.last_state[key] = async.state
                 elif async.task_id in reserved_task_ids:
-                    last_acceptable_time = (
-                            self.enqueue_time[key] +
-                            datetime.timedelta(seconds=conf.getint('scheduler', 'JOB_HEARTBEAT_SEC') * 2.1))
-                    if datetime.datetime.now() > last_acceptable_time:
+                    if self._check_task_delayed(key):
                         self.logger.warning("Requeueing task with key {key} as "
                                             "it has been reserved for too long."
                                             .format(key=key))
                         async.revoke()
-                        self.execute_async(key, self.command[key], queue=self.queue[key])
+                        self.execute_async(key, self.command[key], queue=self.queue[key], attempt=self.attempt[key] + 1)
+                elif configuration.getboolean('scheduler', 'STRICT_MODE'):
+                    if self._check_task_delayed(key):
+                        self.logger.warning("Requeueing task as it has not been executed")
+                        async.revoke()
+                        self.execute_async(key, self.command[key], queue=self.queue[key], attempt=self.attempt[key] + 1)
             except Exception as e:
                 self.log.error("Error syncing the celery executor, ignoring it:")
                 self.log.exception(e)
