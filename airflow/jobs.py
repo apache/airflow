@@ -18,7 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from past.builtins import basestring
-from collections import defaultdict, Counter
+from collections import defaultdict
 
 from datetime import datetime
 
@@ -225,7 +225,7 @@ class BaseJob(Base, LoggingMixin):
         :param filter_by_dag_run: the dag_run we want to process, None if all
         :type filter_by_dag_run: models.DagRun
         :return: the TIs reset (in expired SQLAlchemy state)
-        :rtype: List(TaskInsance)
+        :rtype: List(TaskInstance)
         """
         queued_tis = self.executor.queued_tasks
         # also consider running as the state might not have changed in the db yet
@@ -1035,7 +1035,7 @@ class SchedulerJob(BaseJob):
 
         # Get all the queued task instances from associated with scheduled
         # DagRuns which are not backfilled, in the given states,
-        # and the dag is not pasued
+        # and the dag is not paused
         TI = models.TaskInstance
         DR = models.DagRun
         DM = models.DagModel
@@ -1614,7 +1614,7 @@ class SchedulerJob(BaseJob):
                 self._execute_task_instances(simple_dag_bag,
                                              (State.SCHEDULED,))
 
-            # Call hearbeats
+            # Call heartbeats
             self.logger.info("Heartbeating the executor")
             self.executor.heartbeat()
 
@@ -2468,8 +2468,8 @@ class LocalTaskJob(BaseJob):
                 ignore_ti_state=self.ignore_ti_state,
                 job_id=self.id,
                 pool=self.pool):
-            self.logger.info("Task is not able to be run") 
-            return 
+            self.logger.info("Task is not able to be run")
+            return
 
         try:
             self.task_runner.start()
