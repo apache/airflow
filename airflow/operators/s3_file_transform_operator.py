@@ -74,12 +74,12 @@ class S3FileTransformOperator(BaseOperator):
     def execute(self, context):
         source_s3 = S3Hook(s3_conn_id=self.source_s3_conn_id)
         dest_s3 = S3Hook(s3_conn_id=self.dest_s3_conn_id)
-        self.logger.info("Downloading source S3 file %s", self.source_s3_key)
+        self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
             raise AirflowException("The source key {0} does not exist".format(self.source_s3_key))
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
         with NamedTemporaryFile("w") as f_source, NamedTemporaryFile("w") as f_dest:
-            self.logger.info(
+            self.log.info(
                 "Dumping S3 file %s contents to local file %s",
                 self.source_s3_key, f_source.name
             )
@@ -90,20 +90,20 @@ class S3FileTransformOperator(BaseOperator):
                 [self.transform_script, f_source.name, f_dest.name],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             (transform_script_stdoutdata, transform_script_stderrdata) = transform_script_process.communicate()
-            self.logger.info("Transform script stdout %s", transform_script_stdoutdata)
+            self.log.info("Transform script stdout %s", transform_script_stdoutdata)
             if transform_script_process.returncode > 0:
                 raise AirflowException("Transform script failed %s", transform_script_stderrdata)
             else:
-                self.logger.info(
+                self.log.info(
                     "Transform script successful. Output temporarily located at %s",
                     f_dest.name
                 )
-            self.logger.info("Uploading transformed file to S3")
+            self.log.info("Uploading transformed file to S3")
             f_dest.flush()
             dest_s3.load_file(
                 filename=f_dest.name,
                 key=self.dest_s3_key,
                 replace=self.replace
             )
-            self.logger.info("Upload successful")
+            self.log.info("Upload successful")
             dest_s3.connection.close()

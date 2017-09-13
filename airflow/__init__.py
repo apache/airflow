@@ -21,7 +21,7 @@ in their PYTHONPATH. airflow_login should be based off the
 """
 from builtins import object
 from airflow import version
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 __version__ = version.version
 
@@ -41,7 +41,7 @@ login = None
 
 
 def load_login():
-    log = LoggingMixin().logger
+    log = LoggingMixin().log
 
     auth_backend = 'airflow.default_login'
     try:

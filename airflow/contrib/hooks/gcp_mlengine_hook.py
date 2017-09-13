@@ -20,11 +20,11 @@ from apiclient.discovery import build
 from oauth2client.client import GoogleCredentials
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def _poll_with_exponential_delay(request, max_n, is_done_func, is_error_func):
-    log = LoggingMixin().logger
+    log = LoggingMixin().log
 
     for i in range(0, max_n):
         try:
@@ -103,18 +103,18 @@ class MLEngineHook(GoogleCloudBaseHook):
                 if use_existing_job_fn is not None:
                     existing_job = self._get_job(project_id, job_id)
                     if not use_existing_job_fn(existing_job):
-                        self.logger.error(
+                        self.log.error(
                             'Job with job_id %s already exist, but it does '
                             'not match our expectation: %s',
                             job_id, existing_job
                         )
                         raise
-                self.logger.info(
+                self.log.info(
                     'Job with job_id %s already exist. Will waiting for it to finish',
                     job_id
                 )
             else:
-                self.logger.error('Failed to create MLEngine job: {}'.format(e))
+                self.log.error('Failed to create MLEngine job: {}'.format(e))
                 raise
 
         return self._wait_for_job_done(project_id, job_id)
@@ -139,7 +139,7 @@ class MLEngineHook(GoogleCloudBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    self.logger.error('Failed to get MLEngine job: {}'.format(e))
+                    self.log.error('Failed to get MLEngine job: {}'.format(e))
                     raise
 
     def _wait_for_job_done(self, project_id, job_id, interval=30):
@@ -191,10 +191,10 @@ class MLEngineHook(GoogleCloudBaseHook):
 
         try:
             response = request.execute()
-            self.logger.info('Successfully set version: %s to default', response)
+            self.log.info('Successfully set version: %s to default', response)
             return response
         except errors.HttpError as e:
-            self.logger.error('Something went wrong: %s', e)
+            self.log.error('Something went wrong: %s', e)
             raise
 
     def list_versions(self, project_id, model_name):
@@ -262,6 +262,6 @@ class MLEngineHook(GoogleCloudBaseHook):
             return request.execute()
         except errors.HttpError as e:
             if e.resp.status == 404:
-                self.logger.error('Model was not found: %s', e)
+                self.log.error('Model was not found: %s', e)
                 return None
             raise

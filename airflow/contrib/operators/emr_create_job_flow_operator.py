@@ -50,7 +50,7 @@ class EmrCreateJobFlowOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id, emr_conn_id=self.emr_conn_id)
 
-        self.logger.info(
+        self.log.info(
             'Creating JobFlow using aws-conn-id: %s, emr-conn-id: %s',
             self.aws_conn_id, self.emr_conn_id
         )
@@ -59,5 +59,5 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow creation failed: %s' % response)
         else:
-            self.logger.info('JobFlow with id %s created', response['JobFlowId'])
+            self.log.info('JobFlow with id %s created', response['JobFlowId'])
             return response['JobFlowId']

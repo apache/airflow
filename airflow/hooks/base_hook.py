@@ -23,7 +23,7 @@ import random
 from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
@@ -76,7 +76,7 @@ class BaseHook(LoggingMixin):
     def get_connection(cls, conn_id):
         conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
-            log = LoggingMixin().logger
+            log = LoggingMixin().log
             log.info("Using connection to: %s", conn.host)
         return conn
 

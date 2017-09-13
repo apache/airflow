@@ -29,7 +29,7 @@ import json
 import pandas as pd
 import time
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SalesforceHook(BaseHook, LoggingMixin):
@@ -92,10 +92,10 @@ class SalesforceHook(BaseHook, LoggingMixin):
         """
         self.sign_in()
 
-        self.logger.info("Querying for all objects")
+        self.log.info("Querying for all objects")
         query = self.sf.query_all(query)
 
-        self.logger.info(
+        self.log.info(
             "Received results: Total size: %s; Done: %s",
             query['totalSize'], query['done']
         )
@@ -144,7 +144,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
         field_string = self._build_field_list(fields)
 
         query = "SELECT {0} FROM {1}".format(field_string, obj)
-        self.logger.info(
+        self.log.info(
             "Making query to Salesforce: %s",
             query if len(query) < 30 else " ... ".join([query[:15], query[-15:]])
         )
@@ -169,7 +169,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
         try:
             col = pd.to_datetime(col)
         except ValueError:
-            log = LoggingMixin().logger
+            log = LoggingMixin().log
             log.warning(
                 "Could not convert field to timestamps: %s", col.name
             )
@@ -265,7 +265,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
             # for each returned record
             object_name = query_results[0]['attributes']['type']
 
-            self.logger.info("Coercing timestamps for: %s", object_name)
+            self.log.info("Coercing timestamps for: %s", object_name)
 
             schema = self.describe_object(object_name)
 
@@ -299,7 +299,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
             # there are also a ton of newline objects
             # that mess up our ability to write to csv
             # we remove these newlines so that the output is a valid CSV format
-            self.logger.info("Cleaning data and writing to CSV")
+            self.log.info("Cleaning data and writing to CSV")
             possible_strings = df.columns[df.dtypes == "object"]
             df[possible_strings] = df[possible_strings].apply(
                 lambda x: x.str.replace("\r\n", "")

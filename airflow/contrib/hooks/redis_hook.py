@@ -19,7 +19,7 @@ from redis import StrictRedis
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class RedisHook(BaseHook, LoggingMixin):
@@ -41,7 +41,7 @@ class RedisHook(BaseHook, LoggingMixin):
         self.password = conn.password
         self.db = int(conn.extra_dejson.get('db', 0))
 
-        self.logger.debug(
+        self.log.debug(
             '''Connection "{conn}":
             \thost: {host}
             \tport: {port}
@@ -59,7 +59,7 @@ class RedisHook(BaseHook, LoggingMixin):
         Returns a Redis connection.
         """
         if not self.client:
-            self.logger.debug(
+            self.log.debug(
                 'generating Redis client for conn_id "%s" on %s:%s:%s',
                 self.redis_conn_id, self.host, self.port, self.db
             )

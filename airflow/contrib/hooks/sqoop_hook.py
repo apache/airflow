@@ -20,7 +20,7 @@ import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SqoopHook(BaseHook, LoggingMixin):
@@ -76,7 +76,7 @@ class SqoopHook(BaseHook, LoggingMixin):
             password_index = cmd.index('--password')
             cmd[password_index + 1] = 'MASKED'
         except ValueError:
-            self.logger.debug("No password in sqoop cmd")
+            self.log.debug("No password in sqoop cmd")
         return cmd
 
     def Popen(self, cmd, **kwargs):
@@ -87,18 +87,18 @@ class SqoopHook(BaseHook, LoggingMixin):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        self.logger.info("Executing command: %s", ' '.join(cmd))
+        self.log.info("Executing command: %s", ' '.join(cmd))
         sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
 
         for line in iter(sp.stdout):
-            self.logger.info(line.strip())
+            self.log.info(line.strip())
 
         sp.wait()
 
-        self.logger.info("Command exited with return code %s", sp.returncode)
+        self.log.info("Command exited with return code %s", sp.returncode)
 
         if sp.returncode:
             raise AirflowException("Sqoop command failed: %s", ' '.join(cmd))

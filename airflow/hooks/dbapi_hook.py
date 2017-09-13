@@ -158,7 +158,7 @@ class DbApiHook(BaseHook):
                 for s in sql:
                     if sys.version_info[0] < 3:
                         s = s.encode('utf-8')
-                    self.logger.info(s)
+                    self.log.info(s)
                     if parameters is not None:
                         cur.execute(s, parameters)
                     else:
@@ -216,12 +216,12 @@ class DbApiHook(BaseHook):
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
-                        self.logger.info(
+                        self.log.info(
                             "Loaded {i} into {table} rows so far".format(**locals())
                         )
 
             conn.commit()
-        self.logger.info(
+        self.log.info(
             "Done loading. Loaded a total of {i} rows".format(**locals()))
 
     @staticmethod

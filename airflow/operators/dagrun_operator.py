@@ -69,9 +69,9 @@ class TriggerDagRunOperator(BaseOperator):
                 state=State.RUNNING,
                 conf=dro.payload,
                 external_trigger=True)
-            self.logger.info("Creating DagRun %s", dr)
+            self.log.info("Creating DagRun %s", dr)
             session.add(dr)
             session.commit()
             session.close()
         else:
-            self.logger.info("Criteria not met, moving on")
+            self.log.info("Criteria not met, moving on")

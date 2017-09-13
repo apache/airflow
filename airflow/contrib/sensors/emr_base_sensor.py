@@ -36,11 +36,11 @@ class EmrBaseSensor(BaseSensorOperator):
         response = self.get_emr_response()
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            self.logger.info('Bad HTTP response: %s', response)
+            self.log.info('Bad HTTP response: %s', response)
             return False
 
         state = self.state_from_response(response)
-        self.logger.info('Job flow currently %s', state)
+        self.log.info('Job flow currently %s', state)
 
         if state in self.NON_TERMINAL_STATES:
             return False

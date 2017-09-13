@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import warnings
 from builtins import object
 
 
@@ -26,19 +27,34 @@ class LoggingMixin(object):
     Convenience super-class to have a logger configured with the class name
     """
 
+    # We want to deprecate the logger property in Airflow 2.0
+    # The log property is the de facto standard in most programming languages
     @property
     def logger(self):
-        try:
-            return self._logger
-        except AttributeError:
-            self._logger = logging.root.getChild(self.__class__.__module__ + '.' + self.__class__.__name__)
-            return self._logger
+        warnings.warn(
+            'Initializing logger for {} using logger(), which will '
+            'be replaced by .log in Airflow 2.0'.format(
+                self.__class__.__module__ + '.' + self.__class__.__name__
+            ),
+            DeprecationWarning
+        )
+        return self.log
 
-    def set_logger_contexts(self, task_instance):
+    @property
+    def log(self):
+        try:
+            return self._log
+        except AttributeError:
+            self._log = logging.root.getChild(
+                self.__class__.__module__ + '.' + self.__class__.__name__
+            )
+            return self._log
+
+    def set_log_contexts(self, task_instance):
         """
         Set the context for all handlers of current logger.
         """
-        for handler in self.logger.handlers:
+        for handler in self.log.handlers:
             try:
                 handler.set_context(task_instance)
             except AttributeError:

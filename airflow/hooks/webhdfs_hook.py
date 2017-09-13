@@ -17,14 +17,14 @@ from airflow import configuration
 
 from hdfs import InsecureClient, HdfsError
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 _kerberos_security_mode = configuration.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient
     except ImportError:
-        log = LoggingMixin().logger
+        log = LoggingMixin().log
         log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
 from airflow.exceptions import AirflowException
@@ -49,7 +49,7 @@ class WebHDFSHook(BaseHook):
         nn_connections = self.get_connections(self.webhdfs_conn_id)
         for nn in nn_connections:
             try:
-                self.logger.debug('Trying namenode %s', nn.host)
+                self.log.debug('Trying namenode %s', nn.host)
                 connection_str = 'http://{nn.host}:{nn.port}'.format(nn=nn)
                 if _kerberos_security_mode:
                     client = KerberosClient(connection_str)
@@ -57,10 +57,10 @@ class WebHDFSHook(BaseHook):
                     proxy_user = self.proxy_user or nn.login
                     client = InsecureClient(connection_str, user=proxy_user)
                 client.status('/')
-                self.logger.debug('Using namenode %s for hook', nn.host)
+                self.log.debug('Using namenode %s for hook', nn.host)
                 return client
             except HdfsError as e:
-                self.logger.debug(
+                self.log.debug(
                     "Read operation on namenode {nn.host} failed witg error: {e.message}".format(**locals())
                 )
         nn_hosts = [c.host for c in nn_connections]
@@ -101,4 +101,4 @@ class WebHDFSHook(BaseHook):
                  overwrite=overwrite,
                  n_threads=parallelism,
                  **kwargs)
-        self.logger.debug("Uploaded file %s to %s", source, destination)
+        self.log.debug("Uploaded file %s to %s", source, destination)

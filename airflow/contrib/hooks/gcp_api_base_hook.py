@@ -18,7 +18,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class GoogleCloudBaseHook(BaseHook, LoggingMixin):
@@ -66,7 +66,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             kwargs['sub'] = self.delegate_to
 
         if not key_path:
-            self.logger.info('Getting connection using `gcloud auth` user, since no key file '
+            self.log.info('Getting connection using `gcloud auth` user, since no key file '
                          'is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
         else:
@@ -74,7 +74,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                 raise AirflowException('Scope should be defined when using a key file.')
             scopes = [s.strip() for s in scope.split(',')]
             if key_path.endswith('.json'):
-                self.logger.info('Getting connection using a JSON key file.')
+                self.log.info('Getting connection using a JSON key file.')
                 credentials = ServiceAccountCredentials\
                     .from_json_keyfile_name(key_path, scopes)
             elif key_path.endswith('.p12'):

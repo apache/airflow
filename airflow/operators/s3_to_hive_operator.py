@@ -129,7 +129,7 @@ class S3ToHiveTransfer(BaseOperator):
         # Downloading file from S3
         self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
-        self.logger.info("Downloading S3 file")
+        self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
             if not self.s3.check_for_wildcard_key(self.s3_key):
@@ -146,13 +146,13 @@ class S3ToHiveTransfer(BaseOperator):
                 NamedTemporaryFile(mode="w",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
-            self.logger.info("Dumping S3 key {0} contents to local file {1}"
-                             .format(s3_key_object.key, f.name))
+            self.log.info("Dumping S3 key {0} contents to local file {1}"
+                          .format(s3_key_object.key, f.name))
             s3_key_object.get_contents_to_file(f)
             f.flush()
             self.s3.connection.close()
             if not self.headers:
-                self.logger.info("Loading file %s into Hive", f.name)
+                self.log.info("Loading file %s into Hive", f.name)
                 self.hive.load_file(
                     f.name,
                     self.hive_table,
@@ -165,11 +165,11 @@ class S3ToHiveTransfer(BaseOperator):
             else:
                 # Decompressing file
                 if self.input_compressed:
-                    self.logger.info("Uncompressing file %s", f.name)
+                    self.log.info("Uncompressing file %s", f.name)
                     fn_uncompressed = uncompress_file(f.name,
                                                       file_ext,
                                                       tmp_dir)
-                    self.logger.info("Uncompressed to %s", fn_uncompressed)
+                    self.log.info("Uncompressed to %s", fn_uncompressed)
                     # uncompressed file available now so deleting
                     # compressed file to save disk space
                     f.close()
@@ -178,19 +178,19 @@ class S3ToHiveTransfer(BaseOperator):
 
                 # Testing if header matches field_dict
                 if self.check_headers:
-                    self.logger.info("Matching file header against field_dict")
+                    self.log.info("Matching file header against field_dict")
                     header_list = self._get_top_row_as_list(fn_uncompressed)
                     if not self._match_headers(header_list):
                         raise AirflowException("Header check failed")
 
                 # Deleting top header row
-                self.logger.info("Removing header from file %s", fn_uncompressed)
+                self.log.info("Removing header from file %s", fn_uncompressed)
                 headless_file = (
                     self._delete_top_row_and_compress(fn_uncompressed,
                                                       file_ext,
                                                       tmp_dir))
-                self.logger.info("Headless file %s", headless_file)
-                self.logger.info("Loading file %s into Hive", headless_file)
+                self.log.info("Headless file %s", headless_file)
+                self.log.info("Loading file %s into Hive", headless_file)
                 self.hive.load_file(headless_file,
                                     self.hive_table,
                                     field_dict=self.field_dict,
@@ -211,7 +211,7 @@ class S3ToHiveTransfer(BaseOperator):
             raise AirflowException("Unable to retrieve header row from file")
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
-            self.logger.warning("Headers count mismatch"
+            self.log.warning("Headers count mismatch"
                               "File headers:\n {header_list}\n"
                               "Field names: \n {field_names}\n"
                               "".format(**locals()))
@@ -219,7 +219,7 @@ class S3ToHiveTransfer(BaseOperator):
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
-            self.logger.warning("Headers do not match field names"
+            self.log.warning("Headers do not match field names"
                               "File headers:\n {header_list}\n"
                               "Field names: \n {field_names}\n"
                               "".format(**locals()))

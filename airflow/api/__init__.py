@@ -17,11 +17,11 @@ from airflow.exceptions import AirflowException
 from airflow import configuration as conf
 from importlib import import_module
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 api_auth = None
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 
 def load_auth():

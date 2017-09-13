@@ -41,7 +41,7 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_init_raises(self):
         self.hook_mock.side_effect = Exception('Failed to connect')
         handler = S3TaskHandler()
-        with mock.patch.object(handler.logger, 'error') as mock_error:
+        with mock.patch.object(handler.log, 'error') as mock_error:
             # Initialize the hook
             handler.hook()
             mock_error.assert_called_once_with(
@@ -81,7 +81,7 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_read_raises_return_error(self):
         self.hook_inst_mock.get_key.side_effect = Exception('error')
         handler = S3TaskHandler()
-        with mock.patch.object(handler.logger, 'error') as mock_error:
+        with mock.patch.object(handler.log, 'error') as mock_error:
             result = handler.s3_log_read(
                 self.remote_log_location,
                 return_error=True
@@ -102,7 +102,7 @@ class TestS3TaskHandler(unittest.TestCase):
     def test_write_raises(self):
         self.hook_inst_mock.load_string.side_effect = Exception('error')
         handler = S3TaskHandler()
-        with mock.patch.object(handler.logger, 'error') as mock_error:
+        with mock.patch.object(handler.log, 'error') as mock_error:
             handler.write('text', self.remote_log_location)
             msg = 'Could not write logs to %s' % self.remote_log_location
             mock_error.assert_called_once_with(msg)

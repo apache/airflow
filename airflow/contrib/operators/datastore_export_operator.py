@@ -78,7 +78,7 @@ class DatastoreExportOperator(BaseOperator):
         self.xcom_push = xcom_push
 
     def execute(self, context):
-        self.logger.info('Exporting data to Cloud Storage bucket ' + self.bucket)
+        self.log.info('Exporting data to Cloud Storage bucket ' + self.bucket)
 
         if self.overwrite_existing and self.namespace:
             gcs_hook = GoogleCloudStorageHook(self.cloud_storage_conn_id)

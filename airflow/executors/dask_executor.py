@@ -53,10 +53,10 @@ class DaskExecutor(BaseExecutor):
         if future.done():
             key = self.futures[future]
             if future.exception():
-                self.logger.error("Failed to execute task: %s", repr(future.exception()))
+                self.log.error("Failed to execute task: %s", repr(future.exception()))
                 self.fail(key)
             elif future.cancelled():
-                self.logger.error("Failed to execute task")
+                self.log.error("Failed to execute task")
                 self.fail(key)
             else:
                 self.success(key)

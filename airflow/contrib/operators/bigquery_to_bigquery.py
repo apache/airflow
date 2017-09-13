@@ -68,7 +68,7 @@ class BigQueryToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        self.logger.info(
+        self.log.info(
             'Executing copy of %s into: %s',
             self.source_project_dataset_tables, self.destination_project_dataset_table
         )

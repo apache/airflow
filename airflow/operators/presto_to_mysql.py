@@ -61,14 +61,14 @@ class PrestoToMySqlTransfer(BaseOperator):
 
     def execute(self, context):
         presto = PrestoHook(presto_conn_id=self.presto_conn_id)
-        self.logger.info("Extracting data from Presto: %s", self.sql)
+        self.log.info("Extracting data from Presto: %s", self.sql)
         results = presto.get_records(self.sql)
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
-            self.logger.info("Running MySQL preoperator")
-            self.logger.info(self.mysql_preoperator)
+            self.log.info("Running MySQL preoperator")
+            self.log.info(self.mysql_preoperator)
             mysql.run(self.mysql_preoperator)
 
-        self.logger.info("Inserting rows into MySQL")
+        self.log.info("Inserting rows into MySQL")
         mysql.insert_rows(table=self.mysql_table, rows=results)

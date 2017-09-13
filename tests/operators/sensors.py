@@ -75,7 +75,7 @@ class TimeoutTestSensor(BaseSensorOperator):
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             time.sleep(self.poke_interval)
-        self.logger.info("Success criteria met. Exiting.")
+        self.log.info("Success criteria met. Exiting.")
 
 
 class SensorTimeoutTest(unittest.TestCase):
@@ -187,7 +187,7 @@ class HttpSensorTests(unittest.TestCase):
             poke_interval=1
         )
 
-        with mock.patch.object(task.hook.logger, 'error') as mock_errors:
+        with mock.patch.object(task.hook.log, 'error') as mock_errors:
             with self.assertRaises(AirflowSensorTimeout):
                 task.execute(None)
 

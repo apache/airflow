@@ -20,7 +20,7 @@ from builtins import range
 
 from airflow import configuration
 from airflow.executors.base_executor import BaseExecutor
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
@@ -40,14 +40,14 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
                 # Received poison pill, no more tasks to run
                 self.task_queue.task_done()
                 break
-            self.logger.info("%s running %s", self.__class__.__name__, command)
+            self.log.info("%s running %s", self.__class__.__name__, command)
             command = "exec bash -c '{0}'".format(command)
             try:
                 subprocess.check_call(command, shell=True)
                 state = State.SUCCESS
             except subprocess.CalledProcessError as e:
                 state = State.FAILED
-                self.logger.error("Failed to execute task %s.", str(e))
+                self.log.error("Failed to execute task %s.", str(e))
                 # TODO: Why is this commented out?
                 # raise e
             self.result_queue.put((key, state))

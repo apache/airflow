@@ -16,7 +16,7 @@ import subprocess
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SparkSqlHook(BaseHook, LoggingMixin):
@@ -121,7 +121,7 @@ class SparkSqlHook(BaseHook, LoggingMixin):
             connection_cmd += ["--queue", self._yarn_queue]
 
         connection_cmd += cmd
-        self.logger.debug("Spark-Sql cmd: %s", connection_cmd)
+        self.log.debug("Spark-Sql cmd: %s", connection_cmd)
 
         return connection_cmd
 
@@ -151,5 +151,5 @@ class SparkSqlHook(BaseHook, LoggingMixin):
 
     def kill(self):
         if self._sp and self._sp.poll() is None:
-            self.logger.info("Killing the Spark-Sql job")
+            self.log.info("Killing the Spark-Sql job")
             self._sp.kill()

@@ -59,7 +59,7 @@ class PigOperator(BaseOperator):
                 "(\$([a-zA-Z_][a-zA-Z0-9_]*))", "{{ \g<2> }}", self.pig)
 
     def execute(self, context):
-        self.logger.info('Executing: %s', self.pig)
+        self.log.info('Executing: %s', self.pig)
         self.hook = self.get_hook()
         self.hook.run_cli(pig=self.pig)
 

@@ -97,7 +97,7 @@ class JiraTicketSensor(JiraSensor):
                                                *args, **kwargs)
 
     def poke(self, context):
-        self.logger.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
+        self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
         self.jira_operator.method_name = "issue"
         self.jira_operator.jira_method_args = {
@@ -123,19 +123,19 @@ class JiraTicketSensor(JiraSensor):
                             and getattr(field_value, 'name'):
                         result = self.expected_value.lower() == field_value.name.lower()
                     else:
-                        self.logger.warning(
+                        self.log.warning(
                             "Not implemented checker for issue field %s which "
                             "is neither string nor list nor Jira Resource",
                             self.field
                         )
 
         except JIRAError as jira_error:
-            self.logger.error("Jira error while checking with expected value: %s", jira_error)
+            self.log.error("Jira error while checking with expected value: %s", jira_error)
         except Exception as e:
-            self.logger.error("Error while checking with expected value %s:", self.expected_value)
-            self.logger.exception(e)
+            self.log.error("Error while checking with expected value %s:", self.expected_value)
+            self.log.exception(e)
         if result is True:
-            self.logger.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
+            self.log.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
         else:
-            self.logger.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
+            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
         return result
