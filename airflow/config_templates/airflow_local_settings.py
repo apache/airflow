@@ -26,17 +26,6 @@ LOG_FORMAT = conf.get('core', 'log_format')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
-# TODO: REMOTE_BASE_LOG_FOLDER should be deprecated and
-# directly specify in the handler definitions. This is to
-# provide compatibility to older remote log folder settings.
-REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
-S3_LOG_FOLDER = ''
-GCS_LOG_FOLDER = ''
-if REMOTE_BASE_LOG_FOLDER.startswith('s3:/'):
-    S3_LOG_FOLDER = REMOTE_BASE_LOG_FOLDER
-elif REMOTE_BASE_LOG_FOLDER.startswith('gs:/'):
-    GCS_LOG_FOLDER = REMOTE_BASE_LOG_FOLDER
-
 FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log'
 
 DEFAULT_LOGGING_CONFIG = {
@@ -58,21 +47,24 @@ DEFAULT_LOGGING_CONFIG = {
             'formatter': 'airflow.task',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
             'filename_template': FILENAME_TEMPLATE,
-        },
-        's3.task': {
-            'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            's3_log_folder': S3_LOG_FOLDER,
-            'filename_template': FILENAME_TEMPLATE,
-        },
-        'gcs.task': {
-            'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'gcs_log_folder': GCS_LOG_FOLDER,
-            'filename_template': FILENAME_TEMPLATE,
-        },
+        }
+        # When using s3 or gcs, provide a customized LOGGING_CONFIG
+        # in airflow_local_settings within your PYTHONPATH, see UPDATING.md
+        # for details
+        # 's3.task': {
+        #     'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
+        #     'formatter': 'airflow.task',
+        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+        #     's3_log_folder': S3_LOG_FOLDER,
+        #     'filename_template': FILENAME_TEMPLATE,
+        # },
+        # 'gcs.task': {
+        #     'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
+        #     'formatter': 'airflow.task',
+        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+        #     'gcs_log_folder': GCS_LOG_FOLDER,
+        #     'filename_template': FILENAME_TEMPLATE,
+        # },
     },
     'loggers': {
         'airflow.task': {
@@ -85,7 +77,7 @@ DEFAULT_LOGGING_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': True,
         },
-        'airflow.task.raw': {
+        'airflow': {
             'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': False,
