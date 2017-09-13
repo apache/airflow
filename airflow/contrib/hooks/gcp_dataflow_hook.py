@@ -71,6 +71,8 @@ class _DataflowJob(LoggingMixin):
                         self._job['name']))
                 elif 'JOB_STATE_RUNNING' == self._job['currentState']:
                     time.sleep(10)
+                elif 'JOB_STATE_PENDING' == self._job['currentState']:
+                    time.sleep(15)
                 else:
                     self.logger.debug(str(self._job))
                     raise Exception(
