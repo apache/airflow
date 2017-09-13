@@ -124,3 +124,6 @@ ENV/
 
 # Spark
 rat-results.txt
+
+# IDE History
+.history

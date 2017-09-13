@@ -91,7 +91,17 @@ def sigquit_handler(sig, frame):
 
 def setup_logging(filename):
     root = logging.getLogger()
-    handler = logging.FileHandler(filename)
+    log_handler_kargs = None
+    lh_mod_name, lh_cls_name = conf.get('core', 'log_handler_class').rsplit('.', 1)
+    lh_mod = __import__(lh_mod_name, globals(), locals(), [lh_cls_name], 0)
+    log_handler = getattr(lh_mod, lh_cls_name)
+    try:
+        log_handler_kargs = json.loads(conf.get('core', 'log_handler_params'))
+        handler = log_handler(filename, **log_handler_kargs)
+    except ValueError:
+        handler = log_handler(filename)
+    logging.info('log_handler: {}'.format(log_handler))
+    logging.info('log_handler_kargs: {}'.format(log_handler_kargs))
     formatter = logging.Formatter(settings.SIMPLE_LOG_FORMAT)
     handler.setFormatter(formatter)
     root.addHandler(handler)
