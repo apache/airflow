@@ -17,7 +17,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime
 from functools import wraps
 
 import os
@@ -281,9 +280,8 @@ def initdb():
 
     dagbag = models.DagBag()
     # Save individual DAGs in the ORM
-    now = datetime.utcnow()
     for dag in dagbag.dags.values():
-        models.DAG.sync_to_db(dag, dag.owner, now)
+        dag.sync_to_db()
     # Deactivate the unknown ones
     models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
