@@ -2746,7 +2746,7 @@ class DagModel(Base):
 
 
 @functools.total_ordering
-class DAG(BaseDag):
+class DAG(BaseDag, LoggingMixin):
     """
     A dag (directed acyclic graph) is a collection of tasks with directional
     dependencies. A dag also has a schedule, a start end an end date
@@ -3522,8 +3522,7 @@ class DAG(BaseDag):
             d['pickle_len'] = len(pickled)
             d['pickling_duration'] = "{}".format(datetime.now() - dttm)
         except Exception as e:
-            log = LoggingMixin().logger
-            log.debug(e)
+            self.logger.debug(e)
             d['is_picklable'] = False
             d['stacktrace'] = traceback.format_exc()
         return d
@@ -3756,8 +3755,7 @@ class DAG(BaseDag):
             DagModel).filter(DagModel.dag_id == dag.dag_id).first()
         if not orm_dag:
             orm_dag = DagModel(dag_id=dag.dag_id)
-            log = LoggingMixin().logger
-            log.info("Creating ORM DAG for %s", dag.dag_id)
+            dag.logger.info("Creating ORM DAG for %s", dag.dag_id)
         orm_dag.fileloc = dag.fileloc
         orm_dag.is_subdag = dag.is_subdag
         orm_dag.owners = owner
