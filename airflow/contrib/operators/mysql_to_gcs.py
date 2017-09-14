@@ -120,9 +120,9 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = map(lambda schema_tuple: schema_tuple[0], cursor.description)
+        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         file_no = 0
-        tmp_file_handle = NamedTemporaryFile(delete=True)
+        tmp_file_handle = NamedTemporaryFile(mode='w', delete=True)
         tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
 
         for row in cursor:
@@ -139,7 +139,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             # Stop if the file exceeds the file size limit.
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
-                tmp_file_handle = NamedTemporaryFile(delete=True)
+                tmp_file_handle = NamedTemporaryFile(mode='w', delete=True)
                 tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
 
         return tmp_file_handles
@@ -169,7 +169,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             })
 
         self.logger.info('Using schema for %s: %s', self.schema_filename, schema)
-        tmp_schema_file_handle = NamedTemporaryFile(delete=True)
+        tmp_schema_file_handle = NamedTemporaryFile(mode='w', delete=True)
         json.dump(schema, tmp_schema_file_handle)
         return {self.schema_filename: tmp_schema_file_handle}
 
