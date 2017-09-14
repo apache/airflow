@@ -46,6 +46,9 @@ class HiveToDruidTransfer(BaseOperator):
     :param intervals: list of time intervals that defines segments, this
         is passed as is to the json object
     :type intervals: list
+    :param hive_tblproperties: additional properties for tblproperties in
+        hive for the staging table
+    :type hive_tblproperties: dict
     """
 
     template_fields = ('sql', 'intervals')
@@ -67,6 +70,7 @@ class HiveToDruidTransfer(BaseOperator):
             target_partition_size=-1,
             query_granularity="NONE",
             segment_granularity="DAY",
+            hive_tblproperties=None,
             *args, **kwargs):
         super(HiveToDruidTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -84,12 +88,14 @@ class HiveToDruidTransfer(BaseOperator):
         self.hadoop_dependency_coordinates = hadoop_dependency_coordinates
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.metastore_conn_id = metastore_conn_id
+        self.hive_tblproperties = hive_tblproperties
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.logger.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
+        tblproperties = ''.join([", '{}' = '{}'".format(k, v) for k, v in self.hive_tblproperties.items()])
         hql = """\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -97,7 +103,7 @@ class HiveToDruidTransfer(BaseOperator):
         CREATE TABLE {hive_table}
         ROW FORMAT DELIMITED FIELDS TERMINATED BY  '\t'
         STORED AS TEXTFILE
-        TBLPROPERTIES ('serialization.null.format' = '')
+        TBLPROPERTIES ('serialization.null.format' = ''{tblproperties})
         AS
         {sql}
         """.format(**locals())
