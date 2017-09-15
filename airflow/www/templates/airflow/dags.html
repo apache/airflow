@@ -29,11 +29,23 @@
   <h2>DAGs</h2>
 
   <div id="main_content" style="display:none;">
+    <div class="row">
+      <div class="col-sm-2">
+      </div>
+      <div class="col-sm-10">
+        <form id="search_form" class="form-inline" style="width: 100%; text-align: right;">
+            <div id="dags_filter" class="form-group" style="width: 100%;">
+              <label for="dag_query" style="width:20%; text-align: right;">Search:</label>
+              <input id="dag_query" type="text" class="typeahead form-control" data-provide="typeahead" style="width:50%;" value="{{search_query}}">
+            </div>
+        </form>
+      </div>
+    </div>
     <table id="dags" class="table table-striped table-bordered">
         <thead>
             <tr>
                 <th></th>
-                <th width="12"><span id="pause_header"class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
+                <th width="12"><span id="pause_header" class="glyphicon glyphicon-info-sign" title="Use this toggle to pause a DAG. The scheduler won't schedule new tasks instances for a paused DAG. Tasks already running at pause time won't be affected."></span></th>
                 <th>DAG</th>
                 <th>Schedule</th>
                 <th>Owner</th>
@@ -51,7 +63,7 @@
             </tr>
         </thead>
         <tbody>
-        {% for dag_id in all_dag_ids %}
+        {% for dag_id in dag_ids_in_page %}
             {% set dag = webserver_dags[dag_id] if dag_id in webserver_dags else None %}
             <tr>
                 <!-- Column 1: Edit dag -->
@@ -174,6 +186,19 @@
         {% endfor %}
         </tbody>
     </table>
+    <div class="row">
+      <div class="col-sm-12" style="text-align:right;">
+        <div class="dataTables_info" id="dags_info" role="status" aria-live="polite" style="padding-top: 0px;">Showing {{num_dag_from}} to {{num_dag_to}} of {{num_of_all_dags}} entries</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-sm-12" style="text-align:left;">
+        <div class="dataTables_info" id="dags_paginate">
+          {{paging}}
+        </div>
+      </div>
+
+    </div>
     {% if not hide_paused %}
     <a href="/admin/?showPaused=False">Hide Paused DAGs</a>
     {% else %}
@@ -187,7 +212,25 @@
   <script src="{{ url_for('static', filename='d3.v3.min.js') }}"></script>
   <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
   <script src="{{ url_for('static', filename='bootstrap-toggle.min.js') }}"></script>
+  <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
+
+      const DAGS_INDEX = {{ url_for('admin.index') }}
+      const ENTER_KEY_CODE = 13
+
+      $('#dag_query').on('keypress', function (e) {
+        // check for key press on ENTER (key code 13) to trigger the search
+        if (e.which === ENTER_KEY_CODE) {
+          search_query = $('#dag_query').val();
+          window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          e.preventDefault();
+        }
+      });
+
+      $('#page_size').on('change', function() {
+        p_size = $(this).val();
+        window.location = DAGS_INDEX + "?page_size=" + p_size;
+      });
 
       function confirmTriggerDag(dag_id){
           return confirm("Are you sure you want to run '"+dag_id+"' now?");
@@ -205,10 +248,37 @@
           $.post(url);
         });
       });
+
+      var $input = $(".typeahead");
+      unique_options_search = new Set([
+          {% for token in auto_complete_data %}
+            "{{token}}",
+          {% endfor %}
+        ]);
+
+      $input.typeahead({
+        source: [...unique_options_search],
+        autoSelect: false,
+        afterSelect: function(value) {
+          search_query = value.trim()
+          if (search_query) {
+            window.location = DAGS_INDEX + "?search="+ encodeURI(search_query);
+          }
+        }
+      });
+
+      $input.change(function() {
+        var current = $input.typeahead("getActive");
+
+      });
+
       $('#dags').dataTable({
         "iDisplayLength": 500,
         "bSort": false,
-        "pageLength": 25,
+        "searching": false,
+        "ordering": false,
+        "paging": false,
+        "info": false
       });
       $("#main_content").show(250);
       diameter = 25;
