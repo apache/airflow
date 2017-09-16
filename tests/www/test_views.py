@@ -139,6 +139,17 @@ class TestVariableView(unittest.TestCase):
         self.assertIn('<span class="label label-danger">Invalid</span>',
                       response.data.decode('utf-8'))
 
+    def test_xss_prevention(self):
+        xss = "/admin/airflow/variables/asdf<img%20src=''%20onerror='alert(1);'>"
+
+        response = self.app.get(
+            xss,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("<img src='' onerror='alert(1);'>",
+                         response.data.decode("utf-8"))
+
 
 class TestKnownEventView(unittest.TestCase):
 

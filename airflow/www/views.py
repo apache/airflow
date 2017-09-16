@@ -47,6 +47,8 @@ from flask_login import flash
 from flask._compat import PY2
 
 from jinja2.sandbox import ImmutableSandboxedEnvironment
+from jinja2 import escape
+
 import markdown
 import nvd3
 
@@ -1760,6 +1762,8 @@ class Airflow(BaseView):
                     'airflow/variables/{}.html'.format(form)
                 )
         except:
+            # prevent XSS
+            form = escape(form)
             return ("Error: form airflow/variables/{}.html "
                     "not found.").format(form), 404
 
