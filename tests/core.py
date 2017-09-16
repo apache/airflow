@@ -728,6 +728,15 @@ class CoreTest(unittest.TestCase):
         Variable.setdefault(key, value, deserialize_json=True)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
 
+    def test_variable_setdefault_existing_json(self):
+        key = "tested_var_setdefault_2_id"
+        value = {"city": 'Paris', "Hapiness": True}
+        Variable.set(key, value, serialize_json=True)
+        val = Variable.setdefault(key, value, deserialize_json=True)
+        # Check the returned value, and the stored value are handled correctly.
+        self.assertEqual(value, val)
+        self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
     def test_parameterized_config_gen(self):
 
         cfg = configuration.parameterized_config(configuration.DEFAULT_CONFIG)
