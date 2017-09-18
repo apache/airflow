@@ -41,7 +41,7 @@
         }
       }
       function connTypeChange(connectionType) {
-        $("div.form_group").removeClass("hide");
+        $("div.form-group").removeClass("hide");
         $.each($("[id^='extra__']"), function() {
             $(this).parent().parent().addClass('hide')
         });
