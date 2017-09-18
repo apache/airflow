@@ -23,12 +23,13 @@ from airflow.utils.log.LoggingMixin import LoggingMixin
 
 
 class _DataflowJob(LoggingMixin):
-    def __init__(self, dataflow, project_number, name):
+    def __init__(self, dataflow, project_number, name, poll_sleep=10):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_id = None
         self._job = self._get_job()
+        self._poll_sleep = poll_sleep
 
     def _get_job_id_from_name(self):
         jobs = self._dataflow.projects().jobs().list(
@@ -70,7 +71,7 @@ class _DataflowJob(LoggingMixin):
                     raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                         self._job['name']))
                 elif 'JOB_STATE_RUNNING' == self._job['currentState']:
-                    time.sleep(10)
+                    time.sleep(self._poll_sleep)
                 elif 'JOB_STATE_PENDING' == self._job['currentState']:
                     time.sleep(15)
                 else:
@@ -126,7 +127,9 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+                 delegate_to=None,
+                 poll_sleep=10):
+        self.poll_sleep = poll_sleep
         super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
@@ -140,7 +143,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         cmd = command_prefix + self._build_cmd(task_id, variables, dataflow)
         _Dataflow(cmd).wait_for_done()
         _DataflowJob(
-            self.get_conn(), variables['project'], name).wait_for_done()
+            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
 
     def start_java_dataflow(self, task_id, variables, dataflow):
         name = task_id + "-" + str(uuid.uuid1())[:8]
