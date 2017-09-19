@@ -894,7 +894,7 @@ class SchedulerJob(BaseJob):
 
             if next_run_date and period_end and period_end <= datetime.now():
                 next_run = dag.create_dagrun(
-                    run_id='scheduled__' + next_run_date.isoformat(),
+                    run_id=DagRun.ID_PREFIX + next_run_date.isoformat(),
                     execution_date=next_run_date,
                     start_date=datetime.now(),
                     state=State.RUNNING,
