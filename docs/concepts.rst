@@ -457,10 +457,10 @@ Not like this, where the join task is skipped
 
 .. image:: img/branch_bad.png
 
-SubDAGs
+SubDags
 =======
 
-SubDAGs are perfect for repeating patterns. Defining a function that returns a
+SubDags are perfect for repeating patterns. Defining a function that returns a
 DAG object is a nice design pattern when using Airflow.
 
 Airbnb uses the *stage-check-exchange* pattern when loading data. Data is staged
@@ -472,13 +472,13 @@ As another example, consider the following DAG:
 
 .. image:: img/subdag_before.png
 
-We can combine all of the parallel ``task-*`` operators into a single SubDAG,
+We can combine all of the parallel ``task-*`` operators into a single SubDag,
 so that the resulting DAG resembles the following:
 
 .. image:: img/subdag_after.png
 
-Note that SubDAG operators should contain a factory method that returns a DAG
-object. This will prevent the SubDAG from being treated like a separate DAG in
+Note that SubDag operators should contain a factory method that returns a DAG
+object. This will prevent the SubDag from being treated like a separate DAG in
 the main UI. For example:
 
 .. code:: python
@@ -503,7 +503,7 @@ the main UI. For example:
 
     return dag
 
-This SubDAG can then be referenced in your main DAG file:
+This SubDag can then be referenced in your main DAG file:
 
 .. code:: python
 
@@ -531,29 +531,36 @@ This SubDAG can then be referenced in your main DAG file:
   )
 
 You can zoom into a SubDagOperator from the graph view of the main DAG to show
-the tasks contained within the SubDAG:
+the tasks contained within the SubDag:
 
 .. image:: img/subdag_zoom.png
 
-Some other tips when using SubDAGs:
+Some other tips when using SubDags:
 
--  by convention, a SubDAG's ``dag_id`` should be prefixed by its parent and
+-  by convention, a SubDag's ``dag_id`` should be prefixed by its parent and
    a dot. As in ``parent.child``
--  share arguments between the main DAG and the SubDAG by passing arguments to
-   the SubDAG operator (as demonstrated above)
--  SubDAGs must have a schedule and be enabled. If the SubDAG's schedule is
-   set to ``None`` or ``@once``, the SubDAG will succeed without having done
+-  share arguments between the main DAG and the SubDag by passing arguments to
+   the SubDag operator (as demonstrated above)
+-  SubDags must have a schedule and be enabled. If the SubDag's schedule is
+   set to ``None`` or ``@once``, the SubDag will succeed without having done
    anything
 -  clearing a SubDagOperator also clears the state of the tasks within
 -  marking success on a SubDagOperator does not affect the state of the tasks
    within
--  refrain from using ``depends_on_past=True`` in tasks within the SubDAG as
+-  refrain from using ``depends_on_past=True`` in tasks within the SubDag as
    this can be confusing
--  it is possible to specify an executor for the SubDAG. It is common to use
-   the SequentialExecutor if you want to run the SubDAG in-process and
+-  it is possible to specify an executor for the SubDag. It is common to use
+   the SequentialExecutor if you want to run the SubDag in-process and
    effectively limit its parallelism to one. Using LocalExecutor can be
    problematic as it may over-subscribe your worker, running multiple tasks in
    a single slot
+-  do not create more SubDags then your concurrency limit or the scheduler
+   will deadlock. Each SubDags counts towards your concurrency limit. For
+   example, if you have a concurrency limit of 16 and you have 25 SubDags,
+   the 16 SubDags will be scheduled, effectively blocking any of the tasks
+   within the given SubDags. You can work around this by setting the SubDag's
+   executor to SequentialExecutor. This allows multiple SubDag to run
+   concurrently without locking the tasks within the SubDag
 
 See ``airflow/example_dags`` for a demonstration.
 
