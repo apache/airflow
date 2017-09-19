@@ -13,11 +13,17 @@
 # limitations under the License.
 
 import unittest
+import logging.config
+import os
+import copy
+from datetime import datetime
 
-from airflow import configuration
-from airflow import models
+from airflow import models, configuration, settings
+from airflow.models import DAG, TaskInstance
 from airflow.settings import Session
 from airflow.www import app as application
+from airflow.operators.dummy_operator import DummyOperator
+from airflow.config_templates.default_airflow_logging import DEFAULT_LOGGING_CONFIG
 
 
 class TestChartModelView(unittest.TestCase):
@@ -286,6 +292,71 @@ class TestPoolModelView(unittest.TestCase):
         )
         self.assertIn('This field is required.', response.data.decode('utf-8'))
         self.assertEqual(self.session.query(models.Pool).count(), 0)
+
+
+class TestLogView(unittest.TestCase):
+
+    DAG_ID = 'dag_for_testing_log_view'
+    TASK_ID = 'task_for_testing_log_view'
+    DEFAULT_DATE = datetime(2017, 9, 1)
+    ENDPOINT = '/admin/airflow/log?dag_id={dag_id}&task_id={task_id}&execution_date={execution_date}'.format(
+        dag_id=DAG_ID,
+        task_id=TASK_ID,
+        execution_date=DEFAULT_DATE,
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestLogView, cls).setUpClass()
+        session = Session()
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == cls.DAG_ID and
+            TaskInstance.task_id == cls.TASK_ID and
+            TaskInstance.execution_date == cls.DEFAULT_DATE).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestLogView, self).setUp()
+
+        configuration.load_test_config()
+        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logging_config['handlers']['file.task']['base_log_folder'] = os.path.normpath(
+            os.path.join(current_dir, 'test_logs'))
+        logging.config.dictConfig(logging_config)
+
+        app = application.create_app(testing=True)
+        self.app = app.test_client()
+        self.session = Session()
+        from airflow.www.views import dagbag
+        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+        ti.try_number = 1
+        self.session.merge(ti)
+        self.session.commit()
+
+    def tearDown(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        dagbag = models.DagBag(settings.DAGS_FOLDER)
+        self.session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.DAG_ID and
+            TaskInstance.task_id == self.TASK_ID and
+            TaskInstance.execution_date == self.DEFAULT_DATE).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestLogView, self).tearDown()
+
+    def test_get_file_task_log(self):
+        response = self.app.get(
+            TestLogView.ENDPOINT,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('<pre id="attempt-1">*** Reading local log.\nLog for testing.\n</pre>',
+                      response.data.decode('utf-8'))
 
 
 if __name__ == '__main__':

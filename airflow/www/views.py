@@ -706,6 +706,7 @@ class Airflow(BaseView):
             handler = next((handler for handler in logger.handlers
                             if handler.name == task_log_reader), None)
             try:
+                ti.task = dag.get_task(ti.task_id)
                 logs = handler.read(ti)
             except AttributeError as e:
                 logs = ["Task log handler {} does not support read logs.\n{}\n" \
