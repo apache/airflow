@@ -575,7 +575,7 @@ class SchedulerJob(BaseJob):
         session.expunge_all()
         d = defaultdict(list)
         for ti in queued_tis:
-            if ti.dag_id in ['long_running_test']:
+            if ti.dag_id in ['long_running_test', 'presto_query_logs']:
                 self.logger.info(
                     'Ignoring {} because this DAG is handled by the airflow 1.8 scheduler'.format(ti))
             elif ti.dag_id not in dagbag.dags:
