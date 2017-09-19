@@ -76,6 +76,20 @@ class DataProfilingMixin(object):
         )
 
 
+def get_params(**kwargs):
+    params = []
+    for k, v in kwargs.items():
+        if k == 'showPaused':
+            # True is default or None
+            if v or v is None:
+                continue
+            params.append('{}={}'.format(k, v))
+        elif v:
+            params.append('{}={}'.format(k, v))
+    params = sorted(params, key=lambda x: x.split('=')[0])
+    return '&'.join(params)
+
+
 def generate_pages(current_page, num_of_pages,
                    search=None, showPaused=None, window=7):
     """
@@ -102,18 +116,6 @@ def generate_pages(current_page, num_of_pages,
     :return:
         the HTML string of the paging component
     """
-
-    def get_params(**kwargs):
-        params = []
-        for k, v in kwargs.items():
-            if k == 'showPaused':
-                # True is default or None
-                if v or v is None:
-                    continue
-                params.append('{}={}'.format(k, v))
-            elif v:
-                params.append('{}={}'.format(k, v))
-        return '&'.join(params)
 
     void_link = 'javascript:void(0)'
     first_node = """<li class="paginate_button {disabled}" id="dags_first">
