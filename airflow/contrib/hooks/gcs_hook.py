@@ -182,7 +182,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                     ts = ts.replace(tzinfo=dateutil.tz.tzutc())
 
                 updated = dateutil.parser.parse(response['updated'])
-                self.logger.info("Verify object date: %s > %s", updated, ts)
+                self.log.info("Verify object date: %s > %s", updated, ts)
 
                 if updated > ts:
                     return True
@@ -247,7 +247,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             ).execute()
 
             if 'items' not in response:
-                self.logger.info("No items found for prefix: %s", prefix)
+                self.log.info("No items found for prefix: %s", prefix)
                 break
 
             for item in response['items']:

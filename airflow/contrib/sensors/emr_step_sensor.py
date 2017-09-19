@@ -45,7 +45,7 @@ class EmrStepSensor(EmrBaseSensor):
     def get_emr_response(self):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        self.logger.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
+        self.log.info('Poking step %s on cluster %s', self.step_id, self.job_flow_id)
         return emr.describe_step(ClusterId=self.job_flow_id, StepId=self.step_id)
 
     def state_from_response(self, response):

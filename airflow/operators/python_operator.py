@@ -87,7 +87,7 @@ class PythonOperator(BaseOperator):
             self.op_kwargs = context
 
         return_value = self.execute_callable()
-        self.logger.info("Done. Returned value was: %s", return_value)
+        self.log.info("Done. Returned value was: %s", return_value)
         return return_value
 
     def execute_callable(self):
@@ -115,17 +115,17 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         branch = super(BranchPythonOperator, self).execute(context)
-        self.logger.info("Following branch %s", branch)
-        self.logger.info("Marking other directly downstream tasks as skipped")
+        self.log.info("Following branch %s", branch)
+        self.log.info("Marking other directly downstream tasks as skipped")
 
         downstream_tasks = context['task'].downstream_list
-        self.logger.debug("Downstream task_ids %s", downstream_tasks)
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
 
-        self.logger.info("Done.")
+        self.log.info("Done.")
 
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
@@ -142,21 +142,21 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
     def execute(self, context):
         condition = super(ShortCircuitOperator, self).execute(context)
-        self.logger.info("Condition result is %s", condition)
+        self.log.info("Condition result is %s", condition)
 
         if condition:
-            self.logger.info('Proceeding with downstream tasks...')
+            self.log.info('Proceeding with downstream tasks...')
             return
 
-        self.logger.info('Skipping downstream tasks...')
+        self.log.info('Skipping downstream tasks...')
 
         downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.logger.debug("Downstream task_ids %s", downstream_tasks)
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
 
-        self.logger.info("Done.")
+        self.log.info("Done.")
 
 class PythonVirtualenvOperator(PythonOperator):
     """
@@ -233,7 +233,7 @@ class PythonVirtualenvOperator(PythonOperator):
             # generate filenames
             input_filename = os.path.join(tmp_dir, 'script.in')
             output_filename = os.path.join(tmp_dir, 'script.out')
-            string_args_filename = os.path.join(tmp_dir, 'string_args.txt') 
+            string_args_filename = os.path.join(tmp_dir, 'string_args.txt')
             script_filename = os.path.join(tmp_dir, 'script.py')
 
             # set up virtualenv
@@ -261,12 +261,12 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def _execute_in_subprocess(self, cmd):
         try:
-            self.logger.info("Executing cmd\n{}".format(cmd))
+            self.log.info("Executing cmd\n{}".format(cmd))
             output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
             if output:
-                self.logger.info("Got output\n{}".format(output))
+                self.log.info("Got output\n{}".format(output))
         except subprocess.CalledProcessError as e:
-            self.logger.info("Got error output\n{}".format(e.output))
+            self.log.info("Got error output\n{}".format(e.output))
             raise
 
     def _write_string_args(self, filename):
@@ -294,14 +294,14 @@ class PythonVirtualenvOperator(PythonOperator):
                 else:
                     return pickle.load(f)
             except ValueError:
-                self.logger.error("Error deserializing result. Note that result deserialization "
+                self.log.error("Error deserializing result. Note that result deserialization "
                               "is not supported across major Python versions.")
                 raise
 
     def _write_script(self, script_filename):
         with open(script_filename, 'w') as f:
             python_code = self._generate_python_code()
-            self.logger.debug('Writing code to file\n{}'.format(python_code))
+            self.log.debug('Writing code to file\n{}'.format(python_code))
             f.write(python_code)
 
     def _generate_virtualenv_cmd(self, tmp_dir):
@@ -323,7 +323,7 @@ class PythonVirtualenvOperator(PythonOperator):
     def _generate_python_cmd(self, tmp_dir, script_filename, input_filename, output_filename, string_args_filename):
         # direct path alleviates need to activate
         return ['{}/bin/python'.format(tmp_dir), script_filename, input_filename, output_filename, string_args_filename]
-            
+
     def _generate_python_code(self):
         if self.use_dill:
             pickling_library = 'dill'
@@ -353,4 +353,6 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_callable_lines=dedent(inspect.getsource(fn)),
                 python_callable_name=fn.__name__,
                 pickling_library=pickling_library)
+
+        self.log.info("Done.")
 

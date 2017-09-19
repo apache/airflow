@@ -41,7 +41,7 @@ class EmrJobFlowSensor(EmrBaseSensor):
     def get_emr_response(self):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        self.logger.info('Poking cluster %s', self.job_flow_id)
+        self.log.info('Poking cluster %s', self.job_flow_id)
         return emr.describe_cluster(ClusterId=self.job_flow_id)
 
     def state_from_response(self, response):

@@ -43,10 +43,10 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        self.logger.info('Terminating JobFlow %s', self.job_flow_id)
+        self.log.info('Terminating JobFlow %s', self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('JobFlow termination failed: %s' % response)
         else:
-            self.logger.info('JobFlow with id %s terminated', self.job_flow_id)
+            self.log.info('JobFlow with id %s terminated', self.job_flow_id)

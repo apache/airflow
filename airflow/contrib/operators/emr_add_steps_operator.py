@@ -48,11 +48,11 @@ class EmrAddStepsOperator(BaseOperator):
     def execute(self, context):
         emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
 
-        self.logger.info('Adding steps to %s', self.job_flow_id)
+        self.log.info('Adding steps to %s', self.job_flow_id)
         response = emr.add_job_flow_steps(JobFlowId=self.job_flow_id, Steps=self.steps)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException('Adding steps failed: %s' % response)
         else:
-            self.logger.info('Steps %s added to JobFlow', response['StepIds'])
+            self.log.info('Steps %s added to JobFlow', response['StepIds'])
             return response['StepIds']

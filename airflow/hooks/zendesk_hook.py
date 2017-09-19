@@ -37,7 +37,7 @@ class ZendeskHook(BaseHook):
         """
         retry_after = int(
             rate_limit_exception.response.headers.get('Retry-After', 60))
-        self.logger.info(
+        self.log.info(
             "Hit Zendesk API rate limit. Pausing for %s seconds",
             retry_after
         )
@@ -75,7 +75,7 @@ class ZendeskHook(BaseHook):
                     # `github.zendesk...`
                     # in it, but the call function needs it removed.
                     next_url = next_page.split(self.__url)[1]
-                    self.logger.info("Calling %s", next_url)
+                    self.log.info("Calling %s", next_url)
                     more_res = zendesk.call(next_url)
                     results.extend(more_res[key])
                     if next_page == more_res['next_page']:

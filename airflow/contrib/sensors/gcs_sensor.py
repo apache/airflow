@@ -54,7 +54,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
 
     def poke(self, context):
-        self.logger.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
+        self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)
@@ -116,7 +116,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
 
     def poke(self, context):
-        self.logger.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
+        self.log.info('Sensor checks existence of : %s, %s', self.bucket, self.object)
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to)

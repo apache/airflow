@@ -62,7 +62,7 @@ class PigCliHook(BaseHook):
                     pig_properties_list = self.pig_properties.split()
                     pig_cmd.extend(pig_properties_list)
                 if verbose:
-                    self.logger.info(" ".join(pig_cmd))
+                    self.log.info(" ".join(pig_cmd))
                 sp = subprocess.Popen(
                     pig_cmd,
                     stdout=subprocess.PIPE,
@@ -73,7 +73,7 @@ class PigCliHook(BaseHook):
                 for line in iter(sp.stdout.readline, ''):
                     stdout += line
                     if verbose:
-                        self.logger.info(line.strip())
+                        self.log.info(line.strip())
                 sp.wait()
 
                 if sp.returncode:

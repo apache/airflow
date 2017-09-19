@@ -33,13 +33,13 @@ from airflow.configuration import AirflowConfigException
 import traceback
 import re
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
 login_manager.login_view = 'airflow.login'  # Calls login() below
 login_manager.login_message = None
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 
 class AuthenticationError(Exception):

@@ -24,7 +24,7 @@ from airflow import configuration, LoggingMixin
 
 NEED_KRB181_WORKAROUND = None
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 
 def renew_from_kt():

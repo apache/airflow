@@ -87,7 +87,7 @@ class BigQueryOperator(BaseOperator):
         self.query_params = query_params
 
     def execute(self, context):
-        self.logger.info('Executing: %s', self.bql)
+        self.log.info('Executing: %s', self.bql)
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
         conn = hook.get_conn()

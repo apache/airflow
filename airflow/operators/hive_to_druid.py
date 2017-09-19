@@ -87,7 +87,7 @@ class HiveToDruidTransfer(BaseOperator):
 
     def execute(self, context):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
-        self.logger.info("Extracting data from Hive")
+        self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
         hql = """\
@@ -101,7 +101,7 @@ class HiveToDruidTransfer(BaseOperator):
         AS
         {sql}
         """.format(**locals())
-        self.logger.info("Running command:\n %s", hql)
+        self.log.info("Running command:\n %s", hql)
         hive.run_cli(hql)
 
         m = HiveMetastoreHook(self.metastore_conn_id)
@@ -125,13 +125,13 @@ class HiveToDruidTransfer(BaseOperator):
                 columns=columns,
             )
 
-            self.logger.info("Inserting rows into Druid, hdfs path: %s", static_path)
+            self.log.info("Inserting rows into Druid, hdfs path: %s", static_path)
 
             druid.submit_indexing_job(index_spec)
 
-            self.logger.info("Load seems to have succeeded!")
+            self.log.info("Load seems to have succeeded!")
         finally:
-            self.logger.info(
+            self.log.info(
                 "Cleaning up by dropping the temp Hive table %s",
                 hive_table
             )

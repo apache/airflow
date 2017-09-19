@@ -20,7 +20,7 @@ from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
 from requests.auth import AuthBase
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
     from urllib import parse as urlparse
@@ -100,10 +100,10 @@ class DatabricksHook(BaseHook, LoggingMixin):
             host=self._parse_host(self.databricks_conn.host),
             endpoint=endpoint)
         if 'token' in self.databricks_conn.extra_dejson:
-            self.logger.info('Using token auth.')
+            self.log.info('Using token auth.')
             auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
         else:
-            self.logger.info('Using basic auth.')
+            self.log.info('Using basic auth.')
             auth = (self.databricks_conn.login, self.databricks_conn.password)
         if method == 'GET':
             request_func = requests.get
@@ -129,7 +129,7 @@ class DatabricksHook(BaseHook, LoggingMixin):
                         response.content, response.status_code))
             except (requests_exceptions.ConnectionError,
                     requests_exceptions.Timeout) as e:
-                self.logger.error(
+                self.log.error(
                     'Attempt %s API Request to Databricks failed with reason: %s',
                     attempt_num, e
                 )

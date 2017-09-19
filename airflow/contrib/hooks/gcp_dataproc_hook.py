@@ -18,7 +18,7 @@ import uuid
 from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class _DataProcJob(LoggingMixin):
@@ -30,7 +30,7 @@ class _DataProcJob(LoggingMixin):
             region='global',
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
-        self.logger.info(
+        self.log.info(
             'DataProc job %s is %s',
             self.job_id, str(self.job['status']['state'])
         )
@@ -43,20 +43,20 @@ class _DataProcJob(LoggingMixin):
                 jobId=self.job_id).execute()
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
-                self.logger.error('DataProc job %s has errors', self.job_id)
-                self.logger.error(self.job['status']['details'])
-                self.logger.debug(str(self.job))
+                self.log.error('DataProc job %s has errors', self.job_id)
+                self.log.error(self.job['status']['details'])
+                self.log.debug(str(self.job))
                 return False
             if 'CANCELLED' == self.job['status']['state']:
                 print(str(self.job))
-                self.logger.warning('DataProc job %s is cancelled', self.job_id)
+                self.log.warning('DataProc job %s is cancelled', self.job_id)
                 if 'details' in self.job['status']:
-                    self.logger.warning(self.job['status']['details'])
-                self.logger.debug(str(self.job))
+                    self.log.warning(self.job['status']['details'])
+                self.log.debug(str(self.job))
                 return False
             if 'DONE' == self.job['status']['state']:
                 return True
-            self.logger.debug(
+            self.log.debug(
                 'DataProc job %s is %s',
                 self.job_id, str(self.job['status']['state'])
             )

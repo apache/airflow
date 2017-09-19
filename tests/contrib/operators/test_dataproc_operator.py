@@ -132,7 +132,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 zone=ZONE,
                 dag=self.dag
             )
-            with patch.object(dataproc_task.logger, 'info') as mock_info:
+            with patch.object(dataproc_task.log, 'info') as mock_info:
                 with self.assertRaises(TypeError) as _:
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Creating cluster: %s', CLUSTER_NAME)
@@ -148,7 +148,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 zone=ZONE,
                 dag=self.dag
             )
-            with patch.object(dataproc_task.logger, 'info') as mock_info:
+            with patch.object(dataproc_task.log, 'info') as mock_info:
                 context = { 'ts_nodash' : 'testnodash'}
 
                 rendered = dataproc_task.render_template('cluster_name', getattr(dataproc_task,'cluster_name'), context)
@@ -190,7 +190,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
                 project_id=PROJECT_ID,
                 dag=self.dag
             )
-            with patch.object(dataproc_task.logger, 'info') as mock_info:
+            with patch.object(dataproc_task.log, 'info') as mock_info:
                 with self.assertRaises(TypeError) as _:
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Deleting cluster: %s', CLUSTER_NAME)
@@ -205,7 +205,7 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
                 dag=self.dag
             )
 
-            with patch.object(dataproc_task.logger, 'info') as mock_info:
+            with patch.object(dataproc_task.log, 'info') as mock_info:
                 context = { 'ts_nodash' : 'testnodash'}
 
                 rendered = dataproc_task.render_template('cluster_name', getattr(dataproc_task,'cluster_name'), context)

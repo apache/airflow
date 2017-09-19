@@ -139,15 +139,15 @@ class HiveStatsCollectionOperator(BaseOperator):
         """.format(**locals())
 
         hook = PrestoHook(presto_conn_id=self.presto_conn_id)
-        self.logger.info('Executing SQL check: %s', sql)
+        self.log.info('Executing SQL check: %s', sql)
         row = hook.get_first(hql=sql)
-        self.logger.info("Record: %s", row)
+        self.log.info("Record: %s", row)
         if not row:
             raise AirflowException("The query returned None")
 
         part_json = json.dumps(self.partition, sort_keys=True)
 
-        self.logger.info("Deleting rows from previous runs if they exist")
+        self.log.info("Deleting rows from previous runs if they exist")
         mysql = MySqlHook(self.mysql_conn_id)
         sql = """
         SELECT 1 FROM hive_stats
@@ -167,7 +167,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             """.format(**locals())
             mysql.run(sql)
 
-        self.logger.info("Pivoting and loading cells into the Airflow db")
+        self.log.info("Pivoting and loading cells into the Airflow db")
         rows = [
             (self.ds, self.dttm, self.table, part_json) +
             (r[0][0], r[0][1], r[1])

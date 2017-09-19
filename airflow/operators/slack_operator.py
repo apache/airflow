@@ -67,7 +67,7 @@ class SlackAPIOperator(BaseOperator):
         rc = sc.api_call(self.method, **self.api_params)
         if not rc['ok']:
             msg = "Slack API call failed (%s)".format(rc['error'])
-            self.logger.error(msg)
+            self.log.error(msg)
             raise AirflowException(msg)
 
 

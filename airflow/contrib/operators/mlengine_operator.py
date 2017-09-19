@@ -22,9 +22,9 @@ from airflow.operators import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from apiclient import errors
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 
 def _create_prediction_input(project_id,
@@ -225,7 +225,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
                 model_name, version_name, uri, max_worker_count,
                 runtime_version)
         except ValueError as e:
-            self.logger.error(
+            self.log.error(
                 'Cannot create batch prediction job request due to: %s',
                 e
             )
@@ -251,7 +251,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
             raise
 
         if finished_prediction_job['state'] != 'SUCCEEDED':
-            self.logger.error(
+            self.log.error(
                 'Batch prediction job failed: %s',
                 str(finished_prediction_job))
             raise RuntimeError(finished_prediction_job['errorMessage'])
@@ -538,8 +538,8 @@ class MLEngineTrainingOperator(BaseOperator):
         }
 
         if self._mode == 'DRY_RUN':
-            self.logger.info('In dry_run mode.')
-            self.logger.info('MLEngine Training job request is: {}'.format(training_request))
+            self.log.info('In dry_run mode.')
+            self.log.info('MLEngine Training job request is: {}'.format(training_request))
             return
 
         hook = MLEngineHook(
@@ -557,6 +557,6 @@ class MLEngineTrainingOperator(BaseOperator):
             raise
 
         if finished_training_job['state'] != 'SUCCEEDED':
-            self.logger.error('MLEngine training job failed: {}'.format(
+            self.log.error('MLEngine training job failed: {}'.format(
                 str(finished_training_job)))
             raise RuntimeError(finished_training_job['errorMessage'])

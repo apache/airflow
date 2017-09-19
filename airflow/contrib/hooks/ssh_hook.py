@@ -23,7 +23,7 @@ import paramiko
 from contextlib import contextmanager
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class SSHHook(BaseHook, LoggingMixin):
@@ -70,7 +70,7 @@ class SSHHook(BaseHook, LoggingMixin):
 
     def get_conn(self):
         if not self.client:
-            self.logger.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
+            self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
             if self.ssh_conn_id is not None:
                 conn = self.get_connection(self.ssh_conn_id)
                 if self.username is None:
@@ -98,7 +98,7 @@ class SSHHook(BaseHook, LoggingMixin):
 
             # Auto detecting username values from system
             if not self.username:
-                self.logger.debug(
+                self.log.debug(
                     "username to ssh to host: %s is not specified for connection id"
                     " %s. Using system's default provided by getpass.getuser()",
                     self.remote_host, self.ssh_conn_id
@@ -142,17 +142,17 @@ class SSHHook(BaseHook, LoggingMixin):
 
                 self.client = client
             except paramiko.AuthenticationException as auth_error:
-                self.logger.error(
+                self.log.error(
                     "Auth failed while connecting to host: %s, error: %s",
                     self.remote_host, auth_error
                 )
             except paramiko.SSHException as ssh_error:
-                self.logger.error(
+                self.log.error(
                     "Failed connecting to host: %s, error: %s",
                     self.remote_host, ssh_error
                 )
             except Exception as error:
-                self.logger.error(
+                self.log.error(
                     "Error connecting to host: %s, error: %s",
                     self.remote_host, error
                 )
@@ -191,7 +191,7 @@ class SSHHook(BaseHook, LoggingMixin):
                           ]
 
         ssh_cmd += ssh_tunnel_cmd
-        self.logger.debug("Creating tunnel with cmd: %s", ssh_cmd)
+        self.log.debug("Creating tunnel with cmd: %s", ssh_cmd)
 
         proc = subprocess.Popen(ssh_cmd,
                                 stdin=subprocess.PIPE,

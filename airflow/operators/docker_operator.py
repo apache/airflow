@@ -134,7 +134,7 @@ class DockerOperator(BaseOperator):
         self.container = None
 
     def execute(self, context):
-        self.logger.info('Starting docker container from image %s', self.image)
+        self.log.info('Starting docker container from image %s', self.image)
 
         tls_config = None
         if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
@@ -155,10 +155,10 @@ class DockerOperator(BaseOperator):
             image = self.image
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
-            self.logger.info('Pulling docker image %s', image)
+            self.log.info('Pulling docker image %s', image)
             for l in self.cli.pull(image, stream=True):
                 output = json.loads(l.decode('utf-8'))
-                self.logger.info("%s", output['status'])
+                self.log.info("%s", output['status'])
 
         cpu_shares = int(round(self.cpus * 1024))
 
@@ -184,7 +184,7 @@ class DockerOperator(BaseOperator):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
-                self.logger.info(line)
+                self.log.info(line)
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -202,5 +202,5 @@ class DockerOperator(BaseOperator):
 
     def on_kill(self):
         if self.cli is not None:
-            self.logger.info('Stopping docker container')
+            self.log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])

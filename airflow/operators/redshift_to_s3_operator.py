@@ -70,7 +70,7 @@ class RedshiftToS3Transfer(BaseOperator):
         a_key, s_key = self.s3.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
-        self.logger.info("Retrieving headers from %s.%s...", self.schema, self.table)
+        self.log.info("Retrieving headers from %s.%s...", self.schema, self.table)
 
         columns_query = """SELECT column_name
                             FROM information_schema.columns
@@ -99,6 +99,6 @@ class RedshiftToS3Transfer(BaseOperator):
                         """.format(column_names, column_castings, self.schema, self.table,
                                 self.s3_bucket, self.s3_key, a_key, s_key, unload_options)
 
-        self.logger.info('Executing UNLOAD command...')
+        self.log.info('Executing UNLOAD command...')
         self.hook.run(unload_query, self.autocommit)
-        self.logger.info("UNLOAD command complete...")
+        self.log.info("UNLOAD command complete...")

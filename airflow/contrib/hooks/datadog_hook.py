@@ -17,7 +17,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
 from datadog import initialize, api
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class DatadogHook(BaseHook, LoggingMixin):
@@ -47,7 +47,7 @@ class DatadogHook(BaseHook, LoggingMixin):
         if self.app_key is None:
             raise AirflowException("app_key must be specified in the Datadog connection details")
 
-        self.logger.info("Setting up api keys for Datadog")
+        self.log.info("Setting up api keys for Datadog")
         options = {
             'api_key': self.api_key,
             'app_key': self.app_key
@@ -56,7 +56,7 @@ class DatadogHook(BaseHook, LoggingMixin):
 
     def validate_response(self, response):
         if response['status'] != 'ok':
-            self.logger.error("Datadog returned: %s", response)
+            self.log.error("Datadog returned: %s", response)
             raise AirflowException("Error status received from Datadog")
 
     def send_metric(self, metric_name, datapoint, tags=None):

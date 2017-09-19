@@ -61,15 +61,15 @@ class GenericTransfer(BaseOperator):
     def execute(self, context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
 
-        self.logger.info("Extracting data from %s", self.source_conn_id)
-        self.logger.info("Executing: \n %s", self.sql)
+        self.log.info("Extracting data from %s", self.source_conn_id)
+        self.log.info("Executing: \n %s", self.sql)
         results = source_hook.get_records(self.sql)
 
         destination_hook = BaseHook.get_hook(self.destination_conn_id)
         if self.preoperator:
-            self.logger.info("Running preoperator")
-            self.logger.info(self.preoperator)
+            self.log.info("Running preoperator")
+            self.log.info(self.preoperator)
             destination_hook.run(self.preoperator)
 
-        self.logger.info("Inserting rows into %s", self.destination_conn_id)
+        self.log.info("Inserting rows into %s", self.destination_conn_id)
         destination_hook.insert_rows(table=self.destination_table, rows=results)

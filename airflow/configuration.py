@@ -28,7 +28,7 @@ import sys
 
 from future import standard_library
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
 
@@ -38,7 +38,7 @@ from six.moves import configparser
 
 from airflow.exceptions import AirflowConfigException
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 # show Airflow's deprecation warnings
 warnings.filterwarnings(

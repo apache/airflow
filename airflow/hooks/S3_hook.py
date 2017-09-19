@@ -16,7 +16,7 @@ from __future__ import division
 
 from future import standard_library
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
 import re
@@ -87,7 +87,7 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
             if Config.has_option(cred_section, 'calling_format'):
                 calling_format = Config.get(cred_section, 'calling_format')
         except:
-            log = LoggingMixin().logger
+            log = LoggingMixin().log
             log.warning("Option Error in parsing s3 config file")
             raise
         return (access_key, secret_key, calling_format)
@@ -378,7 +378,7 @@ class S3Hook(BaseHook):
                     offset = chunk * multipart_bytes
                     bytes = min(multipart_bytes, key_size - offset)
                     with FileChunkIO(filename, 'r', offset=offset, bytes=bytes) as fp:
-                        self.logger.info('Sending chunk %s of %s...', chunk + 1, total_chunks)
+                        self.log.info('Sending chunk %s of %s...', chunk + 1, total_chunks)
                         mp.upload_part_from_file(fp, part_num=chunk + 1)
             except:
                 mp.cancel_upload()
@@ -391,7 +391,7 @@ class S3Hook(BaseHook):
             key_size = key_obj.set_contents_from_filename(filename,
                                                           replace=replace,
                                                           encrypt_key=encrypt)
-        self.logger.info(
+        self.log.info(
             "The key {key} now contains {key_size} bytes".format(**locals())
         )
 
@@ -432,6 +432,6 @@ class S3Hook(BaseHook):
         key_size = key_obj.set_contents_from_string(string_data,
                                                     replace=replace,
                                                     encrypt_key=encrypt)
-        self.logger.info(
+        self.log.info(
             "The key {key} now contains {key_size} bytes".format(**locals())
         )

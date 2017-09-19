@@ -214,7 +214,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             raise AirflowException(msg)
 
     def _log_run_page_url(self, url):
-        self.logger.info('View run status, Spark UI, and logs at %s', url)
+        self.log.info('View run status, Spark UI, and logs at %s', url)
 
     def get_hook(self):
         return DatabricksHook(
@@ -225,13 +225,13 @@ class DatabricksSubmitRunOperator(BaseOperator):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
         run_page_url = hook.get_run_page_url(self.run_id)
-        self.logger.info('Run submitted with run_id: %s', self.run_id)
+        self.log.info('Run submitted with run_id: %s', self.run_id)
         self._log_run_page_url(run_page_url)
         while True:
             run_state = hook.get_run_state(self.run_id)
             if run_state.is_terminal:
                 if run_state.is_successful:
-                    self.logger.info('%s completed successfully.', self.task_id)
+                    self.log.info('%s completed successfully.', self.task_id)
                     self._log_run_page_url(run_page_url)
                     return
                 else:
@@ -240,15 +240,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
                         s=run_state)
                     raise AirflowException(error_message)
             else:
-                self.logger.info('%s in run state: %s', self.task_id, run_state)
+                self.log.info('%s in run state: %s', self.task_id, run_state)
                 self._log_run_page_url(run_page_url)
-                self.logger.info('Sleeping for %s seconds.', self.polling_period_seconds)
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
                 time.sleep(self.polling_period_seconds)
 
     def on_kill(self):
         hook = self.get_hook()
         hook.cancel_run(self.run_id)
-        self.logger.info(
+        self.log.info(
             'Task: %s with run_id: %s was requested to be cancelled.',
             self.task_id, self.run_id
         )

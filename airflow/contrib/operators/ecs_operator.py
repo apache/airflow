@@ -56,11 +56,11 @@ class ECSOperator(BaseOperator):
         self.hook = self.get_hook()
 
     def execute(self, context):
-        self.logger.info(
+        self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s',
             self.task_definition,self.cluster
         )
-        self.logger.info('ECSOperator overrides: %s', self.overrides)
+        self.log.info('ECSOperator overrides: %s', self.overrides)
 
         self.client = self.hook.get_client_type(
             'ecs',
@@ -77,13 +77,13 @@ class ECSOperator(BaseOperator):
         failures = response['failures']
         if len(failures) > 0:
             raise AirflowException(response)
-        self.logger.info('ECS Task started: %s', response)
+        self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
         self._wait_for_task_ended()
 
         self._check_success_task()
-        self.logger.info('ECS Task has been successfully executed: %s', response)
+        self.log.info('ECS Task has been successfully executed: %s', response)
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
@@ -98,7 +98,7 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             tasks=[self.arn]
         )
-        self.logger.info('ECS Task stopped, check status: %s', response)
+        self.log.info('ECS Task stopped, check status: %s', response)
 
         if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
@@ -124,4 +124,4 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             task=self.arn,
             reason='Task killed by the user')
-        self.logger.info(response)
+        self.log.info(response)
