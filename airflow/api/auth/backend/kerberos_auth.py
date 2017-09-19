@@ -24,7 +24,7 @@
 
 from future.standard_library import install_aliases
 
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
 
@@ -47,7 +47,7 @@ client_auth = HTTPKerberosAuth(service='airflow')
 
 _SERVICE_NAME = None
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 
 def init_app(app):

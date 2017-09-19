@@ -77,7 +77,7 @@ class HiveToMySqlTransfer(BaseOperator):
 
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
-        self.logger.info("Extracting data from Hive: %s", self.sql)
+        self.log.info("Extracting data from Hive: %s", self.sql)
 
         if self.bulk_load:
             tmpfile = NamedTemporaryFile()
@@ -88,10 +88,10 @@ class HiveToMySqlTransfer(BaseOperator):
 
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
         if self.mysql_preoperator:
-            self.logger.info("Running MySQL preoperator")
+            self.log.info("Running MySQL preoperator")
             mysql.run(self.mysql_preoperator)
 
-        self.logger.info("Inserting rows into MySQL")
+        self.log.info("Inserting rows into MySQL")
 
         if self.bulk_load:
             mysql.bulk_load(table=self.mysql_table, tmp_file=tmpfile.name)
@@ -100,7 +100,7 @@ class HiveToMySqlTransfer(BaseOperator):
             mysql.insert_rows(table=self.mysql_table, rows=results)
 
         if self.mysql_postoperator:
-            self.logger.info("Running MySQL postoperator")
+            self.log.info("Running MySQL postoperator")
             mysql.run(self.mysql_postoperator)
 
-        self.logger.info("Done.")
+        self.log.info("Done.")

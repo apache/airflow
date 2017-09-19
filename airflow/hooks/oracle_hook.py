@@ -101,11 +101,11 @@ class OracleHook(DbApiHook):
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()
-                self.logger.info('Loaded {i} into {table} rows so far'.format(**locals()))
+                self.log.info('Loaded {i} into {table} rows so far'.format(**locals()))
         conn.commit()
         cur.close()
         conn.close()
-        self.logger.info('Done loading. Loaded a total of {i} rows'.format(**locals()))
+        self.log.info('Done loading. Loaded a total of {i} rows'.format(**locals()))
 
     def bulk_insert_rows(self, table, rows, target_fields=None, commit_every=5000):
         """A performant bulk insert for cx_Oracle that uses prepared statements via `executemany()`.
@@ -129,13 +129,13 @@ class OracleHook(DbApiHook):
                 cursor.prepare(prepared_stm)
                 cursor.executemany(None, row_chunk)
                 conn.commit()
-                self.logger.info('[%s] inserted %s rows', table, row_count)
+                self.log.info('[%s] inserted %s rows', table, row_count)
                 # Empty chunk
                 row_chunk = []
         # Commit the leftover chunk
         cursor.prepare(prepared_stm)
         cursor.executemany(None, row_chunk)
         conn.commit()
-        self.logger.info('[%s] inserted %s rows', table, row_count)
+        self.log.info('[%s] inserted %s rows', table, row_count)
         cursor.close()
         conn.close()

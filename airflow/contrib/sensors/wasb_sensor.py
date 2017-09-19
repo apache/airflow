@@ -47,7 +47,7 @@ class WasbBlobSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context):
-        self.logger.info(
+        self.log.info(
             'Poking for blob: {self.blob_name}\n'
             'in wasb://{self.container_name}'.format(**locals())
         )
@@ -85,7 +85,7 @@ class WasbPrefixSensor(BaseSensorOperator):
         self.check_options = check_options
 
     def poke(self, context):
-        self.logger.info(
+        self.log.info(
             'Poking for prefix: {self.prefix}\n'
             'in wasb://{self.container_name}'.format(**locals())
         )

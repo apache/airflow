@@ -31,7 +31,7 @@ from email.utils import formatdate
 
 from airflow import configuration
 from airflow.exceptions import AirflowConfigException
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
@@ -88,7 +88,7 @@ def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None
 
 
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
-    log = LoggingMixin().logger
+    log = LoggingMixin().log
 
     SMTP_HOST = configuration.get('smtp', 'SMTP_HOST')
     SMTP_PORT = configuration.getint('smtp', 'SMTP_PORT')

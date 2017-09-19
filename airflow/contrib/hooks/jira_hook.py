@@ -16,7 +16,7 @@ from jira.exceptions import JIRAError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class JiraHook(BaseHook, LoggingMixin):
@@ -35,7 +35,7 @@ class JiraHook(BaseHook, LoggingMixin):
 
     def get_conn(self):
         if not self.client:
-            self.logger.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
+            self.log.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
 
             get_server_info = True
             validate = True

@@ -19,7 +19,7 @@ from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
 from airflow.exceptions import AirflowException
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 DEFAULT_EXECUTOR = None
 
@@ -41,7 +41,7 @@ def GetDefaultExecutor():
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 
-    log = LoggingMixin().logger
+    log = LoggingMixin().log
     log.info("Using executor %s", executor_name)
 
     return DEFAULT_EXECUTOR

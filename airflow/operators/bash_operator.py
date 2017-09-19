@@ -67,7 +67,7 @@ class BashOperator(BaseOperator):
         which will be cleaned afterwards
         """
         bash_command = self.bash_command
-        self.logger.info("Tmp dir root location: \n %s", gettempdir())
+        self.log.info("Tmp dir root location: \n %s", gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 
@@ -75,11 +75,11 @@ class BashOperator(BaseOperator):
                 f.flush()
                 fname = f.name
                 script_location = tmp_dir + "/" + fname
-                self.logger.info(
+                self.log.info(
                     "Temporary script location: %s",
                     script_location
                 )
-                self.logger.info("Running command: %s", bash_command)
+                self.log.info("Running command: %s", bash_command)
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
@@ -88,13 +88,13 @@ class BashOperator(BaseOperator):
 
                 self.sp = sp
 
-                self.logger.info("Output:")
+                self.log.info("Output:")
                 line = ''
                 for line in iter(sp.stdout.readline, b''):
                     line = line.decode(self.output_encoding).strip()
-                    self.logger.info(line)
+                    self.log.info(line)
                 sp.wait()
-                self.logger.info(
+                self.log.info(
                     "Command exited with return code %s",
                     sp.returncode
                 )
@@ -106,6 +106,6 @@ class BashOperator(BaseOperator):
             return line
 
     def on_kill(self):
-        self.logger.info('Sending SIGTERM signal to bash process group')
+        self.log.info('Sending SIGTERM signal to bash process group')
         os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
 

@@ -32,7 +32,7 @@ from past.builtins import basestring
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
@@ -499,7 +499,7 @@ class BigQueryBaseCursor(LoggingMixin):
                     "'WRITE_APPEND' or 'WRITE_TRUNCATE'."
                 )
             else:
-                self.logger.info(
+                self.log.info(
                     "Adding experimental "
                     "'schemaUpdateOptions': {0}".format(schema_update_options)
                 )
@@ -576,12 +576,12 @@ class BigQueryBaseCursor(LoggingMixin):
                             )
                         )
                 else:
-                    self.logger.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
+                    self.log.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
                     time.sleep(5)
 
             except HttpError as err:
                 if err.resp.status in [500, 503]:
-                    self.logger.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, job_id)
+                    self.log.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, job_id)
                     time.sleep(5)
                 else:
                     raise Exception(
@@ -660,14 +660,14 @@ class BigQueryBaseCursor(LoggingMixin):
                         datasetId=deletion_dataset,
                         tableId=deletion_table) \
                 .execute()
-            self.logger.info('Deleted table %s:%s.%s.',
-                         deletion_project, deletion_dataset, deletion_table)
+            self.log.info('Deleted table %s:%s.%s.',
+                          deletion_project, deletion_dataset, deletion_table)
         except HttpError:
             if not ignore_if_missing:
                 raise Exception(
                     'Table deletion failed. Table does not exist.')
             else:
-                self.logger.info('Table does not exist. Skipping.')
+                self.log.info('Table does not exist. Skipping.')
 
 
     def run_table_upsert(self, dataset_id, table_resource, project_id=None):
@@ -694,7 +694,7 @@ class BigQueryBaseCursor(LoggingMixin):
             for table in tables_list_resp.get('tables', []):
                 if table['tableReference']['tableId'] == table_id:
                     # found the table, do update
-                    self.logger.info(
+                    self.log.info(
                         'Table %s:%s.%s exists, updating.',
                         project_id, dataset_id, table_id
                     )
@@ -712,7 +712,7 @@ class BigQueryBaseCursor(LoggingMixin):
             # If there is no next page, then the table doesn't exist.
             else:
                 # do insert
-                self.logger.info(
+                self.log.info(
                     'Table %s:%s.%s does not exist. creating.',
                     project_id, dataset_id, table_id
                 )
@@ -759,7 +759,7 @@ class BigQueryBaseCursor(LoggingMixin):
                                 'tableId': view_table}}
         # check to see if the view we want to add already exists.
         if view_access not in access:
-            self.logger.info(
+            self.log.info(
                 'Granting table %s:%s.%s authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, source_project, source_dataset
             )
@@ -769,7 +769,7 @@ class BigQueryBaseCursor(LoggingMixin):
                                                  body={'access': access}).execute()
         else:
             # if view is already in access, do nothing.
-            self.logger.info(
+            self.log.info(
                 'Table %s:%s.%s already has authorized view access to %s:%s dataset.',
                 view_project, view_dataset, view_table, source_project, source_dataset
             )
@@ -1032,7 +1032,7 @@ def _split_tablename(table_input, default_project_id, var_name=None):
 
     if project_id is None:
         if var_name is not None:
-            log = LoggingMixin().logger
+            log = LoggingMixin().log
             log.info(
                 'Project not included in {var}: {input}; using project "{project}"'.format(
                     var=var_name, input=table_input, project=default_project_id

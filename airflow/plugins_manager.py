@@ -25,9 +25,9 @@ import re
 import sys
 
 from airflow import configuration
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-log = LoggingMixin().logger
+log = LoggingMixin().log
 
 class AirflowPluginException(Exception):
     pass

@@ -189,7 +189,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 self.destination_project_dataset_table))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
-            self.logger.info(
+            self.log.info(
                 'Loaded BQ data with max %s.%s=%s',
                 self.destination_project_dataset_table, self.max_id_key, max_id
             )

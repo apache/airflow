@@ -111,7 +111,7 @@ class DatabricksHookTest(unittest.TestCase):
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_with_error_retry(self, mock_requests):
         for exception in [requests_exceptions.ConnectionError, requests_exceptions.Timeout]:
-            with mock.patch.object(self.hook.logger, 'error') as mock_errors:
+            with mock.patch.object(self.hook.log, 'error') as mock_errors:
                 mock_requests.reset_mock()
                 mock_requests.post.side_effect = exception()
 

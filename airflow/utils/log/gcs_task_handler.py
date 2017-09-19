@@ -15,7 +15,7 @@ import os
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 
@@ -40,7 +40,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 google_cloud_storage_conn_id=remote_conn_id
             )
         except:
-            self.logger.error(
+            self.log.error(
                 'Could not create a GoogleCloudStorageHook with connection id '
                 '"%s". Please make sure that airflow[gcp_api] is installed '
                 'and the GCS connection exists.', remote_conn_id
@@ -137,7 +137,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             # return error if needed
             if return_error:
                 msg = 'Could not read logs from {}'.format(remote_log_location)
-                self.logger.error(msg)
+                self.log.error(msg)
                 return msg
 
     def gcs_write(self, log, remote_log_location, append=True):
@@ -167,7 +167,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 tmpfile.flush()
                 self.hook.upload(bkt, blob, tmpfile.name)
         except:
-            self.logger.error('Could not write logs to %s', remote_log_location)
+            self.log.error('Could not write logs to %s', remote_log_location)
 
     def parse_gcs_url(self, gsurl):
         """

@@ -20,7 +20,7 @@ from __future__ import unicode_literals
 import signal
 
 from airflow.exceptions import AirflowTaskTimeout
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class timeout(LoggingMixin):
@@ -33,7 +33,7 @@ class timeout(LoggingMixin):
         self.error_message = error_message
 
     def handle_timeout(self, signum, frame):
-        self.logger.error("Process timed out")
+        self.log.error("Process timed out")
         raise AirflowTaskTimeout(self.error_message)
 
     def __enter__(self):
@@ -41,12 +41,12 @@ class timeout(LoggingMixin):
             signal.signal(signal.SIGALRM, self.handle_timeout)
             signal.alarm(self.seconds)
         except ValueError as e:
-            self.logger.warning("timeout can't be used in the current context")
-            self.logger.exception(e)
+            self.log.warning("timeout can't be used in the current context")
+            self.log.exception(e)
 
     def __exit__(self, type, value, traceback):
         try:
             signal.alarm(0)
         except ValueError as e:
-            self.logger.warning("timeout can't be used in the current context")
-            self.logger.exception(e)
+            self.log.warning("timeout can't be used in the current context")
+            self.log.exception(e)

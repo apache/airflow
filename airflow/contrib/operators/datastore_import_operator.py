@@ -72,7 +72,7 @@ class DatastoreImportOperator(BaseOperator):
         self.xcom_push = xcom_push
 
     def execute(self, context):
-        self.logger.info('Importing data from Cloud Storage bucket %s', self.bucket)
+        self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
         ds_hook = DatastoreHook(self.datastore_conn_id, self.delegate_to)
         result = ds_hook.import_from_storage_bucket(bucket=self.bucket,
                                                     file=self.file,

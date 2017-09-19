@@ -103,7 +103,7 @@ class VerticaToHiveTransfer(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
 
-        self.logger.info("Dumping Vertica query results to local file")
+        self.log.info("Dumping Vertica query results to local file")
         conn = vertica.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
@@ -119,7 +119,7 @@ class VerticaToHiveTransfer(BaseOperator):
             f.flush()
             cursor.close()
             conn.close()
-            self.logger.info("Loading file into Hive")
+            self.log.info("Loading file into Hive")
             hive.load_file(
                 f.name,
                 self.hive_table,

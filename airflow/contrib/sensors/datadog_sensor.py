@@ -67,7 +67,7 @@ class DatadogSensor(BaseSensorOperator):
             tags=self.tags)
 
         if isinstance(response, dict) and response.get('status', 'ok') != 'ok':
-            self.logger.error("Unexpected Datadog result: %s", response)
+            self.log.error("Unexpected Datadog result: %s", response)
             raise AirflowException("Datadog returned unexpected result")
 
         if self.response_check:

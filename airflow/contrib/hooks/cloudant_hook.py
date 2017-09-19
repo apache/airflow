@@ -18,7 +18,7 @@ import cloudant
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class CloudantHook(BaseHook):
@@ -35,7 +35,7 @@ class CloudantHook(BaseHook):
         def _str(s):
             # cloudant-python doesn't support unicode.
             if isinstance(s, unicode):
-                log = LoggingMixin().logger
+                log = LoggingMixin().log
                 log.debug(
                     'cloudant-python does not support unicode. Encoding %s as ascii using "ignore".',
                     s

@@ -14,7 +14,7 @@
 from builtins import range
 
 from airflow import configuration
-from airflow.utils.log.LoggingMixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
@@ -46,7 +46,7 @@ class BaseExecutor(LoggingMixin):
     def queue_command(self, task_instance, command, priority=1, queue=None):
         key = task_instance.key
         if key not in self.queued_tasks and key not in self.running:
-            self.logger.info("Adding to queue: %s", command)
+            self.log.info("Adding to queue: %s", command)
             self.queued_tasks[key] = (command, priority, queue, task_instance)
 
     def queue_task_instance(
@@ -99,9 +99,9 @@ class BaseExecutor(LoggingMixin):
         else:
             open_slots = self.parallelism - len(self.running)
 
-        self.logger.debug("%s running task instances", len(self.running))
-        self.logger.debug("%s in queue", len(self.queued_tasks))
-        self.logger.debug("%s open slots", open_slots)
+        self.log.debug("%s running task instances", len(self.running))
+        self.log.debug("%s in queue", len(self.queued_tasks))
+        self.log.debug("%s open slots", open_slots)
 
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
@@ -122,13 +122,13 @@ class BaseExecutor(LoggingMixin):
                 self.running[key] = command
                 self.execute_async(key, command=command, queue=queue)
             else:
-                self.logger.debug(
+                self.log.debug(
                     'Task is already running, not sending to executor: %s',
                     key
                 )
 
         # Calling child class sync method
-        self.logger.debug("Calling the %s sync method", self.__class__)
+        self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
     def change_state(self, key, state):

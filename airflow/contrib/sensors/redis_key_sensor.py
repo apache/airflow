@@ -38,5 +38,5 @@ class RedisKeySensor(BaseSensorOperator):
         self.key = key
 
     def poke(self, context):
-        self.logger.info('Sensor check existence of key: %s', self.key)
+        self.log.info('Sensor check existence of key: %s', self.key)
         return RedisHook(self.redis_conn_id).key_exists(self.key)
