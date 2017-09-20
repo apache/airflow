@@ -2282,6 +2282,8 @@ class BaseOperator(object):
             result = {
                 k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
+        elif isinstance(content, six.integer_types):
+            result = content
         else:
             param_type = type(content)
             msg = (
