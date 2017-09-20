@@ -207,7 +207,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        start_date = datetime.now()
+        start_date = datetime.utcnow()
 
         run = dag.create_dagrun(
             run_id='test_' + start_date.isoformat(),
@@ -264,7 +264,7 @@ class CoreTest(unittest.TestCase):
         2016-01-01 should be scheduled.
         """
         from datetime import datetime
-        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
 
         session = settings.Session()
         delta = timedelta(days=1)
@@ -668,7 +668,7 @@ class CoreTest(unittest.TestCase):
 
     @mock.patch('airflow.utils.dag_processing.datetime', FakeDatetime)
     def test_scheduler_job(self):
-        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
         job = jobs.SchedulerJob(dag_id='example_bash_operator',
                                 **self.default_scheduler_args)
         job.run()
@@ -1623,7 +1623,7 @@ class SecurityTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1643,23 +1643,23 @@ class WebUiTests(unittest.TestCase):
         self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dag_bash2.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
         self.sub_dag.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
         self.example_xcom.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
@@ -1825,7 +1825,7 @@ class WebUiTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()
