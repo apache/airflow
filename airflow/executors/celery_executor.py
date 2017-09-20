@@ -95,7 +95,7 @@ class CeleryExecutor(BaseExecutor):
     def _check_task_delayed(self, key):
         max_timedelta_secs = datetime.timedelta.max.total_seconds()
         max_delay = datetime.timedelta(
-                seconds=min(max_timedelta_secs, int(2**attempt[key] * configuration.getint('scheduler', 'JOB_MAX_TIME_QUEUED'))))
+                seconds=min(max_timedelta_secs, int(2**self.attempt[key] * configuration.getint('scheduler', 'JOB_MAX_TIME_QUEUED'))))
         return datetime.datetime.now() > self.enqueue_time[key] + max_delay
 
     def _delete_key(self, key):
@@ -134,7 +134,7 @@ class CeleryExecutor(BaseExecutor):
                                             .format(key=key))
                         async.revoke()
                         self.execute_async(key, self.command[key], queue=self.queue[key], attempt=self.attempt[key] + 1)
-                elif configuration.getboolean('scheduler', 'STRICT_MODE'):
+                elif state == celery_states.PENDING and configuration.getboolean('scheduler', 'STRICT_MODE'):
                     if self._check_task_delayed(key):
                         self.logger.warning("Requeueing task as it has not been executed")
                         async.revoke()
