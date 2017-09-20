@@ -854,18 +854,28 @@ class TaskInstance(Base):
         """
         # is the execution date in the future?
         if self.execution_date > datetime.now():
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: the execution date {} in the future"
+                          .format(self.dag_id, self.task_id, self.execution_date))
             return False
         # is the task still in the retry waiting period?
         elif self.is_premature():
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: the task is in the retry waiting period"
+                          .format(self.dag_id, self.task_id))
             return False
         # does the task have an end_date prior to the execution date?
         elif self.task.end_date and self.execution_date > self.task.end_date:
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: the end_date {} id prior to the execution date {}"
+                          .format(self.dag_id, self.task_id, self.task.end_date, self.execution_date))
             return False
         # has the task been skipped?
         elif self.state == State.SKIPPED:
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: the task has been skipped"
+                          .format(self.dag_id, self.task_id))
             return False
         # has the task already been queued (and are we excluding queued tasks)?
         elif self.state == State.QUEUED and not include_queued:
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: the task has been queued and we exclude queued tasks"
+                          .format(self.dag_id, self.task_id))
             return False
         # is the task runnable and have its dependencies been met?
         elif (
@@ -873,9 +883,13 @@ class TaskInstance(Base):
                 self.are_dependencies_met(
                     ignore_depends_on_past=ignore_depends_on_past,
                     flag_upstream_failed=flag_upstream_failed)):
+            logging.debug("Dag ID: {}. Task ID: {}. Queueable: the task is runnable and has its dependencies been met"
+                          .format(self.dag_id, self.task_id))
             return True
         # anything else
         else:
+            logging.debug("Dag ID: {}. Task ID: {}. Not queueable: no condition check is met."
+                          .format(self.dag_id, self.task_id))
             return False
 
 
@@ -1112,6 +1126,8 @@ class TaskInstance(Base):
                 "Task specified a pool ({}) but the pool "
                 "doesn't exist!".format(self.task.pool))
         open_slots = pool.open_slots(session=session)
+
+        logging.debug("Number of open slots in the {} pool: {}".format(self.task.pool, open_slots))
 
         return open_slots <= 0
 
