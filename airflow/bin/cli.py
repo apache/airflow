@@ -856,16 +856,19 @@ def worker(args):
     from airflow.executors.celery_executor import app as celery_app
     from celery.bin import worker
 
+    concurrency = args.concurrency or conf.get('celery', 'celeryd_concurrency')
+
     worker = worker.worker(app=celery_app)
     options = {
         'optimization': 'fair',
         'O': 'fair',
         'queues': args.queues,
-        'concurrency': args.concurrency,
+        'concurrency': concurrency,
     }
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations(
+            "worker", args.pid, args.stdout, args.stderr, args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -1377,8 +1380,7 @@ class CLIFactory(object):
         'concurrency': Arg(
             ("-c", "--concurrency"),
             type=int,
-            help="The number of worker processes",
-            default=conf.get('celery', 'celeryd_concurrency')),
+            help="The number of worker processes",),
         # flower
         'broker_api': Arg(("-a", "--broker_api"), help="Broker api"),
         'flower_hostname': Arg(
