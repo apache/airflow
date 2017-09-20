@@ -8,7 +8,7 @@
 
 _NOTE: The transition from 1.8.0 (or before) to 1.8.1 (or after) requires uninstalling Airflow before installing the new version. The package name was changed from `airflow` to `apache-airflow` as of version 1.8.1._
 
-Airflow is a platform to programmatically author, schedule and monitor
+Airflow is a platform to programmatically author, schedule, and monitor
 workflows.
 
 When workflows are defined as code, they become more maintainable,
