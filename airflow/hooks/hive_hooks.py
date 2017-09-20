@@ -14,7 +14,7 @@
 #
 
 from __future__ import print_function
-from builtins import zip
+from six.moves import zip
 from past.builtins import basestring
 
 import unicodecsv as csv
@@ -144,11 +144,9 @@ class HiveCliHook(BaseHook):
         if not d:
             return []
         return as_flattened_list(
-            itertools.izip(
-                ["-hiveconf"] * len(d),
-                ["{}={}".format(k, v) for k, v in d.items()]
-                )
-            )
+            zip(["-hiveconf"] * len(d),
+                ["{}={}".format(k, v) for k, v in d.items()])
+        )
 
     def run_cli(self, hql, schema=None, verbose=True, hive_conf=None):
         """
