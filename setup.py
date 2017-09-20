@@ -262,6 +262,7 @@ def do_setup():
             'ldap': ldap,
             'mssql': mssql,
             'mysql': mysql,
+            'mongo': mongo,
             'oracle': oracle,
             'password': password,
             'postgres': postgres,
