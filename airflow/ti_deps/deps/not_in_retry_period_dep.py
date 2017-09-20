@@ -38,7 +38,7 @@ class NotInRetryPeriodDep(BaseTIDep):
 
         # Calculate the date first so that it is always smaller than the timestamp used by
         # ready_for_retry
-        cur_date = datetime.now()
+        cur_date = datetime.utcnow()
         next_task_retry_date = ti.next_retry_datetime()
         if ti.is_premature:
             yield self._failing_status(

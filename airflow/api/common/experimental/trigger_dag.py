@@ -29,7 +29,7 @@ def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None):
     dag = dagbag.get_dag(dag_id)
 
     if not execution_date:
-        execution_date = datetime.datetime.now()
+        execution_date = datetime.datetime.utcnow()
 
     assert isinstance(execution_date, datetime.datetime)
     execution_date = execution_date.replace(microsecond=0)

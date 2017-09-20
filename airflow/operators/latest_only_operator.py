@@ -35,7 +35,7 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return
 
-        now = datetime.datetime.now()
+        now = datetime.datetime.utcnow()
         left_window = context['dag'].following_schedule(
             context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)
