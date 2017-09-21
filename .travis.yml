@@ -19,6 +19,7 @@ jdk:
 services:
   - mysql
   - postgresql
+  - rabbitmq
 addons:
   apt:
     packages:
