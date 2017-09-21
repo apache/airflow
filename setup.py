@@ -162,6 +162,7 @@ s3 = [
 ]
 samba = ['pysmbclient>=0.1.3']
 slack = ['slackclient>=1.0.0']
+snowflake = ['snowflake-connector-python>=1.4.7']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
@@ -178,7 +179,7 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.6']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + mongo
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + mongo + snowflake
 devel = [
     'click',
     'freezegun',
@@ -272,6 +273,7 @@ def do_setup():
             'salesforce': salesforce,
             'samba': samba,
             'slack': slack,
+            'snowflake': snowflake,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
