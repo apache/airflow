@@ -20,13 +20,24 @@ import unittest
 from airflow import DAG
 from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
 from airflow.contrib.operators.dataproc_operator import DataprocClusterDeleteOperator
+from airflow.contrib.operators.dataproc_operator import DataProcHadoopOperator
+from airflow.contrib.operators.dataproc_operator import DataProcHiveOperator
+from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
+from airflow.contrib.operators.dataproc_operator import DataProcSparkOperator
 from airflow.version import version
 
 from copy import deepcopy
 
+try:
+    from unittest import mock
+except ImportError:
+    try:
+        import mock
+    except ImportError:
+        mock = None
+
 from mock import Mock
 from mock import patch
-
 
 TASK_ID = 'test-dataproc-operator'
 CLUSTER_NAME = 'test-cluster-name'
@@ -47,9 +58,11 @@ SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigtable.data'
 ]
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+REGION = 'test-region'
+MAIN_URI = 'test-uri'
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
-    # Unitest for the DataprocClusterCreateOperator
+    # Unit test for the DataprocClusterCreateOperator
     def setUp(self):
         # instantiate two different test cases with different labels.
         self.labels = [LABEL1, LABEL2]
@@ -158,7 +171,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 mock_info.assert_called_with('Creating cluster: %s', u'smoke-cluster-testnodash')
 
 class DataprocClusterDeleteOperatorTest(unittest.TestCase):
-    # Unitest for the DataprocClusterDeleteOperator
+    # Unit test for the DataprocClusterDeleteOperator
     def setUp(self):
         self.mock_execute = Mock()
         self.mock_execute.execute = Mock(return_value={'done' : True})
@@ -213,3 +226,52 @@ class DataprocClusterDeleteOperatorTest(unittest.TestCase):
                 with self.assertRaises(TypeError) as _:
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Deleting cluster: %s', u'smoke-cluster-testnodash')
+
+class DataProcHadoopOperatorTest(unittest.TestCase):
+    # Unit test for the DataProcHadoopOperator
+    def test_hook_correct_region(self):
+       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+            dataproc_task = DataProcHadoopOperator(
+                task_id=TASK_ID,
+                region=REGION
+            )
+
+            dataproc_task.execute(None)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+
+class DataProcHiveOperatorTest(unittest.TestCase):
+    # Unit test for the DataProcHiveOperator
+    def test_hook_correct_region(self):
+       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+            dataproc_task = DataProcHiveOperator(
+                task_id=TASK_ID,
+                region=REGION
+            )
+
+            dataproc_task.execute(None)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+
+class DataProcPySparkOperatorTest(unittest.TestCase):
+    # Unit test for the DataProcPySparkOperator
+    def test_hook_correct_region(self):
+       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+            dataproc_task = DataProcPySparkOperator(
+                task_id=TASK_ID,
+                main=MAIN_URI,
+                region=REGION
+            )
+
+            dataproc_task.execute(None)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+
+class DataProcSparkOperatorTest(unittest.TestCase):
+    # Unit test for the DataProcSparkOperator
+    def test_hook_correct_region(self):
+       with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
+            dataproc_task = DataProcSparkOperator(
+                task_id=TASK_ID,
+                region=REGION
+            )
+
+            dataproc_task.execute(None)
+            mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)

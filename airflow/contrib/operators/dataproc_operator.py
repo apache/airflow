@@ -503,6 +503,7 @@ class DataProcHiveOperator(BaseOperator):
             dataproc_hive_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -532,6 +533,8 @@ class DataProcHiveOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcHiveOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -543,6 +546,7 @@ class DataProcHiveOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_hive_properties
         self.dataproc_jars = dataproc_hive_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -559,7 +563,7 @@ class DataProcHiveOperator(BaseOperator):
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcSparkSqlOperator(BaseOperator):
@@ -663,6 +667,7 @@ class DataProcSparkOperator(BaseOperator):
             dataproc_spark_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -699,6 +704,8 @@ class DataProcSparkOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcSparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -712,6 +719,7 @@ class DataProcSparkOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_spark_properties
         self.dataproc_jars = dataproc_spark_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -726,7 +734,7 @@ class DataProcSparkOperator(BaseOperator):
         job.add_file_uris(self.files)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcHadoopOperator(BaseOperator):
@@ -751,6 +759,7 @@ class DataProcHadoopOperator(BaseOperator):
             dataproc_hadoop_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -787,6 +796,8 @@ class DataProcHadoopOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcHadoopOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -800,6 +811,7 @@ class DataProcHadoopOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_hadoop_properties
         self.dataproc_jars = dataproc_hadoop_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -814,7 +826,7 @@ class DataProcHadoopOperator(BaseOperator):
         job.add_file_uris(self.files)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcPySparkOperator(BaseOperator):
@@ -839,6 +851,7 @@ class DataProcPySparkOperator(BaseOperator):
             dataproc_pyspark_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -875,6 +888,8 @@ class DataProcPySparkOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
          """
         super(DataProcPySparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -888,6 +903,7 @@ class DataProcPySparkOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_pyspark_properties
         self.dataproc_jars = dataproc_pyspark_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -903,4 +919,4 @@ class DataProcPySparkOperator(BaseOperator):
         job.add_python_file_uris(self.pyfiles)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
