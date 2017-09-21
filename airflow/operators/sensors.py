@@ -87,7 +87,7 @@ class BaseSensorOperator(BaseOperator):
 
 class SqlSensor(BaseSensorOperator):
     """
-    Runs a sql statement until a criteria is met. It will keep trying until
+    Runs a sql statement until a criteria is met. It will keep trying while
     sql returns no row, or if the first cell in (0, '0', '').
 
     :param conn_id: The connection to run the sensor against
