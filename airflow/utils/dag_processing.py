@@ -42,7 +42,8 @@ class SimpleDag(BaseDag):
                  full_filepath,
                  concurrency,
                  is_paused,
-                 pickle_id):
+                 pickle_id,
+                 task_special_args):
         """
         :param dag_id: ID of the DAG
         :type dag_id: unicode
@@ -66,6 +67,22 @@ class SimpleDag(BaseDag):
         self._is_paused = is_paused
         self._concurrency = concurrency
         self._pickle_id = pickle_id
+        self._task_special_args = task_special_args
+
+    def __init__(self, dag, pickle_id=None):
+        self._dag_id = dag.dag_id
+        self._task_ids = [task.task_id for task in dag.tasks]
+        self._full_filepath = dag.full_filepath
+        self._is_paused = dag.is_paused
+        self._concurrency = dag.concurrency
+        self._pickle_id = pickle_id
+        self._task_special_args = {}
+        for task in dag.tasks:
+            special_args = {}
+            if task.task_concurrency is not None:
+                special_args['task_concurrency'] = task.task_concurrency
+            if len(special_args) > 0:
+                self._task_special_args[task.task_id] = special_args
 
     @property
     def dag_id(self):
@@ -114,6 +131,16 @@ class SimpleDag(BaseDag):
         :rtype: unicode
         """
         return self._pickle_id
+
+    @property
+    def task_special_args(self):
+        return self._task_special_args
+
+    def get_task_special_arg(self, task_id, special_arg_name):
+        if task_id in self._task_special_args and special_arg_name in self._task_special_args[task_id]:
+            return self._task_special_args[task_id][special_arg_name]
+        else:
+            return None
 
 
 class SimpleDagBag(BaseDagBag):

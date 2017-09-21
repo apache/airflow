@@ -517,6 +517,39 @@ class DagRunTest(unittest.TestCase):
         dr.update_state()
         self.assertEqual(dr.state, State.FAILED)
 
+    def test_dagrun_no_deadlock(self):
+        session = settings.Session()
+        dag = DAG('test_dagrun_no_deadlock',
+                  start_date=DEFAULT_DATE)
+        with dag:
+            op1 = DummyOperator(task_id='dop', depends_on_past=True)
+            op2 = DummyOperator(task_id='tc', task_concurrency=1)
+
+        dag.clear()
+        dr = dag.create_dagrun(run_id='test_dagrun_no_deadlock_1',
+                               state=State.RUNNING,
+                               execution_date=DEFAULT_DATE,
+                               start_date=DEFAULT_DATE)
+        dr2 = dag.create_dagrun(run_id='test_dagrun_no_deadlock_2',
+                                state=State.RUNNING,
+                                execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
+                                start_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti1_op1 = dr.get_task_instance(task_id='dop')
+        ti2_op1 = dr2.get_task_instance(task_id='dop')
+        ti2_op1 = dr.get_task_instance(task_id='tc')
+        ti2_op2 = dr.get_task_instance(task_id='tc')
+        ti1_op1.set_state(state=State.RUNNING, session=session)
+        dr.update_state()
+        dr2.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
+        self.assertEqual(dr2.state, State.RUNNING)
+
+        ti2_op1.set_state(state=State.RUNNING, session=session)
+        dr.update_state()
+        dr2.update_state()
+        self.assertEqual(dr.state, State.RUNNING)
+        self.assertEqual(dr2.state, State.RUNNING)
+
     def test_get_task_instance_on_empty_dagrun(self):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
@@ -1201,6 +1234,29 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task2, execution_date=datetime.datetime.now())
         self.assertFalse(ti._check_and_change_state_before_execution())
+
+    def test_get_num_running_task_instances(self):
+        session = settings.Session()
+
+        dag = models.DAG(dag_id='test_get_num_running_task_instances')
+        dag2 = models.DAG(dag_id='test_get_num_running_task_instances_dummy')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        task2 = DummyOperator(task_id='task', dag=dag2, start_date=DEFAULT_DATE)
+
+        ti1 = TI(task=task, execution_date=DEFAULT_DATE)
+        ti2 = TI(task=task, execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti3 = TI(task=task2, execution_date=DEFAULT_DATE)
+        ti1.state = State.RUNNING
+        ti2.state = State.QUEUED
+        ti3.state = State.RUNNING
+        session.add(ti1)
+        session.add(ti2)
+        session.add(ti3)
+        session.commit()
+
+        self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
+        self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
+        self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
         
 
 class ClearTasksTest(unittest.TestCase):
