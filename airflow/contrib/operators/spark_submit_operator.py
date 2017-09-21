@@ -39,6 +39,8 @@ class SparkSubmitOperator(BaseOperator):
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
+    :param packages: Comma-separated list of maven coordinates of jars to include on the driver and executor classpaths
+    :type packages: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
     :type total_executor_cores: int
     :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
@@ -72,6 +74,7 @@ class SparkSubmitOperator(BaseOperator):
                  py_files=None,
                  jars=None,
                  java_class=None,
+                 packages=None,
                  total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
@@ -91,6 +94,7 @@ class SparkSubmitOperator(BaseOperator):
         self._py_files = py_files
         self._jars = jars
         self._java_class = java_class
+        self._packages = packages
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -115,6 +119,7 @@ class SparkSubmitOperator(BaseOperator):
             py_files=self._py_files,
             jars=self._jars,
             java_class=self._java_class,
+            packages=self._packages,
             total_executor_cores=self._total_executor_cores,
             executor_cores=self._executor_cores,
             executor_memory=self._executor_memory,

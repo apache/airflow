@@ -68,6 +68,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  py_files=None,
                  jars=None,
                  java_class=None,
+                 packages=None,
                  total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
@@ -84,6 +85,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._py_files = py_files
         self._jars = jars
         self._java_class = java_class
+        self._packages = packages
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -160,6 +162,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--py-files", self._py_files]
         if self._jars:
             connection_cmd += ["--jars", self._jars]
+        if self._packages:
+            connection_cmd += ["--packages", self._packages]
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._total_executor_cores:
