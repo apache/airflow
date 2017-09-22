@@ -16,6 +16,8 @@ import datetime
 import os
 import unittest
 
+from mock import Mock
+
 import airflow
 from airflow.models import DAG, DagBag
 from airflow.operators.bash_operator import BashOperator
@@ -90,6 +92,34 @@ class SubDagOperatorTests(unittest.TestCase):
         dag = DAG('parent', default_args=default_args)
         SubDagOperator(
             task_id='child', dag=dag, subdag=subdag, pool='test_pool_10')
+
+        session.delete(pool_1)
+        session.delete(pool_10)
+        session.commit()
+
+    def test_subdag_pools_no_possible_conflict(self):
+        """
+        Subdags and subdag tasks with no pool overlap, should not to query
+        pools
+        """
+        dag = DAG('parent', default_args=default_args)
+        subdag = DAG('parent.child', default_args=default_args)
+
+        session = airflow.settings.Session()
+        pool_1 = airflow.models.Pool(pool='test_pool_1', slots=1)
+        pool_10 = airflow.models.Pool(pool='test_pool_10', slots=10)
+        session.add(pool_1)
+        session.add(pool_10)
+        session.commit()
+
+        dummy_1 = DummyOperator(
+            task_id='dummy', dag=subdag, pool='test_pool_10')
+
+        mock_session = Mock()
+        SubDagOperator(
+            task_id='child', dag=dag, subdag=subdag, pool='test_pool_1',
+            session=mock_session)
+        self.assertFalse(mock_session.query.called)
 
         session.delete(pool_1)
         session.delete(pool_10)
