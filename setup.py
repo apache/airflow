@@ -162,7 +162,7 @@ s3 = [
 ]
 samba = ['pysmbclient>=0.1.3']
 slack = ['slackclient>=1.0.0']
-snowflake = ['snowflake-connector-python>=1.4.7']
+snowflake = ['snowflake-connector-python==1.4.1']
 statsd = ['statsd>=3.0.1, <4.0']
 vertica = ['vertica-python>=0.5.1']
 ldap = ['ldap3>=0.9.9.1']
