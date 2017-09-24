@@ -17,7 +17,8 @@ import logging
 
 try:
     from airflow.operators.docker_operator import DockerOperator
-    from docker import APIClient as Client
+    from airflow.hooks.docker_hook import DockerHook
+    from docker import Client
 except ImportError:
     pass
 
@@ -33,7 +34,6 @@ except ImportError:
 
 
 class DockerOperatorTestCase(unittest.TestCase):
-    @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('airflow.utils.file.mkdtemp')
     @mock.patch('airflow.operators.docker_operator.Client')
     def test_execute(self, client_class_mock, mkdtemp_mock):
@@ -77,7 +77,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
         client_mock.wait.assert_called_with('some_id')
 
-    @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
     @mock.patch('airflow.operators.docker_operator.Client')
     def test_execute_tls(self, client_class_mock, tls_class_mock):
@@ -105,7 +104,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.assert_called_with(base_url='https://127.0.0.1:2376', tls=tls_mock,
                                              version=None)
 
-    @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('airflow.operators.docker_operator.Client')
     def test_execute_unicode_logs(self, client_class_mock):
         client_mock = mock.Mock(spec=Client)
@@ -128,7 +126,6 @@ class DockerOperatorTestCase(unittest.TestCase):
             logging.raiseExceptions = originalRaiseExceptions
             print_exception_mock.assert_not_called()
 
-    @unittest.skipIf(mock is None, 'mock package not present')
     @mock.patch('airflow.operators.docker_operator.Client')
     def test_execute_container_fails(self, client_class_mock):
         client_mock = mock.Mock(spec=Client)
@@ -146,7 +143,6 @@ class DockerOperatorTestCase(unittest.TestCase):
         with self.assertRaises(AirflowException):
             operator.execute(None)
 
-    @unittest.skipIf(mock is None, 'mock package not present')
     def test_on_kill(self):
         client_mock = mock.Mock(spec=Client)
 
@@ -158,6 +154,80 @@ class DockerOperatorTestCase(unittest.TestCase):
 
         client_mock.stop.assert_called_with('some_id')
 
+    @mock.patch('airflow.operators.docker_operator.Client')
+    def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):
+        # Mock out a Docker client, so operations don't raise errors
+        client_mock = mock.Mock(name='DockerOperator.Client mock', spec=Client)
+        client_mock.images.return_value = []
+        client_mock.create_container.return_value = {'Id': 'some_id'}
+        client_mock.logs.return_value = []
+        client_mock.pull.return_value = []
+        client_mock.wait.return_value = 0
+        operator_client_mock.return_value = client_mock
+
+        # Create the DockerOperator
+        operator = DockerOperator(
+            image='publicregistry/someimage',
+            owner='unittest',
+            task_id='unittest'
+        )
+
+        # Mock out the DockerHook
+        hook_mock = mock.Mock(name='DockerHook mock', spec=DockerHook)
+        hook_mock.get_conn.return_value = client_mock
+        operator.get_hook = mock.Mock(
+            name='DockerOperator.get_hook mock',
+            spec=DockerOperator.get_hook,
+            return_value=hook_mock
+        )
+
+        operator.execute(None)
+        self.assertEqual(
+            operator.get_hook.call_count, 0,
+            'Hook called though no docker_conn_id configured'
+        )
+
+    @mock.patch('airflow.operators.docker_operator.Client')
+    def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock):
+        # Mock out a Docker client, so operations don't raise errors
+        client_mock = mock.Mock(name='DockerOperator.Client mock', spec=Client)
+        client_mock.images.return_value = []
+        client_mock.create_container.return_value = {'Id': 'some_id'}
+        client_mock.logs.return_value = []
+        client_mock.pull.return_value = []
+        client_mock.wait.return_value = 0
+        operator_client_mock.return_value = client_mock
+
+        # Create the DockerOperator
+        operator = DockerOperator(
+            image='publicregistry/someimage',
+            owner='unittest',
+            task_id='unittest',
+            docker_conn_id='some_conn_id'
+        )
+
+        # Mock out the DockerHook
+        hook_mock = mock.Mock(name='DockerHook mock', spec=DockerHook)
+        hook_mock.get_conn.return_value = client_mock
+        operator.get_hook = mock.Mock(
+            name='DockerOperator.get_hook mock',
+            spec=DockerOperator.get_hook,
+            return_value=hook_mock
+        )
+
+        operator.execute(None)
+        self.assertEqual(
+            operator_client_mock.call_count, 0,
+            'Client was called on the operator instead of the hook'
+        )
+        self.assertEqual(
+            operator.get_hook.call_count, 1,
+            'Hook was not called although docker_conn_id configured'
+        )
+        self.assertEqual(
+            client_mock.pull.call_count, 1,
+            'Image was not pulled using operator client'
+        )
 
 if __name__ == "__main__":
     unittest.main()
