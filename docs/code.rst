@@ -216,6 +216,7 @@ Hooks
     :show-inheritance:
     :members:
         DbApiHook,
+        DockerHook,
         HiveCliHook,
         HiveMetastoreHook,
         HiveServer2Hook,
