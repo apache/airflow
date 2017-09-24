@@ -101,8 +101,7 @@ def get_fernet():
     try:
         return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
     except ValueError as ve:
-        raise AirflowException("Could not create Fernet object: {}"
-                               .format(ve.message))
+        raise AirflowException("Could not create Fernet object: {}".format(ve))
 
 
 if 'mysql' in settings.SQL_ALCHEMY_CONN:
