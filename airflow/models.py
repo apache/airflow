@@ -552,6 +552,8 @@ class Connection(Base, LoggingMixin):
         ('redis', 'Redis',),
         ('wasb', 'Azure Blob Storage'),
         ('databricks', 'Databricks',),
+        ('aws', 'Amazon Web Services',),
+        ('emr', 'Elastic MapReduce',),
     ]
 
     def __init__(
