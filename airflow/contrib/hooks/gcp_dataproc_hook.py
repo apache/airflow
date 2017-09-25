@@ -22,12 +22,13 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class _DataProcJob(LoggingMixin):
-    def __init__(self, dataproc_api, project_id, job):
+    def __init__(self, dataproc_api, project_id, job, region='global'):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
+        self.region = region
         self.job = dataproc_api.projects().regions().jobs().submit(
             projectId=self.project_id,
-            region='global',
+            region=self.region,
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
         self.log.info(
@@ -39,7 +40,7 @@ class _DataProcJob(LoggingMixin):
         while True:
             self.job = self.dataproc_api.projects().regions().jobs().get(
                 projectId=self.project_id,
-                region='global',
+                region=self.region,
                 jobId=self.job_id).execute()
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
@@ -153,8 +154,8 @@ class DataProcHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataproc', 'v1', http=http_authorized)
 
-    def submit(self, project_id, job):
-        submitted = _DataProcJob(self.get_conn(), project_id, job)
+    def submit(self, project_id, job, region='global'):
+        submitted = _DataProcJob(self.get_conn(), project_id, job, region)
         if not submitted.wait_for_done():
             submitted.raise_error("DataProcTask has errors")
 
