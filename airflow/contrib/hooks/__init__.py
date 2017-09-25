@@ -47,7 +47,8 @@ _hooks = {
     'cloudant_hook': ['CloudantHook'],
     'fs_hook': ['FSHook'],
     'wasb_hook': ['WasbHook'],
-    'gcp_pubsub_hook': ['PubSubHook']
+    'gcp_pubsub_hook': ['PubSubHook'],
+    'aws_dynamodb_hook': ['AwsDynamoDBHook']
 }
 
 import os as _os
