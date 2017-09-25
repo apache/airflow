@@ -46,8 +46,7 @@ def upgrade():
 
     if 'task_instance' in tables:
         # Get current session
-        sessionmaker = sa.orm.sessionmaker()
-        session = sessionmaker(bind=connection)
+        session = settings.Session()
         dagbag = DagBag(settings.DAGS_FOLDER)
         query = session.query(sa.func.count(TaskInstance.max_tries)).filter(
             TaskInstance.max_tries == -1
@@ -79,9 +78,7 @@ def upgrade():
 def downgrade():
     engine = settings.engine
     if engine.dialect.has_table(engine, 'task_instance'):
-        connection = op.get_bind()
-        sessionmaker = sa.orm.sessionmaker()
-        session = sessionmaker(bind=connection)
+        session = settings.Session()
         dagbag = DagBag(settings.DAGS_FOLDER)
         query = session.query(sa.func.count(TaskInstance.max_tries)).filter(
             TaskInstance.max_tries != -1
