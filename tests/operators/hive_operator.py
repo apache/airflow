@@ -193,6 +193,22 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
+        def test_hive_dryrun_with_comments(self):
+            import airflow.operators.hive_operator
+            t = operators.hive_operator.HiveOperator(
+                task_id='dry_run_hql_with_comments',
+                hql="""
+                -- A line commenting before the drop.
+                DROP TABLE static_babynames_partitioned;
+                CREATE TABLE IF NOT EXISTS static_babynames_states (
+                    state string
+                );
+                INSERT OVERWRITE TABLE static_babynames_states
+                SELECT state FROM static_babynames_partitioned;
+                """
+            )
+            t.dry_run()
+
         def test_beeline(self):
             import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(

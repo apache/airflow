@@ -227,44 +227,53 @@ class HiveCliHook(BaseHook):
         """
         Test an hql statement using the hive cli and EXPLAIN
 
+        It does not submit map-reduce jobs, but it relies on hive to check
+        metadata, syntax, joins, etc. Adds jars and executes settings.  Runs
+        explain plans on inserts.
         """
-        create, insert, other = [], [], []
-        for query in hql.split(';'):  # naive
+        query_set= []
+        for query in hql.split(';'):
             query_original = query
             query = query.lower().strip()
-
+            comments = ''
+            while query.startswith('--'):
+                comments += query[:query.find('\n') + 1]
+                query = query[query.find('\n') + 1:]
             if query.startswith('create table'):
-                create.append(query_original)
+                query_set.append(('create', query_original, comments))
             elif query.startswith(('set ',
-                                   'add jar ',
-                                   'create temporary function')):
-                other.append(query_original)
+                                   'add ',
+                                   'use ',
+                                   'create temporary function',
+                                  )):
+                query_set.append(('setting', query_original, comments))
             elif query.startswith('insert'):
-                insert.append(query_original)
-        other = ';'.join(other)
-        for query_set in [create, insert]:
-            for query in query_set:
+                query_set.append(('insert', query_original, comments))
+            elif query.startswith('drop table'):
+                query_set.append(('drop', query_original, comments))
+            else:
+                query_set.append(('other', query_original, comments))
 
-                query_preview = ' '.join(query.split())[:50]
-                self.log.info("Testing HQL [%s (...)]", query_preview)
-                if query_set == insert:
-                    query = other + '; explain ' + query
+        for (mode, query, comments) in query_set:
+            query_preview = ' '.join(query.split())[:50]
+            self.log.info("Testing HQL [%s (...)]", query_preview)
+            try:
+                if mode in ['setting']:
+                    self.run_cli(comments + query, verbose=False)
                 else:
-                    query = 'explain ' + query
-                try:
-                    self.run_cli(query, verbose=False)
-                except AirflowException as e:
-                    message = e.args[0].split('\n')[-2]
-                    self.log.info(message)
-                    error_loc = re.search('(\d+):(\d+)', message)
-                    if error_loc and error_loc.group(1).isdigit():
-                        l = int(error_loc.group(1))
-                        begin = max(l-2, 0)
-                        end = min(l+3, len(query.split('\n')))
-                        context = '\n'.join(query.split('\n')[begin:end])
-                        self.log.info("Context :\n %s", context)
-                else:
-                    self.log.info("SUCCESS")
+                    self.run_cli(comments + 'explain ' + query)
+            except AirflowException as e:
+                message = e.args[0].split('\n')[-2]
+                self.log.info(message)
+                error_loc = re.search('(\d+):(\d+)', message)
+                if error_loc and error_loc.group(1).isdigit():
+                    l = int(error_loc.group(1))
+                    begin = max(l-2, 0)
+                    end = min(l+3, len(query.split('\n')))
+                    context = '\n'.join(query.split('\n')[begin:end])
+                    self.log.info("Context :\n %s", context)
+            else:
+                self.log.info("SUCCESS")
 
     def load_df(
             self,
