@@ -263,6 +263,10 @@ def initdb():
         models.Connection(
             conn_id='databricks_default', conn_type='databricks',
             host='localhost'))
+    merge_conn(
+        models.Connection(
+            conn_id='qubole_default', conn_type='qubole',
+            host= 'localhost'))
 
     # Known event types
     KET = models.KnownEventType
