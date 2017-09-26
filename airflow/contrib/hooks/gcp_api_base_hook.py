@@ -61,14 +61,14 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         Returns the Credentials object for Google API
         """
         key_path = self._get_field('key_path', False)
-        key_json = self._get_field('key_json', False)
+        keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', False)
 
         kwargs = {}
         if self.delegate_to:
             kwargs['sub'] = self.delegate_to
 
-        if not key_path and not key_json:
+        if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `gcloud auth` user, since no key file '
                          'is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
@@ -94,7 +94,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
 
             # Get credentials from JSON data provided in the UI.
             try:
-                keyfile_dict = json.loads(key_json)
+                keyfile_dict = json.loads(keyfile_dict)
 
                 # Depending on how the JSON was formatted, it may contain
                 # escaped newlines. Convert those to actual newlines.
