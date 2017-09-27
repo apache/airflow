@@ -12,12 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+
+import six
 import sys
 import unittest
 from io import StringIO
 from itertools import dropwhile
 
-import mock
+from mock import patch, call
 
 from airflow import configuration, models
 from airflow.utils import db
@@ -75,6 +77,35 @@ class TestSparkSqlHook(unittest.TestCase):
 
         if self._config['verbose']:
             assert "--verbose" in cmd
+
+    @patch('airflow.contrib.hooks.spark_sql_hook.subprocess.Popen')
+    def test_spark_process_runcmd(self, mock_popen):
+        # Given
+        mock_popen.return_value.stdout = six.StringIO('Spark-sql communicates using stdout')
+        mock_popen.return_value.stderr = six.StringIO('stderr')
+        mock_popen.return_value.wait.return_value = 0
+
+        # When
+        hook = SparkSqlHook(
+            conn_id='spark_default',
+            sql='SELECT 1'
+        )
+        with patch.object(hook.log, 'debug') as mock_debug:
+            with patch.object(hook.log, 'info') as mock_info:
+                hook.run_query()
+                mock_debug.assert_called_with(
+                    'Spark-Sql cmd: %s',
+                    ['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose', '--queue', 'default']
+                )
+                mock_info.assert_called_with(
+                    'Spark-sql communicates using stdout'
+                )
+
+        # Then
+        self.assertEqual(
+            mock_popen.mock_calls[0],
+            call(['spark-sql', '-e', 'SELECT 1', '--master', 'yarn', '--name', 'default-name', '--verbose', '--queue', 'default'], stderr=-2, stdout=-1)
+        )
 
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@ from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class SparkSqlHook(BaseHook, LoggingMixin):
+class SparkSqlHook(BaseHook):
     """
     This hook is a wrapper around the spark-sql binary. It requires that the
     "spark-sql" binary is in the PATH.
@@ -138,7 +138,8 @@ class SparkSqlHook(BaseHook, LoggingMixin):
                                     stderr=subprocess.STDOUT,
                                     **kwargs)
 
-        self._process_log(iter(self._sp.stdout.readline, b''))
+        for line in iter(self._sp.stdout.readline, ''):
+            self.log.info(line)
 
         returncode = self._sp.wait()
 
