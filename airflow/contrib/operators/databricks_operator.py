@@ -21,6 +21,10 @@ from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
 
 
+XCOM_RUN_ID_KEY = 'run_id'
+XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
+
+
 class DatabricksSubmitRunOperator(BaseOperator):
     """
     Submits an Spark job run to Databricks using the
@@ -224,8 +228,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
-        run_page_url = hook.get_run_page_url(self.run_id)
+        context['task_instance'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
         self.log.info('Run submitted with run_id: %s', self.run_id)
+        run_page_url = hook.get_run_page_url(self.run_id)
+        context['task_instance'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
         self._log_run_page_url(run_page_url)
         while True:
             run_state = hook.get_run_state(self.run_id)
