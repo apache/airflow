@@ -101,12 +101,18 @@ class S3Hook(BaseHook):
         self.extra_params = self.s3_conn.extra_dejson
         self.profile = self.extra_params.get('profile')
         self.calling_format = None
-        self._creds_in_conn = 'aws_secret_access_key' in self.extra_params
+        self._creds_in_conn = ('aws_secret_access_key' in self.extra_params or  
+                                self.s3_conn.password not in ('', None)
+                                )
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
         if self._creds_in_conn:
-            self._a_key = self.extra_params['aws_access_key_id']
-            self._s_key = self.extra_params['aws_secret_access_key']
+            if self.s3_conn.password not in ('', None) and self.s3_conn.login not in ('', None):
+                self._a_key = self.s3_conn.login
+                self._s_key = self.s3_conn.password
+            else:
+                self._a_key = self.extra_params['aws_access_key_id']
+                self._s_key = self.extra_params['aws_secret_access_key']
             if 'calling_format' in self.extra_params:
                 self.calling_format = self.extra_params['calling_format']
         elif self._creds_in_config_file:
