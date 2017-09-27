@@ -856,7 +856,7 @@ class Airflow(BaseView):
 
         try:
             from airflow.executors import GetDefaultExecutor
-            from airflow.executors import CeleryExecutor
+            from airflow.executors.celery_executor import CeleryExecutor
             executor = GetDefaultExecutor()
             if not isinstance(executor, CeleryExecutor):
                 flash("Only works with the CeleryExecutor, sorry", "error")
