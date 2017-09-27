@@ -527,8 +527,13 @@ class S3KeySensor(BaseSensorOperator):
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         logging.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
-            return hook.check_for_wildcard_key(self.bucket_key,
-                                               self.bucket_name)
+            if hook.check_for_wildcard_key(self.bucket_key, self.bucket_name) is True:
+                prefix = re.split(r'[*]', self.bucket_key, 1)[0] 
+                key_list = hook.list_keys(self.bucket_name, prefix=prefix, delimiter='')
+                for i, value in enumerate(key_list):
+                    key_identifier = "key$d" % i
+                    context['ti'].xcom_push(key=key_identifier, value=klist)
+                return True
         else:
             return hook.check_for_key(self.bucket_key, self.bucket_name)
 
