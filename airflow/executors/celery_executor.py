@@ -23,7 +23,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors.base_executor import BaseExecutor
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
-
+from airflow.utils.module_loading import import_string
 
 PARALLELISM = configuration.get('core', 'PARALLELISM')
 
@@ -33,7 +33,9 @@ airflow worker
 '''
 
 if configuration.has_option('celery', 'celery_config_options'):
-    celery_configuration = configuration.get('celery', 'celery_config_options')
+    celery_configuration = import_string(
+        configuration.get('celery', 'celery_config_options')
+    )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
