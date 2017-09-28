@@ -33,11 +33,11 @@ class TestDruidHook(unittest.TestCase):
     @requests_mock.mock()
     def test_submit_gone_wrong(self, m):
         hook = DruidHook()
-        m.post(
+        task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
         )
-        m.get(
+        status_check = m.get(
             'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "FAILED"}}'
         )
@@ -46,14 +46,17 @@ class TestDruidHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             hook.submit_indexing_job('Long json file')
 
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+
     @requests_mock.mock()
     def test_submit_ok(self, m):
         hook = DruidHook()
-        m.post(
+        task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
         )
-        m.get(
+        status_check = m.get(
             'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "SUCCESS"}}'
         )
@@ -61,14 +64,17 @@ class TestDruidHook(unittest.TestCase):
         # Exists just as it should
         hook.submit_indexing_job('Long json file')
 
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+
     @requests_mock.mock()
     def test_submit_unknown_response(self, m):
         hook = DruidHook()
-        m.post(
+        task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
         )
-        m.get(
+        status_check = m.get(
             'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "UNKNOWN"}}'
         )
@@ -77,21 +83,32 @@ class TestDruidHook(unittest.TestCase):
         with self.assertRaises(AirflowException):
             hook.submit_indexing_job('Long json file')
 
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called_once)
+
     @requests_mock.mock()
     def test_submit_timeout(self, m):
         hook = DruidHook(timeout=0, max_ingestion_time=5)
-        m.post(
+        task_post = m.post(
             'http://druid-overlord:8081/druid/indexer/v1/task',
             text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
         )
-        m.get(
+        status_check = m.get(
             'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/status',
             text='{"status":{"status": "RUNNING"}}'
+        )
+        shutdown_post = m.post(
+            'http://druid-overlord:8081/druid/indexer/v1/task/9f8a7359-77d4-4612-b0cd-cc2f6a3c28de/shutdown',
+            text='{"task":"9f8a7359-77d4-4612-b0cd-cc2f6a3c28de"}'
         )
 
         # Because the jobs keeps running
         with self.assertRaises(AirflowException):
             hook.submit_indexing_job('Long json file')
+
+        self.assertTrue(task_post.called_once)
+        self.assertTrue(status_check.called)
+        self.assertTrue(shutdown_post.called_once)
 
 
 
