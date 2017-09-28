@@ -116,7 +116,7 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                response = requests.get(url, timeout=self.timeout)
+                response = requests.get(url, timeout=timeout)
 
                 # Check if the resource was properly fetched
                 response.raise_for_status()
