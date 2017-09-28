@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import json
+
 import httplib2
 from oauth2client.client import GoogleCredentials
 from oauth2client.service_account import ServiceAccountCredentials
@@ -59,20 +61,23 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         Returns the Credentials object for Google API
         """
         key_path = self._get_field('key_path', False)
+        keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', False)
 
         kwargs = {}
         if self.delegate_to:
             kwargs['sub'] = self.delegate_to
 
-        if not key_path:
+        if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `gcloud auth` user, since no key file '
                          'is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
-        else:
+        elif key_path:
             if not scope:
                 raise AirflowException('Scope should be defined when using a key file.')
             scopes = [s.strip() for s in scope.split(',')]
+
+            # Get credentials from a JSON file.
             if key_path.endswith('.json'):
                 self.log.info('Getting connection using a JSON key file.')
                 credentials = ServiceAccountCredentials\
@@ -82,6 +87,24 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                                        'use a JSON key file.')
             else:
                 raise AirflowException('Unrecognised extension for key file.')
+        else:
+            if not scope:
+                raise AirflowException('Scope should be defined when using key JSON.')
+            scopes = [s.strip() for s in scope.split(',')]
+
+            # Get credentials from JSON data provided in the UI.
+            try:
+                keyfile_dict = json.loads(keyfile_dict)
+
+                # Depending on how the JSON was formatted, it may contain
+                # escaped newlines. Convert those to actual newlines.
+                keyfile_dict['private_key'] = keyfile_dict['private_key'].replace(
+                    '\\n', '\n')
+
+                credentials = ServiceAccountCredentials\
+                    .from_json_keyfile_dict(keyfile_dict, scopes)
+            except json.decoder.JSONDecodeError:
+                raise AirflowException('Invalid key JSON.')
         return credentials
 
     def _get_access_token(self):
