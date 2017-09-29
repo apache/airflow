@@ -21,6 +21,7 @@ import logging
 import logging.config
 import os
 import sys
+import json
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -176,7 +177,8 @@ configure_orm()
 # TODO: Unify airflow logging setups. Please see AIRFLOW-1457.
 logging_config_path = conf.get('core', 'logging_config_path')
 try:
-    from logging_config_path import LOGGING_CONFIG
+    with open(logging_config_path) as f:
+        LOGGING_CONFIG = json.load(f)
     log.debug("Successfully imported user-defined logging config.")
 except Exception as e:
     # Import default logging configurations.
