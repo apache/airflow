@@ -18,6 +18,9 @@
 */
 
 body { padding-top: 70px; }
+.container {
+    width: 100%;
+}
 a.navbar-brand span {
     color: white;
 }
