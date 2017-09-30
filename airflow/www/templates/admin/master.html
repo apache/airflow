@@ -30,9 +30,8 @@
     x = new Date()
     var UTCseconds = (x.getTime() + x.getTimezoneOffset()*60*1000);
     $("#clock").clock({
-        "seconds":"false",
-        "calendar":"false",
-        "format":"24",
+        "dateFormat":"Y-m-d ",
+        "timeFormat":"H:i:s %UTC%",
         "timestamp":UTCseconds
     }).click(function(){
         alert('{{ hostname }}');
