@@ -14,45 +14,33 @@
 #
 
 import unittest
-import boto3
+import uuid
 
-from airflow import configuration
-from airflow.contrib.hooks.aws_hook import AwsHook
-
+from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 
 try:
-    from moto import mock_emr, mock_dynamodb2
+    from moto import mock_dynamodb2
 except ImportError:
-    mock_emr = None
     mock_dynamodb2 = None
 
 
-class TestAwsHook(unittest.TestCase):
-    @mock_emr
-    def setUp(self):
-        configuration.load_test_config()
+class TestDynamoDBHook(unittest.TestCase):
 
-    @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
-    @mock_emr
-    def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
-        client = boto3.client('emr', region_name='us-east-1')
-        if len(client.list_clusters()['Clusters']):
-            raise ValueError('AWS not properly mocked')
-
-        hook = AwsHook(aws_conn_id='aws_default')
-        client_from_hook = hook.get_client_type('emr')
-
-        self.assertEqual(client_from_hook.list_clusters()['Clusters'], [])
-
-    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
     @mock_dynamodb2
-    def test_get_resource_type_returns_a_boto3_resource_of_the_requested_type(self):
+    def test_get_conn_returns_a_boto3_connection(self):
+        hook = AwsDynamoDBHook(aws_conn_id='aws_default')
+        self.assertIsNotNone(hook.get_conn())
 
-        hook = AwsHook(aws_conn_id='aws_default')
-        resource_from_hook = hook.get_resource_type('dynamodb')
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamodb2 package not present')
+    @mock_dynamodb2
+    def test_insert_batch_items_dynamodb_table(self):
+
+        hook = AwsDynamoDBHook(aws_conn_id='aws_default',
+                               table_name='test_airflow', table_keys=['id'], region_name='us-east-1')
 
         # this table needs to be created in production
-        table = resource_from_hook.create_table(
+        table = hook.get_conn().create_table(
             TableName='test_airflow',
             KeySchema=[
                 {
@@ -72,10 +60,16 @@ class TestAwsHook(unittest.TestCase):
             }
         )
 
+        table = hook.get_conn().Table('test_airflow')
+
+        items = [{'id': str(uuid.uuid4()), 'name': 'airflow'}
+                 for _ in range(10)]
+
+        hook.write_batch_data(items)
+
         table.meta.client.get_waiter(
             'table_exists').wait(TableName='test_airflow')
-
-        self.assertEqual(table.item_count, 0)
+        self.assertEqual(table.item_count, 10)
 
 
 if __name__ == '__main__':
