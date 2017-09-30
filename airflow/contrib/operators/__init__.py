@@ -38,7 +38,8 @@ _operators = {
     'qubole_operator': ['QuboleOperator'],
     'spark_submit_operator': ['SparkSubmitOperator'],
     'file_to_wasb': ['FileToWasbOperator'],
-    'fs_operator': ['FileSensor']
+    'fs_operator': ['FileSensor'],
+    'hive_to_dynamodb': ['HiveToDynamoDBTransferOperator']
 }
 
 import os as _os
