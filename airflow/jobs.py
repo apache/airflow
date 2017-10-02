@@ -40,6 +40,7 @@ from time import sleep
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
+from airflow.logging_config import configure_logging
 from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
@@ -372,9 +373,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             sys.stderr = f
 
             try:
-                # Re-configure logging to use the new output streams
-                log_format = settings.LOG_FORMAT_WITH_THREAD_NAME
-                settings.configure_logging(log_format=log_format)
+                configure_logging()
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
