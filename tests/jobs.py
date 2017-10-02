@@ -278,6 +278,57 @@ class BackfillJobTest(unittest.TestCase):
         ti.refresh_from_db()
         self.assertEquals(ti.state, State.SUCCESS)
 
+    def test_run_ignores_all_dependencies(self):
+        """
+        Test that run respects ignore_all_dependencies
+        """
+        dag_id = 'test_run_ignores_all_dependencies'
+
+        dag = self.dagbag.get_dag('test_run_ignores_all_dependencies')
+        dag.clear()
+
+        task0_id = 'test_run_dependent_task'
+        args0 = ['run',
+                 '-A',
+                 dag_id,
+                 task0_id,
+                 DEFAULT_DATE.isoformat()]
+        cli.run(self.parser.parse_args(args0))
+        ti_dependent0 = TI(
+            task=dag.get_task(task0_id),
+            execution_date=DEFAULT_DATE)
+
+        ti_dependent0.refresh_from_db()
+        self.assertEquals(ti_dependent0.state, State.FAILED)
+
+        task1_id = 'test_run_dependency_task'
+        args1 = ['run',
+                 '-A',
+                 dag_id,
+                 task1_id,
+                 (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
+        cli.run(self.parser.parse_args(args1))
+
+        ti_dependency = TI(
+            task=dag.get_task(task1_id),
+            execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti_dependency.refresh_from_db()
+        self.assertEquals(ti_dependency.state, State.FAILED)
+
+        task2_id = 'test_run_dependent_task'
+        args2 = ['run',
+                 '-A',
+                 dag_id,
+                 task2_id,
+                 (DEFAULT_DATE + datetime.timedelta(days=1)).isoformat()]
+        cli.run(self.parser.parse_args(args2))
+
+        ti_dependent = TI(
+            task=dag.get_task(task2_id),
+            execution_date=DEFAULT_DATE + datetime.timedelta(days=1))
+        ti_dependent.refresh_from_db()
+        self.assertEquals(ti_dependent.state, State.SUCCESS)
+
     def test_cli_backfill_depends_on_past(self):
         """
         Test that CLI respects -I argument

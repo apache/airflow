@@ -36,6 +36,7 @@ DEFAULT_OPTIONS = {
 ADDITIONAL_OPTIONS = {
     'output': 'gs://test/output'
 }
+POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.contrib.operators.dataflow_operator.{}'
 
 
@@ -47,13 +48,15 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
             py_file=PY_FILE,
             py_options=PY_OPTIONS,
             dataflow_default_options=DEFAULT_OPTIONS,
-            options=ADDITIONAL_OPTIONS)
+            options=ADDITIONAL_OPTIONS,
+            poll_sleep=POLL_SLEEP)
 
     def test_init(self):
         """Test DataFlowPythonOperator instance is properly initialized."""
         self.assertEqual(self.dataflow.task_id, TASK_ID)
         self.assertEqual(self.dataflow.py_file, PY_FILE)
         self.assertEqual(self.dataflow.py_options, PY_OPTIONS)
+        self.assertEqual(self.dataflow.poll_sleep, POLL_SLEEP)
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS)
         self.assertEqual(self.dataflow.options,

@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 
-import logging
 import time
 
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
@@ -178,13 +177,14 @@ class DataprocClusterCreateOperator(BaseOperator):
         while True:
             state = self._get_cluster_state(service)
             if state is None:
-                logging.info("No state for cluster '%s'", self.cluster_name)
+                self.log.info("No state for cluster '%s'", self.cluster_name)
                 time.sleep(15)
             else:
-                logging.info("State for cluster '%s' is %s", self.cluster_name, state)
+                self.log.info("State for cluster '%s' is %s", self.cluster_name, state)
                 if self._cluster_ready(state, service):
-                    logging.info("Cluster '%s' successfully created",
-                                 self.cluster_name)
+                    self.log.info(
+                        "Cluster '%s' successfully created", self.cluster_name
+                    )
                     return
                 time.sleep(15)
 
@@ -264,7 +264,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         return cluster_data
 
     def execute(self, context):
-        logging.info('Creating cluster: {}'.format(self.cluster_name))
+        self.log.info('Creating cluster: %s', self.cluster_name)
         hook = DataProcHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to
@@ -272,9 +272,10 @@ class DataprocClusterCreateOperator(BaseOperator):
         service = hook.get_conn()
 
         if self._get_cluster(service):
-            logging.info('Cluster {} already exists... Checking status...'.format(
-                            self.cluster_name
-                        ))
+            self.log.info(
+                'Cluster %s already exists... Checking status...',
+                self.cluster_name
+            )
             self._wait_for_done(service)
             return True
 
@@ -289,9 +290,10 @@ class DataprocClusterCreateOperator(BaseOperator):
             # probably two cluster start commands at the same time
             time.sleep(10)
             if self._get_cluster(service):
-                logging.info('Cluster {} already exists... Checking status...'.format(
-                             self.cluster_name
-                             ))
+                self.log.info(
+                    'Cluster {} already exists... Checking status...',
+                    self.cluster_name
+                 )
                 self._wait_for_done(service)
                 return True
             else:
@@ -356,7 +358,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
             time.sleep(15)
 
     def execute(self, context):
-        logging.info('Deleting cluster: {}'.format(self.cluster_name))
+        self.log.info('Deleting cluster: %s', self.cluster_name)
         hook = DataProcHook(
             gcp_conn_id=self.google_cloud_conn_id,
             delegate_to=self.delegate_to
@@ -369,7 +371,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
             clusterName=self.cluster_name
         ).execute()
         operation_name = response['name']
-        logging.info("Cluster delete operation name: {}".format(operation_name))
+        self.log.info("Cluster delete operation name: %s", operation_name)
         self._wait_for_done(service, operation_name)
 
 
@@ -501,6 +503,7 @@ class DataProcHiveOperator(BaseOperator):
             dataproc_hive_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -530,6 +533,8 @@ class DataProcHiveOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcHiveOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -541,6 +546,7 @@ class DataProcHiveOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_hive_properties
         self.dataproc_jars = dataproc_hive_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -557,7 +563,7 @@ class DataProcHiveOperator(BaseOperator):
         job.add_jar_file_uris(self.dataproc_jars)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcSparkSqlOperator(BaseOperator):
@@ -661,6 +667,7 @@ class DataProcSparkOperator(BaseOperator):
             dataproc_spark_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -697,6 +704,8 @@ class DataProcSparkOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcSparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -710,6 +719,7 @@ class DataProcSparkOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_spark_properties
         self.dataproc_jars = dataproc_spark_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -724,7 +734,7 @@ class DataProcSparkOperator(BaseOperator):
         job.add_file_uris(self.files)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcHadoopOperator(BaseOperator):
@@ -749,6 +759,7 @@ class DataProcHadoopOperator(BaseOperator):
             dataproc_hadoop_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -785,6 +796,8 @@ class DataProcHadoopOperator(BaseOperator):
             For this to work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
         """
         super(DataProcHadoopOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -798,6 +811,7 @@ class DataProcHadoopOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_hadoop_properties
         self.dataproc_jars = dataproc_hadoop_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -812,7 +826,7 @@ class DataProcHadoopOperator(BaseOperator):
         job.add_file_uris(self.files)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)
 
 
 class DataProcPySparkOperator(BaseOperator):
@@ -837,6 +851,7 @@ class DataProcPySparkOperator(BaseOperator):
             dataproc_pyspark_jars=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            region='global',
             *args,
             **kwargs):
         """
@@ -873,6 +888,8 @@ class DataProcPySparkOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
         :type delegate_to: string
+        :param region: The specified region where the dataproc cluster is created.
+        :type region: string
          """
         super(DataProcPySparkOperator, self).__init__(*args, **kwargs)
         self.gcp_conn_id = gcp_conn_id
@@ -886,6 +903,7 @@ class DataProcPySparkOperator(BaseOperator):
         self.dataproc_cluster = dataproc_cluster
         self.dataproc_properties = dataproc_pyspark_properties
         self.dataproc_jars = dataproc_pyspark_jars
+        self.region = region
 
     def execute(self, context):
         hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
@@ -901,4 +919,4 @@ class DataProcPySparkOperator(BaseOperator):
         job.add_python_file_uris(self.pyfiles)
         job.set_job_name(self.job_name)
 
-        hook.submit(hook.project_id, job.build())
+        hook.submit(hook.project_id, job.build(), self.region)

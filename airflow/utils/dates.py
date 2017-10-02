@@ -17,7 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 import six
 
@@ -66,7 +66,7 @@ def date_range(
     if end_date and num:
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
-        end_date = datetime.now()
+        end_date = datetime.utcnow()
 
     delta_iscron = False
     if isinstance(delta, six.string_types):
@@ -83,7 +83,7 @@ def date_range(
             else:
                 start_date += delta
     else:
-        for i in range(abs(num)):
+        for _ in range(abs(num)):
             l.append(start_date)
             if delta_iscron:
                 if num > 0:
@@ -219,7 +219,7 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
-    today = datetime.today().replace(
+    today = datetime.utcnow().replace(
         hour=hour,
         minute=minute,
         second=second,

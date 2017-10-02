@@ -29,7 +29,6 @@ from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
-from time import time as timetime
 from time import sleep
 import warnings
 
@@ -37,7 +36,7 @@ from dateutil.relativedelta import relativedelta
 import sqlalchemy
 
 from airflow import configuration
-from airflow.executors import SequentialExecutor, LocalExecutor
+from airflow.executors import SequentialExecutor
 from airflow.models import Variable
 from tests.test_utils.fake_datetime import FakeDatetime
 
@@ -53,13 +52,11 @@ from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.operators import sensors
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
-from airflow.hooks.postgres_hook import PostgresHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils.state import State
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
-from airflow.utils.logging import LoggingMixin
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
@@ -210,7 +207,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        start_date = datetime.now()
+        start_date = datetime.utcnow()
 
         run = dag.create_dagrun(
             run_id='test_' + start_date.isoformat(),
@@ -267,7 +264,7 @@ class CoreTest(unittest.TestCase):
         2016-01-01 should be scheduled.
         """
         from datetime import datetime
-        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
 
         session = settings.Session()
         delta = timedelta(days=1)
@@ -671,7 +668,7 @@ class CoreTest(unittest.TestCase):
 
     @mock.patch('airflow.utils.dag_processing.datetime', FakeDatetime)
     def test_scheduler_job(self):
-        FakeDatetime.now = classmethod(lambda cls: datetime(2016, 1, 1))
+        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
         job = jobs.SchedulerJob(dag_id='example_bash_operator',
                                 **self.default_scheduler_args)
         job.run()
@@ -729,6 +726,15 @@ class CoreTest(unittest.TestCase):
         key = "tested_var_setdefault_2_id"
         value = {"city": 'Paris', "Hapiness": True}
         Variable.setdefault(key, value, deserialize_json=True)
+        self.assertEqual(value, Variable.get(key, deserialize_json=True))
+
+    def test_variable_setdefault_existing_json(self):
+        key = "tested_var_setdefault_2_id"
+        value = {"city": 'Paris', "Hapiness": True}
+        Variable.set(key, value, serialize_json=True)
+        val = Variable.setdefault(key, value, deserialize_json=True)
+        # Check the returned value, and the stored value are handled correctly.
+        self.assertEqual(value, val)
         self.assertEqual(value, Variable.get(key, deserialize_json=True))
 
     def test_parameterized_config_gen(self):
@@ -804,17 +810,6 @@ class CoreTest(unittest.TestCase):
 
         # restore the envvar back to the original state
         del os.environ[key]
-
-    def test_class_with_logger_should_have_logger_with_correct_name(self):
-
-        # each class should automatically receive a logger with a correct name
-
-        class Blah(LoggingMixin):
-            pass
-
-        self.assertEqual("tests.core.Blah", Blah().logger.name)
-        self.assertEqual("airflow.executors.sequential_executor.SequentialExecutor", SequentialExecutor().logger.name)
-        self.assertEqual("airflow.executors.local_executor.LocalExecutor", LocalExecutor().logger.name)
 
     def test_round_time(self):
 
@@ -1628,7 +1623,7 @@ class SecurityTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1648,23 +1643,23 @@ class WebUiTests(unittest.TestCase):
         self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dag_bash2.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
         self.sub_dag.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
         self.example_xcom.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.now())),
+            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.now(),
+            start_date=datetime.utcnow(),
             state=State.RUNNING
         )
 
@@ -1830,7 +1825,7 @@ class WebUiTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.now())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()

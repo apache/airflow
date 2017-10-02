@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
 import select
 import subprocess
 import time
@@ -21,16 +19,17 @@ import uuid
 from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class _DataflowJob(object):
-
-    def __init__(self, dataflow, project_number, name):
+class _DataflowJob(LoggingMixin):
+    def __init__(self, dataflow, project_number, name, poll_sleep=10):
         self._dataflow = dataflow
         self._project_number = project_number
         self._job_name = name
         self._job_id = None
         self._job = self._get_job()
+        self._poll_sleep = poll_sleep
 
     def _get_job_id_from_name(self):
         jobs = self._dataflow.projects().jobs().list(
@@ -49,11 +48,15 @@ class _DataflowJob(object):
             job = self._dataflow.projects().jobs().get(projectId=self._project_number,
                                                        jobId=self._job_id).execute()
         if 'currentState' in job:
-            logging.info('Google Cloud DataFlow job %s is %s', job['name'],
-                         job['currentState'])
+            self.log.info(
+                'Google Cloud DataFlow job %s is %s',
+                job['name'], job['currentState']
+            )
         else:
-            logging.info('Google Cloud DataFlow with job_id %s has name %s', self._job_id,
-                         job['name'])
+            self.log.info(
+                'Google Cloud DataFlow with job_id %s has name %s',
+                self._job_id, job['name']
+            )
         return job
 
     def wait_for_done(self):
@@ -68,9 +71,11 @@ class _DataflowJob(object):
                     raise Exception("Google Cloud Dataflow job {} was cancelled.".format(
                         self._job['name']))
                 elif 'JOB_STATE_RUNNING' == self._job['currentState']:
-                    time.sleep(10)
+                    time.sleep(self._poll_sleep)
+                elif 'JOB_STATE_PENDING' == self._job['currentState']:
+                    time.sleep(15)
                 else:
-                    logging.debug(str(self._job))
+                    self.log.debug(str(self._job))
                     raise Exception(
                         "Google Cloud Dataflow job {} was unknown state: {}".format(
                             self._job['name'], self._job['currentState']))
@@ -83,8 +88,7 @@ class _DataflowJob(object):
         return self._job
 
 
-class _Dataflow(object):
-
+class _Dataflow(LoggingMixin):
     def __init__(self, cmd):
         self._proc = subprocess.Popen(cmd, shell=False, stdout=subprocess.PIPE,
                                       stderr=subprocess.PIPE)
@@ -105,15 +109,15 @@ class _Dataflow(object):
 
     def wait_for_done(self):
         reads = [self._proc.stderr.fileno(), self._proc.stdout.fileno()]
-        logging.info("Start waiting for DataFlow process to complete.")
+        self.log.info("Start waiting for DataFlow process to complete.")
         while self._proc.poll() is None:
             ret = select.select(reads, [], [], 5)
             if ret is not None:
                 for fd in ret[0]:
                     line = self._line(fd)
-                    logging.debug(line[:-1])
+                    self.log.debug(line[:-1])
             else:
-                logging.info("Waiting for DataFlow process to complete.")
+                self.log.info("Waiting for DataFlow process to complete.")
         if self._proc.returncode is not 0:
             raise Exception("DataFlow failed with return code {}".format(
                 self._proc.returncode))
@@ -123,7 +127,9 @@ class DataFlowHook(GoogleCloudBaseHook):
 
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
-                 delegate_to=None):
+                 delegate_to=None,
+                 poll_sleep=10):
+        self.poll_sleep = poll_sleep
         super(DataFlowHook, self).__init__(gcp_conn_id, delegate_to)
 
     def get_conn(self):
@@ -137,7 +143,7 @@ class DataFlowHook(GoogleCloudBaseHook):
         cmd = command_prefix + self._build_cmd(task_id, variables, dataflow)
         _Dataflow(cmd).wait_for_done()
         _DataflowJob(
-            self.get_conn(), variables['project'], name).wait_for_done()
+            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
 
     def start_java_dataflow(self, task_id, variables, dataflow):
         name = task_id + "-" + str(uuid.uuid1())[:8]

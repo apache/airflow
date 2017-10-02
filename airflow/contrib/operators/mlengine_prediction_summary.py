@@ -95,7 +95,6 @@ from __future__ import print_function
 import argparse
 import base64
 import json
-import logging
 import os
 
 import apache_beam as beam
@@ -173,5 +172,4 @@ def run(argv=None):
 
 
 if __name__ == "__main__":
-    logging.getLogger().setLevel(logging.INFO)
     run()

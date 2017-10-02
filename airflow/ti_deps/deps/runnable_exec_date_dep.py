@@ -23,7 +23,7 @@ class RunnableExecDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        cur_date = datetime.now()
+        cur_date = datetime.utcnow()
 
         if ti.execution_date > cur_date:
             yield self._failing_status(

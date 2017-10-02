@@ -12,50 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-import logging
 import time
 import uuid
 
 from apiclient.discovery import build
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class _DataProcJob:
-    def __init__(self, dataproc_api, project_id, job):
+class _DataProcJob(LoggingMixin):
+    def __init__(self, dataproc_api, project_id, job, region='global'):
         self.dataproc_api = dataproc_api
         self.project_id = project_id
+        self.region = region
         self.job = dataproc_api.projects().regions().jobs().submit(
             projectId=self.project_id,
-            region='global',
+            region=self.region,
             body=job).execute()
         self.job_id = self.job['reference']['jobId']
-        logging.info('DataProc job %s is %s', self.job_id,
-                     str(self.job['status']['state']))
+        self.log.info(
+            'DataProc job %s is %s',
+            self.job_id, str(self.job['status']['state'])
+        )
 
     def wait_for_done(self):
         while True:
             self.job = self.dataproc_api.projects().regions().jobs().get(
                 projectId=self.project_id,
-                region='global',
+                region=self.region,
                 jobId=self.job_id).execute()
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
-                logging.error('DataProc job %s has errors', self.job_id)
-                logging.error(self.job['status']['details'])
-                logging.debug(str(self.job))
+                self.log.error('DataProc job %s has errors', self.job_id)
+                self.log.error(self.job['status']['details'])
+                self.log.debug(str(self.job))
                 return False
             if 'CANCELLED' == self.job['status']['state']:
                 print(str(self.job))
-                logging.warning('DataProc job %s is cancelled', self.job_id)
+                self.log.warning('DataProc job %s is cancelled', self.job_id)
                 if 'details' in self.job['status']:
-                    logging.warning(self.job['status']['details'])
-                logging.debug(str(self.job))
+                    self.log.warning(self.job['status']['details'])
+                self.log.debug(str(self.job))
                 return False
             if 'DONE' == self.job['status']['state']:
                 return True
-            logging.debug('DataProc job %s is %s', self.job_id,
-                          str(self.job['status']['state']))
+            self.log.debug(
+                'DataProc job %s is %s',
+                self.job_id, str(self.job['status']['state'])
+            )
             time.sleep(5)
 
     def raise_error(self, message=None):
@@ -149,8 +154,8 @@ class DataProcHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataproc', 'v1', http=http_authorized)
 
-    def submit(self, project_id, job):
-        submitted = _DataProcJob(self.get_conn(), project_id, job)
+    def submit(self, project_id, job, region='global'):
+        submitted = _DataProcJob(self.get_conn(), project_id, job, region)
         if not submitted.wait_for_done():
             submitted.raise_error("DataProcTask has errors")
 
