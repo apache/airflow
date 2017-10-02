@@ -47,6 +47,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     template_fields = ('bucket', 'object', 'filename', 'store_to_xcom_key',)
     ui_color = '#f0eee4'
 
+    @apply_defaults
     def __init__(self,
                  bucket,
                  object,
