@@ -2500,54 +2500,6 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertFalse(mock_smtp.called)
         self.assertFalse(mock_smtp_ssl.called)
 
-class LogTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
-    def _log(self):
-        settings.configure_logging()
-
-        sio = six.StringIO()
-        handler = logging.StreamHandler(sio)
-        logger = logging.getLogger()
-        logger.addHandler(handler)
-
-        logging.debug("debug")
-        logging.info("info")
-        logging.warn("warn")
-
-        sio.flush()
-        return sio.getvalue()
-
-    def test_default_log_level(self):
-        s = self._log()
-        self.assertFalse("debug" in s)
-        self.assertTrue("info" in s)
-        self.assertTrue("warn" in s)
-
-    def test_change_log_level_to_debug(self):
-        configuration.set("core", "LOGGING_LEVEL", "DEBUG")
-        s = self._log()
-        self.assertTrue("debug" in s)
-        self.assertTrue("info" in s)
-        self.assertTrue("warn" in s)
-
-    def test_change_log_level_to_info(self):
-        configuration.set("core", "LOGGING_LEVEL", "INFO")
-        s = self._log()
-        self.assertFalse("debug" in s)
-        self.assertTrue("info" in s)
-        self.assertTrue("warn" in s)
-
-    def test_change_log_level_to_warn(self):
-        configuration.set("core", "LOGGING_LEVEL", "WARNING")
-        s = self._log()
-        self.assertFalse("debug" in s)
-        self.assertFalse("info" in s)
-        self.assertTrue("warn" in s)
-
-    def tearDown(self):
-        configuration.set("core", "LOGGING_LEVEL", "INFO")
 
 if __name__ == '__main__':
     unittest.main()
