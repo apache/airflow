@@ -23,6 +23,9 @@ class PostgresHook(DbApiHook):
     Interact with Postgres.
     You can specify ssl parameters in the extra field of your connection
     as ``{"sslmode": "require", "sslcert": "/path/to/cert.pem", etc}``.
+
+    Note: For Redshift, use keepalives_idle in the extra connection parameters
+    and set it to less than 300 seconds.
     """
     conn_name_attr = 'postgres_conn_id'
     default_conn_name = 'postgres_default'
@@ -42,8 +45,11 @@ class PostgresHook(DbApiHook):
             port=conn.port)
         # check for ssl parameters in conn.extra
         for arg_name, arg_val in conn.extra_dejson.items():
-            if arg_name in ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslcrl', 'application_name']:
+            if arg_name in ['sslmode', 'sslcert', 'sslkey',
+                            'sslrootcert', 'sslcrl', 'application_name',
+                            'keepalives_idle']:
                 conn_args[arg_name] = arg_val
+
         psycopg2_conn = psycopg2.connect(**conn_args)
         return psycopg2_conn
 
@@ -52,8 +58,8 @@ class PostgresHook(DbApiHook):
         """
         Postgresql will adapt all arguments to the execute() method internally,
         hence we return cell without any conversion.
-        
-        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for 
+
+        See http://initd.org/psycopg/docs/advanced.html#adapting-new-types for
         more information.
 
         :param cell: The cell to insert into the table
