@@ -18,7 +18,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import Client, tls
+from docker import APIClient as Client, tls
 import ast
 
 
