@@ -444,7 +444,7 @@ class DagFileProcessorManager(LoggingMixin):
                 filtered_processors[file_path] = processor
             else:
                 self.log.warning("Stopping processor for %s", file_path)
-                processor.stop()
+                processor.terminate()
         self._processors = filtered_processors
 
     @staticmethod
