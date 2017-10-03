@@ -146,6 +146,7 @@ A new DaskExecutor allows Airflow tasks to be run in Dask Distributed clusters.
 ### Deprecated Features
 These features are marked for deprecation. They may still work (and raise a `DeprecationWarning`), but are no longer
 supported and will be removed entirely in Airflow 2.0
+- If you're using the `google_cloud_conn_id` or `dataproc_cluster` argument names explicitly in `contrib.operators.Dataproc{*}Operator`(s), be sure to rename them to `gcp_conn_id` or `cluster_name`, respectively. We've renamed these arguments for consistency. (AIRFLOW-1323)
 
 - `post_execute()` hooks now take two arguments, `context` and `result`
   (AIRFLOW-886)
@@ -157,7 +158,7 @@ supported and will be removed entirely in Airflow 2.0
 - The pickle type for XCom messages has been replaced by json to prevent RCE attacks.
   Note that JSON serialization is stricter than pickling, so if you want to e.g. pass
   raw bytes through XCom you must encode them using an encoding like base64.
-  By default pickling is still enabled until Airflow 2.0. To disable it 
+  By default pickling is still enabled until Airflow 2.0. To disable it
   Set enable_xcom_pickling = False in your Airflow config.
 
 ## Airflow 1.8.1
