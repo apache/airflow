@@ -2287,6 +2287,43 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
+class TestRedirect(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        self.ENDPOINT = '/admin/airflow/redirect'
+        self.DEFAULT_DATE = datetime(2017, 1, 1)
+        self.app = application.create_app().test_client()
+
+        class DummyTestOperator(BaseOperator):
+            extra_links = ['foo-bar']
+
+            def get_redirect_url(self, ddtm, redirect_to):
+                return 'www.example.com/{0}/{1}/{2}'.format(self.task_id,
+                                                            redirect_to, ddtm)
+
+        self.dag = DAG('dag', start_date=DEFAULT_DATE)
+        self.task = DummyTestOperator(task_id="some_dummy_task", dag=self.dag)
+
+    def test_redirect_method_not_whitelisted(self):
+        response = self.app.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&redirect_to=foo-bar"
+            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE),
+            follow_redirects=True)
+
+        self.assertEquals(response.status_code, 200)
+
+    def test_redirect_method_whitelisted(self):
+        configuration.set('webserver', 'whitelisted_domains', 'www.example.com')
+
+        response = self.app.get(
+            "{0}?dag_id={1}&task_id={2}&execution_date={3}&redirect_to=foo-bar"
+            .format(self.ENDPOINT, self.dag.dag_id, self.task.task_id, self.DEFAULT_DATE))
+
+        # Not sure how to check if the response is heading the request to
+        # 'www.example.com/some_dummy_task/foo-bar/2017-01-01') or not.
+        self.assertEquals(response.status_code, 302)
+
+
 try:
     from airflow.hooks.hdfs_hook import HDFSHook
     import snakebite

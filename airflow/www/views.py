@@ -62,6 +62,11 @@ from flask_admin.form.fields import DateTimeField
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import airflow
 from airflow import configuration as conf
 from airflow import models
@@ -1250,6 +1255,7 @@ class Airflow(BaseView):
                 'end_date': task.end_date,
                 'depends_on_past': task.depends_on_past,
                 'ui_color': task.ui_color,
+                'extra_links': task.extra_links,
             }
 
         data = {
@@ -1360,6 +1366,7 @@ class Airflow(BaseView):
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
+                'extra_links': t.extra_links,
             }
             for t in dag.tasks}
         if not tasks:
@@ -1708,6 +1715,12 @@ class Airflow(BaseView):
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
 
+        task_types = {}
+        extra_links = {}
+        for t in dag.tasks:
+            task_types[t.task_id] = t.task_type
+            extra_links[t.task_id] = t.extra_links
+
         tasks = []
         for ti in tis:
             end_date = ti.end_date if ti.end_date else timezone.utcnow()
@@ -1717,11 +1730,15 @@ class Airflow(BaseView):
                 'isoStart': ti.start_date.isoformat()[:-4],
                 'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
+                'taskType': task_types[ti.task_id],
                 'duration': "{}".format(end_date - ti.start_date)[:-4],
                 'status': ti.state,
                 'executionDate': ti.execution_date.isoformat(),
+                'extraLinks': extra_links[ti.task_id],
             })
         states = {ti.state: ti.state for ti in tis}
+
+
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
@@ -1741,6 +1758,52 @@ class Airflow(BaseView):
             demo_mode=demo_mode,
             root=root,
         )
+
+    @expose('/redirect')
+    @login_required
+    @wwwutils.action_logging
+    def redirect(self):
+
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        redirect_to = request.args.get('redirect_to')
+        dttm = airflow.utils.timezone.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag or task_id not in dag.task_ids:
+            flash(
+                "Task [{}.{}] doesn't seem to exist"
+                " at the moment".format(dag_id, task_id),
+                "error")
+            return redirect(request.referrer or '/admin/')
+
+        task = None
+
+        for t in dag.tasks:
+            if t.task_id == task_id:
+                task = t
+                break
+
+        url = task.get_redirect_url(dttm, redirect_to)
+
+        if url:
+            allowed_domains = conf.get('webserver', 'whitelisted_domains')
+            parsed_uri = urlparse(url)
+            domain = '{uri.scheme}://{uri.netloc}/'.format(uri=parsed_uri)
+            if domain in allowed_domains:
+                return redirect(url)
+            else:
+                flash("Couldn't redirect to {}, as the domain {} is "
+                      "not whitelisted".format(url, domain))
+            return redirect(request.referrer or '/admin/')
+        else:
+            flash(
+                "Couldn't redirect to {} for [{}.{}]"
+                " at the moment".format(redirect_to, dag_id, task_id),
+                "error")
+            return redirect(request.referrer or '/admin/')
+
 
     @expose('/object/task_instances')
     @login_required

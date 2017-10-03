@@ -2094,6 +2094,8 @@ class BaseOperator(LoggingMixin):
     template_fields = []
     # Defines which files extensions to look for in the templated fields
     template_ext = []
+    # Defines the extra buttons to display in the task instance model view
+    extra_links = []
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
@@ -2746,6 +2748,9 @@ class BaseOperator(LoggingMixin):
             task_ids=task_ids,
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
+
+    def get_redirect_url(self, dttm, redirect_to):
+        pass
 
 
 class DagModel(Base):

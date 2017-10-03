@@ -207,6 +207,9 @@
               Downstream
             </button>
           </span>
+          <hr/>
+          <span class="btn-group" id="extra_links">
+          </span>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -274,24 +277,46 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, sd) {
+
+    function call_modal(t, d, task_type, extra_links) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
         window.location = updateQueryStringParameter(loc, "root", task_id);
       });
-      subdag_id = sd;
       execution_date = d;
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
-      $("#myModal").css("margin-top","0px")
-        if (subdag_id===undefined)
-            $("#div_btn_subdag").hide();
-        else {
-            $("#div_btn_subdag").show();
-            subdag_id = "{{ dag.dag_id }}."+t;
-        }
+      $("#myModal").css("margin-top","0px");
+      $('#extra_links').prev('hr').hide();
+      $('#extra_links').empty().hide();
+      $("#div_btn_subdag").hide();
+
+      if (task_type==="SubDagOperator"){
+        $("#div_btn_subdag").show();
+        subdag_id = "{{ dag.dag_id }}."+t;
+      }
+
+      if (extra_links && extra_links.length > 0){
+        var markupArr = [];
+
+        $.each(extra_links, function(i, link){
+          var url = "{{ url_for('airflow.redirect') }}" +
+                  "?task_id=" + encodeURIComponent(task_id) +
+                  "&dag_id=" + encodeURIComponent(dag_id) +
+                  "&execution_date=" + encodeURIComponent(execution_date) +
+                  "&redirect_to=" + encodeURIComponent(link);
+
+          var a = '<a href="' + url + '" class="btn btn-primary" target="_blank">' + link + '</a>';
+
+          markupArr.push(a)
+        });
+
+        $('#extra_links').prev('hr').show();
+        $('#extra_links').append(markupArr.join('')).show();
+      }
+
     }
 
     function call_modal_dag(dag) {
