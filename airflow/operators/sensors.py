@@ -117,7 +117,6 @@ class SqlSensor(BaseSensorOperator):
                 return False
             else:
                 return True
-            print(records[0][0])
 
 
 class MetastorePartitionSensor(SqlSensor):
@@ -430,7 +429,7 @@ class HdfsSensor(BaseSensorOperator):
         Will filter if instructed to do so the result to remove matching criteria
 
         :param result: (list) of dicts returned by Snakebite ls
-        :param ignored_ext: (list) of ignored extentions
+        :param ignored_ext: (list) of ignored extensions
         :param ignore_copying: (bool) shall we ignore ?
         :return: (list) of dicts which were not removed
         """
