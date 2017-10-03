@@ -26,7 +26,7 @@ g.node text {
     cursor: pointer;
 }
 g.node.success rect {
-    stroke: green;
+    stroke: darkblue;
 }
 g.node.up_for_retry rect {
     stroke: gold;
@@ -37,13 +37,13 @@ g.node.queued rect {
 }
 
 g.node.running rect{
-    stroke: lime;
+    stroke: aqua;
 }
 g.node.failed rect {
     stroke: red;
 }
 g.node.shutdown rect{
-    stroke: blue;
+    stroke: maroon;
 }
 g.node.upstream_failed rect{
     stroke: orange;

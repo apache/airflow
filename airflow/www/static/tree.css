@@ -42,10 +42,10 @@ rect.null, rect.scheduled, rect.undefined {
     fill: white;
 }
 rect.success {
-    fill: green;
+    fill: darkblue;
 }
 rect.running {
-    fill: lime;
+    fill: aqua;
 }
 rect.failed {
     fill: red;
@@ -54,7 +54,7 @@ rect.queued {
     fill: gray;
 }
 rect.shutdown {
-    fill: blue;
+    fill: maroon;
 }
 rect.upstream_failed {
     fill: orange;
