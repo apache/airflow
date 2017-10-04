@@ -31,6 +31,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.remote_base = gcs_log_folder
         self.log_relative_path = ''
         self._hook = None
+        self.closed = False
 
     def _build_hook(self):
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
@@ -67,7 +68,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
         # times when `logging.shutdown` is called.
-        if self._hook is None:
+        if self.closed:
             return
 
         super(GCSTaskHandler, self).close()
@@ -80,8 +81,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 log = logfile.read()
             self.gcs_write(log, remote_loc)
 
-        # Unset variable
-        self._hook = None
+        # Mark closed so we don't double write if close is called twice
+        self.closed = True
 
     def _read(self, ti, try_number):
         """
@@ -153,8 +154,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         :type append: bool
         """
         if append:
-            old_log = self.read(remote_log_location)
-            log = '\n'.join([old_log, log])
+            old_log = self.gcs_read(remote_log_location)
+            log = '\n'.join([old_log, log]) if old_log else log
 
         try:
             bkt, blob = self.parse_gcs_url(remote_log_location)
