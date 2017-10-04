@@ -17,9 +17,16 @@
 * under the License.
 */
 
-body { padding-top: 70px; }
+body {
+  padding-top: 70px;
+  background-color: #fefcf9;
+  font-family: "Sofia Regular";
+}
+.column-header {
+  font-family: "Sofia Semi Bold";
+}
 a.navbar-brand span {
-    color: white;
+    color: #f4f2ec;
 }
 .modal-backdrop{
     z-index: 0;
