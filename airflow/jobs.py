@@ -1362,7 +1362,7 @@ class SchedulerJob(BaseJob):
             no_backfills=True,
         )
         for dr in active_runs:
-            if dr.dag_id in ['long_running_test', 'presto_query_logs']:
+            if dr.dag_id in ['long_running_test', 'presto_query_logs', 'redshift_replication_other']:
                 self.logger.info("Resetting {} {}".format(dr.dag_id,
                                                         dr.execution_date))
                 self.reset_state_for_orphaned_tasks(dr, session=session)
