@@ -107,12 +107,8 @@ class S3Hook(BaseHook):
         self._creds_in_config_file = 's3_config_file' in self.extra_params
         self._default_to_boto = False
         if self._creds_in_conn:
-            if self.s3_conn.password not in ('', None) and self.s3_conn.login not in ('', None):
-                self._a_key = self.s3_conn.login
-                self._s_key = self.s3_conn.password
-            else:
-                self._a_key = self.extra_params['aws_access_key_id']
-                self._s_key = self.extra_params['aws_secret_access_key']
+            self._a_key = self._get_access_key_id()
+            self._s_key = self._get_secret_access_key()
             if 'calling_format' in self.extra_params:
                 self.calling_format = self.extra_params['calling_format']
         elif self._creds_in_config_file:
@@ -140,6 +136,24 @@ class S3Hook(BaseHook):
     def __setstate__(self, d):
         self.__dict__.update(d)
         self.__dict__['connection'] = self.get_conn()
+
+    def _get_access_key_id(self):
+        """
+        Access key ID can be provided in extras or as connection login.
+        """
+        access_key = self.extra_params.get('aws_access_key_id')
+        if access_key is not None:
+            return access_key
+        return self.s3_conn.login
+
+    def _get_secret_access_key(self):
+        """
+        Secret access key can be provided in extras or as connection password.
+        """
+        secret_key = self.extra_params.get('aws_secret_access_key')
+        if secret_key is not None:
+            return secret_key
+        return self.s3_conn.password
 
     def _parse_s3_url(self, s3url):
         warnings.warn(
