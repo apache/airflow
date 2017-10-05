@@ -19,6 +19,7 @@ from airflow.ti_deps.deps.not_running_dep import NotRunningDep
 from airflow.ti_deps.deps.not_skipped_dep import NotSkippedDep
 from airflow.ti_deps.deps.runnable_exec_date_dep import RunnableExecDateDep
 from airflow.ti_deps.deps.valid_state_dep import ValidStateDep
+from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 from airflow.utils.state import State
 
 
@@ -97,7 +98,8 @@ QUEUE_DEPS = {
 # Dependencies that need to be met for a given task instance to be able to get run by an
 # executor. This class just extends QueueContext by adding dependencies for resources.
 RUN_DEPS = QUEUE_DEPS | {
-    DagTISlotsAvailableDep()
+    DagTISlotsAvailableDep(),
+    TaskConcurrencyDep(),
 }
 
 # TODO(aoen): SCHEDULER_DEPS is not coupled to actual execution in any way and

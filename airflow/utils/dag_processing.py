@@ -105,6 +105,16 @@ class SimpleDag(BaseDag):
         """
         return self._pickle_id
 
+    @property
+    def task_special_args(self):
+        return self._task_special_args
+
+    def get_task_special_arg(self, task_id, special_arg_name):
+        if task_id in self._task_special_args and special_arg_name in self._task_special_args[task_id]:
+            return self._task_special_args[task_id][special_arg_name]
+        else:
+            return None
+
 
 class SimpleDagBag(BaseDagBag):
     """
@@ -366,7 +376,7 @@ class DagFileProcessorManager(LoggingMixin):
         being processed
         """
         if file_path in self._processors:
-            return (datetime.utcnow() - self._processors[file_path].start_time)\
+            return (datetime.utcnow() - self._processors[file_path].start_time) \
                 .total_seconds()
         return None
 
@@ -489,8 +499,8 @@ class DagFileProcessorManager(LoggingMixin):
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)
                 if (last_finish_time is not None and
-                    (now - last_finish_time).total_seconds() <
-                        self._process_file_interval):
+                            (now - last_finish_time).total_seconds() <
+                            self._process_file_interval):
                     file_paths_recently_processed.append(file_path)
 
             files_paths_at_run_limit = [file_path
@@ -517,7 +527,7 @@ class DagFileProcessorManager(LoggingMixin):
 
         # Start more processors if we have enough slots and files to process
         while (self._parallelism - len(self._processors) > 0 and
-               len(self._file_path_queue) > 0):
+                       len(self._file_path_queue) > 0):
             file_path = self._file_path_queue.pop(0)
             processor = self._processor_factory(file_path)
 
