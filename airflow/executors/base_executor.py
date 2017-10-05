@@ -78,6 +78,7 @@ class BaseExecutor(LoggingMixin):
     def has_task(self, task_instance):
         """
         Checks if a task is either queued or running in this executor
+
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """

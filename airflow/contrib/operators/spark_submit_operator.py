@@ -23,6 +23,7 @@ class SparkSubmitOperator(BaseOperator):
     This hook is a wrapper around the spark-submit binary to kick off a spark-submit job.
     It requires that the "spark-submit" binary is in the PATH or the spark-home is set
     in the extra on the connection.
+
     :param application: The application that submitted as a job, either jar or py file.
     :type application: str
     :param conf: Arbitrary Spark configuration properties

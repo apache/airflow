@@ -20,6 +20,7 @@ from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 class SparkSqlOperator(BaseOperator):
     """
     Execute Spark SQL query
+
     :param sql: The SQL query to execute
     :type sql: str
     :param conf: arbitrary Spark configuration property
