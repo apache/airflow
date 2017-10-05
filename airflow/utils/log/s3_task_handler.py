@@ -29,6 +29,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self.remote_base = s3_log_folder
         self.log_relative_path = ''
         self._hook = None
+        self.closed = False
 
     def _build_hook(self):
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
@@ -62,7 +63,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # calling close method. Here we check if logger is already
         # closed to prevent uploading the log to remote storage multiple
         # times when `logging.shutdown` is called.
-        if self._hook is None:
+        if self.closed:
             return
 
         super(S3TaskHandler, self).close()
@@ -75,7 +76,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log = logfile.read()
             self.s3_write(log, remote_loc)
 
-        self._hook = None
+        # Mark closed so we don't double write if close is called twice
+        self.closed = True
 
     def _read(self, ti, try_number):
         """
@@ -94,7 +96,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             # If S3 remote file exists, we do not fetch logs from task instance
             # local machine even if there are errors reading remote logs, as
             # returned remote_log will contain error messages.
-            remote_log = self.s3_log_read(remote_loc, return_error=True)
+            remote_log = self.s3_read(remote_loc, return_error=True)
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
         else:
@@ -114,7 +116,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             pass
         return False
 
-    def s3_log_read(self, remote_log_location, return_error=False):
+    def s3_read(self, remote_log_location, return_error=False):
         """
         Returns the log found at the remote_log_location. Returns '' if no
         logs are found or there is an error.
@@ -148,8 +150,8 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :type append: bool
         """
         if append:
-            old_log = self.read(remote_log_location)
-            log = '\n'.join([old_log, log])
+            old_log = self.s3_read(remote_log_location)
+            log = '\n'.join([old_log, log]) if old_log else log
 
         try:
             self.hook.load_string(
