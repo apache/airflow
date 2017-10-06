@@ -167,8 +167,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
                 # closed).
                 tmpfile.flush()
                 self.hook.upload(bkt, blob, tmpfile.name)
-        except:
-            self.log.error('Could not write logs to %s', remote_log_location)
+        except Exception as e:
+            self.log.error('Could not write logs to %s: %s', remote_log_location, e)
 
     def parse_gcs_url(self, gsurl):
         """
