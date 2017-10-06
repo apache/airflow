@@ -401,9 +401,10 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
+            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery table to load
             data into. If <project> is not included, project will be the project defined
-            in the connection json.
+            in the connection json. If a partition is specified the operator will automatically 
+            append the data, create a new partition or create a new DAY partitioned table. 
         :type destination_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
@@ -486,6 +487,11 @@ class BigQueryBaseCursor(LoggingMixin):
                 'writeDisposition': write_disposition,
             }
         }
+        
+        # if it is a partitioned table ($ is in the table name) add partition load option
+        if '$' in destination_project_dataset_table:
+            configuration['load']['timePartitioning'] = dict(type='DAY')
+        
         if schema_fields:
             configuration['load']['schema'] = {
                 'fields': schema_fields
