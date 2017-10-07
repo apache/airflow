@@ -328,6 +328,8 @@ class TestLogView(unittest.TestCase):
         current_dir = os.path.dirname(os.path.abspath(__file__))
         logging_config['handlers']['file.task']['base_log_folder'] = os.path.normpath(
             os.path.join(current_dir, 'test_logs'))
+        logging_config['handlers']['file.task']['filename_template'] = \
+            '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
         # Write the custom logging configuration to a file
         self.settings_folder = tempfile.mkdtemp()
