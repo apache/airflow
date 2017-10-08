@@ -53,7 +53,7 @@ ldap3
 lxml
 markdown
 mock
-moto
+moto==1.1.19
 mysqlclient
 nose
 nose-exclude
