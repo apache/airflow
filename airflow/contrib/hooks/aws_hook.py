@@ -71,7 +71,6 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
             raise
         return (access_key, secret_key)
 
-
 class AwsHook(BaseHook):
     """
     Interact with AWS.
