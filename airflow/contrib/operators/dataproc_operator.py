@@ -241,7 +241,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
         # semantic versioning spec: x.y.z).
         cluster_data['labels'].update({'airflow-version':
-                                       'v' + version.replace('.', '-')})
+                                       'v' + version.replace('.', '-').replace('+','-')})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:

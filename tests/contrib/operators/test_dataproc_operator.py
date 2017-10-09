@@ -129,7 +129,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             # set to the dataproc operator.
             merged_labels = {}
             merged_labels.update(self.labels[suffix])
-            merged_labels.update({'airflow-version': 'v' + version.replace('.', '-')})
+            merged_labels.update({'airflow-version': 'v' + version.replace('.', '-').replace('+','-')})
             self.assertTrue(re.match(r'[a-z]([-a-z0-9]*[a-z0-9])?',
                                      cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
