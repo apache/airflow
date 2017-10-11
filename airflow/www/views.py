@@ -37,7 +37,7 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    abort, redirect, url_for, request, Markup, Response, current_app, render_template, 
+    abort, redirect, url_for, request, Markup, Response, current_app, render_template,
     make_response)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
@@ -2521,6 +2521,48 @@ class TaskInstanceModelView(ModelViewOnly):
             self.delete_task_instances(ids)
         else:
             super(TaskInstanceModelView, self).action_delete(ids)
+
+    @provide_session
+    @action('clear',
+            lazy_gettext('Clear'),
+            lazy_gettext(
+                'Are you sure you want to clear the state of task instance(s) associated with selected task(s)?\n'
+                'NOTE: DAG state(s) will be set to "RUNNING".'))
+    def action_clear(self, ids, session=None):
+        try:
+            TI = models.TaskInstance
+
+            dag_ti_mapping = {}
+            drs = []
+
+            for id in ids:
+                task_id, dag_id, execution_date = id.split(',')
+
+                ti = session.query(TI).filter(TI.task_id == task_id,
+                                              TI.dag_id == dag_id,
+                                              TI.execution_date == execution_date).one()
+
+                dag = dagbag.get_dag(dag_id)
+                drs.extend(session.query(models.DagModel).filter_by(dag_id=dag_id).all())
+                ti_list = dag_ti_mapping.setdefault(dag, [])
+                ti_list.append(ti)
+
+            for dag, ti_list in dag_ti_mapping.items():
+                models.clear_task_instances(ti_list, session, dag=dag)
+
+            dirty_ids = []
+            for dr in drs:
+                dr.state = State.RUNNING
+                dirty_ids.append(dr.dag_id)
+            models.DagStat.update(dirty_ids, session=session)
+
+            session.commit()
+            flash("{0} task instances have been cleared".format(len(ids)))
+
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to clear task instances', 'error')
 
     @provide_session
     def set_task_instance_state(self, ids, target_state, session=None):
