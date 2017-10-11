@@ -37,7 +37,7 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    abort, redirect, url_for, request, Markup, Response, current_app, render_template, 
+    abort, redirect, url_for, request, Markup, Response, current_app, render_template,
     make_response)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
@@ -2488,7 +2488,6 @@ class TaskInstanceModelView(ModelViewOnly):
         'start_date', 'end_date', 'duration', 'job_id', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
         'pool', 'log_url')
-    can_delete = True
     page_size = PAGE_SIZE
 
     @action('set_running', "Set state to 'running'", None)
@@ -2507,20 +2506,39 @@ class TaskInstanceModelView(ModelViewOnly):
     def action_set_retry(self, ids):
         self.set_task_instance_state(ids, State.UP_FOR_RETRY)
 
-    @action('delete',
-            lazy_gettext('Delete'),
-            lazy_gettext('Are you sure you want to delete selected records?'))
-    def action_delete(self, ids):
-        """
-        As a workaround for AIRFLOW-277, this method overrides Flask-Admin's ModelView.action_delete().
+    @provide_session
+    @action('clear',
+            lazy_gettext('Clear'),
+            lazy_gettext(
+                'Are you sure you want to clear the state of the selected task instance(s)'
+                ' and set their dagruns to the running state?'))
+    def action_clear(self, ids, session=None):
+        try:
+            TI = models.TaskInstance
 
-        TODO: this method should be removed once the below bug is fixed on Flask-Admin side.
-        https://github.com/flask-admin/flask-admin/issues/1226
-        """
-        if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
-            self.delete_task_instances(ids)
-        else:
-            super(TaskInstanceModelView, self).action_delete(ids)
+            dag_to_tis = {}
+
+            for id in ids:
+                task_id, dag_id, execution_date = id.split(',')
+
+                ti = session.query(TI).filter(TI.task_id == task_id,
+                                              TI.dag_id == dag_id,
+                                              TI.execution_date == execution_date).one()
+
+                dag = dagbag.get_dag(dag_id)
+                tis = dag_to_tis.setdefault(dag, [])
+                tis.append(ti)
+
+            for dag, tis in dag_to_tis.items():
+                models.clear_task_instances(tis, session, dag=dag)
+
+            session.commit()
+            flash("{0} task instances have been cleared".format(len(ids)))
+
+        except Exception as ex:
+            if not self.handle_view_exception(ex):
+                raise Exception("Ooops")
+            flash('Failed to clear task instances', 'error')
 
     @provide_session
     def set_task_instance_state(self, ids, target_state, session=None):
@@ -2541,24 +2559,6 @@ class TaskInstanceModelView(ModelViewOnly):
             if not self.handle_view_exception(ex):
                 raise Exception("Ooops")
             flash('Failed to set state', 'error')
-
-    @provide_session
-    def delete_task_instances(self, ids, session=None):
-        try:
-            TI = models.TaskInstance
-            count = 0
-            for id in ids:
-                task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
-                count += session.query(TI).filter(TI.task_id == task_id,
-                                                  TI.dag_id == dag_id,
-                                                  TI.execution_date == execution_date).delete()
-            session.commit()
-            flash("{count} task instances were deleted".format(**locals()))
-        except Exception as ex:
-            if not self.handle_view_exception(ex):
-                raise Exception("Ooops")
-            flash('Failed to delete', 'error')
 
     def get_one(self, id):
         """
