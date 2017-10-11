@@ -2529,7 +2529,16 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+
+                # NOTE: Handling case when execution date has milliseconds.
+                if '.' in execution_date:
+                    fmt = '%Y-%m-%d %H:%M:%S.%f'
+                    execution_date = execution_date.split('.')
+                    execution_date = '.'.join([execution_date[0], execution_date[-1]])
+                else:
+                    fmt = '%Y-%m-%d %H:%M:%S'
+
+                execution_date = datetime.strptime(execution_date, fmt)
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
                                               TI.execution_date == execution_date).one()
