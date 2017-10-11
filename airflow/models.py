@@ -564,7 +564,7 @@ class Connection(Base, LoggingMixin):
             uri=None):
         self.conn_id = conn_id
         if uri:
-            self.parse_from_uri(uri)
+            self.parse_from_uri(uri, conn_type)
         else:
             self.conn_type = conn_type
             self.host = host
@@ -574,12 +574,12 @@ class Connection(Base, LoggingMixin):
             self.port = port
             self.extra = extra
 
-    def parse_from_uri(self, uri):
+    def parse_from_uri(self, uri, conn_type=None):
         temp_uri = urlparse(uri)
         hostname = temp_uri.hostname or ''
         if '%2f' in hostname:
             hostname = hostname.replace('%2f', '/').replace('%2F', '/')
-        conn_type = temp_uri.scheme
+        conn_type = conn_type or temp_uri.scheme
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         self.conn_type = conn_type

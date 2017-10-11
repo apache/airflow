@@ -935,7 +935,7 @@ def connections(args):
     if args.list:
         # Check that no other flags were passed to the command
         invalid_args = list()
-        for arg in ['conn_id', 'conn_uri', 'conn_extra']:
+        for arg in ['conn_id', 'conn_uri', 'conn_type', 'conn_extra']:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
         if invalid_args:
@@ -960,7 +960,7 @@ def connections(args):
     if args.delete:
         # Check that only the `conn_id` arg was passed to the command
         invalid_args = list()
-        for arg in ['conn_uri', 'conn_extra']:
+        for arg in ['conn_uri', 'conn_type', 'conn_extra']:
             if getattr(args, arg) is not None:
                 invalid_args.append(arg)
         if invalid_args:
@@ -1013,7 +1013,8 @@ def connections(args):
             print(msg)
             return
 
-        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
+        new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri,
+                              conn_type=args.conn_type)
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
@@ -1422,6 +1423,10 @@ class CLIFactory(object):
             ('--conn_uri',),
             help='Connection URI, required to add a connection',
             type=str),
+        'conn_type': Arg(
+            ('--conn_type',),
+            help='Connection type, optional when overwriting conn_uri.scheme',
+            type=str),
         'conn_extra': Arg(
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
@@ -1558,7 +1563,7 @@ class CLIFactory(object):
             'func': connections,
             'help': "List/Add/Delete connections",
             'args': ('list_connections', 'add_connection', 'delete_connection',
-                     'conn_id', 'conn_uri', 'conn_extra'),
+                     'conn_id', 'conn_uri', 'conn_type', 'conn_extra'),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
