@@ -4283,6 +4283,8 @@ class DagRun(Base):
             try:
                 dag.get_task(ti.task_id)
             except AirflowException:
+                logging.exception("Failed to get task '{}' for dag '{}'".format(ti, dag))
+                Stats.incr("integrity_check_fail.{}".format(dag.dag_id), 1, 1)
                 if self.state is not State.RUNNING and not dag.partial:
                     ti.state = State.REMOVED
 
