@@ -4905,15 +4905,30 @@ class DagRun(Base, LoggingMixin):
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
-        # check for removed tasks
+        # check for removed or restored tasks
         task_ids = []
         for ti in tis:
             task_ids.append(ti.task_id)
+            task = None
             try:
-                dag.get_task(ti.task_id)
+                task = dag.get_task(ti.task_id)
             except AirflowException:
-                if self.state is not State.RUNNING and not dag.partial:
+                if ti.state == State.REMOVED:
+                    pass  # ti has already been removed, just ignore it
+                elif self.state is not State.RUNNING and not dag.partial:
+                    self.log.warning("Failed to get task '{}' for dag '{}'. "
+                                     "Marking it as removed.".format(ti, dag))
+                    Stats.incr(
+                        "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
+
+            is_task_in_dag = task is not None
+            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            if should_restore_task:
+                self.log.info("Restoring task '{}' which was previously "
+                              "removed from DAG '{}'".format(ti, dag))
+                Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
+                ti.state = State.NONE
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):

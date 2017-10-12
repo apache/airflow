@@ -892,6 +892,30 @@ class DagRunTest(unittest.TestCase):
         self.assertTrue(dagrun.is_backfill)
         self.assertFalse(dagrun2.is_backfill)
 
+    def test_removed_task_instances_can_be_restored(self):
+        def with_all_tasks_removed(dag):
+            return DAG(dag_id=dag.dag_id, start_date=dag.start_date)
+
+        dag = DAG('test_task_restoration', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+
+        dagrun = self.create_dag_run(dag)
+        flaky_ti = dagrun.get_task_instances()[0]
+        self.assertEquals('flaky_task', flaky_ti.task_id)
+        self.assertEquals(State.NONE, flaky_ti.state)
+
+        dagrun.dag = with_all_tasks_removed(dag)
+
+        dagrun.verify_integrity()
+        flaky_ti.refresh_from_db()
+        self.assertEquals(State.REMOVED, flaky_ti.state)
+
+        dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+
+        dagrun.verify_integrity()
+        flaky_ti.refresh_from_db()
+        self.assertEquals(State.NONE, flaky_ti.state)
+
 class DagBagTest(unittest.TestCase):
 
     def test_get_existing_dag(self):
