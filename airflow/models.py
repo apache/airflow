@@ -44,6 +44,9 @@ import textwrap
 import traceback
 import warnings
 import hashlib
+import multiprocessing
+import threading
+
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -113,6 +116,8 @@ else:
 # Used by DAG context_managers
 _CONTEXT_MANAGER_DAG = None
 
+TEST_DAG_FOLDER = os.path.join(
+    os.path.dirname(os.path.realpath(__file__)), 'dags')
 
 def clear_task_instances(tis, session, activate_dag_runs=True, dag=None):
     """
@@ -3370,7 +3375,7 @@ class DAG(BaseDag, LoggingMixin):
                 )
             tis = tis.filter(or_(*conditions))
         else:
-            tis = session.query(TI).filter(TI.dag_id == self.dag_id)
+            tis = session.query(TI).filter(TI.dag_id.in_(self.dag_id))
             tis = tis.filter(TI.task_id.in_(self.task_ids))
 
         if start_date:
@@ -3695,6 +3700,178 @@ class DAG(BaseDag, LoggingMixin):
         parser = cli.CLIFactory.get_parser(dag_parser=True)
         args = parser.parse_args()
         args.func(args, self)
+
+    @staticmethod
+    @provide_session
+    def find_runs(dag_id, session=None, states=[], task_id=None):
+        """
+
+        :param dag_id: id of dag to find
+        :param session: orm session
+        :return: Returns None if not found else return dagruns
+        """
+        if dag_id is None:
+            return False
+
+        if task_id is None:
+            if states:
+                return session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.state.in_(states)).all()
+            else:
+                return session.query(DagRun).filter(DagRun.dag_id == dag_id).all()
+        else:
+            if states:
+                return session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == task_id, DagRun.state.in_(states)).all()
+            else:
+                return session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == task_id).all()
+
+    @staticmethod
+    @provide_session
+    def find_tis(dag_id, session=None, states=[], task_id=None):
+        """
+
+        :param dag_id: id of dag to find
+        :param session: orm session
+        :return: Returns None if not found else return task instances
+
+        """
+        if dag_id is None:
+            return False
+        if states is None or len(states) == 0:
+            if task_id is None:
+                task_instances = (
+                    session
+                        .query(TaskInstance)
+                        .filter(TaskInstance.dag_id.in_(dag_id))
+                        .all()
+                )
+            else:
+                task_instances = (
+                    session
+                        .query(TaskInstance)
+                        .filter(TaskInstance.dag_id.in_(dag_id))
+                        .filter(TaskInstance.task_id.in_(task_id))
+                        .all()
+                )
+        else:
+            if task_id is None:
+                task_instances = (
+                    session
+                        .query(TaskInstance)
+                        .filter(TaskInstance.dag_id.in_(dag_id))
+                        .filter(TaskInstance.state.in_(states))
+                        .all()
+                )
+            else:
+                task_instances = (
+                    session
+                        .query(TaskInstance)
+                        .filter(TaskInstance.dag_id.in_(dag_id))
+                        .filter(TaskInstance.state.in_(states))
+                        .filter(TaskInstance.task_id.in_(task_id))
+                        .all()
+                    )
+
+
+        return task_instances
+
+    @staticmethod
+    @provide_session
+    def find_jobs(dag_id, session=None):
+        from airflow.jobs import BaseJob as BJ
+        jobs = (
+            session.query(BJ).filter(BJ.dag_id == dag_id).all()
+        )
+        return jobs
+
+    @staticmethod
+    @provide_session
+    def find_models(dag_id, session=None, task_id=None):
+        if task_id is None:
+            return (
+                session
+                .query(DagModel)
+                .filter(DagModel.dag_id.in_(dag_id))
+                .all()
+            )
+        else:
+            return (
+                session
+                    .query(DagModel)
+                    .filter(DagModel.dag_id.in_(dag_id), DagModel.task_id.in_(task_id))
+                    .all()
+            )
+
+    @staticmethod
+    @provide_session
+    def find_deleted_entities(dag_id, session=None, task_id=None):
+        return (
+            DAG.find_models(dag_id, session, task_id),
+            DAG.find_tis(dag_id, session, task_id),
+            DAG.find_jobs(dag_id, session),
+            DAG.find_runs(dag_id, session, task_id)
+        )
+
+    @provide_session
+    def delete_runs(self, dag_id, session=None, states=[], task_id=None):
+        active_dag_runs = self.find_runs(dag_id, session, states, task_id)
+        for active_dag_run in active_dag_runs:
+            session.delete(active_dag_run)
+            session.commit()
+
+    def shutdown_jobs_if_running(self, jobs):
+        for j in jobs:
+            if j.state == State.RUNNING:
+                j.state = State.SHUTDOWN
+
+    @provide_session
+    def pause(self, session=None, dag_id=None, task_id=None):
+
+        if dag_id is None:
+            return
+        if task_id is None:
+            dm = session.query(DagModel).filter(
+                DagModel.dag_id == dag_id).first()
+            if dm:
+                dm.is_paused = True
+                session.commit()
+
+            msg = "Dag: {}, paused by delete: {}".format(self, str(self.is_paused))
+            print(msg)
+
+    @provide_session
+    def delete_rest(self, dag_id, session=None):
+        from airflow.jobs import BaseJob
+        for t in [DagModel, DagStat, BaseJob, Log, SlaMiss, TaskFail, XCom]:
+            session.query(t).filter(t.dag_id == dag_id).delete()
+            session.commit()
+
+
+    @provide_session
+    def delete(self,
+               session=None):
+
+        dag_id = self.dag_id
+        task_id = None
+
+        if self.is_subdag:
+            did, tid = self.dag_id.rsplit(".", 1)
+            print ("Deleting dag with dag_id={0}, task_id={1}".format(did,tid))
+            dag_id = did
+            task_id = tid
+
+        self.pause(session, dag_id, task_id)
+
+        # delete running dags first
+        self.delete_runs(dag_id, session, [State.RUNNING], task_id)
+        # then all others
+        self.delete_runs(dag_id, session, [], task_id)
+
+        # delete running instances first
+        self.clear(only_running=True, include_subdags=True)
+        # delete rest
+        self.clear(include_subdags=True)
+
+        self.delete_rest(dag_id, session)
 
     @provide_session
     def create_dagrun(self,

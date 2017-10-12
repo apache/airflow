@@ -129,6 +129,26 @@ class TestApiExperimental(unittest.TestCase):
         )
         self.assertEqual(400, response.status_code)
 
+    def test_delete_nonexisting_dag(self):
+        url_template = '/api/experimental/dags/{}'
+        response = self.app.delete(
+            url_template.format('does_not_exist_dag'),
+            data=json.dumps(dict({})),
+            content_type="application/json"
+        )
+
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_invalid_body(self):
+        url_template = '/api/experimental/dags/{}'
+        response = self.app.delete(
+            url_template.format('does_not_exist_dag'),
+            data=json.dumps(dict(type='neither_hard_or_soft')),
+            content_type="application/json"
+        )
+
+        self.assertEqual(400, response.status_code)
+
     def test_task_instance_info(self):
         url_template = '/api/experimental/dags/{}/dag_runs/{}/tasks/{}'
         dag_id = 'example_bash_operator'

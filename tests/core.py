@@ -36,8 +36,11 @@ from dateutil.relativedelta import relativedelta
 import sqlalchemy
 
 from airflow import configuration
+from airflow.api.common.experimental.delete_dag import check_delete_dag
+
 from airflow.executors import SequentialExecutor
-from airflow.models import Variable
+from airflow.models import Variable, DagBag
+
 from tests.test_utils.fake_datetime import FakeDatetime
 
 configuration.load_test_config()
@@ -64,6 +67,7 @@ from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
 
 import six
+from airflow.api.common.experimental import delete_dag as delete
 
 NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'
@@ -223,6 +227,15 @@ class CoreTest(unittest.TestCase):
                          "dag run execution_date loses precision")
         self.assertEqual(start_date, run.start_date,
                          "dag run start_date loses precision ")
+
+    def test_delete_invalid_dag(self):
+        """
+        Tests that an empty dag cannot be deleted
+        :return:
+        """
+        dag_delete_status = delete.delete_dag(None)
+        assert dag_delete_status is False
+
 
     def test_schedule_dag_start_end_dates(self):
         """

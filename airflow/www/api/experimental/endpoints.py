@@ -15,11 +15,14 @@ import airflow.api
 
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
+from airflow.api.common.experimental import delete_dag as delete
+
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
+
 
 from flask import (
     g, Markup, Blueprint, redirect, jsonify, abort,
@@ -85,6 +88,28 @@ def trigger_dag(dag_id):
     response = jsonify(message="Created {}".format(dr))
     return response
 
+@csrf.exempt
+@api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
+@requires_authentication
+def delete_dag(dag_id):
+    """
+    Trigger a new dag run for a Dag with an execution date of now unless
+    specified in the data.
+    """
+    try:
+        dd = delete.delete_dag(dag_id)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = 404
+        return response
+
+    if getattr(g, 'user', None):
+        _log.info("User {} deleted {}".format(g.user, dd))
+
+    response = jsonify(message="Deleted {}".format(dd))
+    response.status_code = 204
+    return response
 
 @api_experimental.route('/test', methods=['GET'])
 @requires_authentication

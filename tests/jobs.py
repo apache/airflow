@@ -54,6 +54,8 @@ configuration.load_test_config()
 
 import sqlalchemy
 
+from airflow.api.common.experimental import delete_dag as delete
+
 try:
     from unittest import mock
 except ImportError:
@@ -2608,6 +2610,76 @@ class SchedulerJobTest(unittest.TestCase):
 
         # The DR should be scheduled BEFORE now
         self.assertLess(dr.execution_date, datetime.datetime.now())
+
+    def test_delete_dag_after_schedule_dag(self):
+        """
+        Tests that deletion on scheduled dag successfully deletes the dag
+        :return:
+        """
+        dagbag = DagBag(dag_folder=TEST_DAG_FOLDER, executor=SequentialExecutor, include_examples=False)
+        dag = dagbag.get_dag('test_delete_dag')
+
+        session = settings.Session
+
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+
+        scheduler = SchedulerJob(num_runs=1, **self.default_scheduler_args)
+        scheduler.create_dag_run(dag)
+
+        #scheduler.run()
+
+        delete.delete_dag(dag.dag_id, dagbag)
+
+        (_models, _tis, _jobs, _runs) = delete.check_delete_dag(dag.dag_id)
+
+        assert len(_models) is 0
+        assert len(_tis) is 0
+        assert len(_runs) is 0
+
+        for j in _jobs:
+            assert j.state is State.SHUTDOWN
+
+    def test_delete_subdag_after_schedule_dag(self):
+        """
+        Tests that deletion on scheduled dag successfully deletes the dag
+        :return:
+        """
+
+        dagbag = DagBag(dag_folder=TEST_DAG_FOLDER, executor=SequentialExecutor, include_examples=False)
+
+        dag = dagbag.get_dag('test_delete_subdag')
+
+        session = settings.Session
+
+        orm_dag = DagModel(dag_id=dag.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob(num_runs=1, **self.default_scheduler_args)
+        scheduler.create_dag_run(dag)
+
+        scheduler.run()
+
+        delete.delete_dag(dag.dag_id, dagbag)  # delete parent dag
+
+        # check parent dag and subdags
+        all_dag_ids = [dag.dag_id]
+        all_dag_ids.extend([ sd.dag_id for sd in dag.subdags])
+
+        for dagid in all_dag_ids:
+            (_models, _tis, _jobs, _runs) = delete.check_delete_dag(dagid)
+
+            assert len(_models) is 0
+            assert len(_tis) is 0
+            assert len(_runs) is 0
+
+            for j in _jobs:
+                assert j.state is State.SHUTDOWN
 
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         try:

@@ -32,6 +32,15 @@ class Client(object):
         """
         raise NotImplementedError()
 
+    def delete_dag(self, dag_id):
+        """
+        Creates a dag run for the specified dag
+        :param dag_id:
+        :param conf:
+        :return:
+        """
+        raise NotImplementedError()
+
     def get_pool(self, name):
         """Get pool.
 
