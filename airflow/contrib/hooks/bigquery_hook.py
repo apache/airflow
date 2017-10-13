@@ -971,9 +971,7 @@ def _bq_cast(string_field, bq_type):
     if string_field is None:
         return None
     elif bq_type == 'INTEGER' or bq_type == 'TIMESTAMP':
-        # convert to float first to handle cases where string_field is
-        # represented in scientific notation
-        return int(float(string_field))
+        return int(string_field)
     elif bq_type == 'FLOAT':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
