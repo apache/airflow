@@ -130,7 +130,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
         return [f['name'] for f in desc['fields']]
 
     def _build_field_list(self, fields):
-        # join all of the fields in a comma seperated list
+        # join all of the fields in a comma separated list
         return ",".join(fields)
 
     def get_object_from_salesforce(self, obj, fields):
@@ -204,7 +204,7 @@ class SalesforceHook(BaseHook, LoggingMixin):
 
         Acceptable formats are:
             - csv:
-                comma-seperated-values file.  This is the default format.
+                comma-separated-values file.  This is the default format.
             - json:
                 JSON array.  Each element in the array is a different row.
             - ndjson:
