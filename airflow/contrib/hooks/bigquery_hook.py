@@ -185,6 +185,7 @@ class BigQueryBaseCursor(LoggingMixin):
     def __init__(self, service, project_id):
         self.service = service
         self.project_id = project_id
+        self.running_job_id = None
 
     def run_query(
             self, bql, destination_dataset_table = False,
@@ -559,13 +560,13 @@ class BigQueryBaseCursor(LoggingMixin):
         query_reply = jobs \
             .insert(projectId=self.project_id, body=job_data) \
             .execute()
-        job_id = query_reply['jobReference']['jobId']
+        self.running_job_id = query_reply['jobReference']['jobId']
 
         # Wait for query to finish.
         keep_polling_job = True
         while (keep_polling_job):
             try:
-                job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+                job = jobs.get(projectId=self.project_id, jobId=self.running_job_id).execute()
                 if (job['status']['state'] == 'DONE'):
                     keep_polling_job = False
                     # Check if job had errors.
@@ -576,18 +577,61 @@ class BigQueryBaseCursor(LoggingMixin):
                             )
                         )
                 else:
-                    self.log.info('Waiting for job to complete : %s, %s', self.project_id, job_id)
+                    self.log.info('Waiting for job to complete : %s, %s', self.project_id, self.running_job_id)
                     time.sleep(5)
 
             except HttpError as err:
                 if err.resp.status in [500, 503]:
-                    self.log.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, job_id)
+                    self.log.info('%s: Retryable error, waiting for job to complete: %s', err.resp.status, self.running_job_id)
                     time.sleep(5)
                 else:
                     raise Exception(
                         'BigQuery job status check failed. Final error was: %s', err.resp.status)
 
-        return job_id
+        return self.running_job_id
+        
+    def poll_job_complete(self, job_id):
+        jobs = self.service.jobs()
+        try:
+            job = jobs.get(projectId=self.project_id, jobId=job_id).execute()
+            if (job['status']['state'] == 'DONE'):
+                return True
+        except HttpError as err:
+            if err.resp.status in [500, 503]:
+                self.log.info('%s: Retryable error while polling job with id %s', err.resp.status, job_id)
+            else:
+                raise Exception(
+                    'BigQuery job status check failed. Final error was: %s', err.resp.status)
+        return False
+      
+        
+    def cancel_query(self):
+        """
+        Cancel all started queries that have not yet completed
+        """
+        jobs = self.service.jobs()
+        if (self.running_job_id and not self.poll_job_complete(self.running_job_id)):
+            self.log.info('Attempting to cancel job : %s, %s', self.project_id, self.running_job_id)
+            jobs.cancel(projectId=self.project_id, jobId=self.running_job_id).execute()
+        else:
+            self.log.info('No running BigQuery jobs to cancel.')
+            return
+        
+        # Wait for all the calls to cancel to finish
+        max_polling_attempts = 12
+        polling_attempts = 0
+        
+        job_complete = False
+        while (polling_attempts < max_polling_attempts and not job_complete):
+            polling_attempts = polling_attempts+1
+            job_complete = self.poll_job_complete(self.running_job_id)
+            if (job_complete):
+                self.log.info('Job successfully canceled: %s, %s', self.project_id, self.running_job_id)
+            elif(polling_attempts == max_polling_attempts):
+                self.log.info('Stopping polling due to timeout. Job with id %s has not completed cancel and may or may not finish.', self.running_job_id)
+            else:
+                self.log.info('Waiting for canceled job with id %s to finish.', self.running_job_id)
+                time.sleep(5)
 
     def get_schema(self, dataset_id, table_id):
         """

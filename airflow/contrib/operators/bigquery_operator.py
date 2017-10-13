@@ -85,14 +85,23 @@ class BigQueryOperator(BaseOperator):
         self.use_legacy_sql = use_legacy_sql
         self.maximum_billing_tier = maximum_billing_tier
         self.query_params = query_params
+        self.bq_cursor = None
 
     def execute(self, context):
-        self.log.info('Executing: %s', self.bql)
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            delegate_to=self.delegate_to)
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
+        if(self.bq_cursor == None):
+            self.log.info('Executing: %s', self.bql)
+            hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
+                                delegate_to=self.delegate_to)
+            conn = hook.get_conn()
+            self.bq_cursor = conn.cursor()
+        self.bq_cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
                          self.allow_large_results, self.udf_config,
                          self.use_legacy_sql, self.maximum_billing_tier,
                          self.create_disposition, self.query_params)
+        
+                         
+    def on_kill(self):
+        super(BigQueryOperator, self).on_kill()
+        if(self.bq_cursor!=None):
+            self.log.info('Canceling running query due to execution timeout')
+            self.bq_cursor.cancel_query()
