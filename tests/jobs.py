@@ -142,6 +142,8 @@ class BackfillJobTest(unittest.TestCase):
 
     @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
+    @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
+                     "Skipping on Travis since it's too time-consuming")
     def test_backfill_examples(self):
         """
         Test backfilling example dags
