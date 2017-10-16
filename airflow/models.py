@@ -4274,19 +4274,27 @@ class DagRun(Base):
         database yet. It will set state to removed or add the task if required.
         """
         dag = self.get_dag()
-        tis = self.get_task_instances(session=session)
+        tis_in_db = self.get_task_instances(session=session)
 
-        # check for removed tasks
+        # check for removed or restored tasks
         task_ids = []
-        for ti in tis:
+        for ti in tis_in_db:
             task_ids.append(ti.task_id)
+            task_from_dag = None
             try:
-                dag.get_task(ti.task_id)
+                task_from_dag = dag.get_task(ti.task_id)
             except AirflowException:
-                logging.exception("Failed to get task '{}' for dag '{}'".format(ti, dag))
-                Stats.incr("integrity_check_fail.{}".format(dag.dag_id), 1, 1)
+                logging.exception("Failed to get task '{}' for dag '{}'. Marking it as removed.".format(ti, dag))
+                Stats.incr("task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                 if self.state is not State.RUNNING and not dag.partial:
                     ti.state = State.REMOVED
+
+            task_now_present_in_dag = task_from_dag is not None
+            has_been_restored = task_now_present_in_dag and ti.state == State.REMOVED
+            if has_been_restored:
+                logging.info("Restoring task '{}' which was previously removed from DAG '{}'".format(ti, dag))
+                Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
+                ti.state = State.NONE
 
         # check for missing tasks
         for task in dag.tasks:

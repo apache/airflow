@@ -533,6 +533,33 @@ class DagRunTest(unittest.TestCase):
             if dagrun.dag_id == 'test_latest_runs_1':
                 self.assertEqual(dagrun.execution_date, datetime.datetime(2015, 1, 2))
 
+    def test_removed_task_instances_can_be_restored(self):
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='op_1', owner='test'))
+        dagrun = self.create_dag_run(dag)
+
+        # we can't directly modify dag.tasks, so we re-create it
+        def remove_all_tis_from_dag(dag):
+            dag = DAG(dag_id=dag.dag_id, start_date=dag.start_date)
+            dagrun.dag = dag
+            return dag
+
+        disappearing_ti = dagrun.get_task_instances()[0]
+        self.assertEquals("op_1", disappearing_ti.task_id)
+        self.assertEquals(State.NONE, disappearing_ti.state)
+
+        dag = remove_all_tis_from_dag(dag)
+
+        dagrun.verify_integrity()
+        disappearing_ti.refresh_from_db()
+        self.assertEquals(State.REMOVED, disappearing_ti.state)
+
+        dag.add_task(DummyOperator(task_id='op_1', owner='test'))
+
+        dagrun.verify_integrity()
+        disappearing_ti.refresh_from_db()
+        self.assertEquals(State.NONE, disappearing_ti.state)
+
 
 class DagBagTest(unittest.TestCase):
 
