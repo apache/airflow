@@ -87,6 +87,8 @@ logout_user = airflow.login.logout_user
 
 FILTER_BY_OWNER = False
 
+PAGE_SIZE = conf.getint('webserver', 'page_size')
+
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
     'secret',
