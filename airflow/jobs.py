@@ -1449,7 +1449,12 @@ class SchedulerJob(BaseJob):
 
             # Call hearbeats
             self.logger.info("Heartbeating the executor")
-            self.executor.heartbeat()
+
+            try:
+                self.executor.heartbeat()
+            except Exception:
+                self.logger.exception("Error heartbeating the executor")
+                Stats.incr('executor_heartbeat_exception', 1, 1)
 
             # Process events from the executor
             self._process_executor_events()
