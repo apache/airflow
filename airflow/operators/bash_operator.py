@@ -18,6 +18,7 @@ import mmap
 import os
 import re
 import signal
+import io
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 from builtins import bytes
@@ -67,15 +68,15 @@ class BashOperator(BaseOperator):
         self.log_outout = log_outout
         self.output_encoding = output_encoding
         self.output_regex_filter = output_regex_filter
+        self.sp = None
 
     def execute(self, context):
         """
         Execute the bash command in a temporary directory
         which will be cleaned afterwards
         """
-        bash_command = self.bash_command
-        self.log.info("Tmp dir root location: \n %s", gettempdir())
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
+            self.log.info("Tmp dir root location: {0}".format(tmp_dir))
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as cmd_file, \
                     NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as stdout_file, \
                     NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as stderr_file:
@@ -84,10 +85,9 @@ class BashOperator(BaseOperator):
                 cmd_file.flush()
                 fname = cmd_file.name
                 script_location = tmp_dir + "/" + fname
-                logging.info("Temporary script "
-                             "location :{0}".format(script_location))
-                logging.info(u"Running command: " + self.bash_command)
-                sp = Popen(
+                logging.info("Temporary script location :{0}".format(script_location))
+                logging.info("Running command: " + self.bash_command)
+                self.sp = Popen(
                         ['bash', fname],
                         stdout=stdout_file,
                         stderr=stderr_file,
@@ -95,49 +95,50 @@ class BashOperator(BaseOperator):
                         env=self.env,
                         preexec_fn=os.setsid)
 
-                self.sp = sp
-                sp.wait()
+                self.sp.wait()
 
-                exit_msg = "Command exited with return code {0}".format(sp.returncode)
-                if sp.returncode:
+                exit_msg = "Command exited with return code {0}".format(self.sp.returncode)
+                if self.sp.returncode:
                     stderr_output = None
-                    with open(stderr_file.name, 'r+', encoding=self.output_encoding) as stderr_file_handle:
+                    with io.open(stderr_file.name, 'r+', encoding=self.output_encoding) as stderr_file_handle:
                         if os.path.getsize(stderr_file.name) > 0:
-                            stderr_output = mmap.mmap(stderr_file_handle.fileno(), 0)
+                            stderr_output = mmap.mmap(stderr_file_handle.fileno(), 0, access=mmap.ACCESS_READ)
                     raise AirflowException("Bash command failed, {0}, error: {1}"
                                            .format(exit_msg, stderr_output))
 
                 logging.info(exit_msg)
                 output = None
-                with open(stdout_file.name, 'r+', encoding=self.output_encoding) as stdout_file_handle:
-                    if os.path.getsize(stdout_file_handle.name) > 0:
-                        output = mmap.mmap(stdout_file_handle.fileno(), 0)
-                        if self.output_regex_filter:
-                            pattern = self.output_regex_filter.encode("utf-8")
-                            try:
-                                re.compile(pattern)
-                            except re.error:
-                                raise AirflowException(u"command executed successfully, "
-                                                       "but Invalid regex supplied {0} "
-                                                       .format(self.output_regex_filter))
+                if self.output_regex_filter or self.log_outout or self.xcom_push:
+                    with io.open(stdout_file.name, 'r+', encoding=self.output_encoding) as stdout_file_handle:
+                        if os.path.getsize(stdout_file_handle.name) > 0:
+                            output = mmap.mmap(stdout_file_handle.fileno(), 0, access=mmap.ACCESS_READ)
+                            if self.output_regex_filter:
+                                pattern = self.output_regex_filter.encode("utf-8")
+                                try:
+                                    re.compile(pattern)
+                                except re.error:
+                                    raise AirflowException("command executed successfully, "
+                                                           "but Invalid regex supplied {0} "
+                                                           .format(self.output_regex_filter))
 
-                            output_filter = re.search(pattern, output)
-                            if output_filter:
-                                return output_filter.group().decode(self.output_encoding)
-                            else:
-                                logging.warning("failed to match on output based on "
-                                                "supplied regex : {0}"
-                                                .format(self.output_regex_filter))
+                                filtered_output = re.search(pattern, output)
+                                if filtered_output:
+                                    return filtered_output.group().decode(self.output_encoding)
+                                else:
+                                    logging.warning("failed to match on output based on "
+                                                    "supplied regex : {0}"
+                                                    .format(self.output_regex_filter))
 
-                        if self.log_outout:
-                            logging.info("stdout: {0}"
-                                         .format(output.decode(self.output_encoding)))
+                            if self.log_outout:
+                                logging.info("stdout: {0}".format(output))
 
-                        if self.xcom_push:
-                            return output.decode(self.output_encoding)
-                    else:
-                        logging.warning(u"no stdout generated from the command: {0}"
-                                        .format(self.bash_command))
+                            if self.xcom_push:
+                                return output.decode(self.output_encoding)
+                        else:
+                            logging.warning("stdout file: {0} is empty".format(stdout_file.name))
+                else:
+                    logging.warning("Not logging stdout for the command: {0}"
+                                    .format(self.bash_command))
 
     def on_kill(self):
         self.log.info('Sending SIGTERM signal to bash process group')
