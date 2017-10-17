@@ -2233,24 +2233,34 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ti2.max_tries, 1)
 
     def test_xcom_disable_pickle_type(self):
+        configuration.load_test_config()
+
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
 
+        configuration.set("core", "enable_xcom_pickling", "False")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
                  task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=False)
+                 execution_date=execution_date)
 
         ret_value = XCom.get_one(key=key,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=False)
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -2261,18 +2271,26 @@ class ClearTasksTest(unittest.TestCase):
         dag_id = "test_dag2"
         task_id = "test_task2"
 
+        configuration.set("core", "enable_xcom_pickling", "True")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
                  task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         ret_value = XCom.get_one(key=key,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -2280,13 +2298,15 @@ class ClearTasksTest(unittest.TestCase):
         class PickleRce(object):
             def __reduce__(self):
                 return (os.system, ("ls -alt",))
+
+        configuration.set("core", "xcom_enable_pickling", "False")
+
         self.assertRaises(TypeError, XCom.set,
                           key="xcom_test3",
                           value=PickleRce(),
                           dag_id="test_dag3",
                           task_id="test_task3",
-                          execution_date=timezone.utcnow(),
-                          enable_pickling=False)
+                          execution_date=timezone.utcnow())
 
     def test_xcom_get_many(self):
         json_obj = {"key": "value"}
@@ -2297,23 +2317,22 @@ class ClearTasksTest(unittest.TestCase):
         dag_id2 = "test_dag5"
         task_id2 = "test_task5"
 
+        configuration.set("core", "xcom_enable_pickling", "True")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id1,
                  task_id=task_id1,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id2,
                  task_id=task_id2,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         results = XCom.get_many(key=key,
-                                execution_date=execution_date,
-                                enable_pickling=True)
+                                execution_date=execution_date)
 
         for result in results:
             self.assertEqual(result.value, json_obj)
