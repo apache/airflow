@@ -1239,6 +1239,27 @@ class CliTests(unittest.TestCase):
             self.assertEqual(result, (conn_id, 'postgres', 'host', 5432,
                                       extra[conn_id]))
 
+        # Check conn_type overwrite
+        session = settings.Session()
+        with mock.patch('sys.stdout',
+                        new_callable=six.StringIO) as mock_stdout:
+            cli.connections(self.parser.parse_args(
+                ['connections', '--add', '--conn_id=overwrite-test',
+                 '--conn_uri=scheme_with_underscore:',
+                 '--conn_type=scheme_with_underscore']))
+            stdout = mock_stdout.getvalue()
+        lines = [l for l in stdout.split('\n') if len(l) > 0]
+        self.assertListEqual(lines, [
+            ("\tSuccessfully added `conn_id`=overwrite-test : " +
+             "scheme_with_underscore:")
+        ])
+        result = (session
+                  .query(models.Connection)
+                  .filter(models.Connection.conn_id == 'overwrite-test')
+                  .first())
+        result = (result.conn_id, result.conn_type)
+        self.assertEqual(result, ('overwrite-test', 'scheme_with_underscore'))
+
         # Delete connections
         with mock.patch('sys.stdout',
                         new_callable=six.StringIO) as mock_stdout:
