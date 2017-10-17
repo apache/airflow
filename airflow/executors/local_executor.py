@@ -160,7 +160,7 @@ class LocalExecutor(BaseExecutor):
         def end(self):
             while self.executor.workers_active > 0:
                 self.executor.sync()
-                time.sleep(1)
+                time.sleep(0.5)
 
     class _LimitedParallelism(object):
         """Implements LocalExecutor with limited parallelism using a task queue to
