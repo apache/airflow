@@ -133,7 +133,7 @@ class BashOperator(BaseOperator):
                                 logging.info("stdout: {0}".format(output))
 
                             if self.xcom_push:
-                                return output.decode(self.output_encoding)
+                                return output
                         else:
                             logging.warning("stdout file: {0} is empty".format(stdout_file.name))
                 else:
