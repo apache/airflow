@@ -79,6 +79,7 @@ rednose
 requests
 requests-kerberos
 requests_mock
+sendgrid
 setproctitle
 slackclient
 sphinx
