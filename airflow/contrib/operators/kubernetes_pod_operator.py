@@ -63,6 +63,9 @@ class KubernetesPodOperator(BaseOperator):
     :type secrets: list of Secret
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used.
+    :type cluster_context: string
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules
@@ -72,7 +75,8 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute(self, context):
         try:
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster)
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context)
             gen = pod_generator.PodGenerator()
 
             for mount in self.volume_mounts:
@@ -96,7 +100,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.resources = self.resources
             pod.affinity = self.affinity
 
-            launcher = pod_launcher.PodLauncher(client)
+            launcher = pod_launcher.PodLauncher(kube_client=client)
             final_state = launcher.run_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
@@ -120,6 +124,7 @@ class KubernetesPodOperator(BaseOperator):
                  env_vars=None,
                  secrets=None,
                  in_cluster=False,
+                 cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
                  get_logs=True,
@@ -142,6 +147,7 @@ class KubernetesPodOperator(BaseOperator):
         self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
         self.annotations = annotations or {}
