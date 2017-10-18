@@ -41,7 +41,7 @@ class _DataProcJob(LoggingMixin):
             self.job = self.dataproc_api.projects().regions().jobs().get(
                 projectId=self.project_id,
                 region=self.region,
-                jobId=self.job_id).execute()
+                jobId=self.job_id).execute(num_retries=5)
             if 'ERROR' == self.job['status']['state']:
                 print(str(self.job))
                 self.log.error('DataProc job %s has errors', self.job_id)
