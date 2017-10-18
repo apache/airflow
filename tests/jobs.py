@@ -860,7 +860,7 @@ class LocalTaskJobTest(unittest.TestCase):
         session.merge(ti)
         session.commit()
 
-        process.join(timeout=5)
+        process.join(timeout=10)
         self.assertFalse(process.is_alive())
         ti.refresh_from_db()
         self.assertEqual(State.SUCCESS, ti.state)
