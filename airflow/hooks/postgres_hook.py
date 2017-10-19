@@ -14,6 +14,7 @@
 
 import psycopg2
 import psycopg2.extensions
+from contextlib import closing
 
 from airflow.hooks.dbapi_hook import DbApiHook
 
@@ -52,6 +53,16 @@ class PostgresHook(DbApiHook):
 
         psycopg2_conn = psycopg2.connect(**conn_args)
         return psycopg2_conn
+
+    def copy_expert(self, sql, filename, open=open):
+        '''
+        Executes SQL using psycopg2 copy_expert method
+        Necessary to execute COPY command without access to a superuser
+        '''
+        f = open(filename, 'w')
+        with closing(self.get_conn()) as conn:
+            with closing(conn.cursor()) as cur:
+                cur.copy_expert(sql, f)
 
     @staticmethod
     def _serialize_cell(cell, conn):
