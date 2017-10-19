@@ -43,6 +43,9 @@ class DataprocClusterCreateOperator(BaseOperator):
                  project_id,
                  num_workers,
                  zone,
+                 network_uri=None,
+                 subnetwork_uri=None,
+                 tags=None,
                  storage_bucket=None,
                  init_actions_uris=None,
                  metadata=None,
@@ -105,6 +108,14 @@ class DataprocClusterCreateOperator(BaseOperator):
         :type labels: dict
         :param zone: The zone where the cluster will be located
         :type zone: string
+        :param network_uri: The network uri to be used for machine communication, cannot be
+            specified with subnetwork_uri
+        :type network_uri: string
+        :param subnetwork_uri: The subnetwork uri to be used for machine communication, cannot be
+            specified with network_uri
+        :type subnetwork_uri: string
+        :param tags: The GCE tags to add to all instances
+        :type tags: list[string]
         :param region: leave as 'global', might become relevant in the future
         :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
         :type gcp_conn_id: string
@@ -135,6 +146,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.worker_disk_size = worker_disk_size
         self.labels = labels
         self.zone = zone
+        self.network_uri = network_uri
+        self.subnetwork_uri = subnetwork_uri
+        self.tags = tags
         self.region = region
         self.service_account = service_account
         self.service_account_scopes = service_account_scopes
@@ -246,6 +260,12 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:
             cluster_data['config']['gceClusterConfig']['metadata'] = self.metadata
+        if self.network_uri:
+            cluster_data['config']['gceClusterConfig']['networkUri'] = self.network_uri
+        if self.subnetwork_uri:
+            cluster_data['config']['gceClusterConfig']['subnetworkUri'] = self.subnetwork_uri
+        if self.tags:
+            cluster_data['config']['gceClusterConfig']['tags'] = self.tags
         if self.image_version:
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
         if self.properties:
