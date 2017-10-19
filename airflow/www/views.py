@@ -696,8 +696,8 @@ class Airflow(BaseView):
     def log(self):
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
-        execution_date = request.args.get('execution_date')
-        dttm = dateutil.parser.parse(execution_date)
+        dttm = dateutil.parser.parse(request.args.get('execution_date'))
+        execution_date = dttm.isoformat()
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
         session = Session()
