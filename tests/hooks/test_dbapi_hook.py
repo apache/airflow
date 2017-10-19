@@ -23,53 +23,53 @@ class TestDbApiHook(unittest.TestCase):
 
     def setUp(self):
         super(TestDbApiHook, self).setUp()
-        
+
         self.cur = mock.MagicMock()
         self.conn = conn = mock.MagicMock()
         self.conn.cursor.return_value = self.cur
-        
-        class TestDBApiHook(DbApiHook):
+
+        class UnitTestDbApiHook(DbApiHook):
             conn_name_attr = 'test_conn_id'
-            
+
             def get_conn(self):
                 return conn
-        
-        self.db_hook = TestDBApiHook()
+
+        self.db_hook = UnitTestDbApiHook()
 
     def test_get_records(self):
         statement = "SQL"
         rows = [("hello",),
                 ("world",)]
-        
+
         self.cur.fetchall.return_value = rows
-        
+
         self.assertEqual(rows, self.db_hook.get_records(statement))
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement)
-        
+
     def test_get_records_parameters(self):
         statement = "SQL"
         parameters = ["X", "Y", "Z"]
         rows = [("hello",),
                 ("world",)]
-        
+
         self.cur.fetchall.return_value = rows
 
         self.assertEqual(rows, self.db_hook.get_records(statement, parameters))
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement, parameters)
-        
+
     def test_get_records_exception(self):
         statement = "SQL"
         self.cur.fetchall.side_effect = RuntimeError('Great Problems')
-        
+
         with self.assertRaises(RuntimeError):
             self.db_hook.get_records(statement)
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement)
