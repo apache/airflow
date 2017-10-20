@@ -230,7 +230,7 @@ class BaseJob(Base, LoggingMixin):
 
         for ti in tis:
             if ti.key not in queued_tis and ti.key not in running:
-                self.logger.debug("Rescheduling orphaned task {}".format(ti))
+                self.logger.info("Rescheduling orphaned task {}".format(ti))
                 ti.state = State.NONE
         session.commit()
 
