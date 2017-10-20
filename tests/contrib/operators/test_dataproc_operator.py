@@ -44,6 +44,9 @@ CLUSTER_NAME = 'test-cluster-name'
 PROJECT_ID = 'test-project-id'
 NUM_WORKERS = 123
 ZONE = 'us-central1-a'
+NETWORK_URI = '/projects/project_id/regions/global/net'
+SUBNETWORK_URI = '/projects/project_id/regions/global/subnet'
+TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
 MASTER_MACHINE_TYPE = 'n1-standard-2'
@@ -76,6 +79,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     project_id=PROJECT_ID,
                     num_workers=NUM_WORKERS,
                     zone=ZONE,
+                    network_uri=NETWORK_URI,
+                    subnetwork_uri=SUBNETWORK_URI,
+                    tags=TAGS,
                     storage_bucket=STORAGE_BUCKET,
                     image_version=IMAGE_VERSION,
                     master_machine_type=MASTER_MACHINE_TYPE,
@@ -103,6 +109,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.project_id, PROJECT_ID)
             self.assertEqual(dataproc_operator.num_workers, NUM_WORKERS)
             self.assertEqual(dataproc_operator.zone, ZONE)
+            self.assertEqual(dataproc_operator.network_uri, NETWORK_URI)
+            self.assertEqual(dataproc_operator.subnetwork_uri, SUBNETWORK_URI)
+            self.assertEqual(dataproc_operator.tags, TAGS)
             self.assertEqual(dataproc_operator.storage_bucket, STORAGE_BUCKET)
             self.assertEqual(dataproc_operator.image_version, IMAGE_VERSION)
             self.assertEqual(dataproc_operator.master_machine_type, MASTER_MACHINE_TYPE)
@@ -125,6 +134,12 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                              NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['serviceAccountScopes'],
                 SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(cluster_data['config']['gceClusterConfig']['subnetworkUri'],
+                SUBNETWORK_URI)
+            self.assertEqual(cluster_data['config']['gceClusterConfig']['networkUri'],
+                NETWORK_URI)
+            self.assertEqual(cluster_data['config']['gceClusterConfig']['tags'],
+                TAGS)
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
