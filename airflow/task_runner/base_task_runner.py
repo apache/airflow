@@ -92,7 +92,7 @@ class BaseTaskRunner(LoggingMixin):
             line = stream.readline().decode('utf-8')
             if len(line) == 0:
                 break
-            self.logger.info('Subtask: {}'.format(line.rstrip('\n')))
+            self.logger.info('Subtask: ' + line.rstrip('\n'))
 
     def run_command(self, run_with, join_args=False):
         """
