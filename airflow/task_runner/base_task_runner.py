@@ -88,8 +88,10 @@ class BaseTaskRunner(LoggingMixin):
         self.process = None
 
     def _read_task_logs(self, stream):
-        for line in iter(stream.readline, b''):
-            line = line.decode('utf-8').strip()
+        while True:
+            line = stream.readline()
+            if len(line) == 0:
+                break
             self.logger.info('Subtask: {}'.format(line.rstrip('\n')))
 
     def run_command(self, run_with, join_args=False):
