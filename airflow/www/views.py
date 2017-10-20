@@ -1466,7 +1466,7 @@ class Airflow(BaseView):
         cum_chart.buildcontent()
         s_index = cum_chart.htmlcontent.rfind('});')
         cum_chart.htmlcontent = (cum_chart.htmlcontent[:s_index] +
-                                 "$( document ).trigger('chartload')" +
+                                 "$(function() {$( document ).trigger('chartload') })" +
                                  cum_chart.htmlcontent[s_index:])
 
         return self.render(
