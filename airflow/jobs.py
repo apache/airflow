@@ -553,13 +553,6 @@ class SchedulerJob(BaseJob):
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
 
-        # Temporary: remove once etl upgrade from 1.7 to 1.8 is complete
-        with open('/srv/service/current/canary_whitelist.txt', 'r') as f:
-            self.canary_whitelist = [entry.strip() for entry in f.readlines() if entry]
-
-        logging.info('Treating these {} DAGs as whitelisted for canary: {}'.format(
-                len(self.canary_whitelist), self.canary_whitelist))
-
     @provide_session
     def manage_slas(self, dag, session=None):
         """
@@ -1369,10 +1362,9 @@ class SchedulerJob(BaseJob):
             no_backfills=True,
         )
         for dr in active_runs:
-            if dr.dag_id in self.canary_whitelist:
-                self.logger.info("Resetting {} {}".format(dr.dag_id,
-                                                        dr.execution_date))
-                self.reset_state_for_orphaned_tasks(dr, session=session)
+            self.logger.info("Resetting {} {}".format(dr.dag_id,
+                                                      dr.execution_date))
+            self.reset_state_for_orphaned_tasks(dr, session=session)
 
         session.close()
 
