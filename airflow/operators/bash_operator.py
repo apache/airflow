@@ -79,12 +79,18 @@ class BashOperator(BaseOperator):
                     "Temporary script location: %s",
                     script_location
                 )
+                def pre_exec():
+                    # Restore default signal disposition and invoke setsid
+                    for sig in ('SIGPIPE', 'SIGXFZ', 'SIGXFSZ'):
+                        if hasattr(signal, sig):
+                            signal.signal(getattr(signal, sig), signal.SIG_DFL)
+                    os.setsid()
                 self.log.info("Running command: %s", bash_command)
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
                     cwd=tmp_dir, env=self.env,
-                    preexec_fn=os.setsid)
+                    preexec_fn=pre_exec)
 
                 self.sp = sp
 
