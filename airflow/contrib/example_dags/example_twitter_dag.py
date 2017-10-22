@@ -127,7 +127,7 @@ hive_to_mysql = PythonOperator(
 # csv files to HDFS. The second task loads these files from HDFS to respected Hive
 # tables. These two for loops could be combined into one loop. However, in most cases,
 # you will be running different analysis on your incoming incoming and outgoing tweets,
-# and hence they are kept seperated in this example.
+# and hence they are kept separated in this example.
 # --------------------------------------------------------------------------------
 
 from_channels = ['fromTwitter_A', 'fromTwitter_B', 'fromTwitter_C', 'fromTwitter_D']

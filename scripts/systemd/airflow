@@ -16,6 +16,4 @@
 #
 # AIRFLOW_CONFIG=
 # AIRFLOW_HOME=
-#
-# required setting, 0 sets it to unlimited. Scheduler will get restart after every X runs
-SCHEDULER_RUNS=5
+

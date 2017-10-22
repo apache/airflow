@@ -72,6 +72,7 @@ Operator API
         PrestoIntervalCheckOperator,
         PrestoValueCheckOperator,
         PythonOperator,
+        PythonVirtualenvOperator,
         S3KeySensor,
         S3ToHiveTransfer,
         ShortCircuitOperator,

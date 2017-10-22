@@ -99,24 +99,15 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-
-def check_previous():
-    installed_packages = ([package.project_name for package
-                           in pip.get_installed_distributions()])
-    if 'airflow' in installed_packages:
-        print("An earlier non-apache version of Airflow was installed, "
-              "please uninstall it first. Then reinstall.")
-        sys.exit(1)
-
-
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
     'gevent>=0.13'
 ]
 azure = ['azure-storage>=0.34.0']
+sendgrid = ['sendgrid>=5.2.0']
 celery = [
-    'celery>=3.1.17',
+    'celery>=4.0.0',
     'flower>=0.7.3'
 ]
 cgroups = [
@@ -153,7 +144,7 @@ hive = [
     'impyla>=0.13.3',
     'unicodecsv>=0.14.1'
 ]
-jdbc = ['jaydebeapi>=0.2.0']
+jdbc = ['jaydebeapi>=1.1.1']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
@@ -206,14 +197,13 @@ devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docke
 
 
 def do_setup():
-    check_previous()
     write_version()
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(),
+        packages=find_packages(exclude=['tests*']),
         package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
         include_package_data=True,
         zip_safe=False,
@@ -247,7 +237,7 @@ def do_setup():
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=0.9.8',
             'tabulate>=0.7.5, <0.8.0',
-            'thrift>=0.9.2, <0.10',
+            'thrift>=0.9.2',
             'zope.deprecation>=4.0, <5.0',
         ],
         extras_require={
@@ -284,6 +274,7 @@ def do_setup():
             's3': s3,
             'salesforce': salesforce,
             'samba': samba,
+            'sendgrid' : sendgrid,
             'slack': slack,
             'ssh': ssh,
             'statsd': statsd,

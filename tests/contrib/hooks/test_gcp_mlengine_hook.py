@@ -19,7 +19,7 @@ try:  # python 2
 except ImportError:  # python 3
     from urllib.parse import urlparse, parse_qsl
 
-from airflow.contrib.hooks import gcp_cloudml_hook as hook
+from airflow.contrib.hooks import gcp_mlengine_hook as hook
 from apiclient import errors
 from apiclient.discovery import build
 from apiclient.http import HttpMockSequence
@@ -27,19 +27,19 @@ from oauth2client.contrib.gce import HttpAccessTokenRefreshError
 
 cml_available = True
 try:
-    hook.CloudMLHook().get_conn()
+    hook.MLEngineHook().get_conn()
 except HttpAccessTokenRefreshError:
     cml_available = False
 
 
-class _TestCloudMLHook(object):
+class _TestMLEngineHook(object):
 
     def __init__(self, test_cls, responses, expected_requests):
         """
         Init method.
 
         Usage example:
-        with _TestCloudMLHook(self, responses, expected_requests) as hook:
+        with _TestMLEngineHook(self, responses, expected_requests) as hook:
             self.run_my_test(hook)
 
         Args:
@@ -74,8 +74,8 @@ class _TestCloudMLHook(object):
         http.request = _request_wrapper
         service_mock = build('ml', 'v1', http=http)
         with mock.patch.object(
-                hook.CloudMLHook, 'get_conn', return_value=service_mock):
-            return hook.CloudMLHook()
+                hook.MLEngineHook, 'get_conn', return_value=service_mock):
+            return hook.MLEngineHook()
 
     def __exit__(self, *args):
         # Propogating exceptions here since assert will silence them.
@@ -87,13 +87,13 @@ class _TestCloudMLHook(object):
             self._expected_requests)
 
 
-class TestCloudMLHook(unittest.TestCase):
+class TestMLEngineHook(unittest.TestCase):
 
     def setUp(self):
         pass
 
     _SKIP_IF = unittest.skipIf(not cml_available,
-                               'CloudML is not available to run tests')
+                               'MLEngine is not available to run tests')
 
     _SERVICE_URI_PREFIX = 'https://ml.googleapis.com/v1/'
 
@@ -116,7 +116,7 @@ class TestCloudMLHook(unittest.TestCase):
              'GET', None),
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=[succeeded_response] * 2,
                 expected_requests=expected_requests) as cml_hook:
@@ -142,7 +142,7 @@ class TestCloudMLHook(unittest.TestCase):
                 'POST', '{}'),
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
@@ -182,7 +182,7 @@ class TestCloudMLHook(unittest.TestCase):
              None) for ix in range(len(versions) - 1)
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
@@ -215,7 +215,7 @@ class TestCloudMLHook(unittest.TestCase):
              'GET', None),
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=[not_done_response, succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
@@ -240,7 +240,7 @@ class TestCloudMLHook(unittest.TestCase):
              json.dumps(model)),
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
@@ -261,7 +261,7 @@ class TestCloudMLHook(unittest.TestCase):
              None),
         ]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=[succeeded_response],
                 expected_requests=expected_requests) as cml_hook:
@@ -270,7 +270,7 @@ class TestCloudMLHook(unittest.TestCase):
             self.assertEquals(get_model_response, response_body)
 
     @_SKIP_IF
-    def test_create_cloudml_job(self):
+    def test_create_mlengine_job(self):
         project = 'test-project'
         job_id = 'test-job-id'
         my_job = {
@@ -297,7 +297,7 @@ class TestCloudMLHook(unittest.TestCase):
         responses = [succeeded_response,
                      queued_response, succeeded_response]
 
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
@@ -306,7 +306,7 @@ class TestCloudMLHook(unittest.TestCase):
             self.assertEquals(create_job_response, my_job)
 
     @_SKIP_IF
-    def test_create_cloudml_job_reuse_existing_job_by_default(self):
+    def test_create_mlengine_job_reuse_existing_job_by_default(self):
         project = 'test-project'
         job_id = 'test-job-id'
         my_job = {
@@ -329,7 +329,7 @@ class TestCloudMLHook(unittest.TestCase):
         responses = [job_already_exist_response, succeeded_response]
 
         # By default, 'create_job' reuse the existing job.
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
@@ -338,7 +338,7 @@ class TestCloudMLHook(unittest.TestCase):
             self.assertEquals(create_job_response, my_job)
 
     @_SKIP_IF
-    def test_create_cloudml_job_check_existing_job(self):
+    def test_create_mlengine_job_check_existing_job(self):
         project = 'test-project'
         job_id = 'test-job-id'
         my_job = {
@@ -380,7 +380,7 @@ class TestCloudMLHook(unittest.TestCase):
         def check_input(existing_job):
             return existing_job.get('someInput', None) == \
                 my_job['someInput']
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:
@@ -399,7 +399,7 @@ class TestCloudMLHook(unittest.TestCase):
             job_already_exist_response,
             my_job_response,
             my_job_response]
-        with _TestCloudMLHook(
+        with _TestMLEngineHook(
                 self,
                 responses=responses,
                 expected_requests=expected_requests) as cml_hook:

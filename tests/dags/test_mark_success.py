@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,24 +11,20 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from datetime import datetime
 
-max-line-length: 90
-strictness: medium
-pep8:
-  full: true
-  disable:
-    - E402  # module level import not at top of file
-uses:
-  - flask
-pylint:
-  disable:
-    - broad-except
-    - cyclic-import
-    - invalid-name
-    - locally-disabled
-    - super-on-old-class
-    - wrong-import-order
-    - wrong-import-position
-    - logging-format-interpolation
-  options:
-    docstring-min-length: 10
+from airflow.models import DAG
+from airflow.operators.bash_operator import BashOperator
+
+DEFAULT_DATE = datetime(2016, 1, 1)
+
+args = {
+    'owner': 'airflow',
+    'start_date': DEFAULT_DATE,
+}
+
+dag = DAG(dag_id='test_mark_success', default_args=args)
+task = BashOperator(
+    task_id='task1',
+    bash_command='sleep 600',
+    dag=dag)

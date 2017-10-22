@@ -19,8 +19,9 @@ import json
 import subprocess
 import threading
 
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 from airflow import configuration as conf
-from airflow.utils.logging import LoggingMixin
 from tempfile import mkstemp
 
 
@@ -38,7 +39,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         # Pass task instance context into log handlers to setup the logger.
         self._task_instance = local_task_job.task_instance
-        self.set_logger_contexts(self._task_instance)
+        self.set_log_contexts(self._task_instance)
 
         popen_prepend = []
         cfg_path = None
@@ -53,7 +54,7 @@ class BaseTaskRunner(LoggingMixin):
         # Add sudo commands to change user if we need to. Needed to handle SubDagOperator
         # case using a SequentialExecutor.
         if self.run_as_user and (self.run_as_user != getpass.getuser()):
-            self.logger.debug("Planning to run as the {} user".format(self.run_as_user))
+            self.log.debug("Planning to run as the %s user", self.run_as_user)
             cfg_dict = conf.as_dict(display_sensitive=True)
             cfg_subset = {
                 'core': cfg_dict.get('core', {}),
@@ -79,9 +80,6 @@ class BaseTaskRunner(LoggingMixin):
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(
             raw=True,
-            ignore_all_deps=local_task_job.ignore_all_deps,
-            ignore_depends_on_past=local_task_job.ignore_depends_on_past,
-            ignore_ti_state=local_task_job.ignore_ti_state,
             pickle_id=local_task_job.pickle_id,
             mark_success=local_task_job.mark_success,
             job_id=local_task_job.id,
@@ -97,7 +95,7 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if len(line) == 0:
                 break
-            self.logger.info(u'Subtask: {}'.format(line.rstrip('\n')))
+            self.log.info('Subtask: %s', line.rstrip('\n'))
 
     def run_command(self, run_with, join_args=False):
         """
@@ -114,7 +112,7 @@ class BaseTaskRunner(LoggingMixin):
         """
         cmd = [" ".join(self._command)] if join_args else self._command
         full_cmd = run_with + cmd
-        self.logger.info('Running: {}'.format(full_cmd))
+        self.log.info('Running: %s', full_cmd)
         proc = subprocess.Popen(
             full_cmd,
             stdout=subprocess.PIPE,

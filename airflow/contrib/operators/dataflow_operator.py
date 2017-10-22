@@ -70,6 +70,7 @@ class DataFlowJavaOperator(BaseOperator):
             options=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            poll_sleep=10,
             *args,
             **kwargs):
         """
@@ -96,6 +97,10 @@ class DataFlowJavaOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
         :type delegate_to: string
+        :param poll_sleep: The time in seconds to sleep between polling Google 
+            Cloud Platform for the dataflow job status while the job is in the
+            JOB_STATE_RUNNING state.
+        :type poll_sleep: int
         """
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
@@ -107,13 +112,15 @@ class DataFlowJavaOperator(BaseOperator):
         self.jar = jar
         self.dataflow_default_options = dataflow_default_options
         self.options = options
+        self.poll_sleep = poll_sleep
 
     def execute(self, context):
         bucket_helper = GoogleCloudBucketHelper(
             self.gcp_conn_id, self.delegate_to)
         self.jar = bucket_helper.google_cloud_to_local(self.jar)
         hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            poll_sleep=self.poll_sleep)
 
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
@@ -134,6 +141,7 @@ class DataFlowPythonOperator(BaseOperator):
             options=None,
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
+            poll_sleep=10,
             *args,
             **kwargs):
         """
@@ -163,6 +171,10 @@ class DataFlowPythonOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide  delegation enabled.
         :type delegate_to: string
+        :param poll_sleep: The time in seconds to sleep between polling Google 
+            Cloud Platform for the dataflow job status while the job is in the
+            JOB_STATE_RUNNING state.
+        :type poll_sleep: int
         """
         super(DataFlowPythonOperator, self).__init__(*args, **kwargs)
 
@@ -172,6 +184,7 @@ class DataFlowPythonOperator(BaseOperator):
         self.options = options or {}
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
+        self.poll_sleep = poll_sleep
 
     def execute(self, context):
         """Execute the python dataflow job."""
@@ -179,7 +192,8 @@ class DataFlowPythonOperator(BaseOperator):
             self.gcp_conn_id, self.delegate_to)
         self.py_file = bucket_helper.google_cloud_to_local(self.py_file)
         hook = DataFlowHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
+                            delegate_to=self.delegate_to,
+                            poll_sleep=self.poll_sleep)
         dataflow_options = self.dataflow_default_options.copy()
         dataflow_options.update(self.options)
         # Convert argument names from lowerCamelCase to snake case.

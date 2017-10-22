@@ -34,6 +34,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'files': 'hive-site.xml',
         'py_files': 'sample_library.py',
         'jars': 'parquet.jar',
+        'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'total_executor_cores':4,
         'executor_cores': 4,
         'executor_memory': '22g',
@@ -84,6 +85,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
             'files': 'hive-site.xml',
             'py_files': 'sample_library.py',
             'jars': 'parquet.jar',
+            'packages': 'com.databricks:spark-avro_2.11:3.2.0',
             'total_executor_cores': 4,
             'executor_cores': 4,
             'executor_memory': '22g',
@@ -111,6 +113,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['files'], operator._files)
         self.assertEqual(expected_dict['py_files'], operator._py_files)
         self.assertEqual(expected_dict['jars'], operator._jars)
+        self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['total_executor_cores'], operator._total_executor_cores)
         self.assertEqual(expected_dict['executor_cores'], operator._executor_cores)
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)

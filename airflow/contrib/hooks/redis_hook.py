@@ -15,16 +15,14 @@
 """
 RedisHook module
 """
-
-import logging
-
 from redis import StrictRedis
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class RedisHook(BaseHook):
+class RedisHook(BaseHook, LoggingMixin):
     """
     Hook to interact with Redis database
     """
@@ -42,8 +40,8 @@ class RedisHook(BaseHook):
         self.port = int(conn.port)
         self.password = conn.password
         self.db = int(conn.extra_dejson.get('db', 0))
-        self.logger = logging.getLogger(__name__)
-        self.logger.debug(
+
+        self.log.debug(
             '''Connection "{conn}":
             \thost: {host}
             \tport: {port}
@@ -61,12 +59,10 @@ class RedisHook(BaseHook):
         Returns a Redis connection.
         """
         if not self.client:
-            self.logger.debug(
-                'generating Redis client for conn_id "{conn}" on '
-                '{host}:{port}:{db}'.format(conn=self.redis_conn_id,
-                                            host=self.host,
-                                            port=self.port,
-                                            db=self.db))
+            self.log.debug(
+                'generating Redis client for conn_id "%s" on %s:%s:%s',
+                self.redis_conn_id, self.host, self.port, self.db
+            )
             try:
                 self.client = StrictRedis(
                     host=self.host,
