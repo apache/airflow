@@ -46,7 +46,7 @@ class AwsLambdaHook(AwsHook):
 
     def invoke_lambda(self, payload):
         """
-        Invoke Lambda function
+        Invoke Lambda Function
         """
 
         awslambda_conn = self.get_conn()
