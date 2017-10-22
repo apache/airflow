@@ -935,6 +935,51 @@ class SchedulerJobTest(unittest.TestCase):
     def _make_simple_dag_bag(self, dags):
         return SimpleDagBag([SimpleDag(dag) for dag in dags])
 
+    def test_process_executor_events(self):
+        dag_id = "test_process_executor_events"
+        dag_id2 = "test_process_executor_events_2"
+        task_id_1 = 'dummy_task'
+
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE)
+        dag2 = DAG(dag_id=dag_id2, start_date=DEFAULT_DATE)
+        task1 = DummyOperator(dag=dag, task_id=task_id_1)
+        task2 = DummyOperator(dag=dag2, task_id=task_id_1)
+
+        dagbag1 = self._make_simple_dag_bag([dag])
+        dagbag2 = self._make_simple_dag_bag([dag2])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        ti1 = TI(task1, DEFAULT_DATE)
+        ti1.state = State.QUEUED
+        session.merge(ti1)
+        session.commit()
+
+        executor = TestExecutor()
+        executor.event_buffer[ti1.key] = State.FAILED
+
+        scheduler.executor = executor
+
+        # dag bag does not contain dag_id
+        scheduler._process_executor_events(simple_dag_bag=dagbag2)
+        ti1.refresh_from_db()
+        self.assertEqual(ti1.state, State.QUEUED)
+
+        # dag bag does contain dag_id
+        scheduler._process_executor_events(simple_dag_bag=dagbag1)
+        ti1.refresh_from_db()
+        self.assertEqual(ti1.state, State.FAILED)
+
+        ti1.state = State.SUCCESS
+        session.merge(ti1)
+        session.commit()
+        executor.event_buffer[ti1.key] = State.SUCCESS
+
+        scheduler._process_executor_events(simple_dag_bag=dagbag1)
+        ti1.refresh_from_db()
+        self.assertEqual(ti1.state, State.SUCCESS)
+
     def test_execute_task_instances_is_paused_wont_execute(self):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
         task_id_1 = 'dummy_task'

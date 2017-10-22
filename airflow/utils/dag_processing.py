@@ -36,40 +36,13 @@ class SimpleDag(BaseDag):
     required for instantiating and scheduling its associated tasks.
     """
 
-    def __init__(self,
-                 dag_id,
-                 task_ids,
-                 full_filepath,
-                 concurrency,
-                 is_paused,
-                 pickle_id,
-                 task_special_args):
+    def __init__(self, dag, pickle_id=None):
         """
-        :param dag_id: ID of the DAG
-        :type dag_id: unicode
-        :param task_ids: task IDs associated with the DAG
-        :type task_ids: list[unicode]
-        :param full_filepath: path to the file containing the DAG e.g.
-        /a/b/c.py
-        :type full_filepath: unicode
-        :param concurrency: No more than these many tasks from the
-        dag should run concurrently
-        :type concurrency: int
-        :param is_paused: Whether or not this DAG is paused. Tasks from paused
-        DAGs are not scheduled
-        :type is_paused: bool
+        :param dag: the DAG
+        :type dag: DAG
         :param pickle_id: ID associated with the pickled version of this DAG.
         :type pickle_id: unicode
         """
-        self._dag_id = dag_id
-        self._task_ids = task_ids
-        self._full_filepath = full_filepath
-        self._is_paused = is_paused
-        self._concurrency = concurrency
-        self._pickle_id = pickle_id
-        self._task_special_args = task_special_args
-
-    def __init__(self, dag, pickle_id=None):
         self._dag_id = dag.dag_id
         self._task_ids = [task.task_id for task in dag.tasks]
         self._full_filepath = dag.full_filepath

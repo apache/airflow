@@ -141,13 +141,26 @@ class BaseExecutor(LoggingMixin):
     def success(self, key):
         self.change_state(key, State.SUCCESS)
 
-    def get_event_buffer(self):
+    def get_event_buffer(self, dag_ids=None):
         """
-        Returns and flush the event buffer
+        Returns and flush the event buffer. In case dag_ids is specified
+        it will only return and flush events for the given dag_ids. Otherwise
+        it returns and flushes all
+
+        :param dag_ids: to dag_ids to return events for, if None returns all
+        :return: a dict of events
         """
-        d = self.event_buffer
-        self.event_buffer = {}
-        return d
+        cleared_events = dict()
+        if dag_ids is None:
+            cleared_events = self.event_buffer
+            self.event_buffer = dict()
+        else:
+            for key in list(self.event_buffer.keys()):
+                dag_id, _, _ = key
+                if dag_id in dag_ids:
+                    cleared_events[key] = self.event_buffer.pop(key)
+
+        return cleared_events
 
     def execute_async(self, key, command, queue=None):  # pragma: no cover
         """

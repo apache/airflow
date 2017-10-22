@@ -1290,6 +1290,7 @@ class SchedulerJob(BaseJob):
         TI = models.TaskInstance
         # actually enqueue them
         for task_instance in task_instances:
+            simple_dag = simple_dag_bag.get_dag(task_instance.dag_id)
             command = " ".join(TI.generate_command(
                 task_instance.dag_id,
                 task_instance.task_id,
@@ -1301,8 +1302,8 @@ class SchedulerJob(BaseJob):
                 ignore_task_deps=False,
                 ignore_ti_state=False,
                 pool=task_instance.pool,
-                file_path=simple_dag_bag.get_dag(task_instance.dag_id).full_filepath,
-                pickle_id=simple_dag_bag.get_dag(task_instance.dag_id).pickle_id))
+                file_path=simple_dag.full_filepath,
+                pickle_id=simple_dag.pickle_id))
 
             priority = task_instance.priority_weight
             queue = task_instance.queue
@@ -1412,20 +1413,49 @@ class SchedulerJob(BaseJob):
 
         models.DagStat.update([d.dag_id for d in dags])
 
-    def _process_executor_events(self):
+    @provide_session
+    def _process_executor_events(self, simple_dag_bag, session=None):
         """
         Respond to executor events.
-
-        :param executor: the executor that's running the task instances
-        :type executor: BaseExecutor
-        :return: None
         """
-        for key, executor_state in list(self.executor.get_event_buffer().items()):
+        # TODO: this shares quite a lot of code with _manage_executor_state
+
+        TI = models.TaskInstance
+        for key, state in list(self.executor.get_event_buffer(simple_dag_bag.dag_ids)
+                                   .items()):
             dag_id, task_id, execution_date = key
             self.log.info(
                 "Executor reports %s.%s execution_date=%s as %s",
-                dag_id, task_id, execution_date, executor_state
+                dag_id, task_id, execution_date, state
             )
+            if state == State.FAILED or state == State.SUCCESS:
+                qry = session.query(TI).filter(TI.dag_id == dag_id,
+                                               TI.task_id == task_id,
+                                               TI.execution_date == execution_date)
+                ti = qry.first()
+                if not ti:
+                    self.log.warning("TaskInstance %s went missing from the database", ti)
+                    continue
+
+                # TODO: should we fail RUNNING as well, as we do in Backfills?
+                if ti.state == State.QUEUED:
+                    msg = ("Executor reports task instance %s finished (%s) "
+                           "although the task says its %s. Was the task "
+                           "killed externally?".format(ti, state, ti.state))
+                    self.log.error(msg)
+                    try:
+                        simple_dag = simple_dag_bag.get_dag(dag_id)
+                        dagbag = models.DagBag(simple_dag.full_filepath)
+                        dag = dagbag.get_dag(dag_id)
+                        ti.task = dag.get_task(task_id)
+                        ti.handle_failure(msg)
+                    except Exception:
+                        self.log.error("Cannot load the dag bag to handle failure for %s"
+                                       ". Setting task to FAILED without callbacks or "
+                                       "retries. Do you have enough resources?", ti)
+                        ti.state = State.FAILED
+                        session.merge(ti)
+                        session.commit()
 
     def _log_file_processing_stats(self,
                                    known_file_paths,
@@ -1626,8 +1656,8 @@ class SchedulerJob(BaseJob):
                 processor_manager.wait_until_finished()
 
             # Send tasks for execution if available
+            simple_dag_bag = SimpleDagBag(simple_dags)
             if len(simple_dags) > 0:
-                simple_dag_bag = SimpleDagBag(simple_dags)
 
                 # Handle cases where a DAG run state is set (perhaps manually) to
                 # a non-running state. Handle task instances that belong to
@@ -1655,7 +1685,7 @@ class SchedulerJob(BaseJob):
             self.executor.heartbeat()
 
             # Process events from the executor
-            self._process_executor_events()
+            self._process_executor_events(simple_dag_bag)
 
             # Heartbeat the scheduler periodically
             time_since_last_heartbeat = (datetime.utcnow() -
