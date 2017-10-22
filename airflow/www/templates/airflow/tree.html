@@ -121,9 +121,7 @@ var svg = d3.select("svg")
 
   var num_square = base_node.instances.length;
   var extent = d3.extent(base_node.instances, function(d,i) {
-    dttm = new Date(d.execution_date);
-    dttm.setHours(dttm.getHours()+7)
-    return dttm;
+    return new Date(d.execution_date);
   });
   var xScale = d3.time.scale()
   .domain(extent)
