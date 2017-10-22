@@ -2714,7 +2714,7 @@ class ConfigurationView(wwwutils.SuperUserMixin, BaseView):
 
         else:
             config = (
-                "# You Airflow administrator chose not to expose the "
+                "# Your Airflow administrator chose not to expose the "
                 "configuration, most likely for security reasons.")
             table = None
         if raw:
