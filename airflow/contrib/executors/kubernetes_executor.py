@@ -11,8 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import calendar
+import base64
 import logging
 import os
 import multiprocessing
@@ -64,6 +63,10 @@ class KubeConfig:
         self.dags_volume_claim = self.safe_get(self.kubernetes_section, 'dags_volume_claim', None)
         # And optionally this prop
         self.dags_volume_subpath = self.safe_get(self.kubernetes_section, 'dags_volume_subpath', None)
+
+        # Task secrets managed by KubernetesExecutor.
+        self.executor_namespace = self.safe_get(self.kubernetes_section, 'namespace', 'default')
+        self.gcp_service_account_keys = self.safe_get(self.kubernetes_section, 'gcp_service_account_keys', None)
 
         self._validate()
 
@@ -379,6 +382,35 @@ class KubernetesExecutor(BaseExecutor):
 
         self._session.commit()
 
+    def _inject_secrets(self):
+        def _create_or_update_secret(secret_name, secret_path):
+            try:
+                return self.kube_client.create_namespaced_secret(
+                    self.kube_config.executor_namespace, kubernetes.client.V1Secret(
+                        data={'key.json' : base64.b64encode(open(secret_path, 'r').read())},
+                        metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
+            except ApiException as e:
+                if e.status == 409:
+                    return self.kube_client.replace_namespaced_secret(
+                        secret_name, self.kube_config.executor_namespace,
+                        kubernetes.client.V1Secret(
+                            data={'key.json' : base64.b64encode(open(secret_path, 'r').read())},
+                            metadata=kubernetes.client.V1ObjectMeta(name=secret_name)))
+                self.logger.exception("Exception while trying to inject secret."
+                                      "Secret name: {}, error details: {}.".format(secret_name, e))
+                raise
+
+        # For each GCP service account key, inject it as a secret in executor
+        # namespace with the specific secret name configured in the airflow.cfg.
+        # We let exceptions to pass through to users.
+        if self.kube_config.gcp_service_account_keys:
+            name_path_pair_list = [
+                {'name' : account_spec.strip().split('=')[0],
+                 'path' : account_spec.strip().split('=')[1]}
+                for account_spec in self.kube_config.gcp_service_account_keys.split(',')]
+            for service_account in name_path_pair_list:
+                _create_or_update_secret(service_account['name'], service_account['path'])
+
     def start(self):
         self.logger.info('k8s: starting kubernetes executor')
         self._session = settings.Session()
@@ -388,6 +420,7 @@ class KubernetesExecutor(BaseExecutor):
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue, self._session, self.kube_client
         )
+        self._inject_secrets()
         self.clear_not_launched_queued_tasks()
 
     def execute_async(self, key, command, queue=None):
