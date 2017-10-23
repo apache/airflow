@@ -142,6 +142,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
+    :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :type do_xcom_push: boolean
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -162,6 +164,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             databricks_conn_id='databricks_default',
             polling_period_seconds=30,
             databricks_retry_limit=3,
+            do_xcom_push=False,
             **kwargs):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
@@ -191,6 +194,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.json = self._deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
+        self.do_xcom_push = do_xcom_push
 
     def _deep_string_coerce(self, content, json_path='json'):
         """
@@ -228,10 +232,12 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
-        context['task_instance'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
         self.log.info('Run submitted with run_id: %s', self.run_id)
         run_page_url = hook.get_run_page_url(self.run_id)
-        context['task_instance'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
         self._log_run_page_url(run_page_url)
         while True:
             run_state = hook.get_run_state(self.run_id)
