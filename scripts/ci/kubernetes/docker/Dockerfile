@@ -41,12 +41,6 @@ RUN pip install kubernetes && \
 COPY airflow.tar.gz /tmp/airflow.tar.gz
 RUN pip install /tmp/airflow.tar.gz
 
-# prep airflow
-ENV AIRFLOW_HOME=/root/airflow
-ENV AIRFLOW__CORE__EXECUTOR=KubernetesExecutor
-ENV AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://root:root@postgres-airflow:5432/airflow
-
-
 COPY bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
 
