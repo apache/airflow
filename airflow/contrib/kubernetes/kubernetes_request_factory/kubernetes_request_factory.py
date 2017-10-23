@@ -13,6 +13,7 @@
 # limitations under the License.
 
 from abc import ABCMeta, abstractmethod
+import six
 
 class KubernetesRequestFactory():
     """
@@ -69,8 +70,9 @@ class KubernetesRequestFactoryHelper(object):
 
     @staticmethod
     def extract_labels(pod, req):
-        for k in pod.labels.keys():
-            req['metadata']['labels'][k] = pod.labels[k]
+        req['metadata']['labels'] = req['metadata'].get('labels', {})
+        for k, v in six.iteritems(pod.labels):
+            req['metadata']['labels'][k] = v
 
     @staticmethod
     def extract_cmds(pod, req):
@@ -114,7 +116,7 @@ class KubernetesRequestFactoryHelper(object):
             })
 
     @staticmethod
-    def extract_secrets(pod, req):
+    def extract_env_and_secrets(pod, req):
         env_secrets = [s for s in pod.secrets if s.deploy_type == 'env']
         if len(pod.envs) > 0 or len(env_secrets) > 0:
             env = []
@@ -123,3 +125,20 @@ class KubernetesRequestFactoryHelper(object):
             for secret in env_secrets:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
             req['spec']['containers'][0]['env'] = env
+
+    @staticmethod
+    def extract_init_containers(pod, req):
+        if pod.init_containers:
+            req['spec']['initContainers'] = pod.init_containers
+
+    @staticmethod
+    def extract_service_account_name(pod, req):
+        if pod.service_account_name:
+            req['spec']['serviceAccountName'] = pod.service_account_name
+
+    @staticmethod
+    def extract_image_pull_secrets(pod, req):
+        if pod.image_pull_secrets:
+            req['spec']['imagePullSecrets'] = [{
+                'name': pull_secret
+            } for pull_secret in pod.image_pull_secrets.split(',')]

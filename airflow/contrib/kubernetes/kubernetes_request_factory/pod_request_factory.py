@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 
 import yaml
-import airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory as kreq
+from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory import KubernetesRequestFactory
 from airflow.contrib.kubernetes.pod import Pod
 
 
-class SimplePodRequestFactory(kreq.KubernetesRequestFactory):
+class SimplePodRequestFactory(KubernetesRequestFactory):
     """
         Request generator for a simple pod.
     """
@@ -41,16 +41,18 @@ spec:
     def create(self, pod):
         # type: (Pod) -> dict
         req = yaml.load(self._yaml)
-        kreq.extract_name(pod, req)
-        kreq.extract_labels(pod, req)
-        kreq.extract_image(pod, req)
-        if pod.image_pull_policy:
-            kreq.extract_image_pull_policy(pod, req)
-        kreq.extract_cmds(pod, req)
-        kreq.extract_args(pod, req)
-        if len(pod.node_selectors) > 0:
-            self.extract_node_selector(pod, req)
-        self.extract_secrets(pod, req)
+        self.extract_name(pod, req)
+        self.extract_labels(pod, req)
+        self.extract_image(pod, req)
+        self.extract_image_pull_policy(pod, req)
+        self.extract_cmds(pod, req)
+        self.extract_args(pod, req)
+        self.extract_node_selector(pod, req)
+        self.extract_env_and_secrets(pod, req)
         self.extract_volume_secrets(pod, req)
-        self.attach_volume_mounts(req=req, pod=pod)
+        self.attach_volumes(pod, req)
+        self.attach_volume_mounts(pod, req)
+        self.extract_service_account_name(pod, req)
+        self.extract_init_containers(pod, req)
+        self.extract_image_pull_secrets(pod, req)
         return req
