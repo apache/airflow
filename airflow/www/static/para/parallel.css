@@ -1,0 +1,260 @@
+/**
+* Licensed to the Apache Software Foundation (ASF) under one
+* or more contributor license agreements. See the NOTICE file
+* distributed with this work for additional information
+* regarding copyright ownership. The ASF licenses this file
+* to you under the Apache License, Version 2.0 (the
+* "License"); you may not use this file except in compliance
+* with the License. You may obtain a copy of the License at
+*
+* http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing,
+* software distributed under the License is distributed on an
+* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+* KIND, either express or implied. See the License for the
+* specific language governing permissions and limitations
+* under the License.
+*/
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body {
+  font-family: Ubuntu, Tahoma, Helvetica, sans-serif;
+  font-size: 12px;
+  line-height: 1.4em;
+  background: #f7f7f7;
+  color: #404040;
+}
+body.dark {
+  background: #131313;
+  color: #e3e3e3;
+}
+a {
+  text-decoration: none;
+}
+.dark a {
+  color: #5ae;
+}
+#wrap {
+  padding: 0 3.5%;
+}
+svg {
+  font-family: Ubuntu, Tahoma, Helvetica, sans-serif;
+}
+canvas, svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+#chart {
+  position: relative;
+}
+.brush rect.extent {
+  fill: rgba(100,100,100,0.15);
+  stroke: #fff;
+}
+.dark .brush rect.extent {
+  fill: rgba(100,100,100,0.15);
+  stroke: #ddd;
+}
+.brush:hover rect.extent {
+  stroke: #222;
+  stroke-dasharray: 5,5;
+}
+.brush rect.extent:hover {
+  stroke-dasharray: none;
+}
+.resize rect {
+  fill: none;
+}
+.background {
+  fill: none;
+}
+.dark .background {
+  fill: none;
+}
+.axis line, .axis path {
+  fill: none;
+  stroke: #777;
+  stroke-width: 1;
+}
+.dark .axis line, .dark .axis path {
+  stroke: #777;
+}
+.axis .tick {
+  width: 200px;
+}
+.axis text {
+  fill: #111;
+  text-anchor: right;
+  font-size: 11px;
+  text-shadow: 0 1px 0 #fff, 1px 0 0 #fff, 0 -1px 0 #fff, -1px 0 0 #fff;
+}
+.axis text.label {
+  font-size: 12px;
+  cursor: move;
+  padding-bottom: 24px;
+}
+.dark .axis text {
+  fill: #f2f2f2;
+  text-shadow: 0 1px 0 #000, 1px 0 0 #000, 0 -1px 0 #000, -1px 0 0 #000;
+}
+.dark .axis text.label {
+  fill: #ddd;
+}
+.quarter, .third, .half {
+  float: left;
+}
+.quarter {
+  width: 23%;
+  margin: 0 1%;
+}
+.third {
+  width: 31.3%;
+  margin: 0 1%;
+}
+.half {
+  width: 48%;
+  margin: 0 1%;
+}
+h3 {
+  margin: 12px 0 9px;
+}
+h3 small {
+  color: #888;
+  font-weight: normal;
+}
+p {
+  margin: 0.6em 0;
+}
+small {
+  line-height: 1.2em;
+}
+button[disabled=disabled] {
+  color: #555 !important;
+  opacity: 0.4;
+}
+.settings button[disabled=disabled] {
+  display: none;
+}
+.dark button[disabled=disabled] {
+  opacity: 0.2;
+}
+button#keep-data,
+button#exclude-data {
+  font-weight:bold
+}
+button#keep-data:hover {
+  color: #080;
+}
+button#exclude-data:hover {
+  color: #900;
+}
+#food-list {
+  width: 100%;
+  height: 460px;
+  overflow-x: auto;
+  overflow-y: auto;
+  white-space: nowrap;
+}
+#legend {
+  text-align: left;
+  overflow-y: auto;
+  border-left: 1px solid rgba(140,140,140,0.5);
+}
+.row {
+  cursor: pointer;
+}
+.row:hover {
+  font-size: 16px;
+  line-height: 1.3em;
+}
+.off {
+  color: #999;
+}
+.dark .off {
+  color: #555;
+}
+.dark #legend {
+  border-left: 1px solid #777;
+}
+.color-block, .color-bar {
+  display: inline-block;
+  height: 8px;
+  width: 8px;
+  margin: 1px 4px 1px 0px;
+}
+#rendered-bar,
+#selected-bar {
+  width:0%;
+  font-weight: bold;
+}
+#rendered-bar {
+  background: #888;
+  border-right: 1px solid #666;
+}
+#selected-bar {
+  background: rgba(160,160,160,0.5);
+  border-right: 1px solid #999;
+}
+.fillbar {
+  height: 12px;
+  line-height: 12px;
+  border:1px solid rgba(120,120,120,0.5);
+  width: 120px;
+  display: inline-block;
+}
+.little-box {
+  width: 268px;
+  float: left;
+}
+#header {
+  border-bottom: 1px solid rgba(100,100,100,0.35);
+  background: #e2e2e2;
+  padding: 6px 24px 4px;
+  line-height: 24px;
+}
+.dark #header {
+  background: #040404;
+  color: #f3f3f3;
+}
+#header h1 {
+  display: inline-block;
+  margin: 0px 14px 0 0;
+}
+#header button select {
+  vertical-align: top;
+}
+.controls {
+  float: right;
+  height: 24px;
+  line-height: 24px;
+}
+
+/* Scrollbars */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #ddd;
+  border-radius: 12px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b5b5b5;
+  border-radius: 12px;
+}
+.dark ::-webkit-scrollbar-track {
+  background: #222;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #444;
+}
