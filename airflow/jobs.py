@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import getpass
+import logging
 import multiprocessing
 import os
 import psutil
@@ -285,7 +286,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     # Counter that increments everytime an instance of this class is created
     class_creation_counter = 0
 
-    def __init__(self, file_path, pickle_dags, dag_id_white_list, log_file):
+    def __init__(self, file_path, pickle_dags, dag_id_white_list):
         """
         :param file_path: a Python file containing Airflow DAG definitions
         :type file_path: unicode
@@ -293,11 +294,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type pickle_dags: bool
         :param dag_id_whitelist: If specified, only look at these DAG ID's
         :type dag_id_whitelist: list[unicode]
-        :param log_file: the path to the file where log lines should be output
-        :type log_file: unicode
         """
         self._file_path = file_path
-        self._log_file = log_file
         # Queue that's used to pass results from the child process.
         self._result_queue = multiprocessing.Queue()
         # The process that was launched to process the given .
@@ -319,17 +317,12 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
     def file_path(self):
         return self._file_path
 
-    @property
-    def log_file(self):
-        return self._log_file
-
     @staticmethod
     def _launch_process(result_queue,
                         file_path,
                         pickle_dags,
                         dag_id_white_list,
-                        thread_name,
-                        log_file):
+                        thread_name):
         """
         Launch a process to process the given file.
 
@@ -345,35 +338,21 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         :type dag_id_white_list: list[unicode]
         :param thread_name: the name to use for the process that is launched
         :type thread_name: unicode
-        :param log_file: the logging output for the process should be directed
-        to this file
-        :type log_file: unicode
         :return: the process that was launched
         :rtype: multiprocessing.Process
         """
         def helper():
             # This helper runs in the newly created process
-
-            # Re-direct stdout and stderr to a separate log file. Otherwise,
-            # the main log becomes too hard to read. No buffering to enable
-            # responsive file tailing
-            parent_dir, _ = os.path.split(log_file)
-
-            _log = LoggingMixin().log
-
-            # Create the parent directory for the log file if necessary.
-            if not os.path.isdir(parent_dir):
-                os.makedirs(parent_dir)
-
-            f = open(log_file, "a")
-            original_stdout = sys.stdout
-            original_stderr = sys.stderr
-
-            sys.stdout = f
-            sys.stderr = f
+            log = logging.getLogger("airflow.processor")
+            for handler in log.handlers:
+                try:
+                    handler.set_context(file_path)
+                except AttributeError:
+                    # Not all handlers need to have context passed in so we ignore
+                    # the error when handlers do not have set_context defined.
+                    pass
 
             try:
-                configure_logging()
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
@@ -383,26 +362,20 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 threading.current_thread().name = thread_name
                 start_time = time.time()
 
-                _log.info("Started process (PID=%s) to work on %s",
-                             os.getpid(),
-                             file_path)
-                scheduler_job = SchedulerJob(dag_ids=dag_id_white_list)
+                log.info("Started process (PID=%s) to work on %s",
+                         os.getpid(), file_path)
+                scheduler_job = SchedulerJob(dag_ids=dag_id_white_list, log=log)
                 result = scheduler_job.process_file(file_path,
                                                     pickle_dags)
                 result_queue.put(result)
                 end_time = time.time()
-                _log.info(
-                    "Processing %s took %.3f seconds",
-                    file_path, end_time - start_time
+                log.info(
+                    "Processing %s took %.3f seconds", file_path, end_time - start_time
                 )
             except:
                 # Log exceptions through the logging framework.
-                _log.exception("Got an exception! Propagating...")
+                log.exception("Got an exception! Propagating...")
                 raise
-            finally:
-                sys.stdout = original_stdout
-                sys.stderr = original_stderr
-                f.close()
 
         p = multiprocessing.Process(target=helper,
                                     args=(),
@@ -419,8 +392,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             self.file_path,
             self._pickle_dags,
             self._dag_id_white_list,
-            "DagFileProcessor{}".format(self._instance_id),
-            self.log_file)
+            "DagFileProcessor{}".format(self._instance_id))
         self._start_time = datetime.utcnow()
 
     def terminate(self, sigkill=False):
@@ -538,6 +510,7 @@ class SchedulerJob(BaseJob):
             processor_poll_interval=1.0,
             run_duration=None,
             do_pickle=False,
+            log=None,
             *args, **kwargs):
         """
         :param dag_id: if specified, only schedule tasks with this DAG ID
@@ -574,6 +547,10 @@ class SchedulerJob(BaseJob):
 
         self.heartrate = conf.getint('scheduler', 'SCHEDULER_HEARTBEAT_SEC')
         self.max_threads = conf.getint('scheduler', 'max_threads')
+
+        if log:
+            self._log = log
+
         self.using_sqlite = False
         if 'sqlite' in conf.get('core', 'sql_alchemy_conn'):
             if self.max_threads > 1:
@@ -591,9 +568,7 @@ class SchedulerJob(BaseJob):
         # Parse and schedule each file no faster than this interval. Default
         # to 3 minutes.
         self.file_process_interval = file_process_interval
-        # Directory where log files for the processes that scheduled the DAGs reside
-        self.child_process_log_directory = conf.get('scheduler',
-                                                    'child_process_log_directory')
+
         self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
@@ -1548,17 +1523,15 @@ class SchedulerJob(BaseJob):
         known_file_paths = list_py_file_paths(self.subdir)
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
-        def processor_factory(file_path, log_file_path):
+        def processor_factory(file_path):
             return DagFileProcessor(file_path,
                                     pickle_dags,
-                                    self.dag_ids,
-                                    log_file_path)
+                                    self.dag_ids)
 
         processor_manager = DagFileProcessorManager(self.subdir,
                                                     known_file_paths,
                                                     self.max_threads,
                                                     self.file_process_interval,
-                                                    self.child_process_log_directory,
                                                     self.num_runs,
                                                     processor_factory)
 
