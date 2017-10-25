@@ -41,6 +41,10 @@ class SparkSubmitOperator(BaseOperator):
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the driver and executor classpaths
     :type packages: str
+    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude while resolving the dependencies provided in 'packages'
+    :type exclude_packages: str
+    :param repositories: Comma-separated list of additional remote repositories to search for the maven coordinates given with 'packages'
+    :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
     :type total_executor_cores: int
     :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
@@ -62,7 +66,7 @@ class SparkSubmitOperator(BaseOperator):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
-    template_fields = ('_name', '_application_args',)
+    template_fields = ('_name', '_application_args','_packages')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     @apply_defaults
@@ -75,6 +79,8 @@ class SparkSubmitOperator(BaseOperator):
                  jars=None,
                  java_class=None,
                  packages=None,
+                 exclude_packages=None,
+                 repositories=None,
                  total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
@@ -95,6 +101,8 @@ class SparkSubmitOperator(BaseOperator):
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
+        self._exclude_packages = exclude_packages
+        self._repositories = repositories
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -120,6 +128,8 @@ class SparkSubmitOperator(BaseOperator):
             jars=self._jars,
             java_class=self._java_class,
             packages=self._packages,
+            exclude_packages=self._exclude_packages,
+            repositories=self._repositories,
             total_executor_cores=self._total_executor_cores,
             executor_cores=self._executor_cores,
             executor_memory=self._executor_memory,

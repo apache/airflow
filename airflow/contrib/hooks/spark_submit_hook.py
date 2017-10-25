@@ -40,6 +40,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
+    :param packages: Comma-separated list of maven coordinates of jars to include on the driver and executor classpaths
+    :type packages: str
+    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude while resolving the dependencies provided in 'packages'
+    :type exclude_packages: str
+    :param repositories: Comma-separated list of additional remote repositories to search for the maven coordinates given with 'packages'
+    :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
     :type total_executor_cores: int
     :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
@@ -69,6 +75,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  jars=None,
                  java_class=None,
                  packages=None,
+                 exclude_packages=None,
+                 repositories=None,
                  total_executor_cores=None,
                  executor_cores=None,
                  executor_memory=None,
@@ -86,6 +94,8 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
+        self._exclude_packages = exclude_packages
+        self._repositories = repositories
         self._total_executor_cores = total_executor_cores
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
@@ -164,6 +174,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             connection_cmd += ["--jars", self._jars]
         if self._packages:
             connection_cmd += ["--packages", self._packages]
+        if self._exclude_packages:
+            connection_cmd += ["--exclude-packages", self._exclude_packages]
+        if self._repositories:
+            connection_cmd += ["--repositories", self._repositories]
         if self._num_executors:
             connection_cmd += ["--num-executors", str(self._num_executors)]
         if self._total_executor_cores:
