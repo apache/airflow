@@ -1125,7 +1125,7 @@ class CliTests(unittest.TestCase):
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
         self.assertIn(['beeline_default', 'beeline'], conns)
-        self.assertIn(['bigquery_default', 'bigquery'], conns)
+        self.assertIn(['bigquery_default', 'google_cloud_platform'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
