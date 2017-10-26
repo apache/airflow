@@ -16,7 +16,7 @@
 import logging
 import unittest
 
-from airflow.utils.email import send_email_sendgrid
+from airflow.contrib.utils.sendgrid import send_email
 
 try:
     from unittest import mock
@@ -30,22 +30,26 @@ from mock import Mock
 from mock import patch
 
 class SendEmailSendGridTest(unittest.TestCase):
-    # Unit test for send_email_sendgrid()
+    # Unit test for sendgrid.send_email()
     def setUp(self):
         self.to = ['foo@foo.com', 'bar@bar.com']
-        self.subject = 'send-email-sendgrid unit test'
+        self.subject = 'sendgrid-send-email unit test'
         self.html_content = '<b>Foo</b> bar'
+        self.cc = ['foo-cc@foo.com', 'bar-cc@bar.com']
+        self.bcc = ['foo-bcc@foo.com', 'bar-bcc@bar.com']
         self.expected_mail_data = {
             'content': [{'type': u'text/html', 'value': '<b>Foo</b> bar'}],
             'personalizations': [
-                {'to': [{'email': 'foo@foo.com'}, {'email': 'bar@bar.com'}]}],
+                {'cc': [{'email': 'foo-cc@foo.com'}, {'email': 'bar-cc@bar.com'}],
+                 'to': [{'email': 'foo@foo.com'}, {'email': 'bar@bar.com'}],
+                 'bcc': [{'email': 'foo-bcc@foo.com'}, {'email': 'bar-bcc@bar.com'}]}],
             'from': {'email': u'foo@bar.com'},
-            'subject': 'send-email-sendgrid unit test'}
+            'subject': 'sendgrid-send-email unit test'}
 
     # Test the right email is constructed.
-    @mock.patch('airflow.configuration.get')
-    @mock.patch('airflow.utils.email._post_sendgrid_mail')
+    @mock.patch('os.environ.get')
+    @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email(self, mock_post, mock_get):
         mock_get.return_value = 'foo@bar.com'
-        send_email_sendgrid(self.to, self.subject, self.html_content)
+        send_email(self.to, self.subject, self.html_content, cc=self.cc, bcc=self.bcc)
         mock_post.assert_called_with(self.expected_mail_data)
