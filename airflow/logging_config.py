@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 import logging
+import os
 import sys
 from logging.config import dictConfig
 
@@ -23,9 +24,21 @@ from airflow.utils.module_loading import import_string
 log = logging.getLogger(__name__)
 
 
+def prepare_classpath():
+    config_path = os.path.join(conf.get('core', 'airflow_home'), 'config')
+    config_path = os.path.expanduser(config_path)
+
+    if config_path not in sys.path:
+        sys.path.append(config_path)
+
+
 def configure_logging():
     logging_class_path = ''
     try:
+        # Prepare the classpath so we are sure that the config folder
+        # is on the python classpath and it is reachable
+        prepare_classpath()
+
         logging_class_path = conf.get('core', 'logging_config_class')
     except AirflowConfigException:
         log.debug('Could not find key logging_config_class in config')
