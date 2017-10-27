@@ -185,13 +185,12 @@ Operators are in the contrib section. Meaning that they have a *beta* status, me
 they can have breaking changes between minor releases.
 
 Logging
-''''''''
+'''''''
 
 Airflow can be configured to read and write task logs in Google cloud storage.
 Follow the steps below to enable Google cloud storage logging.
 
-#. Airlfow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
-#. Set ``PYTHONPATH=$PYTHONPATH:<AIRFLOW_HOME>/config`` in the Airflow environment. If using Supervisor, you can set this in the ``supervisord.conf`` environment parameter. If not, you can export ``PYTHONPATH`` using your preferred method.
+#. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
 #. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
 #. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
 #. Customize the following portions of the template:
