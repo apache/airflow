@@ -13,6 +13,23 @@
 # limitations under the License.
 
 
+class Resources:
+    def __init__(self, request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None):
+        self.request_memory = request_memory
+        self.request_cpu = request_cpu
+        self.limit_memory = limit_memory
+        self.limit_cpu = limit_cpu
+
+    def is_empty_resource_request(self):
+        return not self.has_limits() and not self.has_requests()
+
+    def has_limits(self):
+        return self.limit_cpu is not None or self.limit_memory is not None
+
+    def has_requests(self):
+        return self.request_cpu is not None or self.request_memory is not None
+
+
 class Pod:
     """
         Represents a kubernetes pod and manages execution of a single pod.
@@ -46,7 +63,9 @@ class Pod:
             image_pull_policy="IfNotPresent",
             image_pull_secrets=None,
             init_containers=None,
-            service_account_name=None):
+            service_account_name=None,
+            resources=None
+    ):
         self.image = image
         self.envs = envs if envs else {}
         self.cmds = cmds
@@ -61,3 +80,4 @@ class Pod:
         self.image_pull_secrets = image_pull_secrets
         self.init_containers = init_containers
         self.service_account_name = service_account_name
+        self.resources = resources or Resources()

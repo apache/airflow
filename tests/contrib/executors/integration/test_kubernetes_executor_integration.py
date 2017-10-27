@@ -52,6 +52,14 @@ class KubernetesExecutorTest(unittest.TestCase):
 
         self.assertEquals(dag_final_state(dag_id, run_id, timeout=180), DagRunState.SUCCESS)
 
+    @unittest.skipIf(SKIP_KUBE, 'Kubernetes integration tests are unsupported by this configuration')
+    def test_kubernetes_executor_config_works(self):
+        dag_id, run_id = "example_kubernetes_executor", uuid4().hex
+        run_dag(dag_id, run_id)
+
+        self.assertEquals(get_dag_run_state(dag_id, run_id), DagRunState.RUNNING)
+        self.assertEquals(dag_final_state(dag_id, run_id, timeout=180), DagRunState.SUCCESS)
+
 
 if __name__ == "__main__":
     unittest.main()

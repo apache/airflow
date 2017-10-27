@@ -127,6 +127,27 @@ class KubernetesRequestFactoryHelper(object):
             req['spec']['containers'][0]['env'] = env
 
     @staticmethod
+    def extract_resources(pod, req):
+        if not pod.resources or pod.resources.is_empty_resource_request():
+            return
+
+        req['spec']['containers'][0]['resources'] = {}
+
+        if pod.resources.has_requests():
+            req['spec']['containers'][0]['resources']['requests'] = {}
+            if pod.resources.request_memory:
+                req['spec']['containers'][0]['resources']['requests']['memory'] = pod.resources.request_memory
+            if pod.resources.request_cpu:
+                req['spec']['containers'][0]['resources']['requests']['cpu'] = pod.resources.request_cpu
+
+        if pod.resources.has_limits():
+            req['spec']['containers'][0]['resources']['limits'] = {}
+            if pod.resources.request_memory:
+                req['spec']['containers'][0]['resources']['limits']['memory'] = pod.resources.limit_memory
+            if pod.resources.request_cpu:
+                req['spec']['containers'][0]['resources']['limits']['cpu'] = pod.resources.limit_cpu
+
+    @staticmethod
     def extract_init_containers(pod, req):
         if pod.init_containers:
             req['spec']['initContainers'] = pod.init_containers
