@@ -37,7 +37,7 @@ class SequentialExecutor(BaseExecutor):
         super(SequentialExecutor, self).__init__()
         self.commands_to_run = []
 
-    def execute_async(self, key, command, queue=None):
+    def execute_async(self, key, command, queue=None, executor_config=None):
         self.commands_to_run.append((key, command,))
 
     def sync(self):

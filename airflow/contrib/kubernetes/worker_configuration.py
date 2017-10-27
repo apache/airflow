@@ -16,7 +16,7 @@ import copy
 import os
 import six
 
-from airflow.contrib.kubernetes.pod import Pod
+from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 
 
@@ -133,13 +133,20 @@ class WorkerConfiguration:
             return []
         return self.kube_config.image_pull_secrets.split(',')
 
-    def make_pod(self, namespace, pod_id, dag_id, task_id, execution_date, airflow_command):
+    def make_pod(self, namespace, pod_id, dag_id, task_id, execution_date, airflow_command, kube_executor_config):
         volumes, volume_mounts = self._get_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers(copy.deepcopy(volume_mounts))
+        resources = Resources(
+            request_memory=kube_executor_config.request_memory,
+            request_cpu=kube_executor_config.request_cpu,
+            limit_memory=kube_executor_config.limit_memory,
+            limit_cpu=kube_executor_config.limit_cpu
+        )
+
         return Pod(
             namespace=namespace,
             name=pod_id,
-            image=self.kube_config.kube_image,
+            image=kube_executor_config.image or self.kube_config.kube_image,
             cmds=["bash", "-cx", "--"],
             args=[airflow_command],
             labels={
@@ -154,5 +161,6 @@ class WorkerConfiguration:
             image_pull_secrets=self.kube_config.image_pull_secrets,
             init_containers=worker_init_container_spec,
             volumes=volumes,
-            volume_mounts=volume_mounts
+            volume_mounts=volume_mounts,
+            resources=resources
         )
