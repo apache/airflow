@@ -133,7 +133,7 @@ class BaseExecutor(LoggingMixin):
             ti.refresh_from_db()
             if ti.state != State.RUNNING:
                 self.running[key] = command
-                self.execute_async(key, command=command, queue=queue)
+                self.execute_async(key, command=command, queue=queue, executor_config=ti.executor_config)
             else:
                 self.logger.info(
                     'Task is already running, not sending to '
@@ -174,7 +174,7 @@ class BaseExecutor(LoggingMixin):
 
         return cleared_events
 
-    def execute_async(self, key, command, queue=None):  # pragma: no cover
+    def execute_async(self, key, command, queue=None, executor_config=None):  # pragma: no cover
         """
         This method will execute the command asynchronously.
         """

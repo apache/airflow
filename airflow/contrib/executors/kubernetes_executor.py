@@ -19,17 +19,64 @@ import six
 from queue import Queue
 from dateutil import parser
 from uuid import uuid4
+import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 from airflow.executors.base_executor import BaseExecutor
+from airflow.executors import Executors
 from airflow.models import TaskInstance, KubeResourceVersion
 from airflow.utils.state import State
 from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException
+from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+class KubernetesExecutorConfig:
+
+    def __init__(self, image=None, request_memory=None, request_cpu=None, limit_memory=None, limit_cpu=None):
+        self.image = image
+        self.request_memory = request_memory
+        self.request_cpu = request_cpu
+        self.limit_memory = limit_memory
+        self.limit_cpu = limit_cpu
+
+    def __repr__(self):
+        return "{}(image={}, request_memory={} ,request_cpu={}, limit_memory={}, limit_cpu={})".format(
+            KubernetesExecutorConfig.__name__,
+            self.image, self.request_memory, self.request_cpu, self.limit_memory,self.limit_cpu
+        )
+
+    @staticmethod
+    def from_dict(obj):
+        if obj is None:
+            return KubernetesExecutorConfig()
+
+        if not isinstance(obj, dict):
+            raise TypeError("Cannot convert a non-dictionary object into a KubernetesExecutorConfig")
+
+        namespaced = obj.get(Executors.KubernetesExecutor, {})
+
+        return KubernetesExecutorConfig(
+            image=namespaced.get("image", None),
+            request_memory=namespaced.get("request_memory", None),
+            request_cpu=namespaced.get("request_cpu", None),
+            limit_memory=namespaced.get("limit_memory", None),
+            limit_cpu=namespaced.get("limit_cpu", None)
+        )
+
+    def as_dict(self):
+        return {
+            "image": self.image,
+            "request_memory": self.request_memory,
+            "request_cpu": self.request_cpu,
+            "limit_memory": self.limit_memory,
+            "limit_cpu": self.limit_cpu
+        }
+
 
 class KubeConfig:
     core_section = "core"
@@ -219,15 +266,15 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         :return: 
 
         """
-        self.log.debug('k8s: job is {}'.format(str(next_job)))
-        key, command = next_job
+        self.log.info('k8s: job is {}'.format(str(next_job)))
+        key, command, kube_executor_config = next_job
         dag_id, task_id, execution_date = key
         self.log.debug("k8s: running for command {}".format(command))
         self.log.debug("k8s: launching image {}".format(self.kube_config.kube_image))
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, pod_id=self._create_pod_id(dag_id, task_id),
             dag_id=dag_id, task_id=task_id, execution_date=self._datetime_to_label_safe_datestring(execution_date),
-            airflow_command=command
+            airflow_command=command, kube_executor_config=kube_executor_config
         )
         # the watcher will monitor pods, so we do not block.
         self.launcher.run_pod_async(pod)
@@ -405,9 +452,13 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self._inject_secrets()
         self.clear_not_launched_queued_tasks()
 
-    def execute_async(self, key, command, queue=None):
-        self.log.info("k8s: adding task {} with command {}".format(key, command))
-        self.task_queue.put((key, command))
+
+    def execute_async(self, key, command, queue=None, executor_config=None):
+        self.log.info("k8s: adding task {} with command {} with executor_config {}".format(
+            key, command, executor_config
+        ))
+        kube_executor_config = KubernetesExecutorConfig.from_dict(executor_config)
+        self.task_queue.put((key, command, kube_executor_config))
 
     def sync(self):
         self.log.info("self.running: {}".format(self.running))
@@ -425,8 +476,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         KubeResourceVersion.checkpoint_resource_version(last_resource_version, session=self._session)
 
         if not self.task_queue.empty():
-            key, command = self.task_queue.get()
-            self.kube_scheduler.run_next((key, command))
+            key, command, kube_executor_config = self.task_queue.get()
+            self.kube_scheduler.run_next((key, command, kube_executor_config))
 
     def _change_state(self, key, state, pod_id):
         if state != State.RUNNING:
