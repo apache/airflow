@@ -12,13 +12,14 @@
 # See the License for the specific language governing permissions and
 
 import yaml
-from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory import KubernetesRequestFactory
+from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory import (
+    KubernetesRequestFactory)
 from airflow.contrib.kubernetes.pod import Pod
 
 
 class SimplePodRequestFactory(KubernetesRequestFactory):
     """
-        Request generator for a simple pod.
+    Request generator for a simple pod.
     """
     _yaml = """apiVersion: v1
 kind: Pod

@@ -82,7 +82,7 @@ matrix:
     - python: "2.7"
       env: TOX_ENV=py34-hdp-airflow_backend_postgres
     - python: "3.4"
-      env: TOX_ENV=py27-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
+      env: TOX_ENV=py34-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
   allow_failures:
     - env: TOX_ENV=py27-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
 cache:

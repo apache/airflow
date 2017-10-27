@@ -22,4 +22,5 @@ def get_kube_client(in_cluster=True):
         config.load_incluster_config()
         return client.CoreV1Api()
     else:
-        NotImplementedError("Running kubernetes jobs from not within the cluster is not supported at this time")
+        NotImplementedError(
+            "Running kubernetes jobs from not within the cluster is not supported at this time")

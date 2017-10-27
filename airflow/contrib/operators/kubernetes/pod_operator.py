@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
 from airflow.utils.decorators import apply_defaults
@@ -24,16 +22,16 @@ from airflow.utils.state import State
 
 class PodOperator(PythonOperator):
     """
-        Executes a pod and waits for the job to finish.
-        :param dag_run_id: The unique run ID that would be attached to the pod as a label
-        :type dag_run_id: str
-        :param pod_factory: Reference to the function that creates the pod with format:
-                            function (OpContext) => Pod
-        :type pod_factory: callable
-        :param cache_output: If set to true, the output of the pod would be saved in a
-                            cache object using md5 hash of all the pod parameters
-                            and in case of success, the cached results will be returned
-                            on consecutive calls. Only use this
+    Executes a pod and waits for the job to finish.
+
+    :param dag_run_id: The unique run ID that would be attached to the pod as a label
+    :type dag_run_id: str
+    :param pod_factory: Reference to the function that creates the pod with format:
+        function (OpContext) => Pod
+    :type pod_factory: callable
+    :param cache_output: If set to true, the output of the pod would be saved in a
+        cache object using md5 hash of all the pod parameters and in case of success, the cached
+        results will be returned on consecutive calls. Only use this
     """
     # template_fields = tuple('dag_run_id')
     ui_color = '#8da7be'
@@ -56,7 +54,6 @@ class PodOperator(PythonOperator):
             provide_context=True,
             *args,
             **kwargs)
-        self.logger = logging.getLogger(self.__class__.__name__)
         self.pod = pod
         self.dag_run_id = dag_run_id
         self.pod_launcher = PodLauncher()
@@ -92,13 +89,12 @@ class PodOperator(PythonOperator):
 
     def on_pod_success(self, context):
         """
-            Called when pod is executed successfully.
-            
-            If you want to access return values for XCOM, place values
-            in accessible file system or DB and override this function.
-            
-            :return: Returns a custom return value for pod which will
-                     be stored in xcom
-                     
+        Called when pod is executed successfully.
+
+        If you want to access return values for XCOM, place values
+        in accessible file system or DB and override this function.
+
+        :return: Returns a custom return value for pod which will
+            be stored in xcom
         """
         return self._on_pod_success_func(context=context)
