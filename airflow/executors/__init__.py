@@ -47,24 +47,43 @@ def GetDefaultExecutor():
     return DEFAULT_EXECUTOR
 
 
+<<<<<<< HEAD
+=======
+class Executors:
+    LocalExecutor = "LocalExecutor"
+    SequentialExecutor = "SequentialExecutor"
+    CeleryExecutor = "CeleryExecutor"
+    DaskExecutor = "DaskExecutor"
+    MesosExecutor = "MesosExecutor"
+    KubernetesExecutor = "KubernetesExecutor"
+
+
+
+>>>>>>> bd1c6b92... Added in executor_config to the task_instance table and the base_oper… (#23)
 def _get_executor(executor_name):
     """
     Creates a new instance of the named executor. In case the executor name is not know in airflow,
     look for it in the plugins
     """
-    if executor_name == 'LocalExecutor':
+    if executor_name == Executors.LocalExecutor:
         return LocalExecutor()
-    elif executor_name == 'SequentialExecutor':
+    elif executor_name == Executors.SequentialExecutor:
         return SequentialExecutor()
-    elif executor_name == 'CeleryExecutor':
+    elif executor_name == Executors.CeleryExecutor:
         from airflow.executors.celery_executor import CeleryExecutor
         return CeleryExecutor()
-    elif executor_name == 'DaskExecutor':
+    elif executor_name == Executors.DaskExecutor:
         from airflow.executors.dask_executor import DaskExecutor
         return DaskExecutor()
-    elif executor_name == 'MesosExecutor':
+    elif executor_name == Executors.MesosExecutor:
         from airflow.contrib.executors.mesos_executor import MesosExecutor
         return MesosExecutor()
+<<<<<<< HEAD
+=======
+    elif executor_name == Executors.KubernetesExecutor:
+        from airflow.contrib.executors.kubernetes_executor import KubernetesExecutor
+        return KubernetesExecutor()
+>>>>>>> bd1c6b92... Added in executor_config to the task_instance table and the base_oper… (#23)
     else:
         # Loading plugins
         _integrate_plugins()
