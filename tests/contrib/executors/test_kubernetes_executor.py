@@ -48,15 +48,16 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
 
     def _is_valid_name(self, name):
         regex = "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
-        return len(name) <= 253 and \
-               all(ch.lower() == ch for ch in name) and \
-               re.match(regex, name)
+        return (
+            len(name) <= 253 and
+            all(ch.lower() == ch for ch in name) and
+            re.match(regex, name))
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = AirflowKubernetesScheduler._create_pod_id(dag_id, task_id)
-            assert self._is_valid_name(pod_name)
+            self.assertTrue(self._is_valid_name(pod_name))
 
     @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
     def test_execution_date_serialize_deserialize(self):
@@ -64,7 +65,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         serialized_datetime = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(datetime_obj)
         new_datetime_obj = AirflowKubernetesScheduler._label_safe_datestring_to_datetime(serialized_datetime)
 
-        assert datetime_obj == new_datetime_obj
+        self.assertEquals(datetime_obj, new_datetime_obj)
 
 
 if __name__ == '__main__':

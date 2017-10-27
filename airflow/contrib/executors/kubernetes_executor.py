@@ -109,7 +109,8 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_tag')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
-        self.delete_worker_pods = self.safe_getboolean(self.kubernetes_section, 'delete_worker_pods', True)
+        self.delete_worker_pods = self.safe_getboolean(
+            self.kubernetes_section, 'delete_worker_pods', True)
 
         self.worker_service_account_name = self.safe_get(
             self.kubernetes_section, 'worker_service_account_name', 'default')
@@ -132,7 +133,8 @@ class KubeConfig:
         self.dags_volume_claim = self.safe_get(self.kubernetes_section, 'dags_volume_claim', None)
 
         # This prop may optionally be set for PV Claims and is used to locate DAGs on a SubPath
-        self.dags_volume_subpath = self.safe_get(self.kubernetes_section, 'dags_volume_subpath', None)
+        self.dags_volume_subpath = self.safe_get(
+            self.kubernetes_section, 'dags_volume_subpath', None)
 
         # The Kubernetes Namespace in which the Scheduler and Webserver reside. Note that if your
         # cluster has RBAC enabled, your scheduler may need service account permissions to
@@ -143,7 +145,8 @@ class KubeConfig:
         # interact with cluster components.
         self.executor_namespace = self.safe_get(self.kubernetes_section, 'namespace', 'default')
         # Task secrets managed by KubernetesExecutor.
-        self.gcp_service_account_keys = self.safe_get(self.kubernetes_section, 'gcp_service_account_keys', None)
+        self.gcp_service_account_keys = self.safe_get(
+            self.kubernetes_section, 'gcp_service_account_keys', None)
 
         # If the user is using the git-sync container to clone their repository via git,
         # allow them to specify repository, tag, and pod name for the init container.
@@ -167,10 +170,8 @@ class KubeConfig:
     def _validate(self):
         if not self.dags_volume_claim and (not self.git_repo or not self.git_branch):
             raise AirflowConfigException(
-                "In kubernetes mode you must set the following configs in the `kubernetes` section: "
-                "`dags_volume_claim` or "
-                "`git_repo and git_branch` "
-            )
+                "In kubernetes mode the following must be set in the `kubernetes` config section: "
+                "`dags_volume_claim` or `git_repo and git_branch` ")
 
 
 class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
@@ -193,7 +194,9 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
                               "last resource_version: {}".format(self.resource_version))
 
     def _run(self, kube_client, resource_version):
-        self.log.info("Event: and now my watch begins starting at resource_version: {}".format(resource_version))
+        self.log.info(
+            "Event: and now my watch begins starting at resource_version: {}"
+            .format(resource_version))
         watcher = watch.Watch()
 
         kwargs = {"label_selector": "airflow-slave"}
@@ -203,9 +206,11 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
         last_resource_version = None
         for event in watcher.stream(kube_client.list_namespaced_pod, self.namespace, **kwargs):
             task = event['object']
-            self.log.info("Event: {} had an event of type {}".format(task.metadata.name, event['type']))
+            self.log.info(
+                "Event: {} had an event of type {}".format(task.metadata.name, event['type']))
             self.process_status(
-                task.metadata.name, task.status.phase, task.metadata.labels, task.metadata.resource_version
+                task.metadata.name, task.status.phase, task.metadata.labels,
+                task.metadata.resource_version
             )
             last_resource_version = task.metadata.resource_version
 
@@ -224,7 +229,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
             self.log.info("Event: {} is Running".format(pod_id))
         else:
             self.log.warn("Event: Invalid state: {} on pod: {} with labels: {} "
-                             "with resource_version: {}".format(status, pod_id, labels, resource_version))
+                          "with resource_version: {}"
+                          .format(status, pod_id, labels, resource_version))
 
 
 class AirflowKubernetesScheduler(LoggingMixin, object):
@@ -252,7 +258,9 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         if self.kube_watcher.is_alive():
             pass
         else:
-            self.log.error("Error while health checking kube watcher process. Process died for unknown reasons")
+            self.log.error(
+                "Error while health checking kube watcher process. "
+                "Process died for unknown reasons")
             self.kube_watcher = self._make_kube_watcher()
 
     def run_next(self, next_job):
@@ -262,9 +270,6 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         It will then create a unique job-id, launch that job in the cluster,
         and store relevent info in the current_jobs map so we can track the job's
         status
-
-        :return: 
-
         """
         self.log.info('k8s: job is {}'.format(str(next_job)))
         key, command, kube_executor_config = next_job
@@ -273,7 +278,8 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         self.log.debug("k8s: launching image {}".format(self.kube_config.kube_image))
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, pod_id=self._create_pod_id(dag_id, task_id),
-            dag_id=dag_id, task_id=task_id, execution_date=self._datetime_to_label_safe_datestring(execution_date),
+            dag_id=dag_id, task_id=task_id, 
+            execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
         # the watcher will monitor pods, so we do not block.
@@ -283,7 +289,8 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
     def delete_pod(self, pod_id):
         if self.kube_config.delete_worker_pods:
             try:
-                self.kube_client.delete_namespaced_pod(pod_id, self.namespace, body=client.V1DeleteOptions())
+                self.kube_client.delete_namespaced_pod(
+                    pod_id, self.namespace, body=client.V1DeleteOptions())
             except ApiException as e:
                 if e.status != 404:
                     raise
@@ -304,7 +311,9 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
 
     def process_watcher_task(self):
         pod_id, state, labels, resource_version = self.watcher_queue.get()
-        self.log.info("Attempting to finish pod; pod_id: {}; state: {}; labels: {}".format(pod_id, state, labels))
+        self.log.info(
+            "Attempting to finish pod; pod_id: {}; state: {}; labels: {}"
+            .format(pod_id, state, labels))
         key = self._labels_to_key(labels)
         if key:
             self.log.debug("finishing job {} - {} ({})".format(key, state, pod_id))
@@ -314,10 +323,12 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
     def _strip_unsafe_kubernetes_special_chars(string):
         """
         Kubernetes only supports lowercase alphanumeric characters and "-" and "." in the pod name
-        However, there are special rules about how "-" and "." can be used so let's only keep alphanumeric chars
-        see here for detail: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
-        :param string:
-        :return:
+        However, there are special rules about how "-" and "." can be used so let's only keep
+        alphanumeric chars  see here for detail:
+        https://kubernetes.io/docs/concepts/overview/working-with-objects/names/
+
+        :param string: The requested Pod name
+        :return: ``str`` Pod name stripped of any unsafe characters
         """
         return ''.join(ch.lower() for ind, ch in enumerate(string) if ch.isalnum())
 
@@ -326,10 +337,11 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         """
         Kubernetes pod names must be <= 253 chars and must pass the following regex for validation
         "^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$"
+
         :param safe_dag_id: a dag_id with only alphanumeric characters
         :param safe_task_id: a task_id with only alphanumeric characters
         :param random_uuid: a uuid
-        :return:
+        :return: ``str`` valid Pod name of appropriate length
         """
         MAX_POD_ID_LEN = 253
 
@@ -349,7 +361,9 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
     @staticmethod
     def _label_safe_datestring_to_datetime(string):
         """
-        Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but not "_" let's replace ":" with "_"
+        Kubernetes doesn't permit ":" in labels. ISO datetime format uses ":" but not "_", let's
+        replace ":" with "_"
+
         :param string: string
         :return: datetime.datetime object
         """
@@ -358,7 +372,8 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
     @staticmethod
     def _datetime_to_label_safe_datestring(datetime_obj):
         """
-        Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but not "_" let's replace ":" with "_"
+        Kubernetes doesn't like ":" in labels, since ISO datetime format uses ":" but not "_" let's
+        replace ":" with "_"
         :param datetime_obj: datetime.datetime object
         :return: ISO-like string representing the datetime
         """
@@ -366,7 +381,9 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
 
     def _labels_to_key(self, labels):
         try:
-            return labels["dag_id"], labels["task_id"], self._label_safe_datestring_to_datetime(labels["execution_date"])
+            return (
+                labels["dag_id"], labels["task_id"],
+                self._label_safe_datestring_to_datetime(labels["execution_date"]))
         except Exception as e:
             self.log.warn("Error while converting labels to key; labels: {}; exception: {}".format(
                 labels, e
@@ -386,23 +403,32 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
 
     def clear_not_launched_queued_tasks(self):
         """
-        If the airflow scheduler restarts with pending "Queued" tasks, the tasks may or may not have been launched
-        Thus, on starting up the scheduler let's check every "Queued" task to see if it has been launched
-            (ie: if there is a corresponding pod on kubernetes)
-        If it has been launched then do nothing, otherwise reset the state to "None" so the task will be rescheduled
-        This will not be necessary in a future version of airflow in which there is proper support for State.LAUNCHED
-        :return: None
+        If the airflow scheduler restarts with pending "Queued" tasks, the tasks may or may not
+        have been launched Thus, on starting up the scheduler let's check every "Queued" task to
+        see if it has been launched (ie: if there is a corresponding pod on kubernetes)
+
+        If it has been launched then do nothing, otherwise reset the state to "None" so the task
+        will be rescheduled
+
+        This will not be necessary in a future version of airflow in which there is proper support
+        for State.LAUNCHED
         """
-        queued_tasks = self._session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
-        self.log.info("When executor started up, found {} queued task instances".format(len(queued_tasks)))
+        queued_tasks = self._session.query(
+            TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
+        self.log.info(
+            "When executor started up, found {} queued task instances".format(len(queued_tasks)))
 
         for t in queued_tasks:
             kwargs = dict(label_selector="dag_id={},task_id={},execution_date={}".format(
-                t.dag_id, t.task_id, AirflowKubernetesScheduler._datetime_to_label_safe_datestring(t.execution_date)
+                t.dag_id, t.task_id,
+                AirflowKubernetesScheduler._datetime_to_label_safe_datestring(t.execution_date)
             ))
-            pod_list = self.kube_client.list_namespaced_pod(self.kube_config.kube_namespace, **kwargs)
+            pod_list = self.kube_client.list_namespaced_pod(
+                self.kube_config.kube_namespace, **kwargs)
             if len(pod_list.items) == 0:
-                self.log.info("TaskInstance: {} found in queued state but was not launched, rescheduling".format(t))
+                self.log.info(
+                    "TaskInstance: {} found in queued state but was not launched, rescheduling"
+                    .format(t))
                 self._session.query(TaskInstance).filter(
                     TaskInstance.dag_id == t.dag_id,
                     TaskInstance.task_id == t.task_id,
@@ -473,7 +499,8 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             self.log.info("Changing state of {}".format(results))
             self._change_state(key, state, pod_id)
 
-        KubeResourceVersion.checkpoint_resource_version(last_resource_version, session=self._session)
+        KubeResourceVersion.checkpoint_resource_version(
+            last_resource_version, session=self._session)
 
         if not self.task_queue.empty():
             key, command, kube_executor_config = self.task_queue.get()
