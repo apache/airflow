@@ -25,8 +25,15 @@ from airflow.utils.decorators import apply_defaults
 
 class SqoopOperator(BaseOperator):
     """
-    execute sqoop job
+    Execute a Sqoop job.
+    Documentation for Apache Sqoop can be found here: https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html.
     """
+    template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir', 'file_type', 'columns', 'split_by',
+                       'where', 'export_dir', 'input_null_string', 'input_null_non_string', 'staging_table',
+                       'enclosed_by', 'escaped_by', 'input_fields_terminated_by', 'input_lines_terminated_by',
+                       'input_optionally_enclosed_by', 'properties', 'extra_import_options', 'driver',
+                       'extra_export_options', 'hcatalog_database', 'hcatalog_table',)
+    ui_color = '#7D8CA4'
 
     @apply_defaults
     def __init__(self,
@@ -36,7 +43,7 @@ class SqoopOperator(BaseOperator):
                  query=None,
                  target_dir=None,
                  append=None,
-                 file_type=None,
+                 file_type='text',
                  columns=None,
                  num_mappers=None,
                  split_by=None,
@@ -59,12 +66,18 @@ class SqoopOperator(BaseOperator):
                  properties=None,
                  hcatalog_database=None,
                  hcatalog_table=None,
+                 create_hcatalog_table=False,
+                 extra_import_options=None,
+                 extra_export_options=None,
                  *args,
                  **kwargs):
         """
         :param conn_id: str
         :param cmd_type: str specify command to execute "export" or "import"
         :param table: Table to read
+        :param query: Import result of arbitrary SQL query. Instead of using the table,
+            columns and where arguments, you can specify a SQL statement with the query
+            argument. Must also specify a destination directory with target_dir.
         :param target_dir: HDFS destination directory where the data
             from the rdbms will be written
         :param append: Append data to an existing dataset in HDFS
@@ -95,7 +108,14 @@ class SqoopOperator(BaseOperator):
         :param relaxed_isolation: use read uncommitted isolation level
         :param hcatalog_database: Specifies the database name for the HCatalog table
         :param hcatalog_table: The argument value for this option is the HCatalog table
+        :param create_hcatalog_table: Have sqoop create the hcatalog table passed in or not
         :param properties: additional JVM properties passed to sqoop
+        :param extra_import_options: Extra import options to pass as dict.
+            If a key doesn't have a value, just pass an empty string to it.
+            Don't include prefix of -- for sqoop options.
+        :param extra_export_options: Extra export options to pass as dict.
+            If a key doesn't have a value, just pass an empty string to it.
+            Don't include prefix of -- for sqoop options.
         """
         super(SqoopOperator, self).__init__(*args, **kwargs)
         self.conn_id = conn_id
@@ -126,10 +146,10 @@ class SqoopOperator(BaseOperator):
         self.relaxed_isolation = relaxed_isolation
         self.hcatalog_database = hcatalog_database
         self.hcatalog_table = hcatalog_table
-        # No mutable types in the default parameters
-        if properties is None:
-            properties = {}
+        self.create_hcatalog_table = create_hcatalog_table
         self.properties = properties
+        self.extra_import_options = extra_import_options
+        self.extra_export_options = extra_export_options
 
     def execute(self, context):
         """
@@ -156,9 +176,18 @@ class SqoopOperator(BaseOperator):
                 input_lines_terminated_by=self.input_lines_terminated_by,
                 input_optionally_enclosed_by=self.input_optionally_enclosed_by,
                 batch=self.batch,
-                relaxed_isolation=self.relaxed_isolation)
+                relaxed_isolation=self.relaxed_isolation,
+                extra_export_options=self.extra_export_options)
         elif self.cmd_type == 'import':
-            if not self.table:
+            # add create hcatalog table to extra import options if option passed
+            # if new params are added to constructor can pass them in here so don't modify sqoop_hook for each param
+            if self.create_hcatalog_table:
+                self.extra_import_options['create-hcatalog-table'] = ''
+
+            if self.table and self.query:
+                raise AirflowException('Cannot specify query and table together. Need to specify either or.')
+
+            if self.table:
                 hook.import_table(
                     table=self.table,
                     target_dir=self.target_dir,
@@ -168,16 +197,18 @@ class SqoopOperator(BaseOperator):
                     split_by=self.split_by,
                     where=self.where,
                     direct=self.direct,
-                    driver=self.driver)
-            elif not self.query:
+                    driver=self.driver,
+                    extra_import_options=self.extra_import_options)
+            elif self.query:
                 hook.import_query(
-                    query=self.table,
+                    query=self.query,
                     target_dir=self.target_dir,
                     append=self.append,
                     file_type=self.file_type,
                     split_by=self.split_by,
                     direct=self.direct,
-                    driver=self.driver)
+                    driver=self.driver,
+                    extra_import_options=self.extra_import_options)
             else:
                 raise AirflowException(
                     "Provide query or table parameter to import using Sqoop"
