@@ -34,6 +34,7 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.hdfs_hook import HDFSHook
 from airflow.hooks.http_hook import HttpHook
 from airflow.utils.state import State
+from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
 
 
@@ -224,7 +225,8 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.external_dag_id = external_dag_id
         self.external_task_id = external_task_id
 
-    def poke(self, context):
+    @provide_session
+    def poke(self, context, session=None):
         if self.execution_delta:
             dttm = context['execution_date'] - self.execution_delta
         elif self.execution_date_fn:
@@ -243,7 +245,6 @@ class ExternalTaskSensor(BaseSensorOperator):
             '{} ... '.format(serialized_dttm_filter, **locals()))
         TI = TaskInstance
 
-        session = settings.Session()
         count = session.query(TI).filter(
             TI.dag_id == self.external_dag_id,
             TI.task_id == self.external_task_id,
@@ -251,7 +252,6 @@ class ExternalTaskSensor(BaseSensorOperator):
             TI.execution_date.in_(dttm_filter),
         ).count()
         session.commit()
-        session.close()
         return count == len(dttm_filter)
 
 

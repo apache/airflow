@@ -26,6 +26,7 @@ from flask import url_for, redirect, request
 from flask_oauthlib.client import OAuth
 
 from airflow import models, configuration, settings
+from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -127,19 +128,17 @@ class GoogleAuthBackend(object):
             return True
         return False
 
-    def load_user(self, userid):
+    @provide_session
+    def load_user(self, userid, session=None):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
         return GoogleUser(user)
 
-    def oauth_callback(self):
+    @provide_session
+    def oauth_callback(self, session=None):
         log.debug('Google OAuth callback called')
 
         next_url = request.args.get('next') or url_for('admin.index')
@@ -162,8 +161,6 @@ class GoogleAuthBackend(object):
         except AuthenticationError:
             return redirect(url_for('airflow.noaccess'))
 
-        session = settings.Session()
-
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -177,7 +174,6 @@ class GoogleAuthBackend(object):
         session.commit()
         login_user(GoogleUser(user))
         session.commit()
-        session.close()
 
         return redirect(next_url)
 

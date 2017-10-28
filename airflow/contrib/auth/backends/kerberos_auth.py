@@ -29,6 +29,7 @@ from flask import url_for, redirect
 from airflow import settings
 from airflow import models
 from airflow import configuration
+from airflow.utils.db import provide_session
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 login_manager = flask_login.LoginManager()
@@ -86,19 +87,17 @@ class KerberosUser(models.User, LoggingMixin):
 
 
 @login_manager.user_loader
-def load_user(userid):
+@provide_session
+def load_user(userid, session=None):
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return KerberosUser(user)
 
 
-def login(self, request):
+@provide_session
+def login(self, request, session=None):
     if current_user.is_authenticated():
         flash("You are already logged in")
         return redirect(url_for('index'))
@@ -120,7 +119,6 @@ def login(self, request):
     try:
         KerberosUser.authenticate(username, password)
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -133,7 +131,6 @@ def login(self, request):
         session.commit()
         flask_login.login_user(KerberosUser(user))
         session.commit()
-        session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
     except AuthenticationError:
