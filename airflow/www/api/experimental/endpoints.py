@@ -151,6 +151,14 @@ def task_instance_info(dag_id, execution_date, task_id):
     return jsonify(fields)
 
 
+@api_experimental.route('/dag_runs/search/<string:query>', methods=['GET'])
+@requires_authentication
+def dag_runs_search(query):
+    """Returns the list of DagRun items by a given query."""
+    from airflow.models import DagRun
+    return jsonify(items=[dr.to_json() for dr in DagRun.search(query=query)])
+
+
 @api_experimental.route('/latest_runs', methods=['GET'])
 @requires_authentication
 def latest_dag_runs():

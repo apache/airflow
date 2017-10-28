@@ -342,7 +342,8 @@ class DagStatTest(unittest.TestCase):
         for stat in res:
             self.assertFalse(stat.dirty)
 
-class DagRunTest(unittest.TestCase):
+
+class TestDagRun(unittest.TestCase):
 
     def create_dag_run(self, dag, state=State.RUNNING, task_states=None, execution_date=None):
         now = datetime.datetime.now()
@@ -364,6 +365,29 @@ class DagRunTest(unittest.TestCase):
             session.close()
 
         return dag_run
+
+    @patch("airflow.models.url_for")
+    def test_to_json(self, url_for_mock):
+        url_for_mock.return_value = 'url'
+        dr = models.DagRun(
+            dag_id='dag_id',
+            execution_date=datetime.datetime.strptime('2017-08-10 11:00',
+                                                      '%Y-%m-%d %H:%M'),
+            start_date=None,
+            state=State.RUNNING,
+            run_id='run_id',
+        )
+        self.assertDictEqual(
+            dr.to_json(),
+            {
+                'dag_id': 'dag_id',
+                'dag_run_url': 'url',
+                'execution_date': '2017-08-10 11:00',
+                'run_id': 'run_id',
+                'start_date': '',
+                'state': 'running',
+            }
+        )
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(

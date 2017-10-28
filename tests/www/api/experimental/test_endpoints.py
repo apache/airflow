@@ -26,6 +26,8 @@ from airflow.www import app as application
 
 class TestApiExperimental(unittest.TestCase):
 
+    maxDiff = None
+
     @classmethod
     def setUpClass(cls):
         super(TestApiExperimental, cls).setUpClass()
@@ -48,6 +50,17 @@ class TestApiExperimental(unittest.TestCase):
         session.commit()
         session.close()
         super(TestApiExperimental, self).tearDown()
+
+    @staticmethod
+    def _generate_dag_runs(count=1):
+        for i in range(count):
+            trigger_dag(
+                dag_id='example_bash_operator',
+                run_id='test_task_instance_info_run_%s' % i,
+                execution_date=datetime.strptime(
+                    '2017-08-10 11:0%s' % i, '%Y-%m-%d %H:%M'
+                ),
+            )
 
     def test_task_info(self):
         url_template = '/api/experimental/dags/{}/tasks/{}'
@@ -180,6 +193,54 @@ class TestApiExperimental(unittest.TestCase):
         )
         self.assertEqual(400, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
+
+    def test_dag_runs_search_empty(self):
+        response = self.app.get('/api/experimental/dag_runs/search/test')
+        self.assertEqual(response.status_code, 200)
+        self.assertDictEqual(json.loads(response.data.decode('utf-8')),
+                             {'items': []})
+
+    def test_dag_runs_search(self):
+        self._generate_dag_runs(count=1)
+
+        response = self.app.get('/api/experimental/dag_runs/search/test')
+        self.assertEqual(response.status_code, 200)
+
+        items = json.loads(response.data.decode('utf-8'))['items']
+        self.assertEqual(len(items), 1)
+        self.assertIn('dag_run_url', items[0])
+        self.assertIn('execution_date', items[0])
+        self.assertIn('start_date', items[0])
+        self.assertEqual(items[0]['dag_id'], 'example_bash_operator')
+        self.assertEqual(items[0]['run_id'], 'test_task_instance_info_run_0')
+        self.assertEqual(items[0]['state'], 'running')
+
+    def test_dag_runs_search_not_found(self):
+        self._generate_dag_runs(count=1)
+
+        response = self.app.get('/api/experimental/dag_runs/search/some')
+        self.assertEqual(response.status_code, 200)
+
+        items = json.loads(response.data.decode('utf-8'))['items']
+        self.assertEqual(len(items), 0)
+
+    def test_dag_runs_search_multiple(self):
+        self._generate_dag_runs(count=3)
+
+        response = self.app.get('/api/experimental/dag_runs/search/test')
+        self.assertEqual(response.status_code, 200)
+
+        items = json.loads(response.data.decode('utf-8'))['items']
+        self.assertEqual(len(items), 3)
+
+    def test_latest_dag_runs(self):
+        self._generate_dag_runs(count=3)
+
+        response = self.app.get('/api/experimental/latest_runs')
+        self.assertEqual(response.status_code, 200)
+
+        items = json.loads(response.data.decode('utf-8'))['items']
+        self.assertEqual(len(items), 1)
 
 
 class TestPoolApiExperimental(unittest.TestCase):
