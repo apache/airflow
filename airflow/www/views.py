@@ -21,7 +21,7 @@ import os
 import pkg_resources
 import socket
 from functools import wraps
-from datetime import datetime, timedelta
+from datetime import timedelta
 import dateutil.parser
 import copy
 import math
@@ -72,6 +72,7 @@ from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
+from airflow.utils import datetime
 from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import provide_session

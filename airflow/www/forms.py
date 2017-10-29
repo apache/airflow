@@ -17,7 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime
+from airflow.utils import datetime
 from flask_admin.form import DateTimePickerWidget
 from wtforms import DateTimeField, SelectField
 from flask_wtf import Form
