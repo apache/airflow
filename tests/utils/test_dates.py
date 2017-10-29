@@ -15,7 +15,7 @@
 from datetime import datetime, timedelta
 import unittest
 
-from airflow.utils import dates
+from airflow.utils import datetime
 
 
 class Dates(unittest.TestCase):
@@ -24,19 +24,19 @@ class Dates(unittest.TestCase):
         today = datetime.today()
         today_midnight = datetime.fromordinal(today.date().toordinal())
 
-        self.assertTrue(dates.days_ago(0) == today_midnight)
+        self.assertTrue(datetime.days_ago(0) == today_midnight)
 
         self.assertTrue(
-            dates.days_ago(100) == today_midnight + timedelta(days=-100))
+            datetime.days_ago(100) == today_midnight + timedelta(days=-100))
 
         self.assertTrue(
-            dates.days_ago(0, hour=3) == today_midnight + timedelta(hours=3))
+            datetime.days_ago(0, hour=3) == today_midnight + timedelta(hours=3))
         self.assertTrue(
-            dates.days_ago(0, minute=3)
+            datetime.days_ago(0, minute=3)
             == today_midnight + timedelta(minutes=3))
         self.assertTrue(
-            dates.days_ago(0, second=3)
+            datetime.days_ago(0, second=3)
             == today_midnight + timedelta(seconds=3))
         self.assertTrue(
-            dates.days_ago(0, microsecond=3)
+            datetime.days_ago(0, microsecond=3)
             == today_midnight + timedelta(microseconds=3))

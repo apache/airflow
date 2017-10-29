@@ -56,7 +56,7 @@ from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
 from airflow.utils.state import State
-from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
+from airflow.utils.datetime import infer_time_unit, round_time, scale_time_units
 from lxml import html
 from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command

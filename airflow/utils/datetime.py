@@ -19,6 +19,7 @@ from __future__ import unicode_literals
 
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
+import pytz
 import six
 
 from croniter import croniter
@@ -219,9 +220,17 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
-    today = datetime.utcnow().replace(
+    today = utcnow().replace(
         hour=hour,
         minute=minute,
         second=second,
         microsecond=microsecond)
     return today - timedelta(days=n)
+
+
+def utcnow():
+    """
+    Get utcnow including timezone information
+    :return: 
+    """
+    return datetime.now(tz=pytz.utc)

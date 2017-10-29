@@ -37,7 +37,7 @@ from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as 
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.dates import days_ago
+from airflow.utils.datetime import days_ago
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 from airflow.utils.timeout import timeout
