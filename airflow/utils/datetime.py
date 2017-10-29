@@ -67,7 +67,7 @@ def date_range(
     if end_date and num:
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
-        end_date = datetime.utcnow()
+        end_date = utcnow()
 
     delta_iscron = False
     if isinstance(delta, six.string_types):
@@ -231,6 +231,6 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
 def utcnow():
     """
     Get utcnow including timezone information
-    :return: 
+    :return:
     """
     return datetime.now(tz=pytz.utc)
