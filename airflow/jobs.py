@@ -28,7 +28,6 @@ import sys
 import threading
 import time
 from collections import defaultdict
-from datetime import datetime
 from past.builtins import basestring
 from sqlalchemy import (
     Column, Integer, String, DateTime, func, Index, or_, and_, not_)
@@ -51,6 +50,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           SimpleDag,
                                           SimpleDagBag,
                                           list_py_file_paths)
+from airflow.utils import datetime
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -2496,7 +2496,8 @@ class LocalTaskJob(BaseJob):
             *args, **kwargs):
         self.task_instance = task_instance
         self.ignore_all_deps = ignore_all_deps
-        self.ignore_depends_on_past = ignore_depends_on_past
+        self.past = ignore_depends_on_past
+        self.ignore_depends_on_past = self.past
         self.ignore_task_deps = ignore_task_deps
         self.ignore_ti_state = ignore_ti_state
         self.pool = pool
