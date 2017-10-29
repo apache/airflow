@@ -23,10 +23,10 @@ import time
 import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from datetime import datetime
 
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.utils import datetime
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
