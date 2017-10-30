@@ -85,28 +85,28 @@ class AwsHook(BaseHook):
         aws_access_key_id = None
         aws_secret_access_key = None
         s3_endpoint_url = None
-        
+
         if self.aws_conn_id:
             try:
                 connection_object = self.get_connection(self.aws_conn_id)
                 if connection_object.login:
                     aws_access_key_id = connection_object.login
                     aws_secret_access_key = connection_object.password
-    
+
                 elif 'aws_secret_access_key' in connection_object.extra_dejson:
                     aws_access_key_id = connection_object.extra_dejson['aws_access_key_id']
                     aws_secret_access_key = connection_object.extra_dejson['aws_secret_access_key']
-    
+
                 elif 's3_config_file' in connection_object.extra_dejson:
                     aws_access_key_id, aws_secret_access_key = \
                         _parse_s3_config(connection_object.extra_dejson['s3_config_file'],
                                          connection_object.extra_dejson.get('s3_config_format'))
-    
+
                 if region_name is None:
                     region_name = connection_object.extra_dejson.get('region_name')
-    
-                s3_endpoint_url = connection_object.extra_dejson.get('host') 
-    
+
+                s3_endpoint_url = connection_object.extra_dejson.get('host')
+
             except AirflowException:
                 # No connection found: fallback on boto3 credential strategy
                 # http://boto3.readthedocs.io/en/latest/guide/configuration.html
@@ -129,7 +129,7 @@ class AwsHook(BaseHook):
     def get_resource_type(self, resource_type, region_name=None):
         aws_access_key_id, aws_secret_access_key, region_name, endpoint_url = \
             self._get_credentials(region_name)
-        
+
         return boto3.resource(
             resource_type,
             region_name=region_name,
