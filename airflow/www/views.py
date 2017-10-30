@@ -476,6 +476,7 @@ class Airflow(BaseView):
             embed=embed)
 
     @expose('/dag_stats')
+    @login_required
     def dag_stats(self):
         ds = models.DagStat
         session = Session()
@@ -510,6 +511,7 @@ class Airflow(BaseView):
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
+    @login_required
     def task_stats(self):
         TI = models.TaskInstance
         DagRun = models.DagRun
@@ -576,6 +578,23 @@ class Airflow(BaseView):
                     'color': State.color(state)
                 }
                 payload[dag.safe_dag_id].append(d)
+        return wwwutils.json_response(payload)
+
+    @expose('/latest_runs')
+    @login_required
+    def latest_dag_runs(self):
+        dagruns = DagRun.get_latest_runs()
+        payload = []
+        for dagrun in dagruns:
+            if dagrun.execution_date:
+                payload.append({
+                    'dag_id': dagrun.dag_id,
+                    'execution_date': dagrun.execution_date.strftime("%Y-%m-%d %H:%M"),
+                    'start_date': ((dagrun.start_date or '') and
+                                   dagrun.start_date.strftime("%Y-%m-%d %H:%M")),
+                    'dag_run_url': url_for('airflow.graph', dag_id=dagrun.dag_id,
+                                           execution_date=dagrun.execution_date)
+                })
         return wwwutils.json_response(payload)
 
     @expose('/code')

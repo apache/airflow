@@ -296,7 +296,7 @@
           }
         });
       });
-      $.getJSON("{{ url_for('api_experimental.latest_dag_runs') }}", function(data) {
+      $.getJSON("{{ url_for('airflow.latest_dag_runs') }}", function(data) {
         $.each(data["items"], function() {
           var link = $("<a>", {
             href: this.dag_run_url,
