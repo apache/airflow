@@ -241,7 +241,7 @@ class BaseJob(Base, LoggingMixin):
                         TI.execution_date == DR.execution_date))
                 .filter(
                     DR.state == State.RUNNING,
-                    DR.external_trigger.is_(False),
+                    DR.external_trigger == False,
                     DR.run_id.notlike(BackfillJob.ID_PREFIX + '%'),
                     TI.state.in_(resettable_states))).all()
         else:
