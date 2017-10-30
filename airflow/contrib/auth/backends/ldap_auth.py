@@ -76,14 +76,10 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
                        attributes=[native(user_name_attr)]):
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
-        for resp in conn.response:
-            if (
-                        'attributes' in resp and (
-                            resp['attributes'].get(user_name_attr)[0] == username or
-                            resp['attributes'].get(user_name_attr) == username
-                )
-            ):
+        for entry in conn.entries:
+            if username in getattr(entry, user_name_attr).values:
                 return True
+
     return False
 
 
