@@ -130,10 +130,14 @@
                 {% if dag %}
 
                 <!-- Trigger Dag -->
-                <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}"
-                   onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
-                    <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
-                </a>
+                {% if dag_id in orm_dags %}
+                  {% if not orm_dags[dag_id].is_paused %}
+                    <a href="{{ url_for('airflow.trigger', dag_id=dag.dag_id) }}"
+                       onclick="return confirmTriggerDag('{{ dag.safe_dag_id }}')">
+                        <span class="glyphicon glyphicon-play-circle" aria-hidden="true" data-original-title="Trigger Dag"></span>
+                    </a>
+                  {% endif %}
+                {% endif %}
 
                 <!-- Tree -->
                 <a href="{{ url_for('airflow.tree', dag_id=dag.dag_id, num_runs=25) }}">
