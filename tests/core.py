@@ -1756,6 +1756,9 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
+        response = self.app.get(
+            '/admin/airflow/latest_runs')
+        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
             "/admin/airflow/success?task_id=run_this_last&"
             "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
