@@ -84,7 +84,7 @@ class PythonOperator(BaseOperator):
     def execute(self, context):
         if self.provide_context:
             context.update(self.op_kwargs)
-            self.op_kwargs['templates_dict'] = self.templates_dict
+            context['templates_dict'] = self.templates_dict
             self.op_kwargs = context
 
         return_value = self.execute_callable()
