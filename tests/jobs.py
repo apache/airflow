@@ -161,7 +161,8 @@ class BackfillJobTest(unittest.TestCase):
             'example_trigger_target_dag',
             'example_trigger_controller_dag',  # tested above
             'test_utils',  # sleeps forever
-            'example_kubernetes_executor'  # requires kubernetes cluster
+            'example_kubernetes_executor',  # requires kubernetes cluster
+            'example_kubernetes_operator'  # requires kubernetes cluster
         ]
 
         logger = logging.getLogger('BackfillJobTest.test_backfill_examples')

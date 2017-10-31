@@ -26,7 +26,6 @@ except ImportError:
 
 
 class TestAirflowKubernetesScheduler(unittest.TestCase):
-
     def _gen_random_string(self, str_len):
         return ''.join([random.choice(string.printable) for _ in range(str_len)])
 
@@ -36,7 +35,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             ("my.dag.id", "my.task.id"),
             ("MYDAGID", "MYTASKID"),
             ("my_dag_id", "my_task_id"),
-            ("mydagid"*200, "my_task_id"*200)
+            ("mydagid" * 200, "my_task_id" * 200)
         ]
 
         cases.extend([
@@ -53,17 +52,22 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             all(ch.lower() == ch for ch in name) and
             re.match(regex, name))
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, 'kubernetes python package is not installed')
+    @unittest.skipIf(AirflowKubernetesScheduler is None,
+                     'kubernetes python package is not installed')
     def test_create_pod_id(self):
         for dag_id, task_id in self._cases():
             pod_name = AirflowKubernetesScheduler._create_pod_id(dag_id, task_id)
             self.assertTrue(self._is_valid_name(pod_name))
 
-    @unittest.skipIf(AirflowKubernetesScheduler is None, "kubernetes python package is not installed")
+    @unittest.skipIf(AirflowKubernetesScheduler is None,
+                     "kubernetes python package is not installed")
     def test_execution_date_serialize_deserialize(self):
         datetime_obj = datetime.now()
-        serialized_datetime = AirflowKubernetesScheduler._datetime_to_label_safe_datestring(datetime_obj)
-        new_datetime_obj = AirflowKubernetesScheduler._label_safe_datestring_to_datetime(serialized_datetime)
+        serialized_datetime = \
+            AirflowKubernetesScheduler._datetime_to_label_safe_datestring(
+                datetime_obj)
+        new_datetime_obj = AirflowKubernetesScheduler._label_safe_datestring_to_datetime(
+            serialized_datetime)
 
         self.assertEquals(datetime_obj, new_datetime_obj)
 

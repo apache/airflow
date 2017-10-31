@@ -15,9 +15,7 @@ from __future__ import print_function
 import airflow
 from airflow.operators.python_operator import PythonOperator
 from airflow.models import DAG
-from airflow.contrib.executors.kubernetes_executor import KubernetesExecutorConfig
 import os
-
 
 args = {
     'owner': 'airflow',
@@ -37,7 +35,6 @@ def print_stuff():
 def use_zip_binary():
     rc = os.system("zip")
     assert rc == 0
-
 
 
 # You don't have to use any special KubernetesExecutor configuration if you don't want to
@@ -60,7 +57,8 @@ two_task = PythonOperator(
 # Limit resources on this operator/task
 three_task = PythonOperator(
     task_id="three_task", python_callable=print_stuff, dag=dag,
-    executor_config={"KubernetesExecutor": {"request_memory": "128Mi", "limit_memory": "128Mi"}}
+    executor_config={
+        "KubernetesExecutor": {"request_memory": "128Mi", "limit_memory": "128Mi"}}
 )
 
 start_task.set_downstream([one_task, two_task, three_task])

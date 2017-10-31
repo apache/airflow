@@ -20,7 +20,7 @@ TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
 # create an emptydir for postgres to store it's volume data in
-sudo mkdir -p /data/postgres-airflow
+#sudo mkdir -p /data/postgres-airflow
 
 mkdir -p $DIRNAME/.generated
 kubectl apply -f $DIRNAME/postgres.yaml
@@ -39,3 +39,13 @@ do
   fi
   sleep 4
 done
+
+POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.name}}{{"\n"}}{{end}}' | grep airflow | head -1)
+
+echo "------- pod description -------"
+kubectl describe pod $POD
+echo "------- web logs -------"
+kubectl logs $POD web
+echo "------- scheduler logs -------"
+kubectl logs $POD scheduler
+echo "--------------"
