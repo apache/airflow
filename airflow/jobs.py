@@ -181,7 +181,7 @@ class BaseJob(Base, LoggingMixin):
 
         self.heartbeat_callback(session=session)
         session.close()
-        self.log.debug('[heart] Boom.')
+        self.log.debug('[heartbeat]')
 
     def run(self):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
