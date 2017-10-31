@@ -1,16 +1,19 @@
-# -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import copy
 import os
@@ -34,21 +37,21 @@ class WorkerConfiguration:
 
         # Otherwise, define a git-sync init container
         init_environment = [{
-                'name': 'GIT_SYNC_REPO',
-                'value': self.kube_config.git_repo
-            }, {
-                'name': 'GIT_SYNC_BRANCH',
-                'value': self.kube_config.git_branch
-            }, {
-                'name': 'GIT_SYNC_ROOT',
-                'value': '/tmp'
-            }, {
-                'name': 'GIT_SYNC_DEST',
-                'value': 'dags'
-            }, {
-                'name': 'GIT_SYNC_ONE_TIME',
-                'value': 'true'
-            }]
+            'name': 'GIT_SYNC_REPO',
+            'value': self.kube_config.git_repo
+        }, {
+            'name': 'GIT_SYNC_BRANCH',
+            'value': self.kube_config.git_branch
+        }, {
+            'name': 'GIT_SYNC_ROOT',
+            'value': '/tmp'
+        }, {
+            'name': 'GIT_SYNC_DEST',
+            'value': 'dags'
+        }, {
+            'name': 'GIT_SYNC_ONE_TIME',
+            'value': 'true'
+        }]
         if self.kube_config.git_user:
             init_environment.append({
                 'name': 'GIT_SYNC_USERNAME',
@@ -72,7 +75,8 @@ class WorkerConfiguration:
     def _get_volumes_and_mounts(self):
         """Determine volumes and volume mounts for Airflow workers"""
         dags_volume_name = "airflow-dags"
-        dags_path = os.path.join(self.kube_config.dags_folder, self.kube_config.git_subpath)
+        dags_path = os.path.join(self.kube_config.dags_folder,
+                                 self.kube_config.git_subpath)
         volumes = [{
             'name': dags_volume_name
         }]
@@ -101,7 +105,8 @@ class WorkerConfiguration:
 
         # A PV with the DAGs should be mounted
         if self.kube_config.dags_volume_claim:
-            volumes[0]['persistentVolumeClaim'] = {"claimName": self.kube_config.dags_volume_claim}
+            volumes[0]['persistentVolumeClaim'] = {
+                "claimName": self.kube_config.dags_volume_claim}
             if self.kube_config.dags_volume_subpath:
                 volume_mounts[0]["subPath"] = self.kube_config.dags_volume_subpath
         else:
@@ -124,7 +129,8 @@ class WorkerConfiguration:
         worker_secrets = []
         for env_var_name, obj_key_pair in six.iteritems(self.kube_config.kube_secrets):
             k8s_secret_obj, k8s_secret_key = obj_key_pair.split('=')
-            worker_secrets.append(Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key))
+            worker_secrets.append(
+                Secret('env', env_var_name, k8s_secret_obj, k8s_secret_key))
         return worker_secrets
 
     def _get_image_pull_secrets(self):
@@ -133,9 +139,11 @@ class WorkerConfiguration:
             return []
         return self.kube_config.image_pull_secrets.split(',')
 
-    def make_pod(self, namespace, pod_id, dag_id, task_id, execution_date, airflow_command, kube_executor_config):
+    def make_pod(self, namespace, pod_id, dag_id, task_id, execution_date,
+                 airflow_command, kube_executor_config):
         volumes, volume_mounts = self._get_volumes_and_mounts()
-        worker_init_container_spec = self._get_init_containers(copy.deepcopy(volume_mounts))
+        worker_init_container_spec = self._get_init_containers(
+            copy.deepcopy(volume_mounts))
         resources = Resources(
             request_memory=kube_executor_config.request_memory,
             request_cpu=kube_executor_config.request_cpu,

@@ -1,3 +1,4 @@
+# flake8: noqa
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -24,7 +25,6 @@ revision = '33ae817a1ff4'
 down_revision = 'd2ae31099d61'
 branch_labels = None
 depends_on = None
-
 
 from alembic import op
 import sqlalchemy as sa

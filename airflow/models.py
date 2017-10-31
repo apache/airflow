@@ -2223,10 +2223,17 @@ class BaseOperator(LoggingMixin):
     :param task_concurrency: When set, a task will be able to limit the concurrent
         runs across execution_dates
     :type task_concurrency: int
-    :param executor_config: Additional task-level configuration parameters that are 
-        interpreted by a specific executor. Parameters are namespaced by the name of executor.
-        ``example: to run this task in a specific docker container through the KubernetesExecutor
-        MyOperator(..., executor_config={"KubernetesExecutor": {"image": "myCustomDockerImage"}})``
+    :param executor_config: Additional task-level configuration parameters that are
+        interpreted by a specific executor. Parameters are namespaced by the name of
+        executor.
+        ``example: to run this task in a specific docker container through
+        the KubernetesExecutor
+        MyOperator(...,
+            executor_config={
+            "KubernetesExecutor":
+                {"image": "myCustomDockerImage"}
+                }
+        )``
     :type executor_config: dict
     """
 

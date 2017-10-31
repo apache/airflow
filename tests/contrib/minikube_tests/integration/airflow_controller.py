@@ -31,12 +31,14 @@ class DagRunState:
 
 
 def run_command(command):
-    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     if process.returncode != 0:
-        raise RunCommandError("Error while running command: {}; Stdout: {}; Stderr: {}".format(
-            command, stdout, stderr
-        ))
+        raise RunCommandError(
+            "Error while running command: {}; Stdout: {}; Stderr: {}".format(
+                command, stdout, stderr
+            ))
     return stdout, stderr
 
 
@@ -45,22 +47,34 @@ def run_command_in_pod(pod_name, container_name, command):
         pod_name=pod_name, container_name=container_name, command=command
     ))
 
+
+def get_scheduler_logs(airflow_pod=None):
+    airflow_pod = airflow_pod or _get_airflow_pod()
+
+    return run_command("kubectl logs {pod_name} scheduler"
+                       .format(pod_name=airflow_pod))
+
+
 def _unpause_dag(dag_id, airflow_pod=None):
     airflow_pod = airflow_pod or _get_airflow_pod()
-    return run_command_in_pod(airflow_pod, "scheduler", "airflow unpause {dag_id}".format(dag_id=dag_id))
+    return run_command_in_pod(airflow_pod, "scheduler",
+                              "airflow unpause {dag_id}".format(dag_id=dag_id))
+
 
 def run_dag(dag_id, run_id, airflow_pod=None):
     airflow_pod = airflow_pod or _get_airflow_pod()
     _unpause_dag(dag_id, airflow_pod)
-    return run_command_in_pod(airflow_pod, "scheduler", "airflow trigger_dag {dag_id} -r {run_id}".format(
-        dag_id=dag_id, run_id=run_id
-    ))
+    return run_command_in_pod(airflow_pod, "scheduler",
+                              "airflow trigger_dag {dag_id} -r {run_id}".format(
+                                  dag_id=dag_id, run_id=run_id
+                              ))
 
 
 def _get_pod_by_grep(grep_phrase):
-    stdout, stderr = run_command("kubectl get pods | grep {grep_phrase} | awk '{{print $1}}'".format(
-        grep_phrase=grep_phrase
-    ))
+    stdout, stderr = run_command(
+        "kubectl get pods | grep {grep_phrase} | awk '{{print $1}}'".format(
+            grep_phrase=grep_phrase
+        ))
     pod_name = stdout.strip()
     return pod_name
 
@@ -83,11 +97,31 @@ def _parse_state(stdout):
 
     raise Exception("Unknown psql output: {}".format(stdout))
 
+
+def get_dag_run_table(postgres_pod=None):
+    postgres_pod = postgres_pod or _get_postgres_pod()
+    stdout, stderr = run_command_in_pod(
+        postgres_pod, "postgres",
+        """psql airflow -c "select * from dag_run" """
+    )
+    return stdout
+
+
+def get_task_instance_table(postgres_pod=None):
+    postgres_pod = postgres_pod or _get_postgres_pod()
+    stdout, stderr = run_command_in_pod(
+        postgres_pod, "postgres",
+        """psql airflow -c "select * from task_instance" """
+    )
+    return stdout
+
+
 def get_dag_run_state(dag_id, run_id, postgres_pod=None):
     postgres_pod = postgres_pod or _get_postgres_pod()
     stdout, stderr = run_command_in_pod(
         postgres_pod, "postgres",
-        """psql airflow -c "select state from dag_run where dag_id='{dag_id}' and run_id='{run_id}'" """.format(
+        """psql airflow -c "select state from dag_run where dag_id='{dag_id}' and
+         run_id='{run_id}'" """.format(
             dag_id=dag_id, run_id=run_id
         )
     )
@@ -99,10 +133,13 @@ def dag_final_state(dag_id, run_id, postgres_pod=None, poll_interval=1, timeout=
     for _ in range(0, timeout / poll_interval):
         dag_state = get_dag_run_state(dag_id, run_id, postgres_pod)
         if dag_state != DagRunState.RUNNING:
+            capture_logs_for_failure(dag_state)
             return dag_state
         time.sleep(poll_interval)
 
-    raise TimeoutError("Timed out while waiting for DagRun with dag_id: {} run_id: {}".format(dag_id, run_id))
+    raise TimeoutError(
+        "Timed out while waiting for DagRun with dag_id: {} run_id: {}".format(dag_id,
+                                                                               run_id))
 
 
 def _kill_pod(pod_name):
@@ -112,3 +149,18 @@ def _kill_pod(pod_name):
 def kill_scheduler():
     airflow_pod = _get_pod_by_grep("^airflow")
     return _kill_pod(airflow_pod)
+
+
+def capture_logs_for_failure(state):
+    if state != DagRunState.SUCCESS:
+        stdout, stderr = get_scheduler_logs()
+        print("stdout:")
+        for line in stdout.split('\n'):
+            print(line)
+        print("stderr:")
+        for line in stderr.split('\n'):
+            print(line)
+        print("dag_run:")
+        print(get_dag_run_table())
+        print("task_instance")
+        print(get_task_instance_table())
