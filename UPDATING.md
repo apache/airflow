@@ -139,6 +139,15 @@ If you are using S3, the instructions should be largely the same as the Google c
  - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
  - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
 
+#### Experimental API is now configured to deny-by-default
+
+Previously the experimental API was configured with no authentication. The default behaviour has changed to deny all requests. If you are relying on the previous behaviour set the api config section:
+
+```
+[api]
+auth_backend = airflow.api.auth.backend.allow_all
+```
+
 ### New Features
 
 #### Dask Executor

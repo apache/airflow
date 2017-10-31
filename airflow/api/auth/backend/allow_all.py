@@ -13,10 +13,9 @@
 # limitations under the License.
 
 from functools import wraps
-from flask import Response
-
 
 client_auth = None
+
 
 def init_app(app):
     pass
@@ -25,6 +24,6 @@ def init_app(app):
 def requires_authentication(function):
     @wraps(function)
     def decorated(*args, **kwargs):
-        return Response("Forbidden", 403)
+        return function(*args, **kwargs)
 
     return decorated
