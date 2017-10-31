@@ -54,6 +54,7 @@ class PythonOperator(BaseOperator):
     :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
+    :type templates_exts: list(str)
     """
     template_fields = ('templates_dict',)
     template_ext = tuple()
@@ -194,15 +195,25 @@ class PythonVirtualenvOperator(PythonOperator):
         available to python_callable at runtime as a list(str). Note that args are split
         by newline.
     :type string_args: list(str)
-
+    :param templates_dict: a dictionary where the values are templates that
+        will get templated by the Airflow engine sometime between
+        ``__init__`` and ``execute`` takes place and are made available
+        in your callable's context after the template has been applied
+    :type templates_dict: dict of str
+    :param templates_exts: a list of file extensions to resolve while
+        processing templated fields, for examples ``['.sql', '.hql']``
+    :type templates_exts: list(str)
     """
     def __init__(self, python_callable, requirements=None, python_version=None, use_dill=False,
                  system_site_packages=True, op_args=None, op_kwargs=None, string_args=None,
-                 *args, **kwargs):
+                 templates_dict=None, templates_exts=None, *args, **kwargs):
         super(PythonVirtualenvOperator, self).__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
+            templates_dict=templates_dict,
+            templates_exts=templates_exts,
+            provide_context=False,
             *args,
             **kwargs)
         self.requirements = requirements or []
@@ -230,6 +241,8 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
+            if self.templates_dict:
+                self.op_kwargs['templates_dict'] = self.templates_dict
             # generate filenames
             input_filename = os.path.join(tmp_dir, 'script.in')
             output_filename = os.path.join(tmp_dir, 'script.out')
