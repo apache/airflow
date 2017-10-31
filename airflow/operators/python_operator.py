@@ -83,12 +83,9 @@ class PythonOperator(BaseOperator):
 
     def execute(self, context):
         if self.provide_context:
-            print(context)
-            for val in context.values():
-                print(type(val))
-            #context.update(self.op_kwargs)
+            context.update(self.op_kwargs)
             self.op_kwargs['templates_dict'] = self.templates_dict
-            #self.op_kwargs = context
+            self.op_kwargs = context
 
         return_value = self.execute_callable()
         self.log.info("Done. Returned value was: %s", return_value)
