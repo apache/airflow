@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import re
-
+from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -25,8 +25,15 @@ class HiveOperator(BaseOperator):
 
     :param hql: the hql to be executed
     :type hql: string
+    :param hql_file: full file path to the file containing the hql statement.
+    :type hql: string
     :param hive_cli_conn_id: reference to the Hive database
     :type hive_cli_conn_id: string
+    :param schema: name of hive schema (database) @table belongs to
+    :type schema: string
+    :param hiveconfs: if specified these key value pairs will be passed
+        to hive as ``-hiveconf "key"="value"``
+    :type hiveconfs: dict
     :param hiveconf_jinja_translate: when True, hiveconf-type templating
         ${var} gets translated into jinja-type templating {{ var }}. Note that
         you may want to use this along with the
@@ -35,7 +42,9 @@ class HiveOperator(BaseOperator):
     :type hiveconf_jinja_translate: boolean
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
-    :type script_begin_tag: str
+    :type script_begin_tag: string
+    :param run_as_owner: Option to run as the dag.owner
+    :type: bool
     :param mapred_queue: queue used by the Hadoop CapacityScheduler
     :type  mapred_queue: string
     :param mapred_queue_priority: priority within CapacityScheduler queue.
@@ -46,15 +55,16 @@ class HiveOperator(BaseOperator):
     :type  mapred_job_name: string
     """
 
-    template_fields = ('hql', 'schema')
-    template_ext = ('.hql', '.sql',)
+    template_fields = ('hql', 'schema', 'hql_file', 'hive_cli_conn_id', 'hiveconfs', 'script_begin_tag',
+                       'mapred_queue', 'mapred_job_name', 'mapred_queue_priority', )
     ui_color = '#f0e4ec'
 
     @apply_defaults
     def __init__(
-            self, hql,
+            self, hql=None, hql_file=None,
             hive_cli_conn_id='hive_cli_default',
             schema='default',
+            hiveconfs=None,
             hiveconf_jinja_translate=False,
             script_begin_tag=None,
             run_as_owner=False,
@@ -66,7 +76,9 @@ class HiveOperator(BaseOperator):
         super(HiveOperator, self).__init__(*args, **kwargs)
         self.hiveconf_jinja_translate = hiveconf_jinja_translate
         self.hql = hql
+        self.hql_file = hql_file
         self.schema = schema
+        self.hiveconfs = hiveconfs or {}
         self.hive_cli_conn_id = hive_cli_conn_id
         self.script_begin_tag = script_begin_tag
         self.run_as = None
@@ -93,10 +105,25 @@ class HiveOperator(BaseOperator):
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
     def execute(self, context):
-        self.log.info('Executing: %s', self.hql)
+        if self.hql and self.hql_file:
+            raise AirflowException('Cannot specify hql and hql_file together. Need to specify either or.')
+
+        if self.hql_file:
+            with open(self.hql_file) as f:
+                self.hql = f.read()
+
+        self.log.info('Executing:\n' + self.hql)
         self.hook = self.get_hook()
-        self.hook.run_cli(hql=self.hql, schema=self.schema,
-                          hive_conf=context_to_airflow_vars(context))
+
+        # set the mapred_job_name if it's not set with dag, task, execution time info
+        if not self.mapred_job_name:
+            ti = context['ti']
+            self.hook.mapred_job_name = 'Airflow HiveOperator task for {}.{}.{}'\
+                .format(ti.dag_id, ti.task_id, ti.execution_date.isoformat())
+
+        # combine the dictionaries passed from hiveconfs param and context vars
+        self.hiveconfs.update(context_to_airflow_vars(context))
+        self.hook.run_cli(hql=self.hql, schema=self.schema, hive_conf=self.hiveconfs)
 
     def dry_run(self):
         self.hook = self.get_hook()

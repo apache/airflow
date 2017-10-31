@@ -15,14 +15,16 @@
 from __future__ import print_function
 
 import datetime
+import tempfile
+
 import os
 import unittest
 import mock
 import nose
 import six
+from airflow.exceptions import AirflowException
 
 from airflow import DAG, configuration, operators
-configuration.load_test_config()
 
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
@@ -193,6 +195,50 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                 task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
+        def test_invalid_hql_options(self):
+            """
+            Tests to verify if a user passes both a hql and a hql_file then an exception is raised.
+            """
+            import airflow.operators.hive_operator
+            operator = operators.hive_operator.HiveOperator(
+                task_id='test_invalid_hql_options',
+                hql=self.hql,
+                hql_file='test.sql',  # not a real file. just a non-None value
+                mapred_queue='default',
+                mapred_queue_priority='HIGH',
+                mapred_job_name='airflow.test_invalid_hql_options',
+                dag=self.dag
+            )
+
+            with self.assertRaises(AirflowException):
+                operator.execute({})
+
+        def test_hql_file_with_hiveconfs(self):
+            """
+            Create a hive file with hiveconfs.
+            """
+            import airflow.operators.hive_operator
+            with tempfile.NamedTemporaryFile() as tmp:
+                tmp.write("SELECT * FROM airflow.static_babynames WHERE ds='${hiveconf:DAY}';")
+                tmp.seek(0)
+                operator = operators.hive_operator.HiveOperator(
+                    task_id='test_invalid_hql_options',
+                    hql=None,
+                    schema='airflow',
+                    hiveconfs={'DAY': '{{ ds }}'},
+                    hql_file=tmp.name,  # not a real file. just a non-None value
+                    dag=self.dag
+                )
+                operator.run()
+
+            hook = operator.hook
+            import logging
+            logging.info(hook)
+            logging.info(hook.__dict__)
+            # check that mapred name is set
+            self.assertIn(operator.dag_id, hook.mapred_job_name)
+            self.assertIn(operator.task_id, hook.mapred_job_name)
+
         def test_beeline(self):
             import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
@@ -352,3 +398,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             t.clear(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
+
+if __name__ == '__main__':
+    unittest.main()
