@@ -476,6 +476,7 @@ class Airflow(BaseView):
             embed=embed)
 
     @expose('/dag_stats')
+    @login_required
     def dag_stats(self):
         ds = models.DagStat
         session = Session()
@@ -510,6 +511,7 @@ class Airflow(BaseView):
         return wwwutils.json_response(payload)
 
     @expose('/task_stats')
+    @login_required
     def task_stats(self):
         TI = models.TaskInstance
         DagRun = models.DagRun

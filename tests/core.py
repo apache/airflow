@@ -29,6 +29,7 @@ from datetime import datetime, time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 import signal
+from six.moves.urllib.parse import urlencode
 from time import sleep
 import warnings
 
@@ -1655,7 +1656,7 @@ class WebUiTests(unittest.TestCase):
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.example_xcom = self.dagbag.dags['example_xcom']
 
-        self.dag_bash2.create_dagrun(
+        self.dagrun_bash2 = self.dag_bash2.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
             execution_date=DEFAULT_DATE,
             start_date=datetime.utcnow(),
@@ -1678,8 +1679,18 @@ class WebUiTests(unittest.TestCase):
 
     def test_index(self):
         response = self.app.get('/', follow_redirects=True)
-        self.assertIn("DAGs", response.data.decode('utf-8'))
-        self.assertIn("example_bash_operator", response.data.decode('utf-8'))
+        resp_html = response.data.decode('utf-8')
+        self.assertIn("DAGs", resp_html)
+        self.assertIn("example_bash_operator", resp_html)
+
+        # The HTML should contain data for the last-run. A link to the specific run, and the text of
+        # the date.
+        url = "/admin/airflow/graph?" + urlencode({
+            "dag_id": self.dag_bash2.dag_id,
+            "execution_date": self.dagrun_bash2.execution_date,
+            }).replace("&", "&amp;")
+        self.assertIn(url, resp_html)
+        self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
 
     def test_query(self):
         response = self.app.get('/admin/queryview/')
