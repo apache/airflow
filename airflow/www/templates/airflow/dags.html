@@ -118,6 +118,15 @@
 
                 <!-- Column 7: Last Run -->
                 <td class="text-nowrap latest_dag_run {{ dag.dag_id }}">
+                  {% if dag %}
+                    {% set last_run = dag.get_last_dagrun() %}
+                    {% if last_run and last_run.execution_date %}
+                      <a href="{{ url_for('airflow.graph', dag_id=dag.dag_id, execution_date=last_run.execution_date) }}">
+                        {{ last_run.execution_date.strftime("%Y-%m-%d %H:%M") }}
+                      </a>
+                      <span aria-hidden="true" id="statuses_info" title="Start Date: {{ last_run.start_date.strftime("%Y-%m-%d %H:%M") }}" class="glyphicon glyphicon-info-sign"></span>
+                    {% endif %}
+                  {% endif %}
                 </td>
 
                 <!-- Column 8: Dag Runs -->
@@ -294,21 +303,6 @@
             $('.label.schedule.' + this.dag_id)
             .css('background-color', 'red');
           }
-        });
-      });
-      $.getJSON("{{ url_for('api_experimental.latest_dag_runs') }}", function(data) {
-        $.each(data["items"], function() {
-          var link = $("<a>", {
-            href: this.dag_run_url,
-            text: this.execution_date
-          });
-          var info_icon = $('<span>', {
-            "aria-hidden": "true",
-            id: "statuses_info",
-            title: "Start Date: " + this.start_date,
-            "class": "glyphicon glyphicon-info-sign"
-          });
-          $('.latest_dag_run.' + this.dag_id).append(link).append(info_icon);
         });
       });
       d3.json("{{ url_for('airflow.dag_stats') }}", function(error, json) {
