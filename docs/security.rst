@@ -8,6 +8,8 @@ SSH tunnels.
 It is however possible to switch on authentication by either using one of the supplied
 backends or creating your own.
 
+Be sure to checkout :doc:`api` for securing the API.
+
 Web Authentication
 ------------------
 
