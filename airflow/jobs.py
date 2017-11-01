@@ -54,7 +54,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import provide_session, pessimistic_connection_handling
 from airflow.utils.email import send_email
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter
 from airflow.utils.state import State
 
 Base = models.Base
@@ -344,6 +344,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
         def helper():
             # This helper runs in the newly created process
             log = logging.getLogger("airflow.processor")
+
+            stdout = StreamLogWriter(log, logging.INFO)
+            stderr = StreamLogWriter(log, logging.WARN)
+
             for handler in log.handlers:
                 try:
                     handler.set_context(file_path)
@@ -353,6 +357,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                     pass
 
             try:
+                # redirect stdout/stderr to log
+                sys.stdout = stdout
+                sys.stderr = stderr
+
                 # Re-configure the ORM engine as there are issues with multiple processes
                 settings.configure_orm()
 
@@ -376,6 +384,9 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                 # Log exceptions through the logging framework.
                 log.exception("Got an exception! Propagating...")
                 raise
+            finally:
+                sys.stdout = sys.__stdout__
+                sys.stderr = sys.__stderr__
 
         p = multiprocessing.Process(target=helper,
                                     args=(),
