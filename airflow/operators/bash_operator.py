@@ -74,7 +74,7 @@ class BashOperator(BaseOperator):
                 f.write(bytes(bash_command, 'utf_8'))
                 f.flush()
                 fname = f.name
-                script_location = tmp_dir + "/" + fname
+                script_location = fname
                 self.log.info(
                     "Temporary script location: %s",
                     script_location
