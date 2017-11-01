@@ -858,6 +858,19 @@ def scheduler(args):
         num_runs=args.num_runs,
         do_pickle=args.do_pickle)
 
+    db_reconnect_limit = 0
+    try:
+        db_reconnect_limit = conf.getint('scheduler', 'database_reconnect_limit')
+    except airflow.exceptions.AirflowConfigException as exc:
+        print("Unable to read database_reconnect_limit config; assuming no reconnect")
+
+    if (db_reconnect_limit == 0):
+        print("db_reconnect_limit is 0; disabling scheduler db reconnect")
+    else:
+        adjusted_db_reconnect_limit = db_reconnect_limit if db_reconnect_limit > 0 else None
+        print("db_reconnect_limit: ", adjusted_db_reconnect_limit)
+        db_utils.enable_connection_reconnect(adjusted_db_reconnect_limit)
+
     if args.daemon:
         pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
         handle = setup_logging(log_file)
