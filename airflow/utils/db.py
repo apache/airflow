@@ -23,8 +23,6 @@ import logging
 import os
 import time
 
-import sys, traceback
-
 from alembic.config import Config
 from alembic import command
 from alembic.migration import MigrationContext
