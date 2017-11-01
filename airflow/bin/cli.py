@@ -54,7 +54,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
-from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
 from airflow.www.app import cached_app
 
 from sqlalchemy import func
@@ -327,6 +327,7 @@ def run(args, dag=None):
     # Disable connection pooling to reduce the # of connections on the DB
     # while it's waiting for the task to finish.
     settings.configure_orm(disable_connection_pool=True)
+
     db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
@@ -377,56 +378,57 @@ def run(args, dag=None):
     hostname = socket.getfqdn()
     log.info("Running on host %s", hostname)
 
-    if args.local:
-        run_job = jobs.LocalTaskJob(
-            task_instance=ti,
-            mark_success=args.mark_success,
-            pickle_id=args.pickle,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        run_job.run()
-    elif args.raw:
-        ti._run_raw_task(
-            mark_success=args.mark_success,
-            job_id=args.job_id,
-            pool=args.pool,
-        )
-    else:
-        pickle_id = None
-        if args.ship_dag:
-            try:
-                # Running remotely, so pickling the DAG
-                session = settings.Session()
-                pickle = DagPickle(dag)
-                session.add(pickle)
-                session.commit()
-                pickle_id = pickle.id
-                # TODO: This should be written to a log
-                print((
-                          'Pickled dag {dag} '
-                          'as pickle_id:{pickle_id}').format(**locals()))
-            except Exception as e:
-                print('Could not pickle the DAG')
-                print(e)
-                raise e
+    with redirect_stdout(log, logging.INFO), redirect_stderr(log, logging.WARN):
+        if args.local:
+            run_job = jobs.LocalTaskJob(
+                task_instance=ti,
+                mark_success=args.mark_success,
+                pickle_id=args.pickle,
+                ignore_all_deps=args.ignore_all_dependencies,
+                ignore_depends_on_past=args.ignore_depends_on_past,
+                ignore_task_deps=args.ignore_dependencies,
+                ignore_ti_state=args.force,
+                pool=args.pool)
+            run_job.run()
+        elif args.raw:
+            ti._run_raw_task(
+                mark_success=args.mark_success,
+                job_id=args.job_id,
+                pool=args.pool,
+            )
+        else:
+            pickle_id = None
+            if args.ship_dag:
+                try:
+                    # Running remotely, so pickling the DAG
+                    session = settings.Session()
+                    pickle = DagPickle(dag)
+                    session.add(pickle)
+                    session.commit()
+                    pickle_id = pickle.id
+                    # TODO: This should be written to a log
+                    print((
+                              'Pickled dag {dag} '
+                              'as pickle_id:{pickle_id}').format(**locals()))
+                except Exception as e:
+                    print('Could not pickle the DAG')
+                    print(e)
+                    raise e
 
-        executor = GetDefaultExecutor()
-        executor.start()
-        print("Sending to executor.")
-        executor.queue_task_instance(
-            ti,
-            mark_success=args.mark_success,
-            pickle_id=pickle_id,
-            ignore_all_deps=args.ignore_all_dependencies,
-            ignore_depends_on_past=args.ignore_depends_on_past,
-            ignore_task_deps=args.ignore_dependencies,
-            ignore_ti_state=args.force,
-            pool=args.pool)
-        executor.heartbeat()
-        executor.end()
+            executor = GetDefaultExecutor()
+            executor.start()
+            print("Sending to executor.")
+            executor.queue_task_instance(
+                ti,
+                mark_success=args.mark_success,
+                pickle_id=pickle_id,
+                ignore_all_deps=args.ignore_all_dependencies,
+                ignore_depends_on_past=args.ignore_depends_on_past,
+                ignore_task_deps=args.ignore_dependencies,
+                ignore_ti_state=args.force,
+                pool=args.pool)
+            executor.heartbeat()
+            executor.end()
 
     # Child processes should not flush or upload to remote
     if args.raw:

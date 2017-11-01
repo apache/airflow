@@ -34,6 +34,7 @@ import itertools
 import zipfile
 import jinja2
 import json
+import logging
 import os
 import pickle
 import re
@@ -798,6 +799,7 @@ class TaskInstance(Base, LoggingMixin):
             self.state = state
         self.hostname = ''
         self.init_on_load()
+        self._log = logging.getLogger("airflow.task")
 
     @reconstructor
     def init_on_load(self):
