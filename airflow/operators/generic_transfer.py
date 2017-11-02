@@ -23,7 +23,7 @@ class GenericTransfer(BaseOperator):
     needs to expose a `get_records` method, and the destination a
     `insert_rows` method.
 
-    This is mean to be used on small-ish datasets that fit in memory.
+    This is meant to be used on small-ish datasets that fit in memory.
 
     :param sql: SQL query to execute against the source database
     :type sql: str

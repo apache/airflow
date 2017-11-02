@@ -93,6 +93,7 @@ def get_fernet():
 
     This function could fail either because Cryptography is not installed
     or because the Fernet key is invalid.
+
     :return: Fernet object
     :raises: AirflowException if there's a problem trying to load Fernet
     """
@@ -1915,6 +1916,7 @@ class SkipMixin(LoggingMixin):
     def skip(self, dag_run, execution_date, tasks):
         """
         Sets tasks instances to skipped from the same dag run.
+
         :param dag_run: the DagRun for which to set the tasks to skipped
         :param execution_date: execution_date
         :param tasks: tasks to skip (not task_ids)
@@ -2985,6 +2987,7 @@ class DAG(BaseDag, LoggingMixin):
         """
         Returns a list of dates between the interval received as parameter using this
         dag's schedule interval. Returned dates can be used for execution dates.
+
         :param start_date: the start date of the interval
         :type start_date: datetime
         :param end_date: the end date of the interval, defaults to datetime.utcnow()
@@ -3153,6 +3156,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_active_runs(self, session=None):
         """
         Returns a list of dag run execution dates currently running
+
         :param session:
         :return: List of execution dates
         """
@@ -3168,6 +3172,7 @@ class DAG(BaseDag, LoggingMixin):
     def get_num_active_runs(self, external_trigger=None, session=None):
         """
         Returns the number of active "running" dag runs
+
         :param external_trigger: True for externally triggered active dag runs
         :type external_trigger: bool
         :param session:
@@ -3645,6 +3650,7 @@ class DAG(BaseDag, LoggingMixin):
             delay_on_limit_secs=1.0):
         """
         Runs the DAG.
+
         :param start_date: the start date of the range to run
         :type start_date: datetime
         :param end_date: the end date of the range to run
@@ -4057,6 +4063,7 @@ class XCom(Base, LoggingMixin):
         TODO: "pickling" has been deprecated and JSON is preferred. "pickling" will be
         removed in Airflow 2.0. :param enable_pickling: If pickling is not enabled, the
         XCOM value will be parsed as JSON instead.
+
         :return: None
         """
         session.expunge_all()
@@ -4110,6 +4117,7 @@ class XCom(Base, LoggingMixin):
         """
         Retrieve an XCom value, optionally meeting certain criteria.
         TODO: "pickling" has been deprecated and JSON is preferred. "pickling" will be removed in Airflow 2.0.
+
         :param enable_pickling: If pickling is not enabled, the XCOM value will be parsed to JSON instead.
         :return: XCom value
         """
@@ -4412,6 +4420,7 @@ class DagRun(Base, LoggingMixin):
              session=None):
         """
         Returns a set of dag runs for the given search criteria.
+
         :param dag_id: the dag_id to find dag runs for
         :type dag_id: integer, list
         :param run_id: defines the the run id for this dag run
@@ -4485,6 +4494,7 @@ class DagRun(Base, LoggingMixin):
     def get_task_instance(self, task_id, session=None):
         """
         Returns the task instance specified by task_id for this dag run
+
         :param task_id: the task id
         """
 
@@ -4535,6 +4545,7 @@ class DagRun(Base, LoggingMixin):
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
+
         :return: State
         """
 
