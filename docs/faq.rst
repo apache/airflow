@@ -24,7 +24,7 @@ Here are some of the common causes:
   do not override their parent DAG's ``schedule_interval``.
 
 - Is your ``start_date`` beyond where you can see it in the UI? If you
-  set your it to some time say 3 months ago, you won't be able to see
+  set your ``start_date`` to some time say 3 months ago, you won't be able to see
   it in the main view in the UI, but you should be able to see it in the
   ``Menu -> Browse ->Task Instances``.
 
@@ -80,7 +80,7 @@ task. From that point on, the scheduler creates new DagRuns based on
 your ``schedule_interval`` and the corresponding task instances run as your
 dependencies are met. When introducing new tasks to your DAG, you need to
 pay special attention to ``start_date``, and may want to reactivate
-inactive DagRuns to get the new task to get onboarded properly.
+inactive DagRuns to get the new task onboarded properly.
 
 We recommend against using dynamic values as ``start_date``, especially
 ``datetime.now()`` as it can be quite confusing. The task is triggered
@@ -103,7 +103,7 @@ it enforces this idea of rounded schedules.
 
 When using ``depends_on_past=True`` it's important to pay special attention
 to ``start_date`` as the past dependency is not enforced only on the specific
-schedule of the ``start_date`` specified for the task. It' also
+schedule of the ``start_date`` specified for the task. It's also
 important to watch DagRun activity status in time when introducing
 new ``depends_on_past=True``, unless you are planning on running a backfill
 for the new task(s).
@@ -111,7 +111,7 @@ for the new task(s).
 Also important to note is that the tasks ``start_date``, in the context of a
 backfill CLI command, get overridden by the backfill's command ``start_date``.
 This allows for a backfill on tasks that have ``depends_on_past=True`` to
-actually start, if it wasn't the case, the backfill just wouldn't start.
+actually start, if that wasn't the case, the backfill just wouldn't start.
 
 How can I create DAGs dynamically?
 ----------------------------------
