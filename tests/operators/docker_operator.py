@@ -17,7 +17,12 @@ import logging
 
 try:
     from airflow.operators.docker_operator import DockerOperator
-    from docker import APIClient as Client
+    import docker
+    # docker.Client is docker.APIClient in docker>=2.0
+    if int(docker.__version__.split('.')[0]) < 2:
+        from docker import Client
+    else:
+        from docker import APIClient as Client
 except ImportError:
     pass
 
