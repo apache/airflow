@@ -33,7 +33,7 @@ class SSHHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         from airflow.contrib.hooks.ssh_hook import SSHHook
-        self.hook = SSHHook(ssh_conn_id='ssh_default')
+        self.hook = SSHHook(ssh_conn_id='ssh_default', keepalive_interval=10)
         self.hook.no_host_key_check = True
 
     def test_ssh_connection(self):
