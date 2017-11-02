@@ -46,6 +46,8 @@ class SSHHook(BaseHook, LoggingMixin):
     :type key_file: str
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
+    :param keepalive_interval: send a keepalive packet to remote host every keepalive_interval seconds
+    :type keepalive_interval: int
     """
 
     def __init__(self,
@@ -54,7 +56,8 @@ class SSHHook(BaseHook, LoggingMixin):
                  username=None,
                  password=None,
                  key_file=None,
-                 timeout=10
+                 timeout=10,
+                 keepalive_interval=30
                  ):
         super(SSHHook, self).__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
@@ -63,6 +66,7 @@ class SSHHook(BaseHook, LoggingMixin):
         self.password = password
         self.key_file = key_file
         self.timeout = timeout
+        self.keepalive_interval = keepalive_interval
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
@@ -139,6 +143,9 @@ class SSHHook(BaseHook, LoggingMixin):
                                    timeout=self.timeout,
                                    compress=self.compress,
                                    sock=host_proxy)
+
+                if self.keepalive_interval:
+                    client.get_transport().set_keepalive(self.keepalive_interval)
 
                 self.client = client
             except paramiko.AuthenticationException as auth_error:
