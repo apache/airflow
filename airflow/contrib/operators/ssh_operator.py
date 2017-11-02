@@ -86,6 +86,12 @@ class SSHOperator(BaseOperator):
                                                             get_pty=get_pty,
                                                             timeout=self.timeout
                                                             )
+            stdin.close()
+            output=b''
+            for line in stdout:
+                output+=line.encode('utf-8')
+                self.log.info(line.strip('\n'))
+
             exit_status = stdout.channel.recv_exit_status()
             if exit_status is 0:
                 # only returning on output if do_xcom_push is set
@@ -94,9 +100,9 @@ class SSHOperator(BaseOperator):
                     enable_pickling = configuration.getboolean('core',
                                                                'enable_xcom_pickling')
                     if enable_pickling:
-                        return stdout.read()
+                        return output
                     else:
-                        return b64encode(stdout.read()).decode('utf-8')
+                        return b64encode(output).decode('utf-8')
 
             else:
                 error_msg = stderr.read()

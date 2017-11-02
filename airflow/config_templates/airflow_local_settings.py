@@ -78,10 +78,19 @@ DEFAULT_LOGGING_CONFIG = {
         # },
     },
     'loggers': {
-        'airflow.processor' : {
-            'handlers': ['file.processor'],
+        '': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL
+        },
+        'airflow': {
+            'handlers': ['console'],
             'level': LOG_LEVEL,
             'propagate': False,
+        },
+        'airflow.processor': {
+            'handlers': ['file.processor'],
+            'level': LOG_LEVEL,
+            'propagate': True,
         },
         'airflow.task': {
             'handlers': ['file.task'],
@@ -92,11 +101,6 @@ DEFAULT_LOGGING_CONFIG = {
             'handlers': ['file.task'],
             'level': LOG_LEVEL,
             'propagate': True,
-        },
-        'airflow': {
-            'handlers': ['console'],
-            'level': LOG_LEVEL,
-            'propagate': False,
         },
     }
 }

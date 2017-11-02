@@ -12,10 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import mock
 import unittest
 import warnings
 
 from airflow.operators.bash_operator import BashOperator
+from airflow.utils.log.logging_mixin import StreamLogWriter
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
@@ -48,3 +50,52 @@ class TestLoggingMixin(unittest.TestCase):
 
     def tearDown(self):
         warnings.resetwarnings()
+
+
+class TestStreamLogWriter(unittest.TestCase):
+    def test_write(self):
+        logger = mock.MagicMock()
+        logger.log = mock.MagicMock()
+
+        log = StreamLogWriter(logger, 1)
+
+        msg = "test_message"
+        log.write(msg)
+
+        self.assertEqual(log._buffer, msg)
+
+        log.write("\n")
+        logger.log.assert_called_once_with(1, msg + "\n")
+
+        self.assertEqual(log._buffer, "")
+
+    def test_flush(self):
+        logger = mock.MagicMock()
+        logger.log = mock.MagicMock()
+
+        log = StreamLogWriter(logger, 1)
+
+        msg = "test_message"
+
+        log.write(msg)
+        self.assertEqual(log._buffer, msg)
+
+        log.flush()
+        logger.log.assert_called_once_with(1, msg)
+
+        self.assertEqual(log._buffer, "")
+
+    def test_isatty(self):
+        logger = mock.MagicMock()
+        logger.log = mock.MagicMock()
+
+        log = StreamLogWriter(logger, 1)
+        self.assertFalse(log.isatty())
+
+    def test_encoding(self):
+        logger = mock.MagicMock()
+        logger.log = mock.MagicMock()
+
+        log = StreamLogWriter(logger, 1)
+        self.assertFalse(log.encoding)
+

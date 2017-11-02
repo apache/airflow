@@ -18,8 +18,11 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+import sys
 import warnings
+
 from builtins import object
+from contextlib import contextmanager
 
 
 class LoggingMixin(object):
@@ -59,3 +62,68 @@ class LoggingMixin(object):
                 handler.set_context(task_instance)
             except AttributeError:
                 pass
+
+
+class StreamLogWriter(object):
+    encoding = False
+
+    """
+    Allows to redirect stdout and stderr to logger
+    """
+    def __init__(self, logger, level):
+        """
+        :param log: The log level method to write to, ie. log.debug, log.warning
+        :return:
+        """
+        self.logger = logger
+        self.level = level
+        self._buffer = str()
+
+    def write(self, message):
+        """
+        Do whatever it takes to actually log the specified logging record
+        :param message: message to log
+        """
+        if not message.endswith("\n"):
+            self._buffer += message
+        else:
+            self._buffer += message
+            self.logger.log(self.level, self._buffer)
+            self._buffer = str()
+
+    def flush(self):
+        """
+        Ensure all logging output has been flushed
+        """
+        if len(self._buffer) > 0:
+            self.logger.log(self.level, self._buffer)
+            self._buffer = str()
+
+    def isatty(self):
+        """
+        Returns False to indicate the fd is not connected to a tty(-like) device.
+        For compatibility reasons.
+        """
+        return False
+
+
+@contextmanager
+def redirect_stdout(logger, level):
+    writer = StreamLogWriter(logger, level)
+    try:
+        sys.stdout = writer
+        yield
+    finally:
+        sys.stdout = sys.__stdout__
+
+
+@contextmanager
+def redirect_stderr(logger, level):
+    writer = StreamLogWriter(logger, level)
+    try:
+        sys.stderr = writer
+        yield
+    finally:
+        sys.stderr = sys.__stderr__
+
+

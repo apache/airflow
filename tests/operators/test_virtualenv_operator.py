@@ -186,3 +186,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(a):
             return None
         self._run_as_operator(f, op_args=[datetime.datetime.now()])
+
+    def test_context(self):
+        def f(**kwargs):
+            return kwargs['templates_dict']['ds']
+        self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
+
