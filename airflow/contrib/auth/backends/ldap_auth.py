@@ -25,10 +25,10 @@ import ssl
 
 from flask import url_for, redirect
 
-from airflow import settings
 from airflow import models
 from airflow import configuration
 from airflow.configuration import AirflowConfigException
+from airflow.utils.db import provide_session
 
 import traceback
 import re
@@ -250,20 +250,17 @@ class LdapUser(models.User):
 
 
 @login_manager.user_loader
-def load_user(userid):
+@provide_session
+def load_user(userid, session=None):
     log.debug("Loading user %s", userid)
     if not userid or userid == 'None':
         return None
 
-    session = settings.Session()
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return LdapUser(user)
 
-
-def login(self, request):
+@provide_session
+def login(self, request, session=None):
     if current_user.is_authenticated():
         flash("You are already logged in")
         return redirect(url_for('admin.index'))
@@ -286,7 +283,6 @@ def login(self, request):
         LdapUser.try_login(username, password)
         log.info("User %s successfully authenticated", username)
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -299,7 +295,6 @@ def login(self, request):
         session.commit()
         flask_login.login_user(LdapUser(user))
         session.commit()
-        session.close()
 
         return redirect(request.args.get("next") or url_for("admin.index"))
     except (LdapException, AuthenticationError) as e:

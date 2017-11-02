@@ -471,22 +471,19 @@ class DagBag(BaseDagBag, LoggingMixin):
             table=pprinttable(stats),
         )
 
-    def deactivate_inactive_dags(self):
+    @provide_session
+    def deactivate_inactive_dags(self, session=None):
         active_dag_ids = [dag.dag_id for dag in list(self.dags.values())]
-        session = settings.Session()
         for dag in session.query(
                 DagModel).filter(~DagModel.dag_id.in_(active_dag_ids)).all():
             dag.is_active = False
             session.merge(dag)
         session.commit()
-        session.close()
 
-    def paused_dags(self):
-        session = settings.Session()
+    @provide_session
+    def paused_dags(self, session=None):
         dag_ids = [dp.dag_id for dp in session.query(DagModel).filter(
             DagModel.is_paused.__eq__(True))]
-        session.commit()
-        session.close()
         return dag_ids
 
 
@@ -1061,7 +1058,8 @@ class TaskInstance(Base, LoggingMixin):
         """
         return self.dag_id, self.task_id, self.execution_date
 
-    def set_state(self, state, session):
+    @provide_session
+    def set_state(self, state, session=None):
         self.state = state
         self.start_date = datetime.utcnow()
         self.end_date = datetime.utcnow()
@@ -1563,10 +1561,10 @@ class TaskInstance(Base, LoggingMixin):
         self.render_templates()
         task_copy.dry_run()
 
-    def handle_failure(self, error, test_mode=False, context=None):
+    @provide_session
+    def handle_failure(self, error, test_mode=False, context=None, session=None):
         self.log.exception(error)
         task = self.task
-        session = settings.Session()
         self.end_date = datetime.utcnow()
         self.set_duration()
         Stats.incr('operator_failures_{}'.format(task.__class__.__name__), 1, 1)
@@ -1913,20 +1911,21 @@ class Log(Base):
 
 
 class SkipMixin(LoggingMixin):
-    def skip(self, dag_run, execution_date, tasks):
+    @provide_session
+    def skip(self, dag_run, execution_date, tasks, session=None):
         """
         Sets tasks instances to skipped from the same dag run.
 
         :param dag_run: the DagRun for which to set the tasks to skipped
         :param execution_date: execution_date
         :param tasks: tasks to skip (not task_ids)
+        :param session: db session to use
         """
         if not tasks:
             return
 
         task_ids = [d.task_id for d in tasks]
         now = datetime.utcnow()
-        session = settings.Session()
 
         if dag_run:
             session.query(TaskInstance).filter(
@@ -1951,7 +1950,6 @@ class SkipMixin(LoggingMixin):
                 session.merge(ti)
 
             session.commit()
-        session.close()
 
 
 @functools.total_ordering
@@ -2496,13 +2494,18 @@ class BaseOperator(LoggingMixin):
     def downstream_task_ids(self):
         return self._downstream_task_ids
 
-    def clear(self, start_date=None, end_date=None, upstream=False, downstream=False):
+    @provide_session
+    def clear(
+              self,
+              start_date=None,
+              end_date=None,
+              upstream=False,
+              downstream=False,
+              session=None):
         """
         Clears the state of task instances associated with the task, following
         the parameters specified.
         """
-        session = settings.Session()
-
         TI = TaskInstance
         qry = session.query(TI).filter(TI.dag_id == self.dag_id)
 
@@ -2528,7 +2531,7 @@ class BaseOperator(LoggingMixin):
         clear_task_instances(qry.all(), session, dag=self.dag)
 
         session.commit()
-        session.close()
+
         return count
 
     def get_task_instances(self, session, start_date=None, end_date=None):
@@ -2751,13 +2754,9 @@ class DagModel(Base):
         return "<DAG: {self.dag_id}>".format(self=self)
 
     @classmethod
-    def get_current(cls, dag_id):
-        session = settings.Session()
-        obj = session.query(cls).filter(cls.dag_id == dag_id).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
-        return obj
+    @provide_session
+    def get_current(cls, dag_id, session=None):
+        return session.query(cls).filter(cls.dag_id == dag_id).first()
 
 
 @functools.total_ordering
@@ -3208,16 +3207,14 @@ class DAG(BaseDag, LoggingMixin):
         return dagrun
 
     @property
-    def latest_execution_date(self):
+    @provide_session
+    def latest_execution_date(self, session=None):
         """
         Returns the latest date for which at least one dag run exists
         """
-        session = settings.Session()
         execution_date = session.query(func.max(DagRun.execution_date)).filter(
             DagRun.dag_id == self.dag_id
         ).scalar()
-        session.commit()
-        session.close()
         return execution_date
 
     @property
@@ -3352,6 +3349,7 @@ class DAG(BaseDag, LoggingMixin):
             dirty_ids.append(dr.dag_id)
         DagStat.update(dirty_ids, session=session)
 
+    @provide_session
     def clear(
             self, start_date=None, end_date=None,
             only_failed=False,
@@ -3359,12 +3357,12 @@ class DAG(BaseDag, LoggingMixin):
             confirm_prompt=False,
             include_subdags=True,
             reset_dag_runs=True,
-            dry_run=False):
+            dry_run=False,
+            session=None):
         """
         Clears a set of task instances associated with the current dag for
         a specified date range.
         """
-        session = settings.Session()
         TI = TaskInstance
         tis = session.query(TI)
         if include_subdags:
@@ -3415,7 +3413,6 @@ class DAG(BaseDag, LoggingMixin):
             print("Bail. Nothing was cleared.")
 
         session.commit()
-        session.close()
         return count
 
     @classmethod
@@ -3625,9 +3622,9 @@ class DAG(BaseDag, LoggingMixin):
         for task in tasks:
             self.add_task(task)
 
-    def db_merge(self):
+    @provide_session
+    def db_merge(self, session=None):
         BO = BaseOperator
-        session = settings.Session()
         tasks = session.query(BO).filter(BO.dag_id == self.dag_id).all()
         for t in tasks:
             session.delete(t)
@@ -4380,8 +4377,9 @@ class DagRun(Base, LoggingMixin):
         if self._state != state:
             self._state = state
             if self.dag_id is not None:
-                # something really weird goes on here: if you try to close the session
-                # dag runs will end up detached
+                # FIXME: Due to the scoped_session factor we we don't get a clean
+                # session here, so something really weird goes on:
+                # if you try to close the session dag runs will end up detached
                 session = settings.Session()
                 DagStat.set_dirty(self.dag_id, session=session)
 
