@@ -681,6 +681,7 @@ class BigQueryBaseCursor(LoggingMixin):
         Delete an existing table from the dataset;
         If the table does not exist, return an error unless ignore_if_missing
         is set to True.
+
         :param deletion_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that indicates which table
         will be deleted.
@@ -720,6 +721,7 @@ class BigQueryBaseCursor(LoggingMixin):
         If the table already exists, update the existing table.
         Since BigQuery does not natively allow table upserts, this is not an
         atomic operation.
+
         :param dataset_id: the dataset to upsert the table into.
         :type dataset_id: str
         :param table_resource: a table resource. see
@@ -774,6 +776,7 @@ class BigQueryBaseCursor(LoggingMixin):
         Grant authorized view access of a dataset to a view table.
         If this view has already been granted access to the dataset, do nothing.
         This method is not atomic.  Running it may clobber a simultaneous update.
+
         :param source_dataset: the source dataset
         :type source_dataset: str
         :param view_dataset: the dataset that the view is in
