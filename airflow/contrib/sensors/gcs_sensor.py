@@ -14,9 +14,6 @@
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.operators.sensors import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
-from croniter import croniter
-from datetime import datetime
-
 
 class GoogleCloudStorageObjectSensor(BaseSensorOperator):
     """
@@ -69,12 +66,7 @@ def ts_function(context):
     behaviour is check for the object being updated after execution_date +
     schedule_interval.
     """
-    schedule_interval = context['dag'].schedule_interval
-    if isinstance(schedule_interval, str):
-        iterator = croniter(schedule_interval, context['execution_date'])
-        return iterator.get_next(datetime)
-    return context['execution_date'] + context['dag'].schedule_interval
-
+    return context['dag'].following_schedule(context['execution_date'])
 
 class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
     """

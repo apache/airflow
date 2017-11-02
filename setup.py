@@ -133,7 +133,6 @@ gcp_api = [
     'oauth2client>=2.0.2, <2.1.0',
     'PyOpenSSL',
     'google-cloud-dataflow',
-    'croniter',
     'pandas-gbq'
 ]
 hdfs = ['snakebite>=2.7.8']
