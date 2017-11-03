@@ -1996,6 +1996,9 @@ class WebLdapAuthTest(unittest.TestCase):
         response = self.login('dataprofiler', 'dataprofiler')
         self.assertIn('Data Profiling', response.data.decode('utf-8'))
 
+        self.logout()
+        self.assertIn('form-signin', response.data.decode('utf-8'))
+
         response = self.login('superuser', 'superuser')
         self.assertIn('Connections', response.data.decode('utf-8'))
 
