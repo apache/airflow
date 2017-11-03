@@ -39,6 +39,7 @@ class FileTaskHandler(logging.Handler):
         super(FileTaskHandler, self).__init__()
         self.handler = None
         self.local_base = base_log_folder
+        self.log_relative_path = ''
         self.filename_template = filename_template
         self.filename_jinja_template = None
 
@@ -50,7 +51,9 @@ class FileTaskHandler(logging.Handler):
         Provide task_instance context to airflow task handler.
         :param ti: task instance object
         """
-        local_loc = self._init_file(ti)
+        self.log_relative_path = self._render_filename(ti, ti.try_number)
+
+        local_loc = self._init_file()
         self.handler = logging.FileHandler(local_loc)
         self.handler.setFormatter(self.formatter)
         self.handler.setLevel(self.level)
@@ -159,12 +162,15 @@ class FileTaskHandler(logging.Handler):
 
         return logs
 
-    def _init_file(self, ti):
+    def _init_file(self):
         """
         Create log directory and give it correct permissions.
-        :param ti: task instance object
-        :return relative log path of the given task instance
+        :return absolute log path of the given task instance
         """
+        return self._init_file_path(os.path.join(self.local_base,
+                                                 self.log_relative_path))
+
+    def _init_file_path(self, full_path):
         # To handle log writing when tasks are impersonated, the log files need to
         # be writable by the user that runs the Airflow command and the user
         # that is impersonated. This is mainly to handle corner cases with the
@@ -178,8 +184,7 @@ class FileTaskHandler(logging.Handler):
         # writable by both users, then it's possible that re-running a task
         # via the UI (or vice versa) results in a permission error as the task
         # tries to write to a log file created by the other user.
-        relative_path = self._render_filename(ti, ti.try_number)
-        full_path = os.path.join(self.local_base, relative_path)
+
         directory = os.path.dirname(full_path)
         # Create the log file and give it group writable permissions
         # TODO(aoen): Make log dirs and logs globally readable for now since the SubDag

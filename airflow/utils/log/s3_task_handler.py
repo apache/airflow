@@ -54,7 +54,6 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         super(S3TaskHandler, self).set_context(ti)
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.is_raw
 
     def close(self):

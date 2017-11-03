@@ -29,7 +29,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
     def __init__(self, base_log_folder, gcs_log_folder, filename_template):
         super(GCSTaskHandler, self).__init__(base_log_folder, filename_template)
         self.remote_base = gcs_log_folder
-        self.log_relative_path = ''
         self._hook = None
         self.closed = False
         self.upload_on_close = True
@@ -59,7 +58,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Log relative path is used to construct local and remote
         # log path to upload log files into GCS and read from the
         # remote location.
-        self.log_relative_path = self._render_filename(ti, ti.try_number)
         self.upload_on_close = not ti.is_raw
 
     def close(self):
