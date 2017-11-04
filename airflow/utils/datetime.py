@@ -17,12 +17,13 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from croniter import croniter
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 import pytz
 import six
 
-from croniter import croniter
+from airflow.settings import TIMEZONE
 
 
 cron_presets = {
@@ -234,3 +235,52 @@ def utcnow():
     :return:
     """
     return datetime.now(tz=pytz.utc)
+
+
+def localize(dt):
+    """
+    Returns the datetime with the default timezone added if timezone
+    information was not associated
+
+    :param dt: datetime
+    :return: datetime with tzinfo
+    """
+    dt = TIMEZONE.localize(dt)
+
+    return dt
+
+
+def islocalized(dt):
+    """
+    Check if a datetime object has timezone information
+    :param dt: datetime
+    :return: True if it has timezone information, False if not
+    """
+    if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+        return False
+
+    return True
+
+
+def localized_datetime(year, month, day,
+                       hour=0, minute=0, second=0,
+                       microsecond=0):
+    """
+    Creates a localized datetime object
+    :param year:
+    :param month:
+    :param day:
+    :param hour:
+    :param minute:
+    :param second:
+    :param microsecond:
+    :param tzinfo:
+    :return:
+    """
+    dt = datetime(
+        year=year, month=month, day=day,
+        hour=hour, minute=minute, second=second,
+        microsecond=microsecond
+    )
+
+    return TIMEZONE.localize(dt)

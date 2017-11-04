@@ -33,6 +33,7 @@ from sqlalchemy import (
     Column, Integer, String, DateTime, func, Index, or_, and_, not_)
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import make_transient
+from sqlalchemy_utc import UtcDateTime
 from tabulate import tabulate
 from time import sleep
 
@@ -74,9 +75,9 @@ class BaseJob(Base, LoggingMixin):
     dag_id = Column(String(ID_LEN),)
     state = Column(String(20))
     job_type = Column(String(30))
-    start_date = Column(DateTime())
-    end_date = Column(DateTime())
-    latest_heartbeat = Column(DateTime())
+    start_date = Column(UtcDateTime())
+    end_date = Column(UtcDateTime())
+    latest_heartbeat = Column(UtcDateTime())
     executor_class = Column(String(500))
     hostname = Column(String(500))
     unixname = Column(String(1000))
@@ -1614,7 +1615,7 @@ class SchedulerJob(BaseJob):
         execute_start_time = datetime.utcnow()
 
         # Last time stats were printed
-        last_stat_print_time = datetime(2000, 1, 1)
+        last_stat_print_time = datetime.localized_datetime(2000, 1, 1)
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = datetime.utcnow()
         # Last time that the DAG dir was traversed to look for files

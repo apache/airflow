@@ -19,9 +19,12 @@ from __future__ import unicode_literals
 
 import logging
 import os
+import pytz
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
+from tzlocal import get_localzone
 
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
@@ -83,6 +86,17 @@ DAGS_FOLDER = None
 
 engine = None
 Session = None
+
+TIMEZONE=pytz.utc
+try:
+    tz = conf.get("core", "default_timezone")
+    if tz == "system":
+        TIMEZONE = get_localzone()
+    else:
+        TIMEZONE = pytz.timezone(tz)
+except:
+    pass
+log.info("Configured default timezone %s" % TIMEZONE)
 
 
 def policy(task_instance):
