@@ -174,11 +174,11 @@ def list_py_file_paths(directory, safe_mode=True):
     elif os.path.isdir(directory):
         patterns = []
         for root, dirs, files in os.walk(directory, followlinks=True):
-            ignore_file = [f for f in files if f == '.airflowignore']
-            if ignore_file:
-                f = open(os.path.join(root, ignore_file[0]), 'r')
-                patterns += [p for p in f.read().split('\n') if p]
-                f.close()
+            if '.airflowignore' in files:
+                with open(os.path.join(root, '.airflowignore'), 'r') as f:
+                    patterns += [p for p in f if p]
+            dirs[:] = [d for d in dirs if not any(
+                [re.findall(p, os.path.join(root, d)) for p in patterns])]
             for f in files:
                 try:
                     file_path = os.path.join(root, f)
