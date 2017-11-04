@@ -183,7 +183,14 @@ class HiveCliHook(BaseHook):
                     hive_conf_params.extend(
                         ['-hiveconf',
                          'mapreduce.job.queuename={}'
-                         .format(self.mapred_queue)])
+                         .format(self.mapred_queue),
+                         '-hiveconf',
+                         'mapred.job.queue.name={}'
+                         .format(self.mapred_queue),
+                         '-hiveconf',
+                         'tez.job.queue.name={}'
+                         .format(self.mapred_queue)
+                         ])
 
                 if self.mapred_queue_priority:
                     hive_conf_params.extend(
