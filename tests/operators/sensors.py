@@ -200,8 +200,6 @@ class HttpSensorTests(unittest.TestCase):
 class HdfsSensorTests(unittest.TestCase):
 
     def setUp(self):
-        if sys.version_info[0] == 3:
-            raise unittest.SkipTest('HdfsSensor won\'t work with python3. No need to test anything here')
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
 
