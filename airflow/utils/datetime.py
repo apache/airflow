@@ -237,7 +237,7 @@ def utcnow():
     return datetime.now(tz=pytz.utc)
 
 
-def localize(dt):
+def convert_to_utc(dt):
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
@@ -245,9 +245,13 @@ def localize(dt):
     :param dt: datetime
     :return: datetime with tzinfo
     """
-    dt = TIMEZONE.localize(dt)
+    if not dt:
+        return dt
 
-    return dt
+    if not islocalized(dt):
+        dt = TIMEZONE.localize(dt)
+
+    return dt.astimezone(pytz.utc)
 
 
 def islocalized(dt):

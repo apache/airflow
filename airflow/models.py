@@ -69,7 +69,7 @@ from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
 
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
-from airflow.utils.datetime import (localize, islocalized, utcnow,
+from airflow.utils.datetime import (convert_to_utc, islocalized, utcnow,
                                     cron_presets, date_range as utils_date_range)
 from airflow.utils.db import provide_session
 from airflow.utils.decorators import apply_defaults
@@ -2139,18 +2139,8 @@ class BaseOperator(LoggingMixin):
         self.email_on_failure = email_on_failure
 
         # verify timezone/naive settings
-        self.start_date = start_date
-        if start_date:
-            if not isinstance(start_date, datetime):
-                self.log.warning("start_date for %s isn't datetime.datetime", self)
-            if not islocalized(start_date):
-                self.log.debug("start_date for %s isn't localized. Setting default", self)
-                self.start_date = localize(start_date)
-
-        self.end_date = end_date
-        if end_date and not islocalized(end_date):
-            self.log.debug("end_date for %s isn't localized. Setting default", self)
-            self.end_date = localize(start_date)
+        self.start_date = convert_to_utc(start_date)
+        self.end_date = convert_to_utc(end_date)
 
         if not TriggerRule.is_valid(trigger_rule):
             raise AirflowException(
@@ -2892,16 +2882,8 @@ class DAG(BaseDag, LoggingMixin):
         self.fileloc = sys._getframe().f_back.f_code.co_filename
         self.task_dict = dict()
 
-        self.start_date = start_date
-
-        if start_date and not islocalized(start_date):
-            self.log.info("Dag %s start_date has no timezone information")
-            self.start_date = localize(start_date)
-
-        self.end_date = end_date
-        if end_date and not islocalized(end_date):
-            self.log.info("Dag %s end_date has no timezone information")
-            self.end_date = localize(end_date)
+        self.start_date = convert_to_utc(start_date)
+        self.end_date = convert_to_utc(end_date)
 
         self.schedule_interval = schedule_interval
         if schedule_interval in cron_presets:
