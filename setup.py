@@ -215,7 +215,7 @@ def do_setup():
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
             'flask>=0.11, <0.12',
-            'flask-admin==1.4.1',
+            'flask-admin==1.5.0',
             'flask-cache>=0.13.1, <0.14',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
@@ -224,6 +224,7 @@ def do_setup():
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
             'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
+            'iso8601>=0.1.12',
             'jinja2>=2.7.3, <2.9.0',
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',

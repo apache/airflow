@@ -21,7 +21,7 @@ from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
-import dateutil.parser as dateparser
+import iso8601
 import json
 import time
 
@@ -253,8 +253,8 @@ def action_logging(f):
             dag_id=request.args.get('dag_id'))
 
         if 'execution_date' in request.args:
-            log.execution_date = dateparser.parse(
-                request.args.get('execution_date'))
+            log.execution_date = iso8601.parse_date(
+                request.args.get('execution_date'), settings.TIMEZONE)
 
         session.add(log)
         session.commit()

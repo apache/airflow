@@ -41,9 +41,12 @@ from flask import (
     make_response)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
+from flask_admin.contrib.sqla.filters import FilterConverter
 from flask_admin.actions import action
 from flask_admin.babel import lazy_gettext
+from flask_admin.model import filters
 from flask_admin.tools import iterdecode
+
 from flask_login import flash
 from flask._compat import PY2
 
@@ -283,6 +286,12 @@ def get_chart_height(dag):
     charts, that is charts that take up space based on the size of the components within.
     """
     return 600 + len(dag.tasks) * 10
+
+
+class UtcFilterConverter(FilterConverter):
+    @filters.convert('utcdatetime')
+    def conv_utcdatetime(self, column, name, **kwargs):
+        return self.conv_datetime(column, name, **kwargs)
 
 
 class Airflow(BaseView):
@@ -2064,6 +2073,7 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
     column_searchable_list = ('dag_id', 'task_id',)
     column_filters = (
         'dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date')
+    filter_converter = UtcFilterConverter()
     form_widget_args = {
         'email_sent': {'disabled': True},
         'timestamp': {'disabled': True},
@@ -2354,6 +2364,7 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
 
     column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    filter_converter = UtcFilterConverter()
 
 
 class JobModelView(ModelViewOnly):
@@ -2370,6 +2381,7 @@ class JobModelView(ModelViewOnly):
         hostname=nobr_f,
         state=state_f,
         latest_heartbeat=datetime_f)
+    filter_converter = UtcFilterConverter()
 
 
 class DagRunModelView(ModelViewOnly):
@@ -2392,6 +2404,7 @@ class DagRunModelView(ModelViewOnly):
     column_list = (
         'state', 'dag_id', 'execution_date', 'run_id', 'external_trigger')
     column_filters = column_list
+    filter_converter = UtcFilterConverter()
     column_searchable_list = ('dag_id', 'state', 'run_id')
     column_formatters = dict(
         execution_date=datetime_f,
@@ -2457,6 +2470,7 @@ class LogModelView(ModelViewOnly):
     column_display_actions = False
     column_default_sort = ('dttm', True)
     column_filters = ('dag_id', 'task_id', 'execution_date')
+    filter_converter = UtcFilterConverter()
     column_formatters = dict(
         dttm=datetime_f, execution_date=datetime_f, dag_id=dag_link)
 
@@ -2467,6 +2481,7 @@ class TaskInstanceModelView(ModelViewOnly):
     column_filters = (
         'state', 'dag_id', 'task_id', 'execution_date', 'hostname',
         'queue', 'pool', 'operator', 'start_date', 'end_date')
+    filter_converter = UtcFilterConverter()
     named_filter_urls = True
     column_formatters = dict(
         log_url=log_url_formatter,
@@ -2744,6 +2759,7 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_filters = (
         'dag_id', 'owners', 'is_paused', 'is_active', 'is_subdag',
         'last_scheduler_run', 'last_expired')
+    filter_converter = UtcFilterConverter()
     form_widget_args = {
         'last_scheduler_run': {'disabled': True},
         'fileloc': {'disabled': True},
@@ -2786,3 +2802,4 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
                 .filter(models.DagModel.is_active)
                 .filter(~models.DagModel.is_subdag)
         )
+
