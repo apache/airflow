@@ -98,8 +98,8 @@ class AWSBatchOperator(BaseOperator):
 
             self.log.info('AWS Batch Job has been successfully executed: %s', response)
         except Exception as e:
-            self.log.info('AWS Batch Job has failed executed: %s', response)
-            raise AirflowException(response)
+            self.log.info('AWS Batch Job has failed executed')
+            raise AirflowException(e)
 
     def _wait_for_task_ended(self):
         """
