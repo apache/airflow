@@ -76,7 +76,7 @@ from airflow.utils.json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict
-from airflow.utils.dates import infer_time_unit, scale_time_units
+from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
@@ -2502,23 +2502,32 @@ class TaskInstanceModelView(ModelViewOnly):
         try:
             TI = models.TaskInstance
 
+            dag_to_task_details = {}
             dag_to_tis = {}
 
-            for id in ids:
-                task_id, dag_id, execution_date = id.split(',')
-
-                ti = session.query(TI).filter(TI.task_id == task_id,
-                                              TI.dag_id == dag_id,
-                                              TI.execution_date == execution_date).one()
-
+            # Collect dags upfront as dagbag.get_dag() will reset the session
+            for id_str in ids:
+                task_id, dag_id, execution_date = id_str.split(',')
                 dag = dagbag.get_dag(dag_id)
-                tis = dag_to_tis.setdefault(dag, [])
-                tis.append(ti)
+                task_details = dag_to_task_details.setdefault(dag, [])
+                task_details.append((task_id, execution_date))
+
+            for dag, task_details in dag_to_task_details.items():
+                for task_id, execution_date in task_details:
+                    execution_date = parse_execution_date(execution_date)
+
+                    ti = session.query(TI).filter(TI.task_id == task_id,
+                                                  TI.dag_id == dag.dag_id,
+                                                  TI.execution_date == execution_date).one()
+
+                    tis = dag_to_tis.setdefault(dag, [])
+                    tis.append(ti)
 
             for dag, tis in dag_to_tis.items():
                 models.clear_task_instances(tis, session, dag=dag)
 
             session.commit()
+
             flash("{0} task instances have been cleared".format(len(ids)))
 
         except Exception as ex:
@@ -2533,7 +2542,8 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
-                execution_date = datetime.strptime(execution_date, '%Y-%m-%d %H:%M:%S')
+                execution_date = parse_execution_date(execution_date)
+
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
                                               TI.execution_date == execution_date).one()

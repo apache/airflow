@@ -225,3 +225,17 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
         second=second,
         microsecond=microsecond)
     return today - timedelta(days=n)
+
+
+def parse_execution_date(execution_date_str):
+    """
+    Parse execution date string to datetime object.
+    """
+    try:
+        # Execution date follows execution date format of scheduled executions,
+        # e.g. '2017-11-02 00:00:00'
+        return datetime.strptime(execution_date_str, '%Y-%m-%d %H:%M:%S')
+    except ValueError:
+        # Execution date follows execution date format of manually triggered executions,
+        # e.g. '2017-11-05 16:18:30..989729'
+        return datetime.strptime(execution_date_str, '%Y-%m-%d %H:%M:%S..%f')
