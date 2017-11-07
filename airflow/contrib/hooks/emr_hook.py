@@ -56,7 +56,8 @@ class EmrHook(AwsHook):
             VisibleToAllUsers=config.get('VisibleToAllUsers'),
             JobFlowRole=config.get('JobFlowRole'),
             ServiceRole=config.get('ServiceRole'),
-            Tags=config.get('Tags')
+            Tags=config.get('Tags'),
+            SecurityConfiguration=config.get('SecurityConfiguration'),
         )
 
         return response

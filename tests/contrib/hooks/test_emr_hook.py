@@ -48,6 +48,19 @@ class TestEmrHook(unittest.TestCase):
         cluster = hook.create_job_flow({'Name': 'test_cluster'})
 
         self.assertEqual(client.list_clusters()['Clusters'][0]['Id'], cluster['JobFlowId'])
+        
+    @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
+    @mock_emr
+    def test_create_job_flow_passes_through_boto_kwargs(self):
+        client = boto3.client('emr', region_name='us-east-1')
+        if len(client.list_clusters()['Clusters']):
+            raise ValueError('AWS not properly mocked')
+
+        hook = EmrHook(aws_conn_id='aws_default', emr_conn_id='emr_default')
+        cluster = hook.create_job_flow({'Name': 'test_cluster',
+                                        'SecurityConfiguration': 'test_config'})
+
+        self.assertEqual(client.list_clusters()['Clusters'][0]['Id'], cluster['JobFlowId'])
 
 if __name__ == '__main__':
     unittest.main()
