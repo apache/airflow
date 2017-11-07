@@ -69,15 +69,21 @@ def run_migrations_online():
 
     """
     connectable = settings.engine
-
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            version_table_schema=target_metadata.schema,
+            include_schemas=True,
             compare_type=COMPARE_TYPE,
         )
 
         with context.begin_transaction():
+            if target_metadata.schema and 'postgres' in settings.SQL_ALCHEMY_CONN:
+                context.execute('CREATE SCHEMA IF NOT EXISTS {}'.format(
+                    target_metadata.schema))
+                context.execute('SET search_path TO {}'.format(
+                    target_metadata.schema))
             context.run_migrations()
 
 if context.is_offline_mode():

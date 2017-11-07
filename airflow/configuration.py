@@ -111,6 +111,7 @@ class AirflowConfigParser(ConfigParser):
     # is to not store password on boxes in text files.
     as_command_stdout = {
         ('core', 'sql_alchemy_conn'),
+        ('core', 'sql_alchemy_schema'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
         ('celery', 'celery_result_backend')

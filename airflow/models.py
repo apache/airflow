@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float, LargeBinary)
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, MetaData
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -81,7 +81,12 @@ from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-Base = declarative_base()
+SQL_ALCHEMY_SCHEMA = configuration.get('core', 'sql_alchemy_schema')
+if SQL_ALCHEMY_SCHEMA.strip():
+    Base = declarative_base(metadata=MetaData(schema=SQL_ALCHEMY_SCHEMA))
+else:
+    Base = declarative_base()
+
 ID_LEN = 250
 XCOM_RETURN_KEY = 'return_value'
 
