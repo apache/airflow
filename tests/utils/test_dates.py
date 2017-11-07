@@ -40,3 +40,12 @@ class Dates(unittest.TestCase):
         self.assertTrue(
             dates.days_ago(0, microsecond=3)
             == today_midnight + timedelta(microseconds=3))
+
+    def test_parse_execution_date(self):
+        execution_date_str_wo_ms = '2017-11-02 00:00:00'
+        execution_date_str_w_ms = '2017-11-05 16:18:30..989729'
+        bad_execution_date_str = '2017-11-06T00:00:00Z'
+
+        self.assertEqual(datetime(2017, 11, 2, 0, 0, 0), dates.parse_execution_date(execution_date_str_wo_ms))
+        self.assertEqual(datetime(2017, 11, 5, 16, 18, 30, 989729), dates.parse_execution_date(execution_date_str_w_ms))
+        self.assertRaises(ValueError, dates.parse_execution_date, bad_execution_date_str)
