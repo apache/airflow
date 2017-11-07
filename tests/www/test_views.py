@@ -27,6 +27,7 @@ from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.www import app as application
+from airflow.utils.state import State
 from airflow import configuration as conf
 
 
@@ -376,6 +377,118 @@ class TestLogView(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('<pre id="attempt-1">*** Reading local log.\nLog for testing.\n</pre>',
                       response.data.decode('utf-8'))
+
+
+class TestTaskInstanceStateView(unittest.TestCase):
+    """Tests if the state of a task instance can be successfully set."""
+    TI_ENDPOINT = '/admin/taskinstance/action/'
+    DAG_ID = 'dag_ti_without_frac_time'
+    TASK_ID = 'task_ti_without_frac_time'
+    DATE = datetime(2017, 10, 23)
+    DAG_ID_FRAC = 'dag_ti_frac_time'
+    TASK_ID_FRAC = 'task_ti_frac_time'
+    DATE_FRAC = datetime(2017, 10, 23, 12, 34, 22, 100)
+
+    @staticmethod
+    def findTaskInstances(session, dagId, taskId, dtime):
+        return session.query(TaskInstance).filter(
+            TaskInstance.dag_id == dagId and
+            TaskInstance.task_id == taskId and
+            TaskInstance.execution_date == dtime)
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestTaskInstanceStateView, cls).setUpClass()
+        session = Session()
+        cls.findTaskInstances(session,
+                              cls.DAG_ID, cls.TASK_ID, cls.DATE).delete()
+        cls.findTaskInstances(session,
+                              cls.DAG_ID_FRAC,
+                              cls.TASK_ID_FRAC,
+                              cls.DATE_FRAC).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestTaskInstanceStateView, self).setUp()
+        ## Setting up a test app, Session, DAGs and task instances.
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+        self.session = Session()
+        ## Creating DAGs and task instances.
+        ## DAG and TI without fractional time.
+        from airflow.www.views import dagbag
+        dag = DAG(self.DAG_ID, start_date=self.DATE)
+        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        ti = TaskInstance(task=task, execution_date=self.DATE)
+        self.session.merge(ti)
+        ## DAG and TI with fractional time.
+        dag_frac = DAG(self.DAG_ID_FRAC, start_date=self.DATE_FRAC)
+        task_frac = DummyOperator(task_id=self.TASK_ID_FRAC, dag=dag_frac)
+        dagbag.bag_dag(dag_frac, parent_dag=dag_frac, root_dag=dag_frac)
+        ti_frac = TaskInstance(task=task_frac,
+                               execution_date=self.DATE_FRAC)
+        self.session.merge(ti_frac)
+        self.session.commit()
+
+    def tearDown(self):
+        self.findTaskInstances(self.session,
+                               self.DAG_ID, self.TASK_ID, self.DATE).delete()
+        self.findTaskInstances(self.session,
+                               self.DAG_ID_FRAC,
+                               self.TASK_ID_FRAC,
+                               self.DATE_FRAC).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestTaskInstanceStateView, self).tearDown()
+
+    def test_set_tasks_states(self):
+        ## By inspecting the requests using a browser, we know the view's
+        ## expected data format. We try to set a different state to the task
+        ## instances.
+        post_data = {
+            'action': 'set_success',
+            'rowid': [','.join([self.TASK_ID, self.DAG_ID, str(self.DATE)]),
+                      ','.join([self.TASK_ID_FRAC, self.DAG_ID_FRAC,
+                                str(self.DATE_FRAC)])]
+        }
+        response = self.app.post(
+            self.TI_ENDPOINT,
+            data=post_data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        ## Checking if the task instances were updated.
+        ti = self.findTaskInstances(
+            self.session, self.DAG_ID, self.TASK_ID, self.DATE).one().state
+        ti_frac = self.findTaskInstances(
+            self.session, self.DAG_ID_FRAC, self.TASK_ID_FRAC, self.DATE_FRAC
+        ).one().state
+        self.assertEqual(ti, State.SUCCESS)
+        self.assertEqual(ti_frac, State.SUCCESS)
+
+    def test_action_clear(self):
+        post_data = {
+            'action': 'clear',
+            'rowid': [','.join([self.TASK_ID, self.DAG_ID, str(self.DATE)]),
+                      ','.join([self.TASK_ID_FRAC, self.DAG_ID_FRAC,
+                                str(self.DATE_FRAC)])]
+        }
+        response = self.app.post(
+            self.TI_ENDPOINT,
+            data=post_data,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        ti = self.findTaskInstances(
+            self.session, self.DAG_ID, self.TASK_ID, self.DATE).one().state
+        ti_frac = self.findTaskInstances(
+            self.session, self.DAG_ID_FRAC, self.TASK_ID_FRAC, self.DATE_FRAC
+        ).one().state
+        self.assertEqual(ti, None)
+        self.assertEqual(ti_frac, None)
 
 
 if __name__ == '__main__':
