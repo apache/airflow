@@ -34,10 +34,12 @@ class DruidOperator(BaseOperator):
             self,
             json_index_file,
             druid_ingest_conn_id='druid_ingest_default',
+            intervals=None,
             *args, **kwargs):
 
         super(DruidOperator, self).__init__(*args, **kwargs)
         self.conn_id = druid_ingest_conn_id
+        self.intervals=intervals
 
         with open(json_index_file) as data_file:
             self.index_spec = json.load(data_file)
