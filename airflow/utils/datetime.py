@@ -288,3 +288,6 @@ def localized_datetime(year, month, day,
     )
 
     return TIMEZONE.localize(dt)
+
+def localize(dt):
+    return dt.astimezone()
