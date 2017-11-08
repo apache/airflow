@@ -241,6 +241,9 @@ def do_setup():
             'thrift>=0.9.2',
             'zope.deprecation>=4.0, <5.0',
         ],
+        setup_requires=[
+            'docutils>=0.14, <1.0',
+        ],
         extras_require={
             'all': devel_all,
             'all_dbs': all_dbs,
