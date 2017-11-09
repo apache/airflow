@@ -15,7 +15,7 @@
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.aws_hook import AwsHook
 
-from six import StringIO
+from six import BytesIO
 from urllib.parse import urlparse
 import re
 import fnmatch
@@ -217,7 +217,8 @@ class S3Hook(AwsHook):
                     key, 
                     bucket_name=None,
                     replace=False,
-                    encrypt=False):
+                    encrypt=False,
+                    encoding='utf-8'):
         """
         Loads a string to S3
 
@@ -247,7 +248,7 @@ class S3Hook(AwsHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         
-        filelike_buffer = StringIO(string_data)
+        filelike_buffer = BytesIO(string_data.encode(encoding))
         
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
