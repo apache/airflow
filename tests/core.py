@@ -2386,26 +2386,6 @@ class HttpHookTest(unittest.TestCase):
         self.assertEqual(hook.base_url, 'https://localhost')
 
 
-try:
-    from airflow.hooks.S3_hook import S3Hook
-except ImportError:
-    S3Hook = None
-
-
-@unittest.skipIf(S3Hook is None,
-                 "Skipping test because S3Hook is not installed")
-class S3HookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
-
-    def test_parse_s3_url(self):
-        parsed = S3Hook.parse_s3_url(self.s3_test_url)
-        self.assertEqual(parsed,
-                         ("test", "this/is/not/a-real-key.txt"),
-                         "Incorrect parsing of the s3 url")
-
-
 send_email_test = mock.Mock()
 
 
