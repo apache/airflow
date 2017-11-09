@@ -37,11 +37,12 @@ DEFAULT_CELERY_CONFIG = {
     'worker_concurrency': configuration.getint('celery', 'WORKER_CONCURRENCY'),
 }
 
-celery_ssl_active = False
 try:
     celery_ssl_active = configuration.getboolean('celery', 'SSL_ACTIVE')
 except AirflowConfigException as e:
-    log.warning("Celery Executor will run without SSL")
+    celery_ssl_active = False
+    log.warning('CELERY_SSL_ACTIVE is not set, Celery Executor will run '
+                'without SSL by default')
 
 try:
     if celery_ssl_active:
