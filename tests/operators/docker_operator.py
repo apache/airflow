@@ -188,7 +188,8 @@ class DockerOperatorTestCase(unittest.TestCase):
         )
 
     @mock.patch('airflow.operators.docker_operator.Client')
-    def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock):
+    @mock.patch('airflow.operators.docker_operator.DockerHook')
+    def test_execute_with_docker_conn_id_use_hook(self, docker_hook_mock, operator_client_mock):
         # Mock out a Docker client, so operations don't raise errors
         client_mock = mock.Mock(name='DockerOperator.Client mock', spec=Client)
         client_mock.images.return_value = []
@@ -198,6 +199,9 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.wait.return_value = 0
         operator_client_mock.return_value = client_mock
 
+        # Mock out the DockerHook
+        docker_hook_mock.return_value.get_conn.return_value = client_mock
+
         # Create the DockerOperator
         operator = DockerOperator(
             image='publicregistry/someimage',
@@ -206,28 +210,20 @@ class DockerOperatorTestCase(unittest.TestCase):
             docker_conn_id='some_conn_id'
         )
 
-        # Mock out the DockerHook
-        hook_mock = mock.Mock(name='DockerHook mock', spec=DockerHook)
-        hook_mock.get_conn.return_value = client_mock
-        operator.get_hook = mock.Mock(
-            name='DockerOperator.get_hook mock',
-            spec=DockerOperator.get_hook,
-            return_value=hook_mock
-        )
-
         operator.execute(None)
         self.assertEqual(
             operator_client_mock.call_count, 0,
             'Client was called on the operator instead of the hook'
         )
         self.assertEqual(
-            operator.get_hook.call_count, 1,
+            docker_hook_mock.call_count, 1,
             'Hook was not called although docker_conn_id configured'
         )
         self.assertEqual(
             client_mock.pull.call_count, 1,
             'Image was not pulled using operator client'
         )
+
 
 if __name__ == "__main__":
     unittest.main()

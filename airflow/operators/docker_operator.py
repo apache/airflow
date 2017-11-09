@@ -147,7 +147,7 @@ class DockerOperator(BaseOperator):
     def get_hook(self):
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
-            base_url=self.base_url,
+            base_url=self.docker_url,
             version=self.api_version,
             tls=self.__get_tls_config()
         )
