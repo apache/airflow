@@ -127,14 +127,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         :type return_error: bool
         """
         try:
-            s3_key = self.hook.get_key(remote_log_location)
-            if s3_key:
-                return s3_key.get_contents_as_string().decode()
+            return self.hook.read_key(remote_log_location)
         except:
+            msg = 'Could not read logs from {}'.format(remote_log_location)
+            self.log.exception(msg)
             # return error if needed
             if return_error:
-                msg = 'Could not read logs from {}'.format(remote_log_location)
-                self.log.error(msg)
                 return msg
 
     def s3_write(self, log, remote_log_location, append=True):
@@ -149,7 +147,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             the new log is appended to any existing logs.
         :type append: bool
         """
-        if append:
+        if append and self.s3_log_exists(remote_log_location):
             old_log = self.s3_read(remote_log_location)
             log = '\n'.join([old_log, log]) if old_log else log
 
@@ -161,4 +159,4 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'),
             )
         except:
-            self.log.error('Could not write logs to %s', remote_log_location)
+            self.log.exception('Could not write logs to %s', remote_log_location)
