@@ -2159,7 +2159,7 @@ class BaseOperator(LoggingMixin):
 
         if schedule_interval:
             self.log.warning(
-                "schedule_interval is used for {}, though it has "
+                "schedule_interval is used for %s, though it has "
                 "been deprecated as a task parameter, you need to "
                 "specify it as a DAG parameter instead",
                 self
