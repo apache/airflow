@@ -138,6 +138,20 @@ def configure_orm(disable_connection_pool=False):
         sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 
+def configure_adapters():
+    from pendulum import Pendulum
+    try:
+        from sqlite3 import register_adapter
+        register_adapter(Pendulum, lambda val: val.isoformat(' '))
+    except ImportError:
+        pass
+    try:
+        import MySQLdb.converters
+        MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
+    except ImportError:
+        pass
+
+
 try:
     from airflow_local_settings import *
 
@@ -147,6 +161,7 @@ except:
 
 configure_logging()
 configure_vars()
+configure_adapters()
 configure_orm()
 
 # Const stuff
