@@ -726,7 +726,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'airflow.www.gunicorn_config'
+            '-c', 'python:airflow.www.gunicorn_config'
         ]
 
         if args.access_logfile:
