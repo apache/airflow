@@ -822,7 +822,6 @@ class SchedulerJob(BaseJob):
                 # The logic is that we move start_date up until
                 # one period before, so that datetime.utcnow() is AFTER
                 # the period end, and the job can be created...
-                # todo: localize this to the timezone and add from there
                 now = datetime.utcnow()
                 next_start = dag.following_schedule(now)
                 last_start = dag.previous_schedule(now)

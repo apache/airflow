@@ -2882,6 +2882,14 @@ class DAG(BaseDag, LoggingMixin):
         self.fileloc = sys._getframe().f_back.f_code.co_filename
         self.task_dict = dict()
 
+        # set timezone
+        if start_date and start_date.tzinfo:
+            self.timezone = start_date.tzinfo
+        elif 'start_date' in self.default_args and self.default_args['start_date'].tzinfo:
+            self.timezone = self.default_args['start_date'].tzinfo
+        else:
+            self.timezone = settings.TIMEZONE
+
         self.start_date = convert_to_utc(start_date)
         self.end_date = convert_to_utc(end_date)
 
@@ -2973,18 +2981,29 @@ class DAG(BaseDag, LoggingMixin):
             num=num, delta=self._schedule_interval)
 
     def following_schedule(self, dttm):
+        """
+        Calculates the following schedule for this dag in local time
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
+        dttm = dttm.astimezone(self.timezone)
         if isinstance(self._schedule_interval, six.string_types):
             cron = croniter(self._schedule_interval, dttm)
-            return cron.get_next(datetime)
+            return convert_to_utc(cron.get_next(datetime))
         elif isinstance(self._schedule_interval, timedelta):
-            return dttm + self._schedule_interval
+            return convert_to_utc(dttm + self._schedule_interval)
 
     def previous_schedule(self, dttm):
+        """
+        Calculates the previous schedule for this dag in local time
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
         if isinstance(self._schedule_interval, six.string_types):
             cron = croniter(self._schedule_interval, dttm)
-            return cron.get_prev(datetime)
+            return convert_to_utc(cron.get_prev(datetime))
         elif isinstance(self._schedule_interval, timedelta):
-            return dttm - self._schedule_interval
+            return convert_to_utc(dttm - self._schedule_interval)
 
     def get_run_dates(self, start_date, end_date=None):
         """
