@@ -100,19 +100,23 @@ class FileProcessorHandler(logging.Handler):
         log_directory = self._get_log_directory()
         latest_log_directory_path = os.path.join(self.base_log_folder, "latest")
         if os.path.isdir(log_directory):
-            # if symlink exists but is stale, update it
-            if os.path.islink(latest_log_directory_path):
-                if os.readlink(latest_log_directory_path) != log_directory:
-                    os.unlink(latest_log_directory_path)
+            try:
+                # if symlink exists but is stale, update it
+                if os.path.islink(latest_log_directory_path):
+                    if os.readlink(latest_log_directory_path) != log_directory:
+                        os.unlink(latest_log_directory_path)
+                        os.symlink(log_directory, latest_log_directory_path)
+                elif (os.path.isdir(latest_log_directory_path) or
+                          os.path.isfile(latest_log_directory_path)):
+                    self.log.warning(
+                        "%s already exists as a dir/file. Skip creating symlink.",
+                        latest_log_directory_path
+                    )
+                else:
                     os.symlink(log_directory, latest_log_directory_path)
-            elif (os.path.isdir(latest_log_directory_path) or
-                      os.path.isfile(latest_log_directory_path)):
-                self.log.warning(
-                    "%s already exists as a dir/file. Skip creating symlink.",
-                    latest_log_directory_path
-                )
-            else:
-                os.symlink(log_directory, latest_log_directory_path)
+            except OSError:
+                self.logger.warning("OSError while attempting to symlink "
+                                    "the latest log directory")
 
     def _init_file(self, filename):
         """
