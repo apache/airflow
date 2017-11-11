@@ -46,6 +46,8 @@ import textwrap
 import traceback
 import warnings
 import hashlib
+
+from datetime import datetime
 from urllib.parse import urlparse
 
 from sqlalchemy import (
@@ -2996,16 +2998,30 @@ class DAG(BaseDag, LoggingMixin):
             num=num, delta=self._schedule_interval)
 
     def following_schedule(self, dttm):
+        """
+        Calculates the following schedule for this dag in local time
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
         if isinstance(self._schedule_interval, six.string_types):
+            dttm = timezone.make_naive(dttm, self.timezone)
             cron = croniter(self._schedule_interval, dttm)
-            return cron.get_next(datetime)
+            following = timezone.make_aware(cron.get_next(datetime), self.timezone)
+            return timezone.convert_to_utc(following)
         elif isinstance(self._schedule_interval, timedelta):
             return dttm + self._schedule_interval
 
     def previous_schedule(self, dttm):
+        """
+        Calculates the previous schedule for this dag in local time
+        :param dttm: utc datetime
+        :return: utc datetime
+        """
         if isinstance(self._schedule_interval, six.string_types):
+            dttm = timezone.make_naive(dttm, self.timezone)
             cron = croniter(self._schedule_interval, dttm)
-            return cron.get_prev(datetime)
+            prev = timezone.make_aware(cron.get_prev(datetime), self.timezone)
+            return timezone.convert_to_utc(prev)
         elif isinstance(self._schedule_interval, timedelta):
             return dttm - self._schedule_interval
 

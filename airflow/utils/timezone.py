@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime as dt
 import pendulum
 
 from airflow.settings import TIMEZONE
@@ -66,3 +67,72 @@ def convert_to_utc(value):
         value = pendulum.instance(value, TIMEZONE)
 
     return value.astimezone(utc)
+
+
+def make_aware(value, timezone=None):
+    """
+    Make a naive datetime.datetime in a given time zone aware.
+
+    :param value: datetime
+    :param timezone: timezone
+    :return: localized datetime in settings.TIMEZONE or timezone
+
+    """
+    if timezone is None:
+        timezone = TIMEZONE
+
+    # Check that we won't overwrite the timezone of an aware datetime.
+    if is_localized(value):
+        raise ValueError(
+            "make_aware expects a naive datetime, got %s" % value)
+
+    if hasattr(timezone, 'localize'):
+        # This method is available for pytz time zones.
+        return timezone.localize(value)
+    elif hasattr(timezone, 'convert'):
+        # For pendulum
+        return timezone.convert(value)
+    else:
+        # This may be wrong around DST changes!
+        return value.replace(tzinfo=timezone)
+
+
+def make_naive(value, timezone=None):
+    """
+    Make an aware datetime.datetime naive in a given time zone.
+
+    :param value: datetime
+    :param timezone: timezone
+    :return: naive datetime
+    """
+    if timezone is None:
+        timezone = TIMEZONE
+
+    # Emulate the behavior of astimezone() on Python < 3.6.
+    if is_naive(value):
+        raise ValueError("make_naive() cannot be applied to a naive datetime")
+
+    o = value.astimezone(timezone)
+
+    # cross library compatibility
+    naive = dt.datetime(o.year,
+                        o.month,
+                        o.day,
+                        o.hour,
+                        o.minute,
+                        o.second,
+                        o.microsecond)
+
+    return naive
+
+
+def datetime(*args, **kwargs):
+    """
+    Wrapper around datetime.datetime that adds settings.TIMEZONE if tzinfo not specified
+
+    :return: datetime.datetime
+    """
+    if 'tzinfo' not in kwargs:
+        kwargs['tzinfo'] = TIMEZONE
+
+    return dt.datetime(*args, **kwargs)
