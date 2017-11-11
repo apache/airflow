@@ -226,6 +226,7 @@ def do_setup():
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
+            'pendulum==1.3.1',
             'psutil>=4.2.0, <5.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
@@ -236,6 +237,7 @@ def do_setup():
             'sqlalchemy>=0.9.8',
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2',
+            'tzlocal>=1.4',
             'zope.deprecation>=4.0, <5.0',
         ],
         setup_requires=[
