@@ -2055,6 +2055,7 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
     column_searchable_list = ('dag_id', 'task_id',)
     column_filters = (
         'dag_id', 'task_id', 'email_sent', 'timestamp', 'execution_date')
+    filter_converter = wwwutils.UtcFilterConverter()
     form_widget_args = {
         'email_sent': {'disabled': True},
         'timestamp': {'disabled': True},
@@ -2349,6 +2350,7 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
 
     column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
+    filter_converter = wwwutils.UtcFilterConverter()
 
 
 class JobModelView(ModelViewOnly):
@@ -2365,6 +2367,7 @@ class JobModelView(ModelViewOnly):
         hostname=nobr_f,
         state=state_f,
         latest_heartbeat=datetime_f)
+    filter_converter = wwwutils.UtcFilterConverter()
 
 
 class DagRunModelView(ModelViewOnly):
@@ -2387,6 +2390,7 @@ class DagRunModelView(ModelViewOnly):
     column_list = (
         'state', 'dag_id', 'execution_date', 'run_id', 'external_trigger')
     column_filters = column_list
+    filter_converter = wwwutils.UtcFilterConverter()
     column_searchable_list = ('dag_id', 'state', 'run_id')
     column_formatters = dict(
         execution_date=datetime_f,
@@ -2453,6 +2457,7 @@ class LogModelView(ModelViewOnly):
     column_display_actions = False
     column_default_sort = ('dttm', True)
     column_filters = ('dag_id', 'task_id', 'execution_date')
+    filter_converter = wwwutils.UtcFilterConverter()
     column_formatters = dict(
         dttm=datetime_f, execution_date=datetime_f, dag_id=dag_link)
 
@@ -2463,6 +2468,7 @@ class TaskInstanceModelView(ModelViewOnly):
     column_filters = (
         'state', 'dag_id', 'task_id', 'execution_date', 'hostname',
         'queue', 'pool', 'operator', 'start_date', 'end_date')
+    filter_converter = wwwutils.UtcFilterConverter()
     named_filter_urls = True
     column_formatters = dict(
         log_url=log_url_formatter,
@@ -2752,6 +2758,7 @@ class DagModelView(wwwutils.SuperUserMixin, ModelView):
     column_filters = (
         'dag_id', 'owners', 'is_paused', 'is_active', 'is_subdag',
         'last_scheduler_run', 'last_expired')
+    filter_converter = wwwutils.UtcFilterConverter()
     form_widget_args = {
         'last_scheduler_run': {'disabled': True},
         'fileloc': {'disabled': True},

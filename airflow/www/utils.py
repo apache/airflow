@@ -26,6 +26,8 @@ import json
 import time
 
 from flask import after_this_request, request, Response
+from flask_admin.contrib.sqla.filters import FilterConverter
+from flask_admin.model import filters
 from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
@@ -386,3 +388,9 @@ class AceEditorWidget(wtforms.widgets.TextArea):
             form_name=field.id,
         )
         return wtforms.widgets.core.HTMLString(html)
+
+
+class UtcFilterConverter(FilterConverter):
+    @filters.convert('utcdatetime')
+    def conv_utcdatetime(self, column, name, **kwargs):
+        return self.conv_datetime(column, name, **kwargs)
