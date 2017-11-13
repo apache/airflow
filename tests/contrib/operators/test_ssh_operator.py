@@ -107,5 +107,23 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertIsNotNone(ti.duration)
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
+    def test_no_output_command(self):
+        configuration.set("core", "enable_xcom_pickling", "True")
+        task = SSHOperator(
+            task_id="test",
+            ssh_hook=self.hook,
+            command="sleep 1",
+            do_xcom_push=True,
+            dag=self.dag,
+        )
+
+        self.assertIsNotNone(task)
+
+        ti = TaskInstance(
+            task=task, execution_date=datetime.now())
+        ti.run()
+        self.assertIsNotNone(ti.duration)
+        self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'')
+
 if __name__ == '__main__':
     unittest.main()
