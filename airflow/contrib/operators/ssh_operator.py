@@ -23,7 +23,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SSHOperator(BaseOperator):
-
     """
     SSHOperator to execute commands on given remote host using the ssh_hook.
 
@@ -94,10 +93,15 @@ class SSHOperator(BaseOperator):
             stdin.close()
             channel.shutdown_write()
 
-            agg_stdout=b''
-            agg_stderr=b''
+            agg_stdout = b''
+            agg_stderr = b''
 
-            agg_stdout+=stdout.channel.recv(len(stdout.channel.in_buffer))
+            # capture any initial output in case channel is closed already
+            stdout_buffer_length = len(stdout.channel.in_buffer)
+
+            if stdout_buffer_length > 0:
+                agg_stdout += stdout.channel.recv(stdout_buffer_length)
+
             # read from both stdout and stderr
             while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
                 readq, _, _ = select([channel], [], [], self.timeout)
@@ -105,17 +109,16 @@ class SSHOperator(BaseOperator):
                     if c.recv_ready():
                         line = stdout.channel.recv(len(c.in_buffer))
                         line = line
-                        agg_stdout+=line
+                        agg_stdout += line
                         self.log.info(line.decode('utf-8').strip('\n'))
                     if c.recv_stderr_ready():
                         line = stderr.channel.recv_stderr(len(c.in_stderr_buffer))
                         line = line
-                        agg_stderr+=line
+                        agg_stderr += line
                         self.log.warning(line.decode('utf-8').strip('\n'))
-                if stdout.channel.exit_status_ready() \
-                    and not stderr.channel.recv_stderr_ready() \
-                    and not stdout.channel.recv_ready():
-
+                if stdout.channel.exit_status_ready()\
+                        and not stderr.channel.recv_stderr_ready()\
+                        and not stdout.channel.recv_ready():
                     stdout.channel.shutdown_read()
                     stdout.channel.close()
                     break
@@ -137,7 +140,7 @@ class SSHOperator(BaseOperator):
             else:
                 error_msg = agg_stderr.decode('utf-8')
                 raise AirflowException("error running cmd: {0}, error: {1}"
-                                        .format(self.command, error_msg))
+                                       .format(self.command, error_msg))
 
         except Exception as e:
             raise AirflowException("SSH operator error: {0}".format(str(e)))
