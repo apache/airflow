@@ -27,7 +27,7 @@ class DruidOperator(BaseOperator):
     :param druid_ingest_conn_id: The connection id of the Druid overlord which accepts index jobs
     :type druid_ingest_conn_id: str
     """
-    template_fields = ('intervals',)
+    template_fields = ('intervals', 'index_spec',)
     template_ext = ('.json',)
 
     def __init__(
