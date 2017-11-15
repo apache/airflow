@@ -41,7 +41,7 @@ class SlackHook(BaseHook):
         elif slack_conn_id is not None:
             conn = self.get_connection(slack_conn_id)
 
-            if not hasattr(conn, 'password') or not getattr(conn, 'password'):
+            if not getattr(conn, 'password', None):
                 raise AirflowException('Missing token(password) in Slack connection')
             return conn.password
         else:
@@ -53,5 +53,4 @@ class SlackHook(BaseHook):
 
         if not rc['ok']:
             msg = "Slack API call failed (%s)".format(rc['error'])
-            self.log.error(msg)
             raise AirflowException(msg)

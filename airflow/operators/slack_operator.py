@@ -46,10 +46,8 @@ class SlackAPIOperator(BaseOperator):
         super(SlackAPIOperator, self).__init__(*args, **kwargs)
 
         if token is None and slack_conn_id is None:
-            self.log.error('No valid Slack token nor slack_conn_id supplied.')
             raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
         if token is not None and slack_conn_id is not None:
-            self.log.error('Cannot determine Slack credential when both token and slack_conn_id are supplied.')
             raise AirflowException('Cannot determine Slack credential when both token and slack_conn_id are supplied.')
 
         self.token = token
