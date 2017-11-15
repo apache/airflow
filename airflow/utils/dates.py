@@ -72,20 +72,28 @@ def date_range(
     delta_iscron = False
     if isinstance(delta, six.string_types):
         delta_iscron = True
+        tz = start_date.tzinfo
+        timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
     l = []
     if end_date:
         while start_date <= end_date:
+            if delta_iscron:
+                start_date = timezone.make_aware(start_date, tz)
             l.append(start_date)
+
             if delta_iscron:
                 start_date = cron.get_next(datetime)
             else:
                 start_date += delta
     else:
         for _ in range(abs(num)):
+            if delta_iscron:
+                start_date = timezone.make_aware(start_date, tz)
             l.append(start_date)
+
             if delta_iscron:
                 if num > 0:
                     start_date = cron.get_next(datetime)
@@ -122,12 +130,14 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
 
     if isinstance(delta, six.string_types):
         # It's cron based, so it's easy
+        tz = start_date.tzinfo
+        start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
         prev = cron.get_prev(datetime)
         if prev == start_date:
-            return start_date
+            return timezone.make_aware(start_date, tz)
         else:
-            return prev
+            return timezone.make_aware(prev, tz)
 
     # Ignore the microseconds of dt
     dt -= timedelta(microseconds=dt.microsecond)
