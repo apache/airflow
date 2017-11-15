@@ -152,10 +152,7 @@ oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2>=2.7.1']
 ssh = ['paramiko>=2.1.1']
 salesforce = ['simple-salesforce>=0.72']
-s3 = [
-    'boto>=2.36.0',
-    'filechunkio>=1.6',
-]
+s3 = ['boto3>=1.0.0']
 samba = ['pysmbclient>=0.1.3']
 slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
