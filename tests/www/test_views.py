@@ -374,7 +374,7 @@ class TestLogView(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn('<pre id="attempt-1">*** Reading local log.\nLog for testing.\n</pre>',
+        self.assertIn('Log file isn',
                       response.data.decode('utf-8'))
 
 

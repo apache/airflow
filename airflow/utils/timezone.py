@@ -100,7 +100,7 @@ def make_aware(value, timezone=None):
         return timezone.convert(value)
     else:
         # This may be wrong around DST changes!
-        return value.astimezone(tz=timezone)
+        return value.replace(tzinfo=timezone)
 
 
 def make_naive(value, timezone=None):

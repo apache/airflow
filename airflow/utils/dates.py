@@ -73,16 +73,17 @@ def date_range(
     if isinstance(delta, six.string_types):
         delta_iscron = True
         tz = start_date.tzinfo
-        timezone.make_naive(start_date, tz)
+        start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
     l = []
     if end_date:
         while start_date <= end_date:
-            if delta_iscron:
-                start_date = timezone.make_aware(start_date, tz)
-            l.append(start_date)
+            if timezone.is_naive(start_date):
+                l.append(timezone.make_aware(start_date, tz))
+            else:
+                l.append(start_date)
 
             if delta_iscron:
                 start_date = cron.get_next(datetime)
@@ -90,9 +91,10 @@ def date_range(
                 start_date += delta
     else:
         for _ in range(abs(num)):
-            if delta_iscron:
-                start_date = timezone.make_aware(start_date, tz)
-            l.append(start_date)
+            if timezone.is_naive(start_date):
+                l.append(timezone.make_aware(start_date, tz))
+            else:
+                l.append(start_date)
 
             if delta_iscron:
                 if num > 0:

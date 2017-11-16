@@ -16,6 +16,7 @@
 from past.builtins import basestring, unicode
 
 import ast
+import datetime as dt
 import logging
 import os
 import pkg_resources
@@ -54,7 +55,9 @@ import markdown
 import nvd3
 
 from wtforms import (
-    Form, SelectField, TextAreaField, PasswordField, StringField, validators)
+    Form, SelectField, TextAreaField, PasswordField,
+    StringField, validators)
+from flask_admin.form.fields import DateTimeField
 
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
@@ -158,6 +161,13 @@ def state_token(state):
     return Markup(
         '<span class="label" style="background-color:{color};">'
         '{state}</span>'.format(**locals()))
+
+
+def parse_datetime_f(value):
+    if not isinstance(value, dt.datetime):
+        return value
+
+    return timezone.make_aware(value)
 
 
 def state_f(v, c, m, p):
@@ -1161,7 +1171,7 @@ class Airflow(BaseView):
         num_runs = int(num_runs) if num_runs else 25
 
         if base_date:
-            base_date = pendulum.parse(base_date)
+            base_date = timezone.parse(base_date)
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
@@ -2217,12 +2227,18 @@ class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
             'validators': [
                 validators.DataRequired(),
             ],
+            'filters': [
+                parse_datetime_f,
+            ],
         },
         'end_date': {
             'validators': [
                 validators.DataRequired(),
                 GreaterEqualThan(fieldname='start_date'),
             ],
+            'filters': [
+                parse_datetime_f,
+            ]
         },
         'reported_by': {
             'validators': [
@@ -2240,11 +2256,14 @@ class KnownEventView(wwwutils.DataProfilingMixin, AirflowModelView):
     column_default_sort = ("start_date", True)
     column_sortable_list = (
         'label',
+        # todo: yes this has a spelling error
         ('event_type', 'event_type.know_event_type'),
         'start_date',
         'end_date',
         ('reported_by', 'reported_by.username'),
     )
+    filter_converter = wwwutils.UtcFilterConverter()
+    form_overrides = dict(start_date=DateTimeField, end_date=DateTimeField)
 
 
 class KnownEventTypeView(wwwutils.DataProfilingMixin, AirflowModelView):
@@ -2349,9 +2368,18 @@ class XComView(wwwutils.SuperUserMixin, AirflowModelView):
         'value': StringField('Value'),
     }
 
+    form_args = {
+        'execution_date': {
+            'filters': [
+                parse_datetime_f,
+            ]
+        }
+    }
+
     column_filters = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     column_searchable_list = ('key', 'timestamp', 'execution_date', 'task_id', 'dag_id')
     filter_converter = wwwutils.UtcFilterConverter()
+    form_overrides = dict(execution_date=DateTimeField)
 
 
 class JobModelView(ModelViewOnly):
