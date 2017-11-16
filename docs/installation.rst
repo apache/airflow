@@ -83,6 +83,8 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  slack        | ``pip install apache-airflow[slack]``        | ``SlackAPIPostOperator``                        |
 +---------------+----------------------------------------------+-------------------------------------------------+
+|  aiohttp      | ``pip install apache-airflow[aiohttp]``      | Gaiohttp worker class for gunicorn              |
++---------------+----------------------------------------------+-------------------------------------------------+
 |  vertica      | ``pip install apache-airflow[vertica]``      | Vertica hook                                    |
 |               |                                              | support as an Airflow backend                   |
 +---------------+----------------------------------------------+-------------------------------------------------+

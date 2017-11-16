@@ -99,6 +99,9 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
+aiohttp = [
+    'aiohttp>=0.21.5'
+]
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
@@ -244,6 +247,7 @@ def do_setup():
         extras_require={
             'all': devel_all,
             'all_dbs': all_dbs,
+            'aiohttp': aiohttp,
             'async': async,
             'azure': azure,
             'celery': celery,

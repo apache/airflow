@@ -728,7 +728,10 @@ def webserver(args):
             '-p', str(pid),
             '-c', 'python:airflow.www.gunicorn_config'
         ]
-
+        
+        if args.workerclass == 'gthread':
+            run_args += ['--threads', str(args.threads)]
+            
         if args.access_logfile:
             run_args += ['--access-logfile', str(args.access_logfile)]
 
@@ -1342,10 +1345,15 @@ class CLIFactory(object):
             default=conf.get('webserver', 'WORKERS'),
             type=int,
             help="Number of workers to run the webserver on"),
+        'threads': Arg(
+            ("--threads",),
+            default=conf.get('webserver', 'THREADS'),
+            type=int,
+            help="Number of workers threads for handling webserver requests"),
         'workerclass': Arg(
             ("-k", "--workerclass"),
             default=conf.get('webserver', 'WORKER_CLASS'),
-            choices=['sync', 'eventlet', 'gevent', 'tornado'],
+            choices=['sync', 'eventlet', 'gevent', 'tornado', 'gaiohttp', 'gthread'],
             help="The worker class to use for Gunicorn"),
         'worker_timeout': Arg(
             ("-t", "--worker_timeout"),
@@ -1571,7 +1579,7 @@ class CLIFactory(object):
         }, {
             'func': webserver,
             'help': "Start a Airflow webserver instance",
-            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'hostname',
+            'args': ('port', 'workers', 'workerclass', 'worker_timeout', 'threads','hostname',
                      'pid', 'daemon', 'stdout', 'stderr', 'access_logfile',
                      'error_logfile', 'log_file', 'ssl_cert', 'ssl_key', 'debug'),
         }, {
