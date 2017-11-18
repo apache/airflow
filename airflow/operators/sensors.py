@@ -501,8 +501,8 @@ class S3KeySensor(BaseSensorOperator):
     :param wildcard_match: whether the bucket_key should be interpreted as a
         Unix wildcard pattern
     :type wildcard_match: bool
-    :param s3_conn_id: a reference to the s3 connection
-    :type s3_conn_id: str
+    :param aws_conn_id: a reference to the s3 connection
+    :type aws_conn_id: str
     """
     template_fields = ('bucket_key', 'bucket_name')
 
@@ -511,7 +511,7 @@ class S3KeySensor(BaseSensorOperator):
             self, bucket_key,
             bucket_name=None,
             wildcard_match=False,
-            s3_conn_id='s3_default',
+            aws_conn_id='aws_default',
             *args, **kwargs):
         super(S3KeySensor, self).__init__(*args, **kwargs)
         # Parse
@@ -528,11 +528,11 @@ class S3KeySensor(BaseSensorOperator):
         self.bucket_name = bucket_name
         self.bucket_key = bucket_key
         self.wildcard_match = wildcard_match
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
         from airflow.hooks.S3_hook import S3Hook
-        hook = S3Hook(s3_conn_id=self.s3_conn_id)
+        hook = S3Hook(aws_conn_id=self.aws_conn_id)
         full_url = "s3://" + self.bucket_name + "/" + self.bucket_key
         self.log.info('Poking for key : {full_url}'.format(**locals()))
         if self.wildcard_match:
@@ -565,7 +565,7 @@ class S3PrefixSensor(BaseSensorOperator):
     def __init__(
             self, bucket_name,
             prefix, delimiter='/',
-            s3_conn_id='s3_default',
+            aws_conn_id='aws_default',
             *args, **kwargs):
         super(S3PrefixSensor, self).__init__(*args, **kwargs)
         # Parse
@@ -573,13 +573,13 @@ class S3PrefixSensor(BaseSensorOperator):
         self.prefix = prefix
         self.delimiter = delimiter
         self.full_url = "s3://" + bucket_name + '/' + prefix
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
 
     def poke(self, context):
         self.log.info('Poking for prefix : {self.prefix}\n'
-                     'in bucket s3://{self.bucket_name}'.format(**locals()))
+                      'in bucket s3://{self.bucket_name}'.format(**locals()))
         from airflow.hooks.S3_hook import S3Hook
-        hook = S3Hook(s3_conn_id=self.s3_conn_id)
+        hook = S3Hook(aws_conn_id=self.aws_conn_id)
         return hook.check_for_prefix(
             prefix=self.prefix,
             delimiter=self.delimiter,

@@ -6,11 +6,22 @@ assists people when migrating to a new version.
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
-  SSH Hook now uses Paramiko library to create ssh client connection, instead of sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
+
+SSH Hook now uses Paramiko library to create ssh client connection, instead of sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
   - update SSHHook constructor
   - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer test_ssh_operator.py for usage info.
   - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info.
   - No updates are required if you are using ftpHook, it will continue work as is.
+
+### S3Hook switched to use Boto3
+
+The airflow.hooks.S3_hook.S3Hook has been switched to use boto3 instead of the older boto (a.k.a. boto2). This result in a few backwards incompatible changes to the following classes: S3Hook:
+  - the constructors no longer accepts `s3_conn_id`. It is now called `aws_conn_id`.
+  - the default conneciton is now "aws_default" instead of "s3_default"
+  - the return type of objects returned by `get_bucket` is now boto3.s3.Bucket
+  - the return type of `get_key`, and `get_wildcard_key` is now an boto3.S3.Object.
+
+If you are using any of these in your DAGs and specify a connection ID you will need to update the parameter name for the connection to "aws_conn_id": S3ToHiveTransfer, S3PrefixSensor, S3KeySensor, RedshiftToS3Transfer.
 
 ### Logging update
 

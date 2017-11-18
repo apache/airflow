@@ -37,12 +37,12 @@ class S3FileTransformOperator(BaseOperator):
 
     :param source_s3_key: The key to be retrieved from S3
     :type source_s3_key: str
-    :param source_s3_conn_id: source s3 connection
-    :type source_s3_conn_id: str
+    :param source_aws_conn_id: source s3 connection
+    :type source_aws_conn_id: str
     :param dest_s3_key: The key to be written from S3
     :type dest_s3_key: str
-    :param dest_s3_conn_id: destination s3 connection
-    :type dest_s3_conn_id: str
+    :param dest_aws_conn_id: destination s3 connection
+    :type dest_aws_conn_id: str
     :param replace: Replace dest S3 key if it already exists
     :type replace: bool
     :param transform_script: location of the executable transformation script
@@ -59,21 +59,21 @@ class S3FileTransformOperator(BaseOperator):
             source_s3_key,
             dest_s3_key,
             transform_script,
-            source_s3_conn_id='s3_default',
-            dest_s3_conn_id='s3_default',
+            source_aws_conn_id='aws_default',
+            dest_aws_conn_id='aws_default',
             replace=False,
             *args, **kwargs):
         super(S3FileTransformOperator, self).__init__(*args, **kwargs)
         self.source_s3_key = source_s3_key
-        self.source_s3_conn_id = source_s3_conn_id
+        self.source_aws_conn_id = source_aws_conn_id
         self.dest_s3_key = dest_s3_key
-        self.dest_s3_conn_id = dest_s3_conn_id
+        self.dest_aws_conn_id = dest_aws_conn_id
         self.replace = replace
         self.transform_script = transform_script
 
     def execute(self, context):
-        source_s3 = S3Hook(s3_conn_id=self.source_s3_conn_id)
-        dest_s3 = S3Hook(s3_conn_id=self.dest_s3_conn_id)
+        source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id)
+        dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id)
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
             raise AirflowException("The source key {0} does not exist".format(self.source_s3_key))
