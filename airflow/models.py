@@ -1141,9 +1141,8 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
         if settings.RBAC:
-            return BASE_URL + (
+            return (
                 "/log?"
                 "execution_date={iso}"
                 "&task_id={self.task_id}"
@@ -1160,9 +1159,8 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
-        BASE_URL = configuration.conf.get('webserver', 'BASE_URL')
         if settings.RBAC:
-            return BASE_URL + (
+            return (
                 "/success"
                 "?task_id={self.task_id}"
                 "&dag_id={self.dag_id}"
