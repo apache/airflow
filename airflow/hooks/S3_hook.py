@@ -123,7 +123,7 @@ class S3Hook(AwsHook):
 
     def get_key(self, key, bucket_name=None):
         """
-        Returns a boto3.S3.Key object
+        Returns a boto3.s3.Object
 
         :param key: the path to the key
         :type key: str
@@ -132,8 +132,10 @@ class S3Hook(AwsHook):
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
-            
-        return self.get_conn().get_object(Bucket=bucket_name, Key=key)
+
+        obj = self.get_resource_type('s3').Object(bucket_name, key)
+        obj.load()
+        return obj
 
     def read_key(self, key, bucket_name=None):
         """
@@ -144,9 +146,9 @@ class S3Hook(AwsHook):
         :param bucket_name: Name of the bucket in which the file is stored
         :type bucket_name: str
         """
-        
+
         obj = self.get_key(key, bucket_name)
-        return obj['Body'].read().decode('utf-8')    
+        return obj.get()['Body'].read().decode('utf-8')
 
     def check_for_wildcard_key(self,
                                wildcard_key, bucket_name=None, delimiter=''):
@@ -159,7 +161,7 @@ class S3Hook(AwsHook):
 
     def get_wildcard_key(self, wildcard_key, bucket_name=None, delimiter=''):
         """
-        Returns a boto3.s3.Key object matching the regular expression
+        Returns a boto3.s3.Object object matching the regular expression
 
         :param regex_key: the path to the key
         :type regex_key: str

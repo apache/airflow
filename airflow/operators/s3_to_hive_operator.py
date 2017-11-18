@@ -71,8 +71,8 @@ class S3ToHiveTransfer(BaseOperator):
     :type wildcard_match: bool
     :param delimiter: field delimiter in the file
     :type delimiter: str
-    :param s3_conn_id: source s3 connection
-    :type s3_conn_id: str
+    :param aws_conn_id: source s3 connection
+    :type aws_conn_id: str
     :param hive_cli_conn_id: destination hive connection
     :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
@@ -99,7 +99,7 @@ class S3ToHiveTransfer(BaseOperator):
             headers=False,
             check_headers=False,
             wildcard_match=False,
-            s3_conn_id='s3_default',
+            aws_conn_id='aws_default',
             hive_cli_conn_id='hive_cli_default',
             input_compressed=False,
             tblproperties=None,
@@ -116,7 +116,7 @@ class S3ToHiveTransfer(BaseOperator):
         self.check_headers = check_headers
         self.wildcard_match = wildcard_match
         self.hive_cli_conn_id = hive_cli_conn_id
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
         self.input_compressed = input_compressed
         self.tblproperties = tblproperties
 
@@ -127,7 +127,7 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
+        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         self.log.info("Downloading S3 file")
 
@@ -143,14 +143,13 @@ class S3ToHiveTransfer(BaseOperator):
             s3_key_object = self.s3.get_key(self.s3_key)
         root, file_ext = os.path.splitext(s3_key_object.key)
         with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir,\
-                NamedTemporaryFile(mode="w",
+                NamedTemporaryFile(mode="wb",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
             self.log.info("Dumping S3 key {0} contents to local file {1}"
                           .format(s3_key_object.key, f.name))
-            s3_key_object.get_contents_to_file(f)
+            s3_key_object.download_fileobj(f)
             f.flush()
-            self.s3.connection.close()
             if not self.headers:
                 self.log.info("Loading file %s into Hive", f.name)
                 self.hive.load_file(
