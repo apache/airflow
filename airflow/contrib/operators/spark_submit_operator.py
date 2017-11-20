@@ -37,6 +37,8 @@ class SparkSubmitOperator(BaseOperator):
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
+    :param driver_classpath: Additional, driver-specific, classpath settings.
+    :type driver_classpath: str
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
@@ -77,6 +79,7 @@ class SparkSubmitOperator(BaseOperator):
                  conn_id='spark_default',
                  files=None,
                  py_files=None,
+                 driver_classpath=None,
                  jars=None,
                  java_class=None,
                  packages=None,
@@ -99,6 +102,7 @@ class SparkSubmitOperator(BaseOperator):
         self._conf = conf
         self._files = files
         self._py_files = py_files
+        self._driver_classpath = driver_classpath
         self._jars = jars
         self._java_class = java_class
         self._packages = packages
@@ -126,6 +130,7 @@ class SparkSubmitOperator(BaseOperator):
             conn_id=self._conn_id,
             files=self._files,
             py_files=self._py_files,
+            driver_classpath=self._driver_classpath,
             jars=self._jars,
             java_class=self._java_class,
             packages=self._packages,
