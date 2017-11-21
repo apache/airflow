@@ -14,8 +14,8 @@
 
 import ssl
 
-from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow import configuration
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
@@ -27,34 +27,33 @@ if broker_transport_options is None:
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json', 'pickle'],
     'event_serializer': 'json',
-    'result_serializer': 'pickle',
     'worker_prefetch_multiplier': 1,
     'task_acks_late': True,
     'task_default_queue': configuration.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': configuration.get('celery', 'DEFAULT_QUEUE'),
     'broker_url': configuration.get('celery', 'BROKER_URL'),
     'broker_transport_options': {'visibility_timeout': broker_transport_options},
-    'result_backend': configuration.get('celery', 'CELERY_RESULT_BACKEND'),
-    'worker_concurrency': configuration.getint('celery', 'CELERYD_CONCURRENCY'),
+    'result_backend': configuration.get('celery', 'RESULT_BACKEND'),
+    'worker_concurrency': configuration.getint('celery', 'WORKER_CONCURRENCY'),
 }
 
 celery_ssl_active = False
 try:
-    celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
+    celery_ssl_active = configuration.getboolean('celery', 'SSL_ACTIVE')
 except AirflowConfigException as e:
     log.warning("Celery Executor will run without SSL")
 
 try:
     if celery_ssl_active:
-        broker_use_ssl = {'keyfile': configuration.get('celery', 'CELERY_SSL_KEY'),
-                          'certfile': configuration.get('celery', 'CELERY_SSL_CERT'),
-                          'ca_certs': configuration.get('celery', 'CELERY_SSL_CACERT'),
+        broker_use_ssl = {'keyfile': configuration.get('celery', 'SSL_KEY'),
+                          'certfile': configuration.get('celery', 'SSL_CERT'),
+                          'ca_certs': configuration.get('celery', 'SSL_CACERT'),
                           'cert_reqs': ssl.CERT_REQUIRED}
         DEFAULT_CELERY_CONFIG['broker_use_ssl'] = broker_use_ssl
 except AirflowConfigException as e:
-    raise AirflowException('AirflowConfigException: CELERY_SSL_ACTIVE is True, '
-                           'please ensure CELERY_SSL_KEY, '
-                           'CELERY_SSL_CERT and CELERY_SSL_CACERT are set')
+    raise AirflowException('AirflowConfigException: SSL_ACTIVE is True, '
+                           'please ensure SSL_KEY, '
+                           'SSL_CERT and SSL_CACERT are set')
 except Exception as e:
     raise AirflowException('Exception: There was an unknown Celery SSL Error. '
                            'Please ensure you want to use '
