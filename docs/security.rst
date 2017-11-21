@@ -271,8 +271,8 @@ Google Authentication
 '''''''''''''''''''''
 
 The Google authentication backend can be used to authenticate users
-against Google using OAuth2. You must specify a domain to restrict login
-to only members of that domain.
+against Google using OAuth2. You must specify the domains to restrict
+login, separated with a comma, to only members of those domains.
 
 .. code-block:: bash
 
@@ -284,7 +284,7 @@ to only members of that domain.
     client_id = google_client_id
     client_secret = google_client_secret
     oauth_callback_route = /oauth2callback
-    domain = example.com
+    domain = "example1.com,example2.com"
 
 Setting up Google Authentication
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
