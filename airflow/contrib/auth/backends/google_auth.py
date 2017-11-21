@@ -124,7 +124,8 @@ class GoogleAuthBackend(object):
 
     def domain_check(self, email):
         domain = email.split('@')[1]
-        if domain == get_config_param('domain'):
+        domains = get_config_param('domain').split(',')
+        if domain in domains:	
             return True
         return False
 
