@@ -124,8 +124,6 @@ class GHEAuthBackend(object):
             next=request.args.get('next') or request.referrer or None))
 
     def get_ghe_user_profile_info(self, ghe_token):
-        #resp = self.ghe_oauth.get(self.ghe_api_route('/userinfo'),token=(ghe_token, ''))
-        #resp=self.ghe_oauth.get('http://10.110.13.147:9090/auth/realms/brent/protocol/openid-connect/userinfo',token=(ghe_token,''))
         userinfo_url=''.join(['http://', self.ghe_host,'/auth/realms/brent/protocol/openid-connect/userinfo'])
         resp=self.ghe_oauth.get(userinfo_url,token=(ghe_token,''))
 
@@ -163,7 +161,6 @@ class GHEAuthBackend(object):
 
             username, email = self.get_ghe_user_profile_info(ghe_token)
         except AuthenticationError:
-            _log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
         session = settings.Session()
