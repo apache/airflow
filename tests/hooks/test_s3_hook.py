@@ -35,6 +35,7 @@ except ImportError:
 @unittest.skipIf(mock_s3 is None,
                  "Skipping test because moto.mock_s3 is not available")
 class TestS3Hook(unittest.TestCase):
+
     def setUp(self):
         configuration.load_test_config()
         self.s3_test_url = "s3://test/this/is/not/a-real-key.txt"
@@ -44,6 +45,131 @@ class TestS3Hook(unittest.TestCase):
         self.assertEqual(parsed,
                          ("test", "this/is/not/a-real-key.txt"),
                          "Incorrect parsing of the s3 url")
+    @mock_s3
+    def test_check_for_bucket(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+
+        self.assertTrue(hook.check_for_bucket('bucket'))
+        self.assertFalse(hook.check_for_bucket('not-a-bucket'))
+
+    @mock_s3
+    def test_get_bucket(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        self.assertIsNotNone(b)
+
+    @mock_s3
+    def test_check_for_prefix(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='a', Body=b'a')
+        b.put_object(Key='dir/b', Body=b'b')
+
+        self.assertTrue(hook.check_for_prefix('bucket', prefix='dir/', delimiter='/'))
+        self.assertFalse(hook.check_for_prefix('bucket', prefix='a', delimiter='/'))
+
+    @mock_s3
+    def test_list_prefixes(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='a', Body=b'a')
+        b.put_object(Key='dir/b', Body=b'b')
+
+        self.assertIsNone(hook.list_prefixes('bucket', prefix='non-existent/'))
+        self.assertListEqual(['dir/'], hook.list_prefixes('bucket', delimiter='/'))
+        self.assertListEqual(['a'], hook.list_keys('bucket', delimiter='/'))
+        self.assertListEqual(['dir/b'], hook.list_keys('bucket', prefix='dir/'))
+
+    @mock_s3
+    def test_list_keys(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='a', Body=b'a')
+        b.put_object(Key='dir/b', Body=b'b')
+
+        self.assertIsNone(hook.list_keys('bucket', prefix='non-existent/'))
+        self.assertListEqual(['a', 'dir/b'], hook.list_keys('bucket'))
+        self.assertListEqual(['a'], hook.list_keys('bucket', delimiter='/'))
+        self.assertListEqual(['dir/b'], hook.list_keys('bucket', prefix='dir/'))
+
+    @mock_s3
+    def test_check_for_key(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='a', Body=b'a')
+
+        self.assertTrue(hook.check_for_key('a', 'bucket'))
+        self.assertTrue(hook.check_for_key('s3://bucket//a'))
+        self.assertFalse(hook.check_for_key('b', 'bucket'))
+        self.assertFalse(hook.check_for_key('s3://bucket//b'))
+
+    @mock_s3
+    def test_get_key(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='a', Body=b'a')
+
+        self.assertEqual(hook.get_key('a', 'bucket').key, 'a')
+        self.assertEqual(hook.get_key('s3://bucket/a').key, 'a')
+
+    @mock_s3
+    def test_read_key(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket='mybucket')
+        conn.put_object(Bucket='mybucket', Key='my_key', Body=b'Cont\xC3\xA9nt')
+
+        self.assertEqual(hook.read_key('my_key', 'mybucket'), u'Contént')
+
+
+    @mock_s3
+    def test_check_for_wildcard_key(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='abc', Body=b'a')
+        b.put_object(Key='a/b', Body=b'a')
+
+        self.assertTrue(hook.check_for_wildcard_key('a*', 'bucket'))
+        self.assertTrue(hook.check_for_wildcard_key('s3://bucket//a*'))
+        self.assertTrue(hook.check_for_wildcard_key('abc', 'bucket'))
+        self.assertTrue(hook.check_for_wildcard_key('s3://bucket//abc'))
+        self.assertFalse(hook.check_for_wildcard_key('a', 'bucket'))
+        self.assertFalse(hook.check_for_wildcard_key('s3://bucket//a'))
+        self.assertFalse(hook.check_for_wildcard_key('b', 'bucket'))
+        self.assertFalse(hook.check_for_wildcard_key('s3://bucket//b'))
+
+    @mock_s3
+    def test_get_wildcard_key(self):
+        hook = S3Hook(aws_conn_id=None)
+        b = hook.get_bucket('bucket')
+        b.create()
+        b.put_object(Key='abc', Body=b'a')
+        b.put_object(Key='a/b', Body=b'a')
+
+        # The boto3 Class API is _odd_, and we can't do an isinstance check as
+        # each instance is a different class, so lets just check one property
+        # on S3.Object. Not great but...
+        self.assertEqual(hook.get_wildcard_key('a*', 'bucket').key, 'a/b')
+        self.assertEqual(hook.get_wildcard_key('s3://bucket/a*').key, 'a/b')
+        self.assertEqual(hook.get_wildcard_key('a*', 'bucket', delimiter='/').key, 'abc')
+        self.assertEqual(hook.get_wildcard_key('s3://bucket/a*', delimiter='/').key, 'abc')
+        self.assertEqual(hook.get_wildcard_key('abc', 'bucket', delimiter='/').key, 'abc')
+        self.assertEqual(hook.get_wildcard_key('s3://bucket/abc', delimiter='/').key, 'abc')
+
+        self.assertIsNone(hook.get_wildcard_key('a', 'bucket'))
+        self.assertIsNone(hook.get_wildcard_key('s3://bucket/a'))
+        self.assertIsNone(hook.get_wildcard_key('b', 'bucket'))
+        self.assertIsNone(hook.get_wildcard_key('s3://bucket/b'))
 
     @mock_s3
     def test_load_string(self):
@@ -57,17 +183,6 @@ class TestS3Hook(unittest.TestCase):
         body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')
-
-    @mock_s3
-    def test_read_key(self):
-        hook = S3Hook(aws_conn_id=None)
-        conn = hook.get_conn()
-        # We need to create the bucket since this is all in Moto's 'virtual'
-        # AWS account
-        conn.create_bucket(Bucket='mybucket')
-        conn.put_object(Bucket='mybucket', Key='my_key', Body=b'Cont\xC3\xA9nt')
-
-        self.assertEqual(hook.read_key('my_key', 'mybucket'), u'Contént')
 
 
 if __name__ == '__main__':
