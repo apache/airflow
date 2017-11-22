@@ -58,7 +58,7 @@ class S3Hook(AwsHook):
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
-        s3 = self.get_resource('s3')
+        s3 = self.get_resource_type('s3')
         return s3.Bucket(bucket_name)
 
     def check_for_prefix(self, bucket_name, prefix, delimiter):
@@ -69,7 +69,7 @@ class S3Hook(AwsHook):
         prefix_split = re.split(r'(\w+[{d}])$'.format(d=delimiter), prefix, 1)
         previous_level = prefix_split[0]
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
-        return False if plist is None else prefix in plist        
+        return False if plist is None else prefix in plist
 
     def list_prefixes(self, bucket_name, prefix='', delimiter=''):
         """
@@ -85,7 +85,7 @@ class S3Hook(AwsHook):
         response = self.get_conn().list_objects_v2(Bucket=bucket_name, 
                                                    Prefix=prefix, 
                                                    Delimiter=delimiter)
-        return [p.Prefix for p in response['CommonPrefixes']] if response.get('CommonPrefixes') else None
+        return [p['Prefix'] for p in response['CommonPrefixes']] if response.get('CommonPrefixes') else None
 
     def list_keys(self, bucket_name, prefix='', delimiter=''):
         """
@@ -98,10 +98,10 @@ class S3Hook(AwsHook):
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
         """
-        response = self.get_conn().list_objects_v2(Bucket=bucket_name, 
-                                                   Prefix=prefix, 
+        response = self.get_conn().list_objects_v2(Bucket=bucket_name,
+                                                   Prefix=prefix,
                                                    Delimiter=delimiter)
-        return [k.Key for k in response['Contents']] if response.get('Contents') else None
+        return [k['Key'] for k in response['Contents']] if response.get('Contents') else None
 
     def check_for_key(self, key, bucket_name=None):
         """
@@ -114,7 +114,7 @@ class S3Hook(AwsHook):
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
-        
+
         try:
             self.get_conn().head_object(Bucket=bucket_name, Key=key)
             return True
@@ -170,7 +170,7 @@ class S3Hook(AwsHook):
         """
         if not bucket_name:
             (bucket_name, wildcard_key) = self.parse_s3_url(wildcard_key)
-        
+
         prefix = re.split(r'[*]', wildcard_key, 1)[0]
         klist = self.list_keys(bucket_name, prefix=prefix, delimiter=delimiter)
         if klist:
@@ -203,14 +203,14 @@ class S3Hook(AwsHook):
         """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
-        
+
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError("The key {key} already exists.".format(key=key))
-        
+
         extra_args={}
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
-        
+
         client = self.get_conn()
         client.upload_file(filename, bucket_name, key, ExtraArgs=extra_args)
 
