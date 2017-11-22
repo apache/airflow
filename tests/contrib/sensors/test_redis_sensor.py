@@ -14,15 +14,15 @@
 
 
 import unittest
-import datetime
 
 from mock import patch
 
 from airflow import DAG
 from airflow import configuration
 from airflow.contrib.sensors.redis_key_sensor import RedisKeySensor
+from airflow.utils import timezone
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestRedisSensor(unittest.TestCase):

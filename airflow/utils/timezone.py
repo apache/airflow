@@ -50,7 +50,13 @@ def utcnow():
     :return:
     """
 
-    return pendulum.utcnow()
+    # pendulum utcnow() is not used as that sets a TimezoneInfo object
+    # instead of a Timezone. This is not pickable and also creates issues
+    # when using replace()
+    d = dt.datetime.utcnow()
+    d = d.replace(tzinfo=utc)
+
+    return d
 
 
 def convert_to_utc(value):
@@ -94,7 +100,7 @@ def make_aware(value, timezone=None):
         return timezone.convert(value)
     else:
         # This may be wrong around DST changes!
-        return value.replace(tzinfo=timezone)
+        return value.astimezone(tz=timezone)
 
 
 def make_naive(value, timezone=None):
@@ -136,3 +142,11 @@ def datetime(*args, **kwargs):
         kwargs['tzinfo'] = TIMEZONE
 
     return dt.datetime(*args, **kwargs)
+
+
+def parse(string):
+    """
+    Parse a time string and return an aware datetime
+    :param string: time string
+    """
+    return pendulum.parse(string, tz=TIMEZONE)

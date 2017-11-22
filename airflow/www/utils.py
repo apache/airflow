@@ -21,7 +21,6 @@ from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
-import iso8601
 import json
 import time
 
@@ -34,6 +33,7 @@ from wtforms.compat import text_type
 
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
+from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
@@ -255,8 +255,7 @@ def action_logging(f):
             dag_id=request.args.get('dag_id'))
 
         if 'execution_date' in request.args:
-            log.execution_date = iso8601.parse_date(
-                request.args.get('execution_date'), settings.TIMEZONE)
+            log.execution_date = timezone.parse(request.args.get('execution_date'))
 
         with create_session() as session:
             session.add(log)

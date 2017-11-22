@@ -19,10 +19,10 @@ import mock
 import os
 import unittest
 
-from datetime import datetime
 from airflow.models import TaskInstance, DAG
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.utils.timezone import datetime
 from airflow.utils.log.file_task_handler import FileTaskHandler
 
 DEFAULT_DATE = datetime(2016, 1, 1)

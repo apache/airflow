@@ -23,15 +23,16 @@ from airflow.operators.python_operator import PythonOperator, BranchPythonOperat
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 from airflow.exceptions import AirflowException
 import logging
 
-DEFAULT_DATE = datetime.datetime(2016, 1, 1)
-END_DATE = datetime.datetime(2016, 1, 2)
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
+END_DATE = timezone.datetime(2016, 1, 2)
 INTERVAL = datetime.timedelta(hours=12)
-FROZEN_NOW = datetime.datetime(2016, 1, 2, 12, 1, 1)
+FROZEN_NOW = timezone.datetime(2016, 1, 2, 12, 1, 1)
 
 
 class PythonOperatorTest(unittest.TestCase):
@@ -127,7 +128,7 @@ class BranchOperatorTest(unittest.TestCase):
     def test_with_dag_run(self):
         dr = self.dag.create_dagrun(
             run_id="manual__",
-            start_date=datetime.datetime.now(),
+            start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
         )
@@ -225,7 +226,7 @@ class ShortCircuitOperatorTest(unittest.TestCase):
         logging.error("Tasks {}".format(dag.tasks))
         dr = dag.create_dagrun(
             run_id="manual__",
-            start_date=datetime.datetime.now(),
+            start_date=timezone.utcnow(),
             execution_date=DEFAULT_DATE,
             state=State.RUNNING
         )

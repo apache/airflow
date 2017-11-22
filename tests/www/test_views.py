@@ -18,7 +18,6 @@ import os
 import shutil
 import tempfile
 import unittest
-from datetime import datetime
 import sys
 
 from airflow import models, configuration, settings
@@ -26,6 +25,7 @@ from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONF
 from airflow.models import DAG, TaskInstance
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
+from airflow.utils.timezone import datetime
 from airflow.www import app as application
 from airflow import configuration as conf
 

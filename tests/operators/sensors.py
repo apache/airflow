@@ -15,7 +15,7 @@ import logging
 import sys
 import time
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from mock import patch
 
 from airflow import DAG, configuration, settings
@@ -28,6 +28,8 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.sensors import HttpSensor, BaseSensorOperator, HdfsSensor, ExternalTaskSensor
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
+from airflow.utils import timezone
+from airflow.utils.timezone import datetime
 
 try:
     from unittest import mock
@@ -64,12 +66,12 @@ class TimeoutTestSensor(BaseSensorOperator):
         return self.return_value
 
     def execute(self, context):
-        started_at = datetime.now()
+        started_at = timezone.utcnow()
         time_jump = self.params.get('time_jump')
         while not self.poke(context):
             if time_jump:
                 started_at -= time_jump
-            if (datetime.now() - started_at).total_seconds() > self.timeout:
+            if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
