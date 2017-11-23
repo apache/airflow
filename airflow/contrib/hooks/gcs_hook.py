@@ -85,7 +85,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
 
     # pylint:disable=redefined-builtin
-    def download(self, bucket, object, filename=False):
+    def download(self, bucket, object, filename=None):
         """
         Get a file from Google Cloud Storage.
 
