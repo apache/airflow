@@ -14,12 +14,17 @@
 
 import copy
 import logging.config
+
+import dateutil
+import mock
 import os
 import shutil
 import tempfile
 import unittest
 from datetime import datetime
 import sys
+
+import requests
 
 from airflow import models, configuration, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -308,6 +313,16 @@ class TestLogView(unittest.TestCase):
         execution_date=DEFAULT_DATE,
     )
 
+    # need to have a Datetime object for database type filters, but can't use it in execution_time because
+    # it appends the time component when you make it a string and defeats the test
+    DATE_WITHOUT_TIME_DT = datetime(2017, 9, 2)
+    DATE_WITHOUT_TIME = datetime.date(DATE_WITHOUT_TIME_DT)
+    WITHOUT_TIME_ENDPOINT = '/admin/airflow/log?dag_id={dag_id}&task_id={task_id}&execution_date={execution_date}'.format(
+        dag_id=DAG_ID,
+        task_id=TASK_ID,
+        execution_date=DATE_WITHOUT_TIME,
+    )
+
     @classmethod
     def setUpClass(cls):
         super(TestLogView, cls).setUpClass()
@@ -315,7 +330,7 @@ class TestLogView(unittest.TestCase):
         session.query(TaskInstance).filter(
             TaskInstance.dag_id == cls.DAG_ID and
             TaskInstance.task_id == cls.TASK_ID and
-            TaskInstance.execution_date == cls.DEFAULT_DATE).delete()
+            TaskInstance.execution_date.in_(cls.DEFAULT_DATE, cls.DATE_WITHOUT_TIME_DT)).delete()
         session.commit()
         session.close()
 
@@ -350,6 +365,9 @@ class TestLogView(unittest.TestCase):
         ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
         ti.try_number = 1
         self.session.merge(ti)
+        ti_wo_time = TaskInstance(task=task, execution_date=self.DATE_WITHOUT_TIME)
+        ti_wo_time.try_number = 1
+        self.session.merge(ti_wo_time)
         self.session.commit()
 
     def tearDown(self):
@@ -358,7 +376,7 @@ class TestLogView(unittest.TestCase):
         self.session.query(TaskInstance).filter(
             TaskInstance.dag_id == self.DAG_ID and
             TaskInstance.task_id == self.TASK_ID and
-            TaskInstance.execution_date == self.DEFAULT_DATE).delete()
+            TaskInstance.execution_date.in_(self.DEFAULT_DATE, self.DATE_WITHOUT_TIME_DT)).delete()
         self.session.commit()
         self.session.close()
 
@@ -377,6 +395,77 @@ class TestLogView(unittest.TestCase):
         self.assertIn('<pre id="attempt-1">*** Reading local log.\nLog for testing.\n</pre>',
                       response.data.decode('utf-8'))
 
+    def test_get_bad_file_task_log(self):
+        """
+        The purpose of this test is for AIRFLOW-1735. An execution_date in the form YYYY-MM-DD needs to add
+        the time component (in isoformat) in order to retrieve the correct log for that task instance. After
+        the changes, this test should show passing in a execution_date in YYYY-MM-DD will resolve to
+        YYYY-MM-DDTHH:MM:SS to match the log name and display the log contents.
+        """
+        response = self.app.get(
+            TestLogView.WITHOUT_TIME_ENDPOINT,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.DATE_WITHOUT_TIME_DT.isoformat(), response.data.decode('utf-8'))
+        self.assertIn(self.DATE_WITHOUT_TIME_DT.isoformat().replace('T', ' '), response.data.decode('utf-8'))
+        self.assertIn(self.DATE_WITHOUT_TIME_DT.isoformat().replace(':', '%3A'), response.data.decode('utf-8'))
+
+
+def mocked_requests_get(*args, **kwargs):
+    """
+    Function and Class are just to mock a request.get for the LogViewExecutionDate.test_log_execution_date.
+    """
+    class MockResponse:
+        def __init__(self, json_data, status_code, params):
+            self.json_data = json_data
+            self.status_code = status_code
+            self.args = params
+
+    return MockResponse(json_data=None, status_code=200, params=kwargs['params'])
+
+
+class LogViewExecutionDate:
+    """
+    Class is to mock parts of the LogView function that handles pulling the execution date from the request
+    and putting it in the proper format.
+    """
+    def __init__(self, execution_date=None):
+        self.execution_date = execution_date
+
+    def get_log_execution_date(self, request):
+        """
+        AIRFLOW-1735.
+        :param request: Mocked request
+        :return: Execution date in YYYY-MM-DDTHH:mm:ss format.
+        """
+        dttm = dateutil.parser.parse(request.args.get('execution_date'))
+        execution_date = dttm.isoformat()
+        self.execution_date = execution_date
+        return self.execution_date
+
+    @mock.patch('requests.get', side_effect=mocked_requests_get)
+    def test_log_execution_date(self, mock_get):
+        base_log_endpoint = '{0}/admin/airflow/log'.format(configuration.get('webserver', 'base_url'))
+        data = {
+            'task_id': 'run_this_first',
+            'dag_id': 'example_branch_operator',
+            'execution_date': '2017-10-20',
+        }
+        req = requests.get(url=base_log_endpoint, params=data)
+        return self.get_log_execution_date(req)
+
+
+class MockLogView(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+
+    def runTest(self):
+        DATE = '2017-10-20'
+        view = LogViewExecutionDate(execution_date=DATE)
+        execution_date = view.test_log_execution_date()
+        self.assertEqual(execution_date, '2017-10-20T00:00:00')
+        self.assertNotEqual(execution_date, DATE)
 
 if __name__ == '__main__':
     unittest.main()
