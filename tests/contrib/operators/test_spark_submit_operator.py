@@ -14,7 +14,6 @@
 #
 
 import unittest
-import sys
 
 from airflow import DAG, configuration
 from airflow.models import TaskInstance
@@ -40,7 +39,7 @@ class TestSparkSubmitOperator(unittest.TestCase):
         'packages': 'com.databricks:spark-avro_2.11:3.2.0',
         'exclude_packages': 'org.bad.dependency:1.0.0',
         'repositories': 'http://myrepo.org',
-        'total_executor_cores':4,
+        'total_executor_cores': 4,
         'executor_cores': 4,
         'executor_memory': '22g',
         'keytab': 'privileged_user.keytab',
@@ -107,7 +106,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
                 '--end', '{{ ds }}',
                 '--with-spaces', 'args should keep embdedded spaces',
             ]
-
         }
 
         self.assertEqual(conn_id, operator._conn_id)
@@ -120,7 +118,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
         self.assertEqual(expected_dict['packages'], operator._packages)
         self.assertEqual(expected_dict['exclude_packages'], operator._exclude_packages)
         self.assertEqual(expected_dict['repositories'], operator._repositories)
-        self.assertEqual(expected_dict['total_executor_cores'], operator._total_executor_cores)
+        self.assertEqual(expected_dict['total_executor_cores'],
+                         operator._total_executor_cores)
         self.assertEqual(expected_dict['executor_cores'], operator._executor_cores)
         self.assertEqual(expected_dict['executor_memory'], operator._executor_memory)
         self.assertEqual(expected_dict['keytab'], operator._keytab)
@@ -134,7 +133,8 @@ class TestSparkSubmitOperator(unittest.TestCase):
 
     def test_render_template(self):
         # Given
-        operator = SparkSubmitOperator(task_id='spark_submit_job', dag=self.dag, **self._config)
+        operator = SparkSubmitOperator(task_id='spark_submit_job',
+                                       dag=self.dag, **self._config)
         ti = TaskInstance(operator, DEFAULT_DATE)
 
         # When
@@ -143,12 +143,15 @@ class TestSparkSubmitOperator(unittest.TestCase):
         # Then
         expected_application_args = [u'-f', 'foo',
                                      u'--bar', 'bar',
-                                     u'--start', (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
+                                     u'--start', (DEFAULT_DATE - timedelta(days=1))
+                                     .strftime("%Y-%m-%d"),
                                      u'--end', DEFAULT_DATE.strftime("%Y-%m-%d"),
-                                     u'--with-spaces', u'args should keep embdedded spaces',
+                                     u'--with-spaces',
+                                     u'args should keep embdedded spaces',
                                      ]
         expected_name = "spark_submit_job"
-        self.assertListEqual(expected_application_args, getattr(operator, '_application_args'))
+        self.assertListEqual(expected_application_args,
+                             getattr(operator, '_application_args'))
         self.assertEqual(expected_name, getattr(operator, '_name'))
 
 
