@@ -51,7 +51,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageOperatorToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
+        super(GoogleCloudStorageToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_bucket = destination_bucket
