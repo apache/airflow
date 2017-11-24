@@ -26,6 +26,7 @@ a.navbar-brand span {
 }
 .modal-backdrop{
     z-index: 0;
+    position: fixed;
 }
 .modal-content{
     z-index: 5;
