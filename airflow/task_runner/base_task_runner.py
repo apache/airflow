@@ -66,10 +66,12 @@ class BaseTaskRunner(LoggingMixin):
 
             # Give ownership of file to user; only they can read and write
             subprocess.call(
-                ['sudo', 'chown', self.run_as_user, cfg_path]
+                ['sudo', 'chown', self.run_as_user, cfg_path],
+                close_fds=True
             )
             subprocess.call(
-                ['sudo', 'chmod', '600', cfg_path]
+                ['sudo', 'chmod', '600', cfg_path],
+                close_fds=True
             )
 
             with os.fdopen(temp_fd, 'w') as temp_file:
@@ -117,7 +119,8 @@ class BaseTaskRunner(LoggingMixin):
             full_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            universal_newlines=True
+            universal_newlines=True,
+            close_fds=True,
         )
 
         # Start daemon thread to read subprocess logging output
@@ -154,4 +157,4 @@ class BaseTaskRunner(LoggingMixin):
         A callback that should be called when this is done running.
         """
         if self._cfg_path and os.path.isfile(self._cfg_path):
-            subprocess.call(['sudo', 'rm', self._cfg_path])
+            subprocess.call(['sudo', 'rm', self._cfg_path], close_fds=True)

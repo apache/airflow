@@ -275,7 +275,9 @@ class PythonVirtualenvOperator(PythonOperator):
     def _execute_in_subprocess(self, cmd):
         try:
             self.log.info("Executing cmd\n{}".format(cmd))
-            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            output = subprocess.check_output(cmd,
+                                             stderr=subprocess.STDOUT,
+                                             close_fds=True)
             if output:
                 self.log.info("Got output\n{}".format(output))
         except subprocess.CalledProcessError as e:

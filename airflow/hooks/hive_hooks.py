@@ -204,7 +204,8 @@ class HiveCliHook(BaseHook):
                     hive_cmd,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT,
-                    cwd=tmp_dir)
+                    cwd=tmp_dir,
+                    close_fds=True)
                 self.sp = sp
                 stdout = ''
                 while True:

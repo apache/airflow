@@ -192,7 +192,7 @@ def kill_using_shell(logger, pid, signal=signal.SIGTERM):
         else:
             args = ["kill", "-{}".format(int(signal)), str(pid)]
         # PID may not exist and return a non-zero error code
-        logger.error(subprocess.check_output(args))
+        logger.error(subprocess.check_output(args, close_fds=True))
         logger.info("Killed process {} with signal {}".format(pid, signal))
         return True
     except psutil.NoSuchProcess as e:
