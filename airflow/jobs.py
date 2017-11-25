@@ -378,6 +378,9 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             finally:
                 sys.stdout = sys.__stdout__
                 sys.stderr = sys.__stderr__
+                # We re-initialized the ORM within this Process above so we need to
+                # tear it down manually here
+                settings.dispose_orm()
 
         p = multiprocessing.Process(target=helper,
                                     args=(),

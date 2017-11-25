@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import atexit
 import logging
 import os
 import pendulum
@@ -136,6 +137,7 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
+    log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
     global engine
     global Session
     engine_args = {}
@@ -152,6 +154,20 @@ def configure_orm(disable_connection_pool=False):
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
     Session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine))
+
+
+def dispose_orm():
+    """ Properly close pooled database connections """
+    log.debug("Disposing DB connection pool (PID %s)", os.getpid())
+    global engine
+    global Session
+
+    if Session:
+        Session.remove()
+        Session = None
+    if engine:
+        engine.dispose()
+        engine = None
 
 
 def configure_adapters():
@@ -179,6 +195,9 @@ configure_logging()
 configure_vars()
 configure_adapters()
 configure_orm()
+
+# Ensure we close DB connections at scheduler and gunicon worker terminations
+atexit.register(dispose_orm)
 
 # Const stuff
 
