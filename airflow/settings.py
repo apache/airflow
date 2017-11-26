@@ -28,6 +28,7 @@ from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
 from airflow.logging_config import configure_logging
+from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
@@ -152,6 +153,9 @@ def configure_orm(disable_connection_pool=False):
                                                   'SQL_ALCHEMY_POOL_RECYCLE')
 
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
+    reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
+    setup_event_handlers(engine, reconnect_timeout)
+
     Session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine))
 

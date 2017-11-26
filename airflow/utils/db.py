@@ -22,9 +22,6 @@ from functools import wraps
 import os
 import contextlib
 
-from sqlalchemy import event, exc
-from sqlalchemy.pool import Pool
-
 from airflow import settings
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -74,21 +71,6 @@ def provide_session(func):
     return wrapper
 
 
-def pessimistic_connection_handling():
-    @event.listens_for(Pool, "checkout")
-    def ping_connection(dbapi_connection, connection_record, connection_proxy):
-        '''
-        Disconnect Handling - Pessimistic, taken from:
-        http://docs.sqlalchemy.org/en/rel_0_9/core/pooling.html
-        '''
-        cursor = dbapi_connection.cursor()
-        try:
-            cursor.execute("SELECT 1")
-        except:
-            raise exc.DisconnectionError()
-        cursor.close()
-
-
 @provide_session
 def merge_conn(conn, session=None):
     from airflow import models
@@ -96,22 +78,6 @@ def merge_conn(conn, session=None):
     if not session.query(C).filter(C.conn_id == conn.conn_id).first():
         session.add(conn)
         session.commit()
-
-
-@event.listens_for(settings.engine, "connect")
-def connect(dbapi_connection, connection_record):
-    connection_record.info['pid'] = os.getpid()
-
-
-@event.listens_for(settings.engine, "checkout")
-def checkout(dbapi_connection, connection_record, connection_proxy):
-    pid = os.getpid()
-    if connection_record.info['pid'] != pid:
-        connection_record.connection = connection_proxy.connection = None
-        raise exc.DisconnectionError(
-            "Connection record belongs to pid {}, "
-            "attempting to check out in pid {}".format(connection_record.info['pid'], pid)
-        )
 
 
 def initdb():
