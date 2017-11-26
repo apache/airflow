@@ -441,7 +441,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                                 str([dag.dag_id for dag in found_dags]),
                             ))
                     except Exception as e:
-                        self.log.warning(e)
+                        self.log.exception(e)
         Stats.gauge(
             'collect_dags', (datetime.utcnow() - start_dttm).total_seconds(), 1)
         Stats.gauge(
