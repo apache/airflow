@@ -934,12 +934,8 @@ class SchedulerJob(BaseJob):
                 ti.task = task
 
                 # future: remove adhoc
-                if task.adhoc:
-                    continue
-
-                if ti.are_dependencies_met(
-                        dep_context=DepContext(flag_upstream_failed=True),
-                        session=session):
+                if not task.adhoc and ti.are_dependencies_met(
+                    dep_context=DepContext(flag_upstream_failed=True), session=session):
                     self.log.debug('Queuing task: %s', ti)
                     queue.append(ti.key)
 
@@ -1945,17 +1941,14 @@ class BackfillJob(BaseJob):
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                 ti_status.started.pop(key)
-                continue
             elif ti.state == State.SKIPPED:
                 ti_status.skipped.add(key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                 ti_status.started.pop(key)
-                continue
             elif ti.state == State.FAILED:
                 self.log.error("Task instance %s failed", ti)
                 ti_status.failed.add(key)
                 ti_status.started.pop(key)
-                continue
             # special case: if the task needs to run again put it back
             elif ti.state == State.UP_FOR_RETRY:
                 self.log.warning("Task instance %s is up for retry", ti)
@@ -2368,11 +2361,9 @@ class BackfillJob(BaseJob):
             dag_run = self._get_dag_run(next_run_date, session=session)
             tis_map = self._task_instances_for_dag_run(dag_run,
                                                        session=session)
-            if dag_run is None:
-                continue
-
-            ti_status.active_runs.append(dag_run)
-            ti_status.to_run.update(tis_map or {})
+            if dag_run is not None:
+                ti_status.active_runs.append(dag_run)
+                ti_status.to_run.update(tis_map or {})
 
         processed_dag_run_dates = self._process_backfill_task_instances(
             ti_status=ti_status,

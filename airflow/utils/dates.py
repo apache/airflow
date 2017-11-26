@@ -122,11 +122,7 @@ def round_time(dt, delta, start_date=datetime.min):
     if isinstance(delta, six.string_types):
         # It's cron based, so it's easy
         cron = croniter(delta, start_date)
-        prev = cron.get_prev(datetime)
-        if prev == start_date:
-            return start_date
-        else:
-            return prev
+        return cron.get_prev(datetime)
 
     # Ignore the microseconds of dt
     dt -= timedelta(microseconds=dt.microsecond)

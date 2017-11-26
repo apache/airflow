@@ -195,7 +195,7 @@ def kill_using_shell(logger, pid, signal=signal.SIGTERM):
         logger.error(subprocess.check_output(args))
         logger.info("Killed process {} with signal {}".format(pid, signal))
         return True
-    except psutil.NoSuchProcess as e:
+    except psutil.NoSuchProcess:
         logger.warning("Process {} no longer exists".format(pid))
         return False
     except subprocess.CalledProcessError as e:
@@ -207,7 +207,7 @@ def kill_using_shell(logger, pid, signal=signal.SIGTERM):
 def kill_process_tree(logger, pid, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
     TODO(saguziel): also kill the root process after killing descendants
-  
+
     Kills the process's descendants. Kills using the `kill`
     shell command so that it can change users. Note: killing via PIDs
     has the potential to the wrong process if the process dies and the

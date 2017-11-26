@@ -598,8 +598,8 @@ class Connection(Base, LoggingMixin):
                     "Can't decrypt encrypted password for login={}, \
                     FERNET_KEY configuration is missing".format(self.login))
             return fernet.decrypt(bytes(self._password, 'utf-8')).decode()
-        else:
-            return self._password
+
+        return self._password
 
     def set_password(self, value):
         if value:
@@ -627,8 +627,8 @@ class Connection(Base, LoggingMixin):
                     "Can't decrypt `extra` params for login={},\
                     FERNET_KEY configuration is missing".format(self.login))
             return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
-        else:
-            return self._extra
+
+        return self._extra
 
     def set_extra(self, value):
         if value:
@@ -996,11 +996,7 @@ class TaskInstance(Base, LoggingMixin):
             TI.task_id == self.task_id,
             TI.execution_date == self.execution_date,
         ).all()
-        if ti:
-            state = ti[0].state
-        else:
-            state = None
-        return state
+        return ti[0].state if ti else None
 
     @provide_session
     def error(self, session=None):
@@ -2576,8 +2572,9 @@ class BaseOperator(LoggingMixin):
             if task is t:
                 msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
                 raise AirflowException(msg)
-            else:
-                t.detect_downstream_cycle(task=task)
+
+            t.detect_downstream_cycle(task=task)
+
         return False
 
     def run(
@@ -2613,10 +2610,7 @@ class BaseOperator(LoggingMixin):
         Get the direct relatives to the current task, upstream or
         downstream.
         """
-        if upstream:
-            return self.upstream_list
-        else:
-            return self.downstream_list
+        return self.upstream_list if upstream else self.downstream_list
 
     def __repr__(self):
         return "<Task({self.__class__.__name__}): {self.task_id}>".format(
@@ -3945,8 +3939,7 @@ class Variable(Base, LoggingMixin):
                 raise AirflowException(
                     "Can't decrypt _val for key={}, invalid token or value"
                     .format(self.key))
-        else:
-            return self._val
+        return self._val
 
     def set_val(self, value):
         if value:
@@ -3984,38 +3977,29 @@ class Variable(Base, LoggingMixin):
         default_sentinel = object()
         obj = Variable.get(key, default_var=default_sentinel, deserialize_json=deserialize_json)
         if obj is default_sentinel:
-            if default is not None:
-                Variable.set(key, default, serialize_json=deserialize_json)
-                return default
-            else:
+            if default is None:
                 raise ValueError('Default Value must be set')
-        else:
-            return obj
+
+            Variable.set(key, default, serialize_json=deserialize_json)
+            return default
+
+        return obj
 
     @classmethod
     @provide_session
     def get(cls, key, default_var=None, deserialize_json=False, session=None):
         obj = session.query(cls).filter(cls.key == key).first()
         if obj is None:
-            if default_var is not None:
-                return default_var
-            else:
+            if default_var is None:
                 raise KeyError('Variable {} does not exist'.format(key))
-        else:
-            if deserialize_json:
-                return json.loads(obj.val)
-            else:
-                return obj.val
+            return default_var
+
+        return json.loads(obj.val) if deserialize_json else obj.val
 
     @classmethod
     @provide_session
     def set(cls, key, value, serialize_json=False, session=None):
-
-        if serialize_json:
-            stored_value = json.dumps(value)
-        else:
-            stored_value = value
-
+        stored_value = json.dumps(value) if serialize_json else value
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
         session.flush()
@@ -4144,9 +4128,7 @@ class XCom(Base, LoggingMixin):
             if enable_pickling is None:
                 enable_pickling = configuration.getboolean('core', 'enable_xcom_pickling')
 
-            if enable_pickling:
-                return pickle.loads(result.value)
-            else:
+            if not enable_pickling:
                 try:
                     return json.loads(result.value.decode('UTF-8'))
                 except ValueError:
@@ -4156,6 +4138,8 @@ class XCom(Base, LoggingMixin):
                               "for XCOM, then you need to enable pickle "
                               "support for XCOM in your airflow config.")
                     raise
+
+            return pickle.loads(result.value)
 
     @classmethod
     @provide_session
@@ -4647,10 +4631,7 @@ class DagRun(Base, LoggingMixin):
 
         # check for missing tasks
         for task in dag.tasks:
-            if task.adhoc:
-                continue
-
-            if task.task_id not in task_ids:
+            if not task.adhoc and task.task_id not in task_ids:
                 ti = TaskInstance(task, self.execution_date)
                 session.add(ti)
 
