@@ -145,6 +145,19 @@ ECSOperator
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 
 
+AWS Batch Service
+''''''''''''''''''''''''''
+
+- :ref:`AWSBatchOperator` : Execute a task on AWS Batch Service.
+
+.. _AWSBatchOperator:
+
+AWSBatchOperator
+""""""""""""
+
+.. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+
+
 AWS RedShift
 '''''''''''''
 
