@@ -38,5 +38,11 @@ if [ "${TRAVIS}" ]; then
     kinit -kt ${KRB5_KTNAME} airflow
 fi
 
-echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
-./run_unit_tests.sh
+if [[ "$RUN_FLAKE8" == "true" ]]; then
+    ./flake8_diff.sh
+fi
+
+if [[ "$SKIP_TESTS" != "true" ]]; then
+    echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
+    ./run_unit_tests.sh
+fi
