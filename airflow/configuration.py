@@ -328,6 +328,11 @@ if 'AIRFLOW_CONFIG' not in os.environ:
 else:
     AIRFLOW_CONFIG = expand_env_var(os.environ['AIRFLOW_CONFIG'])
 
+if 'AIRFLOW_MYSQL_HOST' not in os.environ:
+    AIRFLOW_MYSQL_HOST = 'localhost'
+else:
+    AIRFLOW_MYSQL_HOST = expand_env_var(os.environ['AIRFLOW_MYSQL_HOST'])
+
 # Set up dags folder for unit tests
 # this directory won't exist if users install via pip
 _TEST_DAGS_FOLDER = os.path.join(

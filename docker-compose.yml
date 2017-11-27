@@ -1,0 +1,67 @@
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This Docker Compose file is intended to make running Airflow unit tests
+# as easy as possible. Contributors should be able to 'docker-compose up -d'
+# and './scripts/docker/unittest/run.sh'
+#
+# NOTE: If you already have MySQL running on port 3306, Postgres running
+#       on 5432, or Airflow running on 8080 on localhost you will need
+#       to stop those process prior to running docker-compose.
+
+version: '3'
+services:
+  mysql:
+    build:
+      context: .
+      dockerfile: scripts/docker/unittest/Dockerfile-mysql
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: airflow
+      MYSQL_USER: airflow
+      MYSQL_PASSWORD: airflow
+    ports:
+      - "3306:3306"
+  postgres:
+    build:
+      context: .
+      dockerfile: scripts/docker/unittest/Dockerfile-postgres
+    container_name: postgres
+    environment:
+      POSTGRES_DB: airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+    ports:
+      - "5432:5432"
+  airflow:
+    build:
+      context: .
+      dockerfile: scripts/docker/unittest/Dockerfile-airflow
+    command: "bash -c \"airflow upgradedb && airflow webserver\""
+    container_name: airflow
+    environment:
+      AIRFLOW_MYSQL_HOST: mysql
+      AIRFLOW_MYSQL_USER: airflow
+      AIRFLOW_MYSQL_PASSWORD: airflow
+      AIRFLOW_POSTGRES_HOST: postgres
+      AIRFLOW_POSTGRES_USER: airflow
+      AIRFLOW_POSTGRES_PASSWORD: airflow
+    links:
+      - mysql
+      - postgres
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/usr/src/airflow
+

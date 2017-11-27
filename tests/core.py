@@ -1582,7 +1582,9 @@ class SecurityTests(unittest.TestCase):
         ])
         for endpoint in endpoints:
             response = self.app.post(endpoint)
-            self.assertIn('CSRF token is missing', response.data.decode('utf-8'))
+            self.assertTrue('CSRF token is missing' in response.data.decode('utf-8') or
+                            'CSRF token missing or incorrect' in
+                            response.data.decode('utf-8'))
 
     def test_csrf_acceptance(self):
         response = self.app.get("/admin/queryview/")
@@ -2267,9 +2269,11 @@ class ConnectionTest(unittest.TestCase):
     def test_get_connections_db(self):
         conns = BaseHook.get_connections(conn_id='airflow_db')
         assert len(conns) == 1
-        assert conns[0].host == 'localhost'
+        assert conns[0].host == ('localhost' if 'AIRFLOW_MYSQL_HOST' not in os.environ
+                                 else os.environ['AIRFLOW_MYSQL_HOST'])
         assert conns[0].schema == 'airflow'
-        assert conns[0].login == 'root'
+        assert conns[0].login == ('root' if 'AIRFLOW_MYSQL_USER' not in os.environ
+                                  else os.environ['AIRFLOW_MYSQL_USER'])
 
 
 class WebHDFSHookTest(unittest.TestCase):
