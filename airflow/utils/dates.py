@@ -17,6 +17,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from airflow.utils import timezone
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 import six
@@ -66,7 +67,7 @@ def date_range(
     if end_date and num:
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
-        end_date = datetime.utcnow()
+        end_date = timezone.utcnow()
 
     delta_iscron = False
     if isinstance(delta, six.string_types):
@@ -219,7 +220,7 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
-    today = datetime.utcnow().replace(
+    today = timezone.utcnow().replace(
         hour=hour,
         minute=minute,
         second=second,

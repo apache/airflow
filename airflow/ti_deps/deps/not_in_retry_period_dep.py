@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils import timezone
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
 
@@ -38,7 +38,7 @@ class NotInRetryPeriodDep(BaseTIDep):
 
         # Calculate the date first so that it is always smaller than the timestamp used by
         # ready_for_retry
-        cur_date = datetime.utcnow()
+        cur_date = timezone.utcnow()
         next_task_retry_date = ti.next_retry_datetime()
         if ti.is_premature:
             yield self._failing_status(

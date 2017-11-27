@@ -11,9 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from datetime import datetime
 
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
+from airflow.utils import timezone
 from airflow.utils.db import provide_session
 
 
@@ -23,7 +23,7 @@ class RunnableExecDateDep(BaseTIDep):
 
     @provide_session
     def _get_dep_statuses(self, ti, session, dep_context):
-        cur_date = datetime.utcnow()
+        cur_date = timezone.utcnow()
 
         if ti.execution_date > cur_date:
             yield self._failing_status(

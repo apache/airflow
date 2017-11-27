@@ -12,9 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-
 from airflow.models import BaseOperator, DagBag
+from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
@@ -59,7 +58,7 @@ class TriggerDagRunOperator(BaseOperator):
         self.trigger_dag_id = trigger_dag_id
 
     def execute(self, context):
-        dro = DagRunOrder(run_id='trig__' + datetime.utcnow().isoformat())
+        dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
         dro = self.python_callable(context, dro)
         if dro:
             with create_session() as session:

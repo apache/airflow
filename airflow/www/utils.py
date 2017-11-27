@@ -21,7 +21,7 @@ from cgi import escape
 from io import BytesIO as IO
 import functools
 import gzip
-import dateutil.parser as dateparser
+import iso8601
 import json
 import time
 
@@ -45,6 +45,7 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'apikey',
     'access_token',
 )
+
 
 def should_hide_value_for_key(key_name):
     return any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
@@ -252,8 +253,8 @@ def action_logging(f):
             dag_id=request.args.get('dag_id'))
 
         if 'execution_date' in request.args:
-            log.execution_date = dateparser.parse(
-                request.args.get('execution_date'))
+            log.execution_date = iso8601.parse_date(
+                request.args.get('execution_date'), settings.TIMEZONE)
 
         with create_session() as session:
             session.add(log)

@@ -23,10 +23,10 @@ import time
 import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import defaultdict
-from datetime import datetime
 
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.exceptions import AirflowException
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -376,7 +376,7 @@ class DagFileProcessorManager(LoggingMixin):
         being processed
         """
         if file_path in self._processors:
-            return (datetime.utcnow() - self._processors[file_path].start_time)\
+            return (timezone.utcnow() - self._processors[file_path].start_time)\
                 .total_seconds()
         return None
 
@@ -466,7 +466,7 @@ class DagFileProcessorManager(LoggingMixin):
         for file_path, processor in self._processors.items():
             if processor.done:
                 self.log.info("Processor for %s finished", file_path)
-                now = datetime.utcnow()
+                now = timezone.utcnow()
                 finished_processors[file_path] = processor
                 self._last_runtime[file_path] = (now -
                                                  processor.start_time).total_seconds()
@@ -494,7 +494,7 @@ class DagFileProcessorManager(LoggingMixin):
             # If the file path is already being processed, or if a file was
             # processed recently, wait until the next batch
             file_paths_in_progress = self._processors.keys()
-            now = datetime.utcnow()
+            now = timezone.utcnow()
             file_paths_recently_processed = []
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)
