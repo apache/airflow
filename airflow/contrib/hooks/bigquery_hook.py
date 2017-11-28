@@ -22,6 +22,7 @@ from builtins import range
 
 from past.builtins import basestring
 
+from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -450,7 +451,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
-                 src_fmt_configs={}):
+                 src_fmt_configs={},
+                 time_partitioning={}):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -460,9 +462,10 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
+            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery table to load
             data into. If <project> is not included, project will be the project defined
-            in the connection json.
+            in the connection json. If a partition is specified the operator will automatically
+            append the data, create a new partition or create a new DAY partitioned table.
         :type destination_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
@@ -497,6 +500,10 @@ class BigQueryBaseCursor(LoggingMixin):
             table to be updated as a side effect of the load job.
         :type schema_update_options: tuple
         :param src_fmt_configs: configure optional fields specific to the source format
+        :type src_fmt_configs: dict
+        :param time_partitioning: configure optional time partitioning fields i.e. partition by field, type and
+            expiration as per API specifications. note that 'field' is not available in concurrency with
+            dataset.table$partition.
         :type src_fmt_configs: dict
         """
 
@@ -547,6 +554,19 @@ class BigQueryBaseCursor(LoggingMixin):
                 'writeDisposition': write_disposition,
             }
         }
+
+        # if it is a partitioned table ($ is in the table name) add partition load option
+        if '$' in destination_project_dataset_table:
+            if time_partitioning.get('field'):
+                raise AirflowException("Cannot specify field partition and partition name (dataset.table$partition) at the same time")
+            configuration['load']['timePartitioning'] = dict(type='DAY')
+
+        # can specify custom time partitioning options based on a field, or adding expiration
+        if time_partitioning:
+            if not configuration.get('load', {}).get('timePartitioning'):
+                configuration['load']['timePartitioning'] = {}
+            configuration['load']['timePartitioning'].update(time_partitioning)
+
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
 
@@ -668,6 +688,7 @@ class BigQueryBaseCursor(LoggingMixin):
                     'BigQuery job status check failed. Final error was: %s',
                     err.resp.status)
         return False
+
 
     def cancel_query(self):
         """
