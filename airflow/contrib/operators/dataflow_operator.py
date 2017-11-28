@@ -155,8 +155,8 @@ class DataFlowPythonOperator(BaseOperator):
 
         https://cloud.google.com/dataflow/pipelines/specifying-exec-params
 
-        :param py_file: Reference to the python dataflow pipleline file, e.g.,
-            /some/local/file/path/to/your/python/pipeline/file.py.
+        :param py_file: Reference to the python dataflow pipleline file.py, e.g.,
+            /some/local/file/path/to/your/python/pipeline/file.
         :type py_file: string
         :param py_options: Additional python options.
         :type pyt_options: list of strings, e.g., ["-m", "-v"].
