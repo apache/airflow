@@ -21,6 +21,7 @@ import subprocess
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+from copy import deepcopy
 
 
 class SqoopHook(BaseHook, LoggingMixin):
@@ -70,7 +71,8 @@ class SqoopHook(BaseHook, LoggingMixin):
     def get_conn(self):
         return self.conn
 
-    def cmd_mask_password(self, cmd):
+    def cmd_mask_password(self, cmd_orig):
+        cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')
             cmd[password_index + 1] = 'MASKED'
