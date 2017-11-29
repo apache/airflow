@@ -61,11 +61,6 @@ class TestSparkSubmitOperator(unittest.TestCase):
     }
 
     def setUp(self):
-
-        if sys.version_info[0] == 3:
-            raise unittest.SkipTest('TestSparkSubmitOperator won\'t work with '
-                                    'python3. No need to test anything here')
-
         configuration.load_test_config()
         args = {
             'owner': 'airflow',
