@@ -14,7 +14,7 @@
 
 import psutil
 
-from airflow.task_runner.base_task_runner import BaseTaskRunner
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils.helpers import kill_process_tree
 
 
