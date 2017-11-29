@@ -38,7 +38,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('storage', 'v1', http=http_authorized)
 
-
     # pylint:disable=redefined-builtin
     def copy(self, source_bucket, source_object, destination_bucket=None,
              destination_object=None):
@@ -48,10 +47,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         destination_bucket or destination_object can be omitted, in which case
         source bucket/object is used, but not both.
 
-        :param bucket: The bucket of the object to copy from.
-        :type bucket: string
-        :param object: The object to copy.
-        :type object: string
+        :param source_bucket: The bucket of the object to copy from.
+        :type source_bucket: string
+        :param source_object: The object to copy.
+        :type source_object: string
         :param destination_bucket: The destination of the object to copied to.
             Can be omitted; then the same bucket is used.
         :type destination_bucket: string
