@@ -354,6 +354,10 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
                     pass
 
             try:
+                # engine gets copied from parent, so call dispose here to
+                # new connections are local to fork
+                settings.engine.dispose()
+
                 # redirect stdout/stderr to log
                 sys.stdout = stdout
                 sys.stderr = stderr
@@ -384,6 +388,8 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             finally:
                 sys.stdout = sys.__stdout__
                 sys.stderr = sys.__stderr__
+                # child is done with connection pool
+                settings.engine.dispose()
 
         p = multiprocessing.Process(target=helper,
                                     args=(),

@@ -746,6 +746,7 @@ def webserver(args):
         gunicorn_master_proc = None
 
         def kill_proc(dummy_signum, dummy_frame):
+            settings.engine.dispose()
             gunicorn_master_proc.terminate()
             gunicorn_master_proc.wait()
             sys.exit(0)
