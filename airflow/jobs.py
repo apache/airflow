@@ -1421,7 +1421,7 @@ class SchedulerJob(BaseJob):
                 if ti.state == State.QUEUED:
                     msg = ("Executor reports task instance %s finished (%s) "
                            "although the task says its %s. Was the task "
-                           "killed externally?".format(ti, state, ti.state))
+                           "killed externally?" % (ti, state, ti.state))
                     self.log.error(msg)
                     try:
                         simple_dag = simple_dag_bag.get_dag(dag_id)
