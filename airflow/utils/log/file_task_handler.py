@@ -89,7 +89,7 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        log_relative_path = self._render_filename(ti, try_number + 1)
+        log_relative_path = self._render_filename(ti, try_number)
         location = os.path.join(self.local_base, log_relative_path)
 
         log = ""
@@ -144,8 +144,8 @@ class FileTaskHandler(logging.Handler):
         next_try = task_instance.try_number
 
         if try_number is None:
-            try_numbers = list(range(next_try))
-        elif try_number < 0:
+            try_numbers = list(range(1, next_try))
+        elif try_number < 1:
             logs = ['Error fetching the logs. Try number {} is invalid.'.format(try_number)]
             return logs
         else:
@@ -176,7 +176,7 @@ class FileTaskHandler(logging.Handler):
         # writable by both users, then it's possible that re-running a task
         # via the UI (or vice versa) results in a permission error as the task
         # tries to write to a log file created by the other user.
-        relative_path = self._render_filename(ti, ti.try_number + 1)
+        relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
         directory = os.path.dirname(full_path)
         # Create the log file and give it group writable permissions
