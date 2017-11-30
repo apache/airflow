@@ -18,6 +18,7 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+log = LoggingMixin().log
 
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json', 'pickle'],
@@ -37,7 +38,6 @@ celery_ssl_active = False
 try:
     celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
 except AirflowConfigException as e:
-    log = LoggingMixin().log
     log.warning("Celery Executor will run without SSL")
 
 try:
@@ -56,3 +56,7 @@ except Exception as e:
                            'Please ensure you want to use '
                            'SSL and/or have all necessary certs and key ({}).'.format(e))
 
+result_backend = DEFAULT_CELERY_CONFIG['result_backend']
+if 'amqp' in result_backend or 'redis' in result_backend or 'rpc' in result_backend:
+    log.warning("You have configured a result_backend of %s, it is highly recommended "
+                "to use an alternative result_backend (i.e. a database).", result_backend)
