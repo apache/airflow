@@ -57,7 +57,7 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
 from airflow.utils.db import (
     create_session, provide_session, pessimistic_connection_handling)
 from airflow.utils.email import send_email
-from airflow.utils.log.logging_mixin import LoggingMixin, StreamLogWriter
+from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.state import State
 
 Base = models.Base
@@ -345,13 +345,7 @@ class DagFileProcessor(AbstractDagFileProcessor, LoggingMixin):
             stdout = StreamLogWriter(log, logging.INFO)
             stderr = StreamLogWriter(log, logging.WARN)
 
-            for handler in log.handlers:
-                try:
-                    handler.set_context(file_path)
-                except AttributeError:
-                    # Not all handlers need to have context passed in so we ignore
-                    # the error when handlers do not have set_context defined.
-                    pass
+            set_context(log, file_path)
 
             try:
                 # redirect stdout/stderr to log
