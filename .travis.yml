@@ -47,44 +47,29 @@ env:
     # does not work with python 3
     - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
-    - TOX_ENV=py27-cdh-airflow_backend_mysql
-    - TOX_ENV=py27-cdh-airflow_backend_sqlite
-    - TOX_ENV=py27-cdh-airflow_backend_postgres
-#    - TOX_ENV=py27-hdp-airflow_backend_mysql
-#    - TOX_ENV=py27-hdp-airflow_backend_sqlite
-#    - TOX_ENV=py27-hdp-airflow_backend_postgres
-    - TOX_ENV=py34-cdh-airflow_backend_mysql
-    - TOX_ENV=py34-cdh-airflow_backend_sqlite
-    - TOX_ENV=py34-cdh-airflow_backend_postgres
-#    - TOX_ENV=py34-hdp-airflow_backend_mysql
-#    - TOX_ENV=py34-hdp-airflow_backend_sqlite
-#    - TOX_ENV=py34-hdp-airflow_backend_postgres
+    - TOX_ENV=py27-backend_mysql
+    - TOX_ENV=py27-backend_sqlite
+    - TOX_ENV=py27-backend_postgres
+    - TOX_ENV=py34-backend_mysql
+    - TOX_ENV=py34-backend_sqlite
+    - TOX_ENV=py34-backend_postgres
+    - TOX_ENV=flake8
 matrix:
   exclude:
     - python: "3.4"
-      env: TOX_ENV=py27-cdh-airflow_backend_mysql
+      env: TOX_ENV=py27-backend_mysql
     - python: "3.4"
-      env: TOX_ENV=py27-cdh-airflow_backend_sqlite
+      env: TOX_ENV=py27-backend_sqlite
     - python: "3.4"
-      env: TOX_ENV=py27-cdh-airflow_backend_postgres
-    - python: "3.4"
-      env: TOX_ENV=py27-hdp-airflow_backend_mysql
-    - python: "3.4"
-      env: TOX_ENV=py27-hdp-airflow_backend_sqlite
-    - python: "3.4"
-      env: TOX_ENV=py27-hdp-airflow_backend_postgres
+      env: TOX_ENV=py27-backend_postgres
     - python: "2.7"
-      env: TOX_ENV=py34-cdh-airflow_backend_mysql
+      env: TOX_ENV=py34-backend_mysql
     - python: "2.7"
-      env: TOX_ENV=py34-cdh-airflow_backend_sqlite
+      env: TOX_ENV=py34-backend_sqlite
     - python: "2.7"
-      env: TOX_ENV=py34-cdh-airflow_backend_postgres
+      env: TOX_ENV=py34-backend_postgres
     - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_mysql
-    - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_sqlite
-    - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_postgres
+      env: TOX_ENV=flake8
 cache:
   directories:
     - $HOME/.wheelhouse/
