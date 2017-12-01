@@ -38,7 +38,6 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('storage', 'v1', http=http_authorized)
 
-
     # pylint:disable=redefined-builtin
     def copy(self, source_bucket, source_object, destination_bucket=None,
              destination_object=None):
@@ -48,10 +47,10 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         destination_bucket or destination_object can be omitted, in which case
         source bucket/object is used, but not both.
 
-        :param bucket: The bucket of the object to copy from.
-        :type bucket: string
-        :param object: The object to copy.
-        :type object: string
+        :param source_bucket: The bucket of the object to copy from.
+        :type source_bucket: string
+        :param source_object: The object to copy.
+        :type source_object: string
         :param destination_bucket: The destination of the object to copied to.
             Can be omitted; then the same bucket is used.
         :type destination_bucket: string
@@ -219,7 +218,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 return False
             raise
 
-    def list(self, bucket, versions=None, maxResults=None, prefix=None):
+    def list(self, bucket, versions=None, maxResults=None, prefix=None, delimiter=None):
         """
         List all objects from the bucket with the give string prefix in name
 
@@ -231,6 +230,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type maxResults: integer
         :param prefix: prefix string which filters objects whose name begin with this prefix
         :type prefix: string
+        :param delimiter: filters objects based on the delimiter (for e.g '.csv')
+        :type delimiter:string
         :return: a stream of object names matching the filtering criteria
         """
         service = self.get_conn()
@@ -243,16 +244,21 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 versions=versions,
                 maxResults=maxResults,
                 pageToken=pageToken,
-                prefix=prefix
+                prefix=prefix,
+                delimiter=delimiter
             ).execute()
 
-            if 'items' not in response:
-                self.log.info("No items found for prefix: %s", prefix)
-                break
+            if 'prefixes' not in response:
+                if 'items' not in response:
+                    self.log.info("No items found for prefix: %s", prefix)
+                    break
 
-            for item in response['items']:
-                if item and 'name' in item:
-                    ids.append(item['name'])
+                for item in response['items']:
+                    if item and 'name' in item:
+                        ids.append(item['name'])
+            else:
+                for item in response['prefixes']:
+                    ids.append(item)
 
             if 'nextPageToken' not in response:
                 # no further pages of results, so stop the loop
