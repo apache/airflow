@@ -29,6 +29,9 @@ class LoggingMixin(object):
     """
     Convenience super-class to have a logger configured with the class name
     """
+    def __init__(self, context=None):
+        if context is not None:
+            set_context(self.log, context)
 
     # We want to deprecate the logger property in Airflow 2.0
     # The log property is the de facto standard in most programming languages
@@ -52,16 +55,6 @@ class LoggingMixin(object):
                 self.__class__.__module__ + '.' + self.__class__.__name__
             )
             return self._log
-
-    def set_log_contexts(self, task_instance):
-        """
-        Set the context for all handlers of current logger.
-        """
-        for handler in self.log.handlers:
-            try:
-                handler.set_context(task_instance)
-            except AttributeError:
-                pass
 
 
 class StreamLogWriter(object):
@@ -127,3 +120,22 @@ def redirect_stderr(logger, level):
         sys.stderr = sys.__stderr__
 
 
+def set_context(logger, value):
+    """
+    Walks the tree of loggers and tries to set the context for each handler
+    :param logger: logger
+    :param value: value to set
+    """
+    _logger = logger
+    while _logger:
+        for handler in _logger.handlers:
+            try:
+                handler.set_context(value)
+            except AttributeError:
+                # Not all handlers need to have context passed in so we ignore
+                # the error when handlers do not have set_context defined.
+                pass
+        if _logger.propagate is True:
+            _logger = _logger.parent
+        else:
+            _logger = None
