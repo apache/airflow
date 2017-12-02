@@ -21,8 +21,11 @@ import logging
 import sys
 import warnings
 
+import six
+
 from builtins import object
 from contextlib import contextmanager
+from logging import Handler, StreamHandler
 
 
 class LoggingMixin(object):
@@ -101,6 +104,32 @@ class StreamLogWriter(object):
         For compatibility reasons.
         """
         return False
+
+
+class RedirectStdHandler(StreamHandler):
+    """
+    This class is like a StreamHandler using sys.stderr/stdout, but always uses
+    whatever sys.stderr/stderr is currently set to rather than the value of
+    sys.stderr/stdout at handler construction time.
+    """
+    def __init__(self, stream):
+        if not isinstance(stream, six.string_types):
+            raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"
+                            " as a str and without 'ext://'.")
+
+        self._use_stderr = True
+        if 'stdout' in stream:
+            self._use_stderr = False
+
+        # StreamHandler tries to set self.stream
+        Handler.__init__(self)
+
+    @property
+    def stream(self):
+        if self._use_stderr:
+            return sys.stderr
+
+        return sys.stdout
 
 
 @contextmanager
