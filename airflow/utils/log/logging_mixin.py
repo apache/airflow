@@ -30,8 +30,7 @@ class LoggingMixin(object):
     Convenience super-class to have a logger configured with the class name
     """
     def __init__(self, context=None):
-        if context is not None:
-            set_context(self.log, context)
+        self._set_context(context)
 
     # We want to deprecate the logger property in Airflow 2.0
     # The log property is the de facto standard in most programming languages
@@ -55,6 +54,10 @@ class LoggingMixin(object):
                 self.__class__.__module__ + '.' + self.__class__.__name__
             )
             return self._log
+
+    def _set_context(self, context):
+        if context is not None:
+            set_context(self.log, context)
 
 
 class StreamLogWriter(object):
