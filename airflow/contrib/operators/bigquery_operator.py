@@ -98,12 +98,11 @@ class BigQueryOperator(BaseOperator):
                                 delegate_to=self.delegate_to)
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
-        self.bq_cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config,
-                         self.use_legacy_sql, self.maximum_billing_tier,
-                         self.flatten_results, self.create_disposition,
-                         self.query_params)
-
+        self.bq_cursor.run_query(
+            self.bql, self.destination_dataset_table, self.write_disposition,
+            self.udf_config, self.allow_large_results, self.flatten_results,
+            self.maximum_billing_tier, self.use_legacy_sql,
+            self.create_disposition, self.query_params)
 
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
