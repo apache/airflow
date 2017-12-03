@@ -194,6 +194,7 @@ class BigQueryBaseCursor(LoggingMixin):
             udf_config = False,
             use_legacy_sql=True,
             maximum_billing_tier=None,
+            flatten_results=True,
             create_disposition='CREATE_IF_NEEDED',
             query_params=None):
         """
@@ -222,12 +223,15 @@ class BigQueryBaseCursor(LoggingMixin):
         :type use_legacy_sql: boolean
         :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
         :type maximum_billing_tier: integer
+        :param flatten_results: Whether to flatten nested fields or not.
+        :type flatten_results: boolean
         """
         configuration = {
             'query': {
                 'query': bql,
                 'useLegacySql': use_legacy_sql,
-                'maximumBillingTier': maximum_billing_tier
+                'maximumBillingTier': maximum_billing_tier,
+                'flattenResults': flatten_results
             }
         }
 
@@ -589,7 +593,7 @@ class BigQueryBaseCursor(LoggingMixin):
                         'BigQuery job status check failed. Final error was: %s', err.resp.status)
 
         return self.running_job_id
-        
+
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
@@ -603,8 +607,8 @@ class BigQueryBaseCursor(LoggingMixin):
                 raise Exception(
                     'BigQuery job status check failed. Final error was: %s', err.resp.status)
         return False
-      
-        
+
+
     def cancel_query(self):
         """
         Cancel all started queries that have not yet completed
@@ -616,11 +620,11 @@ class BigQueryBaseCursor(LoggingMixin):
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
-        
+
         # Wait for all the calls to cancel to finish
         max_polling_attempts = 12
         polling_attempts = 0
-        
+
         job_complete = False
         while (polling_attempts < max_polling_attempts and not job_complete):
             polling_attempts = polling_attempts+1
