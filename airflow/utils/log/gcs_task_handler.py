@@ -114,9 +114,6 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         Returns the log found at the remote_log_location.
         :param remote_log_location: the log's location in remote storage
         :type remote_log_location: string (path)
-        :param return_error: if True, returns a string error message if an
-            error occurs. Otherwise returns '' when an error occurs.
-        :type return_error: bool
         """
         bkt, blob = self.parse_gcs_url(remote_log_location)
         return self.hook.download(bkt, blob).decode()
