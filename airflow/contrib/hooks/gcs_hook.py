@@ -269,3 +269,31 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
                 # empty next page token
                 break
         return ids
+
+    def get_size(self, bucket, object):
+        """
+        Gets the size of a file in Google Cloud Storage.
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        self.log.info('Checking the file size of object: %s in bucket: %s', object, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objects().get(
+                bucket=bucket,
+                object=object
+            ).execute()
+
+            if 'name' in response and response['name'][-1] != '/':
+                # Remove Directories & Just check size of files
+                size = response['size']
+                self.log.info('The file size of %s is %s', object, size)
+                return size
+            else:
+                raise ValueError('Object is not a file')
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                raise ValueError('Object Not Found')
