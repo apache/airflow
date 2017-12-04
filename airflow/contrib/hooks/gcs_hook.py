@@ -279,6 +279,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             storage bucket.
         :type object: string
         """
+        self.log.info('Checking the file size of %s', object)
         service = self.get_conn()
         try:
             response = service.objects().get(
@@ -288,11 +289,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
 
             if 'name' in response and response['name'][-1] != '/':
                 # Remove Directories & Just check size of files
-                if 'size' in response:
-                    size = response['size']
-                    self.log.info('Checking the file size of %s', object)
-                    self.log.info('The file size of %s is %s', object, size)
-                    return size
+                size = response['size']
+                self.log.info('The file size of %s is %s', object, size)
+                return size
             else:
                 raise ValueError('Object is not a file')
         except errors.HttpError as ex:
