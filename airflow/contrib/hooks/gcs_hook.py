@@ -279,7 +279,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             storage bucket.
         :type object: string
         """
-        self.log.info('Checking the file size of %s', object)
+        self.log.info('Checking the file size of object: %s in bucket: %s', object, bucket)
         service = self.get_conn()
         try:
             response = service.objects().get(
