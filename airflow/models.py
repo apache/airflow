@@ -2201,6 +2201,8 @@ class BaseOperator(LoggingMixin):
         if dag:
             self.dag = dag
 
+        self._log = logging.getLogger("airflow.task.operators")
+
         self._comps = {
             'task_id',
             'dag_id',
@@ -2412,14 +2414,27 @@ class BaseOperator(LoggingMixin):
         memo[id(self)] = result
 
         for k, v in list(self.__dict__.items()):
-            if k not in ('user_defined_macros', 'user_defined_filters', 'params'):
+            if k not in ('user_defined_macros', 'user_defined_filters',
+                         'params', '_log'):
                 setattr(result, k, copy.deepcopy(v, memo))
         result.params = self.params
         if hasattr(self, 'user_defined_macros'):
             result.user_defined_macros = self.user_defined_macros
         if hasattr(self, 'user_defined_filters'):
             result.user_defined_filters = self.user_defined_filters
+        if hasattr(self, '_log'):
+            result._log = self._log
         return result
+
+    def __getstate__(self):
+        state = dict(self.__dict__)
+        del state['_log']
+
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__ = state
+        self._log = logging.getLogger("airflow.task.operators")
 
     def render_template_from_field(self, attr, content, context, jinja_env):
         """
