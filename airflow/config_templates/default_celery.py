@@ -19,6 +19,10 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
+broker_transport_options = configuration.getsection('celery_broker_transport_options')
+if broker_transport_options is None:
+    broker_transport_options = {'visibility_timeout': 21600}
+
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json', 'pickle'],
     'event_serializer': 'json',
@@ -28,7 +32,7 @@ DEFAULT_CELERY_CONFIG = {
     'task_default_queue': configuration.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': configuration.get('celery', 'DEFAULT_QUEUE'),
     'broker_url': configuration.get('celery', 'BROKER_URL'),
-    'broker_transport_options': {'visibility_timeout': 21600},
+    'broker_transport_options': {'visibility_timeout': broker_transport_options},
     'result_backend': configuration.get('celery', 'CELERY_RESULT_BACKEND'),
     'worker_concurrency': configuration.getint('celery', 'CELERYD_CONCURRENCY'),
 }
