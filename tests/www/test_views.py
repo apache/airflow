@@ -374,7 +374,7 @@ class TestLogView(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Log file isn',
+        self.assertIn('Log file does not exist',
                       response.data.decode('utf-8'))
 
 
