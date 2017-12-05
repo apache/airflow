@@ -155,6 +155,11 @@ Note that you can also run "Celery Flower", a web UI built on top of Celery,
 to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
 
+Some caveats:
+
+- Make sure to use a database backed result backend
+- Make sure to set a visibility timeout in [celery_broker_transport_options] that exceeds the ETA of your longest running task
+- Tasks can and consume resources, make sure your worker as enough resources to run `celeryd_concurrency` tasks
 
 Scaling Out with Dask
 '''''''''''''''''''''

@@ -236,6 +236,12 @@ class AirflowConfigParser(ConfigParser):
         ConfigParser.read(self, filenames)
         self._validate()
 
+    def getsection(self, section):
+        if section in self._sections:
+            return self._sections[section]
+
+        return None
+
     def as_dict(self, display_source=False, display_sensitive=False):
         """
         Returns the current configuration as an OrderedDict of OrderedDicts.
@@ -421,6 +427,10 @@ def getfloat(section, key):
 
 def getint(section, key):
     return conf.getint(section, key)
+
+
+def getsection(section):
+    return conf.getsection(section)
 
 
 def has_option(section, key):
