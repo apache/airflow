@@ -1855,6 +1855,12 @@ class TaskInstance(Base, LoggingMixin):
             TI.state == State.RUNNING
         ).count()
 
+    def init_run_context(self):
+        """
+        Sets the log context.
+        """
+        self._set_context(self)
+
 
 class TaskFail(Base):
     """
