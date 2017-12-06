@@ -70,6 +70,7 @@ class WinRMHook(BaseHook, LoggingMixin):
         self.compress = True
         self.no_host_key_check = True
         self.client = None
+        self.winrm_protocol = None
 
     def get_conn(self):
         if not self.client:
@@ -129,12 +130,12 @@ class WinRMHook(BaseHook, LoggingMixin):
                     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
                 if self.password and self.password.strip():
-                    winrm_protocol = Protocol(
+                    self.winrm_protocol = Protocol(
                                     endpoint='http://' + self.remote_host + ':5985/wsman',
                                     #transport='certificate',
                                     transport='plaintext',
-                                    cert_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws-publickey.pem',
-                                    cert_key_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws.pem',
+                                    # cert_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws-publickey.pem',
+                                    # cert_key_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws.pem',
                                     username=self.username,
                                     password=self.password,
                                     server_cert_validation='ignore')
@@ -146,20 +147,20 @@ class WinRMHook(BaseHook, LoggingMixin):
                 #                    compress=self.compress,
                 #                    sock=host_proxy)
 
-                if self.keepalive_interval:
-                    client.get_transport().set_keepalive(self.keepalive_interval)
+                # if self.keepalive_interval:
+                #     client.get_transport().set_keepalive(self.keepalive_interval)
 
-                self.client = client
-            except paramiko.AuthenticationException as auth_error:
-                self.log.error(
-                    "Auth failed while connecting to host: %s, error: %s",
-                    self.remote_host, auth_error
-                )
-            except paramiko.SSHException as ssh_error:
-                self.log.error(
-                    "Failed connecting to host: %s, error: %s",
-                    self.remote_host, ssh_error
-                )
+                self.client = self.winrm_protocol.open_shell()
+            # except paramiko.AuthenticationException as auth_error:
+            #     self.log.error(
+            #         "Auth failed while connecting to host: %s, error: %s",
+            #         self.remote_host, auth_error
+            #     )
+            # except paramiko.SSHException as ssh_error:
+            #     self.log.error(
+            #         "Failed connecting to host: %s, error: %s",
+            #         self.remote_host, ssh_error
+            #     )
             except Exception as error:
                 self.log.error(
                     "Error connecting to host: %s, error: %s",

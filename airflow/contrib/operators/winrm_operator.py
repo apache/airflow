@@ -16,7 +16,7 @@ from base64 import b64encode
 from select import select
 
 from airflow import configuration
-from airflow.contrib.hooks.ssh_hook import WinRMHook
+from airflow.contrib.hooks.winrm_hook import WinRMHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -44,7 +44,7 @@ class WinRMOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self,
-                 ssh_hook=None,
+                 winrm_hook=None,
                  ssh_conn_id=None,
                  remote_host=None,
                  command=None,
@@ -53,7 +53,7 @@ class WinRMOperator(BaseOperator):
                  *args,
                  **kwargs):
         super(WinRMOperator, self).__init__(*args, **kwargs)
-        self.ssh_hook = ssh_hook
+        self.winrm_hook = winrm_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.command = command
@@ -62,30 +62,33 @@ class WinRMOperator(BaseOperator):
 
     def execute(self, context):
         try:
-            if self.ssh_conn_id and not self.ssh_hook:
-                self.ssh_hook = SSHHook(ssh_conn_id=self.ssh_conn_id)
+            if self.ssh_conn_id and not self.winrm_hook:
+                self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
-            if not self.ssh_hook:
+            if not self.winrm_hook:
                 raise AirflowException("can not operate without ssh_hook or ssh_conn_id")
 
             if self.remote_host is not None:
-                self.ssh_hook.remote_host = self.remote_host
+                self.winrm_hook.remote_host = self.remote_host
 
-            ssh_client = self.ssh_hook.get_conn()
+            winrm_client = self.winrm_hook.get_conn()
 
             if not self.command:
                 raise AirflowException("no command specified so nothing to execute here.")
 
             # Auto apply tty when its required in case of sudo
-            get_pty = False
-            if self.command.startswith('sudo'):
-                get_pty = True
+            # get_pty = False
+            # if self.command.startswith('sudo'):
+            #     get_pty = True
 
             # set timeout taken as params
-            stdin, stdout, stderr = ssh_client.exec_command(command=self.command,
-                                                            get_pty=get_pty,
-                                                            timeout=self.timeout
-                                                            )
+            command_id = self.winrm_hook.winrm_protocol.run_command(winrm_client, 'ipconfig', ['/all'])
+            std_out, std_err, status_code = p.get_command_output(winrm_client, command_id)
+
+            # stdin, stdout, stderr = winrm_client.exec_command(command=self.command,
+            #                                                 get_pty=get_pty,
+            #                                                 timeout=self.timeout
+            #                                                 )
             # get channels
             channel = stdout.channel
 
@@ -143,7 +146,7 @@ class WinRMOperator(BaseOperator):
                                        .format(self.command, error_msg))
 
         except Exception as e:
-            raise AirflowException("SSH operator error: {0}".format(str(e)))
+            raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
         return True
 
