@@ -25,6 +25,7 @@ try:
 except ImportError:
     mock_redshift = None
 
+
 @mock_redshift
 class TestRedshiftHook(unittest.TestCase):
     def setUp(self):
@@ -56,8 +57,12 @@ class TestRedshiftHook(unittest.TestCase):
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     def test_restore_from_cluster_snapshot_returns_dict_with_cluster_data(self):
         hook = RedshiftHook(aws_conn_id='aws_default')
-        snapshot = hook.create_cluster_snapshot('test_snapshot', 'test_cluster')
-        self.assertEqual(hook.restore_from_cluster_snapshot('test_cluster_3', 'test_snapshot')['ClusterIdentifier'], 'test_cluster_3')
+        hook.create_cluster_snapshot('test_snapshot', 'test_cluster')
+        self.assertEqual(
+            hook.restore_from_cluster_snapshot(
+                'test_cluster_3', 'test_snapshot'
+            )['ClusterIdentifier'],
+            'test_cluster_3')
 
     @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
     def test_delete_cluster_returns_a_dict_with_cluster_data(self):
@@ -72,6 +77,19 @@ class TestRedshiftHook(unittest.TestCase):
 
         snapshot = hook.create_cluster_snapshot('test_snapshot_2', 'test_cluster')
         self.assertNotEqual(snapshot, None)
+
+    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    def test_cluster_status_returns_cluster_not_found(self):
+        hook = RedshiftHook(aws_conn_id='aws_default')
+        status = hook.cluster_status('test_cluster_not_here')
+        self.assertEqual(status, 'cluster_not_found')
+
+    @unittest.skipIf(mock_redshift is None, 'mock_redshift package not present')
+    def test_cluster_status_returns_available_cluster(self):
+        hook = RedshiftHook(aws_conn_id='aws_default')
+        status = hook.cluster_status('test_cluster')
+        self.assertEqual(status, 'available')
+
 
 if __name__ == '__main__':
     unittest.main()
