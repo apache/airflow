@@ -362,15 +362,10 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.refresh_from_db()
-
-    log = logging.getLogger('airflow.task')
-    if args.raw:
-        log = logging.getLogger('airflow.task.raw')
-
-    set_context(log, ti)
+    ti.init_run_context()
 
     hostname = socket.getfqdn()
-    log.info("Running on host %s", hostname)
+    log.info("Running %s on host %s", ti, hostname)
 
     with redirect_stdout(log, logging.INFO), redirect_stderr(log, logging.WARN):
         if args.local:
@@ -428,13 +423,7 @@ def run(args, dag=None):
     if args.raw:
         return
 
-    # Force the log to flush. The flush is important because we
-    # might subsequently read from the log to insert into S3 or
-    # Google cloud storage. Explicitly close the handler is
-    # needed in order to upload to remote storage services.
-    for handler in log.handlers:
-        handler.flush()
-        handler.close()
+    logging.shutdown()
 
 
 def task_failed_deps(args):
