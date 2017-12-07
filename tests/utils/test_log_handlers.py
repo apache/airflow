@@ -12,18 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import copy
 import logging
 import logging.config
-import mock
 import os
 import unittest
+import six
 
-from airflow.models import TaskInstance, DAG
+from airflow.models import TaskInstance, DAG, DagRun
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.python_operator import PythonOperator
 from airflow.utils.timezone import datetime
+from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.log.file_task_handler import FileTaskHandler
+from airflow.utils.db import create_session
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -32,10 +34,21 @@ FILE_TASK_HANDLER = 'file.task'
 
 class TestFileTaskLogHandler(unittest.TestCase):
 
+    def cleanUp(self):
+        with create_session() as session:
+            session.query(DagRun).delete()
+            session.query(TaskInstance).delete()
+
     def setUp(self):
         super(TestFileTaskLogHandler, self).setUp()
-        # We use file task handler by default.
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        logging.root.disabled = False
+        self.cleanUp()
+        # We use file task handler by default.
+
+    def tearDown(self):
+        self.cleanUp()
+        super(TestFileTaskLogHandler, self).tearDown()
 
     def test_default_task_logging_setup(self):
         # file task handler is used by default.
@@ -46,29 +59,51 @@ class TestFileTaskLogHandler(unittest.TestCase):
         self.assertEqual(handler.name, FILE_TASK_HANDLER)
 
     def test_file_task_handler(self):
+        def task_callable(ti, **kwargs):
+            ti.log.info("test")
         dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
-        task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=dag)
+        task = PythonOperator(
+            task_id='task_for_testing_file_log_handler',
+            dag=dag,
+            python_callable=task_callable,
+            provide_context=True
+        )
         ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
 
-        logger = logging.getLogger(TASK_LOGGER)
+        logger = ti.log
+        ti.log.disabled = False
+
         file_handler = next((handler for handler in logger.handlers
                              if handler.name == FILE_TASK_HANDLER), None)
         self.assertIsNotNone(file_handler)
 
-        file_handler.set_context(ti)
+        set_context(logger, ti)
         self.assertIsNotNone(file_handler.handler)
         # We expect set_context generates a file locally.
         log_filename = file_handler.handler.baseFilename
         self.assertTrue(os.path.isfile(log_filename))
+        self.assertTrue(log_filename.endswith("1.log"), log_filename)
 
-        logger.info("test")
-        ti.run()
+        ti.run(ignore_ti_state=True)
+
+        file_handler.flush()
+        file_handler.close()
 
         self.assertTrue(hasattr(file_handler, 'read'))
         # Return value of read must be a list.
         logs = file_handler.read(ti)
         self.assertTrue(isinstance(logs, list))
         self.assertEqual(len(logs), 1)
+        target_re = r'\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n'
+
+        # We should expect our log line from the callable above to appear in
+        # the logs we read back
+        six.assertRegex(
+            self,
+            logs[0],
+            target_re,
+            "Logs were " + str(logs)
+        )
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
