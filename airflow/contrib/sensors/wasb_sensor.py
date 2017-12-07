@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 from airflow.contrib.hooks.wasb_hook import WasbHook
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 

@@ -14,15 +14,14 @@
 #
 
 import unittest
-from mock import patch
 
 from datetime import datetime
-
-from airflow.models import DAG, Connection
-from airflow.utils import db
-from airflow.exceptions import AirflowException
+from mock import patch
 
 from airflow.contrib.sensors.qubole_sensor import QuboleFileSensor, QubolePartitionSensor
+from airflow.exceptions import AirflowException
+from airflow.models import DAG, Connection
+from airflow.utils import db
 
 DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"
@@ -39,14 +38,10 @@ class QuboleSensorTest(unittest.TestCase):
     @patch('airflow.contrib.sensors.qubole_sensor.QuboleFileSensor.poke')
     def test_file_sensore(self, patched_poke):
         patched_poke.return_value = True
-
         sensor = QuboleFileSensor(
             task_id='test_qubole_file_sensor',
-            data={"files":
-                    ["s3://some_bucket/some_file"]
-            }
+            data={"files": ["s3://some_bucket/some_file"]}
         )
-
         self.assertTrue(sensor.poke({}))
 
     @patch('airflow.contrib.sensors.qubole_sensor.QubolePartitionSensor.poke')
@@ -55,12 +50,11 @@ class QuboleSensorTest(unittest.TestCase):
 
         sensor = QubolePartitionSensor(
             task_id='test_qubole_partition_sensor',
-            data={"schema":"default",
-                  "table":"my_partitioned_table",
-                  "columns":[
-                      {"column" : "month", "values" : ["1", "2"]},
-                  ]
-            },
+            data={
+                "schema": "default",
+                "table": "my_partitioned_table",
+                "columns": [{"column": "month", "values": ["1", "2"]}]
+            }
         )
 
         self.assertTrue(sensor.poke({}))
@@ -72,14 +66,13 @@ class QuboleSensorTest(unittest.TestCase):
         dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
 
         with self.assertRaises(AirflowException):
-            sensor = QubolePartitionSensor(
+            QubolePartitionSensor(
                 task_id='test_qubole_partition_sensor',
                 poke_interval=1,
-                data={"schema":"default",
-                      "table":"my_partitioned_table",
-                      "columns":[
-                          {"column" : "month", "values" : ["1", "2"]},
-                      ]
-                      },
+                data={
+                    "schema": "default",
+                    "table": "my_partitioned_table",
+                    "columns": [{"column": "month", "values": ["1", "2"]}]
+                },
                 dag=dag
             )
