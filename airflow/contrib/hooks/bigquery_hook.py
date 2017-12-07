@@ -502,9 +502,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
         :param time_partitioning: configure optional time partitioning fields i.e. partition by field, type and
-            expiration as per API specifications. note that 'field' is not available in concurrency with
+            expiration as per API specifications. Note that 'field' is not available in concurrency with
             dataset.table$partition.
-        :type src_fmt_configs: dict
+        :type time_partitioning: dict
         """
 
         # bigquery only allows certain source formats
