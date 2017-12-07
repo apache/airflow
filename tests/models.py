@@ -925,10 +925,11 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task, execution_date=timezone.utcnow())
 
+        self.assertEqual(ti.try_number, 1)
         # first run -- up for retry
         run_with_error(ti)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti.try_number, 1)
+        self.assertEqual(ti.try_number, 2)
 
         # second run -- still up for retry because retry_delay hasn't expired
         run_with_error(ti)
@@ -965,16 +966,19 @@ class TaskInstanceTest(unittest.TestCase):
 
         ti = TI(
             task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti.try_number, 1)
 
         # first run -- up for retry
         run_with_error(ti)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti.try_number, 1)
+        self.assertEqual(ti._try_number, 1)
+        self.assertEqual(ti.try_number, 2)
 
         # second run -- fail
         run_with_error(ti)
         self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti.try_number, 2)
+        self.assertEqual(ti._try_number, 2)
+        self.assertEqual(ti.try_number, 3)
 
         # Clear the TI state since you can't run a task with a FAILED state without
         # clearing it first
@@ -983,12 +987,15 @@ class TaskInstanceTest(unittest.TestCase):
         # third run -- up for retry
         run_with_error(ti)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti.try_number, 3)
+        self.assertEqual(ti._try_number, 3)
+        self.assertEqual(ti.try_number, 4)
 
         # fourth run -- fail
         run_with_error(ti)
+        ti.refresh_from_db()
         self.assertEqual(ti.state, State.FAILED)
-        self.assertEqual(ti.try_number, 4)
+        self.assertEqual(ti._try_number, 4)
+        self.assertEqual(ti.try_number, 5)
 
     def test_next_retry_datetime(self):
         delay = datetime.timedelta(seconds=30)
@@ -1009,19 +1016,18 @@ class TaskInstanceTest(unittest.TestCase):
             task=task, execution_date=DEFAULT_DATE)
         ti.end_date = pendulum.instance(timezone.utcnow())
 
-        ti.try_number = 1
         dt = ti.next_retry_datetime()
         # between 30 * 2^0.5 and 30 * 2^1 (15 and 30)
         period = ti.end_date.add(seconds=30) - ti.end_date.add(seconds=15)
         self.assertTrue(dt in period)
 
-        ti.try_number = 4
+        ti.try_number = 3
         dt = ti.next_retry_datetime()
         # between 30 * 2^2 and 30 * 2^3 (120 and 240)
         period = ti.end_date.add(seconds=240) - ti.end_date.add(seconds=120)
         self.assertTrue(dt in period)
 
-        ti.try_number = 6
+        ti.try_number = 5
         dt = ti.next_retry_datetime()
         # between 30 * 2^4 and 30 * 2^5 (480 and 960)
         period = ti.end_date.add(seconds=960) - ti.end_date.add(seconds=480)
@@ -1229,7 +1235,11 @@ class TaskInstanceTest(unittest.TestCase):
         task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
         ti = TI(
             task=task, execution_date=timezone.utcnow())
+        self.assertEqual(ti._try_number, 0)
         self.assertTrue(ti._check_and_change_state_before_execution())
+        # State should be running, and try_number column should be incremented
+        self.assertEqual(ti.state, State.RUNNING)
+        self.assertEqual(ti._try_number, 1)
 
     def test_check_and_change_state_before_execution_dep_not_met(self):
         dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
@@ -1239,6 +1249,20 @@ class TaskInstanceTest(unittest.TestCase):
         ti = TI(
             task=task2, execution_date=timezone.utcnow())
         self.assertFalse(ti._check_and_change_state_before_execution())
+
+    def test_try_number(self):
+        """
+        Test the try_number accessor behaves in various running states
+        """
+        dag = models.DAG(dag_id='test_check_and_change_state_before_execution')
+        task = DummyOperator(task_id='task', dag=dag, start_date=DEFAULT_DATE)
+        ti = TI(task=task, execution_date=timezone.utcnow())
+        self.assertEqual(1, ti.try_number)
+        ti.try_number = 2
+        ti.state = State.RUNNING
+        self.assertEqual(2, ti.try_number)
+        ti.state = State.SUCCESS
+        self.assertEqual(3, ti.try_number)
 
     def test_get_num_running_task_instances(self):
         session = settings.Session()
@@ -1282,9 +1306,10 @@ class ClearTasksTest(unittest.TestCase):
         session.commit()
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        self.assertEqual(ti0.try_number, 1)
+        # Next try to run will be try 2
+        self.assertEqual(ti0.try_number, 2)
         self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.try_number, 2)
         self.assertEqual(ti1.max_tries, 3)
 
     def test_clear_task_instances_without_task(self):
@@ -1310,9 +1335,10 @@ class ClearTasksTest(unittest.TestCase):
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        self.assertEqual(ti0.try_number, 1)
+        # Next try to run will be try 2
+        self.assertEqual(ti0.try_number, 2)
         self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.try_number, 2)
         self.assertEqual(ti1.max_tries, 2)
 
     def test_clear_task_instances_without_dag(self):
@@ -1333,9 +1359,10 @@ class ClearTasksTest(unittest.TestCase):
         # When dag is None, max_tries will be maximum of original max_tries or try_number.
         ti0.refresh_from_db()
         ti1.refresh_from_db()
-        self.assertEqual(ti0.try_number, 1)
+        # Next try to run will be try 2
+        self.assertEqual(ti0.try_number, 2)
         self.assertEqual(ti0.max_tries, 1)
-        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.try_number, 2)
         self.assertEqual(ti1.max_tries, 2)
 
     def test_dag_clear(self):
@@ -1343,12 +1370,13 @@ class ClearTasksTest(unittest.TestCase):
                   end_date=DEFAULT_DATE + datetime.timedelta(days=10))
         task0 = DummyOperator(task_id='test_dag_clear_task_0', owner='test', dag=dag)
         ti0 = TI(task=task0, execution_date=DEFAULT_DATE)
-        self.assertEqual(ti0.try_number, 0)
-        ti0.run()
+        # Next try to run will be try 1
         self.assertEqual(ti0.try_number, 1)
+        ti0.run()
+        self.assertEqual(ti0.try_number, 2)
         dag.clear()
         ti0.refresh_from_db()
-        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.try_number, 2)
         self.assertEqual(ti0.state, State.NONE)
         self.assertEqual(ti0.max_tries, 1)
 
@@ -1357,8 +1385,9 @@ class ClearTasksTest(unittest.TestCase):
         ti1 = TI(task=task1, execution_date=DEFAULT_DATE)
         self.assertEqual(ti1.max_tries, 2)
         ti1.try_number = 1
+        # Next try will be 2
         ti1.run()
-        self.assertEqual(ti1.try_number, 2)
+        self.assertEqual(ti1.try_number, 3)
         self.assertEqual(ti1.max_tries, 2)
 
         dag.clear()
@@ -1366,9 +1395,9 @@ class ClearTasksTest(unittest.TestCase):
         ti1.refresh_from_db()
         # after clear dag, ti2 should show attempt 3 of 5
         self.assertEqual(ti1.max_tries, 4)
-        self.assertEqual(ti1.try_number, 2)
+        self.assertEqual(ti1.try_number, 3)
         # after clear dag, ti1 should show attempt 2 of 2
-        self.assertEqual(ti0.try_number, 1)
+        self.assertEqual(ti0.try_number, 2)
         self.assertEqual(ti0.max_tries, 1)
 
     def test_dags_clear(self):
@@ -1388,7 +1417,7 @@ class ClearTasksTest(unittest.TestCase):
         for i in range(num_of_dags):
             tis[i].run()
             self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].try_number, 2)
             self.assertEqual(tis[i].max_tries, 0)
 
         DAG.clear_dags(dags)
@@ -1396,14 +1425,14 @@ class ClearTasksTest(unittest.TestCase):
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
             self.assertEqual(tis[i].state, State.NONE)
-            self.assertEqual(tis[i].try_number, 1)
+            self.assertEqual(tis[i].try_number, 2)
             self.assertEqual(tis[i].max_tries, 1)
 
         # test dry_run
         for i in range(num_of_dags):
             tis[i].run()
             self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].try_number, 3)
             self.assertEqual(tis[i].max_tries, 1)
 
         DAG.clear_dags(dags, dry_run=True)
@@ -1411,7 +1440,7 @@ class ClearTasksTest(unittest.TestCase):
         for i in range(num_of_dags):
             tis[i].refresh_from_db()
             self.assertEqual(tis[i].state, State.SUCCESS)
-            self.assertEqual(tis[i].try_number, 2)
+            self.assertEqual(tis[i].try_number, 3)
             self.assertEqual(tis[i].max_tries, 1)
 
         # test only_failed
@@ -1427,11 +1456,11 @@ class ClearTasksTest(unittest.TestCase):
             tis[i].refresh_from_db()
             if i != failed_dag_idx:
                 self.assertEqual(tis[i].state, State.SUCCESS)
-                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].try_number, 3)
                 self.assertEqual(tis[i].max_tries, 1)
             else:
                 self.assertEqual(tis[i].state, State.NONE)
-                self.assertEqual(tis[i].try_number, 2)
+                self.assertEqual(tis[i].try_number, 3)
                 self.assertEqual(tis[i].max_tries, 2)
 
     def test_operator_clear(self):
@@ -1446,17 +1475,17 @@ class ClearTasksTest(unittest.TestCase):
         ti2 = TI(task=t2, execution_date=DEFAULT_DATE)
         ti2.run()
         # Dependency not met
-        self.assertEqual(ti2.try_number, 0)
+        self.assertEqual(ti2.try_number, 1)
         self.assertEqual(ti2.max_tries, 1)
 
         t2.clear(upstream=True)
         ti1.run()
         ti2.run()
-        self.assertEqual(ti1.try_number, 1)
+        self.assertEqual(ti1.try_number, 2)
         # max_tries is 0 because there is no task instance in db for ti1
         # so clear won't change the max_tries.
         self.assertEqual(ti1.max_tries, 0)
-        self.assertEqual(ti2.try_number, 1)
+        self.assertEqual(ti2.try_number, 2)
         # try_number (0) + retries(1)
         self.assertEqual(ti2.max_tries, 1)
 
