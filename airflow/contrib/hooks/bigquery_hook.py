@@ -589,7 +589,7 @@ class BigQueryBaseCursor(LoggingMixin):
                         'BigQuery job status check failed. Final error was: %s', err.resp.status)
 
         return self.running_job_id
-        
+
     def poll_job_complete(self, job_id):
         jobs = self.service.jobs()
         try:
@@ -603,8 +603,8 @@ class BigQueryBaseCursor(LoggingMixin):
                 raise Exception(
                     'BigQuery job status check failed. Final error was: %s', err.resp.status)
         return False
-      
-        
+
+
     def cancel_query(self):
         """
         Cancel all started queries that have not yet completed
@@ -616,11 +616,11 @@ class BigQueryBaseCursor(LoggingMixin):
         else:
             self.log.info('No running BigQuery jobs to cancel.')
             return
-        
+
         # Wait for all the calls to cancel to finish
         max_polling_attempts = 12
         polling_attempts = 0
-        
+
         job_complete = False
         while (polling_attempts < max_polling_attempts and not job_complete):
             polling_attempts = polling_attempts+1
@@ -648,14 +648,16 @@ class BigQueryBaseCursor(LoggingMixin):
         return tables_resource['schema']
 
     def get_tabledata(self, dataset_id, table_id,
-                      max_results=None, page_token=None, start_index=None):
+                      max_results=None, selected_fields=None, page_token=None, start_index=None):
         """
-        Get the data of a given dataset.table.
+        Get the data of a given dataset.table and optionally with selected columns.
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
         :param table_id: the table ID of the requested table.
         :param max_results: the maximum results to return.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
         :param page_token: page token, returned from a previous call,
             identifying the result set.
         :param start_index: zero based index of the starting row to read.
@@ -664,6 +666,8 @@ class BigQueryBaseCursor(LoggingMixin):
         optional_params = {}
         if max_results:
             optional_params['maxResults'] = max_results
+        if selected_fields:
+            optional_params['selectedFields'] = selected_fields
         if page_token:
             optional_params['pageToken'] = page_token
         if start_index:
