@@ -18,6 +18,11 @@ from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+log = LoggingMixin().log
+
+broker_transport_options = configuration.getsection('celery_broker_transport_options')
+if broker_transport_options is None:
+    broker_transport_options = {'visibility_timeout': 21600}
 
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json', 'pickle'],
@@ -28,7 +33,7 @@ DEFAULT_CELERY_CONFIG = {
     'task_default_queue': configuration.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': configuration.get('celery', 'DEFAULT_QUEUE'),
     'broker_url': configuration.get('celery', 'BROKER_URL'),
-    'broker_transport_options': {'visibility_timeout': 21600},
+    'broker_transport_options': {'visibility_timeout': broker_transport_options},
     'result_backend': configuration.get('celery', 'CELERY_RESULT_BACKEND'),
     'worker_concurrency': configuration.getint('celery', 'CELERYD_CONCURRENCY'),
 }
@@ -37,7 +42,6 @@ celery_ssl_active = False
 try:
     celery_ssl_active = configuration.getboolean('celery', 'CELERY_SSL_ACTIVE')
 except AirflowConfigException as e:
-    log = LoggingMixin().log
     log.warning("Celery Executor will run without SSL")
 
 try:
@@ -56,3 +60,7 @@ except Exception as e:
                            'Please ensure you want to use '
                            'SSL and/or have all necessary certs and key ({}).'.format(e))
 
+result_backend = DEFAULT_CELERY_CONFIG['result_backend']
+if 'amqp' in result_backend or 'redis' in result_backend or 'rpc' in result_backend:
+    log.warning("You have configured a result_backend of %s, it is highly recommended "
+                "to use an alternative result_backend (i.e. a database).", result_backend)

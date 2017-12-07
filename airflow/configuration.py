@@ -85,7 +85,10 @@ def run_command(command):
     Runs command and returns stdout
     """
     process = subprocess.Popen(
-        shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        shlex.split(command),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True)
     output, stderr = [stream.decode(sys.getdefaultencoding(), 'ignore')
                       for stream in process.communicate()]
 
@@ -232,6 +235,12 @@ class AirflowConfigParser(ConfigParser):
     def read(self, filenames):
         ConfigParser.read(self, filenames)
         self._validate()
+
+    def getsection(self, section):
+        if section in self._sections:
+            return self._sections[section]
+
+        return None
 
     def as_dict(self, display_source=False, display_sensitive=False):
         """
@@ -418,6 +427,10 @@ def getfloat(section, key):
 
 def getint(section, key):
     return conf.getint(section, key)
+
+
+def getsection(section):
+    return conf.getsection(section)
 
 
 def has_option(section, key):

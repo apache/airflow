@@ -19,7 +19,7 @@ import unittest
 
 from airflow import jobs, models
 from airflow.utils.state import State
-from datetime import datetime
+from airflow.utils.timezone import datetime
 
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(

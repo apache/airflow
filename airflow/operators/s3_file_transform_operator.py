@@ -88,7 +88,7 @@ class S3FileTransformOperator(BaseOperator):
             source_s3.connection.close()
             transform_script_process = subprocess.Popen(
                 [self.transform_script, f_source.name, f_dest.name],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
             (transform_script_stdoutdata, transform_script_stderrdata) = transform_script_process.communicate()
             self.log.info("Transform script stdout %s", transform_script_stdoutdata)
             if transform_script_process.returncode > 0:

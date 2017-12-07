@@ -17,7 +17,7 @@ import unittest
 import warnings
 
 from airflow.operators.bash_operator import BashOperator
-from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.logging_mixin import set_context, StreamLogWriter
 from tests.test_utils.reset_warning_registry import reset_warning_registry
 
 
@@ -47,6 +47,23 @@ class TestLoggingMixin(unittest.TestCase):
                     ' using logger(), which will be replaced by .log in Airflow 2.0',
                     str(warning.message)
                 )
+
+    def test_set_context(self):
+        handler1 = mock.MagicMock()
+        handler2 = mock.MagicMock()
+        parent = mock.MagicMock()
+        parent.propagate = False
+        parent.handlers = [handler1, ]
+        log = mock.MagicMock()
+        log.handlers = [handler2, ]
+        log.parent = parent
+        log.propagate = True
+
+        value = "test"
+        set_context(log, value)
+
+        handler1.set_context.assert_called_with(value)
+        handler2.set_context.assert_called_with(value)
 
     def tearDown(self):
         warnings.resetwarnings()

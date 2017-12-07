@@ -73,7 +73,7 @@ def perform_krb181_workaround():
     log.info("Renewing kerberos ticket to work around kerberos 1.8.1: " +
              " ".join(cmdv))
 
-    ret = subprocess.call(cmdv)
+    ret = subprocess.call(cmdv, close_fds=True)
 
     if ret != 0:
         principal = "%s/%s" % (configuration.get('kerberos', 'principal'), socket.getfqdn())

@@ -21,7 +21,7 @@ standard_library.install_aliases()
 from builtins import str
 from past.builtins import basestring
 
-from datetime import datetime
+from airflow.utils import timezone
 from urllib.parse import urlparse
 from time import sleep
 import re
@@ -75,9 +75,9 @@ class BaseSensorOperator(BaseOperator):
         raise AirflowException('Override me.')
 
     def execute(self, context):
-        started_at = datetime.utcnow()
+        started_at = timezone.utcnow()
         while not self.poke(context):
-            if (datetime.utcnow() - started_at).total_seconds() > self.timeout:
+            if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 if self.soft_fail:
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
@@ -602,7 +602,7 @@ class TimeSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Checking if the time (%s) has come', self.target_time)
-        return datetime.utcnow().time() > self.target_time
+        return timezone.utcnow().time() > self.target_time
 
 
 class TimeDeltaSensor(BaseSensorOperator):
@@ -627,7 +627,7 @@ class TimeDeltaSensor(BaseSensorOperator):
         target_dttm = dag.following_schedule(context['execution_date'])
         target_dttm += self.delta
         self.log.info('Checking if the time (%s) has come', target_dttm)
-        return datetime.utcnow() > target_dttm
+        return timezone.utcnow() > target_dttm
 
 
 class HttpSensor(BaseSensorOperator):

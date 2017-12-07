@@ -54,7 +54,8 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
-from airflow.utils.log.logging_mixin import LoggingMixin, redirect_stderr, redirect_stdout
+from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
+                                             redirect_stdout, set_context)
 from airflow.www.app import cached_app
 
 from sqlalchemy import func
@@ -328,7 +329,6 @@ def run(args, dag=None):
     # while it's waiting for the task to finish.
     settings.configure_orm(disable_connection_pool=True)
 
-    db_utils.pessimistic_connection_handling()
     if dag:
         args.dag_id = dag.dag_id
 
@@ -362,21 +362,10 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.refresh_from_db()
-
-    log = logging.getLogger('airflow.task')
-    if args.raw:
-        log = logging.getLogger('airflow.task.raw')
-
-    for handler in log.handlers:
-        try:
-            handler.set_context(ti)
-        except AttributeError:
-            # Not all handlers need to have context passed in so we ignore
-            # the error when handlers do not have set_context defined.
-            pass
+    ti.init_run_context()
 
     hostname = socket.getfqdn()
-    log.info("Running on host %s", hostname)
+    log.info("Running %s on host %s", ti, hostname)
 
     with redirect_stdout(log, logging.INFO), redirect_stderr(log, logging.WARN):
         if args.local:
@@ -434,13 +423,7 @@ def run(args, dag=None):
     if args.raw:
         return
 
-    # Force the log to flush. The flush is important because we
-    # might subsequently read from the log to insert into S3 or
-    # Google cloud storage. Explicitly close the handler is
-    # needed in order to upload to remote storage services.
-    for handler in log.handlers:
-        handler.flush()
-        handler.close()
+    logging.shutdown()
 
 
 def task_failed_deps(args):
@@ -771,7 +754,7 @@ def webserver(args):
                 },
             )
             with ctx:
-                subprocess.Popen(run_args)
+                subprocess.Popen(run_args, close_fds=True)
 
                 # Reading pid file directly, since Popen#pid doesn't
                 # seem to return the right value with DaemonContext.
@@ -790,7 +773,7 @@ def webserver(args):
             stdout.close()
             stderr.close()
         else:
-            gunicorn_master_proc = subprocess.Popen(run_args)
+            gunicorn_master_proc = subprocess.Popen(run_args, close_fds=True)
 
             signal.signal(signal.SIGINT, kill_proc)
             signal.signal(signal.SIGTERM, kill_proc)
@@ -881,7 +864,7 @@ def worker(args):
             stderr=stderr,
         )
         with ctx:
-            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+            sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
             worker.run(**options)
             sp.kill()
 
@@ -891,7 +874,7 @@ def worker(args):
         signal.signal(signal.SIGINT, sigint_handler)
         signal.signal(signal.SIGTERM, sigint_handler)
 
-        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env)
+        sp = subprocess.Popen(['airflow', 'serve_logs'], env=env, close_fds=True)
 
         worker.run(**options)
         sp.kill()

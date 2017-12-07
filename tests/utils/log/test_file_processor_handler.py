@@ -17,7 +17,7 @@ import os
 import unittest
 
 from airflow.utils.log.file_processor_handler import FileProcessorHandler
-from datetime import datetime
+from airflow.utils import timezone
 from datetime import timedelta
 from freezegun import freeze_time
 
@@ -31,7 +31,7 @@ class TestFileProcessorHandler(unittest.TestCase):
         self.dag_dir = "/dags"
 
     def test_non_template(self):
-        date = datetime.utcnow().strftime("%Y-%m-%d")
+        date = timezone.utcnow().strftime("%Y-%m-%d")
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
                                        filename_template=self.filename)
         handler.dag_dir = self.dag_dir
@@ -44,7 +44,7 @@ class TestFileProcessorHandler(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(path, "logfile")))
 
     def test_template(self):
-        date = datetime.utcnow().strftime("%Y-%m-%d")
+        date = timezone.utcnow().strftime("%Y-%m-%d")
         handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
                                        filename_template=self.filename_template)
         handler.dag_dir = self.dag_dir
@@ -61,8 +61,8 @@ class TestFileProcessorHandler(unittest.TestCase):
                                        filename_template=self.filename)
         handler.dag_dir = self.dag_dir
 
-        date1 = (datetime.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
-        date2 = (datetime.utcnow() + timedelta(days=2)).strftime("%Y-%m-%d")
+        date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+        date2 = (timezone.utcnow() + timedelta(days=2)).strftime("%Y-%m-%d")
 
         p1 = os.path.join(self.base_log_folder, date1, "log1")
         p2 = os.path.join(self.base_log_folder, date1, "log2")

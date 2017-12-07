@@ -37,6 +37,7 @@ from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as 
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.task_runner.base_task_runner import BaseTaskRunner
+from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
@@ -63,7 +64,7 @@ except ImportError:
         mock = None
 
 DEV_NULL = '/dev/null'
-DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
 # Include the words "airflow" and "dag" in the file contents, tricking airflow into thinking these
 # files contain a DAG (otherwise Airflow will skip them)
@@ -659,7 +660,7 @@ class BackfillJobTest(unittest.TestCase):
         subdag = subdag_op_task.subdag
         subdag.schedule_interval = '@daily'
 
-        start_date = datetime.datetime.now()
+        start_date = timezone.utcnow()
         executor = TestExecutor(do_update=True)
         job = BackfillJob(dag=subdag,
                           start_date=start_date,
@@ -1838,7 +1839,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         dag = DAG(
             'test_scheduler_dagrun_once',
-            start_date=datetime.datetime(2015, 1, 1),
+            start_date=timezone.datetime(2015, 1, 1),
             schedule_interval="@once")
 
         scheduler = SchedulerJob()
@@ -1912,7 +1913,7 @@ class SchedulerJobTest(unittest.TestCase):
     def test_scheduler_do_not_schedule_too_early(self):
         dag = DAG(
             dag_id='test_scheduler_do_not_schedule_too_early',
-            start_date=datetime.datetime(2200, 1, 1))
+            start_date=timezone.datetime(2200, 1, 1))
         dag_task1 = DummyOperator(
             task_id='dummy',
             dag=dag,
@@ -2059,7 +2060,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
         session.merge(dr)
         session.commit()
 
@@ -2102,7 +2103,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIsNone(new_dr)
 
         # Should be scheduled as dagrun_timeout has passed
-        dr.start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        dr.start_date = timezone.utcnow() - datetime.timedelta(days=1)
         session.merge(dr)
         session.commit()
         new_dr = scheduler.create_dag_run(dag)
@@ -2213,7 +2214,7 @@ class SchedulerJobTest(unittest.TestCase):
         """
         dag = DAG(
             dag_id='test_scheduler_auto_align_1',
-            start_date=datetime.datetime(2016, 1, 1, 10, 10, 0),
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="4 5 * * *"
         )
         dag_task1 = DummyOperator(
@@ -2231,11 +2232,11 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 2, 5, 4))
+        self.assertEquals(dr.execution_date, timezone.datetime(2016, 1, 2, 5, 4))
 
         dag = DAG(
             dag_id='test_scheduler_auto_align_2',
-            start_date=datetime.datetime(2016, 1, 1, 10, 10, 0),
+            start_date=timezone.datetime(2016, 1, 1, 10, 10, 0),
             schedule_interval="10 10 * * *"
         )
         dag_task1 = DummyOperator(
@@ -2253,7 +2254,7 @@ class SchedulerJobTest(unittest.TestCase):
 
         dr = scheduler.create_dag_run(dag)
         self.assertIsNotNone(dr)
-        self.assertEquals(dr.execution_date, datetime.datetime(2016, 1, 1, 10, 10))
+        self.assertEquals(dr.execution_date, timezone.datetime(2016, 1, 1, 10, 10))
 
     def test_scheduler_reschedule(self):
         """
@@ -2458,12 +2459,12 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertTrue(dag.start_date > DEFAULT_DATE)
 
         expected_run_duration = 5
-        start_time = datetime.datetime.now()
+        start_time = timezone.utcnow()
         scheduler = SchedulerJob(dag_id,
                                  run_duration=expected_run_duration,
                                  **self.default_scheduler_args)
         scheduler.run()
-        end_time = datetime.datetime.now()
+        end_time = timezone.utcnow()
 
         run_duration = (end_time - start_time).total_seconds()
         logging.info("Test ran in %.2fs, expected %.2fs",
@@ -2503,7 +2504,7 @@ class SchedulerJobTest(unittest.TestCase):
         Test to check that a DAG returns it's active runs
         """
 
-        now = datetime.datetime.now()
+        now = timezone.utcnow()
         six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
 
         START_DATE = six_hours_ago_to_the_hour
@@ -2557,7 +2558,7 @@ class SchedulerJobTest(unittest.TestCase):
         Test to check that a DAG with catchup = False only schedules beginning now, not back to the start date
         """
 
-        now = datetime.datetime.now()
+        now = timezone.utcnow()
         six_hours_ago_to_the_hour = (now - datetime.timedelta(hours=6)).replace(minute=0, second=0, microsecond=0)
         three_minutes_ago = now - datetime.timedelta(minutes=3)
         two_hours_and_three_minutes_ago = three_minutes_ago - datetime.timedelta(hours=2)
@@ -2618,7 +2619,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertGreater(dr.execution_date, three_minutes_ago)
 
         # The DR should be scheduled BEFORE now
-        self.assertLess(dr.execution_date, datetime.datetime.now())
+        self.assertLess(dr.execution_date, timezone.utcnow())
 
         dag3 = DAG(DAG_NAME3,
                    schedule_interval='@hourly',
@@ -2652,7 +2653,7 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertGreater(dr.execution_date, two_hours_and_three_minutes_ago)
 
         # The DR should be scheduled BEFORE now
-        self.assertLess(dr.execution_date, datetime.datetime.now())
+        self.assertLess(dr.execution_date, timezone.utcnow())
 
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         try:

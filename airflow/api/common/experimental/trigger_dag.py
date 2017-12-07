@@ -12,11 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import json
 
 from airflow.exceptions import AirflowException
 from airflow.models import DagRun, DagBag
+from airflow.utils import timezone
 from airflow.utils.state import State
 
 
@@ -29,9 +29,9 @@ def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None):
     dag = dagbag.get_dag(dag_id)
 
     if not execution_date:
-        execution_date = datetime.datetime.utcnow()
+        execution_date = timezone.utcnow()
 
-    assert isinstance(execution_date, datetime.datetime)
+    assert timezone.is_localized(execution_date)
     execution_date = execution_date.replace(microsecond=0)
 
     if not run_id:

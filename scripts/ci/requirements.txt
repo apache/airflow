@@ -64,6 +64,7 @@ pandas
 pandas-gbq
 parameterized
 paramiko>=2.1.1
+pendulum>=1.3.2
 psutil>=4.2.0, <5.0.0
 psycopg2
 pygments

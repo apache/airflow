@@ -13,15 +13,15 @@
 # limitations under the License.
 #
 
-import datetime
 import mock
 import unittest
 
 from airflow import DAG, configuration
 from airflow.contrib.operators.druid_operator import DruidOperator
+from airflow.utils import timezone
 from airflow.models import TaskInstance
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class TestDruidOperator(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestDruidOperator(unittest.TestCase):
         configuration.load_test_config()
         args = {
             'owner': 'airflow',
-            'start_date': datetime.datetime(2017, 1, 1)
+            'start_date': timezone.datetime(2017, 1, 1)
         }
         self.dag = DAG('test_dag_id', default_args=args)
 

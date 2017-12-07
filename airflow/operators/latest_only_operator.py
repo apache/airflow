@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 
 from airflow.models import BaseOperator, SkipMixin
+from airflow.utils import timezone
 
 
 class LatestOnlyOperator(BaseOperator, SkipMixin):
@@ -35,7 +35,7 @@ class LatestOnlyOperator(BaseOperator, SkipMixin):
             self.log.info("Externally triggered DAG_Run: allowing execution to proceed.")
             return
 
-        now = datetime.datetime.utcnow()
+        now = timezone.utcnow()
         left_window = context['dag'].following_schedule(
             context['execution_date'])
         right_window = context['dag'].following_schedule(left_window)

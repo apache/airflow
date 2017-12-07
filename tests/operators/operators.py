@@ -14,16 +14,15 @@
 
 from __future__ import print_function
 
-import datetime
-
 from airflow import DAG, configuration, operators
 from airflow.utils.tests import skipUnlessImported
+from airflow.utils import timezone
 
 configuration.load_test_config()
 
 import unittest
 
-DEFAULT_DATE = datetime.datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
@@ -251,7 +250,7 @@ class TransferTests(unittest.TestCase):
     def test_clear(self):
         self.dag.clear(
             start_date=DEFAULT_DATE,
-            end_date=datetime.datetime.now())
+            end_date=timezone.utcnow())
 
     def test_mysql_to_hive(self):
         # import airflow.operators

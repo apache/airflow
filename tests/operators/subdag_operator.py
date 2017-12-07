@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import os
 import unittest
 
@@ -25,13 +24,15 @@ from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.subdag_operator import SubDagOperator
 from airflow.jobs import BackfillJob
 from airflow.exceptions import AirflowException
+from airflow.utils.timezone import datetime
 
-DEFAULT_DATE = datetime.datetime(2016, 1, 1)
+DEFAULT_DATE = datetime(2016, 1, 1)
 
 default_args = dict(
     owner='airflow',
     start_date=DEFAULT_DATE,
 )
+
 
 class SubDagOperatorTests(unittest.TestCase):
 

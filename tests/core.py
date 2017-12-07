@@ -25,9 +25,10 @@ import multiprocessing
 import mock
 from numpy.testing import assert_array_almost_equal
 import tempfile
-from datetime import datetime, time, timedelta
+from datetime import time, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
+from freezegun import freeze_time
 import signal
 from six.moves.urllib.parse import urlencode
 from time import sleep
@@ -39,7 +40,6 @@ import sqlalchemy
 from airflow import configuration
 from airflow.executors import SequentialExecutor
 from airflow.models import Variable
-from tests.test_utils.fake_datetime import FakeDatetime
 
 configuration.load_test_config()
 from airflow import jobs, models, DAG, utils, macros, settings, exceptions
@@ -56,6 +56,8 @@ from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
 from airflow.www import app as application
 from airflow.settings import Session
+from airflow.utils import timezone
+from airflow.utils.timezone import datetime
 from airflow.utils.state import State
 from airflow.utils.dates import infer_time_unit, round_time, scale_time_units
 from lxml import html
@@ -208,7 +210,7 @@ class CoreTest(unittest.TestCase):
             owner='Also fake',
             start_date=datetime(2015, 1, 2, 0, 0)))
 
-        start_date = datetime.utcnow()
+        start_date = timezone.utcnow()
 
         run = dag.create_dagrun(
             run_id='test_' + start_date.isoformat(),
@@ -254,7 +256,7 @@ class CoreTest(unittest.TestCase):
 
         self.assertIsNone(additional_dag_run)
 
-    @mock.patch('airflow.jobs.datetime', FakeDatetime)
+    @freeze_time('2016-01-01')
     def test_schedule_dag_no_end_date_up_to_today_only(self):
         """
         Tests that a Dag created without an end_date can only be scheduled up
@@ -264,9 +266,6 @@ class CoreTest(unittest.TestCase):
         start_date of 2015-01-01, only jobs up to, but not including
         2016-01-01 should be scheduled.
         """
-        from datetime import datetime
-        FakeDatetime.utcnow = classmethod(lambda cls: datetime(2016, 1, 1))
-
         session = settings.Session()
         delta = timedelta(days=1)
         start_date = DEFAULT_DATE
@@ -332,7 +331,8 @@ class CoreTest(unittest.TestCase):
         self.assertNotEqual(dag_subclass, self.dag)
 
         # a dag should equal an unpickled version of itself
-        self.assertEqual(pickle.loads(pickle.dumps(self.dag)), self.dag)
+        d = pickle.dumps(self.dag)
+        self.assertEqual(pickle.loads(d), self.dag)
 
         # dags are ordered based on dag_id no matter what the type is
         self.assertLess(self.dag, dag_diff_name)
@@ -1637,7 +1637,7 @@ class SecurityTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1657,23 +1657,23 @@ class WebUiTests(unittest.TestCase):
         self.example_xcom = self.dagbag.dags['example_xcom']
 
         self.dagrun_bash2 = self.dag_bash2.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
+            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.utcnow(),
+            start_date=timezone.utcnow(),
             state=State.RUNNING
         )
 
         self.sub_dag.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
+            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.utcnow(),
+            start_date=timezone.utcnow(),
             state=State.RUNNING
         )
 
         self.example_xcom.create_dagrun(
-            run_id="test_{}".format(models.DagRun.id_for_date(datetime.utcnow())),
+            run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
-            start_date=datetime.utcnow(),
+            start_date=timezone.utcnow(),
             state=State.RUNNING
         )
 
@@ -1849,7 +1849,7 @@ class WebUiTests(unittest.TestCase):
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
-        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=datetime.utcnow())
+        self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
         session = Session()
         session.query(models.DagRun).delete()
         session.query(models.TaskInstance).delete()

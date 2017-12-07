@@ -44,7 +44,7 @@ class DaskExecutor(BaseExecutor):
             )
 
         def airflow_run():
-            return subprocess.check_call(command, shell=True)
+            return subprocess.check_call(command, shell=True, close_fds=True)
 
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key
