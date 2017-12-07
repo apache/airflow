@@ -89,9 +89,6 @@ before_script:
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
 script:
-  - pip --version
-  - ls -l $HOME/.wheelhouse
-  - tox --version
-  - tox -e $TOX_ENV
+  - ./scripts/ci/travis_script.sh
 after_success:
   - codecov

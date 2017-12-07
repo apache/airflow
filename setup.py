@@ -162,6 +162,8 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.6']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
+kubernetes = ['kubernetes>=3.0.0',
+              'cryptography>=2.0.0']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = [
@@ -182,7 +184,8 @@ devel = [
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh
+devel_all = (devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh +
+             kubernetes)
 
 
 def do_setup():
@@ -278,6 +281,7 @@ def do_setup():
             'webhdfs': webhdfs,
             'jira': jira,
             'redis': redis,
+            'kubernetes': kubernetes
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',
