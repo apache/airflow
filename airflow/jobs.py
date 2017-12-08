@@ -1223,6 +1223,7 @@ class SchedulerJob(BaseJob):
                    "Last Run"]
 
         rows = []
+        dags_folder = conf.get('core', 'dags_folder').rstrip(os.sep)
         for file_path in known_file_paths:
             last_runtime = processor_manager.get_last_runtime(file_path)
             processor_pid = processor_manager.get_pid(file_path)
@@ -1230,6 +1231,17 @@ class SchedulerJob(BaseJob):
             runtime = ((datetime.now() - processor_start_time).total_seconds()
                        if processor_start_time else None)
             last_run = processor_manager.get_last_finish_time(file_path)
+
+            file_name = file_path[len(dags_folder) + 1:]
+            name = os.path.splitext(file_name)[0].replace(os.sep, '.')
+
+            if last_runtime is not None:
+                Stats.gauge('last_runtime.{}'.format(name), last_runtime)
+            if last_run is not None:
+                unixtime = last_run.strftime("%s")
+                seconds_ago = (datetime.now() - last_run).total_seconds()
+                Stats.gauge('last_run.unixtime.{}'.format(name), unixtime)
+                Stats.gauge('last_run.seconds_ago.{}'.format(name), seconds_ago)
 
             rows.append((file_path,
                          processor_pid,
