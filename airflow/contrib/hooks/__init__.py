@@ -34,7 +34,7 @@ import sys
 _hooks = {
     'docker_hook': ['DockerHook'],
     'ftp_hook': ['FTPHook'],
-    'ftps_hook': ['FTPSHook'],
+    'ftp_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
     'bigquery_hook': ['BigQueryHook'],
