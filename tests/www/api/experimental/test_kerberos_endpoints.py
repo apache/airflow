@@ -22,6 +22,7 @@ from datetime import datetime
 
 from airflow import configuration
 from airflow.api.auth.backend.kerberos_auth import client_auth
+from airflow.utils.net import get_hostname
 from airflow.www import app as application
 
 
@@ -57,7 +58,7 @@ class ApiKerberosTests(unittest.TestCase):
             )
             self.assertEqual(401, response.status_code)
 
-            response.url = 'http://{}'.format(socket.getfqdn())
+            response.url = 'http://{}'.format(get_hostname())
 
             class Request():
                 headers = {}
@@ -72,7 +73,7 @@ class ApiKerberosTests(unittest.TestCase):
             client_auth.mutual_authentication = 3
 
             # case can influence the results
-            client_auth.hostname_override = socket.getfqdn()
+            client_auth.hostname_override = get_hostname()
 
             client_auth.handle_response(response)
             self.assertIn('Authorization', response.request.headers)
