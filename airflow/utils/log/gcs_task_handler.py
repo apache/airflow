@@ -134,7 +134,8 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             try:
                 old_log = self.gcs_read(remote_log_location)
             except Exception as e:
-                old_log = '*** Previous log discarded: {}\n\n'.format(str(e))
+                if not hasattr(e, 'resp') or e.resp.get('status') != '404':
+                    old_log = '*** Previous log discarded: {}\n\n'.format(str(e))
             log = '\n'.join([old_log, log]) if old_log else log
 
         try:
