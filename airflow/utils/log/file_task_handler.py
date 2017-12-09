@@ -141,12 +141,14 @@ class FileTaskHandler(logging.Handler):
         # So the log for a particular task try will only show up when
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
-        next_try = task_instance.try_number
 
         if try_number is None:
+            next_try = task_instance.next_try_number
             try_numbers = list(range(1, next_try))
         elif try_number < 1:
-            logs = ['Error fetching the logs. Try number {} is invalid.'.format(try_number)]
+            logs = [
+                'Error fetching the logs. Try number {} is invalid.'.format(try_number),
+            ]
             return logs
         else:
             try_numbers = [try_number]

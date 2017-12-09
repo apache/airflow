@@ -831,6 +831,10 @@ class TaskInstance(Base, LoggingMixin):
     def try_number(self, value):
         self._try_number = value
 
+    @property
+    def next_try_number(self):
+        return self._try_number + 1
+
     def command(
             self,
             mark_success=False,
