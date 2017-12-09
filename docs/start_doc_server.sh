@@ -11,4 +11,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-python -m SimpleHTTPServer 8000
+python -c "import SimpleHTTPServer" 2> /dev/null 
+
+if [ $? -eq 0 ]
+then
+	python -m SimpleHTTPServer 8000
+else
+	python -m http.server 8000
+fi
