@@ -26,6 +26,7 @@ from airflow.utils.timezone import datetime
 from airflow.utils.log.logging_mixin import set_context
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.db import create_session
+from airflow.utils.state import State
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'
@@ -104,6 +105,45 @@ class TestFileTaskLogHandler(unittest.TestCase):
             target_re,
             "Logs were " + str(logs)
         )
+
+        # Remove the generated tmp log file.
+        os.remove(log_filename)
+
+    def test_file_task_handler_running(self):
+        def task_callable(ti, **kwargs):
+            ti.log.info("test")
+        dag = DAG('dag_for_testing_file_task_handler', start_date=DEFAULT_DATE)
+        task = PythonOperator(
+            task_id='task_for_testing_file_log_handler',
+            dag=dag,
+            python_callable=task_callable,
+            provide_context=True
+        )
+        ti = TaskInstance(task=task, execution_date=DEFAULT_DATE)
+        ti.try_number = 2
+        ti.state = State.RUNNING
+
+        logger = ti.log
+        ti.log.disabled = False
+
+        file_handler = next((handler for handler in logger.handlers
+                             if handler.name == FILE_TASK_HANDLER), None)
+        self.assertIsNotNone(file_handler)
+
+        set_context(logger, ti)
+        self.assertIsNotNone(file_handler.handler)
+        # We expect set_context generates a file locally.
+        log_filename = file_handler.handler.baseFilename
+        self.assertTrue(os.path.isfile(log_filename))
+        self.assertTrue(log_filename.endswith("2.log"), log_filename)
+
+        logger.info("Test")
+
+        # Return value of read must be a list.
+        logs = file_handler.read(ti)
+        self.assertTrue(isinstance(logs, list))
+        # Logs for running tasks should show up too.
+        self.assertEqual(len(logs), 2)
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
