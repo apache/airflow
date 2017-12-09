@@ -39,6 +39,8 @@ class TestFileTaskLogHandler(unittest.TestCase):
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
 
+        session.commit()
+
     def setUp(self):
         super(TestFileTaskLogHandler, self).setUp()
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
