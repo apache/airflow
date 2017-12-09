@@ -161,8 +161,7 @@ ldap = ['ldap3>=0.9.9.1']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8',
-            'kerberos>=1.2.5']
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
