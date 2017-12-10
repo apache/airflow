@@ -367,7 +367,7 @@ def run(args, dag=None):
     hostname = socket.getfqdn()
     log.info("Running %s on host %s", ti, hostname)
 
-    with redirect_stdout(log, logging.INFO), redirect_stderr(log, logging.WARN):
+    with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
         if args.local:
             run_job = jobs.LocalTaskJob(
                 task_instance=ti,
