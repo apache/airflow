@@ -1560,6 +1560,7 @@ class SecurityTests(unittest.TestCase):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
+        self.admin_endpoint = configuration.get('webserver', 'admin_endpoint')
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -1578,7 +1579,8 @@ class SecurityTests(unittest.TestCase):
     def test_csrf_rejection(self):
         endpoints = ([
             "/admin/queryview/",
-            "/admin/airflow/paused?dag_id=example_python_operator&is_paused=false",
+            self.admin_endpoint +
+            "/paused?dag_id=example_python_operator&is_paused=false",
         ])
         for endpoint in endpoints:
             response = self.app.post(endpoint)
@@ -1592,8 +1594,10 @@ class SecurityTests(unittest.TestCase):
 
     def test_xss(self):
         try:
-            self.app.get("/admin/airflow/tree?dag_id=<script>alert(123456)</script>")
-        except:
+            self.app.get(
+                self.admin_endpoint + "/tree?dag_id=<script>alert(123456)</script>"
+            )
+        except Exception:
             # exception is expected here since dag doesnt exist
             pass
         response = self.app.get("/admin/log", follow_redirects=True)
@@ -1625,15 +1629,26 @@ class SecurityTests(unittest.TestCase):
         session.add(chart2)
         session.add(chart3)
         session.commit()
-        chart1_id = session.query(Chart).filter(Chart.label=='insecure_chart').first().id
+        chart1_id = session.query(Chart).filter(Chart.label == 'insecure_chart').\
+            first().id
         with self.assertRaises(SecurityError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1_id))
-        chart2_id = session.query(Chart).filter(Chart.label=="{{ ''.__class__.__mro__[1].__subclasses__() }}").first().id
+            self.app.get(
+                self.admin_endpoint + "/chart_data?chart_id={}".
+                format(chart1_id))
+        chart2_id = session.query(Chart).filter(
+            Chart.label == "{{ ''.__class__.__mro__[1].__subclasses__() }}"
+        ).first().id
         with self.assertRaises(SecurityError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2_id))
-        chart3_id = session.query(Chart).filter(Chart.label=="{{ subprocess.check_output('ls') }}").first().id
+            self.app.get(
+                self.admin_endpoint + "/chart_data?chart_id={}".
+                format(chart2_id))
+        chart3_id = session.query(Chart).filter(
+            Chart.label == "{{ subprocess.check_output('ls') }}"
+        ).first().id
         with self.assertRaises(UndefinedError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3_id))
+            self.app.get(
+                self.admin_endpoint + "/chart_data?chart_id={}".
+                format(chart3_id))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
@@ -1644,6 +1659,7 @@ class WebUiTests(unittest.TestCase):
         configuration.load_test_config()
         configuration.conf.set("webserver", "authenticate", "False")
         configuration.conf.set("webserver", "expose_config", "True")
+        self.admin_endpoint = configuration.get('webserver', 'admin_endpoint')
         app = application.create_app()
         app.config['TESTING'] = True
         app.config['WTF_CSRF_METHODS'] = []
@@ -1683,14 +1699,16 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("DAGs", resp_html)
         self.assertIn("example_bash_operator", resp_html)
 
-        # The HTML should contain data for the last-run. A link to the specific run, and the text of
-        # the date.
-        url = "/admin/airflow/graph?" + urlencode({
+        # The HTML should contain data for the last-run. A link to the
+        # specific run, and the text of the date.
+        url = self.admin_endpoint + "/graph?" + urlencode({
             "dag_id": self.dag_bash2.dag_id,
             "execution_date": self.dagrun_bash2.execution_date,
-            }).replace("&", "&amp;")
+        }).replace("&", "&amp;")
         self.assertIn(url, resp_html)
-        self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
+        self.assertIn(
+            self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"),
+            resp_html)
 
     def test_query(self):
         response = self.app.get('/admin/queryview/')
@@ -1706,69 +1724,66 @@ class WebUiTests(unittest.TestCase):
         self.assertIn('The server is healthy!', response.data.decode('utf-8'))
 
     def test_noaccess(self):
-        response = self.app.get('/admin/airflow/noaccess')
+        response = self.app.get(self.admin_endpoint + '/noaccess')
         self.assertIn("You don't seem to have access.", response.data.decode('utf-8'))
 
     def test_pickle_info(self):
-        response = self.app.get('/admin/airflow/pickle_info')
+        response = self.app.get(self.admin_endpoint + '/pickle_info')
         self.assertIn('{', response.data.decode('utf-8'))
 
     def test_dag_views(self):
         response = self.app.get(
-            '/admin/airflow/graph?dag_id=example_bash_operator')
+            self.admin_endpoint + '/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
+            self.admin_endpoint + '/tree?num_runs=25&dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/duration?days=30&dag_id=example_bash_operator')
+            self.admin_endpoint + '/duration?days=30&dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/tries?days=30&dag_id=example_bash_operator')
+            self.admin_endpoint + '/tries?days=30&dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/landing_times?'
+            self.admin_endpoint + '/landing_times?'
             'days=30&dag_id=test_example_bash_operator')
         self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/landing_times?'
+            self.admin_endpoint + '/landing_times?'
             'days=30&dag_id=example_xcom')
         self.assertIn("example_xcom", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/gantt?dag_id=example_bash_operator')
+            self.admin_endpoint + '/gantt?dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/code?dag_id=example_bash_operator')
+            self.admin_endpoint + '/code?dag_id=example_bash_operator')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/blocked')
+        response = self.app.get(self.admin_endpoint + '/blocked')
         response = self.app.get(
             '/admin/configurationview/')
         self.assertIn("Airflow Configuration", response.data.decode('utf-8'))
         self.assertIn("Running Configuration", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/rendered?'
+            self.admin_endpoint + '/rendered?'
             'task_id=runme_1&dag_id=example_bash_operator&'
             'execution_date={}'.format(DEFAULT_DATE_ISO))
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/log?task_id=run_this_last&'
+            self.admin_endpoint + '/log?task_id=run_this_last&'
             'dag_id=example_bash_operator&execution_date={}'
             ''.format(DEFAULT_DATE_ISO))
         self.assertIn("run_this_last", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/task?'
+            self.admin_endpoint + '/task?'
             'task_id=runme_0&dag_id=example_bash_operator&'
             'execution_date={}'.format(DEFAULT_DATE_DS))
         self.assertIn("Attributes", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/dag_stats')
+        response = self.app.get(self.admin_endpoint + '/dag_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
-        response = self.app.get(
-            '/admin/airflow/task_stats')
+        response = self.app.get(self.admin_endpoint + '/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
-            "/admin/airflow/success?task_id=run_this_last&"
+            self.admin_endpoint + "/success?task_id=run_this_last&"
             "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1776,14 +1791,14 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
-            '/admin/airflow/clear?task_id=run_this_last&'
+            self.admin_endpoint + '/clear?task_id=run_this_last&'
             'dag_id=test_example_bash_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
             'origin=/admin'.format(DEFAULT_DATE_DS))
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         url = (
-            "/admin/airflow/success?task_id=section-1&"
+            self.admin_endpoint + "/success?task_id=section-1&"
             "dag_id=example_subdag_operator&upstream=true&downstream=true&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1796,7 +1811,7 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("section-1-task-5", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         url = (
-            "/admin/airflow/clear?task_id=runme_1&"
+            self.admin_endpoint + "/clear?task_id=runme_1&"
             "dag_id=test_example_bash_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
@@ -1805,16 +1820,18 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         url = (
-            "/admin/airflow/run?task_id=runme_0&"
+            self.admin_endpoint +
+            "/run?task_id=runme_0&"
             "dag_id=example_bash_operator&ignore_all_deps=false&ignore_ti_state=true&"
             "ignore_task_deps=true&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         response = self.app.get(
-            "/admin/airflow/refresh?dag_id=example_bash_operator")
-        response = self.app.get("/admin/airflow/refresh_all")
+            self.admin_endpoint + "/refresh?dag_id=example_bash_operator")
+        response = self.app.get(self.admin_endpoint + "/refresh_all")
         response = self.app.post(
-            "/admin/airflow/paused?"
+            self.admin_endpoint +
+            "/paused?"
             "dag_id=example_python_operator&is_paused=false")
         self.assertIn("OK", response.data.decode('utf-8'))
         response = self.app.get("/admin/xcom", follow_redirects=True)
@@ -1828,20 +1845,24 @@ class WebUiTests(unittest.TestCase):
         chart_id = chart.id
         session.close()
         response = self.app.get(
-            '/admin/airflow/chart'
+            self.admin_endpoint +
+            '/chart'
             '?chart_id={}&iteration_no=1'.format(chart_id))
         self.assertIn("Airflow task instance by type", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/chart_data'
+            self.admin_endpoint +
+            '/chart_data'
             '?chart_id={}&iteration_no=1'.format(chart_id))
         self.assertIn("example", response.data.decode('utf-8'))
         response = self.app.get(
-            '/admin/airflow/dag_details?dag_id=example_branch_operator')
+            self.admin_endpoint +
+            '/dag_details?dag_id=example_branch_operator')
         self.assertIn("run_this_first", response.data.decode('utf-8'))
 
     def test_fetch_task_instance(self):
         url = (
-            "/admin/airflow/object/task_instances?"
+            self.admin_endpoint +
+            "/object/task_instances?"
             "dag_id=test_example_bash_operator&"
             "execution_date={}".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
@@ -1866,6 +1887,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         app.config['TESTING'] = True
         self.app = app.test_client()
         from airflow.contrib.auth.backends.password_auth import PasswordUser
+        self.admin_endpoint = configuration.get('webserver', 'admin_endpoint')
 
         session = Session()
         user = models.User()
@@ -1884,17 +1906,17 @@ class WebPasswordAuthTest(unittest.TestCase):
         return form.find('.//input[@name="_csrf_token"]').value
 
     def login(self, username, password):
-        response = self.app.get('/admin/airflow/login')
+        response = self.app.get(self.admin_endpoint + '/login')
         csrf_token = self.get_csrf(response)
 
-        return self.app.post('/admin/airflow/login', data=dict(
+        return self.app.post(self.admin_endpoint + '/login', data=dict(
             username=username,
             password=password,
             csrf_token=csrf_token
         ), follow_redirects=True)
 
     def logout(self):
-        return self.app.get('/admin/airflow/logout', follow_redirects=True)
+        return self.app.get(self.admin_endpoint + '/logout', follow_redirects=True)
 
     def test_login_logout_password_auth(self):
         self.assertTrue(configuration.getboolean('webserver', 'authenticate'))
@@ -1912,7 +1934,7 @@ class WebPasswordAuthTest(unittest.TestCase):
         self.assertIn('form-signin', response.data.decode('utf-8'))
 
     def test_unauthorized_password_auth(self):
-        response = self.app.get("/admin/airflow/landing_times")
+        response = self.app.get(self.admin_endpoint + "/landing_times")
         self.assertEqual(response.status_code, 302)
 
     def tearDown(self):
@@ -1940,6 +1962,7 @@ class WebLdapAuthTest(unittest.TestCase):
         configuration.conf.set("ldap", "basedn", "dc=example,dc=com")
         configuration.conf.set("ldap", "cacert", "")
 
+        self.admin_endpoint = configuration.get('webserver', 'admin_endpoint')
         app = application.create_app()
         app.config['TESTING'] = True
         self.app = app.test_client()
@@ -1951,17 +1974,17 @@ class WebLdapAuthTest(unittest.TestCase):
         return form.find('.//input[@name="_csrf_token"]').value
 
     def login(self, username, password):
-        response = self.app.get('/admin/airflow/login')
+        response = self.app.get(self.admin_endpoint + '/login')
         csrf_token = self.get_csrf(response)
 
-        return self.app.post('/admin/airflow/login', data=dict(
+        return self.app.post(self.admin_endpoint + '/login', data=dict(
             username=username,
             password=password,
             csrf_token=csrf_token
         ), follow_redirects=True)
 
     def logout(self):
-        return self.app.get('/admin/airflow/logout', follow_redirects=True)
+        return self.app.get(self.admin_endpoint + '/logout', follow_redirects=True)
 
     def test_login_logout_ldap(self):
         self.assertTrue(configuration.getboolean('webserver', 'authenticate'))
@@ -1979,7 +2002,7 @@ class WebLdapAuthTest(unittest.TestCase):
         self.assertIn('form-signin', response.data.decode('utf-8'))
 
     def test_unauthorized(self):
-        response = self.app.get("/admin/airflow/landing_times")
+        response = self.app.get(self.admin_endpoint + "/landing_times")
         self.assertEqual(response.status_code, 302)
 
     def test_no_filter(self):

@@ -84,7 +84,6 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
  """
 
-BASE_LOG_URL = '/admin/airflow/log'
 LOGGING_LEVEL = logging.INFO
 
 # the prefix to append to gunicorn worker processes after init

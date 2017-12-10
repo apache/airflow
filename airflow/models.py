@@ -990,7 +990,8 @@ class TaskInstance(Base, LoggingMixin):
         iso = self.execution_date.isoformat()
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
-            "/admin/airflow/log"
+            configuration.get('webserver', 'admin_endpoint') +
+            "/log"
             "?dag_id={self.dag_id}"
             "&task_id={self.task_id}"
             "&execution_date={iso}"
@@ -1001,7 +1002,8 @@ class TaskInstance(Base, LoggingMixin):
         iso = self.execution_date.isoformat()
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
-            "/admin/airflow/action"
+            configuration.get('webserver', 'admin_endpoint') +
+            "/action"
             "?action=success"
             "&task_id={self.task_id}"
             "&dag_id={self.dag_id}"

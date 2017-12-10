@@ -116,6 +116,7 @@ class TestVariableView(unittest.TestCase):
             'val': 'text_val',
             'is_encrypted': True
         }
+        self.admin_endpoint = configuration.get('webserver', 'admin_endpoint')
 
     def tearDown(self):
         self.session.query(models.Variable).delete()
@@ -150,7 +151,7 @@ class TestVariableView(unittest.TestCase):
                       response.data.decode('utf-8'))
 
     def test_xss_prevention(self):
-        xss = "/admin/airflow/variables/asdf<img%20src=''%20onerror='alert(1);'>"
+        xss = self.admin_endpoint + "/variables/asdf<img%20src=''%20onerror='alert(1);'>"
 
         response = self.app.get(
             xss,
