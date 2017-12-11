@@ -35,7 +35,7 @@ You can also derive the connection string at run time by appending ``_cmd`` to t
     [core]
     sql_alchemy_conn_cmd = bash_command_to_run
 
-But only three such configuration elements namely sql_alchemy_conn, broker_url and celery_result_backend can be fetched as a command. The idea behind this is to not store passwords on boxes in plain text files. The order of precedence is as follows -
+-But only three such configuration elements namely sql_alchemy_conn, broker_url and result_backend can be fetched as a command. The idea behind this is to not store passwords on boxes in plain text files. The order of precedence is as follows -	
 
 1. environment variable
 2. configuration in airflow.cfg

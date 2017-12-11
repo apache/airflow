@@ -113,7 +113,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
-        ('celery', 'celery_result_backend')
+        ('celery', 'result_backend')
     }
 
     def __init__(self, *args, **kwargs):
