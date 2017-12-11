@@ -13,11 +13,13 @@
 # limitations under the License.
 
 from __future__ import print_function
-import os
 import unittest
+
+import six
 
 from airflow import configuration
 from airflow.configuration import conf
+
 
 class ConfTest(unittest.TestCase):
 
@@ -52,3 +54,13 @@ class ConfTest(unittest.TestCase):
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+    def test_broker_transport_options(self):
+        section_dict = conf.getsection("celery_broker_transport_options")
+        self.assertTrue(isinstance(section_dict['visibility_timeout'], int))
+
+        self.assertTrue(isinstance(section_dict['_test_only_bool'], bool))
+
+        self.assertTrue(isinstance(section_dict['_test_only_float'], float))
+
+        self.assertTrue(isinstance(section_dict['_test_only_string'], six.string_types))
