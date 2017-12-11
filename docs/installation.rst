@@ -66,7 +66,11 @@ Here's the list of the subpackages and what they enable:
 |               |                                              | support as an Airflow backend                   |
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  mysql        | ``pip install apache-airflow[mysql]``        | MySQL operators and hook, support as            |
-|               |                                              | an Airflow backend                              |
+|               |                                              | an Airflow backend. The version of MySQL server |
+|               |                                              | that can be used depends on the version of      |
+|               |                                              | ``mysqlclient`` package installed. For example, |
+|               |                                              | ``mysqlclient`` 1.3.12 can only be used  with   |
+|               |                                              | MySQL server 5.5 through 5.7.                   |
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  password     | ``pip install apache-airflow[password]``     | Password Authentication for users               |
 +---------------+----------------------------------------------+-------------------------------------------------+
