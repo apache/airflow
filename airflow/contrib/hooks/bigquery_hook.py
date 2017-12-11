@@ -648,7 +648,8 @@ class BigQueryBaseCursor(LoggingMixin):
         return tables_resource['schema']
 
     def get_tabledata(self, dataset_id, table_id,
-                      max_results=None, selected_fields=None, page_token=None, start_index=None):
+                      max_results=None, selected_fields=None, page_token=None,
+                      start_index=None):
         """
         Get the data of a given dataset.table and optionally with selected columns.
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
