@@ -102,6 +102,10 @@ Community-contributed Operators
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
+.. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
+.. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
+.. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator
+.. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubPublishOperator
 .. autoclass:: airflow.contrib.operators.QuboleOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
@@ -241,7 +245,8 @@ Community contributed hooks
         VerticaHook,
         FTPHook,
         SSHHook,
-        CloudantHook
+        CloudantHook,
+        PubSubHook
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 
