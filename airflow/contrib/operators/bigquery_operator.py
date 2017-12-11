@@ -48,7 +48,9 @@ class BigQueryOperator(BaseOperator):
     :type use_legacy_sql: boolean
     :param maximum_billing_tier: Positive integer that serves as a multiplier of the basic price.
         Defaults to None, in which case it uses the value set in the project.
-    :type maximum_billing_tier: integer
+    :param flatten_results: Whether to flatten nested fields or not.
+        Defaults to True
+    :type flatten_results: boolean
     :param query_params: a dictionary containing query parameter types and values, passed to
         BigQuery.
     :type query_params: dict
@@ -69,6 +71,7 @@ class BigQueryOperator(BaseOperator):
                  udf_config=False,
                  use_legacy_sql=True,
                  maximum_billing_tier=None,
+                 flatten_results=True,
                  create_disposition='CREATE_IF_NEEDED',
                  query_params=None,
                  *args,
@@ -84,6 +87,7 @@ class BigQueryOperator(BaseOperator):
         self.udf_config = udf_config
         self.use_legacy_sql = use_legacy_sql
         self.maximum_billing_tier = maximum_billing_tier
+        self.flatten_results = flatten_results
         self.query_params = query_params
         self.bq_cursor = None
 
@@ -94,12 +98,12 @@ class BigQueryOperator(BaseOperator):
                                 delegate_to=self.delegate_to)
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
-        self.bq_cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config,
-                         self.use_legacy_sql, self.maximum_billing_tier,
-                         self.create_disposition, self.query_params)
-        
-                         
+        self.bq_cursor.run_query(
+            self.bql, self.destination_dataset_table, self.write_disposition,
+            self.udf_config, self.allow_large_results, self.flatten_results,
+            self.maximum_billing_tier, self.use_legacy_sql,
+            self.create_disposition, self.query_params)
+
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
         if(self.bq_cursor!=None):
