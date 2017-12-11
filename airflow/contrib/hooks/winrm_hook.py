@@ -18,12 +18,11 @@
 import getpass
 import os
 
+from winrm.protocol import Protocol
 from contextlib import contextmanager
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
-from winrm.protocol import Protocol
-
 
 class WinRMHook(BaseHook, LoggingMixin):
     """
@@ -74,7 +73,7 @@ class WinRMHook(BaseHook, LoggingMixin):
 
     def get_conn(self):
         if not self.client:
-            self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
+            self.log.debug('Creating WinRM client for conn_id: %s', self.ssh_conn_id)
             if self.ssh_conn_id is not None:
                 conn = self.get_connection(self.ssh_conn_id)
                 if self.username is None:
@@ -124,10 +123,10 @@ class WinRMHook(BaseHook, LoggingMixin):
 
             try:
                 # client = paramiko.SSHClient() 
-                client.load_system_host_keys()
-                if self.no_host_key_check:
-                    # Default is RejectPolicy
-                    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                # client.load_system_host_keys()
+                # if self.no_host_key_check:
+                #     # Default is RejectPolicy
+                #     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
                 if self.password and self.password.strip():
                     self.winrm_protocol = Protocol(
@@ -149,7 +148,7 @@ class WinRMHook(BaseHook, LoggingMixin):
 
                 # if self.keepalive_interval:
                 #     client.get_transport().set_keepalive(self.keepalive_interval)
-
+                self.log.info("Opening WinRM shell")
                 self.client = self.winrm_protocol.open_shell()
             # except paramiko.AuthenticationException as auth_error:
             #     self.log.error(
@@ -215,9 +214,9 @@ class WinRMHook(BaseHook, LoggingMixin):
     #     assert proc.returncode == 0, \
     #         "Tunnel process did unclean exit (returncode {}".format(proc.returncode)
 
-    def __enter__(self):
-        return self
+    # def __enter__(self):
+    #     return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.client is not None:
-            self.client.close()
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     if self.client is not None:
+    #         self.client.close()

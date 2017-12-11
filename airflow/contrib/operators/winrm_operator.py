@@ -63,6 +63,7 @@ class WinRMOperator(BaseOperator):
     def execute(self, context):
         try:
             if self.ssh_conn_id and not self.winrm_hook:
+                self.log.info("hook not found, creating")
                 self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
 
             if not self.winrm_hook:
@@ -72,6 +73,7 @@ class WinRMOperator(BaseOperator):
                 self.winrm_hook.remote_host = self.remote_host
 
             winrm_client = self.winrm_hook.get_conn()
+            self.log.info("Established WinRM connection")
 
             if not self.command:
                 raise AirflowException("no command specified so nothing to execute here.")
@@ -82,74 +84,91 @@ class WinRMOperator(BaseOperator):
             #     get_pty = True
 
             # set timeout taken as params
-            command_id = self.winrm_hook.winrm_protocol.run_command(winrm_client, 'ipconfig', ['/all'])
-            std_out, std_err, status_code = p.get_command_output(winrm_client, command_id)
+            # command_id = self.winrm_hook.winrm_protocol.run_command(winrm_client, 'ipconfig', ['/all'])
+            self.log.info("Starting command: '" + self.command + "' on remote host: " + self.winrm_hook.remote_host)
+            command_id = self.winrm_hook.winrm_protocol.run_command(winrm_client, self.command)
+            std_out, std_err, status_code = self.winrm_hook.winrm_protocol.get_command_output(winrm_client, command_id)
+
+            self.log.info("std out: " + std_out.decode())
+            self.log.info("std err: " + std_err.decode())
+            self.log.info("exit code: " + str(status_code))
+            self.log.info("Cleaning up WinRM command")
+            self.winrm_hook.winrm_protocol.cleanup_command(winrm_client, command_id)
+            self.log.info("Cleaning up WinRM protocol shell")
+            self.winrm_hook.winrm_protocol.close_shell(winrm_client)
+            if status_code is 0:
+                return std_out.decode()
+
+            else:
+                error_msg = std_err.decode()
+                raise AirflowException("error running cmd: {0}, error: {1}"
+                                       .format(self.command, error_msg))
 
             # stdin, stdout, stderr = winrm_client.exec_command(command=self.command,
             #                                                 get_pty=get_pty,
             #                                                 timeout=self.timeout
             #                                                 )
             # get channels
-            channel = stdout.channel
+            # channel = stdout.channel
 
-            # closing stdin
-            stdin.close()
-            channel.shutdown_write()
+            # # closing stdin
+            # stdin.close()
+            # channel.shutdown_write()
 
-            agg_stdout = b''
-            agg_stderr = b''
+            # agg_stdout = b''
+            # agg_stderr = b''
 
-            # capture any initial output in case channel is closed already
-            stdout_buffer_length = len(stdout.channel.in_buffer)
+            # # capture any initial output in case channel is closed already
+            # stdout_buffer_length = len(stdout.channel.in_buffer)
 
-            if stdout_buffer_length > 0:
-                agg_stdout += stdout.channel.recv(stdout_buffer_length)
+            # if stdout_buffer_length > 0:
+            #     agg_stdout += stdout.channel.recv(stdout_buffer_length)
 
-            # read from both stdout and stderr
-            while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
-                readq, _, _ = select([channel], [], [], self.timeout)
-                for c in readq:
-                    if c.recv_ready():
-                        line = stdout.channel.recv(len(c.in_buffer))
-                        line = line
-                        agg_stdout += line
-                        self.log.info(line.decode('utf-8').strip('\n'))
-                    if c.recv_stderr_ready():
-                        line = stderr.channel.recv_stderr(len(c.in_stderr_buffer))
-                        line = line
-                        agg_stderr += line
-                        self.log.warning(line.decode('utf-8').strip('\n'))
-                if stdout.channel.exit_status_ready()\
-                        and not stderr.channel.recv_stderr_ready()\
-                        and not stdout.channel.recv_ready():
-                    stdout.channel.shutdown_read()
-                    stdout.channel.close()
-                    break
+            # # read from both stdout and stderr
+            # while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+            #     readq, _, _ = select([channel], [], [], self.timeout)
+            #     for c in readq:
+            #         if c.recv_ready():
+            #             line = stdout.channel.recv(len(c.in_buffer))
+            #             line = line
+            #             agg_stdout += line
+            #             self.log.info(line.decode('utf-8').strip('\n'))
+            #         if c.recv_stderr_ready():
+            #             line = stderr.channel.recv_stderr(len(c.in_stderr_buffer))
+            #             line = line
+            #             agg_stderr += line
+            #             self.log.warning(line.decode('utf-8').strip('\n'))
+            #     if stdout.channel.exit_status_ready()\
+            #             and not stderr.channel.recv_stderr_ready()\
+            #             and not stdout.channel.recv_ready():
+            #         stdout.channel.shutdown_read()
+            #         stdout.channel.close()
+            #         break
 
-            stdout.close()
-            stderr.close()
+            # stdout.close()
+            # stderr.close()
 
-            exit_status = stdout.channel.recv_exit_status()
-            if exit_status is 0:
-                # returning output if do_xcom_push is set
-                if self.do_xcom_push:
-                    enable_pickling = configuration.getboolean('core',
-                                                               'enable_xcom_pickling')
-                    if enable_pickling:
-                        return agg_stdout
-                    else:
-                        return b64encode(agg_stdout).decode('utf-8')
+            # exit_status = stdout.channel.recv_exit_status()
+            # if exit_status is 0:
+            #     # returning output if do_xcom_push is set
+            #     if self.do_xcom_push:
+            #         enable_pickling = configuration.getboolean('core',
+            #                                                    'enable_xcom_pickling')
+            #         if enable_pickling:
+            #             return agg_stdout
+            #         else:
+            #             return b64encode(agg_stdout).decode('utf-8')
 
-            else:
-                error_msg = agg_stderr.decode('utf-8')
-                raise AirflowException("error running cmd: {0}, error: {1}"
-                                       .format(self.command, error_msg))
+            # else:
+            #     error_msg = agg_stderr.decode('utf-8')
+            #     raise AirflowException("error running cmd: {0}, error: {1}"
+            #                            .format(self.command, error_msg))
 
         except Exception as e:
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
         return True
 
-    def tunnel(self):
-        ssh_client = self.ssh_hook.get_conn()
-        ssh_client.get_transport()
+    # def tunnel(self):
+    #     ssh_client = self.ssh_hook.get_conn()
+    #     ssh_client.get_transport()
