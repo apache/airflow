@@ -43,9 +43,9 @@ DEFAULT_LOGGING_CONFIG = {
     },
     'handlers': {
         'console': {
-            'class': 'logging.StreamHandler',
+            'class': 'airflow.utils.log.logging_mixin.RedirectStdHandler',
             'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
+            'stream': 'sys.stdout'
         },
         'file.task': {
             'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',

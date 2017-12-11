@@ -2827,7 +2827,8 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(dr1)
         session.commit()
 
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        self.assertEquals(1, len(reset_tis))
 
     def test_reset_orphaned_tasks_backfill_dag(self):
         dag_id = 'test_reset_orphaned_tasks_backfill_dag'
