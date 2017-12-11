@@ -36,7 +36,7 @@ class DruidHook(BaseHook):
             self,
             druid_ingest_conn_id='druid_ingest_default',
             timeout=1,
-            max_ingestion_time=18000):
+            max_ingestion_time=None):
 
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
@@ -72,7 +72,7 @@ class DruidHook(BaseHook):
 
             sec = sec + 1
 
-            if sec > self.max_ingestion_time:
+            if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
                 raise AirflowException('Druid ingestion took more than %s seconds', self.max_ingestion_time)
