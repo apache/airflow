@@ -720,19 +720,18 @@ class BigQueryBaseCursor(LoggingMixin):
             .execute()
         return tables_resource['schema']
 
-    def get_tabledata(self,
-                      dataset_id,
-                      table_id,
-                      max_results=None,
-                      page_token=None,
+    def get_tabledata(self, dataset_id, table_id,
+                      max_results=None, selected_fields=None, page_token=None,
                       start_index=None):
         """
-        Get the data of a given dataset.table.
+        Get the data of a given dataset.table and optionally with selected columns.
         see https://cloud.google.com/bigquery/docs/reference/v2/tabledata/list
 
         :param dataset_id: the dataset ID of the requested table.
         :param table_id: the table ID of the requested table.
         :param max_results: the maximum results to return.
+        :param selected_fields: List of fields to return (comma-separated). If
+            unspecified, all fields are returned.
         :param page_token: page token, returned from a previous call,
             identifying the result set.
         :param start_index: zero based index of the starting row to read.
@@ -741,6 +740,8 @@ class BigQueryBaseCursor(LoggingMixin):
         optional_params = {}
         if max_results:
             optional_params['maxResults'] = max_results
+        if selected_fields:
+            optional_params['selectedFields'] = selected_fields
         if page_token:
             optional_params['pageToken'] = page_token
         if start_index:
