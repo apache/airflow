@@ -28,6 +28,8 @@ import sys
 
 from future import standard_library
 
+from six import iteritems
+
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
@@ -237,8 +239,27 @@ class AirflowConfigParser(ConfigParser):
         self._validate()
 
     def getsection(self, section):
+        """
+        Returns the section as a dict. Values are converted to int, float, bool
+        as required.
+        :param section: section from the config
+        :return: dict
+        """
         if section in self._sections:
-            return self._sections[section]
+            _section = self._sections[section]
+            for key, val in iteritems(self._sections[section]):
+                try:
+                    val = int(val)
+                except ValueError:
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        if val.lower() in ('t', 'true'):
+                            val = True
+                        elif val.lower() in ('f', 'false'):
+                            val = False
+                _section[key] = val
+            return _section
 
         return None
 

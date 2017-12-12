@@ -32,7 +32,7 @@ DEFAULT_CELERY_CONFIG = {
     'task_default_queue': configuration.get('celery', 'DEFAULT_QUEUE'),
     'task_default_exchange': configuration.get('celery', 'DEFAULT_QUEUE'),
     'broker_url': configuration.get('celery', 'BROKER_URL'),
-    'broker_transport_options': {'visibility_timeout': broker_transport_options},
+    'broker_transport_options': broker_transport_options,
     'result_backend': configuration.get('celery', 'RESULT_BACKEND'),
     'worker_concurrency': configuration.getint('celery', 'WORKER_CONCURRENCY'),
 }
