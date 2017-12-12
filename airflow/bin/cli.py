@@ -1394,7 +1394,7 @@ class CLIFactory(object):
             ("-c", "--concurrency"),
             type=int,
             help="The number of worker processes",
-            default=conf.get('celery', 'celeryd_concurrency')),
+            default=conf.get('celery', 'worker_concurrency')),
         'celery_hostname': Arg(
             ("-cn", "--celery_hostname"),
             help=("Set the hostname of celery worker "
