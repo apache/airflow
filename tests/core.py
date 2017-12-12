@@ -50,7 +50,8 @@ from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.http_operator import SimpleHttpOperator
-from airflow.operators import sensors
+from airflow.operators import ExternalTaskSensor, TimeDeltaSensor, \
+    TimeSensor, HttpSensor
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
@@ -349,7 +350,7 @@ class CoreTest(unittest.TestCase):
         self.assertNotEqual(hash(dag_subclass), hash(self.dag))
 
     def test_time_sensor(self):
-        t = sensors.TimeSensor(
+        t = TimeSensor(
             task_id='time_sensor_check',
             target_time=time(0),
             dag=self.dag)
@@ -470,14 +471,14 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_timedelta_sensor(self):
-        t = sensors.TimeDeltaSensor(
+        t = TimeDeltaSensor(
             task_id='timedelta_sensor_check',
             delta=timedelta(seconds=2),
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor(self):
-        t = sensors.ExternalTaskSensor(
+        t = ExternalTaskSensor(
             task_id='test_external_task_sensor_check',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -485,7 +486,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_external_task_sensor_delta(self):
-        t = sensors.ExternalTaskSensor(
+        t = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -497,7 +498,7 @@ class CoreTest(unittest.TestCase):
     def test_external_task_sensor_fn(self):
         self.test_time_sensor()
         # check that the execution_fn works
-        t = sensors.ExternalTaskSensor(
+        t = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -507,7 +508,7 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         # double check that the execution is being called by failing the test
-        t2 = sensors.ExternalTaskSensor(
+        t2 = ExternalTaskSensor(
             task_id='test_external_task_sensor_check_delta',
             external_dag_id=TEST_DAG_ID,
             external_task_id='time_sensor_check',
@@ -524,7 +525,7 @@ class CoreTest(unittest.TestCase):
         Test that providing execution_delta and a function raises an error
         """
         with self.assertRaises(ValueError):
-            t = sensors.ExternalTaskSensor(
+            t = ExternalTaskSensor(
                 task_id='test_external_task_sensor_check_delta',
                 external_dag_id=TEST_DAG_ID,
                 external_task_id='time_sensor_check',
@@ -2089,7 +2090,7 @@ class HttpOpSensorTest(unittest.TestCase):
     @mock.patch('requests.Session', FakeSession)
     def test_sensor(self):
 
-        sensor = sensors.HttpSensor(
+        sensor = HttpSensor(
             task_id='http_sensor_check',
             http_conn_id='http_default',
             endpoint='/search',
