@@ -553,6 +553,22 @@ def clear(args):
         include_subdags=not args.exclude_subdags)
 
 
+def get_num_ready_workers_running(gunicorn_master_proc):
+    workers = psutil.Process(gunicorn_master_proc.pid).children()
+
+    def ready_prefix_on_cmdline(proc):
+        try:
+            cmdline = proc.cmdline()
+            if len(cmdline) > 0:
+                return settings.GUNICORN_WORKER_READY_PREFIX in cmdline[0]
+        except psutil.NoSuchProcess:
+            pass
+        return False
+
+    ready_workers = [proc for proc in workers if ready_prefix_on_cmdline(proc)]
+    return len(ready_workers)
+
+
 def restart_workers(gunicorn_master_proc, num_workers_expected):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
@@ -589,14 +605,6 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
     def get_num_workers_running(gunicorn_master_proc):
         workers = psutil.Process(gunicorn_master_proc.pid).children()
         return len(workers)
-
-    def get_num_ready_workers_running(gunicorn_master_proc):
-        workers = psutil.Process(gunicorn_master_proc.pid).children()
-        ready_workers = [
-            proc for proc in workers
-            if settings.GUNICORN_WORKER_READY_PREFIX in proc.cmdline()[0]
-        ]
-        return len(ready_workers)
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
