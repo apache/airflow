@@ -2537,6 +2537,7 @@ class LocalTaskJob(BaseJob):
             self.on_kill()
 
     def on_kill(self):
+        self.task_instance.task.on_kill()
         self.task_runner.terminate()
         self.task_runner.on_finish()
 
