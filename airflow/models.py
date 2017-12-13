@@ -108,7 +108,7 @@ def get_fernet():
         raise AirflowException('Failed to import Fernet, it may not be installed')
     try:
         return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
-    except ValueError as ve:
+    except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
 
