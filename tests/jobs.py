@@ -2404,10 +2404,11 @@ class SchedulerJobTest(unittest.TestCase):
         (command, priority, queue, ti) = ti_tuple
         ti.task = dag_task1
 
+        self.assertEqual(ti.try_number, 1)
         # fail execution
         run_with_error(ti)
         self.assertEqual(ti.state, State.UP_FOR_RETRY)
-        self.assertEqual(ti.try_number, 1)
+        self.assertEqual(ti.try_number, 2)
 
         ti.refresh_from_db(lock_for_update=True, session=session)
         ti.state = State.SCHEDULED
@@ -2826,7 +2827,8 @@ class SchedulerJobTest(unittest.TestCase):
         session.merge(dr1)
         session.commit()
 
-        self.assertEquals(0, len(scheduler.reset_state_for_orphaned_tasks(session=session)))
+        reset_tis = scheduler.reset_state_for_orphaned_tasks(session=session)
+        self.assertEquals(1, len(reset_tis))
 
     def test_reset_orphaned_tasks_backfill_dag(self):
         dag_id = 'test_reset_orphaned_tasks_backfill_dag'

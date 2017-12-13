@@ -11,14 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from datetime import datetime
-
-
-class FakeDatetime(datetime):
-    """
-    A fake replacement for datetime that can be mocked for testing.
-    """
-
-    def __new__(cls, *args, **kwargs):
-        return datetime.__new__(datetime, *args, **kwargs)

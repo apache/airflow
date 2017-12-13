@@ -33,9 +33,9 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
     :param profile: profile name in AWS type config file
     :type profile: str
     """
-    Config = configparser.ConfigParser()
-    if Config.read(config_file_name):  # pragma: no cover
-        sections = Config.sections()
+    config = configparser.ConfigParser()
+    if config.read(config_file_name):  # pragma: no cover
+        sections = config.sections()
     else:
         raise AirflowException("Couldn't read {0}".format(config_file_name))
     # Setting option names depending on file format
@@ -64,12 +64,12 @@ def _parse_s3_config(config_file_name, config_format='boto', profile=None):
         raise AirflowException("This config file format is not recognized")
     else:
         try:
-            access_key = Config.get(cred_section, key_id_option)
-            secret_key = Config.get(cred_section, secret_key_option)
+            access_key = config.get(cred_section, key_id_option)
+            secret_key = config.get(cred_section, secret_key_option)
         except:
             logging.warning("Option Error in parsing s3 config file")
             raise
-        return (access_key, secret_key)
+        return access_key, secret_key
 
 
 class AwsHook(BaseHook):
@@ -84,7 +84,7 @@ class AwsHook(BaseHook):
     def _get_credentials(self, region_name):
         aws_access_key_id = None
         aws_secret_access_key = None
-        s3_endpoint_url = None
+        endpoint_url = None
 
         if self.aws_conn_id:
             try:
@@ -105,14 +105,14 @@ class AwsHook(BaseHook):
                 if region_name is None:
                     region_name = connection_object.extra_dejson.get('region_name')
 
-                s3_endpoint_url = connection_object.extra_dejson.get('host')
+                endpoint_url = connection_object.extra_dejson.get('host')
 
             except AirflowException:
                 # No connection found: fallback on boto3 credential strategy
                 # http://boto3.readthedocs.io/en/latest/guide/configuration.html
                 pass
 
-        return aws_access_key_id, aws_secret_access_key, region_name, s3_endpoint_url
+        return aws_access_key_id, aws_secret_access_key, region_name, endpoint_url
 
     def get_client_type(self, client_type, region_name=None):
         aws_access_key_id, aws_secret_access_key, region_name, endpoint_url = \

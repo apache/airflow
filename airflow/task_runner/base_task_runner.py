@@ -25,6 +25,9 @@ from airflow import configuration as conf
 from tempfile import mkstemp
 
 
+PYTHONPATH_VAR = 'PYTHONPATH'
+
+
 class BaseTaskRunner(LoggingMixin):
     """
     Runs Airflow task instances by invoking the `airflow run` command with raw
@@ -77,7 +80,12 @@ class BaseTaskRunner(LoggingMixin):
             with os.fdopen(temp_fd, 'w') as temp_file:
                 json.dump(cfg_subset, temp_file)
 
+            # propagate PYTHONPATH environment variable
+            pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
             popen_prepend = ['sudo', '-H', '-u', self.run_as_user]
+
+            if pythonpath_value:
+                popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
 
         self._cfg_path = cfg_path
         self._command = popen_prepend + self._task_instance.command_as_list(

@@ -34,10 +34,11 @@ class DruidOperator(BaseOperator):
         self,
         json_index_file,
         druid_ingest_conn_id='druid_ingest_default',
+        max_ingestion_time=None,
         *args, **kwargs):
-
         super(DruidOperator, self).__init__(*args, **kwargs)
         self.conn_id = druid_ingest_conn_id
+        self.max_ingestion_time = max_ingestion_time
 
         with open(json_index_file) as data_file:
             index_spec = json.load(data_file)
@@ -49,6 +50,9 @@ class DruidOperator(BaseOperator):
         )
 
     def execute(self, context):
-        hook = DruidHook(druid_ingest_conn_id=self.conn_id)
+        hook = DruidHook(
+            druid_ingest_conn_id=self.conn_id,
+            max_ingestion_time=self.max_ingestion_time
+        )
         self.log.info("Sumitting %s", self.index_spec_str)
         hook.submit_indexing_job(self.index_spec_str)

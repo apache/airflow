@@ -42,15 +42,20 @@ class SparkSubmitOperator(BaseOperator):
     :type jars: str
     :param java_class: the main class of the Java application
     :type java_class: str
-    :param packages: Comma-separated list of maven coordinates of jars to include on the driver and executor classpaths
+    :param packages: Comma-separated list of maven coordinates of jars to include on the
+    driver and executor classpaths
     :type packages: str
-    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude while resolving the dependencies provided in 'packages'
+    :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
+    while resolving the dependencies provided in 'packages'
     :type exclude_packages: str
-    :param repositories: Comma-separated list of additional remote repositories to search for the maven coordinates given with 'packages'
+    :param repositories: Comma-separated list of additional remote repositories to search
+    for the maven coordinates given with 'packages'
     :type repositories: str
-    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors (Default: all the available cores on the worker)
+    :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
+    (Default: all the available cores on the worker)
     :type total_executor_cores: int
-    :param executor_cores: (Standalone & YARN only) Number of cores per executor (Default: 2)
+    :param executor_cores: (Standalone & YARN only) Number of cores per executor
+    (Default: 2)
     :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
     :type executor_memory: str
@@ -69,7 +74,7 @@ class SparkSubmitOperator(BaseOperator):
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
-    template_fields = ('_name', '_application_args','_packages')
+    template_fields = ('_name', '_application_args', '_packages')
     ui_color = WEB_COLORS['LIGHTORANGE']
 
     @apply_defaults

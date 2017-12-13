@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 import six
-import sys
 import unittest
 
 from airflow import configuration, models
@@ -61,7 +60,7 @@ class TestSparkSubmitHook(unittest.TestCase):
         for arg in list_cmd:
             if arg.startswith("--"):
                 pos = list_cmd.index(arg)
-                return_dict[arg] = list_cmd[pos+1]
+                return_dict[arg] = list_cmd[pos + 1]
         return return_dict
 
     def setUp(self):
@@ -70,7 +69,8 @@ class TestSparkSubmitHook(unittest.TestCase):
         db.merge_conn(
             models.Connection(
                 conn_id='spark_yarn_cluster', conn_type='spark',
-                host='yarn://yarn-master', extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
+                host='yarn://yarn-master',
+                extra='{"queue": "root.etl", "deploy-mode": "cluster"}')
         )
         db.merge_conn(
             models.Connection(
@@ -98,15 +98,23 @@ class TestSparkSubmitHook(unittest.TestCase):
         db.merge_conn(
             models.Connection(
                 conn_id='spark_binary_and_home_set', conn_type='spark',
-                host='yarn', extra='{"spark-home": "/path/to/spark_home", "spark-binary": "custom-spark-submit"}')
+                host='yarn',
+                extra='{"spark-home": "/path/to/spark_home", ' +
+                      '"spark-binary": "custom-spark-submit"}')
+        )
+        db.merge_conn(
+            models.Connection(
+                conn_id='spark_standalone_cluster', conn_type='spark',
+                host='spark://spark-standalone-master:6066',
+                extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "cluster"}')
         )
 
-    def test_build_command(self):
+    def test_build_spark_submit_command(self):
         # Given
         hook = SparkSubmitHook(**self._config)
 
         # When
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         expected_build_cmd = [
@@ -149,7 +157,51 @@ class TestSparkSubmitHook(unittest.TestCase):
         hook.submit()
 
         # Then
-        self.assertEqual(mock_popen.mock_calls[0], call(['spark-submit', '--master', 'yarn', '--name', 'default-name', ''], stderr=-2, stdout=-1, universal_newlines=True, bufsize=-1))
+        self.assertEqual(mock_popen.mock_calls[0],
+                         call(['spark-submit', '--master', 'yarn',
+                               '--name', 'default-name', ''],
+                              stderr=-2, stdout=-1, universal_newlines=True, bufsize=-1))
+
+    def test_resolve_should_track_driver_status(self):
+        # Given
+        hook_default = SparkSubmitHook(conn_id='')
+        hook_spark_yarn_cluster = SparkSubmitHook(conn_id='spark_yarn_cluster')
+        hook_spark_default_mesos = SparkSubmitHook(conn_id='spark_default_mesos')
+        hook_spark_home_set = SparkSubmitHook(conn_id='spark_home_set')
+        hook_spark_home_not_set = SparkSubmitHook(conn_id='spark_home_not_set')
+        hook_spark_binary_set = SparkSubmitHook(conn_id='spark_binary_set')
+        hook_spark_binary_and_home_set = SparkSubmitHook(
+            conn_id='spark_binary_and_home_set')
+        hook_spark_standalone_cluster = SparkSubmitHook(
+            conn_id='spark_standalone_cluster')
+
+        # When
+        should_track_driver_status_default = hook_default \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_yarn_cluster = hook_spark_yarn_cluster \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_default_mesos = hook_spark_default_mesos \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_home_set = hook_spark_home_set \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_home_not_set = hook_spark_home_not_set \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_binary_set = hook_spark_binary_set \
+            ._resolve_should_track_driver_status()
+        should_track_driver_status_spark_binary_and_home_set = \
+            hook_spark_binary_and_home_set._resolve_should_track_driver_status()
+        should_track_driver_status_spark_standalone_cluster = \
+            hook_spark_standalone_cluster._resolve_should_track_driver_status()
+
+        # Then
+        self.assertEqual(should_track_driver_status_default, False)
+        self.assertEqual(should_track_driver_status_spark_yarn_cluster, False)
+        self.assertEqual(should_track_driver_status_spark_default_mesos, False)
+        self.assertEqual(should_track_driver_status_spark_home_set, False)
+        self.assertEqual(should_track_driver_status_spark_home_not_set, False)
+        self.assertEqual(should_track_driver_status_spark_binary_set, False)
+        self.assertEqual(should_track_driver_status_spark_binary_and_home_set, False)
+        self.assertEqual(should_track_driver_status_spark_standalone_cluster, True)
 
     def test_resolve_connection_yarn_default(self):
         # Given
@@ -157,7 +209,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
@@ -175,7 +227,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
@@ -194,7 +246,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
@@ -212,7 +264,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         dict_cmd = self.cmd_args_to_dict(cmd)
@@ -232,7 +284,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         expected_spark_connection = {"master": "yarn://yarn-master",
@@ -249,7 +301,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         expected_spark_connection = {"master": "yarn://yarn-master",
@@ -266,7 +318,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         expected_spark_connection = {"master": "yarn",
@@ -283,7 +335,7 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         # When
         connection = hook._resolve_connection()
-        cmd = hook._build_command(self._spark_job_file)
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
 
         # Then
         expected_spark_connection = {"master": "yarn",
@@ -294,25 +346,87 @@ class TestSparkSubmitHook(unittest.TestCase):
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/path/to/spark_home/bin/custom-spark-submit')
 
-    def test_process_log(self):
+    def test_resolve_connection_spark_standalone_cluster_connection(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+
+        # When
+        connection = hook._resolve_connection()
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        expected_spark_connection = {"master": "spark://spark-standalone-master:6066",
+                                     "spark_binary": "spark-submit",
+                                     "deploy_mode": "cluster",
+                                     "queue": None,
+                                     "spark_home": "/path/to/spark_home"}
+        self.assertEqual(connection, expected_spark_connection)
+        self.assertEqual(cmd[0], '/path/to/spark_home/bin/spark-submit')
+
+    def test_process_spark_submit_log_yarn(self):
         # Given
         hook = SparkSubmitHook(conn_id='spark_yarn_cluster')
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
-            'WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable',
-            'WARN DomainSocketFactory: The short-circuit local reads feature cannot be used because libhadoop cannot be loaded.',
+            'WARN NativeCodeLoader: Unable to load native-hadoop library for your ' +
+            'platform... using builtin-java classes where applicable',
+            'WARN DomainSocketFactory: The short-circuit local reads feature cannot '
+            'be used because libhadoop cannot be loaded.',
             'INFO Client: Requesting a new application from cluster with 10 NodeManagers',
-            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager'
+            'INFO Client: Submitting application application_1486558679801_1820 ' +
+            'to ResourceManager'
         ]
         # When
-        hook._process_log(log_lines)
+        hook._process_spark_submit_log(log_lines)
 
         # Then
 
         self.assertEqual(hook._yarn_application_id, 'application_1486558679801_1820')
 
+    def test_process_spark_submit_log_standalone_cluster(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+        log_lines = [
+            'Running Spark using the REST application submission protocol.',
+            '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request '
+            'to launch an application in spark://spark-standalone-master:6066',
+            '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully ' +
+            'created as driver-20171128111415-0001. Polling submission state...'
+        ]
+        # When
+        hook._process_spark_submit_log(log_lines)
+
+        # Then
+
+        self.assertEqual(hook._driver_id, 'driver-20171128111415-0001')
+
+    def test_process_spark_driver_status_log(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+        log_lines = [
+            'Submitting a request for the status of submission ' +
+            'driver-20171128111415-0001 in spark://spark-standalone-master:6066',
+            '17/11/28 11:15:37 INFO RestSubmissionClient: Server responded with ' +
+            'SubmissionStatusResponse:',
+            '{',
+            '"action" : "SubmissionStatusResponse",',
+            '"driverState" : "RUNNING",',
+            '"serverSparkVersion" : "1.6.0",',
+            '"submissionId" : "driver-20171128111415-0001",',
+            '"success" : true,',
+            '"workerHostPort" : "172.18.0.7:38561",',
+            '"workerId" : "worker-20171128110741-172.18.0.7-38561"',
+            '}'
+        ]
+        # When
+        hook._process_spark_status_log(log_lines)
+
+        # Then
+
+        self.assertEqual(hook._driver_status, 'RUNNING')
+
     @patch('airflow.contrib.hooks.spark_submit_hook.subprocess.Popen')
-    def test_spark_process_on_kill(self, mock_popen):
+    def test_yarn_process_on_kill(self, mock_popen):
         # Given
         mock_popen.return_value.stdout = six.StringIO('stdout')
         mock_popen.return_value.stderr = six.StringIO('stderr')
@@ -320,20 +434,27 @@ class TestSparkSubmitHook(unittest.TestCase):
         mock_popen.return_value.wait.return_value = 0
         log_lines = [
             'SPARK_MAJOR_VERSION is set to 2, using Spark2',
-            'WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable',
-            'WARN DomainSocketFactory: The short-circuit local reads feature cannot be used because libhadoop cannot be loaded.',
-            'INFO Client: Requesting a new application from cluster with 10 NodeManagerapplication_1486558679801_1820s',
-            'INFO Client: Submitting application application_1486558679801_1820 to ResourceManager'
+            'WARN NativeCodeLoader: Unable to load native-hadoop library for your ' +
+            'platform... using builtin-java classes where applicable',
+            'WARN DomainSocketFactory: The short-circuit local reads feature cannot ' +
+            'be used because libhadoop cannot be loaded.',
+            'INFO Client: Requesting a new application from cluster with 10 ' +
+            'NodeManagerapplication_1486558679801_1820s',
+            'INFO Client: Submitting application application_1486558679801_1820 ' +
+            'to ResourceManager'
         ]
         hook = SparkSubmitHook(conn_id='spark_yarn_cluster')
-        hook._process_log(log_lines)
+        hook._process_spark_submit_log(log_lines)
         hook.submit()
 
         # When
         hook.on_kill()
 
         # Then
-        self.assertIn(call(['yarn', 'application', '-kill', 'application_1486558679801_1820'], stderr=-1, stdout=-1), mock_popen.mock_calls)
+        self.assertIn(call(['yarn', 'application', '-kill',
+                            'application_1486558679801_1820'],
+                           stderr=-1, stdout=-1),
+                      mock_popen.mock_calls)
 
 
 if __name__ == '__main__':
