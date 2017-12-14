@@ -32,6 +32,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         self.log_relative_path = ''
         self._hook = None
         self.closed = False
+        self.upload_on_close = True
 
     def _build_hook(self):
         remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
@@ -59,6 +60,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # log path to upload log files into GCS and read from the
         # remote location.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
+        self.upload_on_close = not ti.is_raw
 
     def close(self):
         """
@@ -72,6 +74,9 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             return
 
         super(GCSTaskHandler, self).close()
+
+        if not self.upload_on_close:
+            return
 
         local_loc = os.path.join(self.local_base, self.log_relative_path)
         remote_loc = os.path.join(self.remote_base, self.log_relative_path)
