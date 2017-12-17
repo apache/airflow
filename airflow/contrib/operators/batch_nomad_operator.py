@@ -15,17 +15,14 @@
 """
 This module contains a Nomad Operator
 which allows you to register and dispatch your nomad job,
-NOTE:   this operator also relies on the python-nomad package:
-        https://github.com/jrxFive/python-nomad
 """
 
 import time
 
-import nomad
-
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils import apply_defaults
+from airflow.contrib.hooks.nomad_hook import NomadHook
 
 
 class NomadOperator(BaseOperator):
@@ -47,17 +44,15 @@ class NomadOperator(BaseOperator):
         """
         super(NomadOperator, self).__init__(*args, **kwargs)
 
-        self.log.info("initialize nomad client for ip:{} port:{}".format(ip, port))
-        self.nomad_cli = nomad.Nomad(host=ip, port=port)
+        self.nomad_client = NomadHook(host=ip, port=port).get_nomad_client()
         self.sleep_amount = sleep_amount
         self.meta = meta
         self.payload = payload
         self.job = job
         self.job_name = job.get("Job").get("Name")
-    #
 
     def _get_allocation_status(self, job_id):
-        allocation = self.nomad_cli.job.get_allocations(job_id)
+        allocation = self.nomad_client.job.get_allocations(job_id)
         if not allocation:
             return 'pending'
 
@@ -65,16 +60,16 @@ class NomadOperator(BaseOperator):
 
     def _dispatch_parameterized_job(self):
         self.log.info("dispatch job {}".format(self.job_name))
-        res = self.nomad_cli.job.dispatch_job(self.job_name, meta=self.meta)
+        res = self.nomad_client.job.dispatch_job(self.job_name, meta=self.meta, payload=self.payload)
         self.log.info("dispatch job {}".format(res["DispatchedJobID"]))
         return res["DispatchedJobID"]
 
     def _register_job(self):
         self.log.info("fetching registered jobs")
-        registered_jobs = [job__["Name"] for job__ in self.nomad_cli.jobs.get_jobs() if job__['Status'] == 'running']
+        registered_jobs = [job__["Name"] for job__ in self.nomad_client.jobs.get_jobs() if job__['Status'] == 'running']
         if self.job_name not in registered_jobs:
             self.log.info("register job name {}".format(self.job_name))
-            self.nomad_cli.job.register_job(self.job_name, self.job)
+            self.nomad_client.job.register_job(self.job_name, self.job)
         else:
             self.log.info("job name {} already registered".format(self.job_name))
 
