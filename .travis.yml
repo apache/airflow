@@ -37,7 +37,7 @@ addons:
   postgresql: "9.2"
 python:
   - "2.7"
-  - "3.4"
+  - "3.5"
 env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
@@ -50,24 +50,24 @@ env:
     - TOX_ENV=py27-backend_mysql
     - TOX_ENV=py27-backend_sqlite
     - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py34-backend_mysql
-    - TOX_ENV=py34-backend_sqlite
-    - TOX_ENV=py34-backend_postgres
+    - TOX_ENV=py35-backend_mysql
+    - TOX_ENV=py35-backend_sqlite
+    - TOX_ENV=py35-backend_postgres
     - TOX_ENV=flake8
 matrix:
   exclude:
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_mysql
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_sqlite
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_postgres
     - python: "2.7"
-      env: TOX_ENV=py34-backend_mysql
+      env: TOX_ENV=py35-backend_mysql
     - python: "2.7"
-      env: TOX_ENV=py34-backend_sqlite
+      env: TOX_ENV=py35-backend_sqlite
     - python: "2.7"
-      env: TOX_ENV=py34-backend_postgres
+      env: TOX_ENV=py35-backend_postgres
     - python: "2.7"
       env: TOX_ENV=flake8
 cache:
