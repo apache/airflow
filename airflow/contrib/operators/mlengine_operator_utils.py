@@ -22,7 +22,7 @@ import re
 import dill
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
-from airflow.contrib.operators.cloudml_operator import CloudMLBatchPredictionOperator
+from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
 from airflow.exceptions import AirflowException
 from airflow.operators.python_operator import PythonOperator
@@ -46,7 +46,7 @@ def create_evaluate_ops(task_prefix,
     Creates Operators needed for model evaluation and returns.
 
     It gets prediction over inputs via Cloud ML Engine BatchPrediction API by
-    calling CloudMLBatchPredictionOperator, then summarize and validate
+    calling MLEngineBatchPredictionOperator, then summarize and validate
     the result via Cloud Dataflow using DataFlowPythonOperator.
 
     For details and pricing about Batch prediction, please refer to the website
@@ -102,7 +102,7 @@ def create_evaluate_ops(task_prefix,
 
     For the details on the other BatchPrediction-related arguments (project_id,
     job_id, region, data_format, input_paths, prediction_path, model_uri),
-    please refer to CloudMLBatchPredictionOperator too.
+    please refer to MLEngineBatchPredictionOperator too.
 
     :param task_prefix: a prefix for the tasks. Only alphanumeric characters and
         hyphen are allowed (no underscores), since this will be used as dataflow
@@ -129,7 +129,7 @@ def create_evaluate_ops(task_prefix,
     :type validate_fn: function
 
     :param batch_prediction_job_id: the id to use for the Cloud ML Batch
-        prediction job. Passed directly to the CloudMLBatchPredictionOperator as
+        prediction job. Passed directly to the MLEngineBatchPredictionOperator as
         the job_id argument.
     :type batch_prediction_job_id: string
 
@@ -149,19 +149,19 @@ def create_evaluate_ops(task_prefix,
 
     :param model_uri: GCS path of the model exported by Tensorflow using
         tensorflow.estimator.export_savedmodel(). It cannot be used with
-        model_name or version_name below. See CloudMLBatchPredictionOperator for
+        model_name or version_name below. See MLEngineBatchPredictionOperator for
         more detail.
     :type model_uri: string
 
     :param model_name: Used to indicate a model to use for prediction. Can be
         used in combination with version_name, but cannot be used together with
-        model_uri. See CloudMLBatchPredictionOperator for more detail. If None,
+        model_uri. See MLEngineBatchPredictionOperator for more detail. If None,
         then the `dag`'s `default_args['model_name']` will be used.
     :type model_name: string
 
     :param version_name: Used to indicate a model version to use for prediciton,
         in combination with model_name. Cannot be used together with model_uri.
-        See CloudMLBatchPredictionOperator for more detail. If None, then the
+        See MLEngineBatchPredictionOperator for more detail. If None, then the
         `dag`'s `default_args['version_name']` will be used.
     :type version_name: string
 
@@ -195,7 +195,7 @@ def create_evaluate_ops(task_prefix,
         dataflow_options = dataflow_options or \
             default_args.get('dataflow_default_options')
 
-    evaluate_prediction = CloudMLBatchPredictionOperator(
+    evaluate_prediction = MLEngineBatchPredictionOperator(
         task_id=(task_prefix + "-prediction"),
         project_id=project_id,
         job_id=batch_prediction_job_id,
@@ -212,7 +212,7 @@ def create_evaluate_ops(task_prefix,
     evaluate_summary = DataFlowPythonOperator(
         task_id=(task_prefix + "-summary"),
         py_options=["-m"],
-        py_file="airflow.contrib.operators.cloudml_prediction_summary",
+        py_file="airflow.contrib.operators.mlengine_prediction_summary",
         dataflow_default_options=dataflow_options,
         options={
             "prediction_path": prediction_path,

@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-
 import flask_login
 
 # Need to expose these downstream
@@ -29,8 +27,10 @@ from flask_oauthlib.client import OAuth
 
 from airflow import models, configuration, settings
 from airflow.configuration import AirflowConfigException
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-_log = logging.getLogger(__name__)
+log = LoggingMixin().log
 
 
 def get_config_param(param):
@@ -175,19 +175,17 @@ class GHEAuthBackend(object):
 
         return False
 
-    def load_user(self, userid):
+    @provide_session
+    def load_user(self, userid, session=None):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
         return GHEUser(user)
 
-    def oauth_callback(self):
+    @provide_session
+    def oauth_callback(self, session=None):
         _log.debug('GHE OAuth callback called')
 
         next_url = request.args.get('next') or url_for('admin.index')
@@ -211,8 +209,6 @@ class GHEAuthBackend(object):
             _log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
-        session = settings.Session()
-
         user = session.query(models.User).filter(
             models.User.username == username).first()
 
@@ -226,7 +222,6 @@ class GHEAuthBackend(object):
         session.commit()
         login_user(GHEUser(user))
         session.commit()
-        session.close()
 
         return redirect(next_url)
 

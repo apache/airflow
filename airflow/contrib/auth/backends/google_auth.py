@@ -11,8 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
-
 import flask_login
 
 # Need to expose these downstream
@@ -28,9 +26,10 @@ from flask import url_for, redirect, request
 from flask_oauthlib.client import OAuth
 
 from airflow import models, configuration, settings
-from airflow.configuration import AirflowConfigException
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-_log = logging.getLogger(__name__)
+log = LoggingMixin().log
 
 
 def get_config_param(param):
@@ -106,7 +105,7 @@ class GoogleAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        _log.debug('Redirecting user to Google login')
+        log.debug('Redirecting user to Google login')
         return self.google_oauth.authorize(callback=url_for(
             'google_oauth_callback',
             _external=True,
@@ -125,24 +124,23 @@ class GoogleAuthBackend(object):
 
     def domain_check(self, email):
         domain = email.split('@')[1]
-        if domain == get_config_param('domain'):
+        domains = get_config_param('domain').split(',')
+        if domain in domains:	
             return True
         return False
 
-    def load_user(self, userid):
+    @provide_session
+    def load_user(self, userid, session=None):
         if not userid or userid == 'None':
             return None
 
-        session = settings.Session()
         user = session.query(models.User).filter(
             models.User.id == int(userid)).first()
-        session.expunge_all()
-        session.commit()
-        session.close()
         return GoogleUser(user)
 
-    def oauth_callback(self):
-        _log.debug('Google OAuth callback called')
+    @provide_session
+    def oauth_callback(self, session=None):
+        log.debug('Google OAuth callback called')
 
         next_url = request.args.get('next') or url_for('admin.index')
 
@@ -162,10 +160,7 @@ class GoogleAuthBackend(object):
                 return redirect(url_for('airflow.noaccess'))
 
         except AuthenticationError:
-            _log.exception('')
             return redirect(url_for('airflow.noaccess'))
-
-        session = settings.Session()
 
         user = session.query(models.User).filter(
             models.User.username == username).first()
@@ -180,7 +175,6 @@ class GoogleAuthBackend(object):
         session.commit()
         login_user(GoogleUser(user))
         session.commit()
-        session.close()
 
         return redirect(next_url)
 

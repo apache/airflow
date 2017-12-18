@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import datetime
 import logging
-import time
 import unittest
 
 from airflow import configuration
 from airflow.models import DAG, DagBag, TaskInstance, State
 from airflow.jobs import BackfillJob
-from airflow.operators.python_operator import PythonOperator
+from airflow.utils import timezone
+
+from datetime import timedelta
 
 try:
     from airflow.executors.dask_executor import DaskExecutor
@@ -34,7 +34,7 @@ if 'sqlite' in configuration.get('core', 'sql_alchemy_conn'):
     logging.error('sqlite does not support concurrent access')
     SKIP_DASK = True
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
 class DaskExecutorTest(unittest.TestCase):
@@ -63,9 +63,9 @@ class DaskExecutorTest(unittest.TestCase):
             k for k, v in executor.futures.items() if v == 'fail')
 
         # wait for the futures to execute, with a timeout
-        timeout = datetime.datetime.now() + datetime.timedelta(seconds=30)
+        timeout = timezone.utcnow() + timedelta(seconds=30)
         while not (success_future.done() and fail_future.done()):
-            if datetime.datetime.now() > timeout:
+            if timezone.utcnow() > timeout:
                 raise ValueError(
                     'The futures should have finished; there is probably '
                     'an error communciating with the Dask cluster.')
@@ -79,7 +79,6 @@ class DaskExecutorTest(unittest.TestCase):
         self.assertTrue(fail_future.exception() is not None)
 
         cluster.close()
-
 
     @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     def test_backfill_integration(self):

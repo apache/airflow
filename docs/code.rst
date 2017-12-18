@@ -72,6 +72,7 @@ Operator API
         PrestoIntervalCheckOperator,
         PrestoValueCheckOperator,
         PythonOperator,
+        PythonVirtualenvOperator,
         S3KeySensor,
         S3ToHiveTransfer,
         ShortCircuitOperator,
@@ -215,6 +216,7 @@ Hooks
     :show-inheritance:
     :members:
         DbApiHook,
+        DockerHook,
         HiveCliHook,
         HiveMetastoreHook,
         HiveServer2Hook,

@@ -27,21 +27,32 @@ class DruidOperator(BaseOperator):
     :param druid_ingest_conn_id: The connection id of the Druid overlord which accepts index jobs
     :type druid_ingest_conn_id: str
     """
-    template_fields = ('intervals',)
+    template_fields = ('index_spec_str',)
     template_ext = ('.json',)
 
     def __init__(
-            self,
-            json_index_file,
-            druid_ingest_conn_id='druid_ingest_default',
-            *args, **kwargs):
-
+        self,
+        json_index_file,
+        druid_ingest_conn_id='druid_ingest_default',
+        max_ingestion_time=None,
+        *args, **kwargs):
         super(DruidOperator, self).__init__(*args, **kwargs)
         self.conn_id = druid_ingest_conn_id
+        self.max_ingestion_time = max_ingestion_time
 
         with open(json_index_file) as data_file:
-            self.index_spec = json.load(data_file)
+            index_spec = json.load(data_file)
+        self.index_spec_str = json.dumps(
+            index_spec,
+            sort_keys=True,
+            indent=4,
+            separators=(',', ': ')
+        )
 
     def execute(self, context):
-        hook = DruidHook(druid_ingest_conn_id=self.conn_id)
-        hook.submit_indexing_job(json.dumps(self.index_spec))
+        hook = DruidHook(
+            druid_ingest_conn_id=self.conn_id,
+            max_ingestion_time=self.max_ingestion_time
+        )
+        self.log.info("Sumitting %s", self.index_spec_str)
+        hook.submit_indexing_job(self.index_spec_str)

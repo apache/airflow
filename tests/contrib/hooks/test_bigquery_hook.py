@@ -14,6 +14,7 @@
 #
 
 import unittest
+import mock
 
 from airflow.contrib.hooks import bigquery_hook as hook
 from oauth2client.contrib.gce import HttpAccessTokenRefreshError
@@ -163,6 +164,14 @@ class TestBigQueryHookSourceFormat(unittest.TestCase):
         # since we passed 'json' in, and it's not valid, make sure it's present in the error string.
         self.assertIn("JSON", str(context.exception))
 
+# Helpers to test_cancel_queries that have mock_poll_job_complete returning false, unless mock_job_cancel was called with the same job_id
+mock_canceled_jobs = []
+def mock_poll_job_complete(job_id):
+    return job_id in mock_canceled_jobs
+
+def mock_job_cancel(projectId, jobId):
+    mock_canceled_jobs.append(jobId)
+    return mock.Mock()
 
 class TestBigQueryBaseCursor(unittest.TestCase):
     def test_invalid_schema_update_options(self):
@@ -185,6 +194,25 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 write_disposition='WRITE_EMPTY'
             )
         self.assertIn("schema_update_options is only", str(context.exception))
+    
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
+    @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
+    def test_cancel_queries(self, mocked_logging, mocked_time):
+        project_id = 12345
+        running_job_id = 3
+        
+        mock_jobs = mock.Mock()
+        mock_jobs.cancel = mock.Mock(side_effect=mock_job_cancel)
+        mock_service = mock.Mock()
+        mock_service.jobs = mock.Mock(return_value=mock_jobs)
+        
+        bq_hook = hook.BigQueryBaseCursor(mock_service, project_id)
+        bq_hook.running_job_id = running_job_id
+        bq_hook.poll_job_complete = mock.Mock(side_effect=mock_poll_job_complete)
+        
+        bq_hook.cancel_query()
+        
+        mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
 
 if __name__ == '__main__':
     unittest.main()

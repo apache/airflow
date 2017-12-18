@@ -26,6 +26,7 @@ from flask import url_for, redirect
 
 from airflow import settings
 from airflow import models
+from airflow.utils.db import provide_session
 
 DEFAULT_USERNAME = 'airflow'
 
@@ -63,17 +64,14 @@ class DefaultUser(object):
 
 
 @login_manager.user_loader
-def load_user(userid):
-    session = settings.Session()
+@provide_session
+def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == userid).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return DefaultUser(user)
 
 
-def login(self, request):
-    session = settings.Session()
+@provide_session
+def login(self, request, session=None):
     user = session.query(models.User).filter(
         models.User.username == DEFAULT_USERNAME).first()
     if not user:
@@ -84,5 +82,4 @@ def login(self, request):
     session.commit()
     flask_login.login_user(DefaultUser(user))
     session.commit()
-    session.close()
     return redirect(request.args.get("next") or url_for("index"))

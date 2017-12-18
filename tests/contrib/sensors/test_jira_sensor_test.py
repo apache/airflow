@@ -14,16 +14,16 @@
 #
 
 import unittest
-import datetime
+
 from mock import Mock
 from mock import patch
 
 from airflow import DAG, configuration
 from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow import models
-from airflow.utils import db
+from airflow.utils import db, timezone
 
-DEFAULT_DATE = datetime.datetime(2017, 1, 1)
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(
         name="jira_client_for_test"
 )

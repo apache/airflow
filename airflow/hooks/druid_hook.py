@@ -14,7 +14,6 @@
 
 from __future__ import print_function
 
-import logging
 import requests
 import time
 
@@ -33,12 +32,11 @@ class DruidHook(BaseHook):
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
     """
-
     def __init__(
             self,
             druid_ingest_conn_id='druid_ingest_default',
             timeout=1,
-            max_ingestion_time=18000):
+            max_ingestion_time=None):
 
         self.druid_ingest_conn_id = druid_ingest_conn_id
         self.timeout = timeout
@@ -70,12 +68,14 @@ class DruidHook(BaseHook):
         while running:
             req_status = requests.get("{0}/{1}/status".format(url, druid_task_id))
 
-            logging.info("Job still running for {0} seconds...".format(sec))
+            self.log.info("Job still running for %s seconds...", sec)
 
             sec = sec + 1
 
-            if sec > self.max_ingestion_time:
-                raise AirflowException('Druid ingestion took more than {} seconds'.format(self.max_ingestion_time))
+            if self.max_ingestion_time and sec > self.max_ingestion_time:
+                # ensure that the job gets killed if the max ingestion time is exceeded
+                requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
+                raise AirflowException('Druid ingestion took more than %s seconds', self.max_ingestion_time)
 
             time.sleep(self.timeout)
 
@@ -87,6 +87,6 @@ class DruidHook(BaseHook):
             elif status == 'FAILED':
                 raise AirflowException('Druid indexing job failed, check console for more info')
             else:
-                raise AirflowException('Could not get status of the job, got {0}'.format(status))
+                raise AirflowException('Could not get status of the job, got %s', status)
 
-        logging.info('Successful index')
+        self.log.info('Successful index')

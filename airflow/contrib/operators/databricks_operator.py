@@ -13,15 +13,12 @@
 # limitations under the License.
 #
 
-import logging
 import six
 import time
 
 from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
-
-LINE_BREAK = ('-' * 80)
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -131,7 +128,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
     :type timeout_seconds: int32
     :param databricks_conn_id: The name of the Airflow connection to use.
-        By default and in the common case this will be ``databricks_default``.
+        By default and in the common case this will be ``databricks_default``. To use
+        token based authentication, provide the key ``token`` in the extra field for the
+        connection.
     :type databricks_conn_id: string
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
@@ -215,7 +214,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             raise AirflowException(msg)
 
     def _log_run_page_url(self, url):
-        logging.info('View run status, Spark UI, and logs at {}'.format(url))
+        self.log.info('View run status, Spark UI, and logs at %s', url)
 
     def get_hook(self):
         return DatabricksHook(
@@ -226,16 +225,13 @@ class DatabricksSubmitRunOperator(BaseOperator):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
         run_page_url = hook.get_run_page_url(self.run_id)
-        logging.info(LINE_BREAK)
-        logging.info('Run submitted with run_id: {}'.format(self.run_id))
+        self.log.info('Run submitted with run_id: %s', self.run_id)
         self._log_run_page_url(run_page_url)
-        logging.info(LINE_BREAK)
         while True:
             run_state = hook.get_run_state(self.run_id)
             if run_state.is_terminal:
                 if run_state.is_successful:
-                    logging.info('{} completed successfully.'.format(
-                        self.task_id))
+                    self.log.info('%s completed successfully.', self.task_id)
                     self._log_run_page_url(run_page_url)
                     return
                 else:
@@ -244,16 +240,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
                         s=run_state)
                     raise AirflowException(error_message)
             else:
-                logging.info('{t} in run state: {s}'.format(t=self.task_id,
-                                                            s=run_state))
+                self.log.info('%s in run state: %s', self.task_id, run_state)
                 self._log_run_page_url(run_page_url)
-                logging.info('Sleeping for {} seconds.'.format(
-                    self.polling_period_seconds))
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
                 time.sleep(self.polling_period_seconds)
 
     def on_kill(self):
         hook = self.get_hook()
         hook.cancel_run(self.run_id)
-        logging.info('Task: {t} with run_id: {r} was requested to be cancelled.'.format(
-            t=self.task_id,
-            r=self.run_id))
+        self.log.info(
+            'Task: %s with run_id: %s was requested to be cancelled.',
+            self.task_id, self.run_id
+        )

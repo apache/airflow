@@ -53,7 +53,7 @@ ldap3
 lxml
 markdown
 mock
-moto
+moto==1.1.19
 mysqlclient
 nose
 nose-exclude
@@ -64,6 +64,7 @@ pandas
 pandas-gbq
 parameterized
 paramiko>=2.1.1
+pendulum>=1.3.2
 psutil>=4.2.0, <5.0.0
 psycopg2
 pygments
@@ -79,6 +80,7 @@ rednose
 requests
 requests-kerberos
 requests_mock
+sendgrid
 setproctitle
 slackclient
 sphinx

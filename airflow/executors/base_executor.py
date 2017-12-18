@@ -11,12 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 from builtins import range
 
 from airflow import configuration
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.utils.logging import LoggingMixin
 
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
@@ -47,7 +46,7 @@ class BaseExecutor(LoggingMixin):
     def queue_command(self, task_instance, command, priority=1, queue=None):
         key = task_instance.key
         if key not in self.queued_tasks and key not in self.running:
-            self.logger.info("Adding to queue: {}".format(command))
+            self.log.info("Adding to queue: %s", command)
             self.queued_tasks[key] = (command, priority, queue, task_instance)
 
     def queue_task_instance(
@@ -79,6 +78,7 @@ class BaseExecutor(LoggingMixin):
     def has_task(self, task_instance):
         """
         Checks if a task is either queued or running in this executor
+
         :param task_instance: TaskInstance
         :return: True if the task is known to this executor
         """
@@ -100,9 +100,9 @@ class BaseExecutor(LoggingMixin):
         else:
             open_slots = self.parallelism - len(self.running)
 
-        self.logger.debug("{} running task instances".format(len(self.running)))
-        self.logger.debug("{} in queue".format(len(self.queued_tasks)))
-        self.logger.debug("{} open slots".format(open_slots))
+        self.log.debug("%s running task instances", len(self.running))
+        self.log.debug("%s in queue", len(self.queued_tasks))
+        self.log.debug("%s open slots", open_slots)
 
         sorted_queue = sorted(
             [(k, v) for k, v in self.queued_tasks.items()],
@@ -123,12 +123,13 @@ class BaseExecutor(LoggingMixin):
                 self.running[key] = command
                 self.execute_async(key, command=command, queue=queue)
             else:
-                self.logger.debug(
-                    'Task is already running, not sending to '
-                    'executor: {}'.format(key))
+                self.log.debug(
+                    'Task is already running, not sending to executor: %s',
+                    key
+                )
 
         # Calling child class sync method
-        self.logger.debug("Calling the {} sync method".format(self.__class__))
+        self.log.debug("Calling the %s sync method", self.__class__)
         self.sync()
 
     def change_state(self, key, state):
@@ -141,13 +142,26 @@ class BaseExecutor(LoggingMixin):
     def success(self, key):
         self.change_state(key, State.SUCCESS)
 
-    def get_event_buffer(self):
+    def get_event_buffer(self, dag_ids=None):
         """
-        Returns and flush the event buffer
+        Returns and flush the event buffer. In case dag_ids is specified
+        it will only return and flush events for the given dag_ids. Otherwise
+        it returns and flushes all
+
+        :param dag_ids: to dag_ids to return events for, if None returns all
+        :return: a dict of events
         """
-        d = self.event_buffer
-        self.event_buffer = {}
-        return d
+        cleared_events = dict()
+        if dag_ids is None:
+            cleared_events = self.event_buffer
+            self.event_buffer = dict()
+        else:
+            for key in list(self.event_buffer.keys()):
+                dag_id, _, _ = key
+                if dag_id in dag_ids:
+                    cleared_events[key] = self.event_buffer.pop(key)
+
+        return cleared_events
 
     def execute_async(self, key, command, queue=None):  # pragma: no cover
         """

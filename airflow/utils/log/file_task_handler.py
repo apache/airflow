@@ -14,6 +14,9 @@
 
 import logging
 import os
+import requests
+
+from jinja2 import Template
 
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
@@ -37,6 +40,10 @@ class FileTaskHandler(logging.Handler):
         self.handler = None
         self.local_base = base_log_folder
         self.filename_template = filename_template
+        self.filename_jinja_template = None
+
+        if "{{" in self.filename_template: #jinja mode
+            self.filename_jinja_template = Template(self.filename_template)
 
     def set_context(self, ti):
         """
@@ -60,6 +67,17 @@ class FileTaskHandler(logging.Handler):
         if self.handler is not None:
             self.handler.close()
 
+    def _render_filename(self, ti, try_number):
+        if self.filename_jinja_template:
+            jinja_context = ti.get_template_context()
+            jinja_context['try_number'] = try_number
+            return self.filename_jinja_template.render(**jinja_context)
+
+        return self.filename_template.format(dag_id=ti.dag_id,
+                                             task_id=ti.task_id,
+                                             execution_date=ti.execution_date.isoformat(),
+                                             try_number=try_number)
+
     def _read(self, ti, try_number):
         """
         Template method that contains custom logic of reading
@@ -71,27 +89,29 @@ class FileTaskHandler(logging.Handler):
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
         # is needed to get correct log path.
-        log_relative_path = self.filename_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=try_number + 1)
-        loc = os.path.join(self.local_base, log_relative_path)
+        log_relative_path = self._render_filename(ti, try_number)
+        location = os.path.join(self.local_base, log_relative_path)
+
         log = ""
 
-        if os.path.exists(loc):
+        if os.path.exists(location):
             try:
-                with open(loc) as f:
-                    log += "*** Reading local log.\n" + "".join(f.readlines())
+                with open(location) as f:
+                    log += "*** Reading local file: {}\n".format(location)
+                    log += "".join(f.readlines())
             except Exception as e:
-                log = "*** Failed to load local log file: {}. {}\n".format(loc, str(e))
+                log = "*** Failed to load local log file: {}\n".format(location)
+                log += "*** {}\n".format(str(e))
         else:
-            url = os.path.join("http://{ti.hostname}:{worker_log_server_port}/log",
-                               log_relative_path).format(
+            url = os.path.join(
+                "http://{ti.hostname}:{worker_log_server_port}/log", log_relative_path
+            ).format(
                 ti=ti,
-                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
-            log += "*** Log file isn't local.\n"
-            log += "*** Fetching here: {url}\n".format(**locals())
+                worker_log_server_port=conf.get('celery', 'WORKER_LOG_SERVER_PORT')
+            )
+            log += "*** Log file does not exist: {}\n".format(location)
+            log += "*** Fetching from: {}\n".format(url)
             try:
-                import requests
                 timeout = None  # No timeout
                 try:
                     timeout = conf.getint('webserver', 'log_fetch_timeout_sec')
@@ -99,7 +119,10 @@ class FileTaskHandler(logging.Handler):
                     pass
 
                 response = requests.get(url, timeout=timeout)
+
+                # Check if the resource was properly fetched
                 response.raise_for_status()
+
                 log += '\n' + response.text
             except Exception as e:
                 log += "*** Failed to fetch log file from worker. {}\n".format(str(e))
@@ -118,12 +141,14 @@ class FileTaskHandler(logging.Handler):
         # So the log for a particular task try will only show up when
         # try number gets incremented in DB, i.e logs produced the time
         # after cli run and before try_number + 1 in DB will not be displayed.
-        next_try = task_instance.try_number
 
         if try_number is None:
-            try_numbers = list(range(next_try))
-        elif try_number < 0:
-            logs = ['Error fetching the logs. Try number {} is invalid.'.format(try_number)]
+            next_try = task_instance.next_try_number
+            try_numbers = list(range(1, next_try))
+        elif try_number < 1:
+            logs = [
+                'Error fetching the logs. Try number {} is invalid.'.format(try_number),
+            ]
             return logs
         else:
             try_numbers = [try_number]
@@ -153,9 +178,7 @@ class FileTaskHandler(logging.Handler):
         # writable by both users, then it's possible that re-running a task
         # via the UI (or vice versa) results in a permission error as the task
         # tries to write to a log file created by the other user.
-        relative_path = self.filename_template.format(
-            dag_id=ti.dag_id, task_id=ti.task_id,
-            execution_date=ti.execution_date.isoformat(), try_number=ti.try_number + 1)
+        relative_path = self._render_filename(ti, ti.try_number)
         full_path = os.path.join(self.local_base, relative_path)
         directory = os.path.dirname(full_path)
         # Create the log file and give it group writable permissions

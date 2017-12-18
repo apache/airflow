@@ -17,20 +17,35 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import atexit
 import logging
-import logging.config
 import os
-import sys
+import pendulum
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
+from airflow.logging_config import configure_logging
+from airflow.utils.sqlalchemy import setup_event_handlers
+
+log = logging.getLogger(__name__)
+
+
+TIMEZONE = pendulum.timezone('UTC')
+try:
+    tz = conf.get("core", "default_timezone")
+    if tz == "system":
+        TIMEZONE = pendulum.local_timezone()
+    else:
+        TIMEZONE = pendulum.timezone(tz)
+except:
+    pass
+log.info("Configured default timezone %s" % TIMEZONE)
 
 
 class DummyStatsLogger(object):
-
     @classmethod
     def incr(cls, stat, count=1, rate=1):
         pass
@@ -47,10 +62,12 @@ class DummyStatsLogger(object):
     def timing(cls, stat, dt):
         pass
 
+
 Stats = DummyStatsLogger
 
 if conf.getboolean('scheduler', 'statsd_on'):
     from statsd import StatsClient
+
     statsd = StatsClient(
         host=conf.get('scheduler', 'statsd_host'),
         port=conf.getint('scheduler', 'statsd_port'),
@@ -58,7 +75,6 @@ if conf.getboolean('scheduler', 'statsd_on'):
     Stats = statsd
 else:
     Stats = DummyStatsLogger
-
 
 HEADER = """\
   ____________       _____________
@@ -75,8 +91,6 @@ LOGGING_LEVEL = logging.INFO
 GUNICORN_WORKER_READY_PREFIX = "[ready] "
 
 LOG_FORMAT = conf.get('core', 'log_format')
-LOG_FORMAT_WITH_PID = conf.get('core', 'log_format_with_pid')
-LOG_FORMAT_WITH_THREAD_NAME = conf.get('core', 'log_format_with_thread_name')
 SIMPLE_LOG_FORMAT = conf.get('core', 'simple_log_format')
 
 AIRFLOW_HOME = None
@@ -114,27 +128,6 @@ def policy(task_instance):
     pass
 
 
-def configure_logging(log_format=LOG_FORMAT):
-
-    def _configure_logging(logging_level):
-        global LOGGING_LEVEL
-        logging.root.handlers = []
-        logging.basicConfig(
-            format=log_format, stream=sys.stdout, level=logging_level)
-        LOGGING_LEVEL = logging_level
-
-    if "logging_level" in conf.as_dict()["core"]:
-        logging_level = conf.get('core', 'LOGGING_LEVEL').upper()
-    else:
-        logging_level = LOGGING_LEVEL
-    try:
-        _configure_logging(logging_level)
-    except ValueError:
-        logging.warning("Logging level {} is not defined. "
-                        "Use default.".format(logging_level))
-        _configure_logging(logging.INFO)
-
-
 def configure_vars():
     global AIRFLOW_HOME
     global SQL_ALCHEMY_CONN
@@ -145,10 +138,13 @@ def configure_vars():
 
 
 def configure_orm(disable_connection_pool=False):
+    log.debug("Setting up DB connection pool (PID %s)" % os.getpid())
     global engine
     global Session
     engine_args = {}
-    if disable_connection_pool:
+
+    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
+    if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Engine args not supported by sqlite
@@ -157,31 +153,55 @@ def configure_orm(disable_connection_pool=False):
                                                   'SQL_ALCHEMY_POOL_RECYCLE')
 
     engine = create_engine(SQL_ALCHEMY_CONN, **engine_args)
+    reconnect_timeout = conf.getint('core', 'SQL_ALCHEMY_RECONNECT_TIMEOUT')
+    setup_event_handlers(engine, reconnect_timeout)
+
     Session = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
+
+def dispose_orm():
+    """ Properly close pooled database connections """
+    log.debug("Disposing DB connection pool (PID %s)", os.getpid())
+    global engine
+    global Session
+
+    if Session:
+        Session.remove()
+        Session = None
+    if engine:
+        engine.dispose()
+        engine = None
+
+
+def configure_adapters():
+    from pendulum import Pendulum
+    try:
+        from sqlite3 import register_adapter
+        register_adapter(Pendulum, lambda val: val.isoformat(' '))
+    except ImportError:
+        pass
+    try:
+        import MySQLdb.converters
+        MySQLdb.converters.conversions[Pendulum] = MySQLdb.converters.DateTime2literal
+    except ImportError:
+        pass
+
+
 try:
     from airflow_local_settings import *
-    logging.info("Loaded airflow_local_settings.")
+
+    log.info("Loaded airflow_local_settings.")
 except:
     pass
 
 configure_logging()
 configure_vars()
+configure_adapters()
 configure_orm()
 
-# TODO: Unify airflow logging setups. Please see AIRFLOW-1457.
-logging_config_path = conf.get('core', 'logging_config_path')
-try:
-    from logging_config_path import LOGGING_CONFIG
-    logging.debug("Successfully imported user-defined logging config.")
-except Exception as e:
-    # Import default logging configurations.
-    logging.debug("Unable to load custom logging config file: {}."
-                  " Using default airflow logging config instead".format(str(e)))
-    from airflow.config_templates.default_airflow_logging import \
-        DEFAULT_LOGGING_CONFIG as LOGGING_CONFIG
-logging.config.dictConfig(LOGGING_CONFIG)
+# Ensure we close DB connections at scheduler and gunicon worker terminations
+atexit.register(dispose_orm)
 
 # Const stuff
 

@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime, timedelta
+from datetime import timedelta
 import json
 import unittest
 from urllib.parse import quote_plus
@@ -21,6 +21,7 @@ from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.settings import Session
+from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
 
 
@@ -75,7 +76,7 @@ class TestApiExperimental(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs'
         response = self.app.post(
             url_template.format('example_bash_operator'),
-            data=json.dumps({'run_id': 'my_run' + datetime.now().isoformat()}),
+            data=json.dumps({'run_id': 'my_run' + utcnow().isoformat()}),
             content_type="application/json"
         )
 
@@ -91,7 +92,7 @@ class TestApiExperimental(unittest.TestCase):
     def test_trigger_dag_for_date(self):
         url_template = '/api/experimental/dags/{}/dag_runs'
         dag_id = 'example_bash_operator'
-        hour_from_now = datetime.now() + timedelta(hours=1)
+        hour_from_now = utcnow() + timedelta(hours=1)
         execution_date = datetime(hour_from_now.year,
                                   hour_from_now.month,
                                   hour_from_now.day,
@@ -133,7 +134,7 @@ class TestApiExperimental(unittest.TestCase):
         url_template = '/api/experimental/dags/{}/dag_runs/{}/tasks/{}'
         dag_id = 'example_bash_operator'
         task_id = 'also_run_this'
-        execution_date = datetime.now().replace(microsecond=0)
+        execution_date = utcnow().replace(microsecond=0)
         datetime_string = quote_plus(execution_date.isoformat())
         wrong_datetime_string = quote_plus(
             datetime(1990, 1, 1, 1, 1, 1).isoformat()

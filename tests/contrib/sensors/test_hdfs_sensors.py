@@ -22,12 +22,10 @@ from airflow.exceptions import AirflowSensorTimeout
 
 class HdfsSensorFolderTests(unittest.TestCase):
     def setUp(self):
-        if sys.version_info[0] == 3:
-            raise unittest.SkipTest('HdfsSensor won\'t work with python3. No need to test anything here')
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+        self.log = logging.getLogger()
+        self.log.setLevel(logging.DEBUG)
 
     def test_should_be_empty_directory(self):
         """
@@ -35,9 +33,9 @@ class HdfsSensorFolderTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         task = HdfsSensorFolder(task_id='Should_be_empty_directory',
                                 filepath='/datadirectory/empty_directory',
                                 be_empty=True,
@@ -58,9 +56,9 @@ class HdfsSensorFolderTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         task = HdfsSensorFolder(task_id='Should_be_empty_directory_fail',
                                 filepath='/datadirectory/not_empty_directory',
                                 be_empty=True,
@@ -80,9 +78,9 @@ class HdfsSensorFolderTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         task = HdfsSensorFolder(task_id='Should_be_non_empty_directory',
                                 filepath='/datadirectory/not_empty_directory',
                                 timeout=1,
@@ -102,9 +100,9 @@ class HdfsSensorFolderTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         task = HdfsSensorFolder(task_id='Should_be_empty_directory_fail',
                                 filepath='/datadirectory/empty_directory',
                                 timeout=1,
@@ -120,12 +118,10 @@ class HdfsSensorFolderTests(unittest.TestCase):
 
 class HdfsSensorRegexTests(unittest.TestCase):
     def setUp(self):
-        if sys.version_info[0] == 3:
-            raise unittest.SkipTest('HdfsSensor won\'t work with python3. No need to test anything here')
         from tests.core import FakeHDFSHook
         self.hook = FakeHDFSHook
-        self.logger = logging.getLogger()
-        self.logger.setLevel(logging.DEBUG)
+        self.log = logging.getLogger()
+        self.log.setLevel(logging.DEBUG)
 
     def test_should_match_regex(self):
         """
@@ -133,9 +129,9 @@ class HdfsSensorRegexTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsSensorRegex(task_id='Should_match_the_regex',
                                filepath='/datadirectory/regex_dir',
@@ -157,9 +153,9 @@ class HdfsSensorRegexTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         compiled_regex = re.compile("^IDoNotExist")
         task = HdfsSensorRegex(task_id='Should_not_match_the_regex',
                                filepath='/datadirectory/regex_dir',
@@ -180,9 +176,9 @@ class HdfsSensorRegexTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsSensorRegex(task_id='Should_match_the_regex_and_filesize',
                                filepath='/datadirectory/regex_dir',
@@ -207,9 +203,9 @@ class HdfsSensorRegexTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         compiled_regex = re.compile("test[1-2]file")
         task = HdfsSensorRegex(task_id='Should_match_the_regex_but_filesize',
                                filepath='/datadirectory/regex_dir',
@@ -231,9 +227,9 @@ class HdfsSensorRegexTests(unittest.TestCase):
         :return:
         """
         # Given
-        self.logger.debug('#' * 10)
-        self.logger.debug('Running %s', self._testMethodName)
-        self.logger.debug('#' * 10)
+        self.log.debug('#' * 10)
+        self.log.debug('Running %s', self._testMethodName)
+        self.log.debug('#' * 10)
         compiled_regex = re.compile("copying_file_\d+.txt")
         task = HdfsSensorRegex(task_id='Should_match_the_regex_but_filesize',
                                filepath='/datadirectory/regex_dir',

@@ -19,7 +19,6 @@ from __future__ import unicode_literals
 
 import copy
 import errno
-import logging
 import os
 import six
 import subprocess
@@ -28,6 +27,11 @@ import shlex
 import sys
 
 from future import standard_library
+
+from six import iteritems
+
+from airflow.utils.log.logging_mixin import LoggingMixin
+
 standard_library.install_aliases()
 
 from builtins import str
@@ -35,6 +39,8 @@ from collections import OrderedDict
 from six.moves import configparser
 
 from airflow.exceptions import AirflowConfigException
+
+log = LoggingMixin().log
 
 # show Airflow's deprecation warnings
 warnings.filterwarnings(
@@ -81,7 +87,10 @@ def run_command(command):
     Runs command and returns stdout
     """
     process = subprocess.Popen(
-        shlex.split(command), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        shlex.split(command),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        close_fds=True)
     output, stderr = [stream.decode(sys.getdefaultencoding(), 'ignore')
                       for stream in process.communicate()]
 
@@ -109,7 +118,7 @@ class AirflowConfigParser(ConfigParser):
         ('core', 'sql_alchemy_conn'),
         ('core', 'fernet_key'),
         ('celery', 'broker_url'),
-        ('celery', 'celery_result_backend')
+        ('celery', 'result_backend')
     }
 
     def __init__(self, *args, **kwargs):
@@ -198,8 +207,9 @@ class AirflowConfigParser(ConfigParser):
             return option
 
         else:
-            logging.warning("section/key [{section}/{key}] not found "
-                            "in config".format(**locals()))
+            log.warning(
+                "section/key [{section}/{key}] not found in config".format(**locals())
+            )
 
             raise AirflowConfigException(
                 "section/key [{section}/{key}] not found "
@@ -227,6 +237,31 @@ class AirflowConfigParser(ConfigParser):
     def read(self, filenames):
         ConfigParser.read(self, filenames)
         self._validate()
+
+    def getsection(self, section):
+        """
+        Returns the section as a dict. Values are converted to int, float, bool
+        as required.
+        :param section: section from the config
+        :return: dict
+        """
+        if section in self._sections:
+            _section = self._sections[section]
+            for key, val in iteritems(self._sections[section]):
+                try:
+                    val = int(val)
+                except ValueError:
+                    try:
+                        val = float(val)
+                    except ValueError:
+                        if val.lower() in ('t', 'true'):
+                            val = True
+                        elif val.lower() in ('f', 'false'):
+                            val = False
+                _section[key] = val
+            return _section
+
+        return None
 
     def as_dict(self, display_source=False, display_sensitive=False):
         """
@@ -366,20 +401,22 @@ else:
 TEMPLATE_START = (
     '# ----------------------- TEMPLATE BEGINS HERE -----------------------')
 if not os.path.isfile(TEST_CONFIG_FILE):
-    logging.info(
-        'Creating new Airflow config file for unit tests in: {}'.format(
-            TEST_CONFIG_FILE))
+    log.info(
+        'Creating new Airflow config file for unit tests in: %s', TEST_CONFIG_FILE
+    )
     with open(TEST_CONFIG_FILE, 'w') as f:
         cfg = parameterized_config(TEST_CONFIG)
         f.write(cfg.split(TEMPLATE_START)[-1].strip())
 if not os.path.isfile(AIRFLOW_CONFIG):
-    logging.info('Creating new Airflow config file in: {}'.format(
-        AIRFLOW_CONFIG))
+    log.info(
+        'Creating new Airflow config file in: %s',
+        AIRFLOW_CONFIG
+    )
     with open(AIRFLOW_CONFIG, 'w') as f:
         cfg = parameterized_config(DEFAULT_CONFIG)
         f.write(cfg.split(TEMPLATE_START)[-1].strip())
 
-logging.info("Reading the config from " + AIRFLOW_CONFIG)
+log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
 conf = AirflowConfigParser()
 conf.read(AIRFLOW_CONFIG)
@@ -411,6 +448,10 @@ def getfloat(section, key):
 
 def getint(section, key):
     return conf.getint(section, key)
+
+
+def getsection(section):
+    return conf.getsection(section)
 
 
 def has_option(section, key):

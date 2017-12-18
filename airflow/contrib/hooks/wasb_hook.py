@@ -92,3 +92,21 @@ class WasbHook(BaseHook):
         # Reorder the argument order from airflow.hooks.S3_hook.load_file.
         self.connection.create_blob_from_path(container_name, blob_name,
                                               file_path, **kwargs)
+
+    def load_string(self, string_data, container_name, blob_name, **kwargs):
+        """
+        Upload a string to Azure Blob Storage.
+        
+        :param string_data: String to load.
+        :type string_data: str
+        :param container_name: Name of the container.
+        :type container_name: str
+        :param blob_name: Name of the blob.
+        :type blob_name: str
+        :param kwargs: Optional keyword arguments that
+            `BlockBlobService.create_blob_from_text()` takes.
+        :type kwargs: object
+        """
+        # Reorder the argument order from airflow.hooks.S3_hook.load_string.
+        self.connection.create_blob_from_text(container_name, blob_name,
+                                              string_data, **kwargs)

@@ -13,7 +13,8 @@
 # limitations under the License.
 
 import json
-import logging
+
+from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -30,9 +31,14 @@ class DockerOperator(BaseOperator):
     that together exceed the default disk size of 10GB in a container. The path to the mounted
     directory can be accessed via the environment variable ``AIRFLOW_TMP_DIR``.
 
+    If a login to a private registry is required prior to pulling the image, a
+    Docker connection needs to be configured in Airflow and the connection ID
+    be provided with the parameter ``docker_conn_id``.
+
     :param image: Docker image from which to create the container.
     :type image: str
-    :param api_version: Remote API version.
+    :param api_version: Remote API version. Set to ``auto`` to automatically
+        detect the server's version.
     :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
@@ -41,10 +47,11 @@ class DockerOperator(BaseOperator):
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param docker_url: URL of the host running the docker daemon.
+        Default is unix://var/run/docker.sock
     :type docker_url: str
     :param environment: Environment variables to set in the container.
     :type environment: dict
-    :param force_pull: Pull the docker image on every run.
+    :param force_pull: Pull the docker image on every run. Default is false.
     :type force_pull: bool
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir
@@ -81,6 +88,8 @@ class DockerOperator(BaseOperator):
     :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
+    :param docker_conn_id: ID of the Airflow connection to use
+    :type docker_conn_id: str
     """
     template_fields = ('command',)
     template_ext = ('.sh', '.bash',)
@@ -109,6 +118,7 @@ class DockerOperator(BaseOperator):
             working_dir=None,
             xcom_push=False,
             xcom_all=False,
+            docker_conn_id=None,
             *args,
             **kwargs):
 
@@ -134,25 +144,32 @@ class DockerOperator(BaseOperator):
         self.working_dir = working_dir
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
+        self.docker_conn_id = docker_conn_id
 
         self.cli = None
         self.container = None
 
+    def get_hook(self):
+        return DockerHook(
+            docker_conn_id=self.docker_conn_id,
+            base_url=self.base_url,
+            version=self.api_version,
+            tls=self.__get_tls_config()
+        )
+
     def execute(self, context):
-        logging.info('Starting docker container from image ' + self.image)
+        self.log.info('Starting docker container from image %s', self.image)
 
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
+        tls_config = self.__get_tls_config()
+
+        if self.docker_conn_id:
+            self.cli = self.get_hook().get_conn()
+        else:
+            self.cli = Client(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
             )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
-
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
 
         if ':' not in self.image:
             image = self.image + ':latest'
@@ -160,10 +177,10 @@ class DockerOperator(BaseOperator):
             image = self.image
 
         if self.force_pull or len(self.cli.images(name=image)) == 0:
-            logging.info('Pulling docker image ' + image)
+            self.log.info('Pulling docker image %s', image)
             for l in self.cli.pull(image, stream=True):
                 output = json.loads(l.decode('utf-8'))
-                logging.info("{}".format(output['status']))
+                self.log.info("%s", output['status'])
 
         cpu_shares = int(round(self.cpus * 1024))
 
@@ -189,7 +206,7 @@ class DockerOperator(BaseOperator):
                 line = line.strip()
                 if hasattr(line, 'decode'):
                     line = line.decode('utf-8')
-                logging.info(line)
+                self.log.info(line)
 
             exit_code = self.cli.wait(self.container['Id'])
             if exit_code != 0:
@@ -207,5 +224,18 @@ class DockerOperator(BaseOperator):
 
     def on_kill(self):
         if self.cli is not None:
-            logging.info('Stopping docker container')
+            self.log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+
+    def __get_tls_config(self):
+        tls_config = None
+        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            tls_config = tls.TLSConfig(
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
+            )
+            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        return tls_config
