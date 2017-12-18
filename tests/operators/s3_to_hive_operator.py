@@ -32,6 +32,12 @@ import shutil
 import filecmp
 import errno
 
+try:
+    import boto3
+    from moto import mock_s3
+except ImportError:
+    mock_s3 = None
+
 
 class S3ToHiveTransferTest(unittest.TestCase):
 
@@ -128,10 +134,6 @@ class S3ToHiveTransferTest(unittest.TestCase):
         key = ext + "_" + ('h' if header else 'nh')
         return key
 
-    def _cp_file_contents(self, fn_src, fn_dest):
-        with open(fn_src, 'rb') as f_src, open(fn_dest, 'wb') as f_dest:
-            shutil.copyfileobj(f_src, f_dest)
-
     def _check_file_equality(self, fn_1, fn_2, ext):
         # gz files contain mtime and filename in the header that
         # causes filecmp to return False even if contents are identical
@@ -205,13 +207,15 @@ class S3ToHiveTransferTest(unittest.TestCase):
                         msg="bz2 Compressed file not as expected")
 
     @unittest.skipIf(mock is None, 'mock package not present')
+    @unittest.skipIf(mock_s3 is None, 'moto package not present')
     @mock.patch('airflow.operators.s3_to_hive_operator.HiveCliHook')
-    @mock.patch('airflow.operators.s3_to_hive_operator.S3Hook')
-    def test_execute(self, mock_s3hook, mock_hiveclihook):
+    @mock_s3
+    def test_execute(self, mock_hiveclihook):
+        conn = boto3.client('s3')
+        conn.create_bucket(Bucket='bucket')
+
         # Testing txt, zip, bz2 files with and without header row
-        for test in product(['.txt', '.gz', '.bz2'], [True, False]):
-            ext = test[0]
-            has_header = test[1]
+        for (ext, has_header) in product(['.txt', '.gz', '.bz2'], [True, False]):
             self.kwargs['headers'] = has_header
             self.kwargs['check_headers'] = has_header
             logging.info("Testing {0} format {1} header".
@@ -219,15 +223,13 @@ class S3ToHiveTransferTest(unittest.TestCase):
                                 ('with' if has_header else 'without'))
                          )
             self.kwargs['input_compressed'] = (False if ext == '.txt' else True)
-            self.kwargs['s3_key'] = self.s3_key + ext
+            self.kwargs['s3_key'] = 's3://bucket/' + self.s3_key + ext
             ip_fn = self._get_fn(ext, self.kwargs['headers'])
             op_fn = self._get_fn(ext, False)
-            # Mock s3 object returned by S3Hook
-            mock_s3_object = mock.Mock(key=self.kwargs['s3_key'])
-            mock_s3_object.get_contents_to_file.side_effect = \
-                lambda dest_file: \
-                self._cp_file_contents(ip_fn, dest_file.name)
-            mock_s3hook().get_key.return_value = mock_s3_object
+
+            # Upload the file into the Mocked S3 bucket
+            conn.upload_file(ip_fn, 'bucket', self.s3_key + ext)
+
             # file paramter to HiveCliHook.load_file is compared
             # against expected file oputput
             mock_hiveclihook().load_file.side_effect = \

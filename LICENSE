@@ -224,7 +224,8 @@ The text of each license is also included at licenses/LICENSE-[project]-[version
     (MIT License) Clock Plugin (https://github.com/Lwangaman/jQuery-Clock-Plugin)
     (MIT License) WebGL-2D (https://github.com/gameclosure/webgl-2d)
     (MIT License) Underscore.js (http://underscorejs.org)
-
+    (MIT License) Bootstrap Toggle (http://www.bootstraptoggle.com)
+    (MIT License) normalize.css (http://git.io/normalize)
 
 ========================================================================
 BSD 2-Clause licenses
@@ -236,3 +237,5 @@ The text of each license is also included at licenses/LICENSE-[project]-[version
     (BSD 2 License) flask-kerberos (https://github.com/mkomitee/flask-kerberos)
     (BSD 2 License) Ace (https://github.com/ajaxorg/ace)
     (BSD 2 License) d3js (https://d3js.org)
+    (BSD 3 License) parallel.js (https://parallel.js.org/)
+

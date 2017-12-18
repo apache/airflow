@@ -31,11 +31,12 @@ import subprocess
 import sys
 import warnings
 
+from airflow import configuration
 from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = 5
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.getint('core', 'KILLED_TASK_CLEANUP_TIME')
 
 
 def validate_key(k, max_length=250):
@@ -191,7 +192,7 @@ def kill_using_shell(logger, pid, signal=signal.SIGTERM):
         else:
             args = ["kill", "-{}".format(int(signal)), str(pid)]
         # PID may not exist and return a non-zero error code
-        logger.error(subprocess.check_output(args))
+        logger.error(subprocess.check_output(args, close_fds=True))
         logger.info("Killed process {} with signal {}".format(pid, signal))
         return True
     except psutil.NoSuchProcess as e:

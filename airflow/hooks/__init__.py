@@ -55,6 +55,7 @@ _hooks = {
     'dbapi_hook': ['DbApiHook'],
     'mssql_hook': ['MsSqlHook'],
     'oracle_hook': ['OracleHook'],
+    'slack_hook': ['SlackHook'],
 }
 
 import os as _os
@@ -85,4 +86,3 @@ def _integrate_plugins():
                     "import from 'airflow.hooks.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
                     "entirely in Airflow 2.0.".format(i=hook_name))
-

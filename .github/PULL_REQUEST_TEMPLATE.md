@@ -1,7 +1,4 @@
-Dear Airflow maintainers,
-
-Please accept this PR. I understand that it will not be reviewed until I have checked off all the steps below!
-
+Make sure you have checked _all_ steps below.
 
 ### JIRA
 - [ ] My PR addresses the following [Airflow JIRA](https://issues.apache.org/jira/browse/AIRFLOW/) issues and references them in the PR title. For example, "[AIRFLOW-XXX] My Airflow PR"
@@ -25,3 +22,4 @@ Please accept this PR. I understand that it will not be reviewed until I have ch
     5. Body wraps at 72 characters
     6. Body explains "what" and "why", not "how"
 
+- [ ] Passes `git diff upstream/master -u -- "*.py" | flake8 --diff`

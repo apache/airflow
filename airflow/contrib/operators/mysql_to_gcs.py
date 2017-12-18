@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import sys
 import json
-import logging
 import time
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.hooks.mysql_hook import MySqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
-from collections import OrderedDict
 from datetime import date, datetime
 from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
+
+PY3 = sys.version_info[0] == 3
 
 
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
@@ -122,7 +123,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = map(lambda schema_tuple: schema_tuple[0], cursor.description)
+        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         file_no = 0
         tmp_file_handle = NamedTemporaryFile(delete=True)
         tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
@@ -133,10 +134,13 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             row_dict = dict(zip(schema, row))
 
             # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
-            json.dump(row_dict, tmp_file_handle)
+            s = json.dumps(row_dict)
+            if PY3:
+                s = s.encode('utf-8')
+            tmp_file_handle.write(s)
 
             # Append newline to make dumps BigQuery compatible.
-            tmp_file_handle.write('\n')
+            tmp_file_handle.write(b'\n')
 
             # Stop if the file exceeds the file size limit.
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
@@ -170,9 +174,12 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                 'mode': field_mode,
             })
 
-        logging.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
-        json.dump(schema, tmp_schema_file_handle)
+        s = json.dumps(schema, tmp_schema_file_handle)
+        if PY3:
+            s = s.encode('utf-8')
+        tmp_schema_file_handle.write(s)
         return {self.schema_filename: tmp_schema_file_handle}
 
     def _upload_to_gcs(self, files_to_upload):
@@ -180,8 +187,9 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         Upload all of the file splits (and optionally the schema .json file) to
         Google cloud storage.
         """
-        hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                                      delegate_to=self.delegate_to)
+        hook = GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
             hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
 
@@ -210,6 +218,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             FIELD_TYPE.TINY: 'INTEGER',
             FIELD_TYPE.BIT: 'INTEGER',
             FIELD_TYPE.DATETIME: 'TIMESTAMP',
+            FIELD_TYPE.DATE: 'TIMESTAMP',
             FIELD_TYPE.DECIMAL: 'FLOAT',
             FIELD_TYPE.NEWDECIMAL: 'FLOAT',
             FIELD_TYPE.DOUBLE: 'FLOAT',

@@ -14,7 +14,6 @@
 
 from builtins import next
 from builtins import zip
-import logging
 from tempfile import NamedTemporaryFile
 from airflow.utils.file import TemporaryDirectory
 import gzip
@@ -28,6 +27,7 @@ from airflow.hooks.hive_hooks import HiveCliHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.compression import uncompress_file
+
 
 class S3ToHiveTransfer(BaseOperator):
     """
@@ -71,13 +71,15 @@ class S3ToHiveTransfer(BaseOperator):
     :type wildcard_match: bool
     :param delimiter: field delimiter in the file
     :type delimiter: str
-    :param s3_conn_id: source s3 connection
-    :type s3_conn_id: str
+    :param aws_conn_id: source s3 connection
+    :type aws_conn_id: str
     :param hive_cli_conn_id: destination hive connection
     :type hive_cli_conn_id: str
     :param input_compressed: Boolean to determine if file decompression is
         required to process headers
     :type input_compressed: bool
+    :param tblproperties: TBLPROPERTIES of the hive table being created
+    :type tblproperties: dict
     """
 
     template_fields = ('s3_key', 'partition', 'hive_table')
@@ -97,9 +99,10 @@ class S3ToHiveTransfer(BaseOperator):
             headers=False,
             check_headers=False,
             wildcard_match=False,
-            s3_conn_id='s3_default',
+            aws_conn_id='aws_default',
             hive_cli_conn_id='hive_cli_default',
             input_compressed=False,
+            tblproperties=None,
             *args, **kwargs):
         super(S3ToHiveTransfer, self).__init__(*args, **kwargs)
         self.s3_key = s3_key
@@ -113,8 +116,9 @@ class S3ToHiveTransfer(BaseOperator):
         self.check_headers = check_headers
         self.wildcard_match = wildcard_match
         self.hive_cli_conn_id = hive_cli_conn_id
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
         self.input_compressed = input_compressed
+        self.tblproperties = tblproperties
 
         if (self.check_headers and
                 not (self.field_dict is not None and self.headers)):
@@ -123,9 +127,9 @@ class S3ToHiveTransfer(BaseOperator):
 
     def execute(self, context):
         # Downloading file from S3
-        self.s3 = S3Hook(s3_conn_id=self.s3_conn_id)
+        self.s3 = S3Hook(aws_conn_id=self.aws_conn_id)
         self.hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
-        logging.info("Downloading S3 file")
+        self.log.info("Downloading S3 file")
 
         if self.wildcard_match:
             if not self.s3.check_for_wildcard_key(self.s3_key):
@@ -139,16 +143,15 @@ class S3ToHiveTransfer(BaseOperator):
             s3_key_object = self.s3.get_key(self.s3_key)
         root, file_ext = os.path.splitext(s3_key_object.key)
         with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir,\
-                NamedTemporaryFile(mode="w",
+                NamedTemporaryFile(mode="wb",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
-            logging.info("Dumping S3 key {0} contents to local"
-                         " file {1}".format(s3_key_object.key, f.name))
-            s3_key_object.get_contents_to_file(f)
+            self.log.info("Dumping S3 key {0} contents to local file {1}"
+                          .format(s3_key_object.key, f.name))
+            s3_key_object.download_fileobj(f)
             f.flush()
-            self.s3.connection.close()
             if not self.headers:
-                logging.info("Loading file {0} into Hive".format(f.name))
+                self.log.info("Loading file %s into Hive", f.name)
                 self.hive.load_file(
                     f.name,
                     self.hive_table,
@@ -156,15 +159,16 @@ class S3ToHiveTransfer(BaseOperator):
                     create=self.create,
                     partition=self.partition,
                     delimiter=self.delimiter,
-                    recreate=self.recreate)
+                    recreate=self.recreate,
+                    tblproperties=self.tblproperties)
             else:
                 # Decompressing file
                 if self.input_compressed:
-                    logging.info("Uncompressing file {0}".format(f.name))
+                    self.log.info("Uncompressing file %s", f.name)
                     fn_uncompressed = uncompress_file(f.name,
                                                       file_ext,
                                                       tmp_dir)
-                    logging.info("Uncompressed to {0}".format(fn_uncompressed))
+                    self.log.info("Uncompressed to %s", fn_uncompressed)
                     # uncompressed file available now so deleting
                     # compressed file to save disk space
                     f.close()
@@ -173,27 +177,27 @@ class S3ToHiveTransfer(BaseOperator):
 
                 # Testing if header matches field_dict
                 if self.check_headers:
-                    logging.info("Matching file header against field_dict")
+                    self.log.info("Matching file header against field_dict")
                     header_list = self._get_top_row_as_list(fn_uncompressed)
                     if not self._match_headers(header_list):
                         raise AirflowException("Header check failed")
 
                 # Deleting top header row
-                logging.info("Removing header from file {0}".
-                             format(fn_uncompressed))
+                self.log.info("Removing header from file %s", fn_uncompressed)
                 headless_file = (
                     self._delete_top_row_and_compress(fn_uncompressed,
                                                       file_ext,
                                                       tmp_dir))
-                logging.info("Headless file {0}".format(headless_file))
-                logging.info("Loading file {0} into Hive".format(headless_file))
+                self.log.info("Headless file %s", headless_file)
+                self.log.info("Loading file %s into Hive", headless_file)
                 self.hive.load_file(headless_file,
                                     self.hive_table,
                                     field_dict=self.field_dict,
                                     create=self.create,
                                     partition=self.partition,
                                     delimiter=self.delimiter,
-                                    recreate=self.recreate)
+                                    recreate=self.recreate,
+                                    tblproperties=self.tblproperties)
 
     def _get_top_row_as_list(self, file_name):
         with open(file_name, 'rt') as f:
@@ -206,18 +210,18 @@ class S3ToHiveTransfer(BaseOperator):
             raise AirflowException("Unable to retrieve header row from file")
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
-            logging.warning("Headers count mismatch"
-                            "File headers:\n {header_list}\n"
-                            "Field names: \n {field_names}\n"
-                            "".format(**locals()))
+            self.log.warning("Headers count mismatch"
+                              "File headers:\n {header_list}\n"
+                              "Field names: \n {field_names}\n"
+                              "".format(**locals()))
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
-            logging.warning("Headers do not match field names"
-                            "File headers:\n {header_list}\n"
-                            "Field names: \n {field_names}\n"
-                            "".format(**locals()))
+            self.log.warning("Headers do not match field names"
+                              "File headers:\n {header_list}\n"
+                              "Field names: \n {field_names}\n"
+                              "".format(**locals()))
             return False
         else:
             return True

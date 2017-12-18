@@ -13,13 +13,14 @@
 # limitations under the License.
 
 import unittest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from freezegun import freeze_time
 from mock import Mock
 
 from airflow.models import TaskInstance
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 
 
 class NotInRetryPeriodDepTest(unittest.TestCase):

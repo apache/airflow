@@ -14,16 +14,15 @@
 
 from __future__ import print_function
 
-import datetime
-
 from airflow import DAG, configuration, operators
 from airflow.utils.tests import skipUnlessImported
+from airflow.utils import timezone
 
 configuration.load_test_config()
 
 import unittest
 
-DEFAULT_DATE = datetime.datetime(2015, 1, 1)
+DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_test_dag'
@@ -251,7 +250,7 @@ class TransferTests(unittest.TestCase):
     def test_clear(self):
         self.dag.clear(
             start_date=DEFAULT_DATE,
-            end_date=datetime.datetime.now())
+            end_date=timezone.utcnow())
 
     def test_mysql_to_hive(self):
         # import airflow.operators
@@ -281,5 +280,21 @@ class TransferTests(unittest.TestCase):
             recreate=False,
             create=True,
             delimiter=",",
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_mysql_to_hive_tblproperties(self):
+        # import airflow.operators
+        from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
+        sql = "SELECT * FROM baby_names LIMIT 1000;"
+        t = MySqlToHiveTransfer(
+            task_id='test_m2h',
+            mysql_conn_id='airflow_ci',
+            hive_cli_conn_id='beeline_default',
+            sql=sql,
+            hive_table='test_mysql_to_hive',
+            recreate=True,
+            delimiter=",",
+            tblproperties={'test_property':'test_value'},
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)

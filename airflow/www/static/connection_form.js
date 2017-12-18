@@ -38,10 +38,17 @@
                 'login': 'Username (or API Key)',
                 'schema': 'Database'
             }
-        }
+        },
+        docker: {
+            hidden_fields: ['port', 'schema'],
+            relabeling: {
+                'host': 'Registry URL',
+                'login': 'Username',
+            },
+        },
       }
       function connTypeChange(connectionType) {
-        $("div.form_group").removeClass("hide");
+        $("div.form-group").removeClass("hide");
         $.each($("[id^='extra__']"), function() {
             $(this).parent().parent().addClass('hide')
         });

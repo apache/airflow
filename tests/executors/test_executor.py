@@ -29,8 +29,8 @@ class TestExecutor(BaseExecutor):
         super(TestExecutor, self).__init__(*args, **kwargs)
 
     def execute_async(self, key, command, queue=None):
-        self.logger.debug("{} running task instances".format(len(self.running)))
-        self.logger.debug("{} in queue".format(len(self.queued_tasks)))
+        self.log.debug("{} running task instances".format(len(self.running)))
+        self.log.debug("{} in queue".format(len(self.queued_tasks)))
 
     def heartbeat(self):
         session = settings.Session()

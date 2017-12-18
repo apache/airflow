@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import json
-import logging
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
@@ -44,11 +43,15 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         write_disposition='WRITE_EMPTY',
         field_delimiter=',',
         max_bad_records=0,
+        quote_character=None,
+        allow_quoted_newlines=False,
+        allow_jagged_rows=False,
         max_id_key=None,
         bigquery_conn_id='bigquery_default',
         google_cloud_storage_conn_id='google_cloud_storage_default',
         delegate_to=None,
         schema_update_options=(),
+        src_fmt_configs={},
         *args,
         **kwargs):
         """
@@ -60,6 +63,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :param bucket: The bucket to load from.
         :type bucket: string
         :param source_objects: List of Google cloud storage URIs to load from.
+            If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
         :type object: list
         :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
             BigQuery table to load data into. If <project> is not included, project will
@@ -67,6 +71,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type destination_project_dataset_table: string
         :param schema_fields: If set, the schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
+            Should not be set when source_format is 'DATASTORE_BACKUP'.
         :type schema_fields: list
         :param schema_object: If set, a GCS object path pointing to a .json file that
             contains the schema for the table.
@@ -84,6 +89,15 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
+        :param quote_character: The value that is used to quote data sections in a CSV file.
+        :type quote_character: string
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :type allow_quoted_newlines: boolean
+        :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
+            The missing values are treated as nulls. If false, records with missing trailing columns
+            are treated as bad records, and if there are too many bad records, an invalid error is
+            returned in the job result. Only applicable to CSV, ignored for other formats.
+        :type allow_jagged_rows: bool
         :param max_id_key: If set, the name of a column in the BigQuery table
             that's to be loaded. Thsi will be used to select the MAX value from
             BigQuery after the load occurs. The results will be returned by the
@@ -100,9 +114,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             work, the service account making the request must have domain-wide
             delegation enabled.
         :type delegate_to: string
-        :param schema_update_options: Allows the schema of the desitination 
+        :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: list
+        :param src_fmt_configs: configure optional fields specific to the source format
+        :type src_fmt_configs: dict
         """
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
@@ -120,6 +136,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.write_disposition = write_disposition
         self.field_delimiter = field_delimiter
         self.max_bad_records = max_bad_records
+        self.quote_character = quote_character
+        self.allow_quoted_newlines = allow_quoted_newlines
+        self.allow_jagged_rows = allow_jagged_rows
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -127,12 +146,14 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
 
         self.schema_update_options = schema_update_options
+        self.src_fmt_configs = src_fmt_configs
 
     def execute(self, context):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and self.schema_object:
+        if not self.schema_fields and self.schema_object \
+                                  and self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)
@@ -156,7 +177,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             write_disposition=self.write_disposition,
             field_delimiter=self.field_delimiter,
             max_bad_records=self.max_bad_records,
-            schema_update_options=self.schema_update_options)
+            quote_character=self.quote_character,
+            allow_quoted_newlines=self.allow_quoted_newlines,
+            allow_jagged_rows=self.allow_jagged_rows,
+            schema_update_options=self.schema_update_options,
+            src_fmt_configs=self.src_fmt_configs)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
@@ -164,7 +189,8 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 self.destination_project_dataset_table))
             row = cursor.fetchone()
             max_id = row[0] if row[0] else 0
-            logging.info('Loaded BQ data with max {}.{}={}'.format(
-                self.destination_project_dataset_table,
-                self.max_id_key, max_id))
+            self.log.info(
+                'Loaded BQ data with max %s.%s=%s',
+                self.destination_project_dataset_table, self.max_id_key, max_id
+            )
             return max_id

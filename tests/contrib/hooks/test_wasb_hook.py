@@ -87,7 +87,7 @@ class TestWasbHook(unittest.TestCase):
         self.assertTrue(hook.check_for_prefix('container', 'prefix',
                                               timeout=3))
         mock_instance.list_blobs.assert_called_once_with(
-            'container', 'prefix', timeout=3
+            'container', 'prefix', num_results=1, timeout=3
         )
 
     @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
@@ -100,12 +100,22 @@ class TestWasbHook(unittest.TestCase):
 
     @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
                 autospec=True)
-    def test_check_for_prefix(self, mock_service):
+    def test_load_file(self, mock_service):
         mock_instance = mock_service.return_value
         hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
         hook.load_file('path', 'container', 'blob', max_connections=1)
         mock_instance.create_blob_from_path.assert_called_once_with(
             'container', 'blob', 'path', max_connections=1
+        )
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_load_string(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        hook.load_string('big string', 'container', 'blob', max_connections=1)
+        mock_instance.create_blob_from_text.assert_called_once_with(
+            'container', 'blob', 'big string', max_connections=1
         )
 
 

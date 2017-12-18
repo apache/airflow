@@ -12,15 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-import logging
 import requests
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from requests import exceptions as requests_exceptions
+from requests.auth import AuthBase
 
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 try:
     from urllib import parse as urlparse
@@ -34,7 +34,7 @@ CANCEL_RUN_ENDPOINT = ('POST', 'api/2.0/jobs/runs/cancel')
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 
 
-class DatabricksHook(BaseHook):
+class DatabricksHook(BaseHook, LoggingMixin):
     """
     Interact with Databricks.
     """
@@ -99,7 +99,12 @@ class DatabricksHook(BaseHook):
         url = 'https://{host}/{endpoint}'.format(
             host=self._parse_host(self.databricks_conn.host),
             endpoint=endpoint)
-        auth = (self.databricks_conn.login, self.databricks_conn.password)
+        if 'token' in self.databricks_conn.extra_dejson:
+            self.log.info('Using token auth.')
+            auth = _TokenAuth(self.databricks_conn.extra_dejson['token'])
+        else:
+            self.log.info('Using basic auth.')
+            auth = (self.databricks_conn.login, self.databricks_conn.password)
         if method == 'GET':
             request_func = requests.get
         elif method == 'POST':
@@ -124,8 +129,10 @@ class DatabricksHook(BaseHook):
                         response.content, response.status_code))
             except (requests_exceptions.ConnectionError,
                     requests_exceptions.Timeout) as e:
-                logging.error(('Attempt {0} API Request to Databricks failed ' +
-                              'with reason: {1}').format(attempt_num, e))
+                self.log.error(
+                    'Attempt %s API Request to Databricks failed with reason: %s',
+                    attempt_num, e
+                )
         raise AirflowException(('API requests to Databricks failed {} times. ' +
                                'Giving up.').format(self.retry_limit))
 
@@ -200,3 +207,16 @@ class RunState:
 
     def __repr__(self):
         return str(self.__dict__)
+
+
+class _TokenAuth(AuthBase):
+    """
+    Helper class for requests Auth field. AuthBase requires you to implement the __call__
+    magic function.
+    """
+    def __init__(self, token):
+        self.token = token
+
+    def __call__(self, r):
+        r.headers['Authorization'] = 'Bearer ' + self.token
+        return r

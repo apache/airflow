@@ -12,12 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 from airflow.exceptions import AirflowException
 from airflow.models import DagBag
-
-_log = logging.getLogger(__name__)
 
 
 def get_task(dag_id, task_id):

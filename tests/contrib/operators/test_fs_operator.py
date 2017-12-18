@@ -14,12 +14,12 @@
 #
 
 import unittest
-from datetime import datetime
 
 from airflow import configuration
 from airflow.settings import Session
 from airflow import models, DAG
 from airflow.contrib.operators.fs_operator import FileSensor
+from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2015, 1, 1)
@@ -33,7 +33,9 @@ def reset(dag_id=TEST_DAG_ID):
     session.commit()
     session.close()
 
+
 reset()
+
 
 class FileSensorTest(unittest.TestCase):
     def setUp(self):
@@ -59,6 +61,7 @@ class FileSensorTest(unittest.TestCase):
             dag=self.dag,
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
 
 if __name__ == '__main__':
     unittest.main()
