@@ -807,6 +807,9 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = ''
         self.init_on_load()
         self._log = logging.getLogger("airflow.task")
+        # Is this TaskInstance being currently running within `airflow run --raw`.
+        # Not persisted to the database so only valid for the current process
+        self.is_raw = False
 
     @reconstructor
     def init_on_load(self):
@@ -1879,11 +1882,12 @@ class TaskInstance(Base, LoggingMixin):
             TI.state == State.RUNNING
         ).count()
 
-    def init_run_context(self):
+    def init_run_context(self, raw=False):
         """
         Sets the log context.
         """
         self._set_context(self)
+        self.raw = raw
 
 
 class TaskFail(Base):

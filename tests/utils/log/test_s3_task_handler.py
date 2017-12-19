@@ -14,9 +14,11 @@
 
 import mock
 import unittest
+import os
 
 from airflow import configuration
 from airflow.utils.log.s3_task_handler import S3TaskHandler
+from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from airflow.hooks.S3_hook import S3Hook
 from airflow.models import TaskInstance, DAG
@@ -37,13 +39,14 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def setUp(self):
         super(TestS3TaskHandler, self).setUp()
-        self.remote_log_location = 's3://bucket/remote/log/location'
-        self.remote_log_key = 'remote/log/location'
+        self.remote_log_base = 's3://bucket/remote/log/location'
+        self.remote_log_location = 's3://bucket/remote/log/location/1.log'
+        self.remote_log_key = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
         self.filename_template = '{try_number}.log'
         self.s3_task_handler = S3TaskHandler(
             self.local_log_location,
-            self.remote_log_location,
+            self.remote_log_base,
             self.filename_template
         )
 
@@ -53,6 +56,7 @@ class TestS3TaskHandler(unittest.TestCase):
         task = DummyOperator(task_id='task_for_testing_file_log_handler', dag=self.dag)
         self.ti = TaskInstance(task=task, execution_date=date)
         self.ti.try_number = 1
+        self.ti.state = State.RUNNING
         self.addCleanup(self.dag.clear)
 
         self.conn = boto3.client('s3')
@@ -60,6 +64,13 @@ class TestS3TaskHandler(unittest.TestCase):
         # AWS account
         moto.core.moto_api_backend.reset()
         self.conn.create_bucket(Bucket="bucket")
+
+    def tearDown(self):
+        if self.s3_task_handler.handler:
+            try:
+                os.remove(self.s3_task_handler.handler.baseFilename)
+            except Exception:
+                pass
 
     def test_hook(self):
         self.assertIsInstance(self.s3_task_handler.hook, S3Hook)
@@ -94,10 +105,11 @@ class TestS3TaskHandler(unittest.TestCase):
             self.assertFalse(self.s3_task_handler.s3_log_exists(self.remote_log_location))
 
     def test_read(self):
-        self.conn.put_object(Bucket='bucket', Key='remote/log/location/1.log', Body=b'Log line\n')
+        self.conn.put_object(Bucket='bucket', Key=self.remote_log_key, Body=b'Log line\n')
         self.assertEqual(
             self.s3_task_handler.read(self.ti),
-            ['*** Reading remote log from s3://bucket/remote/log/location/1.log.\nLog line\n\n']
+            ['*** Reading remote log from s3://bucket/remote/log/location/1.log.\n'
+             'Log line\n\n']
         )
 
     def test_read_raises_return_error(self):
@@ -131,4 +143,22 @@ class TestS3TaskHandler(unittest.TestCase):
         with mock.patch.object(handler.log, 'error') as mock_error:
             handler.s3_write('text', url)
             self.assertEqual
-            mock_error.assert_called_once_with('Could not write logs to %s', url, exc_info=True)
+            mock_error.assert_called_once_with(
+                'Could not write logs to %s', url, exc_info=True)
+
+    def test_close(self):
+        self.s3_task_handler.set_context(self.ti)
+        self.assertTrue(self.s3_task_handler.upload_on_close)
+
+        self.s3_task_handler.close()
+        # Should not raise
+        boto3.resource('s3').Object('bucket', self.remote_log_key).get()
+
+    def test_close_no_upload(self):
+        self.ti.is_raw = True
+        self.s3_task_handler.set_context(self.ti)
+        self.assertFalse(self.s3_task_handler.upload_on_close)
+        self.s3_task_handler.close()
+
+        with self.assertRaises(self.conn.exceptions.NoSuchKey):
+            boto3.resource('s3').Object('bucket', self.remote_log_key).get()
