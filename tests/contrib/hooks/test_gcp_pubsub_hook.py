@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from __future__ import unicode_literals
 
 from base64 import b64encode as b64e
 import unittest
@@ -31,16 +32,17 @@ except ImportError:
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 PUBSUB_STRING = 'airflow.contrib.hooks.gcp_pubsub_hook.{}'
 
+EMPTY_CONTENT = ''.encode('utf8')
 TEST_PROJECT = 'test-project'
 TEST_TOPIC = 'test-topic'
 TEST_SUBSCRIPTION = 'test-subscription'
 TEST_UUID = 'abc123-xzy789'
 TEST_MESSAGES = [
     {
-        'data': b64e('Hello, World!'),
+        'data': b64e(b'Hello, World!'),
         'attributes': {'type': 'greeting'}
     },
-    {'data': b64e('Knock, knock')},
+    {'data': b64e(b'Knock, knock')},
     {'attributes': {'foo': ''}}]
 
 EXPANDED_TOPIC = 'projects/%s/topics/%s' % (TEST_PROJECT, TEST_TOPIC)
@@ -80,30 +82,30 @@ class PubSubHookTest(unittest.TestCase):
     def test_delete_nonexisting_topic_failifnotexists(self, mock_service):
         (mock_service.return_value.projects.return_value.topics
          .return_value.delete.return_value.execute.side_effect) = HttpError(
-            resp={'status': '404'}, content='')
+            resp={'status': '404'}, content=EMPTY_CONTENT)
 
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.delete_topic(TEST_PROJECT, TEST_TOPIC, True)
 
-        self.assertEquals(e.exception.message,
+        self.assertEquals(str(e.exception),
                           'Topic does not exist: %s' % EXPANDED_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_preexisting_topic_failifexists(self, mock_service):
         (mock_service.return_value.projects.return_value.topics.return_value
          .create.return_value.execute.side_effect) = HttpError(
-            resp={'status': '409'}, content='')
+            resp={'status': '409'}, content=EMPTY_CONTENT)
 
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC, True)
-        self.assertEquals(e.exception.message,
+        self.assertEquals(str(e.exception),
                           'Topic already exists: %s' % EXPANDED_TOPIC)
 
     @mock.patch(PUBSUB_STRING.format('PubSubHook.get_conn'))
     def test_create_preexisting_topic_nofailifexists(self, mock_service):
         (mock_service.return_value.projects.return_value.topics.return_value
          .get.return_value.execute.side_effect) = HttpError(
-            resp={'status': '409'}, content='')
+            resp={'status': '409'}, content=EMPTY_CONTENT)
 
         self.pubsub_hook.create_topic(TEST_PROJECT, TEST_TOPIC)
 
@@ -158,13 +160,13 @@ class PubSubHookTest(unittest.TestCase):
                                                              mock_service):
         (mock_service.return_value.projects.return_value.subscriptions.
          return_value.delete.return_value.execute.side_effect) = HttpError(
-            resp={'status': '404'}, content='')
+            resp={'status': '404'}, content=EMPTY_CONTENT)
 
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.delete_subscription(
                 TEST_PROJECT, TEST_SUBSCRIPTION, fail_if_not_exists=True)
 
-        self.assertEquals(e.exception.message,
+        self.assertEquals(str(e.exception),
                           'Subscription does not exist: %s' %
                           EXPANDED_SUBSCRIPTION)
 
@@ -210,14 +212,14 @@ class PubSubHookTest(unittest.TestCase):
         (mock_service.return_value.projects.return_value.
          subscriptions.return_value.create.return_value
          .execute.side_effect) = HttpError(resp={'status': '409'},
-                                           content='')
+                                           content=EMPTY_CONTENT)
 
         with self.assertRaises(PubSubException) as e:
             self.pubsub_hook.create_subscription(
                 TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION,
                 fail_if_exists=True)
 
-        self.assertEquals(e.exception.message,
+        self.assertEquals(str(e.exception),
                           'Subscription already exists: %s' %
                           EXPANDED_SUBSCRIPTION)
 
@@ -225,7 +227,7 @@ class PubSubHookTest(unittest.TestCase):
     def test_create_subscription_nofailifexists(self, mock_service):
         (mock_service.return_value.projects.return_value.topics.return_value
          .get.return_value.execute.side_effect) = HttpError(
-            resp={'status': '409'}, content='')
+            resp={'status': '409'}, content=EMPTY_CONTENT)
 
         response = self.pubsub_hook.create_subscription(
             TEST_PROJECT, TEST_TOPIC, TEST_SUBSCRIPTION
