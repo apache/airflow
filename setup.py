@@ -81,10 +81,6 @@ def git_version(version):
         # commit is clean
         # is it release of `version` ?
         try:
-            tag = repo.git.describe(
-                match='[0-9]*', exact_match=True,
-                tags=True, dirty=True)
-            assert tag == version, (tag, version)
             return '.release:{version}+{sha}'.format(version=version,
                                                      sha=sha)
         except git.GitCommandError:
