@@ -44,58 +44,54 @@ Operator API
 ''''''''''''
 
 .. automodule:: airflow.operators
-    :show-inheritance:
-    :members:
-        BashOperator,
-        BranchPythonOperator,
-        TriggerDagRunOperator,
-        DummyOperator,
-        EmailOperator,
-        ExternalTaskSensor,
-        GenericTransfer,
-        HdfsSensor,
-        Hive2SambaOperator,
-        HiveOperator,
-        HivePartitionSensor,
-        HiveToDruidTransfer,
-        HiveToMySqlTransfer,
-        SimpleHttpOperator,
-        HttpSensor,
-        MetastorePartitionSensor,
-        MsSqlOperator,
-        MsSqlToHiveTransfer,
-        MySqlOperator,
-        MySqlToHiveTransfer,
-        NamedHivePartitionSensor,
-        PostgresOperator,
-        PrestoCheckOperator,
-        PrestoIntervalCheckOperator,
-        PrestoValueCheckOperator,
-        PythonOperator,
-        PythonVirtualenvOperator,
-        S3KeySensor,
-        S3ToHiveTransfer,
-        ShortCircuitOperator,
-        SlackAPIOperator,
-        SlackAPIPostOperator,
-        SqlSensor,
-        SubDagOperator,
-        TimeSensor,
-        WebHdfsSensor
+    :no-members:
+.. deprecated:: 1.8
+ Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
+.. autoclass:: airflow.operators.bash_operator.BashOperator
+.. autoclass:: airflow.operators.python_operator.BranchPythonOperator
+.. autoclass:: airflow.operators.dagrun_operator.TriggerDagRunOperator
 .. autoclass:: airflow.operators.docker_operator.DockerOperator
-
+.. autoclass:: airflow.operators.dummy_operator.DummyOperator
+.. autoclass:: airflow.operators.email_operator.EmailOperator
+.. autoclass:: airflow.operators.sensors.ExternalTaskSensor
+.. autoclass:: airflow.operators.generic_transfer.GenericTransfer
+.. autoclass:: airflow.operators.sensors.HdfsSensor
+.. autoclass:: airflow.operators.hive_to_samba_operator.Hive2SambaOperator
+.. autoclass:: airflow.operators.hive_operator.HiveOperator
+.. autoclass:: airflow.operators.sensors.HivePartitionSensor
+.. autoclass:: airflow.operators.hive_to_druid.HiveToDruidTransfer
+.. autoclass:: airflow.operators.hive_to_mysql.HiveToMySqlTransfer
+.. autoclass:: airflow.operators.http_operator.SimpleHttpOperator
+.. autoclass:: airflow.operators.sensors.HttpSensor
+.. autoclass:: airflow.operators.sensors.MetastorePartitionSensor
+.. autoclass:: airflow.operators.mssql_operator.MsSqlOperator
+.. autoclass:: airflow.operators.mssql_to_hive.MsSqlToHiveTransfer
+.. autoclass:: airflow.operators.sensors.NamedHivePartitionSensor
+.. autoclass:: airflow.operators.postgres_operator.PostgresOperator
+.. autoclass:: airflow.operators.presto_check_operator.PrestoCheckOperator
+.. autoclass:: airflow.operators.presto_check_operator.PrestoIntervalCheckOperator
+.. autoclass:: airflow.operators.presto_check_operator.PrestoValueCheckOperator
+.. autoclass:: airflow.operators.python_operator.PythonOperator
+.. autoclass:: airflow.operators.python_operator.PythonVirtualenvOperator
+.. autoclass:: airflow.operators.sensors.S3KeySensor
+.. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
+.. autoclass:: airflow.operators.ShortCircuitOperator
+.. autoclass:: airflow.operators.slack_operator.SlackAPIOperator
+.. autoclass:: airflow.operators.sensors.SqlSensor
+.. autoclass:: airflow.operators.subdag_operator.SubDagOperator
+.. autoclass:: airflow.operators.sensors.TimeSensor
+.. autoclass:: airflow.operators.sensors.HdfsSensor
 
 Community-contributed Operators
 '''''''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.operators
-    :show-inheritance:
-    :members:
-        SSHOperator,
-        VerticaOperator,
-        VerticaToHiveTransfer
+    :no-members:
+.. deprecated:: 1.8
+ Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
+.. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
@@ -108,9 +104,12 @@ Community-contributed Operators
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubPublishOperator
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
-.. autoclass:: airflow.contrib.operators.QuboleOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPIOperator
 .. autoclass:: airflow.contrib.operators.hipchat_operator.HipChatAPISendRoomNotificationOperator
+.. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
+.. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
+.. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
+.. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
 
 .. _macros:
 
@@ -199,9 +198,8 @@ Some airflow specific macros are also defined:
     :show-inheritance:
     :members:
 
-.. automodule:: airflow.macros.hive
-    :show-inheritance:
-    :members:
+.. autofunction:: airflow.macros.hive.closest_ds_partition
+.. autofunction:: airflow.macros.hive.max_partition
 
 .. _models_ref:
 
@@ -219,46 +217,51 @@ persisted in the database.
 Hooks
 -----
 .. automodule:: airflow.hooks
-    :show-inheritance:
+    :no-members:
+.. deprecated:: 1.8
+ Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
+
+.. autoclass:: airflow.hooks.dbapi_hook.DbApiHook
+.. autoclass:: airflow.hooks.docker_hook.DockerHook
+.. automodule:: airflow.hooks.hive_hooks
     :members:
-        DbApiHook,
-        DockerHook,
-        HiveCliHook,
-        HiveMetastoreHook,
-        HiveServer2Hook,
-        HttpHook,
-        DruidHook,
-        MsSqlHook,
-        MySqlHook,
-        PostgresHook,
-        PrestoHook,
-        S3Hook,
-        SqliteHook,
-        WebHDFSHook
+      HiveCliHook,
+      HiveMetastoreHook,
+      HiveServer2Hook
+.. autoclass:: airflow.hooks.http_hook.HttpHook
+.. autoclass:: airflow.hooks.druid_hook.DruidHook
+.. autoclass:: airflow.hooks.mssql_hook.MsSqlHook
+.. autoclass:: airflow.hooks.mysql_hook.MySqlHook
+.. autoclass:: airflow.hooks.postgres_hook.PostgresHook
+.. autoclass:: airflow.hooks.presto_hook.PrestoHook
+.. autoclass:: airflow.hooks.S3_hook.S3Hook
+.. autoclass:: airflow.hooks.sqlite_hook.SqliteHook
+.. autoclass:: airflow.hooks.webhdfs_hook.WebHDFSHook
 
 Community contributed hooks
 '''''''''''''''''''''''''''
 
 .. automodule:: airflow.contrib.hooks
-    :show-inheritance:
-    :members:
-        BigQueryHook,
-        GoogleCloudStorageHook,
-        VerticaHook,
-        FTPHook,
-        SSHHook,
-        CloudantHook,
-        PubSubHook
+    :no-members:
+.. deprecated:: 1.8
+ Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
+.. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
+.. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
+.. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
+.. autoclass:: airflow.contrib.hooks.ftp_hook.FTPHook
+.. autoclass:: airflow.contrib.hooks.ssh_hook.SSHHook
+.. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
+.. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
 
 Executors
 ---------
 Executors are the mechanism by which task instances get run.
 
-.. automodule:: airflow.executors
-    :show-inheritance:
-    :members: LocalExecutor, CeleryExecutor, SequentialExecutor
+.. autoclass:: airflow.executors.local_executor.LocalExecutor
+.. autoclass:: airflow.executors.celery_executor.CeleryExecutor
+.. autoclass:: airflow.executors.sequential_executor.SequentialExecutor
 
 Community-contributed executors
 '''''''''''''''''''''''''''''''
