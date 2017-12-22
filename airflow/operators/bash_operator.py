@@ -86,7 +86,7 @@ class BashOperator(BaseOperator):
                     os.setsid()
                 self.log.info("Running command: %s", bash_command)
                 sp = Popen(
-                    ['bash', fname],
+                    ['bash', script_location],
                     stdout=PIPE, stderr=STDOUT,
                     cwd=tmp_dir, env=self.env,
                     preexec_fn=pre_exec)
