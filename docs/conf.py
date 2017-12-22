@@ -19,11 +19,23 @@ MOCK_MODULES = [
     'apiclient',
     'apiclient.discovery',
     'apiclient.http',
+    'boto3',
+    'googleapiclient',
+    'googleapiclient.errors',
+    'httplib2',
     'mesos',
     'mesos.interface',
     'mesos.native',
+    'numpy',
+    'oauth2client',
+    'oauth2client.client',
     'oauth2client.service_account',
+    'pandas',
+    'pandas.io',
     'pandas.io.gbq',
+    'pandas.io.gbq',
+    'pandas.tools',
+    'pandas.tools.merge',
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
