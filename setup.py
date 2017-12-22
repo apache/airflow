@@ -72,19 +72,14 @@ def git_version(version):
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warning('Git repo not found: Cannot compute the git version.')
+        logger.warning('Cannot compute the git version. {}'.format(e))
         return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        # is it release of `version` ?
-        try:
-            return '.release:{version}+{sha}'.format(version=version,
-                                                     sha=sha)
-        except git.GitCommandError:
-            return '.dev0+{sha}'.format(sha=sha)
+        return '.release:{version}+{sha}'.format(version=version, sha=sha)
     else:
         return 'no_git_version'
 
