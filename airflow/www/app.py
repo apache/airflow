@@ -69,9 +69,8 @@ def create_app(config=None, testing=False):
         vs = views
         av(vs.Airflow(name='DAGs', category='DAGs'))
 
-        av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
-
         if not conf.getboolean('core', 'secure_mode'):
+            av(vs.QueryView(name='Ad Hoc Query', category="Data Profiling"))
             av(vs.ChartModelView(
                 models.Chart, Session, name="Charts", category="Data Profiling"))
         av(vs.KnownEventView(
