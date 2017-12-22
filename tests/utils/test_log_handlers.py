@@ -30,7 +30,7 @@ from airflow.utils.state import State
 
 DEFAULT_DATE = datetime(2016, 1, 1)
 TASK_LOGGER = 'airflow.task'
-FILE_TASK_HANDLER = 'file.task'
+FILE_TASK_HANDLER = 'task'
 
 
 class TestFileTaskLogHandler(unittest.TestCase):
