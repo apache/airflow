@@ -794,7 +794,7 @@ class SchedulerJob(BaseJob):
                 return None
 
             # don't do scheduler catchup for dag's that don't have dag.catchup = True
-            if not dag.catchup:
+            if not (dag.catchup or dag.schedule_interval == '@once'):
                 # The logic is that we move start_date up until
                 # one period before, so that timezone.utcnow() is AFTER
                 # the period end, and the job can be created...
