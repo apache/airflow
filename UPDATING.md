@@ -63,66 +63,7 @@ logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
 
 The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Of course you are free to add any directory to the `PYTHONPATH`, this might be handy when you have the config in another directory or you mount a volume in case of Docker. 
 
-You can take the config from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as you like.
-
-```
-LOGGING_CONFIG = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'airflow.task': {
-            'format': LOG_FORMAT,
-        },
-    },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'airflow.task',
-            'stream': 'ext://sys.stdout'
-        },
-        'file.task': {
-            'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'filename_template': FILENAME_TEMPLATE,
-        },
-        # When using s3 or gcs, provide a customized LOGGING_CONFIG
-        # in airflow_local_settings within your PYTHONPATH, see UPDATING.md
-        # for details
-        's3.task': {
-            'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            's3_log_folder': S3_LOG_FOLDER,
-            'filename_template': FILENAME_TEMPLATE,
-        },
-        'gcs.task': {
-            'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'gcs_log_folder': GCS_LOG_FOLDER,
-            'filename_template': FILENAME_TEMPLATE,
-        },
-    },
-    'loggers': {
-        'airflow.task': {
-            'handlers': ['file.task'],
-            'level': LOG_LEVEL,
-            'propagate': False,
-        },
-        'airflow.task_runner': {
-            'handlers': ['file.task'],
-            'level': LOG_LEVEL,
-            'propagate': True,
-        },
-        'airflow': {
-            'handlers': ['console'],
-            'level': LOG_LEVEL,
-            'propagate': False,
-        },
-    }
-}
-```
+You can take the config from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as you like. 
 
 If you want to customize the logging (for example, use logging rotate), you can do this by defining one or more of the logging handles that [Python has to offer](https://docs.python.org/3/library/logging.handlers.html). For more details about the Python logging, please refer to the [official logging documentation](https://docs.python.org/3/library/logging.html).
 

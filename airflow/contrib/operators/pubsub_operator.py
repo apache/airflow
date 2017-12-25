@@ -196,7 +196,7 @@ class PubSubSubscriptionCreateOperator(BaseOperator):
         hook = PubSubHook(gcp_conn_id=self.gcp_conn_id,
                           delegate_to=self.delegate_to)
 
-        hook.create_subscription(
+        return hook.create_subscription(
             self.topic_project, self.topic, self.subscription,
             self.subscription_project, self.ack_deadline_secs,
             self.fail_if_exists)
@@ -368,13 +368,12 @@ class PubSubPublishOperator(BaseOperator):
         m3 = {'attributes': {'foo': ''}}
 
         t1 = PubSubPublishOperator(
-            project='my-project',
-            topic='my_topic',
+            project='my-project',topic='my_topic',
             messages=[m1, m2, m3],
             create_topic=True,
             dag=dag)
 
-    ``project``, ``topic``, and ``messages`` are templated so you can use
+     ``project`` , ``topic``, and ``messages`` are templated so you can use
     variables in them.
     """
     template_fields = ['project', 'topic', 'messages']

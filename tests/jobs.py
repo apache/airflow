@@ -36,8 +36,9 @@ from airflow.jobs import BackfillJob, SchedulerJob, LocalTaskJob
 from airflow.models import DAG, DagModel, DagBag, DagRun, Pool, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
-from airflow.task_runner.base_task_runner import BaseTaskRunner
+from airflow.task.task_runner.base_task_runner import BaseTaskRunner
 from airflow.utils import timezone
+
 from airflow.utils.dates import days_ago
 from airflow.utils.db import provide_session
 from airflow.utils.state import State
@@ -2568,6 +2569,7 @@ class SchedulerJobTest(unittest.TestCase):
         DAG_NAME1 = 'no_catchup_test1'
         DAG_NAME2 = 'no_catchup_test2'
         DAG_NAME3 = 'no_catchup_test3'
+        DAG_NAME4 = 'no_catchup_test4'
 
         default_args = {
             'owner': 'airflow',
@@ -2655,6 +2657,36 @@ class SchedulerJobTest(unittest.TestCase):
 
         # The DR should be scheduled BEFORE now
         self.assertLess(dr.execution_date, timezone.utcnow())
+
+        # check @once schedule
+        dag4 = DAG(DAG_NAME4,
+                   schedule_interval='@once',
+                   max_active_runs=1,
+                   catchup=False,
+                   default_args=default_args
+                   )
+
+        run_this_1 = DummyOperator(task_id='run_this_1', dag=dag4)
+        run_this_2 = DummyOperator(task_id='run_this_2', dag=dag4)
+        run_this_2.set_upstream(run_this_1)
+        run_this_3 = DummyOperator(task_id='run_this_3', dag=dag4)
+        run_this_3.set_upstream(run_this_2)
+
+        session = settings.Session()
+        orm_dag = DagModel(dag_id=dag4.dag_id)
+        session.merge(orm_dag)
+        session.commit()
+        session.close()
+
+        scheduler = SchedulerJob()
+        dag4.clear()
+
+        dr = None
+        dr = scheduler.create_dag_run(dag4)
+
+        # We had better get a dag run
+        self.assertIsNotNone(dr)
+
 
     def test_add_unparseable_file_before_sched_start_creates_import_error(self):
         try:

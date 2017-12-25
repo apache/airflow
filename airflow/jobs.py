@@ -46,7 +46,7 @@ from airflow.exceptions import AirflowException
 from airflow.logging_config import configure_logging
 from airflow.models import DAG, DagRun
 from airflow.settings import Stats
-from airflow.task_runner import get_task_runner
+from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, timezone
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
@@ -119,8 +119,8 @@ class BaseJob(Base, LoggingMixin):
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except:
-            self.log.error('on_kill() method failed')
+        except Exception as e:
+            self.log.error('on_kill() method failed: {}'.format(e))
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")
@@ -794,7 +794,7 @@ class SchedulerJob(BaseJob):
                 return None
 
             # don't do scheduler catchup for dag's that don't have dag.catchup = True
-            if not dag.catchup:
+            if not (dag.catchup or dag.schedule_interval == '@once'):
                 # The logic is that we move start_date up until
                 # one period before, so that timezone.utcnow() is AFTER
                 # the period end, and the job can be created...
@@ -1810,7 +1810,8 @@ class SchedulerJob(BaseJob):
             # Also save this task instance to the DB.
             self.log.info("Creating / updating %s in ORM", ti)
             session.merge(ti)
-            session.commit()
+        # commit batch
+        session.commit()
 
         # Record import errors into the ORM
         try:

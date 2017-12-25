@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,9 +11,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-THIS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-(cd $THIS_DIR/_build/html;
-# The below command works on both Python 2 and Python 3
-python -m http.server 8000 && python -m SimpleHTTPServer 8000
-)
