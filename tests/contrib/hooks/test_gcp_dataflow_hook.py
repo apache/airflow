@@ -29,12 +29,22 @@ except ImportError:
         mock = None
 
 
-TASK_ID = 'test-python-dataflow'
+TASK_ID = 'test-dataflow-operator'
+TEMPLATE = 'gs://dataflow-templates/wordcount/template_file'
+PARAMETERS = {
+    'inputFile': 'gs://dataflow-samples/shakespeare/kinglear.txt',
+    'output': 'gs://test/output/my_output'
+}
 PY_FILE = 'apache_beam.examples.wordcount'
 PY_OPTIONS = ['-m']
 OPTIONS = {
     'project': 'test',
     'staging_location': 'gs://test/staging'
+}
+DATAFLOW_OPTIONS_TEMPLATE = {
+    'project': 'test',
+    'tempLocation': 'gs://test/temp',
+    'zone': 'us-central1-f'
 }
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
@@ -44,7 +54,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):
     pass
 
 
-class DataFlowHookTest(unittest.TestCase):
+class DataFlowPythonHookTest(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -83,3 +93,18 @@ class DataFlowHookTest(unittest.TestCase):
       self.assertRaises(Exception, dataflow.wait_for_done)
       mock_logging.warning.assert_has_calls([call('test'), call('error')])
 
+
+class DataFlowTemplateHookTest(unittest.TestCase):
+
+    def setUp(self):
+        with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
+                        new=mock_init):
+            self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
+
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook._start_template_dataflow'))
+    def test_start_template_dataflow(self, internal_dataflow_mock):
+        self.dataflow_hook.start_template_dataflow(
+            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_TEMPLATE, parameters=PARAMETERS,
+            dataflow_template=TEMPLATE)
+        internal_dataflow_mock.assert_called_once_with(
+            mock.ANY, DATAFLOW_OPTIONS_TEMPLATE, PARAMETERS, TEMPLATE)
