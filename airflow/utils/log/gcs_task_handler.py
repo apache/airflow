@@ -138,10 +138,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         if append:
             try:
                 old_log = self.gcs_read(remote_log_location)
+                log = '\n'.join([old_log, log]) if old_log else log
             except Exception as e:
                 if not hasattr(e, 'resp') or e.resp.get('status') != '404':
-                    old_log = '*** Previous log discarded: {}\n\n'.format(str(e))
-            log = '\n'.join([old_log, log]) if old_log else log
+                    log = '*** Previous log discarded: {}\n\n'.format(str(e)) + log
 
         try:
             bkt, blob = self.parse_gcs_url(remote_log_location)
