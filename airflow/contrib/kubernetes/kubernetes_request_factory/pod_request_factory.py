@@ -45,12 +45,8 @@ spec:
         self.extract_cmds(pod, req)
         self.extract_args(pod, req)
         self.extract_node_selector(pod, req)
-        self.extract_env_and_secrets(pod, req)
         self.extract_volume_secrets(pod, req)
         self.attach_volumes(pod, req)
         self.attach_volume_mounts(pod, req)
         self.extract_resources(pod, req)
-        self.extract_service_account_name(pod, req)
-        self.extract_init_containers(pod, req)
-        self.extract_image_pull_secrets(pod, req)
         return req

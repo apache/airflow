@@ -86,7 +86,4 @@ class Pod:
         self.node_selectors = node_selectors or []
         self.namespace = namespace
         self.image_pull_policy = image_pull_policy
-        self.image_pull_secrets = image_pull_secrets
-        self.init_containers = init_containers
-        self.service_account_name = service_account_name
         self.resources = resources or Resources()
