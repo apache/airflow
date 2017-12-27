@@ -19,13 +19,12 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../.."
 cd $AIRFLOW_ROOT && pip --version && ls -l $HOME/.wheelhouse && tox --version
 
-if [ -z "$RUN_KUBE_INTEGRATION" ];
+if [ -z "$KUBERNETES_VERSION" ];
 then
-  $DIRNAME/kubernetes/setup_kubernetes.sh
   tox -e $TOX_ENV
 else
-  $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.executors.integration \
+  KUBERNETES_VERSION=${KUBERNETES_VERSION} $DIRNAME/kubernetes/setup_kubernetes.sh && \
+  tox -e $TOX_ENV -- tests.contrib.minikube_tests \
                      --with-coverage \
                      --cover-erase \
                      --cover-html \
