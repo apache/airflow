@@ -15,8 +15,8 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-# Guard against a kubernetes cluster already being up
 #!/usr/bin/env bash
+# Guard against a kubernetes cluster already being up
 kubectl get pods &> /dev/null
 if [ $? -eq 0 ]; then
   echo "kubectl get pods returned 0 exit code, exiting early"
@@ -24,8 +24,8 @@ if [ $? -eq 0 ]; then
 fi
 #
 
-curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && chmod +x minikube
-curl -Lo kubectl  https://storage.googleapis.com/kubernetes-release/release/v1.7.0/bin/linux/amd64/kubectl && chmod +x kubectl
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.24.1/minikube-linux-amd64 && chmod +x minikube
+curl -Lo kubectl  https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl
 
 sudo mkdir -p /usr/local/bin
 sudo mv minikube /usr/local/bin/minikube
@@ -39,15 +39,43 @@ mkdir $HOME/.kube || true
 touch $HOME/.kube/config
 
 export KUBECONFIG=$HOME/.kube/config
-sudo -E minikube start --vm-driver=none
 
-# this for loop waits until kubectl can access the api server that minikube has created
-for i in {1..150} # timeout for 5 minutes
-do
-  echo "------- Running kubectl get pods -------"
-  kubectl get po &> /dev/null
-  if [ $? -ne 1 ]; then
-    break
-  fi
-  sleep 2
-done
+start_minikube(){
+  sudo -E minikube start --vm-driver=none --kubernetes-version="${KUBERNETES_VERSION}"
+
+  # this for loop waits until kubectl can access the api server that minikube has created
+  for i in {1..90} # timeout 3 minutes
+  do
+    echo "------- Running kubectl get pods -------"
+    STDERR=$(kubectl get pods  2>&1 >/dev/null)
+    if [ $? -ne 1 ]; then
+      echo $STDERR
+
+      # We do not need dynamic hostpath provisioning, so disable the default storageclass
+      sudo -E minikube addons disable default-storageclass && kubectl delete storageclasses --all
+
+      # We need to give permission to watch pods to the airflow scheduler. 
+      # The easiest way to do that is by giving admin access to the default serviceaccount (NOT SAFE!)
+      kubectl create clusterrolebinding add-on-cluster-admin   --clusterrole=cluster-admin   --serviceaccount=default:default
+      exit 0
+    fi
+    echo $STDERR
+    sleep 2
+  done
+}
+
+cleanup_minikube(){
+  sudo -E minikube stop
+  sudo -E minikube delete
+  docker stop $(docker ps -a -q) || true
+  docker rm $(docker ps -a -q) || true
+  sleep 1
+}
+
+start_minikube
+echo "Minikube cluster creation timedout. Attempting to restart the minikube cluster."
+cleanup_minikube
+start_minikube
+echo "Minikube cluster creation timedout a second time. Failing."
+
+exit 1
