@@ -40,6 +40,10 @@ class KubernetesRequestFactory:
     def extract_image(pod, req):
         req['spec']['containers'][0]['image'] = pod.image
 
+    @staticmethod
+    def extract_image_pull_policy(pod, req):
+        if pod.image_pull_policy:
+            req['spec']['containers'][0]['imagePullPolicy'] = pod.image_pull_policy
 
     @staticmethod
     def add_secret_to_env(env, secret):
@@ -72,7 +76,9 @@ class KubernetesRequestFactory:
         if len(pod.node_selectors) > 0:
             req['spec']['nodeSelector'] = pod.node_selectors
 
-
+    @staticmethod
+    def attach_volumes(pod, req):
+        req['spec']['volumes'] = pod.volumes
 
     @staticmethod
     def attach_volume_mounts(pod, req):
@@ -116,7 +122,30 @@ class KubernetesRequestFactory:
                 KubernetesRequestFactory.add_secret_to_env(env, secret)
             req['spec']['containers'][0]['env'] = env
 
+    @staticmethod
+    def extract_resources(pod, req):
+        if not pod.resources or pod.resources.is_empty_resource_request():
+            return
 
+        req['spec']['containers'][0]['resources'] = {}
+
+        if pod.resources.has_requests():
+            req['spec']['containers'][0]['resources']['requests'] = {}
+            if pod.resources.request_memory:
+                req['spec']['containers'][0]['resources']['requests'][
+                    'memory'] = pod.resources.request_memory
+            if pod.resources.request_cpu:
+                req['spec']['containers'][0]['resources']['requests'][
+                    'cpu'] = pod.resources.request_cpu
+
+        if pod.resources.has_limits():
+            req['spec']['containers'][0]['resources']['limits'] = {}
+            if pod.resources.request_memory:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'memory'] = pod.resources.limit_memory
+            if pod.resources.request_cpu:
+                req['spec']['containers'][0]['resources']['limits'][
+                    'cpu'] = pod.resources.limit_cpu
 
     @staticmethod
     def extract_init_containers(pod, req):
