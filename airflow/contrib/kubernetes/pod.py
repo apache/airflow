@@ -16,7 +16,26 @@
 # under the License.
 
 
+class Resources:
+    def __init__(
+            self,
+            request_memory=None,
+            request_cpu=None,
+            limit_memory=None,
+            limit_cpu=None):
+        self.request_memory = request_memory
+        self.request_cpu = request_cpu
+        self.limit_memory = limit_memory
+        self.limit_cpu = limit_cpu
 
+    def is_empty_resource_request(self):
+        return not self.has_limits() and not self.has_requests()
+
+    def has_limits(self):
+        return self.limit_cpu is not None or self.limit_memory is not None
+
+    def has_requests(self):
+        return self.request_cpu is not None or self.request_memory is not None
 
 
 class Pod:
