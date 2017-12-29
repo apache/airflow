@@ -87,7 +87,7 @@ sphinx
 sphinx-argparse
 Sphinx-PyPI-upload
 sphinx_rtd_theme
-sqlalchemy
+sqlalchemy>=1.1.15, <1.2.0
 statsd
 thrift
 thrift_sasl
