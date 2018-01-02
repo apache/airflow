@@ -77,13 +77,19 @@ class HiveOperator(BaseOperator):
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
+        # assigned lazily - just for consistency we can create the attribute with a
+        # `None` initial value, later it will be populated by the execute method.
+        # This also makes `on_kill` implementation consistent since it assumes `self.hook`
+        # is defined.
+        self.hook = None
+
     def get_hook(self):
         return HiveCliHook(
-                        hive_cli_conn_id=self.hive_cli_conn_id,
-                        run_as=self.run_as,
-                        mapred_queue=self.mapred_queue,
-                        mapred_queue_priority=self.mapred_queue_priority,
-                        mapred_job_name=self.mapred_job_name)
+            hive_cli_conn_id=self.hive_cli_conn_id,
+            run_as=self.run_as,
+            mapred_queue=self.mapred_queue,
+            mapred_queue_priority=self.mapred_queue_priority,
+            mapred_job_name=self.mapred_job_name)
 
     def prepare_template(self):
         if self.hiveconf_jinja_translate:
@@ -103,4 +109,5 @@ class HiveOperator(BaseOperator):
         self.hook.test_hql(hql=self.hql)
 
     def on_kill(self):
-        self.hook.kill()
+        if self.hook:
+            self.hook.kill()
