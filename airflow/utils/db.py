@@ -21,6 +21,7 @@ from datetime import datetime
 from functools import wraps
 import logging
 import os
+import time
 
 from alembic.config import Config
 from alembic import command
@@ -28,6 +29,7 @@ from alembic.migration import MigrationContext
 
 from sqlalchemy import event, exc
 from sqlalchemy.pool import Pool
+from sqlalchemy import select
 
 from airflow import settings
 
@@ -57,6 +59,113 @@ def provide_session(func):
             session.close()
         return result
     return wrapper
+
+
+def enable_connection_reconnect(db_reconnect_limit):
+
+    # from: http://docs.sqlalchemy.org/en/rel_1_1/core/pooling.html#disconnect-handling-pessimistic
+    @event.listens_for(settings.engine, "engine_connect")
+    def reconnect_on_engine_connect(connection, branch):
+        logging.info("reconnect_on_engine_connect() Checking db connection; branch: {}".format(branch))
+
+        if branch:
+            logging.info("reconnect_on_engine_connect(): returning since branch: {}".format(branch))
+            # "branch" refers to a sub-connection of a connection,
+            # we don't want to bother pinging on these.
+            return
+
+        # turn off "close with result".  This flag is only used with
+        # "connectionless" execution, otherwise will be False in any case
+        save_should_close_with_result = connection.should_close_with_result
+        connection.should_close_with_result = False
+
+        try:
+            # run a SELECT 1.   use a core select() so that
+            # the SELECT of a scalar value without a table is
+            # appropriately formatted for the backend
+            connection.scalar(select([1]))
+        except exc.DBAPIError as err:
+            logging.warning("reconnect_on_engine_connect() exception: {}; connection_invalidated: {}"
+                            .format(err, err.connection_invalidated))
+            # catch SQLAlchemy's DBAPIError, which is a wrapper
+            # for the DBAPI's exception.  It includes a .connection_invalidated
+            # attribute which specifies if this connection is a "disconnect"
+            # condition, which is based on inspection of the original exception
+            # by the dialect in use.
+            if err.connection_invalidated:
+                if not retry_connection_for_period(connection, db_reconnect_limit):
+                    raise
+            else:
+                logging.warning("reconnect_on_engine_connect(): Not retrying as connection_invalidated is False")
+                raise
+        finally:
+            # restore "close with result"
+            logging.debug("reconnect_on_engine_connect() done")
+            connection.should_close_with_result = save_should_close_with_result
+
+    @event.listens_for(Pool, "checkout")
+    def reconnect_on_checkout(dbapi_connection, connection_record, connection_proxy):
+        """
+        Disconnect Handling - Pessimistic, taken from:
+        http://docs.sqlalchemy.org/en/rel_0_9/core/pooling.html
+        """
+
+        logging.info("reconnect_on_checkout()")
+
+        cursor = dbapi_connection.cursor()
+        try:
+            cursor.execute("SELECT 1")
+        except exc.DBAPIError as err:
+            logging.info("reconnect_on_checkout(): connection_invalidated; not retrying", err)
+            raise exc.DisconnectionError()
+        except Exception as e:
+            logging.warning("reconnect_on_checkout(): Error type: ", type(e), "; ", e.args)
+
+            if not retry_connection_for_period(None, db_reconnect_limit):
+                raise exc.DisconnectionError()
+
+        cursor.close()
+
+
+def retry_connection_for_period(connection, db_reconnect_limit):
+    logging.debug("retryConnectionForPeriod")
+    retry_time_spent = 0
+    succeeded = False
+    retry_time_to_sleep = 10  # starts with 10 seconds; grows to 2 mins after 10 retries
+
+    logging.info("retry_connection_for_period(): Retry limit (seconds): {}"
+                 .format(db_reconnect_limit if db_reconnect_limit is not None else "infinite"))
+    while (not succeeded) and ((db_reconnect_limit is None) or
+                                       (retry_time_spent + retry_time_to_sleep) < db_reconnect_limit):
+        # run the same SELECT again - the connection will re-validate
+        # itself and establish a new connection.  The disconnect detection
+        # here also causes the whole connection pool to be invalidated
+        # so that all stale connections are discarded.
+
+        logging.info("retry_connection_for_period(): sleeping for {}s; retry_time_spent: {}s"
+                     .format(retry_time_to_sleep, retry_time_spent))
+        time.sleep(retry_time_to_sleep)
+        retry_time_spent += retry_time_to_sleep
+        logging.info("retry_connection_for_period(): calling select 1; retry_time_spent: {}"
+            .format(retry_time_spent))
+        try:
+            if connection is None:
+                connection = settings.engine.connect()
+            connection.scalar(select([1]))
+            logging.info("retry_connection_for_period(): SUCCESS calling select 1")
+            succeeded = True
+        except Exception as e:
+            logging.info("retry_connection_for_period(): ERROR calling select 1; Error type: ", type(e), "; ", e.args)
+
+        if retry_time_spent >= 100:
+            retry_time_to_sleep = 120
+
+    if succeeded:
+        logging.info("retry_connection_for_period(): Connection re-established")
+        return True
+
+    logging.error("retry_connection_for_period(): Connection could NOT be re-established")
+    return False
 
 
 def pessimistic_connection_handling():

@@ -348,6 +348,10 @@ scheduler_heartbeat_sec = 5
 # -1 indicates to run continuously (see also num_runs)
 run_duration = -1
 
+# how long to retry if database disconnects (in seconds)
+# 0: No db reconnect; < 0: retry forever
+database_reconnect_limit = -1
+
 # after how much time a new DAGs should be picked up from the filesystem
 min_file_process_interval = 0
 
