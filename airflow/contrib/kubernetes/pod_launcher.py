@@ -25,7 +25,7 @@ from airflow.contrib.kubernetes.kubernetes_request_factory import \
 from kubernetes import watch
 from kubernetes.client.rest import ApiException
 from airflow import AirflowException
-
+from requests.exceptions import HTTPError
 from .kube_client import get_kube_client
 
 
@@ -102,7 +102,11 @@ class PodLauncher(LoggingMixin):
         return state != State.SUCCESS and state != State.FAILED
 
     def read_pod(self, pod):
-        return self._client.read_namespaced_pod(pod.name, pod.namespace)
+        try:
+            return self._client.read_namespaced_pod(pod.name, pod.namespace)
+        except HTTPError as e:
+            raise AirflowException("There was an error reading the kubernetes API: {}"
+                                   .format(e))
 
     def process_status(self, job_id, status):
         status = status.lower()

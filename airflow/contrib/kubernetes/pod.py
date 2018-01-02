@@ -53,8 +53,6 @@ class Pod:
                    successful execution of the pod
     :type result: any
     """
-    pod_timeout = 3600
-
     def __init__(
             self,
             image,

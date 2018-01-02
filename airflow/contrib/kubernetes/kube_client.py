@@ -25,6 +25,7 @@ def _load_kube_config(in_cluster):
         config.load_kube_config()
         return client.CoreV1Api()
 
+
 def get_kube_client(in_cluster=True):
     # TODO: This should also allow people to point to a cluster.
     return _load_kube_config(in_cluster)
