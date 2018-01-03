@@ -30,6 +30,57 @@ DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 
 
+class HiveEnvironmentTest(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        dag = DAG('test_dag_id', default_args=args)
+        self.dag = dag
+        self.hql = """
+        USE airflow;
+        DROP TABLE IF EXISTS static_babynames_partitioned;
+        CREATE TABLE IF NOT EXISTS static_babynames_partitioned (
+            state string,
+            year string,
+            name string,
+            gender string,
+            num int)
+        PARTITIONED BY (ds string);
+        INSERT OVERWRITE TABLE static_babynames_partitioned
+            PARTITION(ds='{{ ds }}')
+        SELECT state, year, name, gender, num FROM static_babynames;
+        """
+
+
+class HiveOperatorConfigTest(HiveEnvironmentTest):
+
+    def test_hive_airflow_default_config_queue(self):
+        t = operators.hive_operator.HiveOperator(
+            task_id='test_default_config_queue',
+            hql=self.hql,
+            mapred_queue_priority='HIGH',
+            mapred_job_name='airflow.test_default_config_queue',
+            dag=self.dag)
+
+        # just check that the correct default value in test_default.cfg is used
+        test_config_hive_mapred_queue = configuration.get('hive',
+                                                          'default_hive_mapred_queue')
+        self.assertEqual(t.get_hook().mapred_queue, test_config_hive_mapred_queue)
+
+    def test_hive_airflow_default_config_queue_override(self):
+        specific_mapred_queue = 'default'
+        t = operators.hive_operator.HiveOperator(
+            task_id='test_default_config_queue',
+            hql=self.hql,
+            mapred_queue=specific_mapred_queue,
+            mapred_queue_priority='HIGH',
+            mapred_job_name='airflow.test_default_config_queue',
+            dag=self.dag)
+
+        self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
+
+
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
     import airflow.hooks.hive_hooks
@@ -148,37 +199,15 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             self.assertEqual(sql, args[0])
             self.assertEqual(self.nondefault_schema, kwargs['schema'])
 
-    class HivePrestoTest(unittest.TestCase):
-
-        def setUp(self):
-            configuration.load_test_config()
-            args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-            dag = DAG('test_dag_id', default_args=args)
-            self.dag = dag
-            self.hql = """
-            USE airflow;
-            DROP TABLE IF EXISTS static_babynames_partitioned;
-            CREATE TABLE IF NOT EXISTS static_babynames_partitioned (
-                state string,
-                year string,
-                name string,
-                gender string,
-                num int)
-            PARTITIONED BY (ds string);
-            INSERT OVERWRITE TABLE static_babynames_partitioned
-                PARTITION(ds='{{ ds }}')
-            SELECT state, year, name, gender, num FROM static_babynames;
-            """
+    class HivePrestoTest(HiveEnvironmentTest):
 
         def test_hive(self):
-            import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
 
         def test_hive_queues(self):
-            import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
                 task_id='test_hive_queues', hql=self.hql,
                 mapred_queue='default', mapred_queue_priority='HIGH',
@@ -188,13 +217,11 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive_dryrun(self):
-            import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
                 task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
         def test_beeline(self):
-            import airflow.operators.hive_operator
             t = operators.hive_operator.HiveOperator(
                 task_id='beeline_hql', hive_cli_conn_id='beeline_default',
                 hql=self.hql, dag=self.dag)
@@ -205,14 +232,12 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
             sql = """
             SELECT count(1) FROM airflow.static_babynames_partitioned;
             """
-            import airflow.operators.presto_check_operator
             t = operators.presto_check_operator.PrestoCheckOperator(
                 task_id='presto_check', sql=sql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
 
         def test_presto_to_mysql(self):
-            import airflow.operators.presto_to_mysql
             t = operators.presto_to_mysql.PrestoToMySqlTransfer(
                 task_id='presto_to_mysql_check',
                 sql="""
@@ -253,7 +278,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive_stats(self):
-            import airflow.operators.hive_stats_operator
             t = operators.hive_stats_operator.HiveStatsCollectionOperator(
                 task_id='hive_stats_check',
                 table="airflow.static_babynames_partitioned",
@@ -322,7 +346,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive2samba(self):
-            import airflow.operators.hive_to_samba_operator
             t = operators.hive_to_samba_operator.Hive2SambaOperator(
                 task_id='hive2samba_check',
                 samba_conn_id='tableau_samba',
@@ -333,7 +356,6 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive_to_mysql(self):
-            import airflow.operators.hive_to_mysql
             t = operators.hive_to_mysql.HiveToMySqlTransfer(
                 mysql_conn_id='airflow_db',
                 task_id='hive_to_mysql_check',
