@@ -62,7 +62,6 @@ class BigQueryGetDataOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: string
-
     """
     template_fields = ('dataset_id', 'table_id', 'max_results')
     ui_color = '#e4f0e8'
@@ -109,7 +108,5 @@ class BigQueryGetDataOperator(BaseOperator):
             for fields in dict_row['f']:
                 single_row.append(fields['v'])
             table_data.append(single_row)
-
-        logging.info('Sample Table Data [Top 2 rows]: %s', table_data[0:2])
 
         return table_data
