@@ -14,6 +14,11 @@ celery_result_backend -> result_backend
 ```
 This will result in the same config parameters as Celery 4 and will make it more transparent.
 
+### GCP Dataflow Operators
+Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a default
+"airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
+to 2.2.0 or greater.
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
