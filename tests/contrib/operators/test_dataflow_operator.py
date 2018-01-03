@@ -16,6 +16,7 @@
 import unittest
 
 from airflow.contrib.operators.dataflow_operator import DataFlowPythonOperator
+from airflow.version import version
 
 try:
     from unittest import mock
@@ -34,7 +35,13 @@ DEFAULT_OPTIONS = {
     'stagingLocation': 'gs://test/staging'
 }
 ADDITIONAL_OPTIONS = {
-    'output': 'gs://test/output'
+    'output': 'gs://test/output',
+    'labels': {'foo': 'bar'}
+}
+TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
+EXPECTED_ADDITIONAL_OPTIONS = {
+    'output': 'gs://test/output',
+    'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
 }
 POLL_SLEEP = 30
 GCS_HOOK_STRING = 'airflow.contrib.operators.dataflow_operator.{}'
@@ -60,7 +67,7 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
         self.assertEqual(self.dataflow.dataflow_default_options,
                          DEFAULT_OPTIONS)
         self.assertEqual(self.dataflow.options,
-                         ADDITIONAL_OPTIONS)
+                         EXPECTED_ADDITIONAL_OPTIONS)
 
     @mock.patch('airflow.contrib.operators.dataflow_operator.DataFlowHook')
     @mock.patch(GCS_HOOK_STRING.format('GoogleCloudBucketHelper'))
@@ -76,7 +83,8 @@ class DataFlowPythonOperatorTest(unittest.TestCase):
         expected_options = {
             'project': 'test',
             'staging_location': 'gs://test/staging',
-            'output': 'gs://test/output'
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION}
         }
         gcs_download_hook.assert_called_once_with(PY_FILE)
         start_python_hook.assert_called_once_with(TASK_ID, expected_options,
