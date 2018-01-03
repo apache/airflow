@@ -19,6 +19,7 @@ import uuid
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.contrib.hooks.gcp_dataflow_hook import DataFlowHook
 from airflow.models import BaseOperator
+from airflow.version import version
 from airflow.utils.decorators import apply_defaults
 
 
@@ -52,7 +53,8 @@ class DataFlowJavaOperator(BaseOperator):
             'autoscalingAlgorithm': 'BASIC',
             'maxNumWorkers': '50',
             'start': '{{ds}}',
-            'partitionType': 'DAY'
+            'partitionType': 'DAY',
+            'labels': {'foo' : 'bar'}
         },
         dag=my-dag)
     ```
@@ -97,7 +99,7 @@ class DataFlowJavaOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
         :type delegate_to: string
-        :param poll_sleep: The time in seconds to sleep between polling Google 
+        :param poll_sleep: The time in seconds to sleep between polling Google
             Cloud Platform for the dataflow job status while the job is in the
             JOB_STATE_RUNNING state.
         :type poll_sleep: int
@@ -106,7 +108,8 @@ class DataFlowJavaOperator(BaseOperator):
 
         dataflow_default_options = dataflow_default_options or {}
         options = options or {}
-
+        options.setdefault('labels', {}).update(
+            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.jar = jar
@@ -171,7 +174,7 @@ class DataFlowPythonOperator(BaseOperator):
             For this to work, the service account making the request must have
             domain-wide  delegation enabled.
         :type delegate_to: string
-        :param poll_sleep: The time in seconds to sleep between polling Google 
+        :param poll_sleep: The time in seconds to sleep between polling Google
             Cloud Platform for the dataflow job status while the job is in the
             JOB_STATE_RUNNING state.
         :type poll_sleep: int
@@ -182,6 +185,8 @@ class DataFlowPythonOperator(BaseOperator):
         self.py_options = py_options or []
         self.dataflow_default_options = dataflow_default_options or {}
         self.options = options or {}
+        self.options.setdefault('labels', {}).update(
+            {'airflow-version': 'v' + version.replace('.', '-').replace('+', '-')})
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.poll_sleep = poll_sleep

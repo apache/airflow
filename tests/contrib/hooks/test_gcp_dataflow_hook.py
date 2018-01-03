@@ -31,13 +31,21 @@ except ImportError:
 
 TASK_ID = 'test-python-dataflow'
 PY_FILE = 'apache_beam.examples.wordcount'
+JAR_FILE = 'unitest.jar'
 PY_OPTIONS = ['-m']
-OPTIONS = {
+DATAFLOW_OPTIONS_PY = {
     'project': 'test',
-    'staging_location': 'gs://test/staging'
+    'staging_location': 'gs://test/staging',
+    'labels': {'foo': 'bar'}
+}
+DATAFLOW_OPTIONS_JAVA = {
+    'project': 'test',
+    'stagingLocation': 'gs://test/staging',
+    'labels': {'foo': 'bar'}
 }
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
+MOCK_UUID = '12345678'
 
 
 def mock_init(self, gcp_conn_id, delegate_to=None):
@@ -51,13 +59,51 @@ class DataFlowHookTest(unittest.TestCase):
                         new=mock_init):
             self.dataflow_hook = DataFlowHook(gcp_conn_id='test')
 
-    @mock.patch(DATAFLOW_STRING.format('DataFlowHook._start_dataflow'))
-    def test_start_python_dataflow(self, internal_dataflow_mock):
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    def test_start_python_dataflow(self, mock_conn,
+                                   mock_dataflow, mock_dataflowjob, mock_uuid):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
         self.dataflow_hook.start_python_dataflow(
-            task_id=TASK_ID, variables=OPTIONS,
+            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
-        internal_dataflow_mock.assert_called_once_with(
-            TASK_ID, OPTIONS, PY_FILE, mock.ANY, ['python'] + PY_OPTIONS)
+        EXPECTED_CMD = ['python', '-m', PY_FILE,
+                        '--runner=DataflowRunner', '--project=test',
+                        '--labels=foo=bar',
+                        '--staging_location=gs://test/staging',
+                        '--job_name={}-{}'.format(TASK_ID, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
+                             sorted(EXPECTED_CMD))
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    def test_start_java_dataflow(self, mock_conn,
+                                 mock_dataflow, mock_dataflowjob, mock_uuid):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        self.dataflow_hook.start_java_dataflow(
+            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
+            dataflow=JAR_FILE)
+        EXPECTED_CMD = ['java', '-jar', JAR_FILE,
+                        '--runner=DataflowRunner', '--project=test',
+                        '--stagingLocation=gs://test/staging',
+                        '--labels={"foo":"bar"}',
+                        '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
+                             sorted(EXPECTED_CMD))
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')
