@@ -171,6 +171,11 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_template_dataflow(
             name, variables, parameters, dataflow_template)
 
+    def start_template_dataflow(self, task_id, variables, parameters, dataflow_template):
+        name = task_id + "-" + str(uuid.uuid1())[:8]
+        self._start_template_dataflow(
+            name, variables, parameters, dataflow_template)
+
     def start_python_dataflow(self, task_id, variables, dataflow, py_options):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         variables["job_name"] = name

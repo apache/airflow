@@ -53,6 +53,11 @@ DATAFLOW_OPTIONS_TEMPLATE = {
     'tempLocation': 'gs://test/temp',
     'zone': 'us-central1-f'
 }
+DATAFLOW_OPTIONS_TEMPLATE = {
+    'project': 'test',
+    'tempLocation': 'gs://test/temp',
+    'zone': 'us-central1-f'
+}
 BASE_STRING = 'airflow.contrib.hooks.gcp_api_base_hook.{}'
 DATAFLOW_STRING = 'airflow.contrib.hooks.gcp_dataflow_hook.{}'
 MOCK_UUID = '12345678'
