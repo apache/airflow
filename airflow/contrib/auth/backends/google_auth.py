@@ -109,7 +109,7 @@ class GoogleAuthBackend(object):
         return self.google_oauth.authorize(callback=url_for(
             'google_oauth_callback',
             _external=True,
-            _scheme=get_config_param('scheme'),
+            _scheme='https',
             next=request.args.get('next') or request.referrer or None))
 
     def get_google_user_profile_info(self, google_token):
