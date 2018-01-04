@@ -166,6 +166,11 @@ class DataFlowHook(GoogleCloudBaseHook):
         self._start_dataflow(task_id, variables, dataflow, name,
                              ["java", "-jar"], label_formatter)
 
+    def start_template_dataflow(self, task_id, variables, parameters, dataflow_template):
+        name = task_id + "-" + str(uuid.uuid1())[:8]
+        self._start_template_dataflow(
+            name, variables, parameters, dataflow_template)
+
     def start_python_dataflow(self, task_id, variables, dataflow, py_options):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         variables["job_name"] = name
@@ -185,3 +190,26 @@ class DataFlowHook(GoogleCloudBaseHook):
                 else:
                     command.append("--" + attr + "=" + value)
         return command
+
+    def _start_template_dataflow(self, name, variables, parameters, dataflow_template):
+        # Builds RuntimeEnvironment from variables dictionary
+        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+        environment = {}
+        for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
+                    'bypassTempDirValidation', 'machineType']:
+            if key in variables:
+                environment.update({key: variables[key]})
+        body = {"jobName": name,
+                "parameters": parameters,
+                "environment": environment}
+        service = self.get_conn()
+        if variables['project'] is None:
+            raise Exception(
+                'Project not specified')
+        request = service.projects().templates().launch(projectId=variables['project'],
+                                                        gcsPath=dataflow_template,
+                                                        body=body)
+        response = request.execute()
+        _DataflowJob(
+            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
+        return response
