@@ -41,7 +41,17 @@ def print_today():
     print('Today is {}'.format(dt.strftime('%Y-%m-%d')))
 
 
+def check_hive_conf():
+    from airflow import configuration as conf
+    assert conf.get('hive', 'default_hive_mapred_queue') == 'airflow'
+
+
 PythonOperator(
     python_callable=print_today,
     task_id='exec_python_fn',
+    dag=dag)
+
+PythonOperator(
+    python_callable=check_hive_conf,
+    task_id='exec_check_hive_conf_fn',
     dag=dag)

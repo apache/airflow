@@ -64,6 +64,7 @@ class BaseTaskRunner(LoggingMixin):
                 'smtp': cfg_dict.get('smtp', {}),
                 'scheduler': cfg_dict.get('scheduler', {}),
                 'webserver': cfg_dict.get('webserver', {}),
+                'hive': cfg_dict.get('hive', {}),  # we should probably generalized this
             }
             temp_fd, cfg_path = mkstemp()
 
