@@ -19,7 +19,6 @@ import getpass
 import os
 
 from winrm.protocol import Protocol
-from contextlib import contextmanager
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -56,7 +55,7 @@ class WinRMHook(BaseHook, LoggingMixin):
                  keepalive_interval=30
                  ):
         super(WinRMHook, self).__init__(ssh_conn_id)
-        #TODO make new win rm connection class
+        # TODO make new win rm connection class
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
@@ -113,16 +112,16 @@ class WinRMHook(BaseHook, LoggingMixin):
 
                 if self.password and self.password.strip():
                     self.winrm_protocol = Protocol(
-                        #TODO pass in port from ssh conn
-                                    endpoint='http://' + self.remote_host + ':5985/wsman',
-                        #TODO get cert transport working
-                                    #transport='certificate',
-                                    transport='plaintext',
-                                    # cert_pem=r'publickey.pem',
-                                    # cert_key_pem=r'dev.pem',
-                                    username=self.username,
-                                    password=self.password,
-                                    server_cert_validation='ignore')
+                        # TODO pass in port from ssh conn
+                        endpoint='http://' + self.remote_host + ':5985/wsman',
+                        # TODO get cert transport working
+                        #transport='certificate',
+                        transport='plaintext',
+                        # cert_pem=r'publickey.pem',
+                        # cert_key_pem=r'dev.pem',
+                        username=self.username,
+                        password=self.password,
+                        server_cert_validation='ignore')
 
                 self.log.info("Opening WinRM shell")
                 self.client = self.winrm_protocol.open_shell()
@@ -133,4 +132,3 @@ class WinRMHook(BaseHook, LoggingMixin):
                     self.remote_host, error
                 )
         return self.client
-    
