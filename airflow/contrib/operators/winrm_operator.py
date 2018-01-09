@@ -76,9 +76,9 @@ class WinRMOperator(BaseOperator):
                 raise AirflowException("no command specified so nothing to execute here.")
 
             self.log.info("Starting command: '" + self.command + "' on remote host: " +
-                self.winrm_hook.remote_host)
-            command_id = self.winrm_hook.winrm_protocol. \
-            run_command(winrm_client, self.command)
+                    self.winrm_hook.remote_host)
+            command_id = self.winrm_hook.winrm_protocol.\
+                    run_command(winrm_client, self.command)
             std_out, std_err, status_code = self.winrm_hook.winrm_protocol. \
                 get_command_output(winrm_client, command_id)
 
