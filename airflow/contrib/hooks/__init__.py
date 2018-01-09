@@ -38,7 +38,6 @@ _hooks = {
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
     'winrm_hook': ['WinRMHook'],
-    'test_hook': ['TestHook'],
     'bigquery_hook': ['BigQueryHook'],
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],

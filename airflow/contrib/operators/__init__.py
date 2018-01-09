@@ -33,7 +33,6 @@ import sys
 # ------------------------------------------------------------------------
 _operators = {
     'ssh_operator': ['SSHOperator'],
-    'test_operator': ['TestOperator'],
     'winrm_operator': ['WinRMOperator'],
     'vertica_operator': ['VerticaOperator'],
     'vertica_to_hive': ['VerticaToHiveTransfer'],
