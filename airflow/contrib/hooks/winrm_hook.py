@@ -26,9 +26,7 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 class WinRMHook(BaseHook, LoggingMixin):
     """
-    Hook for ssh remote execution using Paramiko.
-    ref: https://github.com/paramiko/paramiko
-    This hook also lets you create ssh tunnel and serve as basis for SFTP file transfer
+    Hook for winrm remote execution using Paramiko.
 
     :param ssh_conn_id: connection id from airflow Connections from where all the required
         parameters can be fetched like username, password or key_file.
@@ -58,6 +56,7 @@ class WinRMHook(BaseHook, LoggingMixin):
                  keepalive_interval=30
                  ):
         super(WinRMHook, self).__init__(ssh_conn_id)
+        #TODO make new win rm connection class
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.username = username
@@ -109,114 +108,28 @@ class WinRMHook(BaseHook, LoggingMixin):
                 self.username = getpass.getuser()
 
             host_proxy = None
-            # user_ssh_config_filename = os.path.expanduser('~/.ssh/config')
-            # if os.path.isfile(user_ssh_config_filename):
-            #     ssh_conf = paramiko.SSHConfig()
-            #     ssh_conf.parse(open(user_ssh_config_filename))
-            #     host_info = ssh_conf.lookup(self.remote_host)
-            #     if host_info and host_info.get('proxycommand'):
-            #         host_proxy = paramiko.ProxyCommand(host_info.get('proxycommand'))
-
-            #     if not (self.password or self.key_file):
-            #         if host_info and host_info.get('identityfile'):
-            #             self.key_file = host_info.get('identityfile')[0]
 
             try:
-                # client = paramiko.SSHClient() 
-                # client.load_system_host_keys()
-                # if self.no_host_key_check:
-                #     # Default is RejectPolicy
-                #     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
                 if self.password and self.password.strip():
                     self.winrm_protocol = Protocol(
+                        #TODO pass in port from ssh conn
                                     endpoint='http://' + self.remote_host + ':5985/wsman',
+                        #TODO get cert transport working
                                     #transport='certificate',
                                     transport='plaintext',
-                                    # cert_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws-publickey.pem',
-                                    # cert_key_pem=r'C:\\Users\\lbodeen\\Downloads\\lbodeen-sandbox-dev-aws.pem',
+                                    # cert_pem=r'publickey.pem',
+                                    # cert_key_pem=r'dev.pem',
                                     username=self.username,
                                     password=self.password,
                                     server_cert_validation='ignore')
-                # else:
-                #     client.connect(hostname=self.remote_host,
-                #                    username=self.username,
-                #                    key_filename=self.key_file,
-                #                    timeout=self.timeout,
-                #                    compress=self.compress,
-                #                    sock=host_proxy)
 
-                # if self.keepalive_interval:
-                #     client.get_transport().set_keepalive(self.keepalive_interval)
                 self.log.info("Opening WinRM shell")
                 self.client = self.winrm_protocol.open_shell()
-            # except paramiko.AuthenticationException as auth_error:
-            #     self.log.error(
-            #         "Auth failed while connecting to host: %s, error: %s",
-            #         self.remote_host, auth_error
-            #     )
-            # except paramiko.SSHException as ssh_error:
-            #     self.log.error(
-            #         "Failed connecting to host: %s, error: %s",
-            #         self.remote_host, ssh_error
-            #     )
+
             except Exception as error:
                 self.log.error(
                     "Error connecting to host: %s, error: %s",
                     self.remote_host, error
                 )
         return self.client
-
-    # @contextmanager
-    # def create_tunnel(self, local_port, remote_port=None, remote_host="localhost"):
-    #     """
-    #     Creates a tunnel between two hosts. Like ssh -L <LOCAL_PORT>:host:<REMOTE_PORT>.
-    #     Remember to close() the returned "tunnel" object in order to clean up
-    #     after yourself when you are done with the tunnel.
-
-    #     :param local_port:
-    #     :type local_port: int
-    #     :param remote_port:
-    #     :type remote_port: int
-    #     :param remote_host:
-    #     :type remote_host: str
-    #     :return:
-    #     """
-
-    #     import subprocess
-    #     # this will ensure the connection to the ssh.remote_host from where the tunnel
-    #     # is getting created
-    #     self.get_conn()
-
-    #     tunnel_host = "{0}:{1}:{2}".format(local_port, remote_host, remote_port)
-
-    #     ssh_cmd = ["ssh", "{0}@{1}".format(self.username, self.remote_host),
-    #                "-o", "ControlMaster=no",
-    #                "-o", "UserKnownHostsFile=/dev/null",
-    #                "-o", "StrictHostKeyChecking=no"]
-
-    #     ssh_tunnel_cmd = ["-L", tunnel_host,
-    #                       "echo -n ready && cat"
-    #                       ]
-
-    #     ssh_cmd += ssh_tunnel_cmd
-    #     self.log.debug("Creating tunnel with cmd: %s", ssh_cmd)
-
-    #     proc = subprocess.Popen(ssh_cmd,
-    #                             stdin=subprocess.PIPE,
-    #                             stdout=subprocess.PIPE,
-    #                             close_fds=True)
-    #     ready = proc.stdout.read(5)
-    #     assert ready == b"ready", \
-    #         "Did not get 'ready' from remote, got '{0}' instead".format(ready)
-    #     yield
-    #     proc.communicate()
-    #     assert proc.returncode == 0, \
-    #         "Tunnel process did unclean exit (returncode {}".format(proc.returncode)
-
-    # def __enter__(self):
-    #     return self
-
-    # def __exit__(self, exc_type, exc_val, exc_tb):
-    #     if self.client is not None:
-    #         self.client.close()
