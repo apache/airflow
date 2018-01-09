@@ -25,9 +25,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 class WinRMHook(BaseHook, LoggingMixin):
 
     """
-    Hook for winrm remote execution using Paramiko.
+    Hook for winrm remote execution using pywinrm.
 
-    :param ssh_conn_id: connection id from airflow Connections from where all 
+    :param ssh_conn_id: connection id from airflow Connections from where all
         the required parameters can be fetched like username, password or key_file.
         Thought the priority is given to the param passed during init
     :type ssh_conn_id: str
@@ -41,7 +41,7 @@ class WinRMHook(BaseHook, LoggingMixin):
     :type key_file: str
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
-    :param keepalive_interval: send a keepalive packet to remote host 
+    :param keepalive_interval: send a keepalive packet to remote host
         every keepalive_interval seconds
     :type keepalive_interval: int
     """
