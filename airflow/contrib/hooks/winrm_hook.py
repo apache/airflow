@@ -16,19 +16,19 @@
 # limitations under the License.
 
 import getpass
-import os
-
 from winrm.protocol import Protocol
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 
+
 class WinRMHook(BaseHook, LoggingMixin):
+
     """
     Hook for winrm remote execution using Paramiko.
 
-    :param ssh_conn_id: connection id from airflow Connections from where all the required
-        parameters can be fetched like username, password or key_file.
+    :param ssh_conn_id: connection id from airflow Connections from where all 
+        the required parameters can be fetched like username, password or key_file.
         Thought the priority is given to the param passed during init
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
@@ -41,7 +41,8 @@ class WinRMHook(BaseHook, LoggingMixin):
     :type key_file: str
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
-    :param keepalive_interval: send a keepalive packet to remote host every keepalive_interval seconds
+    :param keepalive_interval: send a keepalive packet to remote host 
+        every keepalive_interval seconds
     :type keepalive_interval: int
     """
 
@@ -106,8 +107,6 @@ class WinRMHook(BaseHook, LoggingMixin):
                 )
                 self.username = getpass.getuser()
 
-            host_proxy = None
-
             try:
 
                 if self.password and self.password.strip():
@@ -115,7 +114,7 @@ class WinRMHook(BaseHook, LoggingMixin):
                         # TODO pass in port from ssh conn
                         endpoint='http://' + self.remote_host + ':5985/wsman',
                         # TODO get cert transport working
-                        #transport='certificate',
+                        # transport='certificate',
                         transport='plaintext',
                         # cert_pem=r'publickey.pem',
                         # cert_key_pem=r'dev.pem',
