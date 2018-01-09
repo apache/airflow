@@ -133,3 +133,4 @@ class WinRMHook(BaseHook, LoggingMixin):
                     self.remote_host, error
                 )
         return self.client
+    
