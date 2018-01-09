@@ -101,3 +101,4 @@ class WinRMOperator(BaseOperator):
             raise AirflowException("WinRM operator error: {0}".format(str(e)))
 
         return True
+    
