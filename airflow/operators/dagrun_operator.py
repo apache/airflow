@@ -28,7 +28,7 @@ class DagRunOrder(object):
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id`` if a criteria is met
+    Triggers a DAG run for a specified ``dag_id``
 
     :param trigger_dag_id: the dag_id to trigger
     :type trigger_dag_id: str
@@ -51,7 +51,7 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id,
-            python_callable,
+            python_callable=None,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
@@ -59,7 +59,8 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute(self, context):
         dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
-        dro = self.python_callable(context, dro)
+        if self.python_callable is not None:
+            dro = self.python_callable(context, dro)
         if dro:
             with create_session() as session:
                 dbag = DagBag(settings.DAGS_FOLDER)
