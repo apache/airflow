@@ -34,17 +34,23 @@ from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
+def send_email(to, subject, html_content, files=None,
+               dryrun=False, cc=None, bcc=None,
+               mime_subtype='mixed', **kwargs):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
     path, attr = configuration.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
     module = importlib.import_module(path)
     backend = getattr(module, attr)
-    return backend(to, subject, html_content, files=files, dryrun=dryrun, cc=cc, bcc=bcc, mime_subtype=mime_subtype)
+    return backend(to, subject, html_content, files=files,
+                   dryrun=dryrun, cc=cc, bcc=bcc,
+                   mime_subtype=mime_subtype, **kwargs)
 
 
-def send_email_smtp(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
+def send_email_smtp(to, subject, html_content, files=None,
+                    dryrun=False, cc=None, bcc=None,
+                    mime_subtype='mixed', **kwargs):
     """
     Send an email with html content
 

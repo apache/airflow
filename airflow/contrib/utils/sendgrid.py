@@ -27,7 +27,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 from sendgrid.helpers.mail import Attachment, Content, Email, Mail, Personalization
 
 
-def send_email(to, subject, html_content, files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed'):
+def send_email(to, subject, html_content, files=None,
+               dryrun=False, cc=None, bcc=None,
+               mime_subtype='mixed', **kwargs):
     """
     Send an email with html content using sendgrid.
 
