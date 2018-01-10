@@ -86,5 +86,24 @@ class TestFileProcessorHandler(unittest.TestCase):
             self.assertEqual(os.path.basename(os.readlink(link)), date2)
             self.assertTrue(os.path.exists(os.path.join(link, "log2")))
 
+    def test_symlink_latest_log_directory_exists(self):
+        handler = FileProcessorHandler(base_log_folder=self.base_log_folder,
+                                       filename_template=self.filename)
+        handler.dag_dir = self.dag_dir
+
+        date1 = (timezone.utcnow() + timedelta(days=1)).strftime("%Y-%m-%d")
+
+        p1 = os.path.join(self.base_log_folder, date1, "log1")
+        if os.path.exists(p1):
+            os.remove(p1)
+
+        link = os.path.join(self.base_log_folder, "latest")
+        if os.path.exists(link):
+            os.remove(link)
+        os.makedirs(link)
+
+        with freeze_time(date1):
+            handler.set_context(filename=os.path.join(self.dag_dir, "log1"))
+
     def tearDown(self):
         shutil.rmtree(self.base_log_folder, ignore_errors=True)
