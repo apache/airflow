@@ -272,6 +272,25 @@ class ExternalTaskSensorTests(unittest.TestCase):
             'start_date': DEFAULT_DATE,
             'depends_on_past': False}
 
+    def test_templated_sensor(self):
+        dag = DAG(TEST_DAG_ID, self.args)
+
+        with dag:
+            sensor = ExternalTaskSensor(
+                task_id='templated_task',
+                external_dag_id='dag_{{ ds }}',
+                external_task_id='task_{{ ds }}',
+                start_date=DEFAULT_DATE
+            )
+
+        instance = TaskInstance(sensor, DEFAULT_DATE)
+        instance.render_templates()
+
+        self.assertEqual(sensor.external_dag_id,
+                         "dag_{}".format(DEFAULT_DATE.date()))
+        self.assertEqual(sensor.external_task_id,
+                         "task_{}".format(DEFAULT_DATE.date()))
+
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """
 {% set s=execution_date.time().second %}
