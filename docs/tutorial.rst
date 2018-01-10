@@ -375,6 +375,9 @@ scheduler running your task or dag at a specific date + time:
 
 .. code-block:: bash
 
+    # initiating airflow database
+    airflow initdb
+
     # command layout: command subcommand dag_id task_id date
 
     # testing print_date
