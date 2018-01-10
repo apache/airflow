@@ -965,7 +965,10 @@ class TaskInstance(Base, LoggingMixin):
         :param job_id: job ID (needs more details)
         :param pool: the Airflow pool that the task should run in
         :type pool: unicode
-        :return: shell command that can be used to run the task instance
+        :param cfg_path: the Path to the configuration file
+        :type cfg_path: basestring
+        :return: shell command that can be used to run the task instance,
+
         """
         iso = execution_date.isoformat()
         cmd = ["airflow", "run", str(dag_id), str(task_id), str(iso)]
