@@ -737,7 +737,7 @@ class DagPickle(Base):
     """
     id = Column(Integer, primary_key=True)
     pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(UtcDateTime, default=func.now())
+    created_dttm = Column(UtcDateTime, default=timezone.utcnow())
     pickle_hash = Column(Text)
 
     __tablename__ = "dag_pickle"
@@ -3975,7 +3975,7 @@ class Chart(Base):
         "User", cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
-    last_modified = Column(UtcDateTime, default=func.now())
+    last_modified = Column(UtcDateTime, default=timezone.utcnow())
 
     def __repr__(self):
         return self.label
@@ -4124,7 +4124,7 @@ class XCom(Base, LoggingMixin):
     key = Column(String(512))
     value = Column(LargeBinary)
     timestamp = Column(
-        DateTime, default=func.now(), nullable=False)
+        DateTime, default=timezone.utcnow(), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
 
     # source information
@@ -4443,8 +4443,8 @@ class DagRun(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(UtcDateTime, default=func.now())
-    start_date = Column(UtcDateTime, default=func.now())
+    execution_date = Column(UtcDateTime, default=timezone.utcnow())
+    start_date = Column(UtcDateTime, default=timezone.utcnow())
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))
