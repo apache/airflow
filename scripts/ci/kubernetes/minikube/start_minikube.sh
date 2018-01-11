@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -48,7 +47,7 @@ start_minikube(){
   do
     echo "------- Running kubectl get pods -------"
     STDERR=$(kubectl get pods  2>&1 >/dev/null)
-    if [ $? -ne 1 ]; then
+    if [ $? -eq 0 ]; then
       echo $STDERR
 
       # We do not need dynamic hostpath provisioning, so disable the default storageclass

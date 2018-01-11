@@ -19,15 +19,16 @@ import unittest
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
 from subprocess import check_call
-import logging
 
 
 try:
     check_call(["kubectl", "get", "pods"])
 except Exception as e:
     raise unittest.SkipTest(
-        "Kubernetes integration tests require a minikube cluster; Skipping tests {}".format(e)
+        "Kubernetes integration tests require a minikube cluster;"
+        "Skipping tests {}".format(e)
     )
+
 
 class KubernetesPodOperatorTest(unittest.TestCase):
 
