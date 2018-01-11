@@ -772,6 +772,7 @@ class SchedulerJob(BaseJob):
                         dr.start_date < timezone.utcnow() - dag.dagrun_timeout):
                     dr.state = State.FAILED
                     dr.end_date = timezone.utcnow()
+                    dag.handle_failure(dr, reason='dagrun_timeout')
                     timedout_runs += 1
             session.commit()
             if len(active_runs) - timedout_runs >= dag.max_active_runs:

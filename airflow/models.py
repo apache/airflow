@@ -2893,6 +2893,13 @@ class DAG(BaseDag, LoggingMixin):
     :type default_view: string
     :param orientation: Specify DAG orientation in graph view (LR, TB, RL, BT)
     :type orientation: string
+    :param on_failure_callback: A function to be called when a DagRun of this dag fails.
+        A context dictionary is passed as a single parameter to this function with the
+        failure reason and the DagRun object.
+    :type on_failure_callback: callable
+    :param on_success_callback: Much like the ``on_failure_callback`` except
+        that it is executed when the dag succeeds.
+    :type on_success_callback: callable
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
     """
@@ -2915,6 +2922,7 @@ class DAG(BaseDag, LoggingMixin):
             default_view=configuration.get('webserver', 'dag_default_view').lower(),
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
+            on_success_callback=None, on_failure_callback=None,
             params=None):
 
         self.user_defined_macros = user_defined_macros
@@ -2987,6 +2995,8 @@ class DAG(BaseDag, LoggingMixin):
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
+        self.on_success_callback = on_success_callback
+        self.on_failure_callback = on_failure_callback
 
         self._comps = {
             'dag_id',
@@ -3247,6 +3257,23 @@ class DAG(BaseDag, LoggingMixin):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    def handle_failure(self, dagrun, reason='task_failure'):
+        """
+        Triggers the on_failure_callback specified if an on_failure_callback is set.
+        A dictionary is passed to the callable that contains the failure reason
+        and a dagrun object.
+        """
+        if self.on_failure_callback:
+            self.on_failure_callback({'dagrun': dagrun, 'reason': reason})
+
+    def handle_success(self, dagrun):
+        """
+        Triggers the on_succcess_callback specified if an on_success_callback is set.
+        A dictionary is passed to the callable that contains the dagrun object.
+        """
+        if self.on_success_callback:
+            self.on_success_callback({'dagrun': dagrun})
 
     @provide_session
     def get_active_runs(self, session=None):
@@ -4696,18 +4723,21 @@ class DagRun(Base, LoggingMixin):
                     any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
                 self.log.info('Marking run %s failed', self)
                 self.state = State.FAILED
+                dag.handle_failure(self, reason='task_failure')
 
             # if all roots succeeded and no unfinished tasks, the run succeeded
             elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
                                               for r in roots):
                 self.log.info('Marking run %s successful', self)
                 self.state = State.SUCCESS
+                dag.handle_success(self)
 
             # if *all tasks* are deadlocked, the run failed
             elif (unfinished_tasks and none_depends_on_past and
                   none_task_concurrency and no_dependencies_met):
                 self.log.info('Deadlock; marking run %s failed', self)
                 self.state = State.FAILED
+                dag.handle_failure(self, reason='tasks_deadlocked')
 
             # finally, if the roots aren't done, the dag is still running
             else:
