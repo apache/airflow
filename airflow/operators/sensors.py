@@ -202,6 +202,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or execution_date_fn can be passed to ExternalTaskSensor, but not both.
     :type execution_date_fn: callable
     """
+    template_fields = ['external_dag_id', 'external_task_id']
     ui_color = '#19647e'
 
     @apply_defaults

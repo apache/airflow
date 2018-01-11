@@ -1414,8 +1414,8 @@ class SchedulerJob(BaseJob):
 
                 # TODO: should we fail RUNNING as well, as we do in Backfills?
                 if ti.state == State.QUEUED:
-                    msg = ("Executor reports task instance %s finished (%s) "
-                           "although the task says its %s. Was the task "
+                    msg = ("Executor reports task instance {} finished ({}) "
+                           "although the task says its {}. Was the task "
                            "killed externally?".format(ti, state, ti.state))
                     self.log.error(msg)
                     try:
