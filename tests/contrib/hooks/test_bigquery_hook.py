@@ -174,6 +174,7 @@ def mock_job_cancel(projectId, jobId):
     mock_canceled_jobs.append(jobId)
     return mock.Mock()
 
+
 class TestBigQueryBaseCursor(unittest.TestCase):
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:
@@ -253,10 +254,10 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         s = self.Serv()
         bqc = hook.BigQueryBaseCursor(s, 'str')
         job = bqc.run_load(
-                            destination_project_dataset_table='test.teast',
-                            schema_fields=[],
-                            source_uris=[],
-                            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+            destination_project_dataset_table='test.teast',
+            schema_fields=[],
+            source_uris=[],
+            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
         self.assertEquals(job, 0)
@@ -265,10 +266,10 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         s = self.Serv()
         bqc = self.BigQueryBaseCursorTest(s, 'str')
         cnfg = bqc.run_load(
-                            destination_project_dataset_table='test.teast$20170101',
-                            schema_fields=[],
-                            source_uris=[],
-                            src_fmt_configs={}
+            destination_project_dataset_table='test.teast$20170101',
+            schema_fields=[],
+            source_uris=[],
+            src_fmt_configs={}
         )
         expect = {
             'type': 'DAY'
@@ -279,10 +280,10 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         s = self.Serv()
         bqc = self.BigQueryBaseCursorTest(s, 'str')
         cnfg = bqc.run_load(
-                            destination_project_dataset_table='test.teast',
-                            schema_fields=[],
-                            source_uris=[],
-                            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+            destination_project_dataset_table='test.teast',
+            schema_fields=[],
+            source_uris=[],
+            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )
 
         expect = {
@@ -297,12 +298,13 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         s = self.Serv()
         bqc = self.BigQueryBaseCursorTest(s, 'str')
 
-        with self.assertRaises(AirflowException) as ex:
+        with self.assertRaises(AirflowException):
+            tp_dict = {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
             bqc.run_load(
-                         destination_project_dataset_table='test.teast$20170101',
-                         schema_fields=[],
-                         source_uris=[],
-                         time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+                destination_project_dataset_table='test.teast$20170101',
+                schema_fields=[],
+                source_uris=[],
+                time_partitioning=tp_dict
             )
 
 

@@ -120,10 +120,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         :type schema_update_options: list
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
-        :param time_partitioning: configure optional time partitioning fields i.e. partition by field, type and
-            expiration as per API specifications. note that 'field' is not available in concurrency with
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and  expiration as per API specifications.
+            Note that 'field' is not available in concurrency with
             dataset.table$partition.
-        :type src_fmt_configs: dict
+        :type time_partitioning: dict
         """
         super(GoogleCloudStorageToBigQueryOperator, self).__init__(*args, **kwargs)
 
@@ -188,7 +189,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
             allow_jagged_rows=self.allow_jagged_rows,
             schema_update_options=self.schema_update_options,
             src_fmt_configs=self.src_fmt_configs,
-            time_partitioning = self.time_partitioning)
+            time_partitioning=self.time_partitioning)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
