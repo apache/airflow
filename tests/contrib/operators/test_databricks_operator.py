@@ -173,14 +173,16 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         """
         Test the execute function in case where the run is successful.
         """
+        db_mock = db_mock_class.return_value
+        db_mock.jobs_runs_submit.return_value = {'run_id': 1}
+        db_mock.get_api_method.return_value = db_mock.jobs_runs_submit
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
         run = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
-        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
 
         op.execute(None)
 
@@ -190,9 +192,9 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'run_name': TASK_ID
         })
         db_mock_class.assert_called_once_with(
-                DEFAULT_CONN_ID,
-                retry_limit=op.databricks_retry_limit)
-        db_mock.submit_run.assert_called_once_with(expected)
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit)
+        db_mock.jobs_runs_submit.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEquals(RUN_ID, op.run_id)
@@ -202,14 +204,16 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
         """
         Test the execute function in case where the run failed.
         """
+        db_mock = db_mock_class.return_value
+        db_mock.jobs_runs_submit.return_value = {'run_id': 1}
+        db_mock.get_api_method.return_value = db_mock.jobs_runs_submit
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'FAILED', '')
+
         run = {
           'new_cluster': NEW_CLUSTER,
           'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
-        db_mock = db_mock_class.return_value
-        db_mock.submit_run.return_value = 1
-        db_mock.get_run_state.return_value = RunState('TERMINATED', 'FAILED', '')
 
         with self.assertRaises(AirflowException):
             op.execute(None)
@@ -219,10 +223,12 @@ class DatabricksSubmitRunOperatorTest(unittest.TestCase):
           'notebook_task': NOTEBOOK_TASK,
           'run_name': TASK_ID,
         })
+        endpoint = '2.0/jobs/runs/submit'
         db_mock_class.assert_called_once_with(
                 DEFAULT_CONN_ID,
                 retry_limit=op.databricks_retry_limit)
-        db_mock.submit_run.assert_called_once_with(expected)
+        db_mock.get_api_method.assert_called_once_with(endpoint)
+        db_mock.jobs_runs_submit.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
         db_mock.get_run_state.assert_called_once_with(RUN_ID)
         self.assertEquals(RUN_ID, op.run_id)
