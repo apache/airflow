@@ -264,7 +264,6 @@ class RunState:
         self.result_state = result_state
         self.state_message = state_message
 
-    @property
     def is_terminal(self):
         """Check wether the terminal is a terminal state."""
         if self.life_cycle_state not in RunState.STATES:
@@ -274,7 +273,6 @@ class RunState:
             raise AirflowException(msg.format(self.life_cycle_state))
         return self.life_cycle_state in RunState.TERMINAL_STATES
 
-    @property
     def is_successful(self):
         return self.result_state == 'SUCCESS'
 
