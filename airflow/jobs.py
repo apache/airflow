@@ -949,8 +949,9 @@ class SchedulerJob(BaseJob):
         """
         For all DAG IDs in the SimpleDagBag, look for task instances in the
         old_states and set them to new_state if the corresponding DagRun
-        exists but is not in the running state. This normally should not
-        happen, but it can if the state of DagRuns are changed manually.
+        does not exist or exists but is not in the running state. This
+        normally should not happen, but it can if the state of DagRuns are
+        changed manually.
 
         :param old_states: examine TaskInstances in this state
         :type old_state: list[State]
@@ -961,35 +962,33 @@ class SchedulerJob(BaseJob):
         :type simple_dag_bag: SimpleDagBag
         """
         tis_changed = 0
+        query = session \
+            .query(models.TaskInstance) \
+            .outerjoin(models.DagRun, and_(
+                models.TaskInstance.dag_id == models.DagRun.dag_id,
+                models.TaskInstance.execution_date == models.DagRun.execution_date)) \
+            .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids)) \
+            .filter(models.TaskInstance.state.in_(old_states)) \
+            .filter(or_(
+                models.DagRun.state != State.RUNNING,
+                models.DagRun.state.is_(None)))
         if self.using_sqlite:
-            tis_to_change = (
-                session
-                    .query(models.TaskInstance)
-                    .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
-                    .filter(models.TaskInstance.state.in_(old_states))
-                    .filter(and_(
-                        models.DagRun.dag_id == models.TaskInstance.dag_id,
-                        models.DagRun.execution_date == models.TaskInstance.execution_date,
-                        models.DagRun.state != State.RUNNING))
-                    .with_for_update()
-                    .all()
-            )
+            tis_to_change = query \
+                .with_for_update() \
+                .all()
             for ti in tis_to_change:
                 ti.set_state(new_state, session=session)
                 tis_changed += 1
         else:
-            tis_changed = (
-                session
-                    .query(models.TaskInstance)
-                    .filter(models.TaskInstance.dag_id.in_(simple_dag_bag.dag_ids))
-                    .filter(models.TaskInstance.state.in_(old_states))
-                    .filter(and_(
-                        models.DagRun.dag_id == models.TaskInstance.dag_id,
-                        models.DagRun.execution_date == models.TaskInstance.execution_date,
-                        models.DagRun.state != State.RUNNING))
-                    .update({models.TaskInstance.state: new_state},
-                            synchronize_session=False)
-            )
+            subq = query.subquery()
+            tis_changed = session \
+                .query(models.TaskInstance) \
+                .filter(and_(
+                    models.TaskInstance.dag_id == subq.c.dag_id,
+                    models.TaskInstance.execution_date ==
+                    subq.c.execution_date)) \
+                .update({models.TaskInstance.state: new_state},
+                        synchronize_session=False)
             session.commit()
 
         if tis_changed > 0:
