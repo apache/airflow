@@ -21,14 +21,14 @@ class EmrStepSensor(EmrBaseSensor):
     Asks for the state of the step until it reaches a terminal state.
     If it fails the sensor errors, failing the task.
 
-    :param job_flow_id: job_flow_idwhich contains the step check the state of
+    :param job_flow_id: job_flow_id which contains the step check the state of
     :type job_flow_id: string
     :param step_id: step to check the state of
     :type step_id: string
     """
 
     NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-    FAILED_STATE = 'FAILED'
+    FAILED_STATE = ['CANCELLED', 'FAILED']
     template_fields = ['job_flow_id', 'step_id']
     template_ext = ()
 
