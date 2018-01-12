@@ -65,6 +65,9 @@ class _DataflowJob(LoggingMixin):
             if 'currentState' in self._job:
                 if 'JOB_STATE_DONE' == self._job['currentState']:
                     return True
+                elif 'JOB_STATE_RUNNING' == self._job['currentState'] and \
+                     'JOB_TYPE_STREAMING' == self._job['type']:
+                    return True
                 elif 'JOB_STATE_FAILED' == self._job['currentState']:
                     raise Exception("Google Cloud Dataflow job {} has failed.".format(
                         self._job['name']))
