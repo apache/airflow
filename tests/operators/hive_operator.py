@@ -81,6 +81,17 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
         self.assertEqual(t.get_hook().mapred_queue, specific_mapred_queue)
 
 
+class HiveOperatorTest(HiveEnvironmentTest):
+
+    def test_hiveconf_jinja_translate(self):
+        hql = "SELECT ${num_col} FROM ${hiveconf:table};"
+        t = operators.hive_operator.HiveOperator(
+            hiveconf_jinja_translate=True,
+            task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
+        t.prepare_template()
+        self.assertEqual(t.hql, "SELECT {{ num_col }} FROM {{ table }};")
+
+
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 
     import airflow.hooks.hive_hooks
