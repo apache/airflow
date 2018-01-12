@@ -20,6 +20,7 @@ import shutil
 import tempfile
 import unittest
 import sys
+import flask_admin
 
 from werkzeug.test import Client
 
@@ -31,6 +32,7 @@ from airflow.settings import Session
 from airflow.utils.timezone import datetime
 from airflow.www import app as application
 from airflow import configuration as conf
+from airflow.utils.state import State
 
 
 class TestChartModelView(unittest.TestCase):
@@ -136,9 +138,9 @@ class TestVariableView(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         # update the variable with a wrong value, given that is encrypted
-        Var = models.Variable
-        (self.session.query(Var)
-            .filter(Var.key == self.variable['key'])
+        var = models.Variable
+        (self.session.query(var)
+            .filter(var.key == self.variable['key'])
             .update({
                 'val': 'failed_value_not_encrypted'
             }, synchronize_session=False))
@@ -444,6 +446,89 @@ class TestMountPoint(unittest.TestCase):
         response, _, _ = self.client.get('/test', follow_redirects=True)
         resp_html = b''.join(response)
         self.assertIn(b"DAGs", resp_html)
+
+
+class TestTaskInstanceModelView(unittest.TestCase):
+    DAG_ID = 'dag_for_testing_setting_subdag_task_instance_state_view'
+    SUBDAG_ID = 'task_for_testing_setting_subdag_task_instance_state_view'
+    SUBDAG_NAME = '{dag_id}.{subdag_id}'.format(dag_id=DAG_ID, subdag_id=SUBDAG_ID)
+    DEFAULT_DATE = datetime(2018, 1, 1)
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestTaskInstanceModelView, cls).setUpClass()
+        session = Session()
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == cls.DAG_ID and
+            TaskInstance.execution_date == cls.DEFAULT_DATE).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestTaskInstanceModelView, self).setUp()
+        self.app = application.create_app(testing=True)
+        self.client = self.app.test_client()
+        self.session = Session()
+        subdag_dag = DAG(self.SUBDAG_NAME, start_date=self.DEFAULT_DATE)
+        subdag_subtask = DummyOperator(task_id='test', dag=subdag_dag)
+        self.subdag_dag_id = subdag_dag.dag_id
+        self.task_id = subdag_subtask.task_id
+        self.row_ids = ['{task_id},{dag_id},{execution_date}'.format(
+            dag_id=flask_admin.tools.escape(self.subdag_dag_id),
+            task_id=flask_admin.tools.escape(self.task_id),
+            execution_date=self.DEFAULT_DATE
+        )]
+        from airflow.www.views import TaskInstanceModelView
+        self.task_instance_model_view = TaskInstanceModelView(
+            TaskInstance, self.session, name="Task Instances", category="Browse"
+        )
+        ti = TaskInstance(task=subdag_subtask, execution_date=self.DEFAULT_DATE)
+        self.session.merge(ti)
+        self.session.commit()
+
+    def tearDown(self):
+        self.session.query(TaskInstance).filter(
+            TaskInstance.dag_id == self.subdag_dag_id and
+            TaskInstance.execution_date == self.DEFAULT_DATE).delete()
+        self.session.commit()
+        self.session.close()
+        super(TestTaskInstanceModelView, self).tearDown()
+
+    def test_set_subdag_state_failed(self):
+        with self.app.test_request_context():
+            self.task_instance_model_view.action_set_failed(self.row_ids)
+            self.assertEqual(self.session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.subdag_dag_id and
+                TaskInstance.task_id == self.task_id and
+                TaskInstance.execution_date == self.DEFAULT_DATE
+            ).one().state, State.FAILED)
+
+    def test_set_subdag_state_up_for_retry(self):
+        with self.app.test_request_context():
+            self.task_instance_model_view.action_set_retry(self.row_ids)
+            self.assertEqual(self.session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.subdag_dag_id and
+                TaskInstance.task_id == self.task_id and
+                TaskInstance.execution_date == self.DEFAULT_DATE
+            ).one().state, State.UP_FOR_RETRY)
+
+    def test_set_subdag_state_running(self):
+        with self.app.test_request_context():
+            self.task_instance_model_view.action_set_running(self.row_ids)
+            self.assertEqual(self.session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.subdag_dag_id and
+                TaskInstance.task_id == self.task_id and
+                TaskInstance.execution_date == self.DEFAULT_DATE
+            ).one().state, State.RUNNING)
+
+    def test_set_subdag_state_success(self):
+        with self.app.test_request_context():
+            self.task_instance_model_view.action_set_success(self.row_ids)
+            self.assertEqual(self.session.query(TaskInstance).filter(
+                TaskInstance.dag_id == self.subdag_dag_id and
+                TaskInstance.task_id == self.task_id and
+                TaskInstance.execution_date == self.DEFAULT_DATE
+            ).one().state, State.SUCCESS)
 
 
 if __name__ == '__main__':

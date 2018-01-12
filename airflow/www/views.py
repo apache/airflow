@@ -1863,9 +1863,7 @@ class HomeView(AdminIndexView):
         if hide_paused:
             sql_query = sql_query.filter(~DM.is_paused)
 
-        orm_dags = {dag.dag_id: dag for dag
-                    in sql_query
-                    .all()}
+        orm_dags = {dag.dag_id: dag for dag in sql_query.all()}
 
         import_errors = session.query(models.ImportError).all()
         for ie in import_errors:
@@ -2081,11 +2079,11 @@ class SlaMissModelView(wwwutils.SuperUserMixin, ModelViewOnly):
 @provide_session
 def _connection_ids(session=None):
     return [
-            (c.conn_id, c.conn_id)
-            for c in (
-                session.query(models.Connection.conn_id)
-                    .group_by(models.Connection.conn_id)
-            )
+        (c.conn_id, c.conn_id)
+        for c in (
+            session.query(models.Connection.conn_id).group_by(
+                models.Connection.conn_id
+            ))
     ]
 
 
@@ -2564,6 +2562,8 @@ class TaskInstanceModelView(ModelViewOnly):
             # Collect dags upfront as dagbag.get_dag() will reset the session
             for id_str in ids:
                 task_id, dag_id, execution_date = id_str.split(',')
+                task_id = wwwutils.flask_admin_unescape(task_id)
+                dag_id = wwwutils.flask_admin_unescape(dag_id)
                 dag = dagbag.get_dag(dag_id)
                 task_details = dag_to_task_details.setdefault(dag, [])
                 task_details.append((task_id, execution_date))
@@ -2599,6 +2599,8 @@ class TaskInstanceModelView(ModelViewOnly):
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
                 execution_date = parse_execution_date(execution_date)
+                task_id = wwwutils.flask_admin_unescape(task_id)
+                dag_id = wwwutils.flask_admin_unescape(dag_id)
 
                 ti = session.query(TI).filter(TI.task_id == task_id,
                                               TI.dag_id == dag_id,
