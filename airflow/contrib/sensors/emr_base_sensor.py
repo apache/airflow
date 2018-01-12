@@ -45,7 +45,7 @@ class EmrBaseSensor(BaseSensorOperator):
         if state in self.NON_TERMINAL_STATES:
             return False
 
-        if state == self.FAILED_STATE:
+        if state in self.FAILED_STATE:
             raise AirflowException('EMR job failed')
 
         return True

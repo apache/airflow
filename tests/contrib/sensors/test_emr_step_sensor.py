@@ -13,12 +13,11 @@
 # limitations under the License.
 
 import unittest
-import datetime
-from dateutil.tz import tzlocal
+from datetime import datetime
 from mock import MagicMock, patch
-import boto3
+from dateutil.tz import tzlocal
 
-from airflow import configuration
+from airflow import configuration, AirflowException
 from airflow.contrib.sensors.emr_step_sensor import EmrStepSensor
 
 DESCRIBE_JOB_STEP_RUNNING_RETURN = {
@@ -43,8 +42,37 @@ DESCRIBE_JOB_STEP_RUNNING_RETURN = {
             'State': 'RUNNING',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 20, 19, 0, 18, 787000, tzinfo=tzlocal()),
-                'StartDateTime': datetime.datetime(2016, 6, 20, 19, 2, 34, 889000, tzinfo=tzlocal())
+                'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18, tzinfo=tzlocal()),
+                'StartDateTime': datetime(2016, 6, 20, 19, 2, 34, tzinfo=tzlocal())
+            }
+        }
+    }
+}
+
+DESCRIBE_JOB_STEP_CANCELLED_RETURN = {
+    'ResponseMetadata': {
+        'HTTPStatusCode': 200,
+        'RequestId': '8dee8db2-3719-11e6-9e20-35b2f861a2a6'
+    },
+    'Step': {
+        'ActionOnFailure': 'CONTINUE',
+        'Config': {
+            'Args': [
+                '/usr/lib/spark/bin/run-example',
+                'SparkPi',
+                '10'
+            ],
+            'Jar': 'command-runner.jar',
+            'Properties': {}
+        },
+        'Id': 's-VK57YR1Z9Z5N',
+        'Name': 'calculate_pi',
+        'Status': {
+            'State': 'CANCELLED',
+            'StateChangeReason': {},
+            'Timeline': {
+                'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18, tzinfo=tzlocal()),
+                'StartDateTime': datetime(2016, 6, 20, 19, 2, 34, tzinfo=tzlocal())
             }
         }
     }
@@ -72,8 +100,8 @@ DESCRIBE_JOB_STEP_COMPLETED_RETURN = {
             'State': 'COMPLETED',
             'StateChangeReason': {},
             'Timeline': {
-                'CreationDateTime': datetime.datetime(2016, 6, 20, 19, 0, 18, 787000, tzinfo=tzlocal()),
-                'StartDateTime': datetime.datetime(2016, 6, 20, 19, 2, 34, 889000, tzinfo=tzlocal())
+                'CreationDateTime': datetime(2016, 6, 20, 19, 0, 18, tzinfo=tzlocal()),
+                'StartDateTime': datetime(2016, 6, 20, 19, 2, 34, tzinfo=tzlocal())
             }
         }
     }
@@ -84,35 +112,42 @@ class TestEmrStepSensor(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
 
-        # Mock out the emr_client (moto has incorrect response)
-        self.mock_emr_client = MagicMock()
-        self.mock_emr_client.describe_step.side_effect = [
+        self.emr_client_mock = MagicMock()
+        self.sensor = EmrStepSensor(
+            task_id='test_task',
+            poke_interval=1,
+            job_flow_id='j-8989898989',
+            step_id='s-VK57YR1Z9Z5N',
+            aws_conn_id='aws_default',
+        )
+
+    def test_step_completed(self):
+        self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_COMPLETED_RETURN
         ]
 
-        # Mock out the emr_client creator
-        self.boto3_client_mock = MagicMock(return_value=self.mock_emr_client)
+        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
 
-
-    def test_execute_calls_with_the_job_flow_id_and_step_id_until_it_reaches_a_terminal_state(self):
         with patch('boto3.client', self.boto3_client_mock):
+            self.sensor.execute(None)
 
-            operator = EmrStepSensor(
-                task_id='test_task',
-                poke_interval=1,
-                job_flow_id='j-8989898989',
-                step_id='s-VK57YR1Z9Z5N',
-                aws_conn_id='aws_default',
+            self.assertEqual(self.emr_client_mock.describe_step.call_count, 2)
+            self.emr_client_mock.describe_step.assert_called_with(
+                ClusterId='j-8989898989',
+                StepId='s-VK57YR1Z9Z5N'
             )
 
-            operator.execute(None)
+    def test_step_cancelled(self):
+        self.emr_client_mock.describe_step.side_effect = [
+            DESCRIBE_JOB_STEP_RUNNING_RETURN,
+            DESCRIBE_JOB_STEP_CANCELLED_RETURN
+        ]
 
-            # make sure we called twice
-            self.assertEqual(self.mock_emr_client.describe_step.call_count, 2)
+        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
 
-            # make sure it was called with the job_flow_id and step_id
-            self.mock_emr_client.describe_step.assert_called_with(ClusterId='j-8989898989', StepId='s-VK57YR1Z9Z5N')
+        with patch('boto3.client', self.boto3_client_mock):
+            self.assertRaises(AirflowException, self.sensor.execute, None)
 
 
 if __name__ == '__main__':
