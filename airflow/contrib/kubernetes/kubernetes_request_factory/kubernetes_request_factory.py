@@ -132,32 +132,20 @@ class KubernetesRequestFactory:
         if pod.resources.has_requests():
             req['spec']['containers'][0]['resources']['requests'] = {}
             if pod.resources.request_memory:
-<<<<<<< HEAD
                 req['spec']['containers'][0]['resources']['requests'][
                     'memory'] = pod.resources.request_memory
             if pod.resources.request_cpu:
                 req['spec']['containers'][0]['resources']['requests'][
                     'cpu'] = pod.resources.request_cpu
-=======
-                req['spec']['containers'][0]['resources']['requests']['memory'] = pod.resources.request_memory
-            if pod.resources.request_cpu:
-                req['spec']['containers'][0]['resources']['requests']['cpu'] = pod.resources.request_cpu
->>>>>>> bd1c6b92... Added in executor_config to the task_instance table and the base_oper… (#23)
 
         if pod.resources.has_limits():
             req['spec']['containers'][0]['resources']['limits'] = {}
             if pod.resources.request_memory:
-<<<<<<< HEAD
                 req['spec']['containers'][0]['resources']['limits'][
                     'memory'] = pod.resources.limit_memory
             if pod.resources.request_cpu:
                 req['spec']['containers'][0]['resources']['limits'][
                     'cpu'] = pod.resources.limit_cpu
-=======
-                req['spec']['containers'][0]['resources']['limits']['memory'] = pod.resources.limit_memory
-            if pod.resources.request_cpu:
-                req['spec']['containers'][0]['resources']['limits']['cpu'] = pod.resources.limit_cpu
->>>>>>> bd1c6b92... Added in executor_config to the task_instance table and the base_oper… (#23)
 
     @staticmethod
     def extract_init_containers(pod, req):
