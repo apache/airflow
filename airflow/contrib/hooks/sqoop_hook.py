@@ -93,6 +93,7 @@ class SqoopHook(BaseHook, LoggingMixin):
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
+        self.sp = sp
 
         for line in iter(sp.stdout):
             self.log.info(line.strip())
