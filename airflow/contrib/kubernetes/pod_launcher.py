@@ -54,7 +54,7 @@ class PodLauncher(LoggingMixin):
             raise
         return resp
 
-    def run_pod(self, pod, startup_timeout=120):
+    def run_pod(self, pod, startup_timeout=120, get_logs=True):
         # type: (Pod) -> State
         """
         Launches the pod synchronously and waits for completion.
@@ -74,15 +74,25 @@ class PodLauncher(LoggingMixin):
                 time.sleep(1)
             self.log.debug('Pod not yet started')
 
-        final_status = self._monitor_pod(pod)
+        final_status = self._monitor_pod(pod, get_logs)
         return final_status
 
-    def _monitor_pod(self, pod):
+    def _monitor_pod(self, pod, get_logs):
         # type: (Pod) -> State
 
-        while self.pod_is_running(pod):
-            self.log.info("Pod {} has state {}".format(pod.name, State.RUNNING))
-            time.sleep(2)
+        if get_logs:
+            logs = self._client.read_namespaced_pod_log(
+                name=pod.name,
+                namespace=pod.namespace,
+                follow=True,
+                tail_lines=10,
+                _preload_content=False)
+            for line in logs:
+                self.log.info(line)
+        else:
+            while self.pod_is_running(pod):
+                self.log.info("Pod {} has state {}".format(pod.name, State.RUNNING))
+                time.sleep(2)
         return self._task_status(self.read_pod(pod))
 
     def _task_status(self, event):
