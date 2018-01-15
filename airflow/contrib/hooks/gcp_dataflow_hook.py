@@ -151,23 +151,25 @@ class DataFlowHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized)
 
-    def _start_dataflow(self, task_id, variables, dataflow,
-                        name, command_prefix, label_formatter):
+    def _start_dataflow(self, task_id, variables, name,
+                        command_prefix, label_formatter):
         cmd = command_prefix + self._build_cmd(task_id, variables,
-                                               dataflow, label_formatter)
+                                               label_formatter)
         _Dataflow(cmd).wait_for_done()
         _DataflowJob(self.get_conn(), variables['project'],
                      name, self.poll_sleep).wait_for_done()
 
-    def start_java_dataflow(self, task_id, variables, dataflow):
+    def start_java_dataflow(self, task_id, variables, dataflow, job_class=None):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         variables['jobName'] = name
 
         def label_formatter(labels_dict):
             return ['--labels={}'.format(
                     json.dumps(labels_dict).replace(' ', ''))]
-        self._start_dataflow(task_id, variables, dataflow, name,
-                             ["java", "-jar"], label_formatter)
+        command_prefix = (["java", "-cp", dataflow, job_class] if job_class
+                          else ["java", "-jar", dataflow])
+        self._start_dataflow(task_id, variables, name,
+                             command_prefix, label_formatter)
 
     def start_template_dataflow(self, task_id, variables, parameters, dataflow_template):
         name = task_id + "-" + str(uuid.uuid1())[:8]
@@ -181,11 +183,12 @@ class DataFlowHook(GoogleCloudBaseHook):
         def label_formatter(labels_dict):
             return ['--labels={}={}'.format(key, value)
                     for key, value in labels_dict.items()]
-        self._start_dataflow(task_id, variables, dataflow, name,
-                             ["python"] + py_options, label_formatter)
+        self._start_dataflow(task_id, variables, name,
+                             ["python"] + py_options + [dataflow],
+                             label_formatter)
 
-    def _build_cmd(self, task_id, variables, dataflow, label_formatter):
-        command = [dataflow, "--runner=DataflowRunner"]
+    def _build_cmd(self, task_id, variables, label_formatter):
+        command = ["--runner=DataflowRunner"]
         if variables is not None:
             for attr, value in variables.items():
                 if attr == 'labels':
