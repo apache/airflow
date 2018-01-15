@@ -27,7 +27,7 @@ from importlib import import_module
 import argparse
 from builtins import input
 from collections import namedtuple
-from dateutil.parser import parse as parsedate
+from airflow.utils.timezone import parse as parsedate
 import json
 from tabulate import tabulate
 
