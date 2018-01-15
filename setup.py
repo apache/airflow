@@ -208,7 +208,7 @@ def do_setup():
             'dill>=0.2.2, <0.3',
             'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
-            'flask-cache>=0.13.1, <0.14',
+            'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
             'flask-wtf>=0.14, <0.15',
