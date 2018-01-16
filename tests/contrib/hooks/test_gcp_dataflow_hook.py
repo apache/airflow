@@ -37,6 +37,7 @@ PARAMETERS = {
 }
 PY_FILE = 'apache_beam.examples.wordcount'
 JAR_FILE = 'unitest.jar'
+JOB_CLASS = 'com.example.UnitTest'
 PY_OPTIONS = ['-m']
 DATAFLOW_OPTIONS_PY = {
     'project': 'test',
@@ -62,7 +63,7 @@ def mock_init(self, gcp_conn_id, delegate_to=None):
     pass
 
 
-class DataFlowPythonHookTest(unittest.TestCase):
+class DataFlowHookTest(unittest.TestCase):
 
     def setUp(self):
         with mock.patch(BASE_STRING.format('GoogleCloudBaseHook.__init__'),
@@ -114,6 +115,30 @@ class DataFlowPythonHookTest(unittest.TestCase):
                         '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
         self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
                              sorted(EXPECTED_CMD))
+
+    @mock.patch(DATAFLOW_STRING.format('uuid.uuid1'))
+    @mock.patch(DATAFLOW_STRING.format('_DataflowJob'))
+    @mock.patch(DATAFLOW_STRING.format('_Dataflow'))
+    @mock.patch(DATAFLOW_STRING.format('DataFlowHook.get_conn'))
+    def test_start_java_dataflow_with_job_class(
+            self, mock_conn, mock_dataflow, mock_dataflowjob, mock_uuid):
+        mock_uuid.return_value = MOCK_UUID
+        mock_conn.return_value = None
+        dataflow_instance = mock_dataflow.return_value
+        dataflow_instance.wait_for_done.return_value = None
+        dataflowjob_instance = mock_dataflowjob.return_value
+        dataflowjob_instance.wait_for_done.return_value = None
+        self.dataflow_hook.start_java_dataflow(
+            task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
+            dataflow=JAR_FILE, job_class=JOB_CLASS)
+        EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
+                        '--runner=DataflowRunner', '--project=test',
+                        '--stagingLocation=gs://test/staging',
+                        '--labels={"foo":"bar"}',
+                        '--jobName={}-{}'.format(TASK_ID, MOCK_UUID)]
+        self.assertListEqual(sorted(mock_dataflow.call_args[0][0]),
+                             sorted(EXPECTED_CMD))
+
 
     @mock.patch('airflow.contrib.hooks.gcp_dataflow_hook._Dataflow.log')
     @mock.patch('subprocess.Popen')

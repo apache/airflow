@@ -73,6 +73,7 @@ class DataFlowJavaOperator(BaseOperator):
             gcp_conn_id='google_cloud_default',
             delegate_to=None,
             poll_sleep=10,
+            job_class=None,
             *args,
             **kwargs):
         """
@@ -103,6 +104,9 @@ class DataFlowJavaOperator(BaseOperator):
             Cloud Platform for the dataflow job status while the job is in the
             JOB_STATE_RUNNING state.
         :type poll_sleep: int
+        :param job_class: The name of the dataflow job class to be executued, it
+        is often not the main class configured in the dataflow jar file.
+        :type job_class: string
         """
         super(DataFlowJavaOperator, self).__init__(*args, **kwargs)
 
@@ -116,6 +120,7 @@ class DataFlowJavaOperator(BaseOperator):
         self.dataflow_default_options = dataflow_default_options
         self.options = options
         self.poll_sleep = poll_sleep
+        self.job_class = job_class
 
     def execute(self, context):
         bucket_helper = GoogleCloudBucketHelper(
@@ -128,7 +133,8 @@ class DataFlowJavaOperator(BaseOperator):
         dataflow_options = copy.copy(self.dataflow_default_options)
         dataflow_options.update(self.options)
 
-        hook.start_java_dataflow(self.task_id, dataflow_options, self.jar)
+        hook.start_java_dataflow(self.task_id, dataflow_options,
+                                 self.jar, self.job_class)
 
 
 class DataflowTemplateOperator(BaseOperator):
