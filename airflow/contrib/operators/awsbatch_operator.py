@@ -143,7 +143,8 @@ class AWSBatchOperator(BaseOperator):
             if 'attempts' in job:
                 containers = job['attempts']
                 for container in containers:
-                    if job['status'] == 'FAILED' or container['attempts']['exitCode'] != 0:
+                    if (job['status'] == 'FAILED' or
+                            container['container']['exitCode'] != 0):
                         print("@@@@")
                         raise AirflowException('This containers encounter an error during execution {}'.format(job))
             elif job['status'] is not 'SUCCEEDED':
