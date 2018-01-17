@@ -409,7 +409,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     .format(returncode)
                 )
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])

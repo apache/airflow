@@ -34,7 +34,7 @@ from wtforms.compat import text_type
 from airflow import configuration, models, settings
 from airflow.utils.db import create_session
 from airflow.utils import timezone
-from airflow.utils.json import AirflowJsonEncoder
+from airflow.utils.airflow_json import AirflowJsonEncoder
 
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 

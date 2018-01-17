@@ -61,7 +61,7 @@ class BashOperator(BaseOperator):
         self.xcom_push_flag = xcom_push
         self.output_encoding = output_encoding
 
-    def execute(self, context):
+    def execute(self, context, persistent_context):
         """
         Execute the bash command in a temporary directory
         which will be cleaned afterwards
@@ -92,7 +92,7 @@ class BashOperator(BaseOperator):
                     cwd=tmp_dir, env=self.env,
                     preexec_fn=pre_exec)
 
-                self.sp = sp
+                persistent_context.save_kv('pid', sp.pid)
 
                 self.log.info("Output:")
                 line = ''
@@ -111,7 +111,6 @@ class BashOperator(BaseOperator):
         if self.xcom_push_flag:
             return line
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         self.log.info('Sending SIGTERM signal to bash process group')
-        os.killpg(os.getpgid(self.sp.pid), signal.SIGTERM)
-
+        os.killpg(os.getpgid(persistent_context.get('pid')), signal.SIGTERM)

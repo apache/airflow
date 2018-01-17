@@ -154,5 +154,5 @@ class SparkSubmitOperator(BaseOperator):
         )
         self._hook.submit(self._application)
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         self._hook.on_kill()

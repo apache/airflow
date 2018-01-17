@@ -43,7 +43,7 @@ from time import sleep
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.logging_config import configure_logging
+from airflow.utils.persistent_context import PersistentContext
 from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task_runner import get_task_runner
@@ -2537,7 +2537,9 @@ class LocalTaskJob(BaseJob):
             self.on_kill()
 
     def on_kill(self):
-        self.task_instance.task.on_kill()
+        self.task_instance.refresh_from_db()
+        persistent_context = PersistentContext(self.task_instance.saved_context, self.task_instance)
+        self.task_instance.task.on_kill(persistent_context=persistent_context)
         self.task_runner.terminate()
         self.task_runner.on_finish()
 
@@ -2547,7 +2549,7 @@ class LocalTaskJob(BaseJob):
 
         if self.terminating:
             # ensure termination if processes are created later
-            self.task_runner.terminate()
+            self.on_kill()
             return
 
         self.task_instance.refresh_from_db()
@@ -2574,5 +2576,4 @@ class LocalTaskJob(BaseJob):
                 "State of this instance has been externally set to %s. Taking the poison pill.",
                 ti.state
             )
-            self.task_runner.terminate()
             self.terminating = True
