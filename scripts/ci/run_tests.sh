@@ -44,5 +44,5 @@ fi
 
 if [[ "$SKIP_TESTS" != "true" ]]; then
     echo Backend: $AIRFLOW__CORE__SQL_ALCHEMY_CONN
-    ./run_unit_tests.sh
+    ./run_unit_tests.sh $@
 fi

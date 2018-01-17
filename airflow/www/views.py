@@ -28,6 +28,7 @@ import math
 import json
 import bleach
 import pendulum
+import codecs
 from collections import defaultdict
 
 import inspect
@@ -45,7 +46,7 @@ from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
 from flask_admin.babel import lazy_gettext
 from flask_admin.tools import iterdecode
-from flask_login import flash
+from flask import flash
 from flask._compat import PY2
 
 from jinja2.sandbox import ImmutableSandboxedEnvironment
@@ -88,6 +89,8 @@ from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
 CHART_LIMIT = 200000
+
+UTF8_READER = codecs.getreader('utf-8')
 
 dagbag = models.DagBag(settings.DAGS_FOLDER)
 
@@ -1790,10 +1793,9 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     def varimport(self):
         try:
-            out = str(request.files['file'].read())
-            d = json.loads(out)
-        except Exception:
-            flash("Missing file or syntax error.")
+            d = json.load(UTF8_READER(request.files['file']))
+        except Exception as e:
+            flash("Missing file or syntax error: {}.".format(e))
         else:
             for k, v in d.items():
                 models.Variable.set(k, v, serialize_json=isinstance(v, dict))

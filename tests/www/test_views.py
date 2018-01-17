@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import io
 import copy
 import logging.config
 import os
@@ -326,9 +327,9 @@ class TestLogView(unittest.TestCase):
         configuration.load_test_config()
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        logging_config['handlers']['file.task']['base_log_folder'] = os.path.normpath(
+        logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
             os.path.join(current_dir, 'test_logs'))
-        logging_config['handlers']['file.task']['filename_template'] = \
+        logging_config['handlers']['task']['filename_template'] = \
             '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
         # Write the custom logging configuration to a file
@@ -376,6 +377,51 @@ class TestLogView(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('Log file does not exist',
                       response.data.decode('utf-8'))
+
+
+class TestVarImportView(unittest.TestCase):
+
+    IMPORT_ENDPOINT = '/admin/airflow/varimport'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestVarImportView, cls).setUpClass()
+        session = Session()
+        session.query(models.User).delete()
+        session.commit()
+        user = models.User(username='airflow')
+        session.add(user)
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestVarImportView, self).setUp()
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        self.app = app.test_client()
+
+    def tearDown(self):
+        super(TestVarImportView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        session = Session()
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
+        super(TestVarImportView, cls).tearDownClass()
+
+    def test_import_variables(self):
+        response = self.app.post(
+            self.IMPORT_ENDPOINT,
+            data={'file': (io.BytesIO(b'{"KEY": "VALUE"}'), 'test.json')},
+            follow_redirects=True
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode('utf-8')
+        self.assertIn('KEY', body)
+        self.assertIn('VALUE', body)
 
 
 if __name__ == '__main__':

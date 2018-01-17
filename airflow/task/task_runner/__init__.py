@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from airflow import configuration
-from airflow.task_runner.bash_task_runner import BashTaskRunner
+from airflow.task.task_runner.bash_task_runner import BashTaskRunner
 from airflow.exceptions import AirflowException
 
 _TASK_RUNNER = configuration.get('core', 'TASK_RUNNER')
@@ -27,7 +27,7 @@ def get_task_runner(local_task_job):
     that needs to be executed.
     :type local_task_job: airflow.jobs.LocalTaskJob
     :return: The task runner to use to run the task.
-    :rtype: airflow.task_runner.base_task_runner.BaseTaskRunner
+    :rtype: airflow.task.task_runner.base_task_runner.BaseTaskRunner
     """
     if _TASK_RUNNER == "BashTaskRunner":
         return BashTaskRunner(local_task_job)

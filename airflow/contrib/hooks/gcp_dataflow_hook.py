@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import select
 import subprocess
 import time
@@ -63,6 +64,9 @@ class _DataflowJob(LoggingMixin):
         while True:
             if 'currentState' in self._job:
                 if 'JOB_STATE_DONE' == self._job['currentState']:
+                    return True
+                elif 'JOB_STATE_RUNNING' == self._job['currentState'] and \
+                     'JOB_TYPE_STREAMING' == self._job['type']:
                     return True
                 elif 'JOB_STATE_FAILED' == self._job['currentState']:
                     raise Exception("Google Cloud Dataflow job {} has failed.".format(
@@ -147,27 +151,71 @@ class DataFlowHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataflow', 'v1b3', http=http_authorized)
 
-    def _start_dataflow(self, task_id, variables, dataflow, name, command_prefix):
-        cmd = command_prefix + self._build_cmd(task_id, variables, dataflow)
+    def _start_dataflow(self, task_id, variables, name,
+                        command_prefix, label_formatter):
+        cmd = command_prefix + self._build_cmd(task_id, variables,
+                                               label_formatter)
         _Dataflow(cmd).wait_for_done()
-        _DataflowJob(
-            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
+        _DataflowJob(self.get_conn(), variables['project'],
+                     name, self.poll_sleep).wait_for_done()
 
-    def start_java_dataflow(self, task_id, variables, dataflow):
+    def start_java_dataflow(self, task_id, variables, dataflow, job_class=None):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         variables['jobName'] = name
-        self._start_dataflow(
-            task_id, variables, dataflow, name, ["java", "-jar"])
+
+        def label_formatter(labels_dict):
+            return ['--labels={}'.format(
+                    json.dumps(labels_dict).replace(' ', ''))]
+        command_prefix = (["java", "-cp", dataflow, job_class] if job_class
+                          else ["java", "-jar", dataflow])
+        self._start_dataflow(task_id, variables, name,
+                             command_prefix, label_formatter)
+
+    def start_template_dataflow(self, task_id, variables, parameters, dataflow_template):
+        name = task_id + "-" + str(uuid.uuid1())[:8]
+        self._start_template_dataflow(
+            name, variables, parameters, dataflow_template)
 
     def start_python_dataflow(self, task_id, variables, dataflow, py_options):
         name = task_id + "-" + str(uuid.uuid1())[:8]
         variables["job_name"] = name
-        self._start_dataflow(
-            task_id, variables, dataflow, name, ["python"] + py_options)
 
-    def _build_cmd(self, task_id, variables, dataflow):
-        command = [dataflow, "--runner=DataflowRunner"]
+        def label_formatter(labels_dict):
+            return ['--labels={}={}'.format(key, value)
+                    for key, value in labels_dict.items()]
+        self._start_dataflow(task_id, variables, name,
+                             ["python"] + py_options + [dataflow],
+                             label_formatter)
+
+    def _build_cmd(self, task_id, variables, label_formatter):
+        command = ["--runner=DataflowRunner"]
         if variables is not None:
-            for attr, value in variables.iteritems():
-                command.append("--" + attr + "=" + value)
+            for attr, value in variables.items():
+                if attr == 'labels':
+                    command += label_formatter(value)
+                else:
+                    command.append("--" + attr + "=" + value)
         return command
+
+    def _start_template_dataflow(self, name, variables, parameters, dataflow_template):
+        # Builds RuntimeEnvironment from variables dictionary
+        # https://cloud.google.com/dataflow/docs/reference/rest/v1b3/RuntimeEnvironment
+        environment = {}
+        for key in ['maxWorkers', 'zone', 'serviceAccountEmail', 'tempLocation',
+                    'bypassTempDirValidation', 'machineType']:
+            if key in variables:
+                environment.update({key: variables[key]})
+        body = {"jobName": name,
+                "parameters": parameters,
+                "environment": environment}
+        service = self.get_conn()
+        if variables['project'] is None:
+            raise Exception(
+                'Project not specified')
+        request = service.projects().templates().launch(projectId=variables['project'],
+                                                        gcsPath=dataflow_template,
+                                                        body=body)
+        response = request.execute()
+        _DataflowJob(
+            self.get_conn(), variables['project'], name, self.poll_sleep).wait_for_done()
+        return response

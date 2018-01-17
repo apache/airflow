@@ -16,6 +16,7 @@
 import unittest
 import mock
 
+from airflow import AirflowException
 from airflow.contrib.hooks import bigquery_hook as hook
 from oauth2client.contrib.gce import HttpAccessTokenRefreshError
 
@@ -173,6 +174,7 @@ def mock_job_cancel(projectId, jobId):
     mock_canceled_jobs.append(jobId)
     return mock.Mock()
 
+
 class TestBigQueryBaseCursor(unittest.TestCase):
     def test_invalid_schema_update_options(self):
         with self.assertRaises(Exception) as context:
@@ -194,25 +196,117 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 write_disposition='WRITE_EMPTY'
             )
         self.assertIn("schema_update_options is only", str(context.exception))
-    
+
     @mock.patch("airflow.contrib.hooks.bigquery_hook.LoggingMixin")
     @mock.patch("airflow.contrib.hooks.bigquery_hook.time")
     def test_cancel_queries(self, mocked_logging, mocked_time):
         project_id = 12345
         running_job_id = 3
-        
+
         mock_jobs = mock.Mock()
         mock_jobs.cancel = mock.Mock(side_effect=mock_job_cancel)
         mock_service = mock.Mock()
         mock_service.jobs = mock.Mock(return_value=mock_jobs)
-        
+
         bq_hook = hook.BigQueryBaseCursor(mock_service, project_id)
         bq_hook.running_job_id = running_job_id
         bq_hook.poll_job_complete = mock.Mock(side_effect=mock_poll_job_complete)
-        
+
         bq_hook.cancel_query()
-        
+
         mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
+
+
+class TestTimePartitioningInRunJob(unittest.TestCase):
+
+    class BigQueryBaseCursorTest(hook.BigQueryBaseCursor):
+        """Use this class to verify the load configuration"""
+        def run_with_configuration(self, configuration):
+            return configuration
+
+    class Serv(object):
+        """mocks the behaviour of a succezsfull Job"""
+
+        class Job(object):
+            """mocks the behaviour of a succezsfull Job"""
+            def __getitem__(self, item=None):
+                return self
+
+            def get(self, projectId, jobId=None):
+                return self.__getitem__(projectId)
+
+            def insert(self, projectId, body=None):
+                return self.get(projectId, body)
+
+            def execute(self):
+                return {
+                    'status': {'state': 'DONE'},
+                    'jobReference': {'jobId': 0}
+                }
+
+        def __int__(self, job='mock_load'):
+            self.job = job
+
+        def jobs(self):
+            return self.Job()
+
+    def test_the_job_execution_wont_break(self):
+        s = self.Serv()
+        bqc = hook.BigQueryBaseCursor(s, 'str')
+        job = bqc.run_load(
+            destination_project_dataset_table='test.teast',
+            schema_fields=[],
+            source_uris=[],
+            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+        )
+
+        self.assertEquals(job, 0)
+
+    def test_dollar_makes_partition(self):
+        s = self.Serv()
+        bqc = self.BigQueryBaseCursorTest(s, 'str')
+        cnfg = bqc.run_load(
+            destination_project_dataset_table='test.teast$20170101',
+            schema_fields=[],
+            source_uris=[],
+            src_fmt_configs={}
+        )
+        expect = {
+            'type': 'DAY'
+        }
+        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
+
+    def test_extra_time_partitioning_options(self):
+        s = self.Serv()
+        bqc = self.BigQueryBaseCursorTest(s, 'str')
+        cnfg = bqc.run_load(
+            destination_project_dataset_table='test.teast',
+            schema_fields=[],
+            source_uris=[],
+            time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+        )
+
+        expect = {
+            'type': 'DAY',
+            'field': 'test_field',
+            'expirationMs': 1000
+        }
+
+        self.assertEqual(cnfg['load'].get('timePartitioning'), expect)
+
+    def test_cant_add_dollar_and_field_name(self):
+        s = self.Serv()
+        bqc = self.BigQueryBaseCursorTest(s, 'str')
+
+        with self.assertRaises(AirflowException):
+            tp_dict = {'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
+            bqc.run_load(
+                destination_project_dataset_table='test.teast$20170101',
+                schema_fields=[],
+                source_uris=[],
+                time_partitioning=tp_dict
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

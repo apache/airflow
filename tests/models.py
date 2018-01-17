@@ -24,7 +24,7 @@ import pendulum
 import unittest
 import time
 
-from airflow import models, settings, AirflowException
+from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
@@ -32,6 +32,7 @@ from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
 from airflow.models import clear_task_instances
 from airflow.models import XCom
+from airflow.models import Connection
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -82,7 +83,6 @@ class DagTest(unittest.TestCase):
     def test_dag_as_context_manager(self):
         """
         Test DAG as a context manager.
-
         When used as a context manager, Operators are automatically added to
         the DAG (unless they specifiy a different DAG)
         """
@@ -1574,3 +1574,26 @@ class ClearTasksTest(unittest.TestCase):
 
         for result in results:
             self.assertEqual(result.value, json_obj)
+
+class ConnectionTest(unittest.TestCase):
+    @patch.object(configuration, 'get')
+    def test_connection_extra_no_encryption(self, mock_get):
+        """
+        Tests extras on a new connection without encryption. The fernet key
+        is set to a non-base64-encoded string and the extra is stored without
+        encryption.
+        """
+        mock_get.return_value = 'cryptography_not_found_storing_passwords_in_plain_text'
+        test_connection = Connection(extra='testextra')
+        self.assertEqual(test_connection.extra, 'testextra')
+
+    @patch.object(configuration, 'get')
+    def test_connection_extra_with_encryption(self, mock_get):
+        """
+        Tests extras on a new connection with encryption. The fernet key
+        is set to a base64 encoded string and the extra is encrypted.
+        """
+        # 'dGVzdA==' is base64 encoded 'test'
+        mock_get.return_value = 'dGVzdA=='
+        test_connection = Connection(extra='testextra')
+        self.assertEqual(test_connection.extra, 'testextra')

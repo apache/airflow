@@ -123,7 +123,7 @@ which you can setup on your fork as well to check before you submit your
 PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/)
 and a few other linting rules. It is usually a good idea to lint locally
 as well using [flake8](https://flake8.readthedocs.org/en/latest/)
-using `flake8 airflow tests`
+using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
 9. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on
 commit messages and adhere to them. It makes the lives of those who
 come after you a lot easier.
@@ -134,6 +134,10 @@ come after you a lot easier.
 Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
 
     ./run_unit_tests.sh
+
+Individual test files can be run with:
+
+    nosetests [path to file]
 
 #### Running unit tests
 

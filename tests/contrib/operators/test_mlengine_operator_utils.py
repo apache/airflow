@@ -26,11 +26,13 @@ from airflow import configuration, DAG
 from airflow.contrib.operators import mlengine_operator_utils
 from airflow.contrib.operators.mlengine_operator_utils import create_evaluate_ops
 from airflow.exceptions import AirflowException
+from airflow.version import version
 
 from mock import ANY
 from mock import patch
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
+TEST_VERSION = 'v{}'.format(version.replace('.', '-').replace('+', '-'))
 
 
 class CreateEvaluateOpsTest(unittest.TestCase):
@@ -115,6 +117,7 @@ class CreateEvaluateOpsTest(unittest.TestCase):
                 'eval-test-summary',
                 {
                     'prediction_path': 'gs://legal-bucket/fake-output-path',
+                    'labels': {'airflow-version': TEST_VERSION},
                     'metric_keys': 'err',
                     'metric_fn_encoded': self.metric_fn_encoded,
                 },

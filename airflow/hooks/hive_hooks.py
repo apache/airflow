@@ -25,6 +25,7 @@ import time
 from tempfile import NamedTemporaryFile
 import hive_metastore
 
+from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.helpers import as_flattened_list
@@ -82,7 +83,8 @@ class HiveCliHook(BaseHook):
                     "Invalid Mapred Queue Priority.  Valid values are: "
                     "{}".format(', '.join(HIVE_QUEUE_PRIORITIES)))
 
-        self.mapred_queue = mapred_queue
+        self.mapred_queue = mapred_queue or conf.get('hive',
+                                                     'default_hive_mapred_queue')
         self.mapred_queue_priority = mapred_queue_priority
         self.mapred_job_name = mapred_job_name
 
@@ -181,7 +183,14 @@ class HiveCliHook(BaseHook):
                     hive_conf_params.extend(
                         ['-hiveconf',
                          'mapreduce.job.queuename={}'
-                         .format(self.mapred_queue)])
+                         .format(self.mapred_queue),
+                         '-hiveconf',
+                         'mapred.job.queue.name={}'
+                         .format(self.mapred_queue),
+                         '-hiveconf',
+                         'tez.job.queue.name={}'
+                         .format(self.mapred_queue)
+                         ])
 
                 if self.mapred_queue_priority:
                     hive_conf_params.extend(

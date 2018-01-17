@@ -362,7 +362,8 @@ def run(args, dag=None):
     task = dag.get_task(task_id=args.task_id)
     ti = TaskInstance(task, args.execution_date)
     ti.refresh_from_db()
-    ti.init_run_context()
+
+    ti.init_run_context(raw=args.raw)
 
     hostname = socket.getfqdn()
     log.info("Running %s on host %s", ti, hostname)
@@ -418,10 +419,6 @@ def run(args, dag=None):
                 pool=args.pool)
             executor.heartbeat()
             executor.end()
-
-    # Child processes should not flush or upload to remote
-    if args.raw:
-        return
 
     logging.shutdown()
 

@@ -37,7 +37,7 @@ addons:
   postgresql: "9.2"
 python:
   - "2.7"
-  - "3.4"
+  - "3.5"
 env:
   global:
     - TRAVIS_CACHE=$HOME/.travis_cache/
@@ -50,26 +50,35 @@ env:
     - TOX_ENV=py27-backend_mysql
     - TOX_ENV=py27-backend_sqlite
     - TOX_ENV=py27-backend_postgres
-    - TOX_ENV=py34-backend_mysql
-    - TOX_ENV=py34-backend_sqlite
-    - TOX_ENV=py34-backend_postgres
+    - TOX_ENV=py35-backend_mysql
+    - TOX_ENV=py35-backend_sqlite
+    - TOX_ENV=py35-backend_postgres
     - TOX_ENV=flake8
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
 matrix:
   exclude:
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_mysql
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_sqlite
-    - python: "3.4"
+    - python: "3.5"
       env: TOX_ENV=py27-backend_postgres
     - python: "2.7"
-      env: TOX_ENV=py34-backend_mysql
+      env: TOX_ENV=py35-backend_mysql
     - python: "2.7"
-      env: TOX_ENV=py34-backend_sqlite
+      env: TOX_ENV=py35-backend_sqlite
     - python: "2.7"
-      env: TOX_ENV=py34-backend_postgres
+      env: TOX_ENV=py35-backend_postgres
     - python: "2.7"
       env: TOX_ENV=flake8
+    - python: "3.5"  
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - python: "3.5"
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0 
+  allow_failures:
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0  
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -89,9 +98,6 @@ before_script:
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
 script:
-  - pip --version
-  - ls -l $HOME/.wheelhouse
-  - tox --version
-  - tox -e $TOX_ENV
+  - ./scripts/ci/travis_script.sh
 after_success:
   - codecov

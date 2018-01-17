@@ -88,21 +88,22 @@ class SqoopHook(BaseHook, LoggingMixin):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        self.log.info("Executing command: {}".format(' '.join(self.cmd_mask_password(cmd))))
-        sp = subprocess.Popen(cmd,
+        masked_cmd = ' '.join(self.cmd_mask_password(cmd))
+        self.log.info("Executing command: {}".format(masked_cmd))
+        self.sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
 
-        for line in iter(sp.stdout):
+        for line in iter(self.sp.stdout):
             self.log.info(line.strip())
 
-        sp.wait()
+        self.sp.wait()
 
-        self.log.info("Command exited with return code %s", sp.returncode)
+        self.log.info("Command exited with return code %s", self.sp.returncode)
 
-        if sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(' '.join(self.cmd_mask_password(cmd))))
+        if self.sp.returncode:
+            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
     def _prepare_command(self, export=False):
         sqoop_cmd_type = "export" if export else "import"

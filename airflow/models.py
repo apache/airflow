@@ -108,7 +108,7 @@ def get_fernet():
         raise AirflowException('Failed to import Fernet, it may not be installed')
     try:
         return Fernet(configuration.get('core', 'FERNET_KEY').encode('utf-8'))
-    except ValueError as ve:
+    except (ValueError, TypeError) as ve:
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
 
@@ -329,6 +329,8 @@ class DagBag(BaseDagBag, LoggingMixin):
                 if isinstance(dag, DAG):
                     if not dag.full_filepath:
                         dag.full_filepath = filepath
+                        if dag.fileloc != filepath:
+                            dag.fileloc = filepath
                     dag.is_subdag = False
                     self.bag_dag(dag, parent_dag=dag, root_dag=dag)
                     found_dags.append(dag)
@@ -735,7 +737,7 @@ class DagPickle(Base):
     """
     id = Column(Integer, primary_key=True)
     pickle = Column(PickleType(pickler=dill))
-    created_dttm = Column(UtcDateTime, default=func.now())
+    created_dttm = Column(UtcDateTime, default=timezone.utcnow())
     pickle_hash = Column(Text)
 
     __tablename__ = "dag_pickle"
@@ -810,6 +812,9 @@ class TaskInstance(Base, LoggingMixin):
         self.saved_context = None
         self.init_on_load()
         self._log = logging.getLogger("airflow.task")
+        # Is this TaskInstance being currently running within `airflow run --raw`.
+        # Not persisted to the database so only valid for the current process
+        self.is_raw = False
 
     @reconstructor
     def init_on_load(self):
@@ -1884,11 +1889,12 @@ class TaskInstance(Base, LoggingMixin):
             TI.state == State.RUNNING
         ).count()
 
-    def init_run_context(self):
+    def init_run_context(self, raw=False):
         """
         Sets the log context.
         """
         self._set_context(self)
+        self.raw = raw
 
 
 class TaskFail(Base):
@@ -3974,7 +3980,7 @@ class Chart(Base):
         "User", cascade=False, cascade_backrefs=False, backref='charts')
     x_is_date = Column(Boolean, default=True)
     iteration_no = Column(Integer, default=0)
-    last_modified = Column(UtcDateTime, default=func.now())
+    last_modified = Column(UtcDateTime, default=timezone.utcnow())
 
     def __repr__(self):
         return self.label
@@ -4123,7 +4129,7 @@ class XCom(Base, LoggingMixin):
     key = Column(String(512))
     value = Column(LargeBinary)
     timestamp = Column(
-        DateTime, default=func.now(), nullable=False)
+        DateTime, default=timezone.utcnow(), nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
 
     # source information
@@ -4442,8 +4448,8 @@ class DagRun(Base, LoggingMixin):
 
     id = Column(Integer, primary_key=True)
     dag_id = Column(String(ID_LEN))
-    execution_date = Column(UtcDateTime, default=func.now())
-    start_date = Column(UtcDateTime, default=func.now())
+    execution_date = Column(UtcDateTime, default=timezone.utcnow())
+    start_date = Column(UtcDateTime, default=timezone.utcnow())
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.RUNNING)
     run_id = Column(String(ID_LEN))

@@ -72,23 +72,14 @@ def git_version(version):
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warning('Git repo not found: Cannot compute the git version.')
+        logger.warning('Cannot compute the git version. {}'.format(e))
         return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        # is it release of `version` ?
-        try:
-            tag = repo.git.describe(
-                match='[0-9]*', exact_match=True,
-                tags=True, dirty=True)
-            assert tag == version, (tag, version)
-            return '.release:{version}+{sha}'.format(version=version,
-                                                     sha=sha)
-        except git.GitCommandError:
-            return '.dev0+{sha}'.format(sha=sha)
+        return '.release:{version}+{sha}'.format(version=version, sha=sha)
     else:
         return 'no_git_version'
 
@@ -107,7 +98,7 @@ async = [
 azure = ['azure-storage>=0.34.0']
 sendgrid = ['sendgrid>=5.2.0']
 celery = [
-    'celery>=4.0.0',
+    'celery>=4.0.2',
     'flower>=0.7.3'
 ]
 cgroups = [
@@ -132,7 +123,7 @@ gcp_api = [
     'google-api-python-client>=1.5.0, <1.6.0',
     'oauth2client>=2.0.2, <2.1.0',
     'PyOpenSSL',
-    'google-cloud-dataflow',
+    'google-cloud-dataflow>=2.2.0',
     'pandas-gbq'
 ]
 hdfs = ['snakebite>=2.7.8']
@@ -171,6 +162,8 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.6']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
+kubernetes = ['kubernetes>=3.0.0',
+              'cryptography>=2.0.0']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = [
@@ -191,7 +184,8 @@ devel = [
 ]
 devel_minreq = devel + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh
+devel_all = (devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh +
+             kubernetes)
 
 
 def do_setup():
@@ -214,10 +208,10 @@ def do_setup():
             'dill>=0.2.2, <0.3',
             'flask>=0.11, <0.12',
             'flask-admin==1.4.1',
-            'flask-cache>=0.13.1, <0.14',
+            'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
-            'flask-wtf==0.14',
+            'flask-wtf>=0.14, <0.15',
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
@@ -235,7 +229,7 @@ def do_setup():
             'python-nvd3==0.14.2',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=0.9.8',
+            'sqlalchemy>=1.1.15, <1.2.0',
             'sqlalchemy-utc>=0.9.0',
             'tabulate>=0.7.5, <0.8.0',
             'thrift>=0.9.2',
@@ -287,6 +281,7 @@ def do_setup():
             'webhdfs': webhdfs,
             'jira': jira,
             'redis': redis,
+            'kubernetes': kubernetes
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

@@ -22,6 +22,7 @@ from builtins import range
 
 from past.builtins import basestring
 
+from airflow import AirflowException
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -450,7 +451,8 @@ class BigQueryBaseCursor(LoggingMixin):
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
-                 src_fmt_configs={}):
+                 src_fmt_configs={},
+                 time_partitioning={}):
         """
         Executes a BigQuery load command to load data from Google Cloud Storage
         to BigQuery. See here:
@@ -460,9 +462,11 @@ class BigQueryBaseCursor(LoggingMixin):
         For more details about these parameters.
 
         :param destination_project_dataset_table:
-            The dotted (<project>.|<project>:)<dataset>.<table> BigQuery table to load
-            data into. If <project> is not included, project will be the project defined
-            in the connection json.
+            The dotted (<project>.|<project>:)<dataset>.<table>($<partition>) BigQuery
+            table to load data into. If <project> is not included, project will be the
+            project defined in the connection json. If a partition is specified the
+            operator will automatically append the data, create a new partition or create
+            a new DAY partitioned table.
         :type destination_project_dataset_table: string
         :param schema_fields: The schema field list as defined here:
             https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
@@ -484,20 +488,28 @@ class BigQueryBaseCursor(LoggingMixin):
         :param max_bad_records: The maximum number of bad records that BigQuery can
             ignore when running the job.
         :type max_bad_records: int
-        :param quote_character: The value that is used to quote data sections in a CSV file.
+        :param quote_character: The value that is used to quote data sections in a CSV
+            file.
         :type quote_character: string
-        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
+        :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
+            (false).
         :type allow_quoted_newlines: boolean
         :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
-            The missing values are treated as nulls. If false, records with missing trailing columns
-            are treated as bad records, and if there are too many bad records, an invalid error is
-            returned in the job result. Only applicable when soure_format is CSV.
+            The missing values are treated as nulls. If false, records with missing
+            trailing columns are treated as bad records, and if there are too many bad
+            records, an invalid error is returned in the job result. Only applicable when
+            soure_format is CSV.
         :type allow_jagged_rows: bool
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the load job.
         :type schema_update_options: tuple
         :param src_fmt_configs: configure optional fields specific to the source format
         :type src_fmt_configs: dict
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and
+            expiration as per API specifications. Note that 'field' is not available in
+            concurrency with dataset.table$partition.
+        :type time_partitioning: dict
         """
 
         # bigquery only allows certain source formats
@@ -518,7 +530,7 @@ class BigQueryBaseCursor(LoggingMixin):
         # bigquery also allows you to define how you want a table's schema to change
         # as a side effect of a load
         # for more details:
-        #   https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
+        # https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schemaUpdateOptions
         allowed_schema_update_options = [
             'ALLOW_FIELD_ADDITION', "ALLOW_FIELD_RELAXATION"
         ]
@@ -547,6 +559,23 @@ class BigQueryBaseCursor(LoggingMixin):
                 'writeDisposition': write_disposition,
             }
         }
+
+        # if it is a partitioned table ($ is in the table name) add partition load option
+        if '$' in destination_project_dataset_table:
+            if time_partitioning.get('field'):
+                raise AirflowException(
+                    "Cannot specify field partition and partition name "
+                    "(dataset.table$partition) at the same time"
+                )
+            configuration['load']['timePartitioning'] = dict(type='DAY')
+
+        # can specify custom time partitioning options based on a field, or adding
+        # expiration
+        if time_partitioning:
+            if not configuration.get('load', {}).get('timePartitioning'):
+                configuration['load']['timePartitioning'] = {}
+            configuration['load']['timePartitioning'].update(time_partitioning)
+
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
 
@@ -777,7 +806,7 @@ class BigQueryBaseCursor(LoggingMixin):
                              default_project_id=self.project_id)
 
         try:
-            tables_resource = self.service.tables() \
+            self.service.tables() \
                 .delete(projectId=deletion_project,
                         datasetId=deletion_dataset,
                         tableId=deletion_table) \
@@ -1011,13 +1040,14 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def fetchmany(self, size=None):
         """
-        Fetch the next set of rows of a query result, returning a sequence of sequences (e.g. a
-        list of tuples). An empty sequence is returned when no more rows are available.
-        The number of rows to fetch per call is specified by the parameter. If it is not given, the
-        cursor's arraysize determines the number of rows to be fetched. The method should try to
-        fetch as many rows as indicated by the size parameter. If this is not possible due to the
-        specified number of rows not being available, fewer rows may be returned.
-        An :py:class:`~pyhive.exc.Error` (or subclass) exception is raised if the previous call to
+        Fetch the next set of rows of a query result, returning a sequence of sequences
+        (e.g. a list of tuples). An empty sequence is returned when no more rows are
+        available. The number of rows to fetch per call is specified by the parameter.
+        If it is not given, the cursor's arraysize determines the number of rows to be
+        fetched. The method should try to fetch as many rows as indicated by the size
+        parameter. If this is not possible due to the specified number of rows not being
+        available, fewer rows may be returned. An :py:class:`~pyhive.exc.Error`
+        (or subclass) exception is raised if the previous call to
         :py:meth:`execute` did not produce any result set or no call was issued yet.
         """
         if size is None:
@@ -1033,8 +1063,8 @@ class BigQueryCursor(BigQueryBaseCursor):
 
     def fetchall(self):
         """
-        Fetch all (remaining) rows of a query result, returning them as a sequence of sequences
-        (e.g. a list of tuples).
+        Fetch all (remaining) rows of a query result, returning them as a sequence of
+        sequences (e.g. a list of tuples).
         """
         result = []
         while True:

@@ -1857,6 +1857,27 @@ class WebUiTests(unittest.TestCase):
         session.close()
 
 
+class SecureModeWebUiTests(unittest.TestCase):
+    def setUp(self):
+        configuration.load_test_config()
+        configuration.conf.set("webserver", "authenticate", "False")
+        configuration.conf.set("core", "secure_mode", "True")
+        app = application.create_app()
+        app.config['TESTING'] = True
+        self.app = app.test_client()
+
+    def test_query(self):
+        response = self.app.get('/admin/queryview/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_charts(self):
+        response = self.app.get('/admin/chart/')
+        self.assertEqual(response.status_code, 404)
+
+    def tearDown(self):
+        configuration.remove_option("core", "SECURE_MODE")
+
+
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")
