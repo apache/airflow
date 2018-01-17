@@ -17,7 +17,6 @@ from __future__ import print_function
 import bleach
 import doctest
 import json
-import logging
 import os
 import re
 import unittest
@@ -36,6 +35,7 @@ import warnings
 
 from dateutil.relativedelta import relativedelta
 import sqlalchemy
+import six
 
 from airflow import configuration
 from airflow.executors import SequentialExecutor
@@ -65,8 +65,6 @@ from airflow.exceptions import AirflowException
 from airflow.configuration import AirflowConfigException, run_command
 from jinja2.sandbox import SecurityError
 from jinja2 import UndefinedError
-
-import six
 
 NUM_EXAMPLE_DAGS = 18
 DEV_NULL = '/dev/null'
@@ -1553,6 +1551,27 @@ class CliTests(unittest.TestCase):
         # Assert that no process remains.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    @mock.patch("airflow.bin.cli.jobs.SchedulerJob")
+    def test_scheduler(self, scheduler_job_mock):
+        args = self.parser.parse_args([
+            'scheduler',
+            '--dag_id', 'example_bash_operator',
+            '--subdir', '/sub/dir',
+            '--run-duration', '60',
+            '--num_runs', '1',
+            '--do_pickle',
+        ])
+        cli.scheduler(args)
+
+        scheduler_job_mock.assert_called_once_with(
+            dag_ids=['example_bash_operator'],
+            subdir='/sub/dir',
+            run_duration=60,
+            num_runs=1,
+            do_pickle=True,
+        )
+        scheduler_job_mock.return_value.run.assert_called_once_with()
 
 
 class SecurityTests(unittest.TestCase):
