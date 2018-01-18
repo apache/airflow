@@ -2961,6 +2961,12 @@ class DAG(BaseDag, LoggingMixin):
     :type orientation: string
     :param catchup: Perform scheduler catchup (or only run latest)? Defaults to True
     :type catchup: bool
+    :param on_failure_callback: A function to be called when a DagRun of this dag fails.
+        A context dictionary is passed as a single parameter to this function.
+    :type on_failure_callback: callable
+    :param on_success_callback: Much like the ``on_failure_callback`` except
+        that it is executed when the dag succeeds.
+    :type on_success_callback: callable
     """
 
     def __init__(
@@ -2981,6 +2987,7 @@ class DAG(BaseDag, LoggingMixin):
             default_view=configuration.get('webserver', 'dag_default_view').lower(),
             orientation=configuration.get('webserver', 'dag_orientation'),
             catchup=configuration.getboolean('scheduler', 'catchup_by_default'),
+            on_success_callback=None, on_failure_callback=None,
             params=None):
 
         self.user_defined_macros = user_defined_macros
@@ -3053,6 +3060,8 @@ class DAG(BaseDag, LoggingMixin):
         self.is_subdag = False  # DagBag.bag_dag() will set this to True if appropriate
 
         self.partial = False
+        self.on_success_callback = on_success_callback
+        self.on_failure_callback = on_failure_callback
 
         self._comps = {
             'dag_id',
@@ -3313,6 +3322,35 @@ class DAG(BaseDag, LoggingMixin):
         qry = session.query(DagModel).filter(
             DagModel.dag_id == self.dag_id)
         return qry.value('is_paused')
+
+    @provide_session
+    def handle_callback(self, dagrun, success=True, reason=None, session=None):
+        """
+        Triggers the appropriate callback depending on the value of success, namely the
+        on_failure_callback or on_success_callback. This method gets the context of a
+        single TaskInstance part of this DagRun and passes that to the callable along
+        with a 'reason', primarily to differentiate DagRun failures.
+        .. note::
+            The logs end up in $AIRFLOW_HOME/logs/scheduler/latest/PROJECT/DAG_FILE.py.log
+        :param dagrun: DagRun object
+        :param success: Flag to specify if failure or success callback should be called
+        :param reason: Completion reason
+        :param session: Database session
+        """
+        callback = self.on_success_callback if success else self.on_failure_callback
+        if callback:
+            self.log.info('Executing dag callback function: {}'.format(callback))
+            tis = dagrun.get_task_instances(session=session)
+            ti = tis[-1]  # get first TaskInstance of DagRun
+            # certain task instance attributes are transient so must save them
+            # -- especially during timeouts theyre lost
+            if not hasattr(ti, 'task'):
+                d = dagrun.dag or DagBag().get_dag(dag_id=dagrun.dag_id)
+                task = d.get_task(ti.task_id)
+                ti.task = task
+            context = ti.get_template_context(session=session)
+            context.update({'reason': reason})
+            callback(context)
 
     @provide_session
     def get_active_runs(self, session=None):
@@ -4762,18 +4800,23 @@ class DagRun(Base, LoggingMixin):
                     any(r.state in (State.FAILED, State.UPSTREAM_FAILED) for r in roots)):
                 self.log.info('Marking run %s failed', self)
                 self.state = State.FAILED
+                dag.handle_callback(self, success=False, reason='task_failure',
+                                    session=session)
 
             # if all roots succeeded and no unfinished tasks, the run succeeded
             elif not unfinished_tasks and all(r.state in (State.SUCCESS, State.SKIPPED)
                                               for r in roots):
                 self.log.info('Marking run %s successful', self)
                 self.state = State.SUCCESS
+                dag.handle_callback(self, success=True, reason='success', session=session)
 
             # if *all tasks* are deadlocked, the run failed
             elif (unfinished_tasks and none_depends_on_past and
                   none_task_concurrency and no_dependencies_met):
                 self.log.info('Deadlock; marking run %s failed', self)
                 self.state = State.FAILED
+                dag.handle_callback(self, success=False, reason='all_tasks_deadlocked',
+                                    session=session)
 
             # finally, if the roots aren't done, the dag is still running
             else:
