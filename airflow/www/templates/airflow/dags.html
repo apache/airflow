@@ -224,7 +224,7 @@
   <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = {{ url_for('admin.index') }}
+      const DAGS_INDEX = '{{ url_for('admin.index') }}'
       const ENTER_KEY_CODE = 13
 
       $('#dag_query').on('keypress', function (e) {
