@@ -470,3 +470,14 @@ as_dict.__doc__ = conf.as_dict.__doc__
 
 def set(section, option, value):  # noqa
     return conf.set(section, option, value)
+
+
+def get_url_prefix():
+    url_prefix = get('webserver', 'WEB_SERVER_URL_PREFIX')
+    if not url_prefix or url_prefix == '/':
+        url_prefix = ""
+    # Handle future library that converts str to newbytes in Python 2.7
+    if six.PY3:
+        return url_prefix
+    else:
+        return url_prefix.__native__() if url_prefix else ""

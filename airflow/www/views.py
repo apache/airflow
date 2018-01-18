@@ -206,7 +206,7 @@ def label_link(v, c, m, p):
 
 
 def pool_link(v, c, m, p):
-    url = '/admin/taskinstance/?flt1_pool_equals=' + m.pool
+    url = conf.get_url_prefix() + '/admin/taskinstance/?flt1_pool_equals=' + m.pool
     return Markup("<a href='{url}'>{m.pool}</a>".format(**locals()))
 
 
@@ -269,6 +269,7 @@ def data_profiling_required(f):
 
 def fused_slots(v, c, m, p):
     url = (
+        conf.get_url_prefix() +
         '/admin/taskinstance/' +
         '?flt1_pool_equals=' + m.pool +
         '&flt2_state_equals=running')
@@ -277,6 +278,7 @@ def fused_slots(v, c, m, p):
 
 def fqueued_slots(v, c, m, p):
     url = (
+        conf.get_url_prefix() +
         '/admin/taskinstance/' +
         '?flt1_pool_equals=' + m.pool +
         '&flt2_state_equals=queued&sort=10&desc=1')
@@ -478,7 +480,7 @@ class Airflow(BaseView):
                 "Not supported anymore as the license was incompatible, "
                 "sorry",
                 "danger")
-            redirect('/admin/chart/')
+            redirect(conf.get_url_prefix() + '/admin/chart/')
 
         sql = ""
         if chart.show_sql:
@@ -769,7 +771,7 @@ class Airflow(BaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/admin/')
+            return redirect(conf.get_url_prefix() + '/admin/')
         task = copy.copy(dag.get_task(task_id))
         task.resolve_template_files()
         ti = TI(task=task, execution_date=dttm)
@@ -845,7 +847,7 @@ class Airflow(BaseView):
                 "Task [{}.{}] doesn't seem to exist"
                 " at the moment".format(dag_id, task_id),
                 "error")
-            return redirect('/admin/')
+            return redirect(conf.get_url_prefix() + '/admin/')
 
         xcomlist = session.query(XCom).filter(
             XCom.dag_id == dag_id, XCom.task_id == task_id,
@@ -930,7 +932,7 @@ class Airflow(BaseView):
     @wwwutils.notify_owner
     def trigger(self):
         dag_id = request.args.get('dag_id')
-        origin = request.args.get('origin') or "/admin/"
+        origin = request.args.get('origin') or conf.get_url_prefix() + "/admin/"
         dag = dagbag.get_dag(dag_id)
 
         if not dag:
@@ -1289,7 +1291,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         if dag_id not in dagbag.dags:
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
-            return redirect('/admin/')
+            return redirect(conf.get_url_prefix() + '/admin/')
 
         root = request.args.get('root')
         if root:
@@ -1389,7 +1391,8 @@ class Airflow(BaseView):
             task_instances=json.dumps(task_instances, indent=2),
             tasks=json.dumps(tasks, indent=2),
             nodes=json.dumps(nodes, indent=2),
-            edges=json.dumps(edges, indent=2), )
+            edges=json.dumps(edges, indent=2),
+            url_prefix=conf.get_url_prefix())
 
     @expose('/duration')
     @login_required
@@ -1800,7 +1803,7 @@ class Airflow(BaseView):
             for k, v in d.items():
                 models.Variable.set(k, v, serialize_json=isinstance(v, dict))
             flash("{} variable(s) successfully updated.".format(len(d)))
-        return redirect('/admin/variable')
+        return redirect(conf.get_url_prefix() + '/admin/variable')
 
 
 class HomeView(AdminIndexView):
