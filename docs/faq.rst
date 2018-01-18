@@ -12,7 +12,7 @@ Here are some of the common causes:
   confirm that your DAG shows up in the list. You can also run
   ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
-  may way to confirm that this works both where the scheduler runs as well
+  may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
