@@ -19,13 +19,13 @@ from mock import Mock
 from mock import patch
 
 from airflow import DAG, configuration
-from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow import models
+from airflow.contrib.sensors.jira_sensor import JiraTicketSensor
 from airflow.utils import db, timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(
-        name="jira_client_for_test"
+    name="jira_client_for_test"
 )
 
 minimal_test_ticket = {
@@ -52,10 +52,10 @@ class TestJiraSensor(unittest.TestCase):
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
         db.merge_conn(
-                models.Connection(
-                        conn_id='jira_default', conn_type='jira',
-                        host='https://localhost/jira/', port=443,
-                        extra='{"verify": "False", "project": "AIRFLOW"}'))
+            models.Connection(
+                conn_id='jira_default', conn_type='jira',
+                host='https://localhost/jira/', port=443,
+                extra='{"verify": "False", "project": "AIRFLOW"}'))
 
     @patch("airflow.contrib.hooks.jira_hook.JIRA",
            autospec=True, return_value=jira_client_mock)

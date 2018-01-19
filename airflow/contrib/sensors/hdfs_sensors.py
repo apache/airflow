@@ -11,14 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from airflow.operators.sensors import HdfsSensor
+from airflow.sensors.hdfs_sensor import HdfsSensor
 
 
 class HdfsSensorRegex(HdfsSensor):
-    def __init__(
-            self,
-            regex,
-            *args, **kwargs):
+    def __init__(self,
+                 regex,
+                 *args,
+                 **kwargs):
         super(HdfsSensorRegex, self).__init__(*args, **kwargs)
         self.regex = regex
 
@@ -39,10 +39,10 @@ class HdfsSensorRegex(HdfsSensor):
 
 
 class HdfsSensorFolder(HdfsSensor):
-    def __init__(
-            self,
-            be_empty=False,
-            *args, **kwargs):
+    def __init__(self,
+                 be_empty=False,
+                 *args,
+                 **kwargs):
         super(HdfsSensorFolder, self).__init__(*args, **kwargs)
         self.be_empty = be_empty
 
@@ -62,5 +62,3 @@ class HdfsSensorFolder(HdfsSensor):
             self.log.info('Poking for filepath {self.filepath} to a non empty directory'.format(**locals()))
             result.pop(0)
             return bool(result) and result[0]['file_type'] == 'f'
-
-

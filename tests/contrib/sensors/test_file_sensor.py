@@ -16,9 +16,9 @@
 import unittest
 
 from airflow import configuration
-from airflow.settings import Session
 from airflow import models, DAG
-from airflow.contrib.operators.fs_operator import FileSensor
+from airflow.contrib.sensors.file_sensor import FileSensor
+from airflow.settings import Session
 from airflow.utils.timezone import datetime
 
 TEST_DAG_ID = 'unit_tests'
@@ -47,7 +47,7 @@ class FileSensorTest(unittest.TestCase):
             'start_date': DEFAULT_DATE,
             'provide_context': True
         }
-        dag = DAG(TEST_DAG_ID+'test_schedule_dag_once', default_args=args)
+        dag = DAG(TEST_DAG_ID + 'test_schedule_dag_once', default_args=args)
         dag.schedule_interval = '@once'
         self.hook = hook
         self.dag = dag

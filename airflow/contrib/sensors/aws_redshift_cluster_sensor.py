@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from airflow.operators.sensors import BaseSensorOperator
 from airflow.contrib.hooks.redshift_hook import RedshiftHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -29,11 +29,12 @@ class AwsRedshiftClusterSensor(BaseSensorOperator):
     template_fields = ('cluster_identifier', 'target_status')
 
     @apply_defaults
-    def __init__(
-            self, cluster_identifier,
-            target_status='available',
-            aws_conn_id='aws_default',
-            *args, **kwargs):
+    def __init__(self,
+                 cluster_identifier,
+                 target_status='available',
+                 aws_conn_id='aws_default',
+                 *args,
+                 **kwargs):
         super(AwsRedshiftClusterSensor, self).__init__(*args, **kwargs)
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status

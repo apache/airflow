@@ -105,14 +105,6 @@ class MySqlTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def test_sql_sensor(self):
-        t = operators.sensors.SqlSensor(
-            task_id='sql_sensor_check',
-            conn_id='mysql_default',
-            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_overwrite_schema(self):
         """
         Verifies option to overwrite connection schema
@@ -188,14 +180,6 @@ class PostgresTest(unittest.TestCase):
             destination_conn_id='postgres_default',
             destination_table="test_postgres_to_postgres",
             sql=sql,
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_sql_sensor(self):
-        t = operators.sensors.SqlSensor(
-            task_id='sql_sensor_check',
-            conn_id='postgres_default',
-            sql="SELECT count(1) FROM INFORMATION_SCHEMA.TABLES",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 

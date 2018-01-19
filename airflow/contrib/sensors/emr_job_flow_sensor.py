@@ -31,10 +31,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
     template_ext = ()
 
     @apply_defaults
-    def __init__(
-            self,
-            job_flow_id,
-            *args, **kwargs):
+    def __init__(self,
+                 job_flow_id,
+                 *args,
+                 **kwargs):
         super(EmrJobFlowSensor, self).__init__(*args, **kwargs)
         self.job_flow_id = job_flow_id
 
