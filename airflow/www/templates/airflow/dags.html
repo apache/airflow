@@ -69,7 +69,7 @@
                 <!-- Column 1: Edit dag -->
                 <td class="text-center" style="width:10px;">
                     {% if dag_id in orm_dags %}
-                    <a href="/admin/dagmodel/edit/?id={{ dag_id }}" title="Info">
+                  <a href="{{ url_for('dagmodel.edit_view') }}?id={{ dag_id }}" title="Info">
                         <span class="glyphicon glyphicon-edit" aria-hidden="true"></span>
                     </a>
                     {% endif %}
@@ -100,7 +100,7 @@
                 <!-- Column 4: Dag Schedule -->
                 <td>
                     {% if dag_id in webserver_dags %}
-                    <a class="label label-default schedule {{ dag.dag_id }}" href="/admin/dagrun/?flt2_dag_id_equals={{ dag.dag_id }}">
+                  <a class="label label-default schedule {{ dag.dag_id }}" href="{{ url_for('dagrun.index_view') }}?flt2_dag_id_equals={{ dag.dag_id }}">
                         {{ dag.schedule_interval }}
                     </a>
                     {% endif %}
@@ -180,7 +180,7 @@
                 </a>
 
                 <!-- Logs -->
-                <a href="/admin/log/?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}">
+                <a href="{{ url_for('log.index_view') }}?sort=1&amp;desc=1&amp;flt1_dag_id_equals={{ dag.dag_id }}">
                     <span class="glyphicon glyphicon-align-justify" aria-hidden="true" data-original-title="Logs"></span>
                 </a>
                 {% endif %}
@@ -209,9 +209,9 @@
 
     </div>
     {% if not hide_paused %}
-    <a href="/admin/?showPaused=False">Hide Paused DAGs</a>
+    <a href="{{ url_for('admin.index') }}?showPaused=False">Hide Paused DAGs</a>
     {% else %}
-    <a href="/admin/?showPaused=True">Show Paused DAGs</a>
+    <a href="{{ url_for('admin.index') }}?showPaused=True">Show Paused DAGs</a>
     {% endif %}
   </div>
 {% endblock %}
@@ -224,8 +224,8 @@
   <script src="{{ url_for('static', filename='bootstrap3-typeahead.min.js') }}"></script>
   <script>
 
-      const DAGS_INDEX = {{ url_for('admin.index') }}
-      const ENTER_KEY_CODE = 13
+      const DAGS_INDEX = "{{ url_for('admin.index') }}";
+      const ENTER_KEY_CODE = 13;
 
       $('#dag_query').on('keypress', function (e) {
         // check for key press on ENTER (key code 13) to trigger the search
@@ -353,7 +353,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "/admin/dagrun/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                    window.location = "{{ url_for('dagrun.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {
@@ -432,7 +432,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "/admin/taskinstance/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                    window.location = "{{ url_for('taskinstance.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {
