@@ -21,6 +21,8 @@ import tempfile
 import unittest
 import sys
 
+from werkzeug.test import Client
+
 from airflow import models, configuration, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, TaskInstance
@@ -422,6 +424,26 @@ class TestVarImportView(unittest.TestCase):
         body = response.data.decode('utf-8')
         self.assertIn('KEY', body)
         self.assertIn('VALUE', body)
+
+
+class TestMountPoint(unittest.TestCase):
+    def setUp(self):
+        super(TestMountPoint, self).setUp()
+        configuration.load_test_config()
+        configuration.conf.set("webserver", "base_url", "http://localhost:8080/test")
+        config = dict()
+        config['WTF_CSRF_METHODS'] = []
+        app = application.cached_app(config=config, testing=True)
+        self.client = Client(app)
+
+    def test_mount(self):
+        response, _, _ = self.client.get('/', follow_redirects=True)
+        txt = b''.join(response)
+        self.assertEqual(b"Apache Airflow is not at this location", txt)
+
+        response, _, _ = self.client.get('/test', follow_redirects=True)
+        resp_html = b''.join(response)
+        self.assertIn(b"DAGs", resp_html)
 
 
 if __name__ == '__main__':

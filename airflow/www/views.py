@@ -108,6 +108,9 @@ if conf.getboolean('webserver', 'FILTER_BY_OWNER'):
 
 
 def dag_link(v, c, m, p):
+    if m.dag_id is None:
+        return Markup()
+
     dag_id = bleach.clean(m.dag_id)
     url = url_for(
         'airflow.graph',
