@@ -2595,6 +2595,7 @@ class TaskInstanceModelView(ModelViewOnly):
             count = len(ids)
             for id in ids:
                 task_id, dag_id, execution_date = id.split(',')
+                dag_id = dag_id.replace('..', '.')
                 execution_date = parse_execution_date(execution_date)
 
                 ti = session.query(TI).filter(TI.task_id == task_id,
