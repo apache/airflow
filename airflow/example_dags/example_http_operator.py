@@ -14,13 +14,13 @@
 """
 ### Example HTTP operator and sensor
 """
+import json
+from datetime import timedelta
+
 import airflow
 from airflow import DAG
 from airflow.operators.http_operator import SimpleHttpOperator
-from airflow.operators.sensors import HttpSensor
-from datetime import timedelta
-import json
-
+from airflow.sensors.http_sensor import HttpSensor
 
 default_args = {
     'owner': 'airflow',

@@ -15,7 +15,7 @@ from jira.resources import Resource
 
 from airflow.contrib.operators.jira_operator import JIRAError
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -83,7 +83,8 @@ class JiraTicketSensor(JiraSensor):
                  field=None,
                  expected_value=None,
                  field_checker_func=None,
-                 *args, **kwargs):
+                 *args,
+                 **kwargs):
 
         self.jira_conn_id = jira_conn_id
         self.ticket_id = ticket_id
@@ -94,7 +95,8 @@ class JiraTicketSensor(JiraSensor):
 
         super(JiraTicketSensor, self).__init__(jira_conn_id=jira_conn_id,
                                                result_processor=field_checker_func,
-                                               *args, **kwargs)
+                                               *args,
+                                               **kwargs)
 
     def poke(self, context):
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
@@ -110,18 +112,17 @@ class JiraTicketSensor(JiraSensor):
         result = None
         try:
             if issue is not None \
-                    and self.field is not None \
-                    and self.expected_value is not None:
+               and self.field is not None \
+               and self.expected_value is not None:
 
-                field_value = getattr(issue.fields, self.field)
-                if field_value is not None:
-                    if isinstance(field_value, list):
-                        result = self.expected_value in field_value
-                    elif isinstance(field_value, str):
-                        result = self.expected_value.lower() == field_value.lower()
-                    elif isinstance(field_value, Resource) \
-                            and getattr(field_value, 'name'):
-                        result = self.expected_value.lower() == field_value.name.lower()
+                field_val = getattr(issue.fields, self.field)
+                if field_val is not None:
+                    if isinstance(field_val, list):
+                        result = self.expected_value in field_val
+                    elif isinstance(field_val, str):
+                        result = self.expected_value.lower() == field_val.lower()
+                    elif isinstance(field_val, Resource) and getattr(field_val, 'name'):
+                        result = self.expected_value.lower() == field_val.name.lower()
                     else:
                         self.log.warning(
                             "Not implemented checker for issue field %s which "

@@ -13,8 +13,9 @@
 # limitations under the License.
 #
 
-import datetime
 import unittest
+
+import datetime
 
 from airflow import DAG, configuration
 from airflow.contrib.sensors.bash_sensor import BashSensor

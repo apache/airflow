@@ -15,8 +15,8 @@
 
 from os import walk
 
-from airflow.operators.sensors import BaseSensorOperator
 from airflow.contrib.hooks.fs_hook import FSHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -35,11 +35,11 @@ class FileSensor(BaseSensorOperator):
     ui_color = '#91818a'
 
     @apply_defaults
-    def __init__(
-            self,
-            filepath,
-            fs_conn_id='fs_default2',
-            *args, **kwargs):
+    def __init__(self,
+                 filepath,
+                 fs_conn_id='fs_default2',
+                 *args,
+                 **kwargs):
         super(FileSensor, self).__init__(*args, **kwargs)
         self.filepath = filepath
         self.fs_conn_id = fs_conn_id
@@ -51,6 +51,6 @@ class FileSensor(BaseSensorOperator):
         self.log.info('Poking for file {full_path}'.format(**locals()))
         try:
             files = [f for f in walk(full_path)]
-        except:
+        except OSError:
             return False
         return True

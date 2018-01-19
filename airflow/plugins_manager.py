@@ -103,6 +103,7 @@ def make_module(name, objects):
 
 # Plugin components to integrate as modules
 operators_modules = []
+sensors_modules = []
 hooks_modules = []
 executors_modules = []
 macros_modules = []
@@ -115,6 +116,9 @@ menu_links = []
 for p in plugins:
     operators_modules.append(
         make_module('airflow.operators.' + p.name, p.operators))
+    sensors_modules.append(
+        make_module('airflow.sensors.' + p.name, p.operators)
+    )
     hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
     executors_modules.append(
         make_module('airflow.executors.' + p.name, p.executors))

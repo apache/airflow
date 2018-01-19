@@ -12,17 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from __future__ import print_function
-from future import standard_library
-standard_library.install_aliases()
-
-from airflow.operators.sensors import BaseSensorOperator
-from airflow.hooks.base_hook import BaseHook
-from airflow.utils.decorators import apply_defaults
-from airflow.exceptions import AirflowException
-
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
+
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
+from airflow.utils.decorators import apply_defaults
 
 
 class QuboleSensor(BaseSensorOperator):

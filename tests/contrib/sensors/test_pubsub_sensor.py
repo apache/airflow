@@ -14,8 +14,9 @@
 
 from __future__ import unicode_literals
 
-from base64 import b64encode as b64e
 import unittest
+
+from base64 import b64encode as b64e
 
 from airflow.contrib.sensors.pubsub_sensor import PubSubPullSensor
 from airflow.exceptions import AirflowSensorTimeout

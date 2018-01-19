@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
-import sys
 import unittest
+
 import re
 from datetime import timedelta
+
 from airflow.contrib.sensors.hdfs_sensors import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
 

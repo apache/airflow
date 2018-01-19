@@ -14,28 +14,27 @@
 
 from __future__ import print_function
 
+import json
+import unittest
+
 import bleach
 import doctest
-import json
-import logging
+import mock
+import multiprocessing
 import os
 import re
-import unittest
-import multiprocessing
-import mock
-from numpy.testing import assert_array_almost_equal
-import tempfile
-from datetime import time, timedelta
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-from freezegun import freeze_time
 import signal
+import sqlalchemy
+import tempfile
+import warnings
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from freezegun import freeze_time
+from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
 from time import sleep
-import warnings
-
-from dateutil.relativedelta import relativedelta
-import sqlalchemy
 
 from airflow import configuration
 from airflow.executors import SequentialExecutor
@@ -49,8 +48,7 @@ from airflow.operators.check_operator import CheckOperator, ValueCheckOperator
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators.python_operator import PythonOperator
 from airflow.operators.dummy_operator import DummyOperator
-from airflow.operators.http_operator import SimpleHttpOperator
-from airflow.operators import sensors
+
 from airflow.hooks.base_hook import BaseHook
 from airflow.hooks.sqlite_hook import SqliteHook
 from airflow.bin import cli
@@ -76,7 +74,6 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
 DEFAULT_DATE_DS = DEFAULT_DATE_ISO[:10]
 TEST_DAG_ID = 'unit_tests'
-
 
 try:
     import cPickle as pickle
@@ -111,7 +108,6 @@ class OperatorSubclass(BaseOperator):
 
 
 class CoreTest(unittest.TestCase):
-
     # These defaults make the test faster to run
     default_scheduler_args = {"file_process_interval": 0,
                               "processor_poll_interval": 0.5,
@@ -122,8 +118,7 @@ class CoreTest(unittest.TestCase):
         self.dagbag = models.DagBag(
             dag_folder=DEV_NULL, include_examples=True)
         self.args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
-        dag = DAG(TEST_DAG_ID, default_args=self.args)
-        self.dag = dag
+        self.dag = DAG(TEST_DAG_ID, default_args=self.args)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.run_after_loop = self.dag_bash.get_task('run_after_loop')
@@ -144,9 +139,12 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
         self.assertNotEqual('', dag_run.run_id)
-        self.assertEqual(datetime(2015, 1, 2, 0, 0), dag_run.execution_date, msg=
-            'dag_run.execution_date did not match expectation: {0}'
-                .format(dag_run.execution_date))
+        self.assertEqual(
+            datetime(2015, 1, 2, 0, 0),
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
         dag.clear()
@@ -175,9 +173,12 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(dag.dag_id, dag_run.dag_id)
         self.assertIsNotNone(dag_run.run_id)
         self.assertNotEqual('', dag_run.run_id)
-        self.assertEqual(DEFAULT_DATE + delta, dag_run.execution_date, msg=
-            'dag_run.execution_date did not match expectation: {0}'
-                .format(dag_run.execution_date))
+        self.assertEqual(
+            DEFAULT_DATE + delta,
+            dag_run.execution_date,
+            msg='dag_run.execution_date did not match expectation: {0}'
+            .format(dag_run.execution_date)
+        )
         self.assertEqual(State.RUNNING, dag_run.state)
         self.assertFalse(dag_run.external_trigger)
 
@@ -348,13 +349,6 @@ class CoreTest(unittest.TestCase):
         self.assertNotEqual(hash(dag_diff_name), hash(self.dag))
         self.assertNotEqual(hash(dag_subclass), hash(self.dag))
 
-    def test_time_sensor(self):
-        t = sensors.TimeSensor(
-            task_id='time_sensor_check',
-            target_time=time(0),
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
     def test_check_operators(self):
 
         conn_id = "sqlite_default"
@@ -407,7 +401,7 @@ class CoreTest(unittest.TestCase):
 
     def test_bash_operator(self):
         t = BashOperator(
-            task_id='time_sensor_check',
+            task_id='test_bash_operator',
             bash_command="echo success",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -421,7 +415,6 @@ class CoreTest(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_bash_operator_kill(self):
-        import subprocess
         import psutil
         sleep_time = "100%d" % os.getpid()
         t = BashOperator(
@@ -456,7 +449,7 @@ class CoreTest(unittest.TestCase):
 
     def test_dryrun(self):
         t = BashOperator(
-            task_id='time_sensor_check',
+            task_id='test_dryrun',
             bash_command="echo success",
             dag=self.dag)
         t.dry_run()
@@ -468,70 +461,6 @@ class CoreTest(unittest.TestCase):
             sql="CREATE TABLE IF NOT EXISTS unitest (dummy VARCHAR(20))",
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_timedelta_sensor(self):
-        t = sensors.TimeDeltaSensor(
-            task_id='timedelta_sensor_check',
-            delta=timedelta(seconds=2),
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_external_task_sensor(self):
-        t = sensors.ExternalTaskSensor(
-            task_id='test_external_task_sensor_check',
-            external_dag_id=TEST_DAG_ID,
-            external_task_id='time_sensor_check',
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_external_task_sensor_delta(self):
-        t = sensors.ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
-            external_dag_id=TEST_DAG_ID,
-            external_task_id='time_sensor_check',
-            execution_delta=timedelta(0),
-            allowed_states=['success'],
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_external_task_sensor_fn(self):
-        self.test_time_sensor()
-        # check that the execution_fn works
-        t = sensors.ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
-            external_dag_id=TEST_DAG_ID,
-            external_task_id='time_sensor_check',
-            execution_date_fn=lambda dt: dt + timedelta(0),
-            allowed_states=['success'],
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-        # double check that the execution is being called by failing the test
-        t2 = sensors.ExternalTaskSensor(
-            task_id='test_external_task_sensor_check_delta',
-            external_dag_id=TEST_DAG_ID,
-            external_task_id='time_sensor_check',
-            execution_date_fn=lambda dt: dt + timedelta(days=1),
-            allowed_states=['success'],
-            timeout=1,
-            poke_interval=1,
-            dag=self.dag)
-        with self.assertRaises(exceptions.AirflowSensorTimeout):
-            t2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    def test_external_task_sensor_error_delta_and_fn(self):
-        """
-        Test that providing execution_delta and a function raises an error
-        """
-        with self.assertRaises(ValueError):
-            t = sensors.ExternalTaskSensor(
-                task_id='test_external_task_sensor_check_delta',
-                external_dag_id=TEST_DAG_ID,
-                external_task_id='time_sensor_check',
-                execution_delta=timedelta(0),
-                execution_date_fn=lambda dt: dt,
-                allowed_states=['success'],
-                dag=self.dag)
 
     def test_timeout(self):
         t = PythonOperator(
@@ -576,7 +505,7 @@ class CoreTest(unittest.TestCase):
         Test the availability of variables in templates
         """
         val = {
-            'success':False,
+            'success': False,
             'test_value': 'a test value'
         }
         Variable.set("a_variable", val['test_value'])
@@ -645,9 +574,11 @@ class CoreTest(unittest.TestCase):
         """
         Test templates can handle objects with no sense of truthiness
         """
+
         class NonBoolObject(object):
             def __len__(self):
                 return NotImplemented
+
             def __bool__(self):
                 return NotImplemented
 
@@ -693,13 +624,13 @@ class CoreTest(unittest.TestCase):
     def test_get_non_existing_var_should_return_default(self):
         default_value = "some default val"
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                             default_var=default_value))
+                                                     default_var=default_value))
 
     def test_get_non_existing_var_should_not_deserialize_json_default(self):
         default_value = "}{ this is a non JSON default }{"
         self.assertEqual(default_value, Variable.get("thisIdDoesNotExist",
-                                             default_var=default_value,
-                                             deserialize_json=True))
+                                                     default_var=default_value,
+                                                     deserialize_json=True))
 
     def test_variable_setdefault_round_trip(self):
         key = "tested_var_setdefault_1_id"
@@ -900,14 +831,12 @@ class CoreTest(unittest.TestCase):
         ti.refresh_from_db(session=session)
         # making sure it's actually running
         self.assertEqual(State.RUNNING, ti.state)
-        ti = (
-            session.query(TI)
-            .filter_by(
-                dag_id=task.dag_id,
-                task_id=task.task_id,
-                execution_date=DEFAULT_DATE)
-            .one()
-        )
+        ti = session.query(TI).filter_by(
+            dag_id=task.dag_id,
+            task_id=task.task_id,
+            execution_date=DEFAULT_DATE
+        ).one()
+
         # deleting the instance should result in a failure
         session.delete(ti)
         session.commit()
@@ -986,7 +915,7 @@ class CoreTest(unittest.TestCase):
 
         run2 = self.dag_bash.create_dagrun(
             run_id="run2",
-            execution_date=DEFAULT_DATE+timedelta(days=1),
+            execution_date=DEFAULT_DATE + timedelta(days=1),
             state=State.RUNNING)
 
         models.DagStat.update([self.dag_bash.dag_id], session=session)
@@ -1277,8 +1206,7 @@ class CliTests(unittest.TestCase):
         # Check deletions
         for index in range(1, 7):
             conn_id = 'new%s' % index
-            result = (session
-                      .query(models.Connection)
+            result = (session.query(models.Connection)
                       .filter(models.Connection.conn_id == conn_id)
                       .first())
 
@@ -1625,19 +1553,26 @@ class SecurityTests(unittest.TestCase):
         session.add(chart2)
         session.add(chart3)
         session.commit()
-        chart1_id = session.query(Chart).filter(Chart.label=='insecure_chart').first().id
+        chart1 = session.query(Chart).filter(Chart.label == 'insecure_chart').first()
         with self.assertRaises(SecurityError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1_id))
-        chart2_id = session.query(Chart).filter(Chart.label=="{{ ''.__class__.__mro__[1].__subclasses__() }}").first().id
+            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart1.id))
+
+        chart2 = session.query(Chart).filter(
+            Chart.label == "{{ ''.__class__.__mro__[1].__subclasses__() }}"
+        ).first()
         with self.assertRaises(SecurityError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2_id))
-        chart3_id = session.query(Chart).filter(Chart.label=="{{ subprocess.check_output('ls') }}").first().id
+            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart2.id))
+
+        chart3 = session.query(Chart).filter(
+            Chart.label == "{{ subprocess.check_output('ls') }}"
+        ).first()
         with self.assertRaises(UndefinedError):
-            response = self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3_id))
+            self.app.get("/admin/airflow/chart_data?chart_id={}".format(chart3.id))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
+
 
 class WebUiTests(unittest.TestCase):
     def setUp(self):
@@ -1688,7 +1623,7 @@ class WebUiTests(unittest.TestCase):
         url = "/admin/airflow/graph?" + urlencode({
             "dag_id": self.dag_bash2.dag_id,
             "execution_date": self.dagrun_bash2.execution_date,
-            }).replace("&", "&amp;")
+        }).replace("&", "&amp;")
         self.assertIn(url, resp_html)
         self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
 
@@ -1697,8 +1632,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("Ad Hoc Query", response.data.decode('utf-8'))
         response = self.app.post(
             "/admin/queryview/", data=dict(
-            conn_id="airflow_db",
-            sql="SELECT+COUNT%281%29+as+TEST+FROM+task_instance"))
+                conn_id="airflow_db",
+                sql="SELECT+COUNT%281%29+as+TEST+FROM+task_instance"))
         self.assertIn("TEST", response.data.decode('utf-8'))
 
     def test_health(self):
@@ -2061,69 +1996,6 @@ class LdapGroupTest(unittest.TestCase):
         configuration.conf.set("webserver", "authenticate", "False")
 
 
-class FakeSession(object):
-    def __init__(self):
-        from requests import Response
-        self.response = Response()
-        self.response.status_code = 200
-        self.response._content = 'airbnb/airflow'.encode('ascii', 'ignore')
-
-    def send(self, request, **kwargs):
-        return self.response
-
-    def prepare_request(self, request):
-        if 'date' in request.params:
-            self.response._content += (
-                '/' + request.params['date']).encode('ascii', 'ignore')
-        return self.response
-
-class HttpOpSensorTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE_ISO}
-        dag = DAG(TEST_DAG_ID, default_args=args)
-        self.dag = dag
-
-    @mock.patch('requests.Session', FakeSession)
-    def test_get(self):
-        t = SimpleHttpOperator(
-            task_id='get_op',
-            method='GET',
-            endpoint='/search',
-            data={"client": "ubuntu", "q": "airflow"},
-            headers={},
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    @mock.patch('requests.Session', FakeSession)
-    def test_get_response_check(self):
-        t = SimpleHttpOperator(
-            task_id='get_op',
-            method='GET',
-            endpoint='/search',
-            data={"client": "ubuntu", "q": "airflow"},
-            response_check=lambda response: ("airbnb/airflow" in response.text),
-            headers={},
-            dag=self.dag)
-        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
-    @mock.patch('requests.Session', FakeSession)
-    def test_sensor(self):
-
-        sensor = sensors.HttpSensor(
-            task_id='http_sensor_check',
-            http_conn_id='http_default',
-            endpoint='/search',
-            request_params={"client": "ubuntu", "q": "airflow", 'date': '{{ds}}'},
-            headers={},
-            response_check=lambda response: (
-                "airbnb/airflow/" + DEFAULT_DATE.strftime('%Y-%m-%d')
-                in response.text),
-            poke_interval=5,
-            timeout=15,
-            dag=self.dag)
-        sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-
 class FakeWebHDFSHook(object):
     def __init__(self, conn_id):
         self.conn_id = conn_id
@@ -2154,45 +2026,126 @@ class FakeSnakeBiteClient(object):
         if path[0] == '/datadirectory/empty_directory' and not include_toplevel:
             return []
         elif path[0] == '/datadirectory/datafile':
-            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/datafile'}]
+            return [{
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 0,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/datafile'
+            }]
         elif path[0] == '/datadirectory/empty_directory' and include_toplevel:
-            return [
-                {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
-                 'modification_time': 1481132141540, 'length': 0, 'blocksize': 0, 'owner': u'hdfs',
-                 'path': '/datadirectory/empty_directory'}]
+            return [{
+                'group': u'supergroup',
+                'permission': 493,
+                'file_type': 'd',
+                'access_time': 0,
+                'block_replication': 0,
+                'modification_time': 1481132141540,
+                'length': 0,
+                'blocksize': 0,
+                'owner': u'hdfs',
+                'path': '/datadirectory/empty_directory'
+            }]
         elif path[0] == '/datadirectory/not_empty_directory' and include_toplevel:
-            return [
-                {'group': u'supergroup', 'permission': 493, 'file_type': 'd', 'access_time': 0, 'block_replication': 0,
-                 'modification_time': 1481132141540, 'length': 0, 'blocksize': 0, 'owner': u'hdfs',
-                 'path': '/datadirectory/empty_directory'},
-                {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                 'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
-                 'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
+            return [{
+                'group': u'supergroup',
+                'permission': 493,
+                'file_type': 'd',
+                'access_time': 0,
+                'block_replication': 0,
+                'modification_time': 1481132141540,
+                'length': 0,
+                'blocksize': 0,
+                'owner': u'hdfs',
+                'path': '/datadirectory/empty_directory'
+            }, {
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 0,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/not_empty_directory/test_file'
+            }]
         elif path[0] == '/datadirectory/not_empty_directory':
-            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 0, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/not_empty_directory/test_file'}]
+            return [{
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 0,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/not_empty_directory/test_file'
+            }]
         elif path[0] == '/datadirectory/not_existing_file_or_directory':
             raise FakeSnakeBiteClientException
         elif path[0] == '/datadirectory/regex_dir':
-            return [{'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test1file'},
-                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test2file'},
-                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/test3file'},
-                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/copying_file_1.txt._COPYING_'},
-                    {'group': u'supergroup', 'permission': 420, 'file_type': 'f', 'access_time': 1481122343796,
-                     'block_replication': 3, 'modification_time': 1481122343862, 'length': 12582912, 'blocksize': 134217728,
-                     'owner': u'hdfs', 'path': '/datadirectory/regex_dir/copying_file_3.txt.sftp'}
-                    ]
+            return [{
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862, 'length': 12582912,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/regex_dir/test1file'
+            }, {
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 12582912,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/regex_dir/test2file'
+            }, {
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 12582912,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/regex_dir/test3file'
+            }, {
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 12582912,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/regex_dir/copying_file_1.txt._COPYING_'
+            }, {
+                'group': u'supergroup',
+                'permission': 420,
+                'file_type': 'f',
+                'access_time': 1481122343796,
+                'block_replication': 3,
+                'modification_time': 1481122343862,
+                'length': 12582912,
+                'blocksize': 134217728,
+                'owner': u'hdfs',
+                'path': '/datadirectory/regex_dir/copying_file_3.txt.sftp'
+            }]
         else:
             raise FakeSnakeBiteClientException
 
@@ -2424,7 +2377,10 @@ class EmailTest(unittest.TestCase):
     def test_custom_backend(self, mock_send_email):
         configuration.set('email', 'EMAIL_BACKEND', 'tests.core.send_email_test')
         utils.email.send_email('to', 'subject', 'content')
-        send_email_test.assert_called_with('to', 'subject', 'content', files=None, dryrun=False, cc=None, bcc=None, mime_subtype='mixed')
+        send_email_test.assert_called_with(
+            'to', 'subject', 'content', files=None, dryrun=False,
+            cc=None, bcc=None, mime_subtype='mixed'
+        )
         self.assertFalse(mock_send_email.called)
 
 
@@ -2447,7 +2403,7 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-            msg.get_payload()[-1].get(u'Content-Disposition'))
+                         msg.get_payload()[-1].get(u'Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
 
@@ -2466,10 +2422,9 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual(configuration.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
         self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-            msg.get_payload()[-1].get(u'Content-Disposition'))
+                         msg.get_payload()[-1].get(u'Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
-
 
     @mock.patch('smtplib.SMTP_SSL')
     @mock.patch('smtplib.SMTP')
