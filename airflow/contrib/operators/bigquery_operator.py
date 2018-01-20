@@ -98,6 +98,7 @@ class BigQueryOperator(BaseOperator):
             self.log.info('Executing: %s', self.bql)
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
+                use_legacy_sql=self.use_legacy_sql,
                 delegate_to=self.delegate_to)
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
@@ -107,7 +108,6 @@ class BigQueryOperator(BaseOperator):
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
             udf_config=self.udf_config,
-            use_legacy_sql=self.use_legacy_sql,
             maximum_billing_tier=self.maximum_billing_tier,
             create_disposition=self.create_disposition,
             query_params=self.query_params,
