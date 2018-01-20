@@ -51,8 +51,8 @@ class PostgresHook(DbApiHook):
                             'keepalives_idle']:
                 conn_args[arg_name] = arg_val
 
-        psycopg2_conn = psycopg2.connect(**conn_args)
-        return psycopg2_conn
+        self.conn = psycopg2.connect(**conn_args)
+        return self.conn
 
     def copy_expert(self, sql, filename, open=open):
         '''
