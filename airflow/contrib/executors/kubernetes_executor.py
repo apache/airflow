@@ -1,21 +1,22 @@
-# -*- coding: utf-8 -*-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import base64
-import os
 import multiprocessing
-import six
 from queue import Queue
 from dateutil import parser
 from uuid import uuid4
@@ -31,7 +32,6 @@ from airflow.models import TaskInstance, KubeResourceVersion
 from airflow.utils.state import State
 from airflow import configuration, settings
 from airflow.exceptions import AirflowConfigException
-from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -278,7 +278,7 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
         self.log.debug("k8s: launching image {}".format(self.kube_config.kube_image))
         pod = self.worker_configuration.make_pod(
             namespace=self.namespace, pod_id=self._create_pod_id(dag_id, task_id),
-            dag_id=dag_id, task_id=task_id, 
+            dag_id=dag_id, task_id=task_id,
             execution_date=self._datetime_to_label_safe_datestring(execution_date),
             airflow_command=command, kube_executor_config=kube_executor_config
         )
@@ -393,7 +393,7 @@ class AirflowKubernetesScheduler(LoggingMixin, object):
 
 class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def __init__(self):
-        super(KubernetesExecutor, self).__init__(parallelism=PARALLELISM)
+        self.kube_config=KubeConfig()
         self.task_queue = None
         self._session = None
         self.result_queue = None

@@ -73,7 +73,7 @@ spec:
           - "bash"
         args:
           - "-cx"
-          - "cd /usr/local/lib/python2.7/dist-packages/airflow && cp -R example_dags/* /root/airflow/dags/ && airflow initdb && alembic upgrade head"
+          - "cd /usr/local/lib/python2.7/dist-packages/airflow && cp -R example_dags/* /root/airflow/dags/ && airflow initdb && alembic upgrade heads"
       containers:
       - name: web
         image: {{docker_image}}:{{docker_tag}}

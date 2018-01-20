@@ -217,7 +217,7 @@ class LocalExecutor(BaseExecutor):
         self.impl.start()
 
     def execute_async(self, key, command, queue=None, executor_config=None):
-        self.queue.put((key, command))
+        self.impl.execute_async(key=key, command=command)
 
     def sync(self):
         self.impl.sync()

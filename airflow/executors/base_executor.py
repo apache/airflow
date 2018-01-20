@@ -16,7 +16,6 @@ from builtins import range
 from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
-from airflow.utils.logging import LoggingMixin
 PARALLELISM = configuration.getint('core', 'PARALLELISM')
 
 

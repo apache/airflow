@@ -47,20 +47,15 @@ env:
     # does not work with python 3
     - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
-    - TOX_ENV=py27-cdh-airflow_backend_mysql
-    - TOX_ENV=py27-cdh-airflow_backend_sqlite
-    - TOX_ENV=py27-cdh-airflow_backend_postgres
-#    - TOX_ENV=py27-hdp-airflow_backend_mysql
-#    - TOX_ENV=py27-hdp-airflow_backend_sqlite
-#    - TOX_ENV=py27-hdp-airflow_backend_postgres
-    - TOX_ENV=py34-cdh-airflow_backend_mysql
-    - TOX_ENV=py34-cdh-airflow_backend_sqlite
-    - TOX_ENV=py34-cdh-airflow_backend_postgres
-#    - TOX_ENV=py34-hdp-airflow_backend_mysql
-#    - TOX_ENV=py34-hdp-airflow_backend_sqlite
-#    - TOX_ENV=py34-hdp-airflow_backend_postgres
-    # Run integration tests on minikube for the KubernetesExecutor
-    - TOX_ENV=py27-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
+    - TOX_ENV=py27-backend_mysql
+    - TOX_ENV=py27-backend_sqlite
+    - TOX_ENV=py27-backend_postgres
+    - TOX_ENV=py35-backend_mysql
+    - TOX_ENV=py35-backend_sqlite
+    - TOX_ENV=py35-backend_postgres
+    - TOX_ENV=flake8
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
 matrix:
   exclude:
     - python: "3.5"
@@ -76,15 +71,14 @@ matrix:
     - python: "2.7"
       env: TOX_ENV=py35-backend_postgres
     - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_mysql
-    - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_sqlite
-    - python: "2.7"
-      env: TOX_ENV=py34-hdp-airflow_backend_postgres
-    - python: "3.4"
-      env: TOX_ENV=py34-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
+      env: TOX_ENV=flake8
+    - python: "3.5"
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - python: "3.5"
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
   allow_failures:
-    - env: TOX_ENV=py27-cdh-airflow_backend_postgres RUN_KUBE_INTEGRATION=true
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -106,4 +100,4 @@ before_script:
 script:
   - ./scripts/ci/travis_script.sh
 after_success:
-  - codecov
+- codecov
