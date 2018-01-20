@@ -18,12 +18,15 @@ import re
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
-from airflow.contrib.operators.dataproc_operator import DataprocClusterDeleteOperator
-from airflow.contrib.operators.dataproc_operator import DataProcHadoopOperator
-from airflow.contrib.operators.dataproc_operator import DataProcHiveOperator
-from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
-from airflow.contrib.operators.dataproc_operator import DataProcSparkOperator
+from airflow.contrib.operators.dataproc_operator import \
+    DataprocClusterCreateOperator,\
+    DataprocClusterDeleteOperator,\
+    DataProcHadoopOperator,\
+    DataProcHiveOperator,\
+    DataProcPySparkOperator,\
+    DataProcSparkOperator,\
+    DataprocWorkflowTemplateInstantiateInlineOperator,\
+    DataprocWorkflowTemplateInstantiateOperator
 from airflow.version import version
 
 from copy import deepcopy
@@ -55,7 +58,7 @@ WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
 NUM_PREEMPTIBLE_WORKERS = 2
 LABEL1 = {}
-LABEL2 = {'application':'test', 'year': 2017}
+LABEL2 = {'application': 'test', 'year': 2017}
 SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigtable.data'
@@ -63,6 +66,10 @@ SERVICE_ACCOUNT_SCOPES = [
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 REGION = 'test-region'
 MAIN_URI = 'test-uri'
+TEMPLATE_ID = 'template-id'
+
+HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
+
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
     # Unit test for the DataprocClusterCreateOperator
@@ -290,3 +297,116 @@ class DataProcSparkOperatorTest(unittest.TestCase):
 
             dataproc_task.execute(None)
             mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+
+
+class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
+    def setUp(self):
+        # Setup service.projects().regions().workflowTemplates().instantiate().execute()
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_workflows = Mock()
+        self.mock_workflows.instantiate.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.workflowTemplates.return_value = self.mock_workflows
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+                'end_date': DEFAULT_DATE,
+            },
+            schedule_interval='@daily')
+
+    def test_workflow(self):
+        with patch(HOOK) as MockHook:
+            hook = MockHook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.await.return_value = None
+
+            dataproc_task = DataprocWorkflowTemplateInstantiateOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                template_id=TEMPLATE_ID,
+                dag=self.dag
+            )
+
+            dataproc_task.execute(None)
+            template_name = (
+                'projects/test-project-id/regions/test-region/'
+                'workflowTemplates/template-id')
+            self.mock_workflows.instantiate.assert_called_once_with(
+                name=template_name,
+                body=mock.ANY)
+            hook.await.assert_called_once_with(self.operation)
+
+
+class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
+    def setUp(self):
+        # Setup service.projects().regions().workflowTemplates().instantiateInline()
+        #              .execute()
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_workflows = Mock()
+        self.mock_workflows.instantiateInline.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.workflowTemplates.return_value = self.mock_workflows
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+                'end_date': DEFAULT_DATE,
+            },
+            schedule_interval='@daily')
+
+    def test_iniline_workflow(self):
+        with patch(HOOK) as MockHook:
+            hook = MockHook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.await.return_value = None
+
+            template = {
+                "placement": {
+                    "managed_cluster": {
+                        "cluster_name": CLUSTER_NAME,
+                        "config": {
+                            "gce_cluster_config": {
+                                "zone_uri": ZONE,
+                            }
+                        }
+                    }
+                },
+                "jobs": [
+                    {
+                        "step_id": "say-hello",
+                        "pig_job": {
+                            "query": "sh echo hello"
+                        }
+                    }],
+            }
+
+            dataproc_task = DataprocWorkflowTemplateInstantiateInlineOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                template=template,
+                dag=self.dag
+            )
+
+            dataproc_task.execute(None)
+            self.mock_workflows.instantiateInline.assert_called_once_with(
+                parent='projects/test-project-id/regions/test-region',
+                instanceId=mock.ANY,
+                body=template)
+            hook.await.assert_called_once_with(self.operation)

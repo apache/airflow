@@ -14,8 +14,11 @@
 #
 
 import time
+import uuid
+
 
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
@@ -92,7 +95,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type service_account_scopes: list[string]
     """
 
-    template_fields = ['cluster_name', ]
+    template_fields = ['cluster_name']
 
     @apply_defaults
     def __init__(self,
@@ -928,3 +931,113 @@ class DataProcPySparkOperator(BaseOperator):
         job.set_job_name(self.job_name)
 
         hook.submit(hook.project_id, job.build(), self.region)
+
+
+class DataprocWorkflowTemplateBaseOperator(BaseOperator):
+    template_fields = ['template_id', 'template']
+
+    @apply_defaults
+    def __init__(self,
+                 project_id,
+                 region='global',
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 *args,
+                 **kwargs):
+        super(DataprocWorkflowTemplateBaseOperator, self).__init__(*args, **kwargs)
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.project_id = project_id
+        self.region = region
+        self.hook = DataProcHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            api_version='v1beta2'
+        )
+
+    def execute(self, context):
+        self.hook.await(self.start())
+
+    def start(self, context):
+        raise AirflowException('plese start a workflow operation')
+
+
+class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOperator):
+    """
+    Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
+    until the WorkflowTemplate is finished executing.
+
+    Please refer to:
+    https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiate
+
+    :param template_id: The id of the template.
+    :type template_id: string
+    :param project_id: The ID of the google cloud project in which
+        the template runs
+    :type project_id: string
+    :param region: leave as 'global', might become relevant in the future
+    :type region: string
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+        :type delegate_to: string
+    """
+
+    @apply_defaults
+    def __init__(self, template_id, *args, **kwargs):
+        (super(DataprocWorkflowTemplateInstantiateOperator, self)
+            .__init__(*args, **kwargs))
+        self.template_id = template_id
+
+    def start(self):
+        self.log.info('Instantiating Template: %s', self.template_id)
+        return (
+            self.hook.get_conn().projects().regions().workflowTemplates()
+            .instantiate(
+                name=('projects/%s/regions/%s/workflowTemplates/%s' %
+                      (self.project_id, self.region, self.template_id)),
+                body={'instanceId': str(uuid.uuid1())})
+            .execute())
+
+
+class DataprocWorkflowTemplateInstantiateInlineOperator(
+        DataprocWorkflowTemplateBaseOperator):
+    """
+    Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
+    wait until the WorkflowTemplate is finished executing.
+
+    Please refer to:
+    https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
+
+    :param template: The template contents.
+    :type template: map
+    :param project_id: The ID of the google cloud project in which
+        the template runs
+    :type project_id: string
+    :param region: leave as 'global', might become relevant in the future
+    :type region: string
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: string
+    """
+
+    @apply_defaults
+    def __init__(self, template, *args, **kwargs):
+        (super(DataprocWorkflowTemplateInstantiateInlineOperator, self)
+            .__init__(*args, **kwargs))
+        self.template = template
+
+    def start(self):
+        self.log.info('Instantiating Inline Template')
+        return (
+            self.hook.get_conn().projects().regions().workflowTemplates()
+            .instantiateInline(
+                parent='projects/%s/regions/%s' % (self.project_id, self.region),
+                instanceId=str(uuid.uuid1()),
+                body=self.template)
+            .execute())
