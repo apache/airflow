@@ -2003,7 +2003,7 @@ class SkipMixin(LoggingMixin):
 class BaseOperator(LoggingMixin):
     """
     Abstract base class for all operators. Since operators create objects that
-    become node in the dag, BaseOperator contains many recursive methods for
+    become nodes in the dag, BaseOperator contains many recursive methods for
     dag crawling behavior. To derive this class, you are expected to override
     the constructor as well as the 'execute' method.
 
