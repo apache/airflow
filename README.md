@@ -143,6 +143,7 @@ Currently **officially** using Airflow:
 1. [imgix](https://www.imgix.com/) [[@dclubb](https://github.com/dclubb)]
 1. [ING](http://www.ing.com/)
 1. [Jampp](https://github.com/jampp)
+1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) &  [@knil-sama](https://github.com/knil-sama)]
 1. [Kiwi.com](https://kiwi.com/) [[@underyx](https://github.com/underyx)]
 1. [Kogan.com](https://github.com/kogan) [[@geeknam](https://github.com/geeknam)]
 1. [Lemann Foundation](http://fundacaolemann.org.br) [[@fernandosjp](https://github.com/fernandosjp)]
