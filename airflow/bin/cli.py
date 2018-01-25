@@ -428,7 +428,6 @@ def task_failed_deps(args):
     Returns the unmet dependencies for a task instance from the perspective of the
     scheduler (i.e. why a task instance doesn't get scheduled and then queued by the
     scheduler, and then run by an executor).
-
     >>> airflow task_failed_deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
@@ -452,7 +451,6 @@ def task_failed_deps(args):
 def task_state(args):
     """
     Returns the state of a TaskInstance at the command line.
-
     >>> airflow task_state tutorial sleep 2015-01-01
     success
     """
@@ -465,7 +463,6 @@ def task_state(args):
 def dag_state(args):
     """
     Returns the state of a DagRun at the command line.
-
     >>> airflow dag_state tutorial 2015-01-01T00:00:00.000000
     running
     """
@@ -570,22 +567,18 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
     restarting workers occasionally.
-
     Each iteration of the loop traverses one edge of this state transition
     diagram, where each state (node) represents
     [ num_ready_workers_running / num_workers_running ]. We expect most time to
     be spent in [n / n]. `bs` is the setting webserver.worker_refresh_batch_size.
-
     The horizontal transition at ? happens after the new worker parses all the
     dags (so it could take a while!)
-
        V ────────────────────────────────────────────────────────────────────────┐
     [n / n] ──TTIN──> [ [n, n+bs) / n + bs ]  ────?───> [n + bs / n + bs] ──TTOU─┘
        ^                          ^───────────────┘
        │
        │      ┌────────────────v
        └──────┴────── [ [0, n) / n ] <─── start
-
     We change the number of workers by sending TTIN and TTOU to the gunicorn
     master process, which increases and decreases the number of child workers
     respectively. Gunicorn guarantees that on TTOU workers are terminated

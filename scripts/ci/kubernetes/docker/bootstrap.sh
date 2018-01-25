@@ -1,3 +1,4 @@
+#!/bin/bash
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -15,16 +16,14 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-set -o xtrace
-set -e
+# launch the appropriate process
 
-echo "This script downloads minikube, starts a driver=None minikube cluster, builds the airflow source and docker image, and then deploys airflow onto kubernetes"
-echo "For development, start minikube yourself (ie: minikube start) then run this script as you probably do not want a driver=None minikube cluster"
+if [ "$1" = "webserver" ]
+then
+	exec airflow webserver
+fi
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
-
-$DIRNAME/minikube/start_minikube.sh
-$DIRNAME/docker/build.sh
-$DIRNAME/kube/deploy.sh
-
-echo "Airflow environment on kubernetes is good to go!"
+if [ "$1" = "scheduler" ]
+then
+	exec airflow scheduler
+fi

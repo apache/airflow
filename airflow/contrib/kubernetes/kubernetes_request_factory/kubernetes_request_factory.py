@@ -31,7 +31,7 @@ class KubernetesRequestFactory:
     def create(self, pod):
         """
         Creates the request for kubernetes API.
-
+        
         :param pod: The pod object
         """
         pass
