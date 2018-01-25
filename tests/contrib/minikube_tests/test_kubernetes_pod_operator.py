@@ -19,7 +19,8 @@ import unittest
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
 from subprocess import check_call
-
+import mock
+from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 
 try:
     check_call(["kubectl", "get", "pods"])
@@ -31,7 +32,6 @@ except Exception as e:
 
 
 class KubernetesPodOperatorTest(unittest.TestCase):
-
     def test_working_pod(self):
         k = KubernetesPodOperator(namespace='default',
                                   image="ubuntu:16.04",
@@ -43,6 +43,20 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                                   )
 
         k.execute(None)
+
+    def test_logging(self):
+        with mock.patch.object(PodLauncher, 'log') as mock_logger:
+            k = KubernetesPodOperator(namespace='default',
+                                      image="ubuntu:16.04",
+                                      cmds=["bash", "-cx"],
+                                      arguments=["echo", "10"],
+                                      labels={"foo": "bar"},
+                                      name="test",
+                                      task_id="task",
+                                      get_logs=True
+                                      )
+            k.execute(None)
+            mock_logger.info.assert_any_call("+ echo\n")
 
     def test_faulty_image(self):
         bad_image_name = "foobar"

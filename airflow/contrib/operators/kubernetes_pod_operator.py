@@ -43,11 +43,15 @@ class KubernetesPodOperator(BaseOperator):
                                )
 
             launcher = pod_launcher.PodLauncher(client)
-            final_state = launcher.run_pod(pod, self.startup_timeout_seconds)
+            final_state = launcher.run_pod(
+                pod,
+                startup_timeout=self.startup_timeout_seconds,
+                get_logs=self.get_logs)
             if final_state != State.SUCCESS:
                 raise AirflowException("Pod returned a failure")
         except AirflowException as ex:
             raise AirflowException("Pod Launching failed: {error}".format(error=ex))
+
 
     @apply_defaults
     def __init__(self,
@@ -60,6 +64,7 @@ class KubernetesPodOperator(BaseOperator):
                  labels=None,
                  startup_timeout_seconds=120,
                  kube_executor_config=None,
+                 get_logs=True,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -72,3 +77,4 @@ class KubernetesPodOperator(BaseOperator):
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = name
         self.in_cluster = in_cluster
+        self.get_logs = get_logs
