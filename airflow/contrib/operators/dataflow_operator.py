@@ -56,6 +56,7 @@ class DataFlowJavaOperator(BaseOperator):
             'partitionType': 'DAY',
             'labels': {'foo' : 'bar'}
         },
+        gcp_conn_id='gcp-airflow-service-account',
         dag=my-dag)
     ```
 
@@ -166,6 +167,7 @@ class DataflowTemplateOperator(BaseOperator):
             'inputFile': "gs://bucket/input/my_input.txt",
             'outputFile': "gs://bucket/output/my_output.txt"
         },
+        gcp_conn_id='gcp-airflow-service-account',
         dag=my-dag)
     ```
     ``template`` ``dataflow_default_options`` and ``parameters`` are templated so you can
