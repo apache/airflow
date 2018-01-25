@@ -16,8 +16,9 @@
 # under the License.
 
 import yaml
-from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory \
-    import KubernetesRequestFactory
+from airflow.contrib.kubernetes.kubernetes_request_factory.kubernetes_request_factory import (
+    KubernetesRequestFactory)
+from airflow.contrib.kubernetes.pod import Pod
 
 
 class SimplePodRequestFactory(KubernetesRequestFactory):
@@ -33,6 +34,9 @@ spec:
     - name: base
       image: airflow-slave:latest
       command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
+      volumeMounts:
+        - name: shared-data
+          mountPath: "/usr/local/airflow/dags"
   restartPolicy: Never
     """
 

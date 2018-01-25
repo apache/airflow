@@ -58,7 +58,6 @@ class PodLauncher(LoggingMixin):
         # type: (Pod) -> State
         """
         Launches the pod synchronously and waits for completion.
-
         Args:
             pod (Pod):
             startup_timeout (int): Timeout for startup of the pod (if pod is pending for

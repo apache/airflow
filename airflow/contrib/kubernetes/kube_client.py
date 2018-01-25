@@ -16,16 +16,14 @@
 # under the License.
 
 
-def _load_kube_config(in_cluster):
+def get_kube_client(in_cluster=True):
+    # TODO: This should also allow people to point to a cluster.
+
     from kubernetes import config, client
+
     if in_cluster:
         config.load_incluster_config()
         return client.CoreV1Api()
     else:
-        config.load_kube_config()
-        return client.CoreV1Api()
-
-
-def get_kube_client(in_cluster=True):
-    # TODO: This should also allow people to point to a cluster.
-    return _load_kube_config(in_cluster)
+        NotImplementedError(
+            "Running kubernetes jobs from not within the cluster is not supported at this time")

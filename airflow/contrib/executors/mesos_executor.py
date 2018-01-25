@@ -277,7 +277,7 @@ class MesosExecutor(BaseExecutor, LoginMixin):
         self.mesos_driver = driver
         self.mesos_driver.start()
 
-    def execute_async(self, key, command, queue=None):
+    def execute_async(self, key, command, queue=None, executor_config=None):
         self.task_queue.put((key, command))
 
     def sync(self):

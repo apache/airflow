@@ -451,7 +451,7 @@ class DagFileProcessorManager(LoggingMixin):
     def heartbeat(self):
         """
         This should be periodically called by the scheduler. This method will
-        kick of new processes to process DAG definition files and read the
+        kick off new processes to process DAG definition files and read the
         results from the finished processors.
 
         :return: a list of SimpleDags that were produced by processors that

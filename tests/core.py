@@ -66,7 +66,7 @@ from jinja2 import UndefinedError
 
 import six
 
-NUM_EXAMPLE_DAGS = 18
+NUM_EXAMPLE_DAGS = 19
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')

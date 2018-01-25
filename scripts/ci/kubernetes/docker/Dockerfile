@@ -15,16 +15,36 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-set -o xtrace
-set -e
+FROM ubuntu:16.04
 
-echo "This script downloads minikube, starts a driver=None minikube cluster, builds the airflow source and docker image, and then deploys airflow onto kubernetes"
-echo "For development, start minikube yourself (ie: minikube start) then run this script as you probably do not want a driver=None minikube cluster"
+# install deps
+RUN apt-get update -y && apt-get install -y \
+        wget \
+        python-dev \
+        python-pip \
+        libczmq-dev \
+        libcurlpp-dev \
+        curl \
+        libssl-dev \
+        git \
+        inetutils-telnet \
+        bind9utils
 
-DIRNAME=$(cd "$(dirname "$0")"; pwd)
+RUN pip install -U setuptools && \
+    pip install -U pip
 
-$DIRNAME/minikube/start_minikube.sh
-$DIRNAME/docker/build.sh
-$DIRNAME/kube/deploy.sh
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
 
-echo "Airflow environment on kubernetes is good to go!"
+RUN pip install kubernetes && \
+    pip install cryptography && \
+    pip install psycopg2==2.7.3.1  # I had issues with older versions of psycopg2, just a warning
+
+# install airflow
+COPY airflow.tar.gz /tmp/airflow.tar.gz
+RUN pip install /tmp/airflow.tar.gz
+
+COPY bootstrap.sh /bootstrap.sh
+RUN chmod +x /bootstrap.sh
+
+ENTRYPOINT ["/bootstrap.sh"]

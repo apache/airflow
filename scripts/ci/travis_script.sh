@@ -35,4 +35,15 @@ else
                      --with-timer \
                      -v \
                      --logging-level=DEBUG
+  tox -e $TOX_ENV -- tests.contrib.executors.integration \
+                     --with-coverage \
+                     --cover-erase \
+                     --cover-html \
+                     --cover-package=airflow \
+                     --cover-html-dir=airflow/www/static/coverage \
+                     --with-ignore-docstrings \
+                     --rednose \
+                     --with-timer \
+                     -v \
+                     --logging-level=DEBUG
 fi

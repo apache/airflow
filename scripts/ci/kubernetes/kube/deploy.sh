@@ -15,38 +15,27 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-# Guard against a kubernetes cluster already being up
-kubectl get pods &> /dev/null
-if [ $? -eq 0 ]; then
-  echo "kubectl get pods returned 0 exit code, exiting early"
-  exit 0
-fi
-#
+IMAGE=${1:-airflow/ci}
+TAG=${2:-latest}
+DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
-curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64 && chmod +x minikube
-curl -Lo kubectl  https://storage.googleapis.com/kubernetes-release/release/v1.7.0/bin/linux/amd64/kubectl && chmod +x kubectl
+# create an emptydir for postgres to store it's volume data in
+sudo mkdir -p /data/postgres-airflow
 
-sudo mkdir -p /usr/local/bin
-sudo mv minikube /usr/local/bin/minikube
-sudo mv kubectl /usr/local/bin/kubectl
+mkdir -p $DIRNAME/.generated
+kubectl apply -f $DIRNAME/postgres.yaml
+sed -e "s#{{docker_image}}#$IMAGE#g" -e "s#{{docker_tag}}#$TAG#g" $DIRNAME/airflow.yaml.template > $DIRNAME/.generated/airflow.yaml && kubectl apply -f $DIRNAME/.generated/airflow.yaml
 
-export MINIKUBE_WANTUPDATENOTIFICATION=false
-export MINIKUBE_WANTREPORTERRORPROMPT=false
-export MINIKUBE_HOME=$HOME
-export CHANGE_MINIKUBE_NONE_USER=true
-mkdir $HOME/.kube || true
-touch $HOME/.kube/config
-
-export KUBECONFIG=$HOME/.kube/config
-sudo -E minikube start --vm-driver=none
-
-# this for loop waits until kubectl can access the api server that minikube has created
-for i in {1..150} # timeout for 5 minutes
+# wait for up to 10 minutes for everything to be deployed
+for i in {1..150}
 do
   echo "------- Running kubectl get pods -------"
-  kubectl get po &> /dev/null
-  if [ $? -ne 1 ]; then
+  PODS=$(kubectl get pods | awk 'NR>1 {print $0}')
+  echo "$PODS"
+  NUM_AIRFLOW_READY=$(echo $PODS | grep airflow | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
+  NUM_POSTGRES_READY=$(echo $PODS | grep postgres | awk '{print $2}' | grep -E '([0-9])\/(\1)' | wc -l | xargs)
+  if [ "$NUM_AIRFLOW_READY" == "1" ] && [ "$NUM_POSTGRES_READY" == "1" ]; then
     break
   fi
-  sleep 2
+  sleep 4
 done
