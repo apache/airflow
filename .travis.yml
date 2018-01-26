@@ -72,13 +72,13 @@ matrix:
       env: TOX_ENV=py35-backend_postgres
     - python: "2.7"
       env: TOX_ENV=flake8
-    - python: "3.5"  
+    - python: "3.5"
       env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
     - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0 
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
   allow_failures:
     - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
-    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0  
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -94,7 +94,9 @@ install:
   - pip install tox
   - pip install codecov
 before_script:
+  - cat "$TRAVIS_BUILD_DIR/scripts/ci/my.cnf" | sudo tee -a /etc/mysql/my.cnf
   - mysql -e 'drop database if exists airflow; create database airflow' -u root
+  - sudo service mysql restart
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
 script:
