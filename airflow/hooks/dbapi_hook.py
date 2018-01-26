@@ -195,7 +195,7 @@ class DbApiHook(BaseHook):
             target_fields = "({})".format(target_fields)
         else:
             target_fields = ''
-
+        i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)
