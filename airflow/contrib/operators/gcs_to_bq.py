@@ -47,6 +47,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :param schema_object: string
     :param source_format: File format to export.
     :type source_format: string
+    :param compression: [Optional] The compression type of the data source.
+            Possible values include GZIP and NONE.
+            The default value is NONE.
+            This setting is ignored for Google Cloud Bigtable,
+                Google Cloud Datastore backups and Avro formats.
+    :type compression: string
     :param create_disposition: The create disposition if the table doesn't exist.
     :type create_disposition: string
     :param skip_leading_rows: Number of rows to skip when loading from a CSV.
@@ -84,11 +90,14 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         work, the service account making the request must have domain-wide
         delegation enabled.
     :type delegate_to: string
-    :param schema_update_options: Allows the schema of the desitination
+    :param schema_update_options: Allows the schema of the destination
         table to be updated as a side effect of the load job.
     :type schema_update_options: list
     :param src_fmt_configs: configure optional fields specific to the source format
     :type src_fmt_configs: dict
+    :param external_table: Flag to specify if the destination table should be
+        a BigQuery external table. Default Value is False.
+    :type external_table: bool
     :param time_partitioning: configure optional time partitioning fields i.e.
         partition by field, type and  expiration as per API specifications.
         Note that 'field' is not available in concurrency with
@@ -108,6 +117,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  schema_fields=None,
                  schema_object=None,
                  source_format='CSV',
+                 compression='NONE',
                  create_disposition='CREATE_IF_NEEDED',
                  skip_leading_rows=0,
                  write_disposition='WRITE_EMPTY',
@@ -122,6 +132,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  delegate_to=None,
                  schema_update_options=(),
                  src_fmt_configs={},
+                 external_table=False,
                  time_partitioning={},
                  *args, **kwargs):
 
@@ -136,6 +147,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.destination_project_dataset_table = destination_project_dataset_table
         self.schema_fields = schema_fields
         self.source_format = source_format
+        self.compression = compression
         self.create_disposition = create_disposition
         self.skip_leading_rows = skip_leading_rows
         self.write_disposition = write_disposition
@@ -144,6 +156,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.quote_character = quote_character
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
+        self.external_table = external_table
 
         self.max_id_key = max_id_key
         self.bigquery_conn_id = bigquery_conn_id
@@ -173,22 +186,39 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                        for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
-        cursor.run_load(
-            destination_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
-            source_uris=source_uris,
-            source_format=self.source_format,
-            create_disposition=self.create_disposition,
-            skip_leading_rows=self.skip_leading_rows,
-            write_disposition=self.write_disposition,
-            field_delimiter=self.field_delimiter,
-            max_bad_records=self.max_bad_records,
-            quote_character=self.quote_character,
-            allow_quoted_newlines=self.allow_quoted_newlines,
-            allow_jagged_rows=self.allow_jagged_rows,
-            schema_update_options=self.schema_update_options,
-            src_fmt_configs=self.src_fmt_configs,
-            time_partitioning=self.time_partitioning)
+
+        if self.external_table:
+            cursor.create_external_table(
+                external_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                compression=self.compression,
+                skip_leading_rows=self.skip_leading_rows,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                src_fmt_configs=self.src_fmt_configs
+            )
+        else:
+            cursor.run_load(
+                destination_project_dataset_table=self.destination_project_dataset_table,
+                schema_fields=schema_fields,
+                source_uris=source_uris,
+                source_format=self.source_format,
+                create_disposition=self.create_disposition,
+                skip_leading_rows=self.skip_leading_rows,
+                write_disposition=self.write_disposition,
+                field_delimiter=self.field_delimiter,
+                max_bad_records=self.max_bad_records,
+                quote_character=self.quote_character,
+                allow_quoted_newlines=self.allow_quoted_newlines,
+                allow_jagged_rows=self.allow_jagged_rows,
+                schema_update_options=self.schema_update_options,
+                src_fmt_configs=self.src_fmt_configs,
+                time_partitioning=self.time_partitioning)
 
         if self.max_id_key:
             cursor.execute('SELECT MAX({}) FROM {}'.format(
