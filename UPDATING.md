@@ -3,7 +3,12 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
-## Airflow 1.9.1
+## Airflow Master
+
+### MySQL setting required
+
+We now rely on more strict ANSI SQL settings for MySQL in order to have sane defaults. Make sure
+to have specified `explicit_defaults_for_timestamp=1` in your my.cnf under `[mysqld]`
 
 ### Celery config
 
