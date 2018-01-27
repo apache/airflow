@@ -76,6 +76,7 @@ class BigQueryOperator(BaseOperator):
                  create_disposition='CREATE_IF_NEEDED',
                  schema_update_options=(),
                  query_params=None,
+                 priority='INTERACTIVE',
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -92,6 +93,7 @@ class BigQueryOperator(BaseOperator):
         self.schema_update_options = schema_update_options
         self.query_params = query_params
         self.bq_cursor = None
+        self.priority = priority
 
     def execute(self, context):
         if self.bq_cursor is None:
@@ -111,7 +113,8 @@ class BigQueryOperator(BaseOperator):
             maximum_billing_tier=self.maximum_billing_tier,
             create_disposition=self.create_disposition,
             query_params=self.query_params,
-            schema_update_options=self.schema_update_options)
+            schema_update_options=self.schema_update_options,
+            priority=self.priority)
 
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
