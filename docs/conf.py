@@ -24,6 +24,8 @@ MOCK_MODULES = [
     'mesos.native',
     'oauth2client.service_account',
     'pandas.io.gbq',
+    'vertica_python',
+    'pymssql'
 ]
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = mock.Mock()
@@ -53,6 +55,9 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinxarg.ext',
 ]
+
+autodoc_default_flags = ['show-inheritance', 'members']
+
 viewcode_import = True
 
 # Add any paths that contain templates here, relative to this directory.

@@ -14,13 +14,13 @@
 
 import json
 import unittest
+
 from mock import patch
 
 from airflow import configuration
-from airflow.utils import db
 from airflow import models
 from airflow.contrib.sensors.datadog_sensor import DatadogSensor
-
+from airflow.utils import db
 
 at_least_one_event = [{'alert_type': 'info',
                        'comments': [],
@@ -101,6 +101,7 @@ class TestDatadogSensor(unittest.TestCase):
             response_check=None)
 
         self.assertFalse(sensor.poke({}))
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -11,14 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-import logging
-
 from jira.resources import Resource
 
 from airflow.contrib.operators.jira_operator import JIRAError
 from airflow.contrib.operators.jira_operator import JiraOperator
-from airflow.operators.sensors import BaseSensorOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
 
@@ -86,7 +83,8 @@ class JiraTicketSensor(JiraSensor):
                  field=None,
                  expected_value=None,
                  field_checker_func=None,
-                 *args, **kwargs):
+                 *args,
+                 **kwargs):
 
         self.jira_conn_id = jira_conn_id
         self.ticket_id = ticket_id
@@ -97,11 +95,11 @@ class JiraTicketSensor(JiraSensor):
 
         super(JiraTicketSensor, self).__init__(jira_conn_id=jira_conn_id,
                                                result_processor=field_checker_func,
-                                               *args, **kwargs)
+                                               *args,
+                                               **kwargs)
 
     def poke(self, context):
-        logging.info('Jira Sensor checking for change in ticket : {0}'
-                     .format(self.ticket_id))
+        self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
         self.jira_operator.method_name = "issue"
         self.jira_operator.jira_method_args = {
@@ -114,33 +112,31 @@ class JiraTicketSensor(JiraSensor):
         result = None
         try:
             if issue is not None \
-                    and self.field is not None \
-                    and self.expected_value is not None:
+               and self.field is not None \
+               and self.expected_value is not None:
 
-                field_value = getattr(issue.fields, self.field)
-                if field_value is not None:
-                    if isinstance(field_value, list):
-                        result = self.expected_value in field_value
-                    elif isinstance(field_value, str):
-                        result = self.expected_value.lower() == field_value.lower()
-                    elif isinstance(field_value, Resource) \
-                            and getattr(field_value, 'name'):
-                        result = self.expected_value.lower() == field_value.name.lower()
+                field_val = getattr(issue.fields, self.field)
+                if field_val is not None:
+                    if isinstance(field_val, list):
+                        result = self.expected_value in field_val
+                    elif isinstance(field_val, str):
+                        result = self.expected_value.lower() == field_val.lower()
+                    elif isinstance(field_val, Resource) and getattr(field_val, 'name'):
+                        result = self.expected_value.lower() == field_val.name.lower()
                     else:
-                        logging.warning("not implemented checker for issue field {0} "
-                                        "which is neither string nor list nor "
-                                        "jira Resource".format(self.field))
+                        self.log.warning(
+                            "Not implemented checker for issue field %s which "
+                            "is neither string nor list nor Jira Resource",
+                            self.field
+                        )
 
         except JIRAError as jira_error:
-            logging.error("jira error while checking with expected value: {0}"
-                          .format(jira_error))
+            self.log.error("Jira error while checking with expected value: %s", jira_error)
         except Exception as e:
-            logging.error("error while checking with expected value {0}, error: {1}"
-                          .format(self.expected_value, e))
+            self.log.error("Error while checking with expected value %s:", self.expected_value)
+            self.log.exception(e)
         if result is True:
-            logging.info("issue field {0} has expected value {1}, returning success"
-                         .format(self.field, self.expected_value))
+            self.log.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
         else:
-            logging.info("issue field {0} dont have expected value {1} yet."
-                         .format(self.field, self.expected_value))
+            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
         return result

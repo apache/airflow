@@ -469,7 +469,9 @@ def fix_version_from_branch(branch, versions):
 
 def register(username, password):
     """ Use this function to register a JIRA account in your OS' keyring """
-    keyring.set_password('airflow-pr', username, password)
+    keyring.set_password('airflow-pr', 'username', username)
+    keyring.set_password('airflow-pr', 'password', password)
+
 
 def validate_jira_id(jira_id):
     if not jira_id:
@@ -541,6 +543,11 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
     JIRA_USERNAME = os.environ.get("JIRA_USERNAME", '')
     if not JIRA_USERNAME:
         JIRA_USERNAME = TMP_CREDENTIALS.get('JIRA_USERNAME', '')
+    if not JIRA_USERNAME:
+        JIRA_USERNAME = keyring.get_password("airflow-pr", "username")
+        if JIRA_USERNAME:
+            click.echo("Obtained jira username from keyring. To reset remove it there")
+
     # ASF JIRA password
     JIRA_PASSWORD = os.environ.get("JIRA_PASSWORD", '')
     if not JIRA_PASSWORD:
@@ -554,7 +561,7 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
             'Set a JIRA_USERNAME env var to avoid this prompt in the future.')
         TMP_CREDENTIALS['JIRA_USERNAME'] = JIRA_USERNAME
     if JIRA_USERNAME and not JIRA_PASSWORD:
-        JIRA_PASSWORD = keyring.get_password("airflow-pr", JIRA_USERNAME)
+        JIRA_PASSWORD = keyring.get_password("airflow-pr", 'password')
         if JIRA_PASSWORD:
             click.echo("Obtained password from keyring. To reset remove it there.")
     if not JIRA_PASSWORD:

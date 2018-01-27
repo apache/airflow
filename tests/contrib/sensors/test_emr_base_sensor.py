@@ -15,8 +15,8 @@
 import unittest
 
 from airflow import configuration
-from airflow.exceptions import AirflowException
 from airflow.contrib.sensors.emr_base_sensor import EmrBaseSensor
+from airflow.exceptions import AirflowException
 
 
 class TestEmrBaseSensor(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_subclasses_that_implment_required_methods_and_constants_succeed_when_response_is_good(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
             def get_emr_response(self):
                 return {
@@ -49,7 +49,7 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_poke_returns_false_when_state_is_a_non_terminal_state(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
             def get_emr_response(self):
                 return {
@@ -72,7 +72,7 @@ class TestEmrBaseSensor(unittest.TestCase):
     def test_poke_returns_false_when_http_response_is_bad(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
             def get_emr_response(self):
                 return {
@@ -92,11 +92,10 @@ class TestEmrBaseSensor(unittest.TestCase):
 
         self.assertEqual(operator.poke(None), False)
 
-
     def test_poke_raises_error_when_job_has_failed(self):
         class EmrBaseSensorSubclass(EmrBaseSensor):
             NON_TERMINAL_STATES = ['PENDING', 'RUNNING', 'CONTINUE']
-            FAILED_STATE = 'FAILED'
+            FAILED_STATE = ['FAILED']
 
             def get_emr_response(self):
                 return {
@@ -115,9 +114,7 @@ class TestEmrBaseSensor(unittest.TestCase):
         )
 
         with self.assertRaises(AirflowException) as context:
-
             operator.poke(None)
-
 
         self.assertIn('EMR job failed', str(context.exception))
 

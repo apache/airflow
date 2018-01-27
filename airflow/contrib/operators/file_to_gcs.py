@@ -35,7 +35,8 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     :param delegate_to: The account to impersonate, if any
     :type delegate_to: string
     """
-
+    template_fields = ('src', 'dst', 'bucket')
+    
     @apply_defaults
     def __init__(self,
                  src,

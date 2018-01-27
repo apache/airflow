@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -31,6 +29,12 @@ class BigQueryOperator(BaseOperator):
         (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
         of the query.
     :type destination_dataset_table: string
+    :param write_disposition: Specifies the action that occurs if the destination table
+        already exists. (default: 'WRITE_EMPTY')
+    :type write_disposition: string
+    :param create_disposition: Specifies whether the job is allowed to create new tables.
+        (default: 'CREATE_IF_NEEDED')
+    :type create_disposition: string
     :param bigquery_conn_id: reference to a specific BigQuery hook.
     :type bigquery_conn_id: string
     :param delegate_to: The account to impersonate, if any.
@@ -42,9 +46,20 @@ class BigQueryOperator(BaseOperator):
     :type udf_config: list
     :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
     :type use_legacy_sql: boolean
+    :param maximum_billing_tier: Positive integer that serves as a multiplier
+        of the basic price.
+        Defaults to None, in which case it uses the value set in the project.
+    :type maximum_billing_tier: integer
+    :param schema_update_options: Allows the schema of the desitination
+        table to be updated as a side effect of the load job.
+    :type schema_update_options: tuple
+    :param query_params: a dictionary containing query parameter types and
+        values, passed to BigQuery.
+    :type query_params: dict
+
     """
     template_fields = ('bql', 'destination_dataset_table')
-    template_ext = ('.sql',)
+    template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
@@ -57,23 +72,49 @@ class BigQueryOperator(BaseOperator):
                  delegate_to=None,
                  udf_config=False,
                  use_legacy_sql=True,
+                 maximum_billing_tier=None,
+                 create_disposition='CREATE_IF_NEEDED',
+                 schema_update_options=(),
+                 query_params=None,
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
+        self.create_disposition = create_disposition
         self.allow_large_results = allow_large_results
         self.bigquery_conn_id = bigquery_conn_id
         self.delegate_to = delegate_to
         self.udf_config = udf_config
         self.use_legacy_sql = use_legacy_sql
+        self.maximum_billing_tier = maximum_billing_tier
+        self.schema_update_options = schema_update_options
+        self.query_params = query_params
+        self.bq_cursor = None
 
     def execute(self, context):
-        logging.info('Executing: %s', self.bql)
-        hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
-                            delegate_to=self.delegate_to)
-        conn = hook.get_conn()
-        cursor = conn.cursor()
-        cursor.run_query(self.bql, self.destination_dataset_table, self.write_disposition,
-                         self.allow_large_results, self.udf_config, self.use_legacy_sql)
+        if self.bq_cursor is None:
+            self.log.info('Executing: %s', self.bql)
+            hook = BigQueryHook(
+                bigquery_conn_id=self.bigquery_conn_id,
+                use_legacy_sql=self.use_legacy_sql,
+                delegate_to=self.delegate_to)
+            conn = hook.get_conn()
+            self.bq_cursor = conn.cursor()
+        self.bq_cursor.run_query(
+            self.bql,
+            destination_dataset_table=self.destination_dataset_table,
+            write_disposition=self.write_disposition,
+            allow_large_results=self.allow_large_results,
+            udf_config=self.udf_config,
+            maximum_billing_tier=self.maximum_billing_tier,
+            create_disposition=self.create_disposition,
+            query_params=self.query_params,
+            schema_update_options=self.schema_update_options)
+
+    def on_kill(self):
+        super(BigQueryOperator, self).on_kill()
+        if self.bq_cursor is not None:
+            self.log.info('Canceling running query due to execution timeout')
+            self.bq_cursor.cancel_query()

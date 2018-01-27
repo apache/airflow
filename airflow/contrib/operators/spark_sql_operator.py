@@ -20,6 +20,7 @@ from airflow.contrib.hooks.spark_sql_hook import SparkSqlHook
 class SparkSqlOperator(BaseOperator):
     """
     Execute Spark SQL query
+
     :param sql: The SQL query to execute
     :type sql: str
     :param conf: arbitrary Spark configuration property
@@ -58,6 +59,7 @@ class SparkSqlOperator(BaseOperator):
                  executor_cores=None,
                  executor_memory=None,
                  keytab=None,
+                 principal=None,
                  master='yarn',
                  name='default-name',
                  num_executors=None,
@@ -72,6 +74,7 @@ class SparkSqlOperator(BaseOperator):
         self._executor_cores = executor_cores
         self._executor_memory = executor_memory
         self._keytab = keytab
+        self._principal = principal
         self._master = master
         self._name = name
         self._num_executors = num_executors
@@ -89,6 +92,7 @@ class SparkSqlOperator(BaseOperator):
                                   executor_cores=self._executor_cores,
                                   executor_memory=self._executor_memory,
                                   keytab=self._keytab,
+                                  principal=self._principal,
                                   name=self._name,
                                   num_executors=self._num_executors,
                                   master=self._master,

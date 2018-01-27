@@ -28,16 +28,26 @@ configure as follows:
 Authentication
 --------------
 
-Only Kerberos authentication is currently supported for the API. To enable this set the following
-in the configuration:
+Authentication for the API is handled separately to the Web Authentication. The default is to not
+require any authentication on the API -- i.e. wide open by default. This is not recommended if your
+Airflow webserver is publicly accessible, and you should probably use the deny all backend:
 
-.. code-block:: bash
+.. code-block:: ini
 
     [api]
-    auth_backend = airflow.api.auth.backend.default
+    auth_backend = airflow.api.auth.backend.deny_all
+
+
+Kerberos is the only "real" authentication mechanism currently supported for the API. To enable
+this set the following in the configuration:
+
+.. code-block:: ini
+
+    [api]
+    auth_backend = airflow.api.auth.backend.kerberos_auth
 
     [kerberos]
     keytab = <KEYTAB>
 
-The Kerberos service is configured as `airflow/fully.qualified.domainname@REALM`. Make sure this
+The Kerberos service is configured as ``airflow/fully.qualified.domainname@REALM``. Make sure this
 principal exists in the keytab file.

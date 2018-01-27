@@ -36,7 +36,7 @@ class EmailOperator(BaseOperator):
     :type bcc: list or string (comma or semicolon delimited)
     """
 
-    template_fields = ('subject', 'html_content')
+    template_fields = ('to', 'subject', 'html_content')
     template_ext = ('.html',)
     ui_color = '#e6faf9'
 

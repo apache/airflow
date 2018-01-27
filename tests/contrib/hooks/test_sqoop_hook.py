@@ -13,6 +13,7 @@
 # limitations under the License.
 #
 
+import collections
 import json
 import unittest
 
@@ -40,8 +41,8 @@ class TestSqoopHook(unittest.TestCase):
     _config_export = {
         'table': 'domino.export_data_to',
         'export_dir': '/hdfs/data/to/be/exported',
-        'input_null_string': '\n',
-        'input_null_non_string': '\t',
+        'input_null_string': '\\n',
+        'input_null_non_string': '\\t',
         'staging_table': 'database.staging',
         'clear_staging_table': True,
         'enclosed_by': '"',
@@ -50,7 +51,11 @@ class TestSqoopHook(unittest.TestCase):
         'input_lines_terminated_by': '\n',
         'input_optionally_enclosed_by': '"',
         'batch': True,
-        'relaxed_isolation': True
+        'relaxed_isolation': True,
+        'extra_export_options': collections.OrderedDict([
+            ('update-key', 'id'),
+            ('update-mode', 'allowinsert')
+        ])
     }
     _config_import = {
         'target_dir': '/hdfs/data/target/location',
@@ -58,7 +63,11 @@ class TestSqoopHook(unittest.TestCase):
         'file_type': 'parquet',
         'split_by': '\n',
         'direct': True,
-        'driver': 'com.microsoft.jdbc.sqlserver.SQLServerDriver'
+        'driver': 'com.microsoft.jdbc.sqlserver.SQLServerDriver',
+        'extra_import_options': {
+            'hcatalog-storage-stanza': "\"stored as orcfile\"",
+            'show': ''
+        }
     }
 
     _config_json = {
@@ -94,10 +103,10 @@ class TestSqoopHook(unittest.TestCase):
         self.assertEqual(mock_popen.mock_calls[0], call(
             ['sqoop',
              'export',
+             '-fs', self._config_json['namenode'],
              '-jt', self._config_json['job_tracker'],
              '-libjars', self._config_json['libjars'],
              '-files', self._config_json['files'],
-             '-fs', self._config_json['namenode'],
              '-archives', self._config_json['archives'],
              '--connect', 'rmdbs:5050/schema',
              '--input-null-string', self._config_export['input_null_string'],
@@ -112,9 +121,25 @@ class TestSqoopHook(unittest.TestCase):
              '--batch',
              '--relaxed-isolation',
              '--export-dir', self._config_export['export_dir'],
+             '--update-key', 'id',
+             '--update-mode', 'allowinsert',
              '--table', self._config_export['table']], stderr=-2, stdout=-1))
 
+    def test_submit_none_mappers(self):
+        """
+        Test to check that if value of num_mappers is None, then it shouldn't be in the cmd built.
+        """
+        _config_without_mappers = self._config.copy()
+        _config_without_mappers['num_mappers'] = None
+
+        hook = SqoopHook(**_config_without_mappers)
+        cmd = ' '.join(hook._prepare_command())
+        self.assertNotIn('--num-mappers', cmd)
+
     def test_submit(self):
+        """
+        Tests to verify that from connection extra option the options are added to the Sqoop command.
+        """
         hook = SqoopHook(**self._config)
 
         cmd = ' '.join(hook._prepare_command())
@@ -124,20 +149,16 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("-fs {}".format(self._config_json['namenode']), cmd)
 
         if self._config_json['job_tracker']:
-            self.assertIn("-jt {}".format(self._config_json['job_tracker']),
-                          cmd)
+            self.assertIn("-jt {}".format(self._config_json['job_tracker']), cmd)
 
         if self._config_json['libjars']:
-            self.assertIn("-libjars {}".format(self._config_json['libjars']),
-                          cmd)
+            self.assertIn("-libjars {}".format(self._config_json['libjars']), cmd)
 
         if self._config_json['files']:
             self.assertIn("-files {}".format(self._config_json['files']), cmd)
 
         if self._config_json['archives']:
-            self.assertIn(
-                "-archives {}".format(self._config_json['archives']), cmd
-            )
+            self.assertIn( "-archives {}".format(self._config_json['archives']), cmd)
 
         self.assertIn("--hcatalog-database {}".format(self._config['hcatalog_database']), cmd)
         self.assertIn("--hcatalog-table {}".format(self._config['hcatalog_table']), cmd)
@@ -147,11 +168,8 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("--verbose", cmd)
 
         if self._config['num_mappers']:
-            self.assertIn(
-                "--num-mappers {}".format(self._config['num_mappers']), cmd
-            )
+            self.assertIn( "--num-mappers {}".format(self._config['num_mappers']), cmd)
 
-        print(self._config['properties'])
         for key, value in self._config['properties'].items():
             self.assertIn("-D {}={}".format(key, value), cmd)
 
@@ -161,14 +179,15 @@ class TestSqoopHook(unittest.TestCase):
             hook.export_table(**self._config_export)
 
         with self.assertRaises(OSError):
-            hook.import_table(table='schema.table',
-                              target_dir='/sqoop/example/path')
+            hook.import_table(table='schema.table', target_dir='/sqoop/example/path')
 
         with self.assertRaises(OSError):
-            hook.import_query(query='SELECT * FROM sometable',
-                              target_dir='/sqoop/example/path')
+            hook.import_query(query='SELECT * FROM sometable', target_dir='/sqoop/example/path')
 
     def test_export_cmd(self):
+        """
+        Tests to verify the hook export command is building correct Sqoop export command.
+        """
         hook = SqoopHook()
 
         # The subprocess requires an array but we build the cmd by joining on a space
@@ -190,7 +209,9 @@ class TestSqoopHook(unittest.TestCase):
                 input_optionally_enclosed_by=self._config_export[
                     'input_optionally_enclosed_by'],
                 batch=self._config_export['batch'],
-                relaxed_isolation=self._config_export['relaxed_isolation'])
+                relaxed_isolation=self._config_export['relaxed_isolation'],
+                extra_export_options=self._config_export['extra_export_options']
+            )
         )
 
         self.assertIn("--input-null-string {}".format(
@@ -209,6 +230,9 @@ class TestSqoopHook(unittest.TestCase):
             self._config_export['input_lines_terminated_by']), cmd)
         self.assertIn("--input-optionally-enclosed-by {}".format(
             self._config_export['input_optionally_enclosed_by']), cmd)
+        # these options are from the extra export options
+        self.assertIn("--update-key id", cmd)
+        self.assertIn("--update-mode allowinsert", cmd)
 
         if self._config_export['clear_staging_table']:
             self.assertIn("--clear-staging-table", cmd)
@@ -220,16 +244,22 @@ class TestSqoopHook(unittest.TestCase):
             self.assertIn("--relaxed-isolation", cmd)
 
     def test_import_cmd(self):
+        """
+        Tests to verify the hook import command is building correct Sqoop import command.
+        """
         hook = SqoopHook()
 
         # The subprocess requires an array but we build the cmd by joining on a space
         cmd = ' '.join(
-            hook._import_cmd(self._config_import['target_dir'],
-                             append=self._config_import['append'],
-                             file_type=self._config_import['file_type'],
-                             split_by=self._config_import['split_by'],
-                             direct=self._config_import['direct'],
-                             driver=self._config_import['driver'])
+            hook._import_cmd(
+                self._config_import['target_dir'],
+                append=self._config_import['append'],
+                file_type=self._config_import['file_type'],
+                split_by=self._config_import['split_by'],
+                direct=self._config_import['direct'],
+                driver=self._config_import['driver'],
+                extra_import_options=None
+            )
         )
 
         if self._config_import['append']:
@@ -242,10 +272,32 @@ class TestSqoopHook(unittest.TestCase):
             self._config_import['target_dir']), cmd)
 
         self.assertIn('--driver {}'.format(self._config_import['driver']), cmd)
-        self.assertIn('--split-by {}'.format(self._config_import['split_by']),
-                      cmd)
+        self.assertIn('--split-by {}'.format(self._config_import['split_by']), cmd)
+        # these are from extra options, but not passed to this cmd import command
+        self.assertNotIn('--show', cmd)
+        self.assertNotIn('hcatalog-storage-stanza \"stored as orcfile\"', cmd)
+
+        cmd = ' '.join(
+            hook._import_cmd(
+                target_dir=None,
+                append=self._config_import['append'],
+                file_type=self._config_import['file_type'],
+                split_by=self._config_import['split_by'],
+                direct=self._config_import['direct'],
+                driver=self._config_import['driver'],
+                extra_import_options=self._config_import['extra_import_options']
+            )
+        )
+
+        self.assertNotIn('--target-dir', cmd)
+        # these checks are from the extra import options
+        self.assertIn('--show', cmd)
+        self.assertIn('hcatalog-storage-stanza \"stored as orcfile\"', cmd)
 
     def test_get_export_format_argument(self):
+        """
+        Tests to verify the hook get format function is building correct Sqoop command with correct format type.
+        """
         hook = SqoopHook()
         self.assertIn("--as-avrodatafile",
                       hook._get_export_format_argument('avro'))
@@ -259,6 +311,9 @@ class TestSqoopHook(unittest.TestCase):
             hook._get_export_format_argument('unknown')
 
     def test_cmd_mask_password(self):
+        """
+        Tests to verify the hook masking function will correctly mask a user password in Sqoop command.
+        """
         hook = SqoopHook()
         self.assertEqual(
             hook.cmd_mask_password(['--password', 'supersecret']),

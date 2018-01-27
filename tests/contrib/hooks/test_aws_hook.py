@@ -21,9 +21,10 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 try:
-    from moto import mock_emr
+    from moto import mock_emr, mock_dynamodb2
 except ImportError:
     mock_emr = None
+    mock_dynamodb2 = None
 
 
 class TestAwsHook(unittest.TestCase):
@@ -42,6 +43,40 @@ class TestAwsHook(unittest.TestCase):
         client_from_hook = hook.get_client_type('emr')
 
         self.assertEqual(client_from_hook.list_clusters()['Clusters'], [])
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    def test_get_resource_type_returns_a_boto3_resource_of_the_requested_type(self):
+
+        hook = AwsHook(aws_conn_id='aws_default')
+        resource_from_hook = hook.get_resource_type('dynamodb')
+
+        # this table needs to be created in production
+        table = resource_from_hook.create_table(
+            TableName='test_airflow',
+            KeySchema=[
+                {
+                    'AttributeName': 'id',
+                    'KeyType': 'HASH'
+                },
+            ],
+            AttributeDefinitions=[
+                {
+                    'AttributeName': 'name',
+                    'AttributeType': 'S'
+                }
+            ],
+            ProvisionedThroughput={
+                'ReadCapacityUnits': 10,
+                'WriteCapacityUnits': 10
+            }
+        )
+
+        table.meta.client.get_waiter(
+            'table_exists').wait(TableName='test_airflow')
+
+        self.assertEqual(table.item_count, 0)
+
 
 if __name__ == '__main__':
     unittest.main()

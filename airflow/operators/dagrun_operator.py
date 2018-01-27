@@ -12,14 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-import logging
-
 from airflow.models import BaseOperator, DagBag
+from airflow.utils import timezone
+from airflow.utils.db import create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
 from airflow import settings
-from airflow import configuration as conf
 
 
 class DagRunOrder(object):
@@ -30,7 +28,7 @@ class DagRunOrder(object):
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id`` if a criteria is met
+    Triggers a DAG run for a specified ``dag_id``
 
     :param trigger_dag_id: the dag_id to trigger
     :type trigger_dag_id: str
@@ -53,27 +51,27 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id,
-            python_callable,
+            python_callable=None,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
 
     def execute(self, context):
-        dro = DagRunOrder(run_id='trig__' + datetime.now().isoformat())
-        dro = self.python_callable(context, dro)
+        dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
+        if self.python_callable is not None:
+            dro = self.python_callable(context, dro)
         if dro:
-            session = settings.Session()
-            dbag = DagBag(settings.DAGS_FOLDER)
-            trigger_dag = dbag.get_dag(self.trigger_dag_id)
-            dr = trigger_dag.create_dagrun(
-                run_id=dro.run_id,
-                state=State.RUNNING,
-                conf=dro.payload,
-                external_trigger=True)
-            logging.info("Creating DagRun {}".format(dr))
-            session.add(dr)
-            session.commit()
-            session.close()
+            with create_session() as session:
+                dbag = DagBag(settings.DAGS_FOLDER)
+                trigger_dag = dbag.get_dag(self.trigger_dag_id)
+                dr = trigger_dag.create_dagrun(
+                    run_id=dro.run_id,
+                    state=State.RUNNING,
+                    conf=dro.payload,
+                    external_trigger=True)
+                self.log.info("Creating DagRun %s", dr)
+                session.add(dr)
+                session.commit()
         else:
-            logging.info("Criteria not met, moving on")
+            self.log.info("Criteria not met, moving on")

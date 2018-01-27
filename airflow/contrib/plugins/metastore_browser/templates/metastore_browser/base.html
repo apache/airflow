@@ -1,13 +1,13 @@
-{# 
+{#
   Licensed to the Apache Software Foundation (ASF) under one or more
   contributor license agreements.  See the NOTICE file distributed with
   this work for additional information regarding copyright ownership.
   The ASF licenses this file to You under the Apache License, Version 2.0
   (the "License"); you may not use this file except in compliance with
   the License.  You may obtain a copy of the License at
-  
+
     http://www.apache.org/licenses/LICENSE-2.0
-  
+
   Unless required by applicable law or agreed to in writing, software
   distributed under the License is distributed on an "AS IS" BASIS,
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,14 +31,14 @@
 {% block head %}
 {{ super() }}
 <link rel="stylesheet" type="text/css" href="{{ url_for("static", filename="dataTables.bootstrap.css") }}">
-<link href="/admin/static/vendor/select2/select2.css" rel="stylesheet">
+<link href="{{ url_for('static', filename='select2.css') }}" rel="stylesheet">
 {% endblock %}
 
 {% block tail %}
 {{ super() }}
 <script src="{{ url_for('static', filename='jquery.dataTables.min.js') }}"></script>
 <script src="{{ url_for('static', filename='dataTables.bootstrap.js') }}"></script>
-<script src="/admin/static/vendor/select2/select2.min.js" type="text/javascript"></script>
+<script src="{{ url_for('static', filename='select2.min.js') }}" type="text/javascript"></script>
 <script>
     // Filling up the table selector
     url = "{{ url_for('.objects') }}";

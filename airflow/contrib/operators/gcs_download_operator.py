@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
 import sys
 
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -31,12 +30,12 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     :type object: string
     :param filename: The file path on the local file system (where the
         operator is being executed) that the file should be downloaded to.
-        If false, the downloaded data will not be stored on the local file
+        If no filename passed, the downloaded data will not be stored on the local file
         system.
     :type filename: string
     :param store_to_xcom_key: If this param is set, the operator will push
         the contents of the downloaded file to XCom with the key set in this
-        parameter. If false, the downloaded data will not be pushed to XCom.
+        parameter. If not set, the downloaded data will not be pushed to XCom.
     :type store_to_xcom_key: string
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
@@ -52,8 +51,8 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     def __init__(self,
                  bucket,
                  object,
-                 filename=False,
-                 store_to_xcom_key=False,
+                 filename=None,
+                 store_to_xcom_key=None,
                  google_cloud_storage_conn_id='google_cloud_storage_default',
                  delegate_to=None,
                  *args,
@@ -67,7 +66,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
+        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
         hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                                       delegate_to=self.delegate_to)
         file_bytes = hook.download(self.bucket, self.object, self.filename)
@@ -76,4 +75,4 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
                 raise RuntimeError('The size of the downloaded file is too large to push to XCom!')
-        logging.info(file_bytes)
+        self.log.debug(file_bytes)

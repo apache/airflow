@@ -16,17 +16,15 @@
 """
 This module contains a sqoop 1.x hook
 """
-
-import logging
 import subprocess
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
+from copy import deepcopy
 
-log = logging.getLogger(__name__)
 
-
-class SqoopHook(BaseHook):
+class SqoopHook(BaseHook, LoggingMixin):
     """
     This hook is a wrapper around the sqoop 1 binary. To be able to use the hook
     it is required that "sqoop" is in the PATH.
@@ -46,7 +44,7 @@ class SqoopHook(BaseHook):
     :param verbose: Set sqoop to verbose.
     :type verbose: bool
     :param num_mappers: Number of map tasks to import in parallel.
-    :type num_mappers: str
+    :type num_mappers: int
     :param properties: Properties to set via the -D argument
     :type properties: dict
     """
@@ -55,8 +53,6 @@ class SqoopHook(BaseHook):
                  num_mappers=None, hcatalog_database=None,
                  hcatalog_table=None, properties=None):
         # No mutable types in the default parameters
-        if properties is None:
-            properties = {}
         self.conn = self.get_connection(conn_id)
         connection_parameters = self.conn.extra_dejson
         self.job_tracker = connection_parameters.get('job_tracker', None)
@@ -69,17 +65,19 @@ class SqoopHook(BaseHook):
         self.hcatalog_table = hcatalog_table
         self.verbose = verbose
         self.num_mappers = num_mappers
-        self.properties = properties
+        self.properties = properties or {}
+        self.log.info("Using connection to: {}:{}/{}".format(self.conn.host, self.conn.port, self.conn.schema))
 
     def get_conn(self):
-        pass
+        return self.conn
 
-    def cmd_mask_password(self, cmd):
+    def cmd_mask_password(self, cmd_orig):
+        cmd = deepcopy(cmd_orig)
         try:
             password_index = cmd.index('--password')
             cmd[password_index + 1] = 'MASKED'
         except ValueError:
-            logging.debug("No password in sqoop cmd")
+            self.log.debug("No password in sqoop cmd")
         return cmd
 
     def Popen(self, cmd, **kwargs):
@@ -90,55 +88,54 @@ class SqoopHook(BaseHook):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        logging.info("Executing command: {}".format(' '.join(cmd)))
-        sp = subprocess.Popen(cmd,
+        masked_cmd = ' '.join(self.cmd_mask_password(cmd))
+        self.log.info("Executing command: {}".format(masked_cmd))
+        self.sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
 
-        for line in iter(sp.stdout):
-            logging.info(line.strip())
+        for line in iter(self.sp.stdout):
+            self.log.info(line.strip())
 
-        sp.wait()
+        self.sp.wait()
 
-        logging.info("Command exited with return code {0}".format(sp.returncode))
+        self.log.info("Command exited with return code %s", self.sp.returncode)
 
-        if sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(' '.join(cmd)))
+        if self.sp.returncode:
+            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
     def _prepare_command(self, export=False):
-        if export:
-            connection_cmd = ["sqoop", "export"]
-        else:
-            connection_cmd = ["sqoop", "import"]
+        sqoop_cmd_type = "export" if export else "import"
+        connection_cmd = ["sqoop", sqoop_cmd_type]
 
-        if self.verbose:
-            connection_cmd += ["--verbose"]
+        for key, value in self.properties.items():
+            connection_cmd += ["-D", "{}={}".format(key, value)]
+
+        if self.namenode:
+            connection_cmd += ["-fs", self.namenode]
         if self.job_tracker:
             connection_cmd += ["-jt", self.job_tracker]
+        if self.libjars:
+            connection_cmd += ["-libjars", self.libjars]
+        if self.files:
+            connection_cmd += ["-files", self.files]
+        if self.archives:
+            connection_cmd += ["-archives", self.archives]
         if self.conn.login:
             connection_cmd += ["--username", self.conn.login]
         if self.conn.password:
             connection_cmd += ["--password", self.conn.password]
         if self.password_file:
             connection_cmd += ["--password-file", self.password_file]
-        if self.libjars:
-            connection_cmd += ["-libjars", self.libjars]
-        if self.files:
-            connection_cmd += ["-files", self.files]
-        if self.namenode:
-            connection_cmd += ["-fs", self.namenode]
-        if self.archives:
-            connection_cmd += ["-archives", self.archives]
+        if self.verbose:
+            connection_cmd += ["--verbose"]
         if self.num_mappers:
             connection_cmd += ["--num-mappers", str(self.num_mappers)]
         if self.hcatalog_database:
             connection_cmd += ["--hcatalog-database", self.hcatalog_database]
         if self.hcatalog_table:
             connection_cmd += ["--hcatalog-table", self.hcatalog_table]
-
-        for key, value in self.properties.items():
-            connection_cmd += ["-D", "{}={}".format(key, value)]
 
         connection_cmd += ["--connect", "{}:{}/{}".format(
             self.conn.host,
@@ -148,7 +145,8 @@ class SqoopHook(BaseHook):
 
         return connection_cmd
 
-    def _get_export_format_argument(self, file_type='text'):
+    @staticmethod
+    def _get_export_format_argument(file_type='text'):
         if file_type == "avro":
             return ["--as-avrodatafile"]
         elif file_type == "sequence":
@@ -162,11 +160,12 @@ class SqoopHook(BaseHook):
                                    "'sequence', 'parquet' or 'text'.")
 
     def _import_cmd(self, target_dir, append, file_type, split_by, direct,
-                    driver):
+                    driver, extra_import_options):
 
         cmd = self._prepare_command(export=False)
 
-        cmd += ["--target-dir", target_dir]
+        if target_dir:
+            cmd += ["--target-dir", target_dir]
 
         if append:
             cmd += ["--append"]
@@ -182,11 +181,16 @@ class SqoopHook(BaseHook):
         if driver:
             cmd += ["--driver", driver]
 
+        if extra_import_options:
+            for key, value in extra_import_options.items():
+                cmd += ['--{}'.format(key)]
+                if value: cmd += [value]
+
         return cmd
 
-    def import_table(self, table, target_dir, append=False, file_type="text",
+    def import_table(self, table, target_dir=None, append=False, file_type="text",
                      columns=None, split_by=None, where=None, direct=False,
-                     driver=None):
+                     driver=None, extra_import_options=None):
         """
         Imports table from remote location to target dir. Arguments are
         copies of direct sqoop command line arguments
@@ -200,9 +204,12 @@ class SqoopHook(BaseHook):
         :param where: WHERE clause to use during import
         :param direct: Use direct connector if exists for the database
         :param driver: Manually specify JDBC driver class to use
+        :param extra_import_options: Extra import options to pass as dict.
+            If a key doesn't have a value, just pass an empty string to it.
+            Don't include prefix of -- for sqoop options.
         """
         cmd = self._import_cmd(target_dir, append, file_type, split_by, direct,
-                               driver)
+                               driver, extra_import_options)
 
         cmd += ["--table", table]
 
@@ -213,9 +220,8 @@ class SqoopHook(BaseHook):
 
         self.Popen(cmd)
 
-    def import_query(self, query, target_dir,
-                     append=False, file_type="text",
-                     split_by=None, direct=None, driver=None):
+    def import_query(self, query, target_dir, append=False, file_type="text",
+                     split_by=None, direct=None, driver=None, extra_import_options=None):
         """
         Imports a specific query from the rdbms to hdfs
         :param query: Free format query to run
@@ -226,9 +232,12 @@ class SqoopHook(BaseHook):
         :param split_by: Column of the table used to split work units
         :param direct: Use direct import fast path
         :param driver: Manually specify JDBC driver class to use
+        :param extra_import_options: Extra import options to pass as dict.
+            If a key doesn't have a value, just pass an empty string to it.
+            Don't include prefix of -- for sqoop options.
         """
         cmd = self._import_cmd(target_dir, append, file_type, split_by, direct,
-                               driver)
+                               driver, extra_import_options)
         cmd += ["--query", query]
 
         self.Popen(cmd)
@@ -237,7 +246,7 @@ class SqoopHook(BaseHook):
                     input_null_non_string, staging_table, clear_staging_table,
                     enclosed_by, escaped_by, input_fields_terminated_by,
                     input_lines_terminated_by, input_optionally_enclosed_by,
-                    batch, relaxed_isolation):
+                    batch, relaxed_isolation, extra_export_options):
 
         cmd = self._prepare_command(export=True)
 
@@ -278,6 +287,11 @@ class SqoopHook(BaseHook):
         if export_dir:
             cmd += ["--export-dir", export_dir]
 
+        if extra_export_options:
+            for key, value in extra_export_options.items():
+                cmd += ['--{}'.format(key)]
+                if value: cmd += [value]
+
         # The required option
         cmd += ["--table", table]
 
@@ -289,7 +303,7 @@ class SqoopHook(BaseHook):
                      escaped_by, input_fields_terminated_by,
                      input_lines_terminated_by,
                      input_optionally_enclosed_by, batch,
-                     relaxed_isolation):
+                     relaxed_isolation, extra_export_options=None):
         """
         Exports Hive table to remote location. Arguments are copies of direct
         sqoop command line Arguments
@@ -311,6 +325,9 @@ class SqoopHook(BaseHook):
         :param batch: Use batch mode for underlying statement execution
         :param relaxed_isolation: Transaction isolation to read uncommitted
             for the mappers
+        :param extra_export_options: Extra export options to pass as dict.
+            If a key doesn't have a value, just pass an empty string to it.
+            Don't include prefix of -- for sqoop options.
         """
         cmd = self._export_cmd(table, export_dir, input_null_string,
                                input_null_non_string, staging_table,
@@ -318,6 +335,6 @@ class SqoopHook(BaseHook):
                                input_fields_terminated_by,
                                input_lines_terminated_by,
                                input_optionally_enclosed_by, batch,
-                               relaxed_isolation)
+                               relaxed_isolation, extra_export_options)
 
         self.Popen(cmd)

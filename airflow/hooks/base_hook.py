@@ -17,19 +17,19 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from builtins import object
-import logging
 import os
 import random
 
 from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
+from airflow.utils.db import provide_session
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 CONN_ENV_PREFIX = 'AIRFLOW_CONN_'
 
 
-class BaseHook(object):
+class BaseHook(LoggingMixin):
     """
     Abstract base class for hooks, hooks are meant as an interface to
     interact with external systems. MySqlHook, HiveHook, PigHook return
@@ -40,16 +40,16 @@ class BaseHook(object):
     def __init__(self, source):
         pass
 
+
     @classmethod
-    def _get_connections_from_db(cls, conn_id):
-        session = settings.Session()
+    @provide_session
+    def _get_connections_from_db(cls, conn_id, session=None):
         db = (
             session.query(Connection)
             .filter(Connection.conn_id == conn_id)
             .all()
         )
         session.expunge_all()
-        session.close()
         if not db:
             raise AirflowException(
                 "The conn_id `{0}` isn't defined".format(conn_id))
@@ -76,7 +76,8 @@ class BaseHook(object):
     def get_connection(cls, conn_id):
         conn = random.choice(cls.get_connections(conn_id))
         if conn.host:
-            logging.info("Using connection to: " + conn.host)
+            log = LoggingMixin().log
+            log.info("Using connection to: %s", conn.host)
         return conn
 
     @classmethod

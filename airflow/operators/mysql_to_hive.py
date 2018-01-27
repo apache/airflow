@@ -15,7 +15,6 @@
 from builtins import chr
 from collections import OrderedDict
 import unicodecsv as csv
-import logging
 from tempfile import NamedTemporaryFile
 import MySQLdb
 
@@ -58,6 +57,8 @@ class MySqlToHiveTransfer(BaseOperator):
     :type mysql_conn_id: str
     :param hive_conn_id: destination hive connection
     :type hive_conn_id: str
+    :param tblproperties: TBLPROPERTIES of the hive table being created
+    :type tblproperties: dict
     """
 
     template_fields = ('sql', 'partition', 'hive_table')
@@ -75,6 +76,7 @@ class MySqlToHiveTransfer(BaseOperator):
             delimiter=chr(1),
             mysql_conn_id='mysql_default',
             hive_cli_conn_id='hive_cli_default',
+            tblproperties=None,
             *args, **kwargs):
         super(MySqlToHiveTransfer, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -86,6 +88,7 @@ class MySqlToHiveTransfer(BaseOperator):
         self.mysql_conn_id = mysql_conn_id
         self.hive_cli_conn_id = hive_cli_conn_id
         self.partition = partition or {}
+        self.tblproperties = tblproperties
 
     @classmethod
     def type_map(cls, mysql_type):
@@ -107,7 +110,7 @@ class MySqlToHiveTransfer(BaseOperator):
         hive = HiveCliHook(hive_cli_conn_id=self.hive_cli_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
-        logging.info("Dumping MySQL query results to local file")
+        self.log.info("Dumping MySQL query results to local file")
         conn = mysql.get_conn()
         cursor = conn.cursor()
         cursor.execute(self.sql)
@@ -120,7 +123,7 @@ class MySqlToHiveTransfer(BaseOperator):
             f.flush()
             cursor.close()
             conn.close()
-            logging.info("Loading file into Hive")
+            self.log.info("Loading file into Hive")
             hive.load_file(
                 f.name,
                 self.hive_table,
@@ -128,4 +131,5 @@ class MySqlToHiveTransfer(BaseOperator):
                 create=self.create,
                 partition=self.partition,
                 delimiter=self.delimiter,
-                recreate=self.recreate)
+                recreate=self.recreate,
+                tblproperties=self.tblproperties)
