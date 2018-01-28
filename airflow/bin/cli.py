@@ -324,6 +324,58 @@ def set_is_paused(is_paused, args, dag=None):
     print(msg)
 
 
+def _run(args, dag, ti):
+    if args.local:
+        run_job = jobs.LocalTaskJob(
+            task_instance=ti,
+            mark_success=args.mark_success,
+            pickle_id=args.pickle,
+            ignore_all_deps=args.ignore_all_dependencies,
+            ignore_depends_on_past=args.ignore_depends_on_past,
+            ignore_task_deps=args.ignore_dependencies,
+            ignore_ti_state=args.force,
+            pool=args.pool)
+        run_job.run()
+    elif args.raw:
+        ti._run_raw_task(
+            mark_success=args.mark_success,
+            job_id=args.job_id,
+            pool=args.pool,
+        )
+    else:
+        pickle_id = None
+        if args.ship_dag:
+            try:
+                # Running remotely, so pickling the DAG
+                session = settings.Session()
+                pickle = DagPickle(dag)
+                session.add(pickle)
+                session.commit()
+                pickle_id = pickle.id
+                # TODO: This should be written to a log
+                print('Pickled dag {dag} as pickle_id:{pickle_id}'
+                      .format(**locals()))
+            except Exception as e:
+                print('Could not pickle the DAG')
+                print(e)
+                raise e
+
+        executor = GetDefaultExecutor()
+        executor.start()
+        print("Sending to executor.")
+        executor.queue_task_instance(
+            ti,
+            mark_success=args.mark_success,
+            pickle_id=pickle_id,
+            ignore_all_deps=args.ignore_all_dependencies,
+            ignore_depends_on_past=args.ignore_depends_on_past,
+            ignore_task_deps=args.ignore_dependencies,
+            ignore_ti_state=args.force,
+            pool=args.pool)
+        executor.heartbeat()
+        executor.end()
+
+
 def run(args, dag=None):
     # Disable connection pooling to reduce the # of connections on the DB
     # while it's waiting for the task to finish.
@@ -368,60 +420,13 @@ def run(args, dag=None):
     hostname = socket.getfqdn()
     log.info("Running %s on host %s", ti, hostname)
 
-    with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
-        if args.local:
-            run_job = jobs.LocalTaskJob(
-                task_instance=ti,
-                mark_success=args.mark_success,
-                pickle_id=args.pickle,
-                ignore_all_deps=args.ignore_all_dependencies,
-                ignore_depends_on_past=args.ignore_depends_on_past,
-                ignore_task_deps=args.ignore_dependencies,
-                ignore_ti_state=args.force,
-                pool=args.pool)
-            run_job.run()
-        elif args.raw:
-            ti._run_raw_task(
-                mark_success=args.mark_success,
-                job_id=args.job_id,
-                pool=args.pool,
-            )
-        else:
-            pickle_id = None
-            if args.ship_dag:
-                try:
-                    # Running remotely, so pickling the DAG
-                    session = settings.Session()
-                    pickle = DagPickle(dag)
-                    session.add(pickle)
-                    session.commit()
-                    pickle_id = pickle.id
-                    # TODO: This should be written to a log
-                    print((
-                              'Pickled dag {dag} '
-                              'as pickle_id:{pickle_id}').format(**locals()))
-                except Exception as e:
-                    print('Could not pickle the DAG')
-                    print(e)
-                    raise e
-
-            executor = GetDefaultExecutor()
-            executor.start()
-            print("Sending to executor.")
-            executor.queue_task_instance(
-                ti,
-                mark_success=args.mark_success,
-                pickle_id=pickle_id,
-                ignore_all_deps=args.ignore_all_dependencies,
-                ignore_depends_on_past=args.ignore_depends_on_past,
-                ignore_task_deps=args.ignore_dependencies,
-                ignore_ti_state=args.force,
-                pool=args.pool)
-            executor.heartbeat()
-            executor.end()
-
-    logging.shutdown()
-
+    if args.interactive:
+        _run(args, dag, ti)
+    else:
+        with redirect_stdout(ti.log, logging.INFO),\
+                redirect_stderr(ti.log, logging.WARN):
+            _run(args, dag, ti)
+        logging.shutdown()
 
 def task_failed_deps(args):
     """
@@ -1281,6 +1286,11 @@ class CLIFactory(object):
         # dependency. This flag should be deprecated and renamed to 'ignore_ti_state' and
         # the "ignore_all_dependencies" command should be called the"force" command
         # instead.
+        'interactive': Arg(
+            ('-int', '--interactive'),
+            help='Do not capture standard output and error streams '
+                 '(useful for interactive debugging)',
+            action='store_true'),
         'force': Arg(
             ("-f", "--force"),
             "Ignore previous task instance state, rerun regardless if task already "
@@ -1529,7 +1539,7 @@ class CLIFactory(object):
                 'dag_id', 'task_id', 'execution_date', 'subdir',
                 'mark_success', 'force', 'pool', 'cfg_path',
                 'local', 'raw', 'ignore_all_dependencies', 'ignore_dependencies',
-                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id'),
+                'ignore_depends_on_past', 'ship_dag', 'pickle', 'job_id', 'interactive',),
         }, {
             'func': initdb,
             'help': "Initialize the metadata database",
