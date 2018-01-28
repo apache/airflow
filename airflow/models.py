@@ -47,7 +47,7 @@ import warnings
 import hashlib
 
 from datetime import datetime
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
@@ -994,7 +994,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def log_url(self):
-        iso = self.execution_date.isoformat()
+        iso = quote(self.execution_date.isoformat())
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
             "/admin/airflow/log"
@@ -1005,7 +1005,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @property
     def mark_success_url(self):
-        iso = self.execution_date.isoformat()
+        iso = quote(self.execution_date.isoformat())
         BASE_URL = configuration.get('webserver', 'BASE_URL')
         return BASE_URL + (
             "/admin/airflow/action"
