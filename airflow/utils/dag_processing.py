@@ -476,6 +476,12 @@ class DagFileProcessorManager(LoggingMixin):
                 running_processors[file_path] = processor
         self._processors = running_processors
 
+        self.log.debug("%s/%s scheduler processes running",
+                       len(self._processors), self._parallelism)
+
+        self.log.debug("%s file paths queued for processing",
+                       len(self._file_path_queue))
+
         # Collect all the DAGs that were found in the processed files
         simple_dags = []
         for file_path, processor in finished_processors.items():
