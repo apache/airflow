@@ -278,8 +278,9 @@
 
       $input.change(function() {
         var current = $input.typeahead("getActive");
-
       });
+
+      $input.attr("autocomplete", "off");
 
       $('#dags').dataTable({
         "iDisplayLength": 500,
