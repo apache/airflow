@@ -90,6 +90,7 @@ before_install:
   - chmod 600 ~/.ssh/*
   - jdk_switcher use oraclejdk8
 install:
+  - rm -f /home/travis/.wheelhouse/Flask_Admin-1.5.0-py3-none-any.whl
   - pip install --upgrade pip
   - pip install tox
   - pip install codecov
