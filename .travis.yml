@@ -72,13 +72,13 @@ matrix:
       env: TOX_ENV=py35-backend_postgres
     - python: "2.7"
       env: TOX_ENV=flake8
-    - python: "3.5"  
+    - python: "3.5"
       env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
     - python: "3.5"
-      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0 
+      env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
   allow_failures:
     - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.7.0
-    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0  
+    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
 cache:
   directories:
     - $HOME/.wheelhouse/
@@ -90,6 +90,7 @@ before_install:
   - chmod 600 ~/.ssh/*
   - jdk_switcher use oraclejdk8
 install:
+  - rm -f /home/travis/.wheelhouse/Flask_Admin-1.5.0-py3-none-any.whl
   - pip install --upgrade pip
   - pip install tox
   - pip install codecov
