@@ -297,3 +297,55 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         except errors.HttpError as ex:
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
+
+    def get_crc32c(self, bucket, object):
+        """
+        Gets the CRC32c checksum of an object in Google Cloud Storage.
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        self.log.info('Retrieving the crc32c checksum of '
+                      'object: %s in bucket: %s', object, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objects().get(
+                bucket=bucket,
+                object=object
+            ).execute()
+
+            crc32c = response['crc32c']
+            self.log.info('The crc32c checksum of %s is %s', object, crc32c)
+            return crc32c
+
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                raise ValueError('Object Not Found')
+
+    def get_md5hash(self, bucket, object):
+        """
+        Gets the MD5 hash of an object in Google Cloud Storage.
+        :param bucket: The Google cloud storage bucket where the object is.
+        :type bucket: string
+        :param object: The name of the object to check in the Google cloud
+            storage bucket.
+        :type object: string
+        """
+        self.log.info('Retrieving the MD5 hash of '
+                      'object: %s in bucket: %s', object, bucket)
+        service = self.get_conn()
+        try:
+            response = service.objects().get(
+                bucket=bucket,
+                object=object
+            ).execute()
+
+            md5hash = response['md5Hash']
+            self.log.info('The md5Hash of %s is %s', object, md5hash)
+            return md5hash
+
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                raise ValueError('Object Not Found')
