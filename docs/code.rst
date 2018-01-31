@@ -114,6 +114,7 @@ Community-contributed Operators
 .. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
 .. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
 .. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
+.. autoclass:: airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator
 
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
