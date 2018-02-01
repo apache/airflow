@@ -2555,7 +2555,8 @@ class LocalTaskJob(BaseJob):
         ti = self.task_instance
 
         fqdn = socket.getfqdn()
-        same_hostname = fqdn == ti.hostname
+        same_hostname = ((fqdn == ti.hostname) or
+                         ti.hostname.startswith("%s." % fqdn))
         same_process = ti.pid == os.getpid()
 
         if ti.state == State.RUNNING:
