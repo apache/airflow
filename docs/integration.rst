@@ -62,8 +62,8 @@ Your reverse proxy (ex: nginx) should be configured as follow:
               proxy_set_header Connection "upgrade";
           }
       }
-      
- 
+
+
 .. _Azure:
 
 Azure: Microsoft Azure
@@ -597,15 +597,33 @@ Cloud Storage
 Storage Operators
 """""""""""""""""
 
+- :ref:`GoogleCloudStorageCopyOperator` : Copies objects (optionally from a directory) filtered by 'delimiter' (file extension for e.g .json) from a bucket to another bucket in a different directory, if required.
 - :ref:`GoogleCloudStorageDownloadOperator` : Downloads a file from Google Cloud Storage.
+- :ref:`GoogleCloudStorageListOperator` : List all objects from the bucket with the give string prefix and delimiter in name.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
+- :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies a single object from a bucket to another, with renaming if requested.
+
+.. _GoogleCloudStorageCopyOperator:
+
+GoogleCloudStorageCopyOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCopyOperator
+    :members:
 
 .. _GoogleCloudStorageDownloadOperator:
-
 GoogleCloudStorageDownloadOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageDownloadOperator
+    :members:
+
+.. _GoogleCloudStorageListOperator:
+
+GoogleCloudStorageListOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageListOperator
     :members:
 
 .. _GoogleCloudStorageToBigQueryOperator:
@@ -613,9 +631,16 @@ GoogleCloudStorageDownloadOperator
 GoogleCloudStorageToBigQueryOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. autoclass:: airflow.contrib.operators.gcs_to_bq.GoogleCloudStorageToBigQueryOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageToBigQueryOperator
     :members:
 
+.. _GoogleCloudStorageToGoogleCloudStorageOperator:
+
+GoogleCloudStorageToGoogleCloudStorageOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageToGoogleCloudStorageOperator
+    :members:
 
 GoogleCloudStorageHook
 """"""""""""""""""""""

@@ -24,6 +24,9 @@ Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a d
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
 
+### GCP Cloud Storage Operators
+The `GoogleCloudStorageToBigQueryOperator` & `GoogleCloudStorageDownloadOperator` have been moved and integrated to `airflow/contrib/operators/gcs_operator.py`. Please modify the import statements in your module to use these operators.
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator

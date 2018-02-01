@@ -100,9 +100,11 @@ Community-contributed Operators
 .. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
-.. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
-.. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
-.. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCopyOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageDownloadOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageListOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageToBigQueryOperator
+.. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator

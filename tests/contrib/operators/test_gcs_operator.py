@@ -14,7 +14,7 @@
 
 import unittest
 
-from airflow.contrib.operators.gcs_list_operator import GoogleCloudStorageListOperator
+from airflow.contrib.operators.gcs_operator import GoogleCloudStorageListOperator
 
 try:
     from unittest import mock
@@ -32,7 +32,7 @@ PREFIX = 'TEST'
 
 class GoogleCloudStorageListOperatorTest(unittest.TestCase):
 
-    @mock.patch('airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageHook')
+    @mock.patch('airflow.contrib.operators.gcs_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):
         operator = GoogleCloudStorageListOperator(task_id=TASK_ID,
                                                   bucket=TEST_BUCKET,
