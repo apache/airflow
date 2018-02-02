@@ -404,7 +404,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   maximum_billing_tier=None,
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
-                  schema_update_options=()):
+                  schema_update_options=(),
+                  priority='INTERACTIVE'):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -437,6 +438,10 @@ class BigQueryBaseCursor(LoggingMixin):
         :param schema_update_options: Allows the schema of the desitination
             table to be updated as a side effect of the query job.
         :type schema_update_options: tuple
+        :param priority: Specifies a priority for the query.
+            Possible values include INTERACTIVE and BATCH.
+            The default value is INTERACTIVE.
+        :type priority: string
         """
 
         # BigQuery also allows you to define how you want a table's schema to change
@@ -457,7 +462,8 @@ class BigQueryBaseCursor(LoggingMixin):
             'query': {
                 'query': bql,
                 'useLegacySql': self.use_legacy_sql,
-                'maximumBillingTier': maximum_billing_tier
+                'maximumBillingTier': maximum_billing_tier,
+                'priority': priority
             }
         }
 
