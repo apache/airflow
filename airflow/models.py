@@ -1700,7 +1700,7 @@ class TaskInstance(Base, LoggingMixin):
         class VariableAccessor:
             """
             Wrapper around Variable. This way you can get variables in templates by using
-            {var.variable_name}.
+            {var.value.your_variable_name}.
             """
             def __init__(self):
                 self.var = None
@@ -1713,6 +1713,10 @@ class TaskInstance(Base, LoggingMixin):
                 return str(self.var)
 
         class VariableJsonAccessor:
+            """
+            Wrapper around deserialized Variables. This way you can get variables
+            in templates by using {var.json.your_variable_name}.
+            """
             def __init__(self):
                 self.var = None
 
