@@ -799,7 +799,7 @@ class BigQueryBaseCursor(LoggingMixin):
             src_fmt_configs['skipLeadingRows'] = skip_leading_rows
         if 'fieldDelimiter' not in src_fmt_configs:
             src_fmt_configs['fieldDelimiter'] = field_delimiter
-        if quote_character:
+        if quote_character is not None:
             src_fmt_configs['quote'] = quote_character
         if allow_quoted_newlines:
             src_fmt_configs['allowQuotedNewlines'] = allow_quoted_newlines
