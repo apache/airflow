@@ -67,14 +67,14 @@ class MLEngineHook(GoogleCloudBaseHook):
         :type project_id: string
 
         :param job: MLEngine Job object that should be provided to the MLEngine
-            API, such as:
-            {
-              'jobId': 'my_job_id',
-              'trainingInput': {
-                'scaleTier': 'STANDARD_1',
-                ...
-              }
-            }
+            API, such as: ::
+                {
+                  'jobId': 'my_job_id',
+                  'trainingInput': {
+                    'scaleTier': 'STANDARD_1',
+                    ...
+                  }
+                }
         :type job: dict
 
         :param use_existing_job_fn: In case that a MLEngine job with the same
