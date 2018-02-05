@@ -34,12 +34,15 @@ class TestEmrCreateJobFlowOperator(unittest.TestCase):
         mock_emr_client = MagicMock()
         mock_emr_client.run_job_flow.return_value = RUN_JOB_FLOW_SUCCESS_RETURN
 
+        mock_emr_session = MagicMock()
+        mock_emr_session.client.return_value = mock_emr_client
+
         # Mock out the emr_client creator
-        self.boto3_client_mock = MagicMock(return_value=mock_emr_client)
+        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
 
 
     def test_execute_uses_the_emr_config_to_create_a_cluster_and_returns_job_id(self):
-        with patch('boto3.client', self.boto3_client_mock):
+        with patch('boto3.session.Session', self.boto3_session_mock):
 
             operator = EmrCreateJobFlowOperator(
                 task_id='test_task',
