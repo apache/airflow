@@ -121,15 +121,19 @@ class TestEmrStepSensor(unittest.TestCase):
             aws_conn_id='aws_default',
         )
 
+        mock_emr_session = MagicMock()
+        mock_emr_session.client.return_value = self.emr_client_mock
+
+        # Mock out the emr_client creator
+        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+
     def test_step_completed(self):
         self.emr_client_mock.describe_step.side_effect = [
             DESCRIBE_JOB_STEP_RUNNING_RETURN,
             DESCRIBE_JOB_STEP_COMPLETED_RETURN
         ]
 
-        self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
-
-        with patch('boto3.client', self.boto3_client_mock):
+        with patch('boto3.session.Session', self.boto3_session_mock):
             self.sensor.execute(None)
 
             self.assertEqual(self.emr_client_mock.describe_step.call_count, 2)
@@ -146,7 +150,7 @@ class TestEmrStepSensor(unittest.TestCase):
 
         self.boto3_client_mock = MagicMock(return_value=self.emr_client_mock)
 
-        with patch('boto3.client', self.boto3_client_mock):
+        with patch('boto3.session.Session', self.boto3_session_mock):
             self.assertRaises(AirflowException, self.sensor.execute, None)
 
 
