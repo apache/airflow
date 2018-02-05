@@ -164,14 +164,16 @@ cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
+mongo = ['pymongo>=3.6.0']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + mongo
 devel = [
     'click',
     'freezegun',
     'jira',
     'lxml>=3.3.4',
     'mock',
+    'mongomock',
     'moto==1.1.19',
     'nose',
     'nose-ignore-docstring==0.2',
