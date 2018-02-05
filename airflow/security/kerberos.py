@@ -51,8 +51,8 @@ def renew_from_kt():
     if subp.returncode != 0:
         log.error("Couldn't reinit from keytab! `kinit' exited with %s.\n%s\n%s" % (
             subp.returncode,
-            "\n".join(subp.stdout.readlines()),
-            "\n".join(subp.stderr.readlines())))
+            b"\n".join(subp.stdout.readlines()),
+            b"\n".join(subp.stderr.readlines())))
         sys.exit(subp.returncode)
 
     global NEED_KRB181_WORKAROUND
