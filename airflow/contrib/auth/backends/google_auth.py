@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import json
 import logging
 
 import flask_login
@@ -106,11 +107,11 @@ class GoogleAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
+        state = json.dumps(request.args.to_dict(flat=False))
         _log.debug('Redirecting user to Google login')
-        return self.google_oauth.authorize(callback=url_for(
-            'google_oauth_callback',
-            _external=True,
-            next=request.args.get('next') or request.referrer or None))
+        return self.google_oauth.authorize(
+            callback=url_for('google_oauth_callback', _external=True, next='/admin/'),
+            state=state)
 
     def get_google_user_profile_info(self, google_token):
         resp = self.google_oauth.get('https://www.googleapis.com/oauth2/v1/userinfo',
@@ -144,7 +145,8 @@ class GoogleAuthBackend(object):
     def oauth_callback(self):
         _log.debug('Google OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        state = json.loads(request.args.get('state'))
+        next_url = state['next'][0] or url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()
 
