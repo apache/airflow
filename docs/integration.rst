@@ -348,6 +348,7 @@ BigQuery Operators
 - :ref:`BigQueryCheckOperator` : Performs checks against a SQL query that will return a single row with different values.
 - :ref:`BigQueryValueCheckOperator` : Performs a simple value check using SQL code.
 - :ref:`BigQueryIntervalCheckOperator` : Checks that the values of metrics given as SQL expressions are within a certain tolerance of the ones from days_back before.
+- :ref:`BigQueryCreateEmptyTableOperator` : Creates a new, empty table in the specified BigQuery dataset optionally with schema.
 - :ref:`BigQueryOperator` : Executes BigQuery SQL queries in a specific BigQuery database.
 - :ref:`BigQueryToBigQueryOperator` : Copy a BigQuery table to another BigQuery table.
 - :ref:`BigQueryToCloudStorageOperator` : Transfers a BigQuery table to a Google Cloud Storage bucket
@@ -380,6 +381,13 @@ BigQueryGetDataOperator
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator
+
+.. _BigQueryCreateEmptyTableOperator:
+
+BigQueryCreateEmptyTableOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryCreateEmptyTableOperator
 
 .. _BigQueryOperator:
 
