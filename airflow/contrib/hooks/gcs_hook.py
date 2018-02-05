@@ -231,7 +231,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :param prefix: prefix string which filters objects whose name begin with this prefix
         :type prefix: string
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
-        :type delimiter:string
+        :type delimiter: string
         :return: a stream of object names matching the filtering criteria
         """
         service = self.get_conn()
@@ -273,11 +273,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_size(self, bucket, object):
         """
         Gets the size of a file in Google Cloud Storage.
+
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: string
-        :param object: The name of the object to check in the Google cloud
-            storage bucket.
+        :param object: The name of the object to check in the Google cloud storage bucket.
         :type object: string
+
         """
         self.log.info('Checking the file size of object: %s in bucket: %s', object, bucket)
         service = self.get_conn()
@@ -290,7 +291,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             if 'name' in response and response['name'][-1] != '/':
                 # Remove Directories & Just check size of files
                 size = response['size']
-                self.log.info('The file size of %s is %s', object, size)
+                self.log.info('The file size of %s is %s bytes.', object, size)
                 return size
             else:
                 raise ValueError('Object is not a file')
@@ -301,6 +302,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_crc32c(self, bucket, object):
         """
         Gets the CRC32c checksum of an object in Google Cloud Storage.
+
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: string
         :param object: The name of the object to check in the Google cloud
@@ -327,6 +329,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     def get_md5hash(self, bucket, object):
         """
         Gets the MD5 hash of an object in Google Cloud Storage.
+
         :param bucket: The Google cloud storage bucket where the object is.
         :type bucket: string
         :param object: The name of the object to check in the Google cloud

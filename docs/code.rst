@@ -94,14 +94,36 @@ Community-contributed Operators
 .. deprecated:: 1.8
  Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
+.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
+.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
+.. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_get_data.BigQueryGetDataOperator
 .. autoclass:: airflow.contrib.operators.bigquery_operator.BigQueryOperator
+.. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
+.. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
+.. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator
+.. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
+.. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPigOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHiveOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkSqlOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcSparkOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHadoopOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPySparkOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator
+.. autoclass:: airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator
+.. autoclass:: airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
+.. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
 .. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
+.. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicDeleteOperator
