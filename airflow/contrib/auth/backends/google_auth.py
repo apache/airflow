@@ -110,7 +110,7 @@ class GoogleAuthBackend(object):
         state = json.dumps(request.args.to_dict(flat=False))
         _log.debug('Redirecting user to Google login')
         return self.google_oauth.authorize(
-            callback=url_for('google_oauth_callback', _external=True, next='/admin/'),
+            callback=url_for('google_oauth_callback', _external=True),
             state=state)
 
     def get_google_user_profile_info(self, google_token):
