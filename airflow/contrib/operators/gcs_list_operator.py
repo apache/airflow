@@ -40,16 +40,17 @@ class GoogleCloudStorageListOperator(BaseOperator):
         domain-wide delegation enabled.
     :type delegate_to: string
 
-    Example: The following Operator would list all the Avro files from `sales/sales-2017`
-        folder in `data` bucket.
+    **Example**:
+        The following Operator would list all the Avro files from `sales/sales-2017`
+        folder in `data` bucket. ::
 
-    GCS_Files = GoogleCloudStorageListOperator(
-        task_id='GCS_Files',
-        bucket='data',
-        prefix='sales/sales-2017/',
-        delimiter='.avro',
-        google_cloud_storage_conn_id=google_cloud_conn_id
-    )
+        GCS_Files = GoogleCloudStorageListOperator(
+            task_id='GCS_Files',
+            bucket='data',
+            prefix='sales/sales-2017/',
+            delimiter='.avro',
+            google_cloud_storage_conn_id=google_cloud_conn_id
+        )
     """
     template_fields = ('bucket', 'prefix', 'delimiter')
     ui_color = '#f0eee4'

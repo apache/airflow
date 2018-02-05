@@ -120,11 +120,15 @@ class MLEngineBatchPredictionOperator(BaseOperator):
 
     In options 2 and 3, both model and version name should contain the
     minimal identifier. For instance, call
+
+    ::
+
         MLEngineBatchPredictionOperator(
             ...,
             model_name='my_model',
             version_name='my_version',
             ...)
+
     if the desired model version is
     "projects/my_project/models/my_model/versions/my_version".
 
@@ -189,7 +193,7 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :type delegate_to: string
 
     Raises:
-        ValueError: if a unique model/version origin cannot be determined.
+        ``ValueError``: if a unique model/version origin cannot be determined.
     """
 
     template_fields = [
@@ -346,23 +350,23 @@ class MLEngineVersionOperator(BaseOperator):
     :type version: dict
 
     :param operation: The operation to perform. Available operations are:
-        'create': Creates a new version in the model specified by `model_name`,
+        *   ``create``: Creates a new version in the model specified by `model_name`,
             in which case the `version` parameter should contain all the
             information to create that version
             (e.g. `name`, `deploymentUrl`).
-        'get': Gets full information of a particular version in the model
+        *   ``get``: Gets full information of a particular version in the model
             specified by `model_name`.
             The name of the version should be specified in the `version`
             parameter.
 
-        'list': Lists all available versions of the model specified
+        *   ``list``: Lists all available versions of the model specified
             by `model_name`.
 
-        'delete': Deletes the version specified in `version` parameter from the
+        *   ``delete``: Deletes the version specified in `version` parameter from the
             model specified by `model_name`).
             The name of the version should be specified in the `version`
             parameter.
-     :type operation: string
+    :type operation: string
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
