@@ -146,7 +146,10 @@ class GoogleAuthBackend(object):
         _log.debug('Google OAuth callback called')
 
         state = json.loads(request.args.get('state'))
-        next_url = state['next'][0] or url_for('admin.index')
+        try:
+            next_url = state.get('next')[0]
+        except (IndexError, KeyError):
+            next_url = url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()
 
