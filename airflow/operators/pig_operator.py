@@ -63,5 +63,5 @@ class PigOperator(BaseOperator):
         self.hook = self.get_hook()
         self.hook.run_cli(pig=self.pig)
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         self.hook.kill()

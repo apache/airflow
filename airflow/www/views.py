@@ -77,7 +77,7 @@ from airflow.models import BaseOperator
 from airflow.operators.subdag_operator import SubDagOperator
 
 from airflow.utils import timezone
-from airflow.utils.json import json_ser
+from airflow.utils.airflow_json import json_ser
 from airflow.utils.state import State
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict

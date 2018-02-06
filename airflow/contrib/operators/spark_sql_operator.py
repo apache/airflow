@@ -100,5 +100,5 @@ class SparkSqlOperator(BaseOperator):
                                   )
         self._hook.run_query()
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         self._hook.kill()

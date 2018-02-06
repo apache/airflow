@@ -18,7 +18,7 @@ import unittest
 
 import numpy as np
 
-from airflow.utils import json as utils_json
+from airflow.utils import airflow_json as utils_json
 
 
 class TestJsonSer(unittest.TestCase):

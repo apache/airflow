@@ -119,7 +119,7 @@ class ECSOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id
         )
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         response = self.client.stop_task(
             cluster=self.cluster,
             task=self.arn,

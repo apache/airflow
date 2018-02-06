@@ -245,7 +245,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
                 self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
                 time.sleep(self.polling_period_seconds)
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         hook = self.get_hook()
         hook.cancel_run(self.run_id)
         self.log.info(

@@ -14,7 +14,7 @@
 
 from airflow import utils
 from airflow import DAG
-from airflow.operators.dummy_operator import DummyOperator
+from airflow.operators.bash_operator import BashOperator
 from datetime import datetime, timedelta
 
 now = datetime.now()
@@ -29,8 +29,7 @@ default_args = {
 }
 dag = DAG(DAG_NAME, schedule_interval='*/10 * * * *', default_args=default_args)
 
-run_this_1 = DummyOperator(task_id='run_this_1', dag=dag)
-run_this_2 = DummyOperator(task_id='run_this_2', dag=dag)
-run_this_2.set_upstream(run_this_1)
-run_this_3 = DummyOperator(task_id='run_this_3', dag=dag)
-run_this_3.set_upstream(run_this_2)
+run_this_1 = BashOperator(
+    bash_command="for((i=1;i<=100;i+=1)); do echo \"Welcome $i times\"; sleep 1; done",
+    task_id='test',
+    dag=dag)

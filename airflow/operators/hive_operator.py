@@ -119,6 +119,6 @@ class HiveOperator(BaseOperator):
         self.hook = self.get_hook()
         self.hook.test_hql(hql=self.hql)
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         if self.hook:
             self.hook.kill()

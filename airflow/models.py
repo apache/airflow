@@ -69,7 +69,7 @@ from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
-from airflow.ti_deps.deps.task_concurrency_dep import TaskConcurrencyDep
+from airflow.utils.persistent_context import PersistentContext
 
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import timezone
@@ -786,6 +786,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
+    saved_context = Column(String())
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -824,6 +825,8 @@ class TaskInstance(Base, LoggingMixin):
         if state:
             self.state = state
         self.hostname = ''
+        self.context = None
+        self.saved_context = None
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow run --raw`.
         # Not persisted to the database so only valid for the current process
@@ -1090,6 +1093,7 @@ class TaskInstance(Base, LoggingMixin):
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.pid = ti.pid
+            self.saved_context = ti.saved_context
         else:
             self.state = None
 
@@ -1481,10 +1485,11 @@ class TaskInstance(Base, LoggingMixin):
         self.hostname = socket.getfqdn()
         self.operator = task.__class__.__name__
 
-        context = {}
+        self.context = {}
+        persistent_context = PersistentContext(self.saved_context, self)
         try:
             if not mark_success:
-                context = self.get_template_context()
+                self.context = self.get_template_context()
 
                 task_copy = copy.copy(task)
                 self.task = task_copy
@@ -1492,7 +1497,7 @@ class TaskInstance(Base, LoggingMixin):
                 def signal_handler(signum, frame):
                     """Setting kill signal handler"""
                     self.log.error("Killing subprocess")
-                    task_copy.on_kill()
+                    task_copy.on_kill(persistent_context)
                     raise AirflowException("Task received SIGTERM signal")
                 signal.signal(signal.SIGTERM, signal_handler)
 
@@ -1500,7 +1505,7 @@ class TaskInstance(Base, LoggingMixin):
                 self.clear_xcom_data()
 
                 self.render_templates()
-                task_copy.pre_execute(context=context)
+                task_copy.pre_execute(context=self.context)
 
                 # If a timeout is specified for the task, make it fail
                 # if it goes beyond
@@ -1509,12 +1514,12 @@ class TaskInstance(Base, LoggingMixin):
                     try:
                         with timeout(int(
                                 task_copy.execution_timeout.total_seconds())):
-                            result = task_copy.execute(context=context)
+                            result = task_copy.execute(context=self.context, persistent_context=persistent_context)
                     except AirflowTaskTimeout:
-                        task_copy.on_kill()
+                        task_copy.on_kill(persistent_context)
                         raise
                 else:
-                    result = task_copy.execute(context=context)
+                    result = task_copy.execute(context=self.context, persistent_context=persistent_context)
 
                 # If the task returns a result, push an XCom containing it
                 if result is not None:
@@ -1522,7 +1527,7 @@ class TaskInstance(Base, LoggingMixin):
 
                 # TODO remove deprecated behavior in Airflow 2.0
                 try:
-                    task_copy.post_execute(context=context, result=result)
+                    task_copy.post_execute(context=self.context, result=result)
                 except TypeError as e:
                     if 'unexpected keyword argument' in str(e):
                         warnings.warn(
@@ -1532,7 +1537,7 @@ class TaskInstance(Base, LoggingMixin):
                             'will be removed in a future version of '
                             'Airflow.'.format(self.task_id),
                             category=DeprecationWarning)
-                        task_copy.post_execute(context=context)
+                        task_copy.post_execute(context=self.context)
                     else:
                         raise
 
@@ -1551,10 +1556,10 @@ class TaskInstance(Base, LoggingMixin):
             if self.state == State.SUCCESS:
                 return
             else:
-                self.handle_failure(e, test_mode, context)
+                self.handle_failure(e, test_mode)
                 raise
         except (Exception, KeyboardInterrupt) as e:
-            self.handle_failure(e, test_mode, context)
+            self.handle_failure(e, test_mode)
             raise
 
         # Recording SUCCESS
@@ -1568,7 +1573,7 @@ class TaskInstance(Base, LoggingMixin):
         # Success callback
         try:
             if task.on_success_callback:
-                task.on_success_callback(context)
+                task.on_success_callback(self.context)
         except Exception as e3:
             self.log.error("Failed when executing success callback")
             self.log.exception(e3)
@@ -1616,7 +1621,7 @@ class TaskInstance(Base, LoggingMixin):
         task_copy.dry_run()
 
     @provide_session
-    def handle_failure(self, error, test_mode=False, context=None, session=None):
+    def handle_failure(self, error, test_mode=False, session=None):
         self.log.exception(error)
         task = self.task
         self.end_date = timezone.utcnow()
@@ -1655,9 +1660,9 @@ class TaskInstance(Base, LoggingMixin):
         # Handling callbacks pessimistically
         try:
             if self.state == State.UP_FOR_RETRY and task.on_retry_callback:
-                task.on_retry_callback(context)
+                task.on_retry_callback(self.context)
             if self.state == State.FAILED and task.on_failure_callback:
-                task.on_failure_callback(context)
+                task.on_failure_callback(self.context)
         except Exception as e3:
             self.log.error("Failed at executing callback")
             self.log.exception(e3)
@@ -2474,7 +2479,7 @@ class BaseOperator(LoggingMixin):
         """
         pass
 
-    def execute(self, context):
+    def execute(self, context, persistent_context):
         """
         This is the main method to derive when creating an operator.
         Context is the same dictionary used as when rendering jinja templates.
@@ -2491,7 +2496,7 @@ class BaseOperator(LoggingMixin):
         """
         pass
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         """
         Override this method to cleanup subprocesses when a task instance
         gets killed. Any use of the threading, subprocess or multiprocessing

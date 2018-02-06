@@ -163,6 +163,7 @@ def upgrade():
             sa.Column('pool', sa.String(length=50), nullable=True),
             sa.Column('queue', sa.String(length=50), nullable=True),
             sa.Column('priority_weight', sa.Integer(), nullable=True),
+            sa.Column('saved_context', sa.String(), nullable=True),
             sa.PrimaryKeyConstraint('task_id', 'dag_id', 'execution_date')
         )
         op.create_index(

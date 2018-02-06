@@ -217,7 +217,7 @@ class DockerOperator(BaseOperator):
             commands = self.command
         return commands
 
-    def on_kill(self):
+    def on_kill(self, persistent_context):
         if self.cli is not None:
             self.log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
