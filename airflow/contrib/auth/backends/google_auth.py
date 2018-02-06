@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import json
 import logging
+
+import jwt
 
 import flask_login
 
@@ -107,7 +108,10 @@ class GoogleAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        state = json.dumps(request.args.to_dict(flat=False))
+        state = jwt.encode(
+            request.args.to_dict(flat=False),
+            get_config_param('client_secret'),
+            algorithm='HS256')
         _log.debug('Redirecting user to Google login')
         return self.google_oauth.authorize(
             callback=url_for('google_oauth_callback', _external=True),
@@ -145,10 +149,17 @@ class GoogleAuthBackend(object):
     def oauth_callback(self):
         _log.debug('Google OAuth callback called')
 
-        state = json.loads(request.args.get('state'))
         try:
-            next_url = state.get('next')[0]
-        except (IndexError, KeyError):
+            state = jwt.decode(
+                request.args['state'],
+                get_config_param('client_secret'),
+                algorithms=['HS256'])
+        except jwt.InvalidTokenError:
+            raise AuthenticationError('State signature is not valid!')
+
+        try:
+            next_url = state['next'][0]
+        except (KeyError, IndexError):
             next_url = url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()

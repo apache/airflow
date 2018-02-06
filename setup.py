@@ -165,7 +165,7 @@ password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
-github_enterprise = ['Flask-OAuthlib>=0.9.1']
+github_enterprise = ['Flask-OAuthlib>=0.9.1', 'PyJWT>=1.5.3']
 qds = ['qds-sdk>=1.9.0']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
