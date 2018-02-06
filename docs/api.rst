@@ -37,9 +37,18 @@ Airflow webserver is publicly accessible, and you should probably use the deny a
     [api]
     auth_backend = airflow.api.auth.backend.deny_all
 
+Two "real" methods for authentication are currently supported for the API.
 
-Kerberos is the only "real" authentication mechanism currently supported for the API. To enable
-this set the following in the configuration:
+To enabled Password authentication, set the following in the configuration:
+
+.. code-block:: bash
+
+    [api]
+    auth_backend = airflow.contrib.auth.backends.password_auth
+
+It's usage is similar to the Password Authentication used for the Web interface.
+
+To enable Kerberos authentication, set the following in the configuration:
 
 .. code-block:: ini
 
