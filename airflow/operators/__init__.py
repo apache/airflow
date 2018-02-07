@@ -13,10 +13,9 @@
 # limitations under the License.
 #
 
-
 import sys
+import os
 from airflow.models import BaseOperator
-
 
 # ------------------------------------------------------------------------
 #
@@ -29,10 +28,8 @@ from airflow.models import BaseOperator
 #
 # ------------------------------------------------------------------------
 
-
 # Imports operators dynamically while keeping the package API clean,
 # abstracting the underlying modules
-
 
 _operators = {
     'bash_operator': ['BashOperator'],
@@ -52,6 +49,21 @@ _operators = {
         'PrestoCheckOperator',
         'PrestoValueCheckOperator',
         'PrestoIntervalCheckOperator',
+    ],
+    'sensors': [
+        'BaseSensorOperator',
+        'ExternalTaskSensor',
+        'HdfsSensor',
+        'HivePartitionSensor',
+        'HttpSensor',
+        'MetastorePartitionSensor',
+        'NamedHivePartitionSensor',
+        'S3KeySensor',
+        'S3PrefixSensor',
+        'SqlSensor',
+        'TimeDeltaSensor',
+        'TimeSensor',
+        'WebHdfsSensor',
     ],
     'dagrun_operator': ['TriggerDagRunOperator'],
     'dummy_operator': ['DummyOperator'],
@@ -78,8 +90,7 @@ _operators = {
     'oracle_operator': ['OracleOperator']
 }
 
-import os as _os
-if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
     from airflow.utils.helpers import AirflowImporter
     airflow_importer = AirflowImporter(sys.modules[__name__], _operators)
 
@@ -94,7 +105,7 @@ def _integrate_plugins():
         ##########################################################
         # TODO FIXME Remove in Airflow 2.0
 
-        if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
+        if not os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
             from zope.deprecation import deprecated as _deprecated
             for _operator in operators_module._objects:
                 operator_name = _operator.__name__
