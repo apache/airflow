@@ -240,6 +240,37 @@ class S3Hook(AwsHook):
             by S3 and will be stored in an encrypted form while at rest in S3.
         :type encrypt: bool
         """
+        self.load_bytes(string_data.encode(encoding),
+                        key=key,
+                        bucket_name=bucket_name,
+                        replace=replace,
+                        encrypt=encrypt)
+
+    def load_bytes(self,
+                   bytes_data,
+                   key,
+                   bucket_name=None,
+                   replace=False,
+                   encrypt=False):
+        """
+        Loads bytes to S3
+
+        This is provided as a convenience to drop a string in S3. It uses the
+        boto infrastructure to ship a file to s3.
+
+        :param bytes_data: bytes to set as content for the key.
+        :type bytes_data: bytes
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which to store the file
+        :type bucket_name: str
+        :param replace: A flag to decide whether or not to overwrite the key
+            if it already exists
+        :type replace: bool
+        :param encrypt: If True, the file will be encrypted on the server-side
+            by S3 and will be stored in an encrypted form while at rest in S3.
+        :type encrypt: bool
+        """
         if not bucket_name:
             (bucket_name, key) = self.parse_s3_url(key)
         
@@ -250,7 +281,7 @@ class S3Hook(AwsHook):
         if encrypt:
             extra_args['ServerSideEncryption'] = "AES256"
         
-        filelike_buffer = BytesIO(string_data.encode(encoding))
+        filelike_buffer = BytesIO(bytes_data)
         
         client = self.get_conn()
         client.upload_fileobj(filelike_buffer, bucket_name, key, ExtraArgs=extra_args)
