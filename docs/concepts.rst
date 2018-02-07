@@ -731,7 +731,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, dag_md is the only attribute interpreted.
+Please note that for dags, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
