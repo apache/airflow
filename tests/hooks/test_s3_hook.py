@@ -184,6 +184,19 @@ class TestS3Hook(unittest.TestCase):
 
         self.assertEqual(body, b'Cont\xC3\xA9nt')
 
+    @mock_s3
+    def test_load_bytes(self):
+        hook = S3Hook(aws_conn_id=None)
+        conn = hook.get_conn()
+        # We need to create the bucket since this is all in Moto's 'virtual'
+        # AWS account
+        conn.create_bucket(Bucket="mybucket")
+
+        hook.load_bytes(b"Content", "my_key", "mybucket")
+        body = boto3.resource('s3').Object('mybucket', 'my_key').get()['Body'].read()
+
+        self.assertEqual(body, b'Content')
+
 
 if __name__ == '__main__':
     unittest.main()
