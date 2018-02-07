@@ -119,7 +119,7 @@ class GHEAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        _log.debug('Redirecting user to GHE login')
+        log.debug('Redirecting user to GHE login')
         return self.ghe_oauth.authorize(callback=url_for(
             'ghe_oauth_callback',
             _external=True,
@@ -169,7 +169,7 @@ class GHEAuthBackend(object):
             if team['id'] in allowed_teams:
                 return True
 
-        _log.debug('Denying access for user "%s", not a member of "%s"',
+        log.debug('Denying access for user "%s", not a member of "%s"',
                    username,
                    str(allowed_teams))
 
@@ -186,7 +186,7 @@ class GHEAuthBackend(object):
 
     @provide_session
     def oauth_callback(self, session=None):
-        _log.debug('GHE OAuth callback called')
+        log.debug('GHE OAuth callback called')
 
         next_url = request.args.get('next') or url_for('admin.index')
 
@@ -206,7 +206,7 @@ class GHEAuthBackend(object):
                 return redirect(url_for('airflow.noaccess'))
 
         except AuthenticationError:
-            _log.exception('')
+            log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
         user = session.query(models.User).filter(
