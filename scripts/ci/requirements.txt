@@ -74,6 +74,7 @@ PyOpenSSL
 PySmbClient
 python-daemon
 python-dateutil
+python-jenkins
 qds-sdk>=1.9.6
 redis
 rednose
