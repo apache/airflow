@@ -129,3 +129,13 @@ class ImpersonationTest(unittest.TestCase):
             'impersonation_with_custom_pkg',
             'exec_python_fn'
         )
+
+    def test_impersonation_subdag(self):
+        """
+        Tests that impersonation using a subdag correctly passes the right configuration
+        :return:
+        """
+        self.run_backfill(
+            'impersonation_subdag',
+            'test_subdag_operation'
+        )

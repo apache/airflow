@@ -189,7 +189,7 @@ class FileTaskHandler(logging.Handler):
         if not os.path.exists(directory):
             # Create the directory as globally writable using custom mkdirs
             # as os.makedirs doesn't set mode properly.
-            mkdirs(directory, 0o775)
+            mkdirs(directory, 0o777)
 
         if not os.path.exists(full_path):
             open(full_path, "a").close()
