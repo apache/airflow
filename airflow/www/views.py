@@ -504,7 +504,9 @@ class Airflow(BaseView):
     def dag_stats(self, session=None):
         ds = models.DagStat
 
-        ds.update()
+        ds.update(
+            dag_ids=[dag.dag_id for dag in dagbag.dags.values() if not dag.is_subdag]
+        )
 
         qry = (
             session.query(ds.dag_id, ds.state, ds.count)
@@ -546,6 +548,7 @@ class Airflow(BaseView):
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state != State.RUNNING)
                 .filter(Dag.is_active == True)
+                .filter(Dag.is_subdag == False)
                 .group_by(DagRun.dag_id)
                 .subquery('last_dag_run')
         )
@@ -554,6 +557,7 @@ class Airflow(BaseView):
                 .join(Dag, Dag.dag_id == DagRun.dag_id)
                 .filter(DagRun.state == State.RUNNING)
                 .filter(Dag.is_active == True)
+                .filter(Dag.is_subdag == False)
                 .subquery('running_dag_run')
         )
 
