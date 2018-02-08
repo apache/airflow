@@ -82,10 +82,21 @@ class S3Hook(AwsHook):
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
         """
-        response = self.get_conn().list_objects_v2(Bucket=bucket_name, 
-                                                   Prefix=prefix, 
-                                                   Delimiter=delimiter)
-        return [p['Prefix'] for p in response['CommonPrefixes']] if response.get('CommonPrefixes') else None
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name,
+                                      Prefix=prefix,
+                                      Delimiter=delimiter)
+
+        has_results = False
+        prefixes = []
+        for page in response:
+            if 'CommonPrefixes' in page:
+                has_results = True
+                for p in page['CommonPrefixes']:
+                    prefixes.append(p['Prefix'])
+
+        if has_results:
+            return prefixes
 
     def list_keys(self, bucket_name, prefix='', delimiter=''):
         """
@@ -98,10 +109,21 @@ class S3Hook(AwsHook):
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
         """
-        response = self.get_conn().list_objects_v2(Bucket=bucket_name,
-                                                   Prefix=prefix,
-                                                   Delimiter=delimiter)
-        return [k['Key'] for k in response['Contents']] if response.get('Contents') else None
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name,
+                                      Prefix=prefix,
+                                      Delimiter=delimiter)
+
+        has_results = False
+        keys = []
+        for page in response:
+            if 'Contents' in page:
+                has_results = True
+                for k in page['Contents']:
+                    keys.append(k['Key'])
+
+        if has_results:
+            return keys
 
     def check_for_key(self, key, bucket_name=None):
         """
