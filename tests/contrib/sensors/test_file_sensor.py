@@ -14,9 +14,12 @@
 #
 
 import unittest
+import shutil
+import tempfile
 
 from airflow import configuration
 from airflow import models, DAG
+from airflow.exceptions import AirflowSensorTimeout
 from airflow.contrib.sensors.file_sensor import FileSensor
 from airflow.settings import Session
 from airflow.utils.timezone import datetime
@@ -53,14 +56,69 @@ class FileSensorTest(unittest.TestCase):
         self.dag = dag
 
     def test_simple(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            task = FileSensor(
+                task_id="test",
+                filepath=tmp.name[1:],
+                fs_conn_id='fs_default',
+                dag=self.dag,
+                timeout=0,
+            )
+            task._hook = self.hook
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+
+    def test_file_in_nonexistent_dir(self):
+        dir = tempfile.mkdtemp()
         task = FileSensor(
             task_id="test",
-            filepath="etc/hosts",
+            filepath=dir[1:] + "/file",
             fs_conn_id='fs_default',
-            _hook=self.hook,
             dag=self.dag,
+            timeout=0,
         )
-        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        task._hook = self.hook
+        try:
+            with self.assertRaises(AirflowSensorTimeout):
+                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                         ignore_ti_state=True)
+        finally:
+            shutil.rmtree(dir)
+
+    def test_empty_dir(self):
+        dir = tempfile.mkdtemp()
+        task = FileSensor(
+            task_id="test",
+            filepath=dir[1:],
+            fs_conn_id='fs_default',
+            dag=self.dag,
+            timeout=0,
+        )
+        task._hook = self.hook
+        try:
+            with self.assertRaises(AirflowSensorTimeout):
+                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                         ignore_ti_state=True)
+        finally:
+            shutil.rmtree(dir)
+
+    def test_file_in_dir(self):
+        dir = tempfile.mkdtemp()
+        task = FileSensor(
+            task_id="test",
+            filepath=dir[1:],
+            fs_conn_id='fs_default',
+            dag=self.dag,
+            timeout=0,
+        )
+        task._hook = self.hook
+        try:
+            # `touch` the dir
+            open(dir + "/file", "a").close()
+            task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+                     ignore_ti_state=True)
+        finally:
+            shutil.rmtree(dir)
 
 
 if __name__ == '__main__':
