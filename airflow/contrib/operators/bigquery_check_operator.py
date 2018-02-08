@@ -93,10 +93,10 @@ class BigQueryIntervalCheckOperator(IntervalCheckOperator):
     Checks that the values of metrics given as SQL expressions are within
     a certain tolerance of the ones from days_back before.
 
-    This method constructs a query like so:
+    This method constructs a query like so ::
 
-    SELECT {metrics_threshold_dict_key} FROM {table}
-        WHERE {date_filter_column}=<date>
+        SELECT {metrics_threshold_dict_key} FROM {table}
+            WHERE {date_filter_column}=<date>
 
     :param table: the table name
     :type table: str

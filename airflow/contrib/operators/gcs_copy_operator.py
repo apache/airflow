@@ -42,18 +42,19 @@ class GoogleCloudStorageCopyOperator(BaseOperator):
         For this to work, the service account making the request must have domain-wide delegation enabled.
     :type delegate_to: string
 
-    Example: The following Operator would move all the CSV files from `sales/sales-2017` folder in `data` bucket to
-    `sales` folder in `archive` bucket.
+    **Example**:
+    The following Operator would move all the CSV files from `sales/sales-2017` folder in
+    `data` bucket to `sales` folder in `archive` bucket. ::
 
-    move_file = GoogleCloudStorageCopyOperator(
-        task_id='move_file',
-        source_bucket='data',
-        source_object='sales/sales-2017/',
-        source_files_delimiter='.csv'
-        destination_bucket='archive',
-        destination_directory='sales',
-        google_cloud_storage_conn_id='airflow-service-account'
-    )
+        move_file = GoogleCloudStorageCopyOperator(
+            task_id='move_file',
+            source_bucket='data',
+            source_object='sales/sales-2017/',
+            source_files_delimiter='.csv'
+            destination_bucket='archive',
+            destination_directory='sales',
+            google_cloud_storage_conn_id='airflow-service-account'
+        )
     """
     template_fields = ('source_bucket', 'source_object', 'source_files_delimiter',
                        'destination_bucket', 'destination_directory')

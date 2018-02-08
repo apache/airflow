@@ -25,6 +25,7 @@ import unittest
 import time
 import six
 import re
+import urllib
 
 from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowSkipException
@@ -897,6 +898,29 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertTrue(
             op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9))
 
+    def test_timezone_awareness(self):
+        NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
+
+        # check ti without dag (just for bw compat)
+        op_no_dag = DummyOperator(task_id='op_no_dag')
+        ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
+
+        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+
+        # check with dag without localized execution_date
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='op_1')
+        dag.add_task(op1)
+        ti = TI(task=op1, execution_date=NAIVE_DATETIME)
+
+        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+
+        # with dag and localized execution_date
+        tz = pendulum.timezone("Europe/Amsterdam")
+        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
+        utc_date = timezone.convert_to_utc(execution_date)
+        ti = TI(task=op1, execution_date=execution_date)
+        self.assertEquals(ti.execution_date, utc_date)
 
     def test_set_dag(self):
         """
@@ -1478,6 +1502,30 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
+
+    def test_log_url(self):
+        now = pendulum.now('Europe/Brussels')
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=now)
+        d = urllib.parse.parse_qs(
+            urllib.parse.urlparse(ti.log_url).query,
+            keep_blank_values=True, strict_parsing=True)
+        self.assertEqual(d['dag_id'][0], 'dag')
+        self.assertEqual(d['task_id'][0], 'op')
+        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+
+    def test_mark_success_url(self):
+        now = pendulum.now('Europe/Brussels')
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=now)
+        d = urllib.parse.parse_qs(
+            urllib.parse.urlparse(ti.mark_success_url).query,
+            keep_blank_values=True, strict_parsing=True)
+        self.assertEqual(d['dag_id'][0], 'dag')
+        self.assertEqual(d['task_id'][0], 'op')
+        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
 
 class ClearTasksTest(unittest.TestCase):

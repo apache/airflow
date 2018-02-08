@@ -182,7 +182,7 @@ devel = [
     'paramiko',
     'requests_mock'
 ]
-devel_minreq = devel + mysql + doc + password + s3 + cgroups
+devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh +
              kubernetes)
@@ -221,7 +221,7 @@ def do_setup():
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
-            'pendulum==1.3.2',
+            'pendulum==1.4.0',
             'psutil>=4.2.0, <5.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',

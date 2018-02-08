@@ -26,25 +26,26 @@ class BigQueryGetDataOperator(BaseOperator):
     be equal to the number of rows fetched. Each element in the list will again be a list
     where element would represent the columns values for that row.
 
-    Example Result: [['Tony', '10'], ['Mike', '20'], ['Steve', '15']]
+    **Example Result**: ``[['Tony', '10'], ['Mike', '20'], ['Steve', '15']]``
 
-    Note: If you pass fields to `selected_fields` which are in different order than the
-          order of columns already in
-          BQ table, the data will still be in the order of BQ table.
-          For example if the BQ table has 3 columns as
-          [A,B,C] and you pass 'B,A' in the `selected_fields`
-          the data would still be of the form 'A,B'.
+    .. note::
+        If you pass fields to ``selected_fields`` which are in different order than the
+        order of columns already in
+        BQ table, the data will still be in the order of BQ table.
+        For example if the BQ table has 3 columns as
+        ``[A,B,C]`` and you pass 'B,A' in the ``selected_fields``
+        the data would still be of the form ``'A,B'``.
 
-    Example:
+    **Example**: ::
 
-    get_data = BigQueryGetDataOperator(
-        task_id='get_data_from_bq',
-        dataset_id='test_dataset',
-        table_id='Transaction_partitions',
-        max_results='100',
-        # selected_fields='DATE',
-        bigquery_conn_id='airflow-service-account'
-    )
+        get_data = BigQueryGetDataOperator(
+            task_id='get_data_from_bq',
+            dataset_id='test_dataset',
+            table_id='Transaction_partitions',
+            max_results='100',
+            selected_fields='DATE',
+            bigquery_conn_id='airflow-service-account'
+        )
 
     :param dataset_id: The dataset ID of the requested table.
     :type destination_dataset_table: string

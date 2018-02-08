@@ -63,7 +63,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param master_machine_type: Compute engine machine type to use for the master node
     :type master_machine_type: string
     :param master_disk_size: Disk size for the master node
-    :type int
+    :type master_disk_size: int
     :param worker_machine_type:Compute engine machine type to use for the worker nodes
     :type worker_machine_type: string
     :param worker_disk_size: Disk size for the worker nodes
@@ -398,31 +398,31 @@ class DataProcPigOperator(BaseOperator):
     It's a good practice to define dataproc_* parameters in the default_args of the dag
     like the cluster name and UDFs.
 
-    ```
-    default_args = {
-        'cluster_name': 'cluster-1',
-        'dataproc_pig_jars': [
-            'gs://example/udf/jar/datafu/1.2.0/datafu.jar',
-            'gs://example/udf/jar/gpig/1.2/gpig.jar'
-        ]
-    }
-    ```
+    .. code-block:: python
+
+        default_args = {
+            'cluster_name': 'cluster-1',
+            'dataproc_pig_jars': [
+                'gs://example/udf/jar/datafu/1.2.0/datafu.jar',
+                'gs://example/udf/jar/gpig/1.2/gpig.jar'
+            ]
+        }
 
     You can pass a pig script as string or file reference. Use variables to pass on
     variables for the pig script to be resolved on the cluster or use the parameters to
     be resolved in the script as template parameters.
 
-    ```
-    t1 = DataProcPigOperator(
-        task_id='dataproc_pig',
-        query='a_pig_script.pig',
-        variables={'out': 'gs://example/output/{{ds}}'},
-    dag=dag)
-    ```
+    **Example**: ::
 
-    For more detail on about job submission have a look at the reference:
+        t1 = DataProcPigOperator(
+                task_id='dataproc_pig',
+                query='a_pig_script.pig',
+                variables={'out': 'gs://example/output/{{ds}}'},
+                dag=dag)
 
-    https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
+    .. seealso::
+        For more detail on about job submission have a look at the reference:
+        https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
 
     :param query: The query or reference to the query file (pg or pig extension).
     :type query: string
@@ -967,8 +967,9 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
     Instantiate a WorkflowTemplate on Google Cloud Dataproc. The operator will wait
     until the WorkflowTemplate is finished executing.
 
-    Please refer to:
-    https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiate
+    .. seealso::
+        Please refer to:
+        https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiate
 
     :param template_id: The id of the template.
     :type template_id: string
@@ -1008,8 +1009,9 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
     Instantiate a WorkflowTemplate Inline on Google Cloud Dataproc. The operator will
     wait until the WorkflowTemplate is finished executing.
 
-    Please refer to:
-    https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
+    .. seealso::
+        Please refer to:
+        https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
 
     :param template: The template contents.
     :type template: map
