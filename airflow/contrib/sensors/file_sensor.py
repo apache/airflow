@@ -13,7 +13,8 @@
 # limitations under the License.
 #
 
-from os import walk
+import os
+import stat
 
 from airflow.contrib.hooks.fs_hook import FSHook
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
@@ -22,7 +23,10 @@ from airflow.utils.decorators import apply_defaults
 
 class FileSensor(BaseSensorOperator):
     """
-    Waits for a file or folder to land in a filesystem
+    Waits for a file or folder to land in a filesystem.
+
+    If the path given is a directory then this sensor will only return true if
+    any files exist inside it (either directly, or within a subdirectory)
 
     :param fs_conn_id: reference to the File (path)
         connection id
@@ -50,7 +54,13 @@ class FileSensor(BaseSensorOperator):
         full_path = "/".join([basepath, self.filepath])
         self.log.info('Poking for file {full_path}'.format(**locals()))
         try:
-            files = [f for f in walk(full_path)]
+            if stat.S_ISDIR(os.stat(full_path).st_mode):
+                for root, dirs, files in os.walk(full_path):
+                    if len(files):
+                        return True
+            else:
+                # full_path was a file directly
+                return True
         except OSError:
             return False
-        return True
+        return False
