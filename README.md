@@ -192,6 +192,7 @@ Currently **officially** using Airflow:
 1. [Stackspace](https://beta.stackspace.io/)
 1. [Stripe](https://stripe.com) [[@jbalogh](https://github.com/jbalogh)]
 1. [Tails.com](https://tails.com/) [[@alanmcruickshank](https://github.com/alanmcruickshank)]
+1. [Thinking Machines](https://thinkingmachin.es) [[@marksteve](https://github.com/marksteve)]
 1. [Thumbtack](https://www.thumbtack.com/) [[@natekupp](https://github.com/natekupp)]
 1. [Tictail](https://tictail.com/)
 1. [T2 Systems](http://t2systems.com) [[@unclaimedpants](https://github.com/unclaimedpants)]
