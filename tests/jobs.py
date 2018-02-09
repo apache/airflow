@@ -2548,7 +2548,7 @@ class SchedulerJobTest(unittest.TestCase):
 
     def test_dag_get_active_runs(self):
         """
-        Test to check that a DAG returns it's active runs
+        Test to check that a DAG returns its active runs
         """
 
         now = timezone.utcnow()

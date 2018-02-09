@@ -127,7 +127,7 @@ class TriggerRuleDep(BaseTIDep):
             "total": upstream, "successes": successes, "skipped": skipped,
             "failed": failed, "upstream_failed": upstream_failed, "done": done
         }
-        # TODO(aoen): Ideally each individual trigger rules would be it's own class, but
+        # TODO(aoen): Ideally each individual trigger rules would be its own class, but
         # this isn't very feasible at the moment since the database queries need to be
         # bundled together for efficiency.
         # handling instant state assignment based on trigger rules

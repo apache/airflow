@@ -1572,7 +1572,7 @@ class CLIFactory(object):
             'func': test,
             'help': (
                 "Test a task instance. This will run a task without checking for "
-                "dependencies or recording it's state in the database."),
+                "dependencies or recording its state in the database."),
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                 'task_params'),
