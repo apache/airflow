@@ -25,7 +25,7 @@ class DatastoreHook(GoogleCloudBaseHook):
     connection.
 
     This object is not threads safe. If you want to make multiple requests
-    simultaniously, you will need to create a hook per thread.
+    simultaneously, you will need to create a hook per thread.
     """
 
     def __init__(self,
