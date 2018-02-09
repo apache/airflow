@@ -1256,9 +1256,9 @@ class BigQueryCursor(BigQueryBaseCursor):
 
         :param operation: The query to execute.
         :type operation: string
-        :param parameters: List of dictionary parameters to substitute into the
+        :param seq_of_parameters: List of dictionary parameters to substitute into the
             query.
-        :type parameters: list
+        :type seq_of_parameters: list
         """
         for parameters in seq_of_parameters:
             self.execute(operation, parameters)
