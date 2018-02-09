@@ -64,7 +64,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type master_machine_type: string
     :param master_disk_size: Disk size for the master node
     :type master_disk_size: int
-    :param worker_machine_type:Compute engine machine type to use for the worker nodes
+    :param worker_machine_type: Compute engine machine type to use for the worker nodes
     :type worker_machine_type: string
     :param worker_disk_size: Disk size for the worker nodes
     :type worker_disk_size: int
@@ -95,7 +95,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type service_account_scopes: list[string]
     """
 
-    template_fields = ['cluster_name']
+    template_fields = ['cluster_name', 'project_id', 'zone', 'region']
 
     @apply_defaults
     def __init__(self,
@@ -339,7 +339,7 @@ class DataprocClusterDeleteOperator(BaseOperator):
     :type delegate_to: string
     """
 
-    template_fields = ['cluster_name']
+    template_fields = ['cluster_name', 'project_id', 'region']
 
     @apply_defaults
     def __init__(self,
