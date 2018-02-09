@@ -13,10 +13,16 @@
 # limitations under the License.
 
 import unittest
+from datetime import timedelta
+
 from mock import MagicMock, patch
 
-from airflow import configuration
+from airflow import DAG, configuration
 from airflow.contrib.operators.emr_add_steps_operator import EmrAddStepsOperator
+from airflow.models import TaskInstance
+from airflow.utils import timezone
+
+DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 ADD_STEPS_SUCCESS_RETURN = {
     'ResponseMetadata': {
@@ -27,30 +33,71 @@ ADD_STEPS_SUCCESS_RETURN = {
 
 
 class TestEmrAddStepsOperator(unittest.TestCase):
+    # When
+    _config = [{
+        'Name': 'test_step',
+        'ActionOnFailure': 'CONTINUE',
+        'HadoopJarStep': {
+            'Jar': 'command-runner.jar',
+            'Args': [
+                '/usr/lib/spark/bin/run-example',
+                '{{ macros.ds_add(ds, -1) }}',
+                '{{ ds }}'
+            ]
+        }
+    }]
+
     def setUp(self):
         configuration.load_test_config()
+        args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
 
         # Mock out the emr_client (moto has incorrect response)
-        mock_emr_client = MagicMock()
-        mock_emr_client.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
+        self.emr_client_mock = MagicMock()
+        self.operator = EmrAddStepsOperator(
+            task_id='test_task',
+            job_flow_id='j-8989898989',
+            aws_conn_id='aws_default',
+            steps=self._config,
+            dag=DAG('test_dag_id', default_args=args)
+        )
 
-        mock_emr_session = MagicMock()
-        mock_emr_session.client.return_value = mock_emr_client
+    def test_init(self):
+        self.assertEqual(self.operator.job_flow_id, 'j-8989898989')
+        self.assertEqual(self.operator.aws_conn_id, 'aws_default')
+
+    def test_render_template(self):
+        ti = TaskInstance(self.operator, DEFAULT_DATE)
+        ti.render_templates()
+
+        expected_args = [{
+            'Name': 'test_step',
+            'ActionOnFailure': 'CONTINUE',
+            'HadoopJarStep': {
+                'Jar': 'command-runner.jar',
+                'Args': [
+                    '/usr/lib/spark/bin/run-example',
+                    (DEFAULT_DATE - timedelta(days=1)).strftime("%Y-%m-%d"),
+                    DEFAULT_DATE.strftime("%Y-%m-%d"),
+                ]
+            }
+        }]
+
+        self.assertListEqual(self.operator.steps, expected_args)
+
+    def test_execute_returns_step_id(self):
+        self.emr_client_mock.add_job_flow_steps.return_value = ADD_STEPS_SUCCESS_RETURN
 
         # Mock out the emr_client creator
-        self.boto3_session_mock = MagicMock(return_value=mock_emr_session)
+        emr_session_mock = MagicMock()
+        emr_session_mock.client.return_value = self.emr_client_mock
+        self.boto3_session_mock = MagicMock(return_value=emr_session_mock)
 
-
-    def test_execute_adds_steps_to_the_job_flow_and_returns_step_ids(self):
         with patch('boto3.session.Session', self.boto3_session_mock):
+            self.assertEqual(self.operator.execute(None), ['s-2LH3R5GW3A53T'])
 
-            operator = EmrAddStepsOperator(
-                task_id='test_task',
-                job_flow_id='j-8989898989',
-                aws_conn_id='aws_default'
-            )
-
-            self.assertEqual(operator.execute(None), ['s-2LH3R5GW3A53T'])
 
 if __name__ == '__main__':
     unittest.main()
