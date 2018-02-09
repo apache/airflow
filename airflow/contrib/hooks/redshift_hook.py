@@ -79,7 +79,7 @@ class RedshiftHook(AwsHook):
 
     def restore_from_cluster_snapshot(self, cluster_identifier, snapshot_identifier):
         """
-        Restores a cluster from it's snapshot
+        Restores a cluster from its snapshot
 
         :param cluster_identifier: unique identifier of a cluster
         :type cluster_identifier: str

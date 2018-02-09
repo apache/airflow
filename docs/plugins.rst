@@ -41,7 +41,7 @@ Airflow has many components that can be reused when building an application:
 * A metadata database to store your models
 * Access to your databases, and knowledge of how to connect to them
 * An array of workers that your application can push workload to
-* Airflow is deployed, you can just piggy back on it's deployment logistics
+* Airflow is deployed, you can just piggy back on its deployment logistics
 * Basic charting capabilities, underlying libraries and abstractions
 
 

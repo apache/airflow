@@ -811,10 +811,12 @@ class Airflow(BaseView):
             - The scheduler is down or under heavy load<br/>
             {}
             <br/>
-            If this task instance does not start soon please contact your Airflow administrator for assistance."""
-                .format(
-                "- This task instance already ran and had it's state changed manually (e.g. cleared in the UI)<br/>"
-                if ti.state == State.NONE else "")))]
+            If this task instance does not start soon please contact your Airflow """
+                   """administrator for assistance."""
+                   .format(
+                       "- This task instance already ran and had its state changed "
+                       "manually (e.g. cleared in the UI)<br/>"
+                       if ti.state == State.NONE else "")))]
 
         # Use the scheduler's context to figure out which dependencies are not met
         dep_context = DepContext(SCHEDULER_DEPS)

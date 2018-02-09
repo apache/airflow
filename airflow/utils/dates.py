@@ -146,7 +146,7 @@ def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
 
     # We are looking for a datetime in the form start_date + i * delta
     # which is as close as possible to dt. Since delta could be a relative
-    # delta we don't know it's exact length in seconds so we cannot rely on
+    # delta we don't know its exact length in seconds so we cannot rely on
     # division to find i. Instead we employ a binary search algorithm, first
     # finding an upper and lower limit and then disecting the interval until
     # we have found the closest match.
