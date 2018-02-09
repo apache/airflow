@@ -207,6 +207,71 @@ class BigQueryBaseCursor(LoggingMixin):
         self.use_legacy_sql = use_legacy_sql
         self.running_job_id = None
 
+    def create_empty_table(self,
+                           project_id,
+                           dataset_id,
+                           table_id,
+                           schema_fields=None,
+                           time_partitioning={}
+                           ):
+        """
+        Creates a new, empty table in the dataset.
+
+        :param project_id: The project to create the table into.
+        :type project_id: str
+        :param dataset_id: The dataset to create the table into.
+        :type dataset_id: str
+        :param table_id: The Name of the table to be created.
+        :type table_id: str
+        :param schema_fields: If set, the schema field list as defined here:
+        https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
+
+        **Example**: ::
+
+            schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+                           {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
+
+        :type schema_fields: list
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and expiration as per API specifications.
+
+            .. seealso::
+            https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
+        :type time_partitioning: dict
+
+        :return:
+        """
+        project_id = project_id if project_id is not None else self.project_id
+
+        table_resource = {
+            'tableReference': {
+                'tableId': table_id
+            }
+        }
+
+        if schema_fields:
+            table_resource['schema'] = {'fields': schema_fields}
+
+        if time_partitioning:
+            table_resource['timePartitioning'] = time_partitioning
+
+        self.log.info('Creating Table %s:%s.%s',
+                      project_id, dataset_id, table_id)
+
+        try:
+            self.service.tables().insert(
+                projectId=project_id,
+                datasetId=dataset_id,
+                body=table_resource).execute()
+
+            self.log.info('Table created successfully: %s:%s.%s',
+                          project_id, dataset_id, table_id)
+
+        except HttpError as err:
+            raise AirflowException(
+                'BigQuery job failed. Error was: {}'.format(err.content)
+            )
+
     def create_external_table(self,
                               external_project_dataset_table,
                               schema_fields,
