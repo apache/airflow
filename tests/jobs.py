@@ -1170,6 +1170,30 @@ class SchedulerJobTest(unittest.TestCase):
         self.assertIn(tis[1].key, res_keys)
         self.assertIn(tis[3].key, res_keys)
 
+    def test_nonexistent_pool(self):
+        dag_id = 'SchedulerJobTest.test_nonexistent_pool'
+        task_id = 'dummy_wrong_pool'
+        dag = DAG(dag_id=dag_id, start_date=DEFAULT_DATE, concurrency=16)
+        task = DummyOperator(dag=dag, task_id=task_id, pool="this_pool_doesnt_exist")
+        dagbag = self._make_simple_dag_bag([dag])
+
+        scheduler = SchedulerJob(**self.default_scheduler_args)
+        session = settings.Session()
+
+        dr = scheduler.create_dag_run(dag)
+
+        ti = TI(task, dr.execution_date)
+        ti.state = State.SCHEDULED
+        session.merge(ti)
+        session.commit()
+
+        res = scheduler._find_executable_task_instances(
+            dagbag,
+            states=[State.SCHEDULED],
+            session=session)
+        session.commit()
+        self.assertEqual(0, len(res))
+
     def test_find_executable_task_instances_none(self):
         dag_id = 'SchedulerJobTest.test_find_executable_task_instances_none'
         task_id_1 = 'dummy'
