@@ -15,6 +15,8 @@
 import unittest
 
 from airflow.contrib.operators.bigquery_operator import BigQueryCreateEmptyTableOperator
+from airflow.contrib.operators.bigquery_operator \
+    import BigQueryCreateExternalTableOperator
 
 try:
     from unittest import mock
@@ -24,10 +26,13 @@ except ImportError:
     except ImportError:
         mock = None
 
-TASK_ID = 'test-bq-create-empty-table-operator'
+TASK_ID = 'test-bq-create-table-operator'
 TEST_DATASET = 'test-dataset'
 TEST_PROJECT_ID = 'test-project'
 TEST_TABLE_ID = 'test-table-id'
+TEST_GCS_BUCKET = 'test-bucket'
+TEST_GCS_DATA = ['dir1/*.csv']
+TEST_SOURCE_FORMAT = 'CSV'
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
@@ -50,4 +55,43 @@ class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):
                 table_id=TEST_TABLE_ID,
                 schema_fields=None,
                 time_partitioning={}
+            )
+
+
+class BigQueryCreateExternalTableOperatorTest(unittest.TestCase):
+
+    @mock.patch('airflow.contrib.operators.bigquery_operator.BigQueryHook')
+    def test_execute(self, mock_hook):
+        operator = BigQueryCreateExternalTableOperator(
+            task_id=TASK_ID,
+            destination_project_dataset_table='{}.{}'.format(
+                TEST_DATASET, TEST_TABLE_ID
+            ),
+            schema_fields=[],
+            bucket=TEST_GCS_BUCKET,
+            source_objects=TEST_GCS_DATA,
+            source_format=TEST_SOURCE_FORMAT
+        )
+
+        operator.execute(None)
+        mock_hook.return_value \
+            .get_conn() \
+            .cursor() \
+            .create_external_table \
+            .assert_called_once_with(
+                external_project_dataset_table='{}.{}'.format(
+                    TEST_DATASET, TEST_TABLE_ID
+                ),
+                schema_fields=[],
+                source_uris=['gs://{}/{}'.format(TEST_GCS_BUCKET, source_object)
+                             for source_object in TEST_GCS_DATA],
+                source_format=TEST_SOURCE_FORMAT,
+                compression='NONE',
+                skip_leading_rows=0,
+                field_delimiter=',',
+                max_bad_records=0,
+                quote_character=None,
+                allow_quoted_newlines=False,
+                allow_jagged_rows=False,
+                src_fmt_configs={}
             )
