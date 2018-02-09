@@ -154,7 +154,7 @@ class FTPHook(BaseHook, LoggingMixin):
         :type remote_full_path: str
         :param local_full_path_or_buffer: full path to the local file or a
             file-like buffer
-        :type local_full_path: str or file-like buffer
+        :type local_full_path_or_buffer: str or file-like buffer
         """
         conn = self.get_conn()
 
