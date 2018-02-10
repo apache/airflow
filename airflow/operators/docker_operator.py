@@ -88,7 +88,7 @@ class DockerOperator(BaseOperator):
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
     """
-    template_fields = ('command',)
+    template_fields = ('command', 'environment',)
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
