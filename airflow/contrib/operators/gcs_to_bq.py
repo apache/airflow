@@ -48,10 +48,10 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :param source_format: File format to export.
     :type source_format: string
     :param compression: [Optional] The compression type of the data source.
-            Possible values include GZIP and NONE.
-            The default value is NONE.
-            This setting is ignored for Google Cloud Bigtable,
-                Google Cloud Datastore backups and Avro formats.
+        Possible values include GZIP and NONE.
+        The default value is NONE.
+        This setting is ignored for Google Cloud Bigtable,
+        Google Cloud Datastore backups and Avro formats.
     :type compression: string
     :param create_disposition: The create disposition if the table doesn't exist.
     :type create_disposition: string
