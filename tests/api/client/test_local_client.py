@@ -98,6 +98,19 @@ class TestLocalClient(unittest.TestCase):
                                          external_trigger=True)
             mock.reset_mock()
 
+    def test_delete_dag(self):
+        key = "my_dag_id"
+        session = settings.Session()
+        DM = models.DagModel
+        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 0)
+
+        session.add(DM(dag_id=key))
+        session.commit()
+        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 1)
+
+        self.client.delete_dag(dag_id=key)
+        self.assertEqual(session.query(DM).filter(DM.dag_id == key).count(), 0)
+
     def test_get_pool(self):
         self.client.create_pool(name='foo', slots=1, description='')
         pool = self.client.get_pool(name='foo')

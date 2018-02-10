@@ -15,6 +15,7 @@
 from airflow.api.client import api_client
 from airflow.api.common.experimental import pool
 from airflow.api.common.experimental import trigger_dag
+from airflow.api.common.experimental import delete_dag
 
 
 class Client(api_client.Client):
@@ -26,6 +27,10 @@ class Client(api_client.Client):
                                      conf=conf,
                                      execution_date=execution_date)
         return "Created {}".format(dr)
+
+    def delete_dag(self, dag_id):
+        count = delete_dag.delete_dag(dag_id)
+        return "Removed {} record(s)".format(count)
 
     def get_pool(self, name):
         p = pool.get_pool(name=name)

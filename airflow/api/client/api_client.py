@@ -32,6 +32,13 @@ class Client(object):
         """
         raise NotImplementedError()
 
+    def delete_dag(self, dag_id):
+        """Delete all DB records related to the specified dag.
+
+        :param dag_id:
+        """
+        raise NotImplementedError()
+
     def get_pool(self, name):
         """Get pool.
 

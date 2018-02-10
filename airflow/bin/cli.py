@@ -203,6 +203,26 @@ def trigger_dag(args):
     log.info(message)
 
 
+def delete_dag(args):
+    """
+    Deletes all DB records related to the specified dag
+    :param args:
+    :return:
+    """
+    log = LoggingMixin().log
+    if args.yes or input(
+            "This will drop all existing records related to the specified DAG. "
+            "Proceed? (y/n)").upper() == "Y":
+        try:
+            message = api_client.delete_dag(dag_id=args.dag_id)
+        except IOError as err:
+            log.error(err)
+            raise AirflowException(err)
+        log.info(message)
+    else:
+        print("Bail.")
+
+
 def pool(args):
     log = LoggingMixin().log
 
@@ -1157,6 +1177,11 @@ class CLIFactory(object):
             ("--stdout",), "Redirect stdout to this file"),
         'log_file': Arg(
             ("-l", "--log-file"), "Location of the log file"),
+        'yes': Arg(
+            ("-y", "--yes"),
+            "Do not prompt to confirm reset. Use with care!",
+            "store_true",
+            default=False),
 
         # backfill
         'mark_success': Arg(
@@ -1374,12 +1399,6 @@ class CLIFactory(object):
             default=conf.get('webserver', 'ERROR_LOGFILE'),
             help="The logfile to store the webserver error log. Use '-' to print to "
                  "stderr."),
-        # resetdb
-        'yes': Arg(
-            ("-y", "--yes"),
-            "Do not prompt to confirm reset. Use with care!",
-            "store_true",
-            default=False),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'run_duration': Arg(
@@ -1515,6 +1534,10 @@ class CLIFactory(object):
             'func': trigger_dag,
             'help': "Trigger a DAG run",
             'args': ('dag_id', 'subdir', 'run_id', 'conf', 'exec_date'),
+        }, {
+            'func': delete_dag,
+            'help': "Delete all DB records related to the specified DAG",
+            'args': ('dag_id', 'yes',),
         }, {
             'func': pool,
             'help': "CRUD operations on pools",

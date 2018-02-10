@@ -19,7 +19,7 @@ from urllib.parse import quote_plus
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
@@ -85,6 +85,26 @@ class TestApiExperimental(unittest.TestCase):
         response = self.app.post(
             url_template.format('does_not_exist_dag'),
             data=json.dumps({}),
+            content_type="application/json"
+        )
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_dag(self):
+        url_template = '/api/experimental/dags/{}'
+
+        from airflow import settings
+        session = settings.Session()
+        key = "my_dag_id"
+        session.add(DagModel(dag_id=key))
+        session.commit()
+        response = self.app.delete(
+            url_template.format(key),
+            content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code)
+
+        response = self.app.delete(
+            url_template.format('does_not_exist_dag'),
             content_type="application/json"
         )
         self.assertEqual(404, response.status_code)
