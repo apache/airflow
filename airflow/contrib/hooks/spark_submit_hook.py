@@ -32,8 +32,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :param conn_id: The connection id as configured in Airflow administration. When an
                     invalid connection_id is supplied, it will default to yarn.
     :type conn_id: str
-    :param files: Upload additional files to the container running the job, separated by a
-                  comma. For example hive-site.xml.
+    :param files: Upload additional files to the executor running the job, separated by a
+                  comma. Files will be placed in the working directory of each executor.
+                  For example, serialized objects.
     :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
     :type py_files: str
