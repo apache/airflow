@@ -1334,6 +1334,24 @@ class CliTests(unittest.TestCase):
                 '-c', 'NOT JSON'])
         )
 
+    def test_delete_dag(self):
+        DM = models.DagModel
+        key = "my_dag_id"
+        session = settings.Session()
+        session.add(DM(dag_id=key))
+        session.commit()
+        cli.delete_dag(self.parser.parse_args([
+            'delete_dag', key, '--yes']))
+        self.assertEqual(session.query(DM).filter_by(dag_id=key).count(), 0)
+        self.assertRaises(
+            AirflowException,
+            cli.delete_dag,
+            self.parser.parse_args([
+                'delete_dag',
+                'does_not_exist_dag',
+                '--yes'])
+        )
+
     def test_pool_create(self):
         cli.pool(self.parser.parse_args(['pool', '-s', 'foo', '1', 'test']))
         self.assertEqual(self.session.query(models.Pool).count(), 1)

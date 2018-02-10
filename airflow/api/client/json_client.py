@@ -50,6 +50,12 @@ class Client(api_client.Client):
                              })
         return data['message']
 
+    def delete_dag(self, dag_id):
+        endpoint = '/api/experimental/dags/{}/delete_dag'.format(dag_id)
+        url = urljoin(self._api_base_url, endpoint)
+        data = self._request(url, method='DELETE')
+        return data['message']
+
     def get_pool(self, name):
         endpoint = '/api/experimental/pools/{}'.format(name)
         url = urljoin(self._api_base_url, endpoint)
