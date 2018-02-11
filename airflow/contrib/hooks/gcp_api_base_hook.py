@@ -43,18 +43,19 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
 
     Legacy P12 key files are not supported.
     """
-    def __init__(self, conn_id, delegate_to=None):
+
+    def __init__(self, gcp_conn_id='google_cloud_default', delegate_to=None):
         """
-        :param conn_id: The connection ID to use when fetching connection info.
-        :type conn_id: string
+        :param gcp_conn_id: The connection ID to use when fetching connection info.
+        :type gcp_conn_id: string
         :param delegate_to: The account to impersonate, if any.
             For this to work, the service account making the request must have
             domain-wide delegation enabled.
         :type delegate_to: string
         """
-        self.conn_id = conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
-        self.extras = self.get_connection(conn_id).extra_dejson
+        self.extras = self.get_connection(self.gcp_conn_id).extra_dejson
 
     def _get_credentials(self):
         """
@@ -69,8 +70,8 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             kwargs['sub'] = self.delegate_to
 
         if not key_path and not keyfile_dict:
-            self.log.info('Getting connection using `gcloud auth` user, since no key file '
-                         'is defined for hook.')
+            self.log.info('Getting connection using `gcloud auth` user, '
+                          'since no key file is defined for hook.')
             credentials = GoogleCredentials.get_application_default()
         elif key_path:
             if not scope:
@@ -80,7 +81,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
             # Get credentials from a JSON file.
             if key_path.endswith('.json'):
                 self.log.info('Getting connection using a JSON key file.')
-                credentials = ServiceAccountCredentials\
+                credentials = ServiceAccountCredentials \
                     .from_json_keyfile_name(key_path, scopes)
             elif key_path.endswith('.p12'):
                 raise AirflowException('Legacy P12 key file are not supported, '
@@ -101,7 +102,7 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                 keyfile_dict['private_key'] = keyfile_dict['private_key'].replace(
                     '\\n', '\n')
 
-                credentials = ServiceAccountCredentials\
+                credentials = ServiceAccountCredentials \
                     .from_json_keyfile_dict(keyfile_dict, scopes)
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
