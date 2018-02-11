@@ -1800,6 +1800,20 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("run_this_last", response.data.decode('utf-8'))
 
+    def test_dag_view_task_with_python_operator_using_partial(self):
+        response = self.app.get(
+            '/admin/airflow/task?'
+            'task_id=test_dagrun_functool_partial&dag_id=test_issue_2099_dag&'
+            'execution_date={}'.format(DEFAULT_DATE_DS))
+        self.assertIn("A function with two args", response.data.decode('utf-8'))
+
+    def test_dag_view_task_with_python_operator_using_instance(self):
+        response = self.app.get(
+            '/admin/airflow/task?'
+            'task_id=test_dagrun_instance&dag_id=test_issue_2099_dag&'
+            'execution_date={}'.format(DEFAULT_DATE_DS))
+        self.assertIn("A __call__ method", response.data.decode('utf-8'))
+
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
