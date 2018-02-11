@@ -465,8 +465,10 @@ class BigQueryBaseCursor(LoggingMixin):
                   destination_dataset_table=False,
                   write_disposition='WRITE_EMPTY',
                   allow_large_results=False,
+                  flatten_results=False,
                   udf_config=False,
                   maximum_billing_tier=None,
+                  maximum_bytes_billed=None,
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
                   schema_update_options=(),
@@ -488,12 +490,22 @@ class BigQueryBaseCursor(LoggingMixin):
         :type write_disposition: string
         :param allow_large_results: Whether to allow large results.
         :type allow_large_results: boolean
+        :param flatten_results: If true and query uses legacy SQL dialect, flattens
+            all nested and repeated fields in the query results. ``allowLargeResults``
+            must be true if this is set to false. For standard SQL queries, this
+            flag is ignored and results are never flattened.
+        :type flatten_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
         :type udf_config: list
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
         :type maximum_billing_tier: integer
+        :param maximum_bytes_billed: Limits the bytes billed for this job.
+            Queries that will have bytes billed beyond this limit will fail
+            (without incurring a charge). If unspecified, this will be
+            set to your project default.
+        :type maximum_bytes_billed: float
         :param create_disposition: Specifies whether the job is allowed to
             create new tables.
         :type create_disposition: string
@@ -528,6 +540,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 'query': bql,
                 'useLegacySql': self.use_legacy_sql,
                 'maximumBillingTier': maximum_billing_tier,
+                'maximumBytesBilled': maximum_bytes_billed,
                 'priority': priority
             }
         }
@@ -542,6 +555,8 @@ class BigQueryBaseCursor(LoggingMixin):
             configuration['query'].update({
                 'allowLargeResults':
                 allow_large_results,
+                'flattenResults':
+                flatten_results,
                 'writeDisposition':
                 write_disposition,
                 'createDisposition':
