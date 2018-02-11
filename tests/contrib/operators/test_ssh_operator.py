@@ -54,7 +54,7 @@ class SSHOperatorTest(unittest.TestCase):
         self.dag = dag
 
     def test_json_command_execution(self):
-        configuration.set("core", "enable_xcom_pickling", "False")
+        configuration.conf.set("core", "enable_xcom_pickling", "False")
         task = SSHOperator(
                 task_id="test",
                 ssh_hook=self.hook,
@@ -73,7 +73,7 @@ class SSHOperatorTest(unittest.TestCase):
                          b64encode(b'airflow').decode('utf-8'))
 
     def test_pickle_command_execution(self):
-        configuration.set("core", "enable_xcom_pickling", "True")
+        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
                 task_id="test",
                 ssh_hook=self.hook,
@@ -91,7 +91,7 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_command_execution_with_env(self):
-        configuration.set("core", "enable_xcom_pickling", "True")
+        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
@@ -109,7 +109,7 @@ class SSHOperatorTest(unittest.TestCase):
         self.assertEqual(ti.xcom_pull(task_ids='test', key='return_value'), b'airflow')
 
     def test_no_output_command(self):
-        configuration.set("core", "enable_xcom_pickling", "True")
+        configuration.conf.set("core", "enable_xcom_pickling", "True")
         task = SSHOperator(
             task_id="test",
             ssh_hook=self.hook,
