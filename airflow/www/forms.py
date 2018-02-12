@@ -34,7 +34,7 @@ class DateTimeWithNumRunsForm(Form):
     # and landing times
     base_date = DateTimeField(
         "Anchor date", widget=DateTimePickerWidget(), default=datetime.now())
-    num_runs = SelectField("Number of runs", default=25, choices=(
+    num_runs = SelectField("Number of runs", default=5, choices=(
         (5, "5"),
         (25, "25"),
         (50, "50"),
