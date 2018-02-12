@@ -13,6 +13,8 @@
 # limitations under the License.
 import logging
 
+import jwt
+
 import flask_login
 
 # Need to expose these downstream
@@ -106,11 +108,14 @@ class GoogleAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
+        state = jwt.encode(
+            request.args.to_dict(flat=False),
+            get_config_param('client_secret'),
+            algorithm='HS256')
         _log.debug('Redirecting user to Google login')
-        return self.google_oauth.authorize(callback=url_for(
-            'google_oauth_callback',
-            _external=True,
-            next=request.args.get('next') or request.referrer or None))
+        return self.google_oauth.authorize(
+            callback=url_for('google_oauth_callback', _external=True),
+            state=state)
 
     def get_google_user_profile_info(self, google_token):
         resp = self.google_oauth.get('https://www.googleapis.com/oauth2/v1/userinfo',
@@ -144,7 +149,18 @@ class GoogleAuthBackend(object):
     def oauth_callback(self):
         _log.debug('Google OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        try:
+            state = jwt.decode(
+                request.args['state'],
+                get_config_param('client_secret'),
+                algorithms=['HS256'])
+        except jwt.InvalidTokenError:
+            raise AuthenticationError('State signature is not valid!')
+
+        try:
+            next_url = state['next'][0]
+        except (KeyError, IndexError):
+            next_url = url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()
 
