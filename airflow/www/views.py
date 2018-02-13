@@ -1155,7 +1155,7 @@ class Airflow(BaseView):
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else 5
 
         if base_date:
             base_date = dateutil.parser.parse(base_date)
@@ -1384,7 +1384,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else 5
 
         if base_date:
             base_date = dateutil.parser.parse(base_date)
@@ -1480,7 +1480,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else 5
 
         if base_date:
             base_date = dateutil.parser.parse(base_date)
@@ -1544,7 +1544,7 @@ class Airflow(BaseView):
         dag = dagbag.get_dag(dag_id)
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else 25
+        num_runs = int(num_runs) if num_runs else 5
 
         if base_date:
             base_date = dateutil.parser.parse(base_date)
