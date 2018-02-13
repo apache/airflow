@@ -96,9 +96,9 @@ class BaseTaskRunner(LoggingMixin):
                 line = line.decode('utf-8')
             if len(line) == 0:
                 break
-            self.log.info(u'Job {}: Subtask {} %s'.format(
-                self._task_instance.job_id, self._task_instance.task_id),
-                line.rstrip('\n'))
+            self.log.info('Job %s: Subtask %s %s',
+                          self._task_instance.job_id, self._task_instance.task_id,
+                          line.rstrip('\n'))
 
     def run_command(self, run_with, join_args=False):
         """
