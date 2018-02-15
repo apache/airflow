@@ -67,6 +67,12 @@ class HttpHook(BaseHook):
 
         return session
 
+    @tenacity.retry(wait=tenacity.wait_exponential(),
+                    stop=tenacity.stop_after_attempt(7),
+                    retry=tenacity.retry_if_exception_type(
+                        requests.exceptions.ConnectionError
+                        )
+                    )
     def run(self, endpoint, data=None, headers=None, extra_options=None):
         """
         Performs the request
@@ -99,6 +105,15 @@ class HttpHook(BaseHook):
         self.log.info("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
+    def check_response(self, response):
+        try:
+            response.raise_for_status()
+        except requests.exceptions.HTTPError:
+            logging.error("HTTP error: " + response.reason)
+            if self.method != 'GET':
+                logging.error(response.text)
+            raise AirflowException(str(response.status_code) + ":" + response.reason)
+
     def run_and_check(self, session, prepped_request, extra_options):
         """
         Grabs extra options like timeout and actually runs the request,
@@ -106,27 +121,20 @@ class HttpHook(BaseHook):
         """
         extra_options = extra_options or {}
 
-        response = session.send(
-            prepped_request,
-            stream=extra_options.get("stream", False),
-            verify=extra_options.get("verify", False),
-            proxies=extra_options.get("proxies", {}),
-            cert=extra_options.get("cert"),
-            timeout=extra_options.get("timeout"),
-            allow_redirects=extra_options.get("allow_redirects", True))
-
         try:
+            response = session.send(
+                prepped_request,
+                stream=extra_options.get("stream", False),
+                verify=extra_options.get("verify", False),
+                proxies=extra_options.get("proxies", {}),
+                cert=extra_options.get("cert"),
+                timeout=extra_options.get("timeout"),
+                allow_redirects=extra_options.get("allow_redirects", True))
             response.raise_for_status()
-        except requests.exceptions.HTTPError:
-            # Tried rewrapping, but not supported. This way, it's possible
-            # to get reason and code for failure by checking first 3 chars
-            # for the code, or do a split on ':'
-            self.log.error("HTTP error: %s", response.reason)
-            if self.method not in ('GET', 'HEAD'):
-                # The sensor uses GET, so this prevents filling up the log
-                # with the body every time the GET 'misses'.
-                # That's ok to do, because GETs should be repeatable and
-                # all data should be visible in the log (no post data)
-                self.log.error(response.text)
-            raise AirflowException(str(response.status_code)+":"+response.reason)
-        return response
+            if extra_options.get('check_response', True):
+                self.check_response(response)
+            return response
+
+        except requests.exceptions.ConnectionError as ex:
+            logging.error(str(ex.message) + 'add retry logic here')
+            raise ex
