@@ -415,15 +415,35 @@ class TestVarImportView(unittest.TestCase):
         super(TestVarImportView, cls).tearDownClass()
 
     def test_import_variables(self):
+        content = ('{"str_key": "str_value", "int_key": 60,'
+                   '"list_key": [1, 2], "dict_key": {"k_a": 2, "k_b": 3}}')
+        try:
+            # python 3+
+            bytes_content = io.BytesIO(bytes(content, encoding='utf-8'))
+        except TypeError:
+            # python 2.7
+            bytes_content = io.BytesIO(bytes(content))
         response = self.app.post(
             self.IMPORT_ENDPOINT,
-            data={'file': (io.BytesIO(b'{"KEY": "VALUE"}'), 'test.json')},
+            data={'file': (bytes_content, 'test.json')},
             follow_redirects=True
         )
         self.assertEqual(response.status_code, 200)
         body = response.data.decode('utf-8')
-        self.assertIn('KEY', body)
-        self.assertIn('VALUE', body)
+        self.assertIn('str_key', body)
+        self.assertIn('int_key', body)
+        self.assertIn('list_key', body)
+        self.assertIn('dict_key', body)
+        self.assertIn('str_value', body)
+        self.assertIn('60', body)
+        self.assertIn('[1, 2]', body)
+        # As dicts are not ordered, we may get any of the following cases.
+        case_a_dict = '{&#34;k_a&#34;: 2, &#34;k_b&#34;: 3}'
+        case_b_dict = '{&#34;k_b&#34;: 3, &#34;k_a&#34;: 2}'
+        try:
+            self.assertIn(case_a_dict, body)
+        except AssertionError:
+            self.assertIn(case_b_dict, body)
 
 
 class TestMountPoint(unittest.TestCase):
