@@ -733,6 +733,7 @@ class BigQueryBaseCursor(LoggingMixin):
                  field_delimiter=',',
                  max_bad_records=0,
                  quote_character=None,
+                 ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  schema_update_options=(),
@@ -776,6 +777,12 @@ class BigQueryBaseCursor(LoggingMixin):
         :param quote_character: The value that is used to quote data sections in a CSV
             file.
         :type quote_character: string
+        :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
+            extra values that are not represented in the table schema.
+            If true, the extra values are ignored. If false, records with extra columns
+            are treated as bad records, and if there are too many bad records, an
+            invalid error is returned in the job result.
+        :type ignore_unknown_values: bool
         :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not
             (false).
         :type allow_quoted_newlines: boolean
@@ -842,6 +849,7 @@ class BigQueryBaseCursor(LoggingMixin):
                 'sourceFormat': source_format,
                 'sourceUris': source_uris,
                 'writeDisposition': write_disposition,
+                'ignoreUnknownValues': ignore_unknown_values
             }
         }
 
@@ -885,6 +893,8 @@ class BigQueryBaseCursor(LoggingMixin):
             src_fmt_configs['skipLeadingRows'] = skip_leading_rows
         if 'fieldDelimiter' not in src_fmt_configs:
             src_fmt_configs['fieldDelimiter'] = field_delimiter
+        if 'ignoreUnknownValues' not in src_fmt_configs:
+            src_fmt_configs['ignoreUnknownValues'] = ignore_unknown_values
         if quote_character is not None:
             src_fmt_configs['quote'] = quote_character
         if allow_quoted_newlines:
