@@ -41,6 +41,14 @@ class ApiPasswordTests(unittest.TestCase):
                                "auth_backend",
                                "airflow.contrib.auth.backends.password_auth")
 
+        configuration.conf.set("webserver",
+                               "authenticate",
+                               "True")
+
+        configuration.conf.set("webserver",
+                               "auth_backend",
+                               "airflow.contrib.auth.backends.password_auth")
+
         self.app = application.create_app(testing=True)
 
         session = Session()
