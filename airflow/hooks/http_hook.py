@@ -20,6 +20,7 @@
 from builtins import str
 
 import requests
+import tenacity
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
@@ -30,12 +31,18 @@ class HttpHook(BaseHook):
     Interact with HTTP servers.
     """
 
-    def __init__(self, method='POST', http_conn_id='http_default'):
+    def __init__(
+        self,
+        method='POST',
+        http_conn_id='http_default'
+    ):
         self.http_conn_id = http_conn_id
         self.method = method
+        self.base_url = None
 
-    # headers is required to make it required
-    def get_conn(self, headers):
+        # headers may be passed through directly or in the "extra" field in the connection
+    # definition
+    def get_conn(self, headers=None):
         """
         Returns http session for use with requests
         """
@@ -55,6 +62,8 @@ class HttpHook(BaseHook):
             session.auth = (conn.login, conn.password)
         if headers:
             session.headers.update(headers)
+        if conn.extra:
+            session.headers = json.loads(conn.extra)
 
         return session
 
