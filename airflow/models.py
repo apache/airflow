@@ -3362,12 +3362,7 @@ class DAG(BaseDag, LoggingMixin):
             self.log.info('Executing dag callback function: {}'.format(callback))
             tis = dagrun.get_task_instances(session=session)
             ti = tis[-1]  # get first TaskInstance of DagRun
-            # certain task instance attributes are transient so must save them
-            # -- especially during timeouts theyre lost
-            if not hasattr(ti, 'task'):
-                d = dagrun.dag or DagBag().get_dag(dag_id=dagrun.dag_id)
-                task = d.get_task(ti.task_id)
-                ti.task = task
+            ti.task = self.get_task(ti.task_id)
             context = ti.get_template_context(session=session)
             context.update({'reason': reason})
             callback(context)
