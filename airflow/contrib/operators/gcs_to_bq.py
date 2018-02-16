@@ -66,6 +66,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type max_bad_records: int
     :param quote_character: The value that is used to quote data sections in a CSV file.
     :type quote_character: string
+    :param ignore_unknown_values: [Optional] Indicates if BigQuery should allow
+        extra values that are not represented in the table schema.
+        If true, the extra values are ignored. If false, records with extra columns
+        are treated as bad records, and if there are too many bad records, an
+        invalid error is returned in the job result.
+    :type ignore_unknown_values: bool
     :param allow_quoted_newlines: Whether to allow quoted newlines (true) or not (false).
     :type allow_quoted_newlines: boolean
     :param allow_jagged_rows: Accept rows that are missing trailing optional columns.
@@ -124,6 +130,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                  field_delimiter=',',
                  max_bad_records=0,
                  quote_character=None,
+                 ignore_unknown_values=False,
                  allow_quoted_newlines=False,
                  allow_jagged_rows=False,
                  max_id_key=None,
@@ -154,6 +161,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         self.field_delimiter = field_delimiter
         self.max_bad_records = max_bad_records
         self.quote_character = quote_character
+        self.ignore_unknown_values = ignore_unknown_values
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
         self.external_table = external_table
@@ -198,6 +206,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 field_delimiter=self.field_delimiter,
                 max_bad_records=self.max_bad_records,
                 quote_character=self.quote_character,
+                ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
                 src_fmt_configs=self.src_fmt_configs
@@ -214,6 +223,7 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
                 field_delimiter=self.field_delimiter,
                 max_bad_records=self.max_bad_records,
                 quote_character=self.quote_character,
+                ignore_unknown_values=self.ignore_unknown_values,
                 allow_quoted_newlines=self.allow_quoted_newlines,
                 allow_jagged_rows=self.allow_jagged_rows,
                 schema_update_options=self.schema_update_options,
