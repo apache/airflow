@@ -456,6 +456,28 @@ class TestSparkSubmitHook(unittest.TestCase):
                            stderr=-1, stdout=-1),
                       mock_popen.mock_calls)
 
+    def test_standalone_cluster_process_on_kill(self):
+        # Given
+        log_lines = [
+            'Running Spark using the REST application submission protocol.',
+            '17/11/28 11:14:15 INFO RestSubmissionClient: Submitting a request ' +
+            'to launch an application in spark://spark-standalone-master:6066',
+            '17/11/28 11:14:15 INFO RestSubmissionClient: Submission successfully ' +
+            'created as driver-20171128111415-0001. Polling submission state...'
+        ]
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+        hook._process_spark_submit_log(log_lines)
+
+        # When
+        kill_cmd = hook._build_spark_driver_kill_command()
+
+        # Then
+        self.assertEqual(kill_cmd[0], '/path/to/spark_home/bin/spark-submit')
+        self.assertEqual(kill_cmd[1], '--master')
+        self.assertEqual(kill_cmd[2], 'spark://spark-standalone-master:6066')
+        self.assertEqual(kill_cmd[3], '--kill')
+        self.assertEqual(kill_cmd[4], 'driver-20171128111415-0001')
+
 
 if __name__ == '__main__':
     unittest.main()
