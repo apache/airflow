@@ -20,7 +20,7 @@ boto3
 celery
 cgroupspy
 chartkick
-cloudant
+cloudant<2.0
 coverage
 coveralls
 croniter>=0.3.17
