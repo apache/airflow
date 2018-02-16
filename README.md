@@ -118,7 +118,7 @@ Currently **officially** using Airflow:
 1. [Data Reply](https://www.datareply.co.uk/) [[@kaxil](https://github.com/kaxil)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
-1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@WesleyBatista](https://github.com/WesleyBatista)]
+1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@WesleyBatista](https://github.com/WesleyBatista) & [@diraol](https://github.com/diraol)]
 1. [eRevalue](https://www.datamaran.com) [[@hamedhsn](https://github.com/hamedhsn)]
 1. [evo.company](https://evo.company/) [[@orhideous](https://github.com/orhideous)]
 1. [FreshBooks](https://github.com/freshbooks) [[@DinoCow](https://github.com/DinoCow)]
