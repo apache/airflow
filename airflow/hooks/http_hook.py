@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -40,13 +40,17 @@ class HttpHook(BaseHook):
         self.method = method
         self.base_url = None
 
-        # headers may be passed through directly or in the "extra" field in the connection
+    # extract this from the get_conn to ease testing
+    def get_airflow_connection(self):
+        return self.get_connection(self.http_conn_id)
+
+    # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers=None):
         """
         Returns http session for use with requests
         """
-        conn = self.get_connection(self.http_conn_id)
+        conn = self.get_airflow_connection()
         session = requests.Session()
 
         if "://" in conn.host:
@@ -60,10 +64,10 @@ class HttpHook(BaseHook):
             self.base_url = self.base_url + ":" + str(conn.port) + "/"
         if conn.login:
             session.auth = (conn.login, conn.password)
+        if conn.extra:
+            session.headers.update(json.loads(conn.extra))
         if headers:
             session.headers.update(headers)
-        if conn.extra:
-            session.headers = json.loads(conn.extra)
 
         return session
 
@@ -130,7 +134,7 @@ class HttpHook(BaseHook):
                 cert=extra_options.get("cert"),
                 timeout=extra_options.get("timeout"),
                 allow_redirects=extra_options.get("allow_redirects", True))
-            response.raise_for_status()
+
             if extra_options.get('check_response', True):
                 self.check_response(response)
             return response
