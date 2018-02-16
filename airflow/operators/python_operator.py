@@ -21,12 +21,16 @@ import subprocess
 import sys
 import types
 
+from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
 
 from textwrap import dedent
+
+
+AIRFLOW_HOME_VAR = 'AIRFLOW_HOME'
 
 
 class PythonOperator(BaseOperator):
@@ -275,9 +279,11 @@ class PythonVirtualenvOperator(PythonOperator):
     def _execute_in_subprocess(self, cmd):
         try:
             self.log.info("Executing cmd\n{}".format(cmd))
-            output = subprocess.check_output(cmd,
-                                             stderr=subprocess.STDOUT,
-                                             close_fds=True)
+            output = subprocess.check_output(
+                cmd,
+                stderr=subprocess.STDOUT,
+                close_fds=True,
+                env={AIRFLOW_HOME_VAR: conf.get('core', AIRFLOW_HOME_VAR)})
             if output:
                 self.log.info("Got output\n{}".format(output))
         except subprocess.CalledProcessError as e:
