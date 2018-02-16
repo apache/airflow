@@ -15,7 +15,7 @@
 """
 ### Tutorial Documentation
 Documentation that goes along with the Airflow tutorial located
-[here](http://pythonhosted.org/airflow/tutorial.html)
+[here](https://airflow.incubator.apache.org/tutorial.html)
 """
 import airflow
 from airflow import DAG
