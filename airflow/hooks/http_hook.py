@@ -40,17 +40,13 @@ class HttpHook(BaseHook):
         self.method = method
         self.base_url = None
 
-    # extract this from the get_conn to ease testing
-    def get_airflow_connection(self):
-        return self.get_connection(self.http_conn_id)
-
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
     def get_conn(self, headers=None):
         """
         Returns http session for use with requests
         """
-        conn = self.get_airflow_connection()
+        conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
 
         if "://" in conn.host:
@@ -71,12 +67,11 @@ class HttpHook(BaseHook):
 
         return session
 
-    @tenacity.retry(wait=tenacity.wait_exponential(),
-                    stop=tenacity.stop_after_attempt(7),
-                    retry=tenacity.retry_if_exception_type(
-                        requests.exceptions.ConnectionError
-                        )
-                    )
+    @tenacity.retry(
+        wait=tenacity.wait_exponential(),
+        stop=tenacity.stop_after_attempt(7),
+        retry=tenacity.retry_if_exception_type(requests.exceptions.ConnectionError)
+    )
     def run(self, endpoint, data=None, headers=None, extra_options=None):
         """
         Performs the request
@@ -113,9 +108,9 @@ class HttpHook(BaseHook):
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError:
-            logging.error("HTTP error: " + response.reason)
-            if self.method != 'GET':
-                logging.error(response.text)
+            self.log.error("HTTP error: %s", response.reason)
+            if self.method not in ['GET', 'HEAD']:
+                self.log.error(response.text)
             raise AirflowException(str(response.status_code) + ":" + response.reason)
 
     def run_and_check(self, session, prepped_request, extra_options):
@@ -140,5 +135,5 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            logging.error(str(ex.message) + 'add retry logic here')
+            logging.error(str(ex) + 'add retry logic here')
             raise ex
