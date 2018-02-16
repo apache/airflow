@@ -410,7 +410,48 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     .format(returncode)
                 )
 
+    def _build_spark_driver_kill_command(self):
+        """
+        Construct the spark-submit command to kill a driver.
+        :return: full command to kill a driver
+        """
+
+        # If the spark_home is passed then build the spark-submit executable path using
+        # the spark_home; otherwise assume that spark-submit is present in the path to
+        # the executing user
+        if self._connection['spark_home']:
+            connection_cmd = [os.path.join(self._connection['spark_home'],
+                                           'bin',
+                                           self._connection['spark_binary'])]
+        else:
+            connection_cmd = [self._connection['spark_binary']]
+
+        # The url ot the spark master
+        connection_cmd += ["--master", self._connection['master']]
+
+        # The actual kill command
+        connection_cmd += ["--kill", self._driver_id]
+
+        self.log.debug("Spark-Kill cmd: %s", connection_cmd)
+
+        return connection_cmd
+
     def on_kill(self):
+
+        self.log.debug("Kill Command is being called")
+
+        if self._should_track_driver_status:
+            if self._driver_id:
+                self.log.info('Killing driver {} on cluster'
+                              .format(self._driver_id))
+
+                kill_cmd = self._build_spark_driver_kill_command()
+                driver_kill = subprocess.Popen(kill_cmd,
+                                               stdout=subprocess.PIPE,
+                                               stderr=subprocess.PIPE)
+
+                self.log.info("Spark driver {} killed with return code: {}"
+                              .format(self._driver_id, driver_kill.wait()))
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
