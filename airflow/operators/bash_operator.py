@@ -116,7 +116,7 @@ class BashOperator(BaseOperator):
                 self.log.info("Output:")
                 line = ''
                 for line in iter(sp.stdout.readline, b''):
-                    line = line.decode(self.output_encoding).strip()
+                    line = line.decode(self.output_encoding).rstrip()
                     self.log.info(line)
                 sp.wait()
                 self.log.info(
