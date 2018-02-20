@@ -354,6 +354,91 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
             if ex.resp['status'] == '404':
                 raise ValueError('Object Not Found')
 
+    def create_bucket(self,
+                      bucket_name,
+                      storage_class='MULTI_REGIONAL',
+                      location='US',
+                      project_id=None,
+                      labels=None
+                      ):
+        """
+        Creates a new bucket. Google Cloud Storage uses a flat namespace, so
+        you can't create a bucket with a name that is already in use.
+
+        .. seealso::
+            For more information, see Bucket Naming Guidelines:
+            https://cloud.google.com/storage/docs/bucketnaming.html#requirements
+
+        :param bucket_name: The name of the bucket.
+        :type bucket_name: string
+        :param storage_class: This defines how objects in the bucket are stored
+            and determines the SLA and the cost of storage. Values include
+
+            - ``MULTI_REGIONAL``
+            - ``REGIONAL``
+            - ``STANDARD``
+            - ``NEARLINE``
+            - ``COLDLINE``.
+            If this value is not specified when the bucket is
+            created, it will default to STANDARD.
+        :type storage_class: string
+        :param location: The location of the bucket.
+            Object data for objects in the bucket resides in physical storage
+            within this region. Defaults to US.
+
+            .. seealso::
+                https://developers.google.com/storage/docs/bucket-locations
+
+        :type location: string
+        :param project_id: The ID of the GCP Project.
+        :type project_id: string
+        :param labels: User-provided labels, in key/value pairs.
+        :type labels: dict
+        :return: If successful, it returns the ``id`` of the bucket.
+        """
+
+        project_id = project_id if project_id is not None else self.project_id
+        storage_classes = [
+            'MULTI_REGIONAL',
+            'REGIONAL',
+            'NEARLINE',
+            'COLDLINE',
+            'STANDARD',  # alias for MULTI_REGIONAL/REGIONAL, based on location
+        ]
+
+        self.log.info('Creating Bucket: %s; Location: %s; Storage Class: %s',
+                      bucket_name, location, storage_class)
+        assert storage_class in storage_classes, \
+            'Invalid value ({}) passed to storage_class. Value should be ' \
+            'one of {}'.format(storage_class, storage_classes)
+
+        service = self.get_conn()
+        bucket_resource = {
+            'name': bucket_name,
+            'location': location,
+            'storageClass': storage_class
+        }
+
+        self.log.info('The Default Project ID is %s', self.project_id)
+
+        if labels is not None:
+            bucket_resource['labels'] = labels
+
+        try:
+            response = service.buckets().insert(
+                project=project_id,
+                body=bucket_resource
+            ).execute()
+
+            self.log.info('Bucket: %s created successfully.', bucket_name)
+
+            return response['id']
+
+        except errors.HttpError as ex:
+            raise AirflowException(
+                'Bucket creation failed. Error was: {}'.format(ex.content)
+            )
+
 
 def _parse_gcs_url(gsurl):
     """
