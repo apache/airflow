@@ -29,7 +29,6 @@ Report bugs through [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
 Please report relevant information and preferably code that exhibits
 the problem.
 
-
 ### Fix Bugs
 
 Look through the Jira issues for bugs. Anything is open to whoever wants
@@ -37,8 +36,7 @@ to implement it.
 
 ### Implement Features
 
-Look through the GitHub issues for features. Anything tagged with
-"feature" is open to whoever wants to implement it.
+Look through the [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW) for features. Any unassigned "Improvement" issue is open to whoever wants to implement it.
 
 We've created the operators, hooks, macros and executors we needed, but we
 made sure that this part of Airflow is extensible. New operators,
@@ -53,7 +51,7 @@ articles.
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue on Github.
+The best way to send feedback is to open an issue on [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
 
 If you are proposing a feature:
 
