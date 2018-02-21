@@ -43,11 +43,6 @@ attributes.
 Operator API
 ''''''''''''
 
-.. automodule:: airflow.operators
-    :no-members:
-.. deprecated:: 1.8
- Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
-
 .. autoclass:: airflow.operators.bash_operator.BashOperator
 .. autoclass:: airflow.operators.python_operator.BranchPythonOperator
 .. autoclass:: airflow.operators.dagrun_operator.TriggerDagRunOperator
@@ -88,11 +83,6 @@ Operator API
 
 Community-contributed Operators
 '''''''''''''''''''''''''''''''
-
-.. automodule:: airflow.contrib.operators
-    :no-members:
-.. deprecated:: 1.8
- Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
@@ -263,10 +253,9 @@ persisted in the database.
 
 Hooks
 -----
-.. automodule:: airflow.hooks
-    :no-members:
-.. deprecated:: 1.8
- Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
+
+Hooks are interfaces to external platforms and databases, implementing a common
+interface when possible and acting as building blocks for operators.
 
 .. autoclass:: airflow.hooks.dbapi_hook.DbApiHook
 .. autoclass:: airflow.hooks.docker_hook.DockerHook
@@ -287,11 +276,6 @@ Hooks
 
 Community contributed hooks
 '''''''''''''''''''''''''''
-
-.. automodule:: airflow.contrib.hooks
-    :no-members:
-.. deprecated:: 1.8
- Use :code:`from airflow.operators.bash_operator import BashOperator` instead.
 
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
