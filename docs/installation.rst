@@ -94,3 +94,17 @@ Here's the list of the subpackages and what they enable:
 +---------------+----------------------------------------------+-------------------------------------------------+
 |  redis        | ``pip install apache-airflow[redis]``        | Redis hooks and sensors                         |
 +---------------+----------------------------------------------+-------------------------------------------------+
+
+Initiating Airflow Database
+'''''''''''''''''''''''''''
+
+Airflow requires a database to be initiated before you can run tasks. If you're just
+experimenting and learning Airflow, you can stick with the default SQLite option. If
+you don't want to use SQLite, then take a look at :doc:`configuration` to setup a
+different database.
+
+After configuration, you'll need to initialize the database before you can run tasks:
+
+.. code-block:: bash
+
+    airflow initdb
