@@ -54,6 +54,7 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
+from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout, set_context)
 from airflow.www.app import cached_app
@@ -437,7 +438,7 @@ def run(args, dag=None):
 
     ti.init_run_context(raw=args.raw)
 
-    hostname = socket.getfqdn()
+    hostname = get_hostname()
     log.info("Running %s on host %s", ti, hostname)
 
     if args.interactive:
