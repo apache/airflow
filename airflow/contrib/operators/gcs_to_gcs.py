@@ -31,21 +31,27 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             end of the object name. Appending a wildcard to the bucket name is
             unsupported.
     :type source_object: string
-    :param destination_bucket: The destination Google cloud storage bucket where the object should be.
+    :param destination_bucket: The destination Google cloud storage bucket
+    where the object should be.
     :type destination_bucket: string
-    :param destination_object: The destination name of the object in the destination Google cloud
+    :param destination_object: The destination name of the object in the
+    destination Google cloud
         storage bucket.
-        If a wildcard is supplied in the source_object argument, this is the folder that the files will be
+        If a wildcard is supplied in the source_object argument, this is the
+        folder that the files will be
         copied to in the destination bucket.
     :type destination_object: string
-    :param move_object: When move object is True, the object is moved instead of copied to the new location.
-                        This is the equivalent of a mv command as opposed to a cp command.
+    :param move_object: When move object is True, the object is moved instead
+    of copied to the new location.
+                        This is the equivalent of a mv command as opposed to a
+                        cp command.
     :type move_object: bool
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
     :type google_cloud_storage_conn_id: string
     :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide delegation enabled.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: string
     """
     template_fields = ('source_bucket', 'source_object', 'destination_bucket',
