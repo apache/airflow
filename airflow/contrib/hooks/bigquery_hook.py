@@ -28,10 +28,9 @@ from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from apiclient.discovery import HttpError, build
 from googleapiclient import errors
-from pandas.tools.merge import concat
 from pandas_gbq.gbq import \
     _check_google_client_version as gbq_check_google_client_version
-from pandas_gbq.gbq import _parse_data as gbq_parse_data
+from pandas_gbq import read_gbq
 from pandas_gbq.gbq import \
     _test_google_api_imports as gbq_test_google_api_imports
 from pandas_gbq.gbq import GbqConnector
@@ -96,24 +95,13 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: string in {'legacy', 'standard'}
         """
-        service = self.get_service()
-        project = self._get_field('project')
-
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
-        connector = BigQueryPandasConnector(project, service, dialect=dialect)
-        schema, pages = connector.run_query(bql)
-        dataframe_list = []
-
-        while len(pages) > 0:
-            page = pages.pop()
-            dataframe_list.append(gbq_parse_data(schema, page))
-
-        if len(dataframe_list) > 0:
-            return concat(dataframe_list, ignore_index=True)
-        else:
-            return gbq_parse_data(schema, [])
+        return read_gbq(bql,
+                        project_id=self._get_field('project'),
+                        dialect=dialect,
+                        verbose=False)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
