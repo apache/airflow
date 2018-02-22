@@ -94,12 +94,6 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                     suffix=self.source_bucket[wildcard_position:])
 
             for source_object in objects:
-                print('Executing copy of gs://{0}/{1} to '
-                              'gs://{2}/{3}/{1}'.format(self.source_bucket,
-                                                        source_object,
-                                                        self.destination_bucket,
-                                                        self.destination_object,
-                                                        source_object))
                 self.log.info('Executing copy of gs://{0}/{1} to '
                               'gs://{2}/{3}/{1}'.format(self.source_bucket,
                                                         source_object,
