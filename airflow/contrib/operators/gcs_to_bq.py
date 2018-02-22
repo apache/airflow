@@ -33,6 +33,11 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     :type bucket: string
     :param source_objects: List of Google cloud storage URIs to load from.
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
+        If wildcards are used in this argument:
+            You can use only one wildcard for objects (filenames) within your
+            bucket. The wildcard can appear inside the object name or at the
+            end of the object name. Appending a wildcard to the bucket name is
+            unsupported.
     :type object: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
         BigQuery table to load data into. If <project> is not included, project will
@@ -190,8 +195,12 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         else:
             schema_fields = self.schema_fields
 
-        source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
-                       for source_object in self.source_objects]
+        if '*' in self.source_objects:
+            source_uris = ['gs://{}/{}'.format(self.bucket,
+                                               self.source_objects)]
+        else:
+            source_uris = ['gs://{}/{}'.format(self.bucket, source_object)
+                           for source_object in self.source_objects]
         conn = bq_hook.get_conn()
         cursor = conn.cursor()
 
