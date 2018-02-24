@@ -337,7 +337,8 @@ def mkdir_p(path):
         if exc.errno == errno.EEXIST and os.path.isdir(path):
             pass
         else:
-            raise AirflowConfigException('Had trouble creating a directory')
+            raise AirflowConfigException(
+                'Error creating {}: {}'.format(path, exc.strerror))
 
 
 # Setting AIRFLOW_HOME and AIRFLOW_CONFIG from environment variables, using
