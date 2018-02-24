@@ -19,6 +19,7 @@ import getpass
 import os
 
 import paramiko
+from paramiko.config import SSH_PORT
 
 from contextlib import contextmanager
 from airflow.exceptions import AirflowException
@@ -44,6 +45,8 @@ class SSHHook(BaseHook, LoggingMixin):
     :type password: str
     :param key_file: key file to use to connect to the remote_host.
     :type key_file: str
+    :param port: port of remote host to connect (Default is paramiko SSH_PORT)
+    :type port: int
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
     :param keepalive_interval: send a keepalive packet to remote host every keepalive_interval seconds
@@ -56,6 +59,7 @@ class SSHHook(BaseHook, LoggingMixin):
                  username=None,
                  password=None,
                  key_file=None,
+                 port=SSH_PORT,
                  timeout=10,
                  keepalive_interval=30
                  ):
@@ -71,6 +75,7 @@ class SSHHook(BaseHook, LoggingMixin):
         self.compress = True
         self.no_host_key_check = True
         self.client = None
+        self.port = port
 
     def get_conn(self):
         if not self.client:
@@ -83,6 +88,8 @@ class SSHHook(BaseHook, LoggingMixin):
                     self.password = conn.password
                 if self.remote_host is None:
                     self.remote_host = conn.host
+                if conn.port is not None:
+                    self.port = conn.port
                 if conn.extra is not None:
                     extra_options = conn.extra_dejson
                     self.key_file = extra_options.get("key_file")
@@ -136,6 +143,7 @@ class SSHHook(BaseHook, LoggingMixin):
                                    password=self.password,
                                    timeout=self.timeout,
                                    compress=self.compress,
+                                   port=self.port,
                                    sock=host_proxy)
                 else:
                     client.connect(hostname=self.remote_host,
@@ -143,6 +151,7 @@ class SSHHook(BaseHook, LoggingMixin):
                                    key_filename=self.key_file,
                                    timeout=self.timeout,
                                    compress=self.compress,
+                                   port=self.port,
                                    sock=host_proxy)
 
                 if self.keepalive_interval:
