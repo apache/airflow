@@ -91,10 +91,11 @@ class SSHHook(BaseHook, LoggingMixin):
                         self.timeout = int(extra_options["timeout"], 10)
 
                     if "compress" in extra_options \
-                            and extra_options["compress"].lower() == 'false':
+                            and str(extra_options["compress"]).lower() == 'false':
                         self.compress = False
                     if "no_host_key_check" in extra_options \
-                            and extra_options["no_host_key_check"].lower() == 'false':
+                            and \
+                            str(extra_options["no_host_key_check"]).lower() == 'false':
                         self.no_host_key_check = False
 
             if not self.remote_host:
