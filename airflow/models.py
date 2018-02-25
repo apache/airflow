@@ -476,7 +476,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=self.dag_folder,
             duration=sum([o.duration for o in stats]),
             dag_num=sum([o.dag_num for o in stats]),
-            task_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
 
