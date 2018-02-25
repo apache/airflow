@@ -36,6 +36,7 @@ class AirflowPluginException(Exception):
 class AirflowPlugin(object):
     name = None
     operators = []
+    sensors = []
     hooks = []
     executors = []
     macros = []
@@ -115,9 +116,9 @@ menu_links = []
 
 for p in plugins:
     operators_modules.append(
-        make_module('airflow.operators.' + p.name, p.operators))
+        make_module('airflow.operators.' + p.name, p.operators + p.sensors))
     sensors_modules.append(
-        make_module('airflow.sensors.' + p.name, p.operators)
+        make_module('airflow.sensors.' + p.name, p.sensors)
     )
     hooks_modules.append(make_module('airflow.hooks.' + p.name, p.hooks))
     executors_modules.append(
