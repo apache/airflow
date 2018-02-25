@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
 from six.moves import zip
 from past.builtins import basestring
 
