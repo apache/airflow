@@ -52,5 +52,5 @@ class SlackHook(BaseHook):
         rc = sc.api_call(method, **api_params)
 
         if not rc['ok']:
-            msg = "Slack API call failed (%s)".format(rc['error'])
+            msg = "Slack API call failed ({})".format(rc['error'])
             raise AirflowException(msg)
