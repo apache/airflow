@@ -44,8 +44,7 @@ class FileProcessorHandler(logging.Handler):
             self.filename_jinja_template = Template(self.filename_template)
 
         self._cur_date = datetime.today()
-        if not os.path.exists(self._get_log_directory()):
-            os.makedirs(self._get_log_directory())
+        os.makedirs(self._get_log_directory(), exist_ok=True)
 
         self._symlink_latest_log_directory()
 
