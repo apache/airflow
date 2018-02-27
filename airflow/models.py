@@ -546,6 +546,7 @@ class Connection(Base, LoggingMixin):
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
         ('jdbc', 'Jdbc Connection',),
+        ('jenkins', 'Jenkins'),
         ('mysql', 'MySQL',),
         ('postgres', 'Postgres',),
         ('oracle', 'Oracle',),
