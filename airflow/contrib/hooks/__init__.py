@@ -50,6 +50,7 @@ _hooks = {
     'fs_hook': ['FSHook'],
     'wasb_hook': ['WasbHook'],
     'gcp_pubsub_hook': ['PubSubHook'],
+    'jenkins_hook': ['JenkinsHook'],
     'aws_dynamodb_hook': ['AwsDynamoDBHook']
 }
 

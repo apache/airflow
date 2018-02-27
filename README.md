@@ -221,9 +221,9 @@ Currently **officially** using Airflow:
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
+1. [dotmodus](http://dotmodus.com) [@dannylee12](https://github.com/dannylee12)
 
 ## Links
-
 
 * [Documentation](https://airflow.incubator.apache.org/)
 * [Chat](https://gitter.im/apache/incubator-airflow)
