@@ -42,8 +42,9 @@ class DataFlowJavaOperator(BaseOperator):
         }
 
     You need to pass the path to your dataflow as a file reference with the ``jar``
-    parameter, the jar needs to be a self executing jar. Use ``options`` to pass on
-    options to your job.
+    parameter, the jar needs to be a self executing jar (see documentation here: 
+    https://beam.apache.org/documentation/runners/dataflow/#self-executing-jar). 
+    Use ``options`` to pass on options to your job.
 
     .. code-block:: python
         t1 = DataFlowOperation(
