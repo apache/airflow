@@ -70,9 +70,9 @@ def date_range(
         end_date = timezone.utcnow()
 
     delta_iscron = False
+    tz = start_date.tzinfo
     if isinstance(delta, six.string_types):
         delta_iscron = True
-        tz = start_date.tzinfo
         start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
