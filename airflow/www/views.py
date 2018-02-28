@@ -2570,7 +2570,7 @@ class TaskInstanceModelView(ModelViewOnly):
 
             # Collect dags upfront as dagbag.get_dag() will reset the session
             for id_str in ids:
-                task_id, dag_id, execution_date = id_str.split(',')
+                task_id, dag_id, execution_date = iterdecode(id_str)
                 dag = dagbag.get_dag(dag_id)
                 task_details = dag_to_task_details.setdefault(dag, [])
                 task_details.append((task_id, execution_date))
@@ -2604,7 +2604,7 @@ class TaskInstanceModelView(ModelViewOnly):
             TI = models.TaskInstance
             count = len(ids)
             for id in ids:
-                task_id, dag_id, execution_date = id.split(',')
+                task_id, dag_id, execution_date = iterdecode(id)
                 execution_date = parse_execution_date(execution_date)
 
                 ti = session.query(TI).filter(TI.task_id == task_id,
