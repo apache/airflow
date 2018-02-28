@@ -13,7 +13,6 @@
 # limitations under the License.
 #
 from future import standard_library
-standard_library.install_aliases()
 from builtins import str
 from builtins import object
 
@@ -30,11 +29,14 @@ from flask_admin.model import filters
 from flask_login import current_user
 import wtforms
 from wtforms.compat import text_type
+from flask_admin._compat import as_unicode
+from flask_admin.tools import CHAR_ESCAPE, CHAR_SEPARATOR
 
-from airflow import configuration, models, settings
+from airflow import configuration, models
 from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
+standard_library.install_aliases()
 
 AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
 
@@ -177,9 +179,9 @@ def generate_pages(current_page, num_of_pages,
         vals = {
             'is_active': 'active' if is_current(current_page, page) else '',
             'href_link': void_link if is_current(current_page, page)
-                         else '?{}'.format(get_params(page=page,
-                                                      search=search,
-                                                      showPaused=showPaused)),
+            else '?{}'.format(get_params(page=page,
+                                         search=search,
+                                         showPaused=showPaused)),
             'page_num': page + 1
         }
         output.append(page_node.format(**vals))
@@ -338,9 +340,11 @@ def gzipped(f):
 
             response.direct_passthrough = False
 
-            if (response.status_code < 200 or
+            if (
+                response.status_code < 200 or
                 response.status_code >= 300 or
-                'Content-Encoding' in response.headers):
+                'Content-Encoding' in response.headers
+            ):
                 return response
             gzip_buffer = IO()
             gzip_file = gzip.GzipFile(mode='wb',
@@ -387,6 +391,17 @@ class AceEditorWidget(wtforms.widgets.TextArea):
             form_name=field.id,
         )
         return wtforms.widgets.core.HTMLString(html)
+
+
+def flask_admin_unescape(value):
+    """
+    Function to back out the CHAR_ESCAPE, CHAR_SEPARATOR values created by flask_admin
+    :param value: flask_admin id or ids to unescape
+    :return: unicode
+    """
+    return (as_unicode(value)
+            .replace(CHAR_ESCAPE + CHAR_ESCAPE, CHAR_ESCAPE)
+            .replace(CHAR_ESCAPE + CHAR_SEPARATOR, CHAR_SEPARATOR))
 
 
 class UtcFilterConverter(FilterConverter):

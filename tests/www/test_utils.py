@@ -104,6 +104,30 @@ class UtilsTest(unittest.TestCase):
         self.assertEqual('page=3&search=bash_&showPaused=False',
                          utils.get_params(showPaused=False, page=3, search='bash_'))
 
+    def test_flask_admin_unescape(self):
+        flask_admin_dag_id_escape_char = 'dag{escape_char}{escape_char}sub_dag'.format(
+            escape_char=utils.CHAR_ESCAPE
+        )
+        correct_dag_id_escape_char = 'dag{escape_char}sub_dag'.format(
+            escape_char=utils.CHAR_ESCAPE
+        )
+        self.assertEqual(utils.flask_admin_unescape(
+            flask_admin_dag_id_escape_char),
+            correct_dag_id_escape_char
+        )
+        flask_admin_dag_id_separator_char = 'dag{escape_char}{separator_char}sub_dag'\
+            .format(
+                escape_char=utils.CHAR_ESCAPE,
+                separator_char=utils.CHAR_SEPARATOR
+            )
+        correct_dag_id_separator_char = 'dag{separator_char}sub_dag'.format(
+            separator_char=utils.CHAR_SEPARATOR
+        )
+        self.assertEqual(
+            utils.flask_admin_unescape(flask_admin_dag_id_separator_char),
+            correct_dag_id_separator_char
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
