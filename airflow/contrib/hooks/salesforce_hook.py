@@ -208,14 +208,14 @@ class SalesforceHook(BaseHook, LoggingMixin):
             - json:
                 JSON array.  Each element in the array is a different row.
             - ndjson:
-                JSON array but each element is new-line deliminated
-                instead of comman deliminated like in `json`
+                JSON array but each element is new-line delimited
+                instead of comma delimited like in `json`
 
         This requires a significant amount of cleanup.
         Pandas doesn't handle output to CSV and json in a uniform way.
         This is especially painful for datetime types.
         Pandas wants to write them as strings in CSV,
-        but as milisecond Unix timestamps.
+        but as millisecond Unix timestamps.
 
         By default, this function will try and leave all values as
         they are represented in Salesforce.
