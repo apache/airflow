@@ -22,6 +22,11 @@ from airflow import configuration as conf
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 
+
+# Flask appbuilder's info level log is very verbose,
+# so it's set to 'WARN' by default.
+FAB_LOG_LEVEL = 'WARN'
+
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
@@ -76,6 +81,11 @@ DEFAULT_LOGGING_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': False,
         },
+        'flask_appbuilder': {
+            'handler': ['console'],
+            'level': FAB_LOG_LEVEL,
+            'propagate': True,
+        }
     },
     'root': {
         'handlers': ['console'],

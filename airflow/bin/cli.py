@@ -40,6 +40,7 @@ import traceback
 import time
 import psutil
 import re
+import getpass
 from urllib.parse import urlunparse
 
 import airflow
@@ -58,6 +59,9 @@ from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
 from airflow.www.app import (cached_app, create_app)
+from airflow.www_rbac.app import cached_app as cached_app_rbac
+from airflow.www_rbac.app import create_app as create_app_rbac
+from airflow.www_rbac.app import cached_appbuilder
 
 from sqlalchemy import func
 from sqlalchemy.orm import exc
@@ -712,11 +716,11 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
-        app = create_app(conf)
+        app = create_app_rbac(conf) if settings.RBAC else create_app(conf)
         app.run(debug=True, port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
-        app = cached_app(conf)
+        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
         pid, stdout, stderr, log_file = setup_locations(
             "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         if args.daemon:
@@ -742,7 +746,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config'
+            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -757,7 +761,8 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        run_args += ["airflow.www.app:cached_app()"]
+        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
 
@@ -915,7 +920,7 @@ def worker(args):
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb()
+    db_utils.initdb(settings.RBAC)
     print("Done.")
 
 
@@ -924,7 +929,7 @@ def resetdb(args):
     if args.yes or input(
         "This will drop existing tables if they exist. "
         "Proceed? (y/n)").upper() == "Y":
-        db_utils.resetdb()
+        db_utils.resetdb(settings.RBAC)
     else:
         print("Bail.")
 
@@ -1120,7 +1125,11 @@ def kerberos(args):  # noqa
     import airflow.security.kerberos
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("kerberos", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("kerberos",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1137,6 +1146,39 @@ def kerberos(args):  # noqa
         stderr.close()
     else:
         airflow.security.kerberos.run()
+
+
+def create_user(args):
+    fields = {
+        'role': args.role,
+        'username': args.username,
+        'email': args.email,
+        'firstname': args.firstname,
+        'lastname': args.lastname,
+    }
+    empty_fields = [k for k, v in fields.items() if not v]
+    if empty_fields:
+        print('Missing arguments: {}.'.format(', '.join(empty_fields)))
+        sys.exit(0)
+
+    appbuilder = cached_appbuilder()
+    role = appbuilder.sm.find_role(args.role)
+    if not role:
+        print('{} is not a valid role.'.format(args.role))
+        sys.exit(0)
+
+    password = getpass.getpass('Password:')
+    password_confirmation = getpass.getpass('Repeat for confirmation:')
+    if password != password_confirmation:
+        print('Passwords did not match!')
+        sys.exit(0)
+
+    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                  args.email, role, password)
+    if user:
+        print('{} user {} created.'.format(args.role, args.username))
+    else:
+        print('Failed to create user.')
 
 
 Arg = namedtuple(
@@ -1504,6 +1546,27 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
+        # create_user
+        'role': Arg(
+            ('-r', '--role',),
+            help='Role of the user',
+            type=str),
+        'firstname': Arg(
+            ('-f', '--firstname',),
+            help='First name of the admin user',
+            type=str),
+        'lastname': Arg(
+            ('-l', '--lastname',),
+            help='Last name of the admin user',
+            type=str),
+        'email': Arg(
+            ('-e', '--email',),
+            help='Email of the admin user',
+            type=str),
+        'username': Arg(
+            ('-u', '--username',),
+            help='Username of the admin user',
+            type=str),
     }
     subparsers = (
         {
@@ -1641,6 +1704,10 @@ class CLIFactory(object):
             'help': "List/Add/Delete connections",
             'args': ('list_connections', 'add_connection', 'delete_connection',
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+        }, {
+            'func': create_user,
+            'help': "Create an admin account",
+            'args': ('role', 'username', 'email', 'firstname', 'lastname'),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}

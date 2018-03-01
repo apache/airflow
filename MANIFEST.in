@@ -18,6 +18,9 @@ include CHANGELOG.txt
 include README.md
 graft airflow/www/templates
 graft airflow/www/static
+graft airflow/www_rbac/static
+graft airflow/www_rbac/templates
+graft airflow/www_rbac/translations
 include airflow/alembic.ini
 graft scripts/systemd
 graft scripts/upstart
