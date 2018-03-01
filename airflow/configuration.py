@@ -422,6 +422,16 @@ log.info("Reading the config from %s", AIRFLOW_CONFIG)
 conf = AirflowConfigParser()
 conf.read(AIRFLOW_CONFIG)
 
+if conf.getboolean('webserver', 'rbac'):
+    with open(os.path.join(_templates_dir, 'default_webserver_config.py')) as f:
+        DEFAULT_WEBSERVER_CONFIG = f.read()
+
+    WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
+
+    if not os.path.isfile(WEBSERVER_CONFIG):
+        log.info('Creating new FAB webserver config file in: %s', WEBSERVER_CONFIG)
+        with open(WEBSERVER_CONFIG, 'w') as f:
+            f.write(DEFAULT_WEBSERVER_CONFIG)
 
 def load_test_config():
     """
