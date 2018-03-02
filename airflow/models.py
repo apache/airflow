@@ -780,7 +780,7 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
+    job_id = Column(Integer, index=True)
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
