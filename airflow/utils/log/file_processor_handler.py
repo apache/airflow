@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import errno
 import logging
 import os
 
@@ -45,7 +46,14 @@ class FileProcessorHandler(logging.Handler):
 
         self._cur_date = datetime.today()
         if not os.path.exists(self._get_log_directory()):
-            os.makedirs(self._get_log_directory())
+            try:
+                os.makedirs(self._get_log_directory())
+            except OSError as e:
+                # only ignore case where the directory already exist
+                if e.errno != errno.EEXIST:
+                    raise
+
+                logging.warning("%s already exists", self._get_log_directory())
 
         self._symlink_latest_log_directory()
 
