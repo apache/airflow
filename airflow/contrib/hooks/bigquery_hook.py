@@ -455,6 +455,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   allow_large_results=False,
                   flatten_results=False,
                   udf_config=False,
+                  use_legacy_sql=None,
                   maximum_billing_tier=None,
                   maximum_bytes_billed=None,
                   create_disposition='CREATE_IF_NEEDED',
@@ -485,6 +486,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type flatten_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+            If `None`, defaults to `self.use_legacy_sql`.
+        :type use_legacy_sql: boolean
         :type udf_config: list
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
@@ -523,10 +527,13 @@ class BigQueryBaseCursor(LoggingMixin):
                 "Please only use one or more of the following options: {1}"
                 .format(schema_update_options, allowed_schema_update_options))
 
+        if use_legacy_sql is None:
+            use_legacy_sql = self.use_legacy_sql
+
         configuration = {
             'query': {
                 'query': bql,
-                'useLegacySql': self.use_legacy_sql,
+                'useLegacySql': use_legacy_sql,
                 'maximumBillingTier': maximum_billing_tier,
                 'maximumBytesBilled': maximum_bytes_billed,
                 'priority': priority
