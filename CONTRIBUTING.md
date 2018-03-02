@@ -40,7 +40,7 @@ Look through the [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW) fo
 
 We've created the operators, hooks, macros and executors we needed, but we
 made sure that this part of Airflow is extensible. New operators,
-hooks and operators are very welcomed!
+hooks, macros and executors are very welcomed!
 
 ### Improve Documentation
 
