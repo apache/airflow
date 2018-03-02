@@ -1598,7 +1598,7 @@ class SchedulerJob(BaseJob):
         # Last time that self.heartbeat() was called.
         last_self_heartbeat_time = timezone.utcnow()
         # Last time that the DAG dir was traversed to look for files
-        last_dag_dir_refresh_time = timezone.utcnow()
+        last_dag_dir_refresh_time = None
 
         # Use this value initially
         known_file_paths = processor_manager.file_paths
@@ -1610,16 +1610,17 @@ class SchedulerJob(BaseJob):
             loop_start_time = time.time()
 
             # Traverse the DAG directory for Python files containing DAGs
-            # periodically
-            elapsed_time_since_refresh = (timezone.utcnow() -
-                                          last_dag_dir_refresh_time).total_seconds()
-
-            if elapsed_time_since_refresh > self.dag_dir_list_interval:
+            # on first run and periodically
+            if last_dag_dir_refresh_time is None or \
+               (timezone.utcnow() - last_dag_dir_refresh_time).total_seconds() > \
+               self.dag_dir_list_interval:
                 # Build up a list of Python files that could contain DAGs
                 self.log.info("Searching for files in %s", self.subdir)
                 known_file_paths = list_py_file_paths(self.subdir)
                 last_dag_dir_refresh_time = timezone.utcnow()
-                self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
+                self.log.info("There are %s files in %s",
+                              len(known_file_paths),
+                              self.subdir)
                 processor_manager.set_file_paths(known_file_paths)
 
                 self.log.debug("Removing old import errors")
