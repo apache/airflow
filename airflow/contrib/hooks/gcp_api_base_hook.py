@@ -106,7 +106,8 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                     .from_json_keyfile_dict(keyfile_dict, scopes)
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
-        return credentials
+
+        return credentials.create_delegated(self.delegate_to) if self.delegate_to else credentials
 
     def _get_access_token(self):
         """
