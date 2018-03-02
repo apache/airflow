@@ -240,6 +240,21 @@ class TestBigQueryBaseCursor(unittest.TestCase):
 
         mock_jobs.cancel.assert_called_with(projectId=project_id, jobId=running_job_id)
 
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_default(self, run_with_config):
+        cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+        cursor.run_query('query')
+        args, kwargs = run_with_config.call_args
+        self.assertIs(args[0]['query']['useLegacySql'], True)
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_run_query_sql_dialect_override(self, run_with_config):
+        for bool_val in [True, False]:
+            cursor = hook.BigQueryBaseCursor(mock.Mock(), "project_id")
+            cursor.run_query('query', use_legacy_sql=bool_val)
+            args, kwargs = run_with_config.call_args
+            self.assertIs(args[0]['query']['useLegacySql'], bool_val)
+
 
 class TestTimePartitioningInRunJob(unittest.TestCase):
 
