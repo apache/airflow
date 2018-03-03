@@ -24,6 +24,7 @@ from builtins import object, bytes
 import copy
 from collections import namedtuple
 from datetime import timedelta
+from past.builtins import basestring
 
 import dill
 import functools
@@ -2587,6 +2588,9 @@ class BaseOperator(LoggingMixin):
         pass
 
     def resolve_template_files(self):
+        # Cast the template_fields to a list if it is defined as ('field')
+        if isinstance(self.template_fields, basestring):
+            self.template_fields = list(self.template_fields)
         # Getting the content of files for template_field / template_ext
         for attr in self.template_fields:
             content = getattr(self, attr)
@@ -2735,6 +2739,8 @@ class BaseOperator(LoggingMixin):
 
     def dry_run(self):
         self.log.info('Dry run')
+        if isinstance(self.template_fields, basestring):
+            self.template_fields = list(self.template_fields)
         for attr in self.template_fields:
             content = getattr(self, attr)
             if content and isinstance(content, six.string_types):
