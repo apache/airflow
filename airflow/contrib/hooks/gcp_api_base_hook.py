@@ -65,10 +65,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', False)
 
-        kwargs = {}
-        if self.delegate_to:
-            kwargs['sub'] = self.delegate_to
-
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `gcloud auth` user, '
                           'since no key file is defined for hook.')
