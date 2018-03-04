@@ -3151,6 +3151,7 @@ class DAG(BaseDag, LoggingMixin):
     def following_schedule(self, dttm):
         """
         Calculates the following schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
@@ -3165,6 +3166,7 @@ class DAG(BaseDag, LoggingMixin):
     def previous_schedule(self, dttm):
         """
         Calculates the previous schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
