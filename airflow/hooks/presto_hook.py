@@ -71,7 +71,7 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_records(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
 
     def get_first(self, hql, parameters=None):
         """
@@ -82,7 +82,7 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_first(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
 
     def get_pandas_df(self, hql, parameters=None):
         """
@@ -94,7 +94,7 @@ class PrestoHook(DbApiHook):
             cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
         column_descriptions = cursor.description
         if data:
             df = pandas.DataFrame(data)
