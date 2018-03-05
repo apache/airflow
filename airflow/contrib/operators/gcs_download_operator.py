@@ -66,10 +66,15 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        self.log.info('Executing download: %s, %s, %s', self.bucket, self.object, self.filename)
-        hook = GoogleCloudStorageHook(google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
-                                      delegate_to=self.delegate_to)
-        file_bytes = hook.download(self.bucket, self.object, self.filename)
+        self.log.info('Executing download: %s, %s, %s', self.bucket,
+                      self.object, self.filename)
+        hook = GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
+            delegate_to=self.delegate_to
+        )
+        file_bytes = hook.download(bucket=self.bucket,
+                                   object=self.object,
+                                   filename=self.filename)
         if self.store_to_xcom_key:
             if sys.getsizeof(file_bytes) < 48000:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
