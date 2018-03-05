@@ -859,10 +859,12 @@ def serve_logs(args):
             mimetype="application/json",
             as_attachment=False)
 
+    WORKER_LOG_SERVER_BIND_IP = \
+        int(conf.get('celery', 'WORKER_LOG_SERVER_BIND_IP'))
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(
-        host='0.0.0.0', port=WORKER_LOG_SERVER_PORT)
+        host=WORKER_LOG_SERVER_BIND_IP, port=WORKER_LOG_SERVER_PORT)
 
 
 def worker(args):
