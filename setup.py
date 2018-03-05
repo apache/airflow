@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 version = imp.load_source(
     'airflow.version', os.path.join('airflow', 'version.py')).version
 
+PY3 = sys.version_info[0] == 3
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
@@ -153,8 +154,7 @@ ldap = ['ldap3>=0.9.9.1']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8',
-            'kerberos>=1.2.5']
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -165,6 +165,8 @@ cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
+
+zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
 devel = [
@@ -185,9 +187,15 @@ devel = [
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh +
-             kubernetes)
+devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
+             docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
+             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins)
 
+# Snakebite is not Python 3 compatible :'(
+if PY3:
+    devel_ci = list(filter(lambda package: 'snakebite' not in package, devel_all))
+else:
+    devel_ci = devel_all
 
 def do_setup():
     write_version()
@@ -243,6 +251,7 @@ def do_setup():
         ],
         extras_require={
             'all': devel_all,
+            'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'async': async,
             'azure': azure,
