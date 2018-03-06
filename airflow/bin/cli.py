@@ -860,7 +860,7 @@ def serve_logs(args):
             as_attachment=False)
 
     WORKER_LOG_SERVER_BIND_IP = \
-        int(conf.get('celery', 'WORKER_LOG_SERVER_BIND_IP'))
+        conf.get('celery', 'WORKER_LOG_SERVER_BIND_IP')
     WORKER_LOG_SERVER_PORT = \
         int(conf.get('celery', 'WORKER_LOG_SERVER_PORT'))
     flask_app.run(
