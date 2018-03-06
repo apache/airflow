@@ -193,7 +193,8 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
 
 # Snakebite is not Python 3 compatible :'(
 if PY3:
-    devel_ci = list(filter(lambda package: 'snakebite' not in package, devel_all))
+    devel_ci = [package for package in devel_all if package not in
+                ['snakebite>=2.7.8', 'google-cloud-dataflow>=2.2.0']]
 else:
     devel_ci = devel_all
 
