@@ -20,6 +20,8 @@ import re
 import socket
 import airflow.configuration as conf
 
+from airflow.utils.net import get_hostname
+
 # Pattern to replace with hostname
 HOSTNAME_PATTERN = '_HOST'
 
@@ -53,7 +55,7 @@ def replace_hostname_pattern(components, host=None):
 
 
 def get_localhost_name():
-    return socket.getfqdn()
+    return get_hostname()
 
 
 def get_fqdn(hostname_or_ip=None):

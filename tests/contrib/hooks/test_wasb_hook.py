@@ -118,6 +118,26 @@ class TestWasbHook(unittest.TestCase):
             'container', 'blob', 'big string', max_connections=1
         )
 
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_get_file(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        hook.get_file('path', 'container', 'blob', max_connections=1)
+        mock_instance.get_blob_to_path.assert_called_once_with(
+            'container', 'blob', 'path', max_connections=1
+        )
+
+    @mock.patch('airflow.contrib.hooks.wasb_hook.BlockBlobService',
+                autospec=True)
+    def test_read_file(self, mock_service):
+        mock_instance = mock_service.return_value
+        hook = WasbHook(wasb_conn_id='wasb_test_sas_token')
+        hook.read_file('container', 'blob', max_connections=1)
+        mock_instance.get_blob_to_text.assert_called_once_with(
+            'container', 'blob', max_connections=1
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

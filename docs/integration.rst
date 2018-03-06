@@ -113,6 +113,39 @@ WasbHook
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
+Logging
+'''''''
+
+Airflow can be configured to read and write task logs in Azure Blob Storage.
+Follow the steps below to enable Azure Blob Storage logging.
+
+#. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
+#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
+#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
+#. Customize the following portions of the template:
+
+    .. code-block:: bash
+
+        # wasb buckets should start with "wasb" just to help Airflow select correct handler
+        REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
+
+        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
+        LOGGING_CONFIG = ...
+
+        
+
+#. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
+
+#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
+
+    .. code-block:: bash
+
+        remote_logging = True
+        logging_config_class = log_config.LOGGING_CONFIG
+        remote_log_conn_id = <name of the Azure Blob Storage connection>
+
+#. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
+#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 
 
 .. _AWS:

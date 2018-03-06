@@ -13,7 +13,7 @@
 # limitations under the License.
 #
 
-import logging
+import copy
 import unittest
 
 from airflow.contrib.utils.sendgrid import send_email
@@ -26,8 +26,6 @@ except ImportError:
     except ImportError:
         mock = None
 
-from mock import Mock
-from mock import patch
 
 class SendEmailSendGridTest(unittest.TestCase):
     # Unit test for sendgrid.send_email()
@@ -45,11 +43,25 @@ class SendEmailSendGridTest(unittest.TestCase):
                  'bcc': [{'email': 'foo-bcc@foo.com'}, {'email': 'bar-bcc@bar.com'}]}],
             'from': {'email': u'foo@bar.com'},
             'subject': 'sendgrid-send-email unit test'}
+        self.personalization_custom_args = {'arg1': 'val1', 'arg2': 'val2'}
+        self.expected_mail_data_custom_args = copy.deepcopy(self.expected_mail_data)
+        self.expected_mail_data_custom_args['personalizations'][0]['custom_args'] = \
+            self.personalization_custom_args
 
-    # Test the right email is constructed.
+        # Test the right email is constructed.
+
     @mock.patch('os.environ.get')
     @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
     def test_send_email_sendgrid_correct_email(self, mock_post, mock_get):
         mock_get.return_value = 'foo@bar.com'
         send_email(self.to, self.subject, self.html_content, cc=self.cc, bcc=self.bcc)
         mock_post.assert_called_with(self.expected_mail_data)
+
+    # Test the right email is constructed.
+    @mock.patch('os.environ.get')
+    @mock.patch('airflow.contrib.utils.sendgrid._post_sendgrid_mail')
+    def test_send_email_sendgrid_correct_email_custom_args(self, mock_post, mock_get):
+        mock_get.return_value = 'foo@bar.com'
+        send_email(self.to, self.subject, self.html_content, cc=self.cc, bcc=self.bcc,
+                   personalization_custom_args=self.personalization_custom_args)
+        mock_post.assert_called_with(self.expected_mail_data_custom_args)

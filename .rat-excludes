@@ -8,6 +8,7 @@ requirements.txt
 .*log
 .travis.yml
 .*pyc
+.*lock
 docs
 .*md
 dist

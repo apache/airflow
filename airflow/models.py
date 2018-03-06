@@ -39,7 +39,6 @@ import os
 import pickle
 import re
 import signal
-import socket
 import sys
 import textwrap
 import traceback
@@ -84,6 +83,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
@@ -476,7 +476,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=self.dag_folder,
             duration=sum([o.duration for o in stats]),
             dag_num=sum([o.dag_num for o in stats]),
-            task_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
 
@@ -546,6 +546,7 @@ class Connection(Base, LoggingMixin):
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
         ('jdbc', 'Jdbc Connection',),
+        ('jenkins', 'Jenkins'),
         ('mysql', 'MySQL',),
         ('postgres', 'Postgres',),
         ('oracle', 'Oracle',),
@@ -662,8 +663,8 @@ class Connection(Base, LoggingMixin):
                 from airflow.hooks.mysql_hook import MySqlHook
                 return MySqlHook(mysql_conn_id=self.conn_id)
             elif self.conn_type == 'google_cloud_platform':
-                from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-                return GoogleCloudBaseHook(gcp_conn_id=self.conn_id)
+                from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+                return BigQueryHook(bigquery_conn_id=self.conn_id)
             elif self.conn_type == 'postgres':
                 from airflow.hooks.postgres_hook import PostgresHook
                 return PostgresHook(postgres_conn_id=self.conn_id)
@@ -779,7 +780,7 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
+    job_id = Column(Integer, index=True)
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
@@ -1363,7 +1364,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.operator = task.__class__.__name__
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
@@ -1480,7 +1481,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_db(session=session)
         self.job_id = job_id
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.operator = task.__class__.__name__
 
         context = {}
@@ -3150,6 +3151,7 @@ class DAG(BaseDag, LoggingMixin):
     def following_schedule(self, dttm):
         """
         Calculates the following schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
@@ -3164,6 +3166,7 @@ class DAG(BaseDag, LoggingMixin):
     def previous_schedule(self, dttm):
         """
         Calculates the previous schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
@@ -3328,7 +3331,6 @@ class DAG(BaseDag, LoggingMixin):
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
-            TI.task_id.in_(self.task_ids),
             TI.state == State.RUNNING,
         )
         return qry.scalar() >= self.concurrency

@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import logging
-
 from airflow.contrib.hooks.bigquery_hook import BigQueryHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -86,9 +84,9 @@ class BigQueryGetDataOperator(BaseOperator):
         self.delegate_to = delegate_to
 
     def execute(self, context):
-        logging.info('Fetching Data from:')
-        logging.info('Dataset: %s ; Table: %s ; Max Results: %s',
-                     self.dataset_id, self.table_id, self.max_results)
+        self.log.info('Fetching Data from:')
+        self.log.info('Dataset: %s ; Table: %s ; Max Results: %s',
+                      self.dataset_id, self.table_id, self.max_results)
 
         hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                             delegate_to=self.delegate_to)
@@ -100,7 +98,7 @@ class BigQueryGetDataOperator(BaseOperator):
                                         max_results=self.max_results,
                                         selected_fields=self.selected_fields)
 
-        logging.info('Total Extracted rows: %s', response['totalRows'])
+        self.log.info('Total Extracted rows: %s', response['totalRows'])
         rows = response['rows']
 
         table_data = []
