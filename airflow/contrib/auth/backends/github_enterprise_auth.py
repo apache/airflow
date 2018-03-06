@@ -122,8 +122,8 @@ class GHEAuthBackend(object):
         log.debug('Redirecting user to GHE login')
         return self.ghe_oauth.authorize(callback=url_for(
             'ghe_oauth_callback',
-            _external=True,
-            next=request.args.get('next') or request.referrer or None))
+            _external=True),
+            state=request.args.get('next') or request.referrer or None)
 
     def get_ghe_user_profile_info(self, ghe_token):
         resp = self.ghe_oauth.get(self.ghe_api_route('/user'),
@@ -188,7 +188,7 @@ class GHEAuthBackend(object):
     def oauth_callback(self, session=None):
         log.debug('GHE OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        next_url = request.args.get('state') or url_for('admin.index')
 
         resp = self.ghe_oauth.authorized_response()
 

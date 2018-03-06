@@ -109,8 +109,8 @@ class GoogleAuthBackend(object):
         return self.google_oauth.authorize(callback=url_for(
             'google_oauth_callback',
             _external=True,
-            _scheme='https',
-            next=request.args.get('next') or request.referrer or None))
+            _scheme='https'),
+            state=request.args.get('next') or request.referrer or None)
 
     def get_google_user_profile_info(self, google_token):
         resp = self.google_oauth.get('https://www.googleapis.com/oauth2/v1/userinfo',
@@ -143,7 +143,7 @@ class GoogleAuthBackend(object):
     def oauth_callback(self, session=None):
         log.debug('Google OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        next_url = request.args.get('state') or url_for('admin.index')
 
         resp = self.google_oauth.authorized_response()
 
