@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import json
-import logging
 
 from airflow.contrib.hooks.aws_dynamodb_hook import AwsDynamoDBHook
 from airflow.hooks.hive_hooks import HiveServer2Hook
@@ -82,20 +81,24 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     def execute(self, context):
         hive = HiveServer2Hook(hiveserver2_conn_id=self.hiveserver2_conn_id)
 
-        logging.info('Extracting data from Hive')
-        logging.info(self.sql)
+        self.log.info('Extracting data from Hive')
+        self.log.info(self.sql)
 
         data = hive.get_pandas_df(self.sql, schema=self.schema)
         dynamodb = AwsDynamoDBHook(aws_conn_id=self.aws_conn_id,
-                                   table_name=self.table_name, table_keys=self.table_keys, region_name=self.region_name)
+                                   table_name=self.table_name,
+                                   table_keys=self.table_keys,
+                                   region_name=self.region_name)
 
-        logging.info('Inserting rows into dynamodb')
+        self.log.info('Inserting rows into dynamodb')
 
         if self.pre_process is None:
             dynamodb.write_batch_data(
                 json.loads(data.to_json(orient='records')))
         else:
             dynamodb.write_batch_data(
-                self.pre_process(data=data, args=self.pre_process_args, kwargs=self.pre_process_kwargs))
+                self.pre_process(data=data,
+                                 args=self.pre_process_args,
+                                 kwargs=self.pre_process_kwargs))
 
-        logging.info('Done.')
+        self.log.info('Done.')
