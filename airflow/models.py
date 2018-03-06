@@ -252,8 +252,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         found_dags = []
 
+        # if the source file no longer exists in the DB or in the filesystem,
+        # return an empty list
         # todo: raise exception?
-        if not os.path.isfile(filepath):
+        if filepath is None or not os.path.isfile(filepath):
             return found_dags
 
         try:
