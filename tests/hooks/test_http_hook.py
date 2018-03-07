@@ -21,8 +21,12 @@ import requests_mock
 import tenacity
 from tenacity import wait_none
 
+from airflow import configuration, models
 from airflow.exceptions import AirflowException
-from airflow.hooks.http_hook import HttpHook
+try:
+    from airflow.hooks.http_hook import HttpHook
+except ImportError:
+    HttpHook = None
 from airflow.hooks.base_hook import BaseHook
 
 try:
@@ -60,6 +64,8 @@ def get_airflow_connection_noheaders(conn_id=None):
     return conn
 
 
+@unittest.skipIf(HttpHook is None,
+                 "Skipping test because HttpHook is not installed")
 class TestHttpHook(unittest.TestCase):
     """Test get, post and raise_for_status"""
     def setUp(self):
@@ -68,6 +74,7 @@ class TestHttpHook(unittest.TestCase):
         session.mount('mock', adapter)
         self.get_hook = HttpHook(method='GET')
         self.post_hook = HttpHook(method='POST')
+        configuration.load_test_config()
 
     @requests_mock.mock()
     def test_raise_for_status_with_200(self, m):
@@ -207,6 +214,65 @@ class TestHttpHook(unittest.TestCase):
             self.get_hook.run.retry.stop.max_attempt_number + 1,
             mocked_session.call_count
         )
+
+    def test_header_from_extra_and_run_method_are_merged(self):
+
+        def run_and_return(session, prepped_request, extra_options, **kwargs):
+            return prepped_request
+
+        # The job failed for some reason
+        with mock.patch(
+            'airflow.hooks.http_hook.HttpHook.run_and_check',
+            side_effect=run_and_return
+        ):
+            with mock.patch(
+                'airflow.hooks.base_hook.BaseHook.get_connection',
+                side_effect=get_airflow_connection
+            ):
+                pr = self.get_hook.run('v1/test', headers={'some_other_header': 'test'})
+                actual = dict(pr.headers)
+                self.assertEquals(actual.get('bareer'), 'test')
+                self.assertEquals(actual.get('some_other_header'), 'test')
+
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_http_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='localhost', schema='http')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'http://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_https_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='localhost', schema='https')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'https://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_host_encoded_http_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='http://localhost')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'http://localhost')
+
+    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
+    def test_host_encoded_https_connection(self, mock_get_connection):
+        c = models.Connection(conn_id='http_default', conn_type='http',
+                              host='https://localhost')
+        mock_get_connection.return_value = c
+        hook = HttpHook()
+        hook.get_conn({})
+        self.assertEqual(hook.base_url, 'https://localhost')
+
+
+send_email_test = mock.Mock()
 
 
 if __name__ == '__main__':
