@@ -135,5 +135,5 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            logging.error(str(ex) + 'add retry logic here')
+            self.log.error(str(ex) + ' Tenacity will retry to execute the operation')
             raise ex
