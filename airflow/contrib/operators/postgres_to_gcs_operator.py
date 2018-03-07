@@ -14,7 +14,6 @@
 
 import sys
 import json
-import logging
 import time
 import datetime
 
@@ -176,7 +175,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                 'mode': field_mode,
             })
 
-        logging.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         s = json.dumps(schema, sort_keys=True)
         if PY3:
