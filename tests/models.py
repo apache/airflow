@@ -857,6 +857,14 @@ class DagBagTest(unittest.TestCase):
             self.assertTrue(
                 dag.fileloc.endswith('airflow/example_dags/' + path))
 
+    def test_process_file_with_none(self):
+        """
+        test that process_file can handle Nones
+        """
+        dagbag = models.DagBag(include_examples=True)
+
+        self.assertEqual([], dagbag.process_file(None))
+
 
 class TaskInstanceTest(unittest.TestCase):
 
