@@ -2342,6 +2342,8 @@ class HDFSHookTest(unittest.TestCase):
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)
 
+send_email_test = mock.Mock()
+
 
 class EmailTest(unittest.TestCase):
     def setUp(self):

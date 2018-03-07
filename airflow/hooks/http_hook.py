@@ -61,7 +61,7 @@ class HttpHook(BaseHook):
         if conn.login:
             session.auth = (conn.login, conn.password)
         if conn.extra:
-            session.headers.update(json.loads(conn.extra))
+            session.headers.update(conn.extra_dejson)
         if headers:
             session.headers.update(headers)
 

@@ -23,11 +23,11 @@ from tenacity import wait_none
 
 from airflow import configuration, models
 from airflow.exceptions import AirflowException
+
 try:
     from airflow.hooks.http_hook import HttpHook
 except ImportError:
     HttpHook = None
-from airflow.hooks.base_hook import BaseHook
 
 try:
     from unittest import mock
@@ -39,29 +39,12 @@ except ImportError:
 
 
 def get_airflow_connection(conn_id=None):
-    real = BaseHook('')
-    real.get_connection = mock.MagicMock()
-    conn = real.get_connection()
-    conn.host = 'http://test'
-    conn.port = 8080
-    conn.login = 'test'
-    conn.password = 'test'
-    conn.extra = '{"bareer": "test"}'
-    conn.schema = None
-    return conn
-
-
-def get_airflow_connection_noheaders(conn_id=None):
-    real = BaseHook('')
-    real.get_connection = mock.MagicMock()
-    conn = real.get_connection()
-    conn.host = 'http://test'
-    conn.port = 8080
-    conn.login = 'test'
-    conn.password = 'test'
-    conn.extra = None
-    conn.schema = None
-    return conn
+    return models.Connection(
+        conn_id='http_default',
+        conn_type='http',
+        host='test:8080/',
+        extra='{"bareer": "test"}'
+    )
 
 
 @unittest.skipIf(HttpHook is None,
@@ -123,19 +106,11 @@ class TestHttpHook(unittest.TestCase):
 
     @requests_mock.mock()
     def test_hook_uses_provided_header(self, m):
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection',
-            side_effect=get_airflow_connection_noheaders
-        ):
-            conn = self.get_hook.get_conn()
-            self.assertIsNone(conn.headers.get('bareer'))
+            conn = self.get_hook.get_conn(headers={"bareer": "newT0k3n"})
+            self.assertEquals(conn.headers.get('bareer'), "newT0k3n")
 
     @requests_mock.mock()
     def test_hook_has_no_header_from_extra(self, m):
-        with mock.patch(
-            'airflow.hooks.base_hook.BaseHook.get_connection',
-            side_effect=get_airflow_connection_noheaders
-        ):
             conn = self.get_hook.get_conn()
             self.assertIsNone(conn.headers.get('bareer'))
 
@@ -233,7 +208,6 @@ class TestHttpHook(unittest.TestCase):
                 actual = dict(pr.headers)
                 self.assertEquals(actual.get('bareer'), 'test')
                 self.assertEquals(actual.get('some_other_header'), 'test')
-
 
     @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
     def test_http_connection(self, mock_get_connection):
