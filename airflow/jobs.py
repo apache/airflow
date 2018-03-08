@@ -1626,7 +1626,7 @@ class SchedulerJob(BaseJob):
                 self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
 
             # Kick of new processes and collect results from finished ones
-            self.log.info("Heartbeating the process manager")
+            self.log.debug("Heartbeating the process manager")
             simple_dags = processor_manager.heartbeat()
 
             if self.using_sqlite:
@@ -1661,7 +1661,7 @@ class SchedulerJob(BaseJob):
                                              (State.SCHEDULED,))
 
             # Call heartbeats
-            self.log.info("Heartbeating the executor")
+            self.log.debug("Heartbeating the executor")
             self.executor.heartbeat()
 
             # Process events from the executor
@@ -1671,7 +1671,7 @@ class SchedulerJob(BaseJob):
             time_since_last_heartbeat = (timezone.utcnow() -
                                          last_self_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > self.heartrate:
-                self.log.info("Heartbeating the scheduler")
+                self.log.debug("Heartbeating the scheduler")
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
