@@ -1162,8 +1162,8 @@ class SchedulerJob(BaseJob):
                 if task_concurrency is not None:
                     num_running = task_concurrency_map[((task_instance.dag_id, task_instance.task_id))]
                     if num_running >= task_concurrency:
-                        self.logger.info("Not executing %s since the task concurrency for this task"
-                                         " has been reached.", task_instance)
+                        self.log.info("Not executing %s since the task concurrency for"
+                                      " this task has been reached.", task_instance)
                         continue
                     else:
                         task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
