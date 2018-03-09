@@ -144,6 +144,7 @@ rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2-binary>=2.7.4']
 ssh = ['paramiko>=2.1.1']
+winrm =['pywinrm==0.2.2']
 salesforce = ['simple-salesforce>=0.72']
 s3 = ['boto3>=1.0.0']
 samba = ['pysmbclient>=0.1.3']
@@ -183,6 +184,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'paramiko',
+    'pywinrm',
     'requests_mock'
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
@@ -289,6 +291,7 @@ def do_setup():
             'sendgrid' : sendgrid,
             'slack': slack,
             'ssh': ssh,
+            'winrm': winrm,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
