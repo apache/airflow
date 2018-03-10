@@ -143,7 +143,7 @@ mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2-binary>=2.7.4']
-ssh = ['paramiko>=2.1.1']
+ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
 salesforce = ['simple-salesforce>=0.72']
 s3 = ['boto3>=1.0.0']
 samba = ['pysmbclient>=0.1.3']
@@ -183,6 +183,7 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'paramiko',
+    'pysftp',
     'requests_mock'
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
