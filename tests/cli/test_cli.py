@@ -16,6 +16,7 @@
 import unittest
 
 from mock import patch, Mock, MagicMock
+from time import sleep
 
 import psutil
 
@@ -57,3 +58,14 @@ class TestCLI(unittest.TestCase):
 
         with patch('psutil.Process', return_value=self.process):
             self.assertEqual(get_num_ready_workers_running(self.gunicorn_master_proc), 0)
+
+    def test_cli_webserver_debug(self):
+        p = psutil.Popen(["airflow", "webserver", "-d"])
+        sleep(3)  # wait for webserver to start
+        return_code = p.poll()
+        self.assertEqual(
+            None,
+            return_code,
+            "webserver terminated with return code {} in debug mode".format(return_code))
+        p.terminate()
+        p.wait()

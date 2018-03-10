@@ -56,8 +56,8 @@ from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
-                                             redirect_stdout, set_context)
-from airflow.www.app import cached_app
+                                             redirect_stdout)
+from airflow.www.app import (cached_app, create_app)
 
 from sqlalchemy import func
 from sqlalchemy.orm import exc
@@ -694,7 +694,6 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
 def webserver(args):
     print(settings.HEADER)
 
-    app = cached_app(conf)
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     num_workers = args.workers or conf.get('webserver', 'workers')
@@ -713,10 +712,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
+        app = create_app(conf)
         app.run(debug=True, port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
-        pid, stdout, stderr, log_file = setup_locations("webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        app = cached_app(conf)
+        pid, stdout, stderr, log_file = setup_locations(
+            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         if args.daemon:
             handle = setup_logging(log_file)
             stdout = open(stdout, 'w+')
