@@ -79,7 +79,8 @@ class SalesforceHook(BaseHook, LoggingMixin):
             username=self.connection.login,
             password=self.connection.password,
             security_token=self.extras['security_token'],
-            instance_url=self.connection.host
+            instance_url=self.connection.host,
+            sandbox=self.extras.get('sandbox', False)
         )
         self.sf = sf
         return sf

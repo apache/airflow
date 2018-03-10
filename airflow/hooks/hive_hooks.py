@@ -429,8 +429,10 @@ class HiveCliHook(BaseHook):
 
 
 class HiveMetastoreHook(BaseHook):
-
     """ Wrapper to interact with the Hive Metastore"""
+
+    # java short max val
+    MAX_PART_COUNT = 32767
 
     def __init__(self, metastore_conn_id='metastore_default'):
         self.metastore_conn = self.get_connection(metastore_conn_id)
@@ -601,10 +603,11 @@ class HiveMetastoreHook(BaseHook):
             if filter:
                 parts = self.metastore.get_partitions_by_filter(
                     db_name=schema, tbl_name=table_name,
-                    filter=filter, max_parts=32767)
+                    filter=filter, max_parts=HiveMetastoreHook.MAX_PART_COUNT)
             else:
                 parts = self.metastore.get_partitions(
-                    db_name=schema, tbl_name=table_name, max_parts=32767)
+                    db_name=schema, tbl_name=table_name,
+                    max_parts=HiveMetastoreHook.MAX_PART_COUNT)
 
             self.metastore._oprot.trans.close()
             pnames = [p.name for p in table.partitionKeys]

@@ -44,7 +44,7 @@ def max_partition(
         schema, table = table.split('.')
     hh = HiveMetastoreHook(metastore_conn_id=metastore_conn_id)
     return hh.max_partition(
-        schema=schema, table_name=table, field=field, filter=filter)
+        schema=schema, table_name=table, field=field)
 
 
 def _closest_date(target_dt, date_list, before_target=None):
