@@ -631,6 +631,8 @@ class HiveMetastoreHook(BaseHook):
                 "Please specify the field you want the max "
                 "value for")
 
+        print('kevin test message:')
+        print(type(max([p[field] for p in parts])))
         return max([p[field] for p in parts])
 
     def table_exists(self, table_name, db='default'):
