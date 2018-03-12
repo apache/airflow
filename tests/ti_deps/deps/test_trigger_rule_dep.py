@@ -28,7 +28,7 @@ class TriggerRuleDepTest(unittest.TestCase):
         task = BaseOperator(task_id='test_task', trigger_rule=trigger_rule,
                             start_date=datetime(2015, 1, 1))
         if upstream_task_ids:
-            task._upstream_task_ids.extend(upstream_task_ids)
+            task._upstream_task_ids.update(upstream_task_ids)
         return TaskInstance(task=task, state=state, execution_date=None)
 
     def test_no_upstream_tasks(self):
