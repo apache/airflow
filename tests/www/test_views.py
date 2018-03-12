@@ -453,6 +453,8 @@ class TestMountPoint(unittest.TestCase):
         configuration.conf.set("webserver", "base_url", "http://localhost:8080/test")
         config = dict()
         config['WTF_CSRF_METHODS'] = []
+        # Clear cached app to remount base_url forcefully
+        application.app = None
         app = application.cached_app(config=config, testing=True)
         self.client = Client(app)
 
