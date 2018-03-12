@@ -22,16 +22,8 @@ class JdbcOperator(BaseOperator):
 
     Requires jaydebeapi.
 
-    :param jdbc_url: driver specific connection url with string variables, e.g. for exasol jdbc:exa:{0}:{1};schema={2}
-    Template vars are defined like this: {0} = hostname, {1} = port, {2} = dbschema, {3} = extra
-    :type jdbc_url: string
-    :param jdbc_driver_name: classname of the specific jdbc driver, for exasol com.exasol.jdbc.EXADriver
-    :type jdbc_driver_name: string
-    :param jdbc_driver_loc: absolute path to jdbc driver location, for example /var/exasol/exajdbc.jar
-    :type jdbc_driver_loc: string
-
-    :param conn_id: reference to a predefined database
-    :type conn_id: string
+    :param jdbc_conn_id: reference to a predefined database
+    :type jdbc_conn_id: string
     :param sql: the sql code to be executed
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
