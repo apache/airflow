@@ -22,12 +22,17 @@ class WeightRule(object):
     UPSTREAM = 'upstream'
     ABSOLUTE = 'absolute'
 
+    _ALL_WEIGHT_RULES = {}
     @classmethod
     def is_valid(cls, weight_rule):
         return weight_rule in cls.all_weight_rules()
 
     @classmethod
     def all_weight_rules(cls):
-        return [getattr(cls, attr)
+        if not cls._ALL_WEIGHT_RULES:
+            cls._ALL_WEIGHT_RULES = {
+                getattr(cls, attr)
                 for attr in dir(cls)
-                if not attr.startswith("__") and not callable(getattr(cls, attr))]
+                if not attr.startswith("_") and not callable(getattr(cls, attr))
+            }
+        return cls._ALL_WEIGHT_RULES
