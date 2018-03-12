@@ -613,36 +613,7 @@ class HiveMetastoreHook(BaseHook):
             pnames = [p.name for p in table.partitionKeys]
             return [dict(zip(pnames, p.values)) for p in parts]
 
-    @staticmethod
-    def _get_max_partition_from_part_names(part_names, key_name):
-        """
-        Helper method to get max partition from part names. Works only
-        when partition format follows '{key}={value}' and key_name is name of
-        the only partition key.
-        :param part_names: list of partition names
-        :type part_names: list
-        :param key_name: partition key name
-        :type key_name: str
-        :return: Max partition or None if part_names is empty.
-        """
-        if not part_names:
-            return None
-
-        prefix = key_name + '='
-        prefix_len = len(key_name) + 1
-        max_val = None
-        for part_name in part_names:
-            if part_name.startswith(prefix):
-                if max_val is None:
-                    max_val = part_name[prefix_len:]
-                else:
-                    max_val = max(max_val, part_name[prefix_len:])
-            else:
-                raise AirflowException(
-                    "Partition name mal-formatted: {}".format(part_name))
-        return max_val
-
-    def max_partition(self, schema, table_name, field=None):
+    def max_partition(self, schema, table_name, field=None, filter=None):
         """
         Returns the maximum value for all partitions in a table. Works only
         for tables that have a single partition key. For subpartitioned
@@ -653,23 +624,19 @@ class HiveMetastoreHook(BaseHook):
         >>> hh.max_partition(schema='airflow', table_name=t)
         '2015-01-01'
         """
-        self.metastore._oprot.trans.open()
-        table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
-        if len(table.partitionKeys) != 1:
+        parts = self.get_partitions(schema, table_name, filter)
+        if not parts:
+            return None
+        elif len(parts[0]) == 1:
+            field = list(parts[0].keys())[0]
+        elif not field:
             raise AirflowException(
-                "The table isn't partitioned by a single partition key")
+                "Please specify the field you want the max "
+                "value for")
 
-        key_name = table.partitionKeys[0].name
-        if field is not None and key_name != field:
-            raise AirflowException("Provided field is not the partition key")
-
-        part_names = \
-            self.metastore.get_partition_names(schema,
-                                               table_name,
-                                               max_parts=HiveMetastoreHook.MAX_PART_COUNT)
-        self.metastore._oprot.trans.close()
-
-        return HiveMetastoreHook._get_max_partition_from_part_names(part_names, key_name)
+        print('kevin test message:')
+        print(type(max([p[field] for p in parts])))
+        return max([p[field] for p in parts])
 
     def table_exists(self, table_name, db='default'):
         """
