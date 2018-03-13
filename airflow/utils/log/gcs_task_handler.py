@@ -60,7 +60,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # log path to upload log files into GCS and read from the
         # remote location.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.is_raw
+        self.upload_on_close = not ti.raw
 
     def close(self):
         """
@@ -89,12 +89,14 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number):
+    def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from GCS.
         If failed, read the log from task instance host machine.
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         """
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
@@ -112,7 +114,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             self.log.error(log)
             log += super(GCSTaskHandler, self)._read(ti, try_number)
 
-        return log
+        return log, {'end_of_log': True}
 
     def gcs_read(self, remote_log_location):
         """

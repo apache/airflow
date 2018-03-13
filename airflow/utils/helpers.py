@@ -31,6 +31,8 @@ import subprocess
 import sys
 import warnings
 
+from jinja2 import Template
+
 from airflow import configuration
 from airflow.exceptions import AirflowException
 
@@ -221,6 +223,13 @@ def reap_process_group(pid, log, sig=signal.SIGTERM,
         if alive:
             for p in alive:
                 log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
+
+
+def parse_template_string(template_string):
+    if "{{" in template_string:  # jinja mode
+        return None, Template(template_string)
+    else:
+        return template_string, None
 
 
 class AirflowImporter(object):

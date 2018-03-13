@@ -857,7 +857,7 @@ class TaskInstance(Base, LoggingMixin):
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow run --raw`.
         # Not persisted to the database so only valid for the current process
-        self.is_raw = False
+        self.raw = False
 
     @reconstructor
     def init_on_load(self):
@@ -1956,8 +1956,8 @@ class TaskInstance(Base, LoggingMixin):
         """
         Sets the log context.
         """
-        self._set_context(self)
         self.raw = raw
+        self._set_context(self)
 
 
 class TaskFail(Base):
