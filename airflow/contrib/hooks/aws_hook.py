@@ -111,7 +111,8 @@ class AwsHook(BaseHook):
                     aws_access_key_id, aws_secret_access_key = \
                         _parse_s3_config(
                             connection_object.extra_dejson['s3_config_file'],
-                            connection_object.extra_dejson.get('s3_config_format'))
+                            connection_object.extra_dejson.get('s3_config_format'),
+                            connection_object.extra_dejson.get('profile'))
 
                 if region_name is None:
                     region_name = connection_object.extra_dejson.get('region_name')
