@@ -193,6 +193,10 @@ def initdb():
             host='yarn', extra='{"queue": "root.default"}'))
     merge_conn(
         models.Connection(
+            conn_id='druid_broker_default', conn_type='druid',
+            host='druid-broker', port=8082, extra='{"endpoint": "druid/v2/sql"}'))
+    merge_conn(
+        models.Connection(
             conn_id='druid_ingest_default', conn_type='druid',
             host='druid-overlord', port=8081, extra='{"endpoint": "druid/indexer/v1/task"}'))
     merge_conn(

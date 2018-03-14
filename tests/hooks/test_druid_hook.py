@@ -13,12 +13,13 @@
 # limitations under the License.
 #
 
+import mock
 import requests
 import requests_mock
 import unittest
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.druid_hook import DruidHook
+from airflow.hooks.druid_hook import DruidDbApiHook, DruidHook
 
 
 class TestDruidHook(unittest.TestCase):
@@ -111,6 +112,51 @@ class TestDruidHook(unittest.TestCase):
         self.assertTrue(shutdown_post.called_once)
 
 
+class TestDruidDbApiHook(unittest.TestCase):
+
+    def setUp(self):
+        super(TestDruidDbApiHook, self).setUp()
+        self.cur = mock.MagicMock()
+        self.conn = conn = mock.MagicMock()
+        self.conn.host = 'host'
+        self.conn.port = '1000'
+        self.conn.conn_type = 'druid'
+        self.conn.extra_dejson = {'endpoint': 'druid/v2/sql'}
+        self.conn.cursor.return_value = self.cur
+
+        class TestDruidDBApiHook(DruidDbApiHook):
+            def get_conn(self):
+                return conn
+
+            def get_connection(self, conn_id):
+                return conn
+
+        self.db_hook = TestDruidDBApiHook
+
+    def test_get_uri(self):
+        db_hook = self.db_hook()
+        self.assertEquals('druid://host:1000/druid/v2/sql', db_hook.get_uri())
+
+    def test_get_first_record(self):
+        statement = 'SQL'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.fetchone.return_value = result_sets[0]
+
+        self.assertEqual(result_sets[0], self.db_hook().get_first(statement))
+        self.conn.close.assert_called_once()
+        self.cur.close.assert_called_once()
+        self.cur.execute.assert_called_once_with(statement)
+
+    def test_get_records(self):
+        statement = 'SQL'
+        result_sets = [('row1',), ('row2',)]
+        self.cur.fetchall.return_value = result_sets
+
+        self.assertEqual(result_sets, self.db_hook().get_records(statement))
+        self.conn.close.assert_called_once()
+        self.cur.close.assert_called_once()
+        self.cur.execute.assert_called_once_with(statement)
 
 
-
+if __name__ == '__main__':
+    unittest.main()

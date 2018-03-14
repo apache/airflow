@@ -50,7 +50,10 @@ _hooks = {
     'S3_hook': ['S3Hook'],
     'zendesk_hook': ['ZendeskHook'],
     'http_hook': ['HttpHook'],
-    'druid_hook': ['DruidHook'],
+    'druid_hook': [
+        'DruidHook',
+        'DruidDbApiHook',
+    ],
     'jdbc_hook': ['JdbcHook'],
     'dbapi_hook': ['DbApiHook'],
     'mssql_hook': ['MsSqlHook'],

@@ -118,6 +118,7 @@ doc = [
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker-py>=1.6.0']
+druid = ['pydruid>=0.4.1']
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -168,7 +169,7 @@ kubernetes = ['kubernetes>=3.0.0',
 
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid
 devel = [
     'click',
     'freezegun',
@@ -190,7 +191,7 @@ devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
-             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins)
+             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins + druid)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -269,6 +270,7 @@ def do_setup():
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
+            'druid': druid,
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
