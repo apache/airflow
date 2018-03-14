@@ -199,6 +199,17 @@ def pool(args):
     elif not pool and (args.get or args.delete):
         print("No pool named {} found".format(name))
     elif not pool and args.set:
+        print(type(pool.name))
+        print(pool.name)
+        print(type(pool.slots))
+        print(pool.slots)
+        print(type(pool.description))
+        print(pool.description)
+
+        if str(pool.slots) == args.set[1] and pool.description == args.set[2]:
+            print("No need to update")
+            return
+
         pool = Pool(
             pool=name,
             slots=args.set[1],
