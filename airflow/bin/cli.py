@@ -214,10 +214,10 @@ def pool(args):
         print(type(pool.description))
         print(pool.description)
 
-        if str(pool.slots) == args.set[1] and pool.description == args.set[2]:
+        if pool.slots and pool.description and str(pool.slots) == args.set[1] and pool.description == args.set[2]:
             print("No need to update")
             return
-        
+
         pool.slots = args.set[1]
         pool.description = args.set[2]
         session.commit()
