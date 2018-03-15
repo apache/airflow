@@ -14,6 +14,7 @@
 
 import subprocess
 import time
+import os
 
 from celery import Celery
 from celery import states as celery_states
@@ -48,10 +49,14 @@ app = Celery(
 def execute_command(command):
     log = LoggingMixin().log
     log.info("Executing command in Celery: %s", command)
+    env = os.environ.copy()
     try:
-        subprocess.check_call(command, shell=True, close_fds=True)
+        subprocess.check_call(command, shell=True, stderr=subprocess.STDOUT,
+                              close_fds=True, env=env)
     except subprocess.CalledProcessError as e:
-        log.error(e)
+        log.exception('execute_command encountered a CalledProcessError')
+        log.error(e.output)
+
         raise AirflowException('Celery command failed')
 
 
