@@ -80,7 +80,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb():
+def initdb(rbac=False):
     session = settings.Session()
 
     from airflow import models
@@ -303,6 +303,10 @@ def initdb():
         session.add(chart)
         session.commit()
 
+    if rbac:
+        from airflow.www_rbac.app import cached_appbuilder
+        cached_appbuilder().sm.create_db()
+
 
 def upgradedb():
     # alembic adds significant import time, so we import it lazily
@@ -320,7 +324,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb():
+def resetdb(rbac=False):
     '''
     Clear out the database
     '''
@@ -334,4 +338,11 @@ def resetdb():
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
-    initdb()
+
+    if rbac:
+        from flask_appbuilder.models.sqla import Base
+        from airflow.www_rbac.app import cached_appbuilder
+        engine = cached_appbuilder().sm.get_session.get_bind(mapper=None, clause=None)
+        Base.metadata.drop_all(engine)
+
+    initdb(rbac)
