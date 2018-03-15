@@ -1768,6 +1768,7 @@ class VariableModelView(AirflowModelView):
             out = request.files['file'].read()
             d = json.loads(out)
         except Exception:
+            raise e
             flash("Missing file or syntax error.")
         else:
             for k, v in d.items():
