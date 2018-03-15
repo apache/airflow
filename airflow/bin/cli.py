@@ -207,18 +207,6 @@ def pool(args):
         session.commit()
         print("{} ".format(pool))
     elif pool and args.set:
-        print(type(pool.name))
-        print(pool.name)
-        print(type(pool.slots))
-        print(pool.slots)
-        print(type(pool.description))
-        print(pool.description)
-
-        if pool.slots and pool.description is not None \
-                and str(pool.slots) == args.set[1] and pool.description == args.set[2]:
-            print("No need to update")
-            return
-
         pool.slots = args.set[1]
         pool.description = args.set[2]
         session.commit()
