@@ -739,8 +739,7 @@ def webserver(args):
                 os.path.dirname(sys.executable), "gunicorn")
             if os.path.isfile(location) and os.access(location, os.X_OK):
                 return location
-            else:
-                raise AirflowException("gunicorn could not be found")
+            raise AirflowException("gunicorn could not be found")
 
         gunicorn_exec = get_gunicorn_location()
 
