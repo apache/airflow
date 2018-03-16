@@ -20,20 +20,55 @@ from airflow.hooks.hive_hooks import HiveMetastoreHook
 
 
 class TestHiveMetastoreHook(unittest.TestCase):
-    def test_get_max_partition_from_empty_part_names(self):
+    VALID_FILTER_MAP = {'key2': 'value2'}
+
+    def test_get_max_partition_from_empty_part_specs(self):
         max_partition = \
-            HiveMetastoreHook._get_max_partition_from_part_names([], 'some_key')
+            HiveMetastoreHook._get_max_partition_from_part_specs([],
+                                                                 'key1',
+                                                                 self.VALID_FILTER_MAP)
         self.assertIsNone(max_partition)
 
-    def test_get_max_partition_from_mal_formatted_part_names(self):
+    def test_get_max_partition_from_valid_part_specs_and_invalid_filter_map(self):
         with self.assertRaises(AirflowException):
-            HiveMetastoreHook._get_max_partition_from_part_names(
-                ['bad_partition_name'], 'some_key')
+            HiveMetastoreHook._get_max_partition_from_part_specs(
+                [{'key1': 'value1', 'key2': 'value2'},
+                 {'key1': 'value3', 'key2': 'value4'}],
+                'key1',
+                {'key3': 'value5'})
 
-    def test_get_max_partition_from_mal_valid_part_names(self):
+    def test_get_max_partition_from_valid_part_specs_and_invalid_partition_key(self):
+        with self.assertRaises(AirflowException):
+            HiveMetastoreHook._get_max_partition_from_part_specs(
+                [{'key1': 'value1', 'key2': 'value2'},
+                 {'key1': 'value3', 'key2': 'value4'}],
+                'key3',
+                self.VALID_FILTER_MAP)
+
+    def test_get_max_partition_from_valid_part_specs_and_none_partition_key(self):
+        with self.assertRaises(AirflowException):
+            HiveMetastoreHook._get_max_partition_from_part_specs(
+                [{'key1': 'value1', 'key2': 'value2'},
+                 {'key1': 'value3', 'key2': 'value4'}],
+                None,
+                self.VALID_FILTER_MAP)
+
+    def test_get_max_partition_from_valid_part_specs_and_none_filter_map(self):
         max_partition = \
-            HiveMetastoreHook._get_max_partition_from_part_names(['some_key=value1',
-                                                                  'some_key=value2',
-                                                                  'some_key=value3'],
-                                                                 'some_key')
-        self.assertEqual(max_partition, 'value3')
+            HiveMetastoreHook._get_max_partition_from_part_specs(
+                [{'key1': 'value1', 'key2': 'value2'},
+                 {'key1': 'value3', 'key2': 'value4'}],
+                'key1',
+                None)
+
+        # No partition will be filtered out.
+        self.assertEqual(max_partition, b'value3')
+
+    def test_get_max_partition_from_valid_part_specs(self):
+        max_partition = \
+            HiveMetastoreHook._get_max_partition_from_part_specs(
+                [{'key1': 'value1', 'key2': 'value2'},
+                 {'key1': 'value3', 'key2': 'value4'}],
+                'key1',
+                self.VALID_FILTER_MAP)
+        self.assertEqual(max_partition, b'value1')

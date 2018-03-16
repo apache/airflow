@@ -614,62 +614,95 @@ class HiveMetastoreHook(BaseHook):
             return [dict(zip(pnames, p.values)) for p in parts]
 
     @staticmethod
-    def _get_max_partition_from_part_names(part_names, key_name):
+    def _get_max_partition_from_part_specs(part_specs, partition_key, filter_map):
         """
-        Helper method to get max partition from part names. Works only
-        when partition format follows '{key}={value}' and key_name is name of
-        the only partition key.
-        :param part_names: list of partition names
-        :type part_names: list
-        :param key_name: partition key name
-        :type key_name: str
-        :return: Max partition or None if part_names is empty.
+        Helper method to get max partition of partitions with partition_key
+        from part specs. key:value pair in filter_map will be used to
+        filter out partitions.
+
+        :param part_specs: list of partition specs.
+        :type part_specs: list
+        :param partition_key: partition key name.
+        :type partition_key: string
+        :param filter_map: partition_key:partition_value map used for partition filtering,
+                           e.g. {'key1': 'value1', 'key2': 'value2'}.
+                           Only partitions matching all partition_key:partition_value
+                           pairs will be considered as candidates of max partition.
+        :type filter_map: map
+        :return: Max partition or None if part_specs is empty.
         """
-        if not part_names:
+        if not part_specs:
             return None
 
-        prefix = key_name + '='
-        prefix_len = len(key_name) + 1
-        max_val = None
-        for part_name in part_names:
-            if part_name.startswith(prefix):
-                if max_val is None:
-                    max_val = part_name[prefix_len:]
-                else:
-                    max_val = max(max_val, part_name[prefix_len:])
-            else:
-                raise AirflowException(
-                    "Partition name mal-formatted: {}".format(part_name))
-        return max_val
+        # Assuming all specs have the same keys.
+        if partition_key not in part_specs[0].keys():
+            raise AirflowException("Provided partition_key {} "
+                                   "is not in part_specs.".format(partition_key))
 
-    def max_partition(self, schema, table_name, field=None):
+        if filter_map and not set(filter_map.keys()) < set(part_specs[0].keys()):
+            raise AirflowException("Keys in provided filter_map {} "
+                                   "are not subset of part_spec keys: {}"
+                                   .format(', '.join(filter_map.keys()),
+                                           ', '.join(part_specs[0].keys())))
+
+        candidates = [p_dict[partition_key] for p_dict in part_specs
+                      if filter_map is None or
+                      all(item in p_dict.items() for item in filter_map.items())]
+
+        if not candidates:
+            return None
+        else:
+            return max(candidates).encode('utf-8')
+
+    def max_partition(self, schema, table_name, field=None, filter_map=None):
         """
-        Returns the maximum value for all partitions in a table. Works only
-        for tables that have a single partition key. For subpartitioned
-        table, we recommend using signal tables.
+        Returns the maximum value for all partitions with given field in a table.
+        If only one partition key exist in the table, the key will be used as field.
+        filter_map should be a partition_key:partition_value map and will be used to
+        filter out partitions.
+
+        :param schema: schema name.
+        :type schema: string
+        :param table_name: table name.
+        :type table_name: string
+        :param field: partition key to get max partition from.
+        :type field: string
+        :param filter_map: partition_key:partition_value map used for partition filtering.
+        :type filter_map: map
 
         >>> hh = HiveMetastoreHook()
+        >>  filter_map = {'p_key': 'p_val'}
         >>> t = 'static_babynames_partitioned'
-        >>> hh.max_partition(schema='airflow', table_name=t)
+        >>> hh.max_partition(schema='airflow',\
+        ... table_name=t, field='ds', filter_map=filter_map)
         '2015-01-01'
         """
         self.metastore._oprot.trans.open()
         table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
-        if len(table.partitionKeys) != 1:
-            raise AirflowException(
-                "The table isn't partitioned by a single partition key")
+        key_name_set = set(key.name for key in table.partitionKeys)
+        if len(table.partitionKeys) == 1:
+            field = table.partitionKeys[0].name
+        elif not field:
+            raise AirflowException("Please specify the field you want the max "
+                                   "value for.")
+        elif field not in key_name_set:
+            raise AirflowException("Provided field is not a partition key.")
 
-        key_name = table.partitionKeys[0].name
-        if field is not None and key_name != field:
-            raise AirflowException("Provided field is not the partition key")
+        if filter_map and not set(filter_map.keys()).issubset(key_name_set):
+            raise AirflowException("Provided filter_map contains keys "
+                                   "that are not partition key.")
 
         part_names = \
             self.metastore.get_partition_names(schema,
                                                table_name,
                                                max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+        part_specs = [self.metastore.partition_name_to_spec(part_name)
+                      for part_name in part_names]
         self.metastore._oprot.trans.close()
 
-        return HiveMetastoreHook._get_max_partition_from_part_names(part_names, key_name)
+        return HiveMetastoreHook._get_max_partition_from_part_specs(part_specs,
+                                                                    field,
+                                                                    filter_map)
 
     def table_exists(self, table_name, db='default'):
         """
