@@ -734,8 +734,18 @@ def webserver(args):
                 =================================================================\
             '''.format(**locals())))
 
+        def get_gunicorn_location():
+            location = os.path.join(
+                os.path.dirname(sys.executable), "gunicorn")
+            if os.path.isfile(location) and os.access(location, os.X_OK):
+                return location
+            else:
+                raise AirflowException("gunicorn could not be found")
+
+        gunicorn_exec = get_gunicorn_location()
+
         run_args = [
-            'gunicorn',
+            gunicorn_exec,
             '-w', str(num_workers),
             '-k', str(args.workerclass),
             '-t', str(worker_timeout),
