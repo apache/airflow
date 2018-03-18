@@ -25,13 +25,14 @@ from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
 from six import string_types
+import unicodecsv as csv
 
 PY3 = sys.version_info[0] == 3
 
 
 class MySqlToGoogleCloudStorageOperator(BaseOperator):
     """
-    Copy data from MySQL to Google cloud storage in JSON format.
+    Copy data from MySQL to Google cloud storage in JSON or CSV format.
     """
     template_fields = ('sql', 'bucket', 'filename', 'schema_filename', 'schema')
     template_ext = ('.sql',)
@@ -48,6 +49,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                  google_cloud_storage_conn_id='google_cloud_storage_default',
                  schema=None,
                  delegate_to=None,
+                 export_format={'file_format': 'json'},
                  *args,
                  **kwargs):
         """
@@ -82,6 +84,50 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         :param delegate_to: The account to impersonate, if any. For this to
             work, the service account making the request must have domain-wide
             delegation enabled.
+        :param export_format: Details for files to be exported into GCS.
+            Allows to specify 'json' or 'csv', and also addiitional details for
+            CSV file exports (quotes, separators, etc.)
+            This is a dict with the following key-value pairs:
+              * file_format: 'json' or 'csv'. If using CSV, more details can
+                              be added
+              * csv_dialect: preconfigured set of CSV export parameters
+                             (i.e.: 'excel', 'excel-tab', 'unix_dialect').
+                             If present, will ignore all other 'csv_' options.
+                             See https://docs.python.org/3/library/csv.html
+              * csv_delimiter: A one-character string used to separate fields.
+                               It defaults to ','.
+              * csv_doublequote: If doublequote is False and no escapechar is set,
+                                 Error is raised if a quotechar is found in a field.
+                                 It defaults to True.
+              * csv_escapechar: A one-character string used to escape the delimiter
+                                if quoting is set to QUOTE_NONE and the quotechar
+                                if doublequote is False.
+                                It defaults to None, which disables escaping.
+              * csv_lineterminator: The string used to terminate lines.
+                                    It defaults to '\r\n'.
+              * csv_quotechar: A one-character string used to quote fields
+                                containing special characters, such as the delimiter
+                                or quotechar, or which contain new-line characters.
+                                It defaults to '"'.
+              * csv_quoting: Controls when quotes should be generated.
+                             It can take on any of the QUOTE_* constants
+                             Defaults to csv.QUOTE_MINIMAL.
+                             Valid values are:
+                             'csv.QUOTE_ALL': Quote all fields
+                             'csv.QUOTE_MINIMAL': only quote those fields which contain
+                                                    special characters such as delimiter,
+                                                    quotechar or any of the characters
+                                                    in lineterminator.
+                             'csv.QUOTE_NONNUMERIC': Quote all non-numeric fields.
+                             'csv.QUOTE_NONE': never quote fields. When the current
+                                                delimiter occurs in output data it is
+                                                preceded by the current escapechar
+                                                character. If escapechar is not set,
+                                                the writer will raise Error if any
+                                                characters that require escaping are
+                                                encountered.
+              * csv_columnheader: If True, first row in the file will include column
+                                  names. Defaults to False.
         """
         super(MySqlToGoogleCloudStorageOperator, self).__init__(*args, **kwargs)
         self.sql = sql
@@ -93,6 +139,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.schema = schema
         self.delegate_to = delegate_to
+        self.export_format = export_format
 
     def execute(self, context):
         cursor = self._query_mysql()
@@ -135,25 +182,79 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         tmp_file_handle = NamedTemporaryFile(delete=True)
         tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
 
+        # Save file header for csv if required
+        if(self.export_format['file_format'] == 'csv'):
+
+            # Deal with CSV formatting. Try to use dialect if passed
+            if('csv_dialect' in self.export_format):
+                # Use dialect name from params
+                dialect_name = self.export_format['csv_dialect']
+            else:
+                # Create internal dialect based on parameters passed
+                dialect_name = 'mysql_to_gcs'
+                csv.register_dialect(dialect_name,
+                                     delimiter=self.export_format.get('csv_delimiter') or
+                                     ',',
+                                     doublequote=self.export_format.get(
+                                         'csv_doublequote') or
+                                     'True',
+                                     escapechar=self.export_format.get(
+                                         'csv_escapechar') or
+                                     None,
+                                     lineterminator=self.export_format.get(
+                                         'csv_lineterminator') or
+                                     '\r\n',
+                                     quotechar=self.export_format.get('csv_quotechar') or
+                                     '"',
+                                     quoting=eval(self.export_format.get(
+                                         'csv_quoting') or
+                                         'csv.QUOTE_MINIMAL'))
+            # Create CSV writer using either provided or generated dialect
+            csv_writer = csv.writer(tmp_file_handle,
+                                    encoding='utf-8',
+                                    dialect=dialect_name)
+
+            # Include column header in first row
+            if('csv_columnheader' in self.export_format and
+                    eval(self.export_format['csv_columnheader'])):
+                csv_writer.writerow(schema)
+
         for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats
+            # Convert datetimes and longs to BigQuery safe types
             row = map(self.convert_types, row)
-            row_dict = dict(zip(schema, row))
 
-            # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
-            s = json.dumps(row_dict)
-            if PY3:
-                s = s.encode('utf-8')
-            tmp_file_handle.write(s)
+            # Save rows as CSV
+            if(self.export_format['file_format'] == 'csv'):
+                csv_writer.writerow(row)
+            # Save rows as JSON
+            else:
+                # Convert datetime objects to utc seconds, and decimals to floats
+                row_dict = dict(zip(schema, row))
 
-            # Append newline to make dumps BigQuery compatible.
-            tmp_file_handle.write(b'\n')
+                # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
+                s = json.dumps(row_dict, sort_keys=True)
+                if PY3:
+                    s = s.encode('utf-8')
+                tmp_file_handle.write(s)
+
+                # Append newline to make dumps BigQuery compatible.
+                tmp_file_handle.write(b'\n')
 
             # Stop if the file exceeds the file size limit.
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
                 tmp_file_handle = NamedTemporaryFile(delete=True)
                 tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
+
+                # For CSV files, weed to create a new writer with the new handle
+                # and write header in first row
+                if(self.export_format['file_format'] == 'csv'):
+                    csv_writer = csv.writer(tmp_file_handle,
+                                            encoding='utf-8',
+                                            dialect=dialect_name)
+                    if('csv_columnheader' in self.export_format and
+                            eval(self.export_format['csv_columnheader'])):
+                        csv_writer.writerow(schema)
 
         return tmp_file_handles
 
@@ -191,7 +292,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                         'type': field_type,
                         'mode': field_mode,
                     })
-            s = json.dumps(schema, tmp_schema_file_handle)
+            s = json.dumps(schema, tmp_schema_file_handle, sort_keys=True)
             if PY3:
                 s = s.encode('utf-8')
             tmp_schema_file_handle.write(s)
@@ -204,11 +305,13 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
         Upload all of the file splits (and optionally the schema .json file) to
         Google cloud storage.
         """
+        # Compose mime_type using file format passed as param
+        mime_type = 'application/' + self.export_format['file_format']
         hook = GoogleCloudStorageHook(
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to)
         for object, tmp_file_handle in files_to_upload.items():
-            hook.upload(self.bucket, object, tmp_file_handle.name, 'application/json')
+            hook.upload(self.bucket, object, tmp_file_handle.name, mime_type)
 
     @classmethod
     def convert_types(cls, value):
