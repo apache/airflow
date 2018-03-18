@@ -20,7 +20,6 @@
 from builtins import str
 
 import requests
-import tenacity
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
@@ -67,11 +66,6 @@ class HttpHook(BaseHook):
 
         return session
 
-    @tenacity.retry(
-        wait=tenacity.wait_exponential(),
-        stop=tenacity.stop_after_attempt(7),
-        retry=tenacity.retry_if_exception_type(requests.exceptions.ConnectionError)
-    )
     def run(self, endpoint, data=None, headers=None, extra_options=None):
         """
         Performs the request

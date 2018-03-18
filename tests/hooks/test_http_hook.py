@@ -19,7 +19,6 @@ import requests
 import requests_mock
 
 import tenacity
-from tenacity import wait_none
 
 from airflow import configuration, models
 from airflow.exceptions import AirflowException
@@ -177,16 +176,24 @@ class TestHttpHook(unittest.TestCase):
     @mock.patch('airflow.hooks.http_hook.requests.Session')
     def test_retry_on_conn_error(self, mocked_session):
 
+        retry_args = dict(
+            wait=tenacity.wait_none(),
+            stop=tenacity.stop_after_attempt(7),
+            retry=requests.exceptions.ConnectionError
+        )
+
         def send_and_raise(request, **kwargs):
             raise requests.exceptions.ConnectionError
 
-        self.get_hook.run.retry.wait = wait_none()
         mocked_session().send.side_effect = send_and_raise
         # The job failed for some reason
         with self.assertRaises(tenacity.RetryError):
-            self.get_hook.run('v1/test')
+            self.get_hook.run_with_advanced_retry(
+                endpoint='v1/test',
+                _retry_args=retry_args
+            )
         self.assertEquals(
-            self.get_hook.run.retry.stop.max_attempt_number + 1,
+            self.get_hook._retry_obj.stop.max_attempt_number + 1,
             mocked_session.call_count
         )
 
