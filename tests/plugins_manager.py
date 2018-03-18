@@ -26,9 +26,10 @@ from flask_admin import BaseView
 from flask_admin.menu import MenuLink, MenuView
 
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import  BaseOperator
+from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
+from airflow.dag.fetchers.base import BaseDagFetcher
 from airflow.www.app import cached_app
 
 
@@ -61,6 +62,10 @@ class PluginsTest(unittest.TestCase):
     def test_macros(self):
         from airflow.macros.test_plugin import plugin_macro
         self.assertTrue(callable(plugin_macro))
+
+    def test_fetchers(self):
+        from airflow.dag.fetchers.test_plugin import PluginDagFetcher
+        self.assertTrue(issubclass(PluginDagFetcher, BaseDagFetcher))
 
     def test_admin_views(self):
         app = cached_app()

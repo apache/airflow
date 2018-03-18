@@ -40,6 +40,7 @@ class AirflowPlugin(object):
     hooks = []
     executors = []
     macros = []
+    dag_fetchers = []
     admin_views = []
     flask_blueprints = []
     menu_links = []
@@ -108,6 +109,7 @@ sensors_modules = []
 hooks_modules = []
 executors_modules = []
 macros_modules = []
+dag_fetchers_modules = []
 
 # Plugin components to integrate directly
 admin_views = []
@@ -124,6 +126,8 @@ for p in plugins:
     executors_modules.append(
         make_module('airflow.executors.' + p.name, p.executors))
     macros_modules.append(make_module('airflow.macros.' + p.name, p.macros))
+    dag_fetchers_modules.append(
+        make_module('airflow.dag.fetchers.' + p.name, p.dag_fetchers))
 
     admin_views.extend(p.admin_views)
     flask_blueprints.extend(p.flask_blueprints)

@@ -24,10 +24,13 @@ from airflow.hooks.base_hook import BaseHook
 from airflow.models import BaseOperator
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
+from airflow.dag.fetchers.base import BaseDagFetcher
+
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
 class PluginHook(BaseHook):
     pass
+
 
 # Will show up under airflow.operators.test_plugin.PluginOperator
 class PluginOperator(BaseOperator):
@@ -43,9 +46,16 @@ class PluginSensorOperator(BaseSensorOperator):
 class PluginExecutor(BaseExecutor):
     pass
 
+
 # Will show up under airflow.macros.test_plugin.plugin_macro
 def plugin_macro():
     pass
+
+
+# Will show up under airflow.dag.fetchers.test_plugin.PluginDagFetcher
+class PluginDagFetcher(BaseDagFetcher):
+    pass
+
 
 # Creating a flask admin BaseView
 class TestView(BaseView):
@@ -76,6 +86,7 @@ class AirflowTestPlugin(AirflowPlugin):
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]
+    dag_fetchers = [PluginDagFetcher]
     admin_views = [v]
     flask_blueprints = [bp]
     menu_links = [ml]

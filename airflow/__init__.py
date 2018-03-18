@@ -75,14 +75,17 @@ class AirflowMacroPlugin(object):
     def __init__(self, namespace):
         self.namespace = namespace
 
-from airflow import operators
+
+from airflow import operators  # noqa: E402
 from airflow import sensors  # noqa: E402
-from airflow import hooks
-from airflow import executors
-from airflow import macros
+from airflow import hooks  # noqa: E402
+from airflow import executors  # noqa: E402
+from airflow import macros  # noqa: E402
+from airflow.dag import fetchers  # noqa: E402
 
 operators._integrate_plugins()
-sensors._integrate_plugins()  # noqa: E402
+sensors._integrate_plugins()
 hooks._integrate_plugins()
 executors._integrate_plugins()
 macros._integrate_plugins()
+fetchers._integrate_plugins()

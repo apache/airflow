@@ -38,6 +38,12 @@ from airflow.models import DagModel, DagStat
 from airflow.models import clear_task_instances
 from airflow.models import XCom
 from airflow.models import Connection
+from airflow.dag.fetchers import FileSystemDagFetcher
+from airflow.dag.fetchers import HDFSDagFetcher
+from airflow.dag.fetchers import S3DagFetcher
+from airflow.dag.fetchers import GCSDagFetcher
+from airflow.dag.fetchers import GitDagFetcher
+from airflow.dag.fetchers import get_dag_fetcher
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.python_operator import PythonOperator
@@ -920,7 +926,7 @@ class DagBagTest(unittest.TestCase):
         non_existing_dag_id = "non_existing_dag_id"
         self.assertIsNone(dagbag.get_dag(non_existing_dag_id))
 
-    def test_process_file_that_contains_multi_bytes_char(self):
+    def test_process_local_file_that_contains_multi_bytes_char(self):
         """
         test that we're able to parse file that contains multi-byte char
         """
@@ -929,42 +935,35 @@ class DagBagTest(unittest.TestCase):
         f.flush()
 
         dagbag = models.DagBag(include_examples=True)
-        self.assertEqual([], dagbag.process_file(f.name))
+        fsfetcher = FileSystemDagFetcher(dagbag)
+
+        self.assertEqual([], fsfetcher.process_file(f.name))
 
     def test_zip(self):
         """
         test the loading of a DAG within a zip file that includes dependencies
         """
         dagbag = models.DagBag()
-        dagbag.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
+        fsfetcher = FileSystemDagFetcher(dagbag)
+        fsfetcher.process_file(os.path.join(TEST_DAGS_FOLDER, "test_zip.zip"))
         self.assertTrue(dagbag.get_dag("test_zip_dag"))
 
-    @patch.object(DagModel,'get_current')
-    def test_get_dag_without_refresh(self, mock_dagmodel):
+    def test_get_dag_fetcher(self):
         """
-        Test that, once a DAG is loaded, it doesn't get refreshed again if it
-        hasn't been expired.
+        Test that get_dag_fetcher returns the correct dag fetchers.
         """
-        dag_id = 'example_bash_operator'
+        dagbag = models.DagBag()
+        default_fetcher = get_dag_fetcher(dagbag, '/a/local/path/without/schema/dags')
+        hdfs_fetcher = get_dag_fetcher(dagbag, 'hdfs://host:optional-port/dags')
+        s3_fetcher = get_dag_fetcher(dagbag, 's3://bucket/dags')
+        gcs_fetcher = get_dag_fetcher(dagbag, 'gcs://bucket/dags')
+        git_fetcher = get_dag_fetcher(dagbag, 'git://github.com/apache/airflow.git')
 
-        mock_dagmodel.return_value = DagModel()
-        mock_dagmodel.return_value.last_expired = None
-        mock_dagmodel.return_value.fileloc = 'foo'
-
-        class TestDagBag(models.DagBag):
-            process_file_calls = 0
-            def process_file(self, filepath, only_if_updated=True, safe_mode=True):
-                if 'example_bash_operator.py' == os.path.basename(filepath):
-                    TestDagBag.process_file_calls += 1
-                super(TestDagBag, self).process_file(filepath, only_if_updated, safe_mode)
-
-        dagbag = TestDagBag(include_examples=True)
-        processed_files = dagbag.process_file_calls
-
-        # Should not call process_file agani, since it's already loaded during init.
-        self.assertEqual(1, dagbag.process_file_calls)
-        self.assertIsNotNone(dagbag.get_dag(dag_id))
-        self.assertEqual(1, dagbag.process_file_calls)
+        self.assertIsInstance(default_fetcher, FileSystemDagFetcher)
+        self.assertIsInstance(hdfs_fetcher, HDFSDagFetcher)
+        self.assertIsInstance(s3_fetcher, S3DagFetcher)
+        self.assertIsInstance(gcs_fetcher, GCSDagFetcher)
+        self.assertIsInstance(git_fetcher, GitDagFetcher)
 
     def test_get_dag_fileloc(self):
         """
@@ -996,7 +995,8 @@ class DagBagTest(unittest.TestCase):
         f.flush()
 
         dagbag = models.DagBag(include_examples=False)
-        found_dags = dagbag.process_file(f.name)
+        fsfetcher = FileSystemDagFetcher(dagbag)
+        found_dags = fsfetcher.process_file(f.name)
         return (dagbag, found_dags, f.name)
 
     def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag,
@@ -1301,13 +1301,14 @@ class DagBagTest(unittest.TestCase):
         self.validate_dags(testDag, found_dags, dagbag, should_be_found=False)
         self.assertIn(file_path, dagbag.import_errors)
 
-    def test_process_file_with_none(self):
+    def test_process_local_file_with_none(self):
         """
         test that process_file can handle Nones
         """
         dagbag = models.DagBag(include_examples=True)
+        fsfetcher = FileSystemDagFetcher(dagbag)
 
-        self.assertEqual([], dagbag.process_file(None))
+        self.assertEqual([], fsfetcher.process_file(None))
 
 
 class TaskInstanceTest(unittest.TestCase):
