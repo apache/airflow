@@ -184,9 +184,13 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
 .. autoclass:: airflow.contrib.sensors.emr_step_sensor.EmrStepSensor
 .. autoclass:: airflow.contrib.sensors.file_sensor.FileSensor
-.. autoclass:: airflow.contrib.sensors.ftp_sensor.FtpSensor
-.. autoclass:: airflow.contrib.sensors.gcs_sensor.GcsSensor
-.. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensor
+.. autoclass:: airflow.contrib.sensors.ftp_sensor.FTPSensor
+.. autoclass:: airflow.contrib.sensors.ftp_sensor.FTPSSensor
+.. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectSensor
+.. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStorageObjectUpdatedSensor
+.. autoclass:: airflow.contrib.sensors.gcs_sensor.GoogleCloudStoragePrefixSensor
+.. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorFolder
+.. autoclass:: airflow.contrib.sensors.hdfs_sensor.HdfsSensorRegex
 .. autoclass:: airflow.contrib.sensors.jira_sensor.JiraSensor
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
