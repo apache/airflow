@@ -4286,6 +4286,29 @@ class Variable(Base, LoggingMixin):
         session.flush()
 
 
+    @classmethod
+    @provide_session
+    def delete(cls, key, session=None):
+        try:
+            session.query(Variable).filter(Variable.key == key).delete()
+            session.commit()
+        except Exception as e:
+            session.rollback()
+            logging.warning("Failed to delete key {}".format(key))
+            logging.exception(e)
+
+
+    @classmethod
+    @provide_session
+    def get_keys(cls, session=None):
+        try:
+            keys = {obj.key for obj in session.query(Variable).all()}
+            return keys
+        except Exception as e:
+            logging.warning("Failed to get keys")
+            logging.exception(e)
+
+
 class XCom(Base, LoggingMixin):
     """
     Base class for XCom objects.
