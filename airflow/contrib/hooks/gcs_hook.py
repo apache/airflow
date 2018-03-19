@@ -27,7 +27,7 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
     """
 
     def __init__(self,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None):
         super(GoogleCloudStorageHook, self).__init__(google_cloud_storage_conn_id,
                                                      delegate_to)

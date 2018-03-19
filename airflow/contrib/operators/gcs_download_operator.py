@@ -53,7 +53,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
                  object,
                  filename=None,
                  store_to_xcom_key=None,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

@@ -65,7 +65,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  destination_bucket=None,
                  destination_object=None,
                  move_object=False,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

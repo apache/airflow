@@ -60,7 +60,7 @@ class GoogleCloudStorageListOperator(BaseOperator):
                  bucket,
                  prefix=None,
                  delimiter=None,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

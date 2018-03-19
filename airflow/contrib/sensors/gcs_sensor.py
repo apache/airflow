@@ -28,7 +28,7 @@ class GoogleCloudStorageObjectSensor(BaseSensorOperator):
             self,
             bucket,
             object,  # pylint:disable=redefined-builtin
-            google_cloud_conn_id='google_cloud_storage_default',
+            google_cloud_conn_id='google_cloud_default',
             delegate_to=None,
             *args,
             **kwargs):
@@ -84,7 +84,7 @@ class GoogleCloudStorageObjectUpdatedSensor(BaseSensorOperator):
             bucket,
             object,  # pylint:disable=redefined-builtin
             ts_func=ts_function,
-            google_cloud_conn_id='google_cloud_storage_default',
+            google_cloud_conn_id='google_cloud_default',
             delegate_to=None,
             *args,
             **kwargs):
@@ -135,7 +135,7 @@ class GoogleCloudStoragePrefixSensor(BaseSensorOperator):
         self,
         bucket,
         prefix,
-        google_cloud_conn_id='google_cloud_storage_default',
+        google_cloud_conn_id='google_cloud_default',
         delegate_to=None,
         *args,
         **kwargs):

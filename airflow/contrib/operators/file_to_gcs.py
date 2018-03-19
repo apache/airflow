@@ -36,13 +36,13 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     :type delegate_to: string
     """
     template_fields = ('src', 'dst', 'bucket')
-    
+
     @apply_defaults
     def __init__(self,
                  src,
                  dst,
                  bucket,
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  mime_type='application/octet-stream',
                  delegate_to=None,
                  *args,
