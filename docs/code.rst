@@ -310,6 +310,7 @@ interface when possible and acting as building blocks for operators.
       HiveMetastoreHook,
       HiveServer2Hook
 .. autoclass:: airflow.hooks.http_hook.HttpHook
+.. autoclass:: airflow.hooks.druid_hook.DruidDbApiHook
 .. autoclass:: airflow.hooks.druid_hook.DruidHook
 .. autoclass:: airflow.hooks.jdbc_hook.JdbcHook
 .. autoclass:: airflow.hooks.mssql_hook.MsSqlHook
