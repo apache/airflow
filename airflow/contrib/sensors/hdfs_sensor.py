@@ -25,6 +25,7 @@ class HdfsSensorRegex(HdfsSensor):
     def poke(self, context):
         """
         poke matching files in a directory with self.regex
+
         :return: Bool depending on the search criteria
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
@@ -53,6 +54,7 @@ class HdfsSensorFolder(HdfsSensor):
     def poke(self, context):
         """
         poke for a non empty directory
+
         :return: Bool depending on the search criteria
         """
         sb = self.hook(self.hdfs_conn_id).get_conn()
