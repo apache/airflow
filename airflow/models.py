@@ -4285,7 +4285,6 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(key=key, val=stored_value))
         session.flush()
 
-
     @classmethod
     @provide_session
     def delete(cls, key, session=None):
@@ -4297,7 +4296,6 @@ class Variable(Base, LoggingMixin):
             logging.warning("Failed to delete key {}".format(key))
             logging.exception(e)
 
-
     @classmethod
     @provide_session
     def get_keys(cls, session=None):
@@ -4305,7 +4303,7 @@ class Variable(Base, LoggingMixin):
             keys = {obj.key for obj in session.query(Variable).all()}
             return keys
         except Exception as e:
-            logging.warning("Failed to get keys")
+            logging.warning("Failed to retrieve variables keys")
             logging.exception(e)
 
 
