@@ -67,7 +67,7 @@ class GoogleCloudStorageCopyOperator(BaseOperator):
                  source_files_delimiter=None,
                  destination_bucket=None,
                  destination_directory='',
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):
