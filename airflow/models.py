@@ -4285,6 +4285,7 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(key=key, val=stored_value))
         session.flush()
 
+
     @classmethod
     @provide_session
     def delete(cls, key, session=None):
@@ -4295,6 +4296,7 @@ class Variable(Base, LoggingMixin):
             session.rollback()
             logging.warning("Failed to delete key {}".format(key))
             logging.exception(e)
+
 
     @classmethod
     @provide_session
