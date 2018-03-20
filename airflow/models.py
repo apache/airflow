@@ -4285,24 +4285,22 @@ class Variable(Base, LoggingMixin):
         session.add(Variable(key=key, val=stored_value))
         session.flush()
 
-
     @classmethod
     @provide_session
     def delete(cls, key, session=None):
         try:
-            session.query(Variable).filter(Variable.key == key).delete()
+            session.query(cls).filter(cls.key == key).delete()
             session.commit()
         except Exception as e:
             session.rollback()
             logging.warning("Failed to delete key {}".format(key))
             logging.exception(e)
 
-
     @classmethod
     @provide_session
     def get_keys(cls, session=None):
         try:
-            keys = {obj.key for obj in session.query(Variable).all()}
+            keys = {obj.key for obj in session.query(cls).all()}
             return keys
         except Exception as e:
             logging.warning("Failed to retrieve variables keys")
