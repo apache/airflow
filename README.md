@@ -122,6 +122,7 @@ Currently **officially** using Airflow:
 1. [Data Reply](https://www.datareply.co.uk/) [[@kaxil](https://github.com/kaxil)]
 1. [Digital First Media](http://www.digitalfirstmedia.com/) [[@duffn](https://github.com/duffn) & [@mschmo](https://github.com/mschmo) & [@seanmuth](https://github.com/seanmuth)]
 1. [DocuTAP](https://www.docutap.com/) [[@jshvrsn](https://github.com/jshvrsn) & [@lhvphan](https://github.com/lhvphan) & [@cloneluke](https://github.com/cloneluke)]
+1. [Dotmodus](http://dotmodus.com) [[@dannylee12](https://github.com/dannylee12)]
 1. [Drivy](https://www.drivy.com) [[@AntoineAugusti](https://github.com/AntoineAugusti)]
 1. [Easy Taxi](http://www.easytaxi.com/) [[@caique-lima](https://github.com/caique-lima) & [@WesleyBatista](https://github.com/WesleyBatista) & [@diraol](https://github.com/diraol)]
 1. [eRevalue](https://www.datamaran.com) [[@hamedhsn](https://github.com/hamedhsn)]
@@ -228,7 +229,6 @@ Currently **officially** using Airflow:
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
-1. [dotmodus](http://dotmodus.com) [@dannylee12](https://github.com/dannylee12)
 
 ## Links
 
