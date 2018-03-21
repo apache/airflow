@@ -150,6 +150,10 @@ class WorkerConfiguration:
             limit_memory=kube_executor_config.limit_memory,
             limit_cpu=kube_executor_config.limit_cpu
         )
+        gcp_sa_key = kube_executor_config.gcp_service_account_key
+        annotations = {
+            "iam.cloud.google.com/service-account": gcp_sa_key
+        } if gcp_sa_key else {}
 
         return Pod(
             namespace=namespace,
@@ -170,5 +174,6 @@ class WorkerConfiguration:
             init_containers=worker_init_container_spec,
             volumes=volumes,
             volume_mounts=volume_mounts,
-            resources=resources
+            resources=resources,
+            annotations=annotations
         )

@@ -57,4 +57,5 @@ spec:
         self.extract_service_account_name(pod, req)
         self.extract_init_containers(pod, req)
         self.extract_image_pull_secrets(pod, req)
+        self.extract_annotations(pod, req)
         return req

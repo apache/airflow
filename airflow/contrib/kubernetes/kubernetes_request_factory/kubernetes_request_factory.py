@@ -64,6 +64,12 @@ class KubernetesRequestFactory:
             req['metadata']['labels'][k] = v
 
     @staticmethod
+    def extract_annotations(pod, req):
+        req['metadata']['annotations'] = req['metadata'].get('annotations', {})
+        for k, v in six.iteritems(pod.annotations):
+            req['metadata']['annotations'][k] = v
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 
