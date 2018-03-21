@@ -14,53 +14,48 @@
 # limitations under the License.
 
 from __future__ import print_function
-import logging
-
-import reprlib
-
-import os
-import socket
-import subprocess
-import textwrap
-from importlib import import_module
 
 import argparse
+import json
+import logging
+import os
+import re
+import reprlib
+import signal
+import subprocess
+import sys
+import textwrap
+import threading
+import time
+import traceback
 from builtins import input
 from collections import namedtuple
-from airflow.utils.timezone import parse as parsedate
-import json
-from tabulate import tabulate
+from importlib import import_module
+from urllib.parse import urlunparse
 
 import daemon
-from daemon.pidfile import TimeoutPIDLockFile
-import signal
-import sys
-import threading
-import traceback
-import time
 import psutil
-import re
-from urllib.parse import urlunparse
+from daemon.pidfile import TimeoutPIDLockFile
+from sqlalchemy import func
+from sqlalchemy.orm import exc
+from tabulate import tabulate
 
 import airflow
 from airflow import api
-from airflow import jobs, settings
 from airflow import configuration as conf
+from airflow import jobs, settings
 from airflow.exceptions import AirflowException
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
                             Connection, DAG)
-
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
-from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
                                              redirect_stdout)
+from airflow.utils.net import get_hostname
+from airflow.utils.timezone import parse as parsedate
 from airflow.www.app import (cached_app, create_app)
-
-from sqlalchemy import func
-from sqlalchemy.orm import exc
 
 api.load_auth()
 api_module = import_module(conf.get('cli', 'api_client'))
@@ -646,6 +641,14 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
                             get_num_workers_running(gunicorn_master_proc))
 
     while True:
+        # gunicorn_master_proc can be a Popen or Process object, so
+        # use a new Process handle for checking status on either.
+        proc_handle = psutil.Process(gunicorn_master_proc.pid)
+        if not proc_handle.is_running() or \
+                proc_handle.status in ['zombie', 'dead', 'stopped']:
+            raise AirflowException('gunicorn master process not running.'
+                                   ' Cannot start workers.')
+
         num_workers_running = get_num_workers_running(gunicorn_master_proc)
         num_ready_workers_running = get_num_ready_workers_running(gunicorn_master_proc)
 
