@@ -13,11 +13,13 @@
 # limitations under the License.
 #
 
+import ntpath
+import os
 import time
 import uuid
 
-
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
+from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -884,6 +886,33 @@ class DataProcPySparkOperator(BaseOperator):
     template_fields = ['arguments', 'job_name', 'cluster_name']
     ui_color = '#0273d4'
 
+    @staticmethod
+    def _generate_temp_filename(filename):
+        dt = time.strftime('%Y%m%d%H%M%S')
+        return "{}_{}_{}".format(dt, str(uuid.uuid1())[:8], ntpath.basename(filename))
+
+    """
+    Upload a local file to a Google Cloud Storage bucket
+    """
+    def _upload_file_temp(self, bucket, local_file):
+        temp_filename = self._generate_temp_filename(local_file)
+        if not bucket:
+            raise AirflowException(
+                "If you want Airflow to upload the local file to a temporary bucket, set "
+                "the 'temp_bucket' key in the connection string")
+
+        self.log.info("Uploading %s to %s", local_file, temp_filename)
+
+        GoogleCloudStorageHook(
+            google_cloud_storage_conn_id=self.gcp_conn_id
+        ).upload(
+            bucket=bucket,
+            object=temp_filename,
+            mime_type='application/x-python',
+            filename=local_file
+        )
+        return "gs://{}/{}".format(bucket, temp_filename)
+
     @apply_defaults
     def __init__(
             self,
@@ -917,12 +946,24 @@ class DataProcPySparkOperator(BaseOperator):
         self.region = region
 
     def execute(self, context):
-        hook = DataProcHook(gcp_conn_id=self.gcp_conn_id,
-                            delegate_to=self.delegate_to)
-        job = hook.create_job_template(self.task_id, self.cluster_name, "pysparkJob",
-                                       self.dataproc_properties)
+        hook = DataProcHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
+        job = hook.create_job_template(
+            self.task_id, self.cluster_name, "pysparkJob", self.dataproc_properties)
 
+        #  Check if the file is local, if that is the case, upload it to a bucket
+        if os.path.isfile(self.main):
+            cluster_info = hook.get_cluster(
+                project_id=hook.project_id,
+                region=self.region,
+                cluster_name=self.cluster_name
+            )
+            bucket = cluster_info['config']['configBucket']
+            self.main = self._upload_file_temp(bucket, self.main)
         job.set_python_main(self.main)
+
         job.add_args(self.arguments)
         job.add_jar_file_uris(self.dataproc_jars)
         job.add_archive_uris(self.archives)
