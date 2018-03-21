@@ -201,6 +201,13 @@ class DataProcHook(GoogleCloudBaseHook):
         http_authorized = self._authorize()
         return build('dataproc', self.api_version, http=http_authorized)
 
+    def get_cluster(self, project_id, region, cluster_name):
+        return self.get_conn().projects().regions().clusters().get(
+            projectId=project_id,
+            region=region,
+            clusterName=cluster_name
+        ).execute(num_retries=5)
+
     def submit(self, project_id, job, region='global'):
         submitted = _DataProcJob(self.get_conn(), project_id, job, region)
         if not submitted.wait_for_done():
