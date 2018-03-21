@@ -14,14 +14,14 @@
 #
 
 import unittest
-
-from mock import patch, Mock, MagicMock
 from time import sleep
 
 import psutil
+from mock import patch, Mock, MagicMock
 
 from airflow import settings
-from airflow.bin.cli import get_num_ready_workers_running
+from airflow.bin.cli import get_num_ready_workers_running, restart_workers
+from airflow.exceptions import AirflowException
 
 
 class TestCLI(unittest.TestCase):
@@ -69,3 +69,17 @@ class TestCLI(unittest.TestCase):
             "webserver terminated with return code {} in debug mode".format(return_code))
         p.terminate()
         p.wait()
+
+    def test_restart_workers_gunicorn_failure(self):
+
+        def run_restart_workers_test():
+            with patch('psutil.Process', return_value=self.process):
+                with self.assertRaises(AirflowException):
+                    restart_workers(self.gunicorn_master_proc, 0)
+
+        self.process.is_running.return_value = False
+
+        self.process.is_running.return_value = True
+        for status in ['zombie', 'dead', 'stopped']:
+            self.process.status = status
+            run_restart_workers_test()
