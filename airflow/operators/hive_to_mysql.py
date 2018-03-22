@@ -25,7 +25,7 @@ class HiveToMySqlTransfer(BaseOperator):
     into memory before being pushed to MySQL, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against the MySQL database
+    :param sql: SQL query to execute against Hive server
     :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database
