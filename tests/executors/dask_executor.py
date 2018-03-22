@@ -28,7 +28,7 @@ try:
     SKIP_DASK = False
     from distributed import LocalCluster
     # utility functions imported from the dask testing suite to instantiate a test cluster for tls tests
-    from distributed.utils_test import get_cert, cluster, tls_security
+    from distributed.utils_test import get_cert, cluster as dask_testing_cluster, tls_security
 except ImportError:
     SKIP_DASK = True
 
@@ -41,16 +41,9 @@ SKIP_DASK = True
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class DaskExecutorTest(unittest.TestCase):
+class BaseDaskTest(unittest.TestCase):
 
-    def setUp(self):
-        self.dagbag = DagBag(include_examples=True)
-        self.cluster = LocalCluster()
-
-    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
-    def test_dask_executor_functions(self):
-        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
-
+    def assert_tasks_on_executor(self, executor):
         # start the executor
         executor.start()
 
@@ -81,6 +74,18 @@ class DaskExecutorTest(unittest.TestCase):
         self.assertTrue(success_future.exception() is None)
         self.assertTrue(fail_future.exception() is not None)
 
+
+class DaskExecutorTest(BaseDaskTest):
+
+    def setUp(self):
+        self.dagbag = DagBag(include_examples=True)
+        self.cluster = LocalCluster()
+
+    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
+    def test_dask_executor_functions(self):
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        self.assert_tasks_on_executor(executor)
+
     @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     def test_backfill_integration(self):
         """
@@ -109,18 +114,18 @@ class DaskExecutorTest(unittest.TestCase):
                     cluster_address=self.cluster.scheduler_address))
             job.run()
 
-    def tearDown(self):        
+    def tearDown(self):
         self.cluster.close(timeout=5)
 
 
-class DaskExecutorTLSTest(unittest.TestCase):
+class DaskExecutorTLSTest(BaseDaskTest):
 
     def setUp(self):
         self.dagbag = DagBag(include_examples=True)
-        
+
     @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
     def test_tls(self):
-        with cluster(
+        with dask_testing_cluster(
                 worker_kwargs={'security': tls_security()},
                 scheduler_kwargs={'security': tls_security()}) as (s, workers):
 
@@ -131,35 +136,7 @@ class DaskExecutorTLSTest(unittest.TestCase):
             try:
                 executor = DaskExecutor(cluster_address=s['address'])
 
-                # start the executor
-                executor.start()
-
-                success_command = 'echo 1'
-                fail_command = 'exit 1'
-
-                executor.execute_async(key='success', command=success_command)
-                executor.execute_async(key='fail', command=fail_command)
-
-                success_future = next(
-                    k for k, v in executor.futures.items() if v == 'success')
-                fail_future = next(
-                    k for k, v in executor.futures.items() if v == 'fail')
-
-                # wait for the futures to execute, with a timeout
-                timeout = datetime.datetime.now() + datetime.timedelta(seconds=30)
-                while not (success_future.done() and fail_future.done()):
-                    if datetime.datetime.now() > timeout:
-                        raise ValueError(
-                            'The futures should have finished; there is probably '
-                            'an error communciating with the Dask cluster.')
-
-                # both tasks should have finished
-                self.assertTrue(success_future.done())
-                self.assertTrue(fail_future.done())
-
-                # check task exceptions
-                self.assertTrue(success_future.exception() is None)
-                self.assertTrue(fail_future.exception() is not None)
+                self.assert_tasks_on_executor(executor)
 
                 executor.end()
                 # close the executor, the cluster context manager expects all listeners and tasks to
