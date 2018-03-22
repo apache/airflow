@@ -40,7 +40,6 @@ which airflow > /dev/null || python setup.py develop
 
 echo "Initializing the DB"
 yes | airflow resetdb
-airflow initdb
 
 if [ "${TRAVIS}" ]; then
     if [ -z "$nose_args" ]; then
