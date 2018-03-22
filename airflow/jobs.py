@@ -1105,7 +1105,10 @@ class SchedulerJob(BaseJob):
                     )
                     open_slots = 0
                 else:
-                    open_slots = pools[pool].open_slots(session=session)
+                    user_pool = pools.get(pool)
+                    # If user specified task_instance pool not exists in model.Pool,
+                    # In this case scheduler should skip the task.
+                    open_slots = user_pool.open_slots(session=session) if user_pool else 0
 
             num_queued = len(task_instances)
             self.log.info(
