@@ -24,8 +24,13 @@ from datetime import timedelta
 try:
     from airflow.executors.dask_executor import DaskExecutor
     from distributed import LocalCluster
-    # utility functions imported from the dask testing suite to instantiate a test cluster for tls tests
-    from distributed.utils_test import get_cert, cluster as dask_testing_cluster, tls_security
+    # utility functions imported from the dask testing suite to instantiate a test
+    # cluster for tls tests
+    from distributed.utils_test import (
+        get_cert,
+        cluster as dask_testing_cluster,
+        tls_security,
+    )
     SKIP_DASK = False
 except ImportError:
     SKIP_DASK = True
@@ -127,7 +132,8 @@ class DaskExecutorTLSTest(BaseDaskTest):
                 worker_kwargs={'security': tls_security()},
                 scheduler_kwargs={'security': tls_security()}) as (s, workers):
 
-            # These use test certs that ship with dask/distributed and should not be used in production
+            # These use test certs that ship with dask/distributed and should not be
+            #  used in production
             configuration.set('dask', 'tls_ca', get_cert('tls-ca-cert.pem'))
             configuration.set('dask', 'tls_cert', get_cert('tls-key-cert.pem'))
             configuration.set('dask', 'tls_key', get_cert('tls-key.pem'))
@@ -137,8 +143,8 @@ class DaskExecutorTLSTest(BaseDaskTest):
                 self.assert_tasks_on_executor(executor)
 
                 executor.end()
-                # close the executor, the cluster context manager expects all listeners and tasks to
-                # have ended.
+                # close the executor, the cluster context manager expects all listeners
+                # and tasks to have completed.
                 executor.client.close()
             finally:
                 configuration.set('dask', 'tls_ca', '')
