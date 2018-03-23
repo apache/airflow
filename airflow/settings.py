@@ -32,6 +32,7 @@ from airflow.utils.sqlalchemy import setup_event_handlers
 
 log = logging.getLogger(__name__)
 
+RBAC = conf.getboolean('webserver', 'rbac')
 
 TIMEZONE = pendulum.timezone('UTC')
 try:
@@ -84,7 +85,6 @@ ___  ___ |  / _  /   _  __/ _  / / /_/ /_ |/ |/ /
  _/_/  |_/_/  /_/    /_/    /_/  \____/____/|__/
  """
 
-BASE_LOG_URL = '/admin/airflow/log'
 LOGGING_LEVEL = logging.INFO
 
 # the prefix to append to gunicorn worker processes after init

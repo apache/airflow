@@ -65,10 +65,6 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
         keyfile_dict = self._get_field('keyfile_dict', False)
         scope = self._get_field('scope', False)
 
-        kwargs = {}
-        if self.delegate_to:
-            kwargs['sub'] = self.delegate_to
-
         if not key_path and not keyfile_dict:
             self.log.info('Getting connection using `gcloud auth` user, '
                           'since no key file is defined for hook.')
@@ -106,7 +102,9 @@ class GoogleCloudBaseHook(BaseHook, LoggingMixin):
                     .from_json_keyfile_dict(keyfile_dict, scopes)
             except json.decoder.JSONDecodeError:
                 raise AirflowException('Invalid key JSON.')
-        return credentials
+
+        return credentials.create_delegated(self.delegate_to) \
+            if self.delegate_to else credentials
 
     def _get_access_token(self):
         """

@@ -280,8 +280,9 @@ class MLEngineModelOperator(BaseOperator):
     :type model: dict
 
     :param operation: The operation to perform. Available operations are:
-        'create': Creates a new model as provided by the `model` parameter.
-        'get': Gets a particular model where the name is specified in `model`.
+
+        * ``create``: Creates a new model as provided by the `model` parameter.
+        * ``get``: Gets a particular model where the name is specified in `model`.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
@@ -350,10 +351,12 @@ class MLEngineVersionOperator(BaseOperator):
     :type version: dict
 
     :param operation: The operation to perform. Available operations are:
+
         *   ``create``: Creates a new version in the model specified by `model_name`,
             in which case the `version` parameter should contain all the
             information to create that version
             (e.g. `name`, `deploymentUrl`).
+
         *   ``get``: Gets full information of a particular version in the model
             specified by `model_name`.
             The name of the version should be specified in the `version`

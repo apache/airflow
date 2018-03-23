@@ -22,7 +22,7 @@ from future.standard_library import install_aliases
 from builtins import str
 from builtins import object, bytes
 import copy
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from datetime import timedelta
 
 import dill
@@ -39,7 +39,6 @@ import os
 import pickle
 import re
 import signal
-import socket
 import sys
 import textwrap
 import traceback
@@ -64,7 +63,9 @@ import six
 from airflow import settings, utils
 from airflow.executors import GetDefaultExecutor, LocalExecutor
 from airflow import configuration
-from airflow.exceptions import AirflowException, AirflowSkipException, AirflowTaskTimeout
+from airflow.exceptions import (
+    AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout
+)
 from airflow.dag.base_dag import BaseDag, BaseDagBag
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
@@ -84,6 +85,7 @@ from airflow.utils.state import State
 from airflow.utils.timeout import timeout
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
+from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 install_aliases()
@@ -121,7 +123,6 @@ else:
 
 # Used by DAG context_managers
 _CONTEXT_MANAGER_DAG = None
-
 
 def clear_task_instances(tis, session, activate_dag_runs=True, dag=None):
     """
@@ -182,6 +183,11 @@ class DagBag(BaseDagBag, LoggingMixin):
         with airflow or not
     :type include_examples: bool
     """
+
+    # static class variables to detetct dag cycle
+    CYCLE_NEW = 0
+    CYCLE_IN_PROGRESS = 1
+    CYCLE_DONE = 2
 
     def __init__(
             self,
@@ -252,8 +258,10 @@ class DagBag(BaseDagBag, LoggingMixin):
         """
         found_dags = []
 
+        # if the source file no longer exists in the DB or in the filesystem,
+        # return an empty list
         # todo: raise exception?
-        if not os.path.isfile(filepath):
+        if filepath is None or not os.path.isfile(filepath):
             return found_dags
 
         try:
@@ -333,10 +341,17 @@ class DagBag(BaseDagBag, LoggingMixin):
                         dag.full_filepath = filepath
                         if dag.fileloc != filepath:
                             dag.fileloc = filepath
-                    dag.is_subdag = False
-                    self.bag_dag(dag, parent_dag=dag, root_dag=dag)
-                    found_dags.append(dag)
-                    found_dags += dag.subdags
+                    try:
+                        dag.is_subdag = False
+                        self.bag_dag(dag, parent_dag=dag, root_dag=dag)
+                        found_dags.append(dag)
+                        found_dags += dag.subdags
+                    except AirflowDagCycleException as cycle_exception:
+                        self.log.exception("Failed to bag_dag: %s", dag.full_filepath)
+                        self.import_errors[dag.full_filepath] = str(cycle_exception)
+                        self.file_last_changed[dag.full_filepath] = \
+                            file_last_changed_on_disk
+
 
         self.file_last_changed[filepath] = file_last_changed_on_disk
         return found_dags
@@ -379,20 +394,39 @@ class DagBag(BaseDagBag, LoggingMixin):
     def bag_dag(self, dag, parent_dag, root_dag):
         """
         Adds the DAG into the bag, recurses into sub dags.
+        Throws AirflowDagCycleException if a cycle is detected in this dag or its subdags
         """
-        self.dags[dag.dag_id] = dag
+
+        dag.test_cycle()  # throws if a task cycle is found
+
         dag.resolve_template_files()
         dag.last_loaded = timezone.utcnow()
 
         for task in dag.tasks:
             settings.policy(task)
 
-        for subdag in dag.subdags:
-            subdag.full_filepath = dag.full_filepath
-            subdag.parent_dag = dag
-            subdag.is_subdag = True
-            self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
-        self.log.debug('Loaded DAG {dag}'.format(**locals()))
+        subdags = dag.subdags
+
+        try:
+            for subdag in subdags:
+                subdag.full_filepath = dag.full_filepath
+                subdag.parent_dag = dag
+                subdag.is_subdag = True
+                self.bag_dag(subdag, parent_dag=dag, root_dag=root_dag)
+
+            self.dags[dag.dag_id] = dag
+            self.log.debug('Loaded DAG {dag}'.format(**locals()))
+        except AirflowDagCycleException as cycle_exception:
+            # There was an error in bagging the dag. Remove it from the list of dags
+            self.log.exception('Exception bagging dag: {dag.dag_id}'.format(**locals()))
+            # Only necessary at the root level since DAG.subdags automatically
+            # performs DFS to search through all subdags
+            if dag == root_dag:
+                for subdag in subdags:
+                    if subdag.dag_id in self.dags:
+                        del self.dags[subdag.dag_id]
+            raise cycle_exception
+
 
     def collect_dags(
             self,
@@ -476,7 +510,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             dag_folder=self.dag_folder,
             duration=sum([o.duration for o in stats]),
             dag_num=sum([o.dag_num for o in stats]),
-            task_num=sum([o.dag_num for o in stats]),
+            task_num=sum([o.task_num for o in stats]),
             table=pprinttable(stats),
         )
 
@@ -546,6 +580,7 @@ class Connection(Base, LoggingMixin):
         ('hive_metastore', 'Hive Metastore Thrift',),
         ('hiveserver2', 'Hive Server 2 Thrift',),
         ('jdbc', 'Jdbc Connection',),
+        ('jenkins', 'Jenkins'),
         ('mysql', 'MySQL',),
         ('postgres', 'Postgres',),
         ('oracle', 'Oracle',),
@@ -662,8 +697,8 @@ class Connection(Base, LoggingMixin):
                 from airflow.hooks.mysql_hook import MySqlHook
                 return MySqlHook(mysql_conn_id=self.conn_id)
             elif self.conn_type == 'google_cloud_platform':
-                from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
-                return GoogleCloudBaseHook(gcp_conn_id=self.conn_id)
+                from airflow.contrib.hooks.bigquery_hook import BigQueryHook
+                return BigQueryHook(bigquery_conn_id=self.conn_id)
             elif self.conn_type == 'postgres':
                 from airflow.hooks.postgres_hook import PostgresHook
                 return PostgresHook(postgres_conn_id=self.conn_id)
@@ -779,7 +814,7 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer)
+    job_id = Column(Integer, index=True)
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
@@ -1012,26 +1047,43 @@ class TaskInstance(Base, LoggingMixin):
     def log_url(self):
         iso = quote(self.execution_date.isoformat())
         BASE_URL = configuration.get('webserver', 'BASE_URL')
-        return BASE_URL + (
-            "/admin/airflow/log"
-            "?dag_id={self.dag_id}"
-            "&task_id={self.task_id}"
-            "&execution_date={iso}"
-        ).format(**locals())
+        if settings.RBAC:
+            return BASE_URL + (
+                "/log/list/"
+                "?_flt_3_dag_id={self.dag_id}"
+                "&_flt_3_task_id={self.task_id}"
+                "&_flt_3_execution_date={iso}"
+            ).format(**locals())
+        else:
+            return BASE_URL + (
+                "/admin/airflow/log"
+                "?dag_id={self.dag_id}"
+                "&task_id={self.task_id}"
+                "&execution_date={iso}"
+            ).format(**locals())
 
     @property
     def mark_success_url(self):
         iso = quote(self.execution_date.isoformat())
         BASE_URL = configuration.get('webserver', 'BASE_URL')
-        return BASE_URL + (
-            "/admin/airflow/action"
-            "?action=success"
-            "&task_id={self.task_id}"
-            "&dag_id={self.dag_id}"
-            "&execution_date={iso}"
-            "&upstream=false"
-            "&downstream=false"
-        ).format(**locals())
+        if settings.RBAC:
+            return BASE_URL + (
+                "/success"
+                "?task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
+                "&execution_date={iso}"
+                "&upstream=false"
+                "&downstream=false"
+            ).format(**locals())
+        else:
+            return BASE_URL + (
+                "/admin/airflow/success"
+                "?task_id={self.task_id}"
+                "&dag_id={self.dag_id}"
+                "&execution_date={iso}"
+                "&upstream=false"
+                "&downstream=false"
+            ).format(**locals())
 
     @provide_session
     def current_state(self, session=None):
@@ -1363,7 +1415,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_db(session=session, lock_for_update=True)
         self.job_id = job_id
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.operator = task.__class__.__name__
 
         if not ignore_all_deps and not ignore_ti_state and self.state == State.SUCCESS:
@@ -1480,7 +1532,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = test_mode
         self.refresh_from_db(session=session)
         self.job_id = job_id
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.operator = task.__class__.__name__
 
         context = {}
@@ -2283,8 +2335,8 @@ class BaseOperator(LoggingMixin):
         self.task_concurrency = task_concurrency
 
         # Private attributes
-        self._upstream_task_ids = []
-        self._downstream_task_ids = []
+        self._upstream_task_ids = set()
+        self._downstream_task_ids = set()
 
         if not dag and _CONTEXT_MANAGER_DAG:
             dag = _CONTEXT_MANAGER_DAG
@@ -2696,21 +2748,6 @@ class BaseOperator(LoggingMixin):
         return list(map(lambda task_id: self._dag.task_dict[task_id],
                         self.get_flat_relative_ids(upstream)))
 
-    def detect_downstream_cycle(self, task=None):
-        """
-        When invoked, this routine will raise an exception if a cycle is
-        detected downstream from self. It is invoked when tasks are added to
-        the DAG to detect cycles.
-        """
-        if not task:
-            task = self
-        for t in self.get_direct_relatives():
-            if task is t:
-                msg = "Cycle detected in DAG. Faulty task: {0}".format(task)
-                raise AirflowException(msg)
-            else:
-                t.detect_downstream_cycle(task=task)
-        return False
 
     def run(
             self,
@@ -2768,13 +2805,13 @@ class BaseOperator(LoggingMixin):
     def task_type(self):
         return self.__class__.__name__
 
-    def append_only_new(self, l, item):
-        if any([item is t for t in l]):
+    def add_only_new(self, item_set, item):
+        if item in item_set:
             raise AirflowException(
                 'Dependency {self}, {item} already registered'
                 ''.format(**locals()))
         else:
-            l.append(item)
+            item_set.add(item)
 
     def _set_relatives(self, task_or_task_list, upstream=False):
         try:
@@ -2790,7 +2827,7 @@ class BaseOperator(LoggingMixin):
 
         # relationships can only be set if the tasks share a single DAG. Tasks
         # without a DAG are assigned to that DAG.
-        dags = {t._dag.dag_id: t.dag for t in [self] + task_list if t.has_dag()}
+        dags = {t._dag.dag_id: t._dag for t in [self] + task_list if t.has_dag()}
 
         if len(dags) > 1:
             raise AirflowException(
@@ -2811,13 +2848,11 @@ class BaseOperator(LoggingMixin):
             if dag and not task.has_dag():
                 task.dag = dag
             if upstream:
-                task.append_only_new(task._downstream_task_ids, self.task_id)
-                self.append_only_new(self._upstream_task_ids, task.task_id)
+                task.add_only_new(task._downstream_task_ids, self.task_id)
+                self.add_only_new(self._upstream_task_ids, task.task_id)
             else:
-                self.append_only_new(self._downstream_task_ids, task.task_id)
-                task.append_only_new(task._upstream_task_ids, self.task_id)
-
-        self.detect_downstream_cycle()
+                self.add_only_new(self._downstream_task_ids, task.task_id)
+                task.add_only_new(task._upstream_task_ids, self.task_id)
 
     def set_downstream(self, task_or_task_list):
         """
@@ -3150,6 +3185,7 @@ class DAG(BaseDag, LoggingMixin):
     def following_schedule(self, dttm):
         """
         Calculates the following schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
@@ -3164,6 +3200,7 @@ class DAG(BaseDag, LoggingMixin):
     def previous_schedule(self, dttm):
         """
         Calculates the previous schedule for this dag in local time
+
         :param dttm: utc datetime
         :return: utc datetime
         """
@@ -3328,7 +3365,6 @@ class DAG(BaseDag, LoggingMixin):
         TI = TaskInstance
         qry = session.query(func.count(TI.task_id)).filter(
             TI.dag_id == self.dag_id,
-            TI.task_id.in_(self.task_ids),
             TI.state == State.RUNNING,
         )
         return qry.scalar() >= self.concurrency
@@ -3725,10 +3761,9 @@ class DAG(BaseDag, LoggingMixin):
         for t in dag.tasks:
             # Removing upstream/downstream references to tasks that did not
             # made the cut
-            t._upstream_task_ids = [
-                tid for tid in t._upstream_task_ids if tid in dag.task_ids]
-            t._downstream_task_ids = [
-                tid for tid in t._downstream_task_ids if tid in dag.task_ids]
+            t._upstream_task_ids = t._upstream_task_ids.intersection(dag.task_dict.keys())
+            t._downstream_task_ids = t._downstream_task_ids.intersection(
+                dag.task_dict.keys())
 
         if len(dag.tasks) < len(self.tasks):
             dag.partial = True
@@ -3822,11 +3857,10 @@ class DAG(BaseDag, LoggingMixin):
                 'exception.'.format(task.task_id),
                 category=PendingDeprecationWarning)
         else:
-            self.tasks.append(task)
             self.task_dict[task.task_id] = task
             task.dag = self
 
-        self.task_count = len(self.tasks)
+        self.task_count = len(self.task_dict)
 
     def add_tasks(self, tasks):
         """
@@ -4074,6 +4108,42 @@ class DAG(BaseDag, LoggingMixin):
                 qry = qry.filter(TaskInstance.state.in_(states))
         return qry.scalar()
 
+    def test_cycle(self):
+        '''
+        Check to see if there are any cycles in the DAG. Returns False if no cycle found,
+        otherwise raises exception.
+        '''
+
+        # default of int is 0 which corresponds to CYCLE_NEW
+        visit_map = defaultdict(int)
+        for task_id in self.task_dict.keys():
+            # print('starting %s' % task_id)
+            if visit_map[task_id] == DagBag.CYCLE_NEW:
+                self._test_cycle_helper(visit_map, task_id)
+        return False
+
+    def _test_cycle_helper(self, visit_map, task_id):
+        '''
+        Checks if a cycle exists from the input task using DFS traversal
+        '''
+
+        # print('Inspecting %s' % task_id)
+        if visit_map[task_id] == DagBag.CYCLE_DONE:
+            return False
+
+        visit_map[task_id] = DagBag.CYCLE_IN_PROGRESS
+
+        task = self.task_dict[task_id]
+        for descendant_id in task.get_direct_relative_ids():
+            if visit_map[descendant_id] == DagBag.CYCLE_IN_PROGRESS:
+                msg = "Cycle detected in DAG. Faulty task: {0} to {1}".format(
+                    task_id, descendant_id)
+                raise AirflowDagCycleException(msg)
+            else:
+                self._test_cycle_helper(visit_map, descendant_id)
+
+        visit_map[task_id] = DagBag.CYCLE_DONE
+
 
 class Chart(Base):
     __tablename__ = "chart"
@@ -4144,19 +4214,20 @@ class Variable(Base, LoggingMixin):
         return '{} : {}'.format(self.key, self._val)
 
     def get_val(self):
+        log = LoggingMixin().log
         if self._val and self.is_encrypted:
             try:
                 fernet = get_fernet()
             except:
-                raise AirflowException(
-                    "Can't decrypt _val for key={}, FERNET_KEY configuration \
-                    missing".format(self.key))
+                log.error("Can't decrypt _val for key={}, FERNET_KEY "
+                          "configuration missing".format(self.key))
+                return None
             try:
                 return fernet.decrypt(bytes(self._val, 'utf-8')).decode()
             except:
-                raise AirflowException(
-                    "Can't decrypt _val for key={}, invalid token or value"
-                    .format(self.key))
+                log.error("Can't decrypt _val for key={}, invalid token "
+                          "or value".format(self.key))
+                return None
         else:
             return self._val
 
@@ -4226,7 +4297,7 @@ class Variable(Base, LoggingMixin):
         if serialize_json:
             stored_value = json.dumps(value)
         else:
-            stored_value = value
+            stored_value = str(value)
 
         session.query(cls).filter(cls.key == key).delete()
         session.add(Variable(key=key, val=stored_value))
@@ -4852,15 +4923,30 @@ class DagRun(Base, LoggingMixin):
         dag = self.get_dag()
         tis = self.get_task_instances(session=session)
 
-        # check for removed tasks
+        # check for removed or restored tasks
         task_ids = []
         for ti in tis:
             task_ids.append(ti.task_id)
+            task = None
             try:
-                dag.get_task(ti.task_id)
+                task = dag.get_task(ti.task_id)
             except AirflowException:
-                if self.state is not State.RUNNING and not dag.partial:
+                if ti.state == State.REMOVED:
+                    pass  # ti has already been removed, just ignore it
+                elif self.state is not State.RUNNING and not dag.partial:
+                    self.log.warning("Failed to get task '{}' for dag '{}'. "
+                                     "Marking it as removed.".format(ti, dag))
+                    Stats.incr(
+                        "task_removed_from_dag.{}".format(dag.dag_id), 1, 1)
                     ti.state = State.REMOVED
+
+            is_task_in_dag = task is not None
+            should_restore_task = is_task_in_dag and ti.state == State.REMOVED
+            if should_restore_task:
+                self.log.info("Restoring task '{}' which was previously "
+                              "removed from DAG '{}'".format(ti, dag))
+                Stats.incr("task_restored_to_dag.{}".format(dag.dag_id), 1, 1)
+                ti.state = State.NONE
 
         # check for missing tasks
         for task in six.itervalues(dag.task_dict):

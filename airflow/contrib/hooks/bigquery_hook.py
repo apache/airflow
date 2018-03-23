@@ -28,10 +28,9 @@ from airflow.hooks.dbapi_hook import DbApiHook
 from airflow.utils.log.logging_mixin import LoggingMixin
 from apiclient.discovery import HttpError, build
 from googleapiclient import errors
-from pandas.tools.merge import concat
 from pandas_gbq.gbq import \
     _check_google_client_version as gbq_check_google_client_version
-from pandas_gbq.gbq import _parse_data as gbq_parse_data
+from pandas_gbq import read_gbq
 from pandas_gbq.gbq import \
     _test_google_api_imports as gbq_test_google_api_imports
 from pandas_gbq.gbq import GbqConnector
@@ -96,24 +95,13 @@ class BigQueryHook(GoogleCloudBaseHook, DbApiHook, LoggingMixin):
             defaults to use `self.use_legacy_sql` if not specified
         :type dialect: string in {'legacy', 'standard'}
         """
-        service = self.get_service()
-        project = self._get_field('project')
-
         if dialect is None:
             dialect = 'legacy' if self.use_legacy_sql else 'standard'
 
-        connector = BigQueryPandasConnector(project, service, dialect=dialect)
-        schema, pages = connector.run_query(bql)
-        dataframe_list = []
-
-        while len(pages) > 0:
-            page = pages.pop()
-            dataframe_list.append(gbq_parse_data(schema, page))
-
-        if len(dataframe_list) > 0:
-            return concat(dataframe_list, ignore_index=True)
-        else:
-            return gbq_parse_data(schema, [])
+        return read_gbq(bql,
+                        project_id=self._get_field('project'),
+                        dialect=dialect,
+                        verbose=False)
 
     def table_exists(self, project_id, dataset_id, table_id):
         """
@@ -467,6 +455,7 @@ class BigQueryBaseCursor(LoggingMixin):
                   allow_large_results=False,
                   flatten_results=False,
                   udf_config=False,
+                  use_legacy_sql=None,
                   maximum_billing_tier=None,
                   maximum_bytes_billed=None,
                   create_disposition='CREATE_IF_NEEDED',
@@ -497,6 +486,9 @@ class BigQueryBaseCursor(LoggingMixin):
         :type flatten_results: boolean
         :param udf_config: The User Defined Function configuration for the query.
             See https://cloud.google.com/bigquery/user-defined-functions for details.
+        :param use_legacy_sql: Whether to use legacy SQL (true) or standard SQL (false).
+            If `None`, defaults to `self.use_legacy_sql`.
+        :type use_legacy_sql: boolean
         :type udf_config: list
         :param maximum_billing_tier: Positive integer that serves as a
             multiplier of the basic price.
@@ -535,10 +527,13 @@ class BigQueryBaseCursor(LoggingMixin):
                 "Please only use one or more of the following options: {1}"
                 .format(schema_update_options, allowed_schema_update_options))
 
+        if use_legacy_sql is None:
+            use_legacy_sql = self.use_legacy_sql
+
         configuration = {
             'query': {
                 'query': bql,
-                'useLegacySql': self.use_legacy_sql,
+                'useLegacySql': use_legacy_sql,
                 'maximumBillingTier': maximum_billing_tier,
                 'maximumBytesBilled': maximum_bytes_billed,
                 'priority': priority

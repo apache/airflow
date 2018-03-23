@@ -14,7 +14,6 @@
 
 import sys
 import json
-import logging
 import time
 import datetime
 
@@ -45,7 +44,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                  schema_filename=None,
                  approx_max_file_size_bytes=1900000000,
                  postgres_conn_id='postgres_default',
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  parameters=None,
                  *args,
@@ -176,7 +175,7 @@ class PostgresToGoogleCloudStorageOperator(BaseOperator):
                 'mode': field_mode,
             })
 
-        logging.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.log.info('Using schema for %s: %s', self.schema_filename, schema)
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         s = json.dumps(schema, sort_keys=True)
         if PY3:

@@ -23,21 +23,9 @@ class JdbcHook(DbApiHook):
     """
     General hook for jdbc db access.
 
-    If a connection id is specified, host, port, schema, username and password will be taken from the predefined connection.
+    JDBC URL, username and password will be taken from the predefined connection.
+    Note that the whole JDBC URL must be specified in the "host" field in the DB.
     Raises an airflow error if the given connection id doesn't exist.
-    Otherwise host, port, schema, username and password can be specified on the fly.
-
-    :param jdbc_url: jdbc connection url
-    :type jdbc_url: string
-    :param jdbc_driver_name: jdbc driver name
-    :type jdbc_driver_name: string
-    :param jdbc_driver_loc: path to jdbc driver
-    :type jdbc_driver_loc: string
-    :param conn_id: reference to a predefined database
-    :type conn_id: string
-    :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
-        a '.sql' extensions.
     """
 
     conn_name_attr = 'jdbc_conn_id'

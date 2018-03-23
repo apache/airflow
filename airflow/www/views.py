@@ -83,6 +83,7 @@ from airflow.utils.db import create_session, provide_session
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.dates import infer_time_unit, scale_time_units, parse_execution_date
 from airflow.utils.timezone import datetime
+from airflow.utils.net import get_hostname
 from airflow.www import utils as wwwutils
 from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
 from airflow.www.validators import GreaterEqualThan
@@ -647,14 +648,14 @@ class Airflow(BaseView):
     @current_app.errorhandler(404)
     def circles(self):
         return render_template(
-            'airflow/circles.html', hostname=socket.getfqdn()), 404
+            'airflow/circles.html', hostname=get_hostname()), 404
 
     @current_app.errorhandler(500)
     def show_traceback(self):
         from airflow.utils import asciiart as ascii_
         return render_template(
             'airflow/traceback.html',
-            hostname=socket.getfqdn(),
+            hostname=get_hostname(),
             nukular=ascii_.nukular,
             info=traceback.format_exc()), 500
 
@@ -2302,9 +2303,10 @@ class VariableView(wwwutils.DataProfilingMixin, AirflowModelView):
     def hidden_field_formatter(view, context, model, name):
         if wwwutils.should_hide_value_for_key(model.key):
             return Markup('*' * 8)
-        try:
-            return getattr(model, name)
-        except AirflowException:
+        val = getattr(model, name)
+        if val:
+            return val
+        else:
             return Markup('<span class="label label-danger">Invalid</span>')
 
     form_columns = (
@@ -2569,7 +2571,7 @@ class TaskInstanceModelView(ModelViewOnly):
 
             # Collect dags upfront as dagbag.get_dag() will reset the session
             for id_str in ids:
-                task_id, dag_id, execution_date = id_str.split(',')
+                task_id, dag_id, execution_date = iterdecode(id_str)
                 dag = dagbag.get_dag(dag_id)
                 task_details = dag_to_task_details.setdefault(dag, [])
                 task_details.append((task_id, execution_date))
@@ -2603,7 +2605,7 @@ class TaskInstanceModelView(ModelViewOnly):
             TI = models.TaskInstance
             count = len(ids)
             for id in ids:
-                task_id, dag_id, execution_date = id.split(',')
+                task_id, dag_id, execution_date = iterdecode(id)
                 execution_date = parse_execution_date(execution_date)
 
                 ti = session.query(TI).filter(TI.task_id == task_id,
@@ -2671,7 +2673,6 @@ class ConnectionModelView(wwwutils.SuperUserMixin, AirflowModelView):
         'extra__google_cloud_platform__key_path': StringField('Keyfile Path'),
         'extra__google_cloud_platform__keyfile_dict': PasswordField('Keyfile JSON'),
         'extra__google_cloud_platform__scope': StringField('Scopes (comma separated)'),
-
     }
     form_choices = {
         'conn_type': models.Connection._types

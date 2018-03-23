@@ -488,7 +488,8 @@ class CoreTest(unittest.TestCase):
 
     def test_complex_template(self):
         def verify_templated_field(context):
-            self.assertEqual(context['ti'].task.some_templated_field['bar'][1], context['ds'])
+            self.assertEqual(context['ti'].task.some_templated_field['bar'][1],
+                             context['ds'])
 
         t = OperatorSubclass(
             task_id='test_complex_template',
@@ -496,8 +497,8 @@ class CoreTest(unittest.TestCase):
                 'foo': '123',
                 'bar': ['baz', '{{ ds }}']
             },
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_template_with_variable(self):
@@ -505,7 +506,6 @@ class CoreTest(unittest.TestCase):
         Test the availability of variables in templates
         """
         val = {
-            'success': False,
             'test_value': 'a test value'
         }
         Variable.set("a_variable", val['test_value'])
@@ -513,22 +513,19 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              val['test_value'])
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.value.a_variable }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_with_json_variable(self):
         """
         Test the availability of variables (serialized as JSON) in templates
         """
         val = {
-            'success': False,
             'test_value': {'foo': 'bar', 'obj': {'v1': 'yes', 'v2': 'no'}}
         }
         Variable.set("a_variable", val['test_value'], serialize_json=True)
@@ -536,15 +533,13 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              val['test_value']['obj']['v2'])
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.json.a_variable.obj.v2 }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_with_json_variable_as_value(self):
         """
@@ -552,7 +547,6 @@ class CoreTest(unittest.TestCase):
         accessed as a value
         """
         val = {
-            'success': False,
             'test_value': {'foo': 'bar'}
         }
         Variable.set("a_variable", val['test_value'], serialize_json=True)
@@ -560,15 +554,13 @@ class CoreTest(unittest.TestCase):
         def verify_templated_field(context):
             self.assertEqual(context['ti'].task.some_templated_field,
                              u'{"foo": "bar"}')
-            val['success'] = True
 
         t = OperatorSubclass(
             task_id='test_complex_template',
             some_templated_field='{{ var.value.a_variable }}',
-            on_success_callback=verify_templated_field,
             dag=self.dag)
+        t.execute = verify_templated_field
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        self.assertTrue(val['success'])
 
     def test_template_non_bool(self):
         """
@@ -789,22 +781,6 @@ class CoreTest(unittest.TestCase):
         with self.assertRaisesRegexp(AirflowException, regexp):
             self.run_after_loop.set_upstream(self.runme_0)
 
-    def test_cyclic_dependencies_1(self):
-
-        regexp = "Cycle detected in DAG. (.*)runme_0(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.runme_0.set_upstream(self.run_after_loop)
-
-    def test_cyclic_dependencies_2(self):
-        regexp = "Cycle detected in DAG. (.*)run_after_loop(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_after_loop.set_downstream(self.runme_0)
-
-    def test_cyclic_dependencies_3(self):
-        regexp = "Cycle detected in DAG. (.*)run_this_last(.*)"
-        with self.assertRaisesRegexp(AirflowException, regexp):
-            self.run_this_last.set_downstream(self.runme_0)
-
     def test_bad_trigger_rule(self):
         with self.assertRaises(AirflowException):
             DummyOperator(
@@ -1017,13 +993,13 @@ class CliTests(unittest.TestCase):
     def test_cli_initdb(self, initdb_mock):
         cli.initdb(self.parser.parse_args(['initdb']))
 
-        initdb_mock.assert_called_once_with()
+        initdb_mock.assert_called_once_with(False)
 
     @mock.patch("airflow.bin.cli.db_utils.resetdb")
     def test_cli_resetdb(self, resetdb_mock):
         cli.resetdb(self.parser.parse_args(['resetdb', '--yes']))
 
-        resetdb_mock.assert_called_once_with()
+        resetdb_mock.assert_called_once_with(False)
 
     def test_cli_connections_list(self):
         with mock.patch('sys.stdout',
@@ -1039,7 +1015,6 @@ class CliTests(unittest.TestCase):
         # expected:
         self.assertIn(['aws_default', 'aws'], conns)
         self.assertIn(['beeline_default', 'beeline'], conns)
-        self.assertIn(['bigquery_default', 'bigquery'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
@@ -1499,6 +1474,16 @@ class CliTests(unittest.TestCase):
         # Assert that no process remains.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "gunicorn"]).wait())
+
+    # Patch for causing webserver timeout
+    @mock.patch("airflow.bin.cli.get_num_workers_running", return_value=0)
+    def test_cli_webserver_shutdown_when_gunicorn_master_is_killed(self, _):
+        # Shorten timeout so that this test doesn't take too long time
+        configuration.conf.set("webserver", "web_server_master_timeout", "10")
+        args = self.parser.parse_args(['webserver'])
+        with self.assertRaises(SystemExit) as e:
+            cli.webserver(args)
+        self.assertEqual(e.exception.code, 1)
 
 
 class SecurityTests(unittest.TestCase):

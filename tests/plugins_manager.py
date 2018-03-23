@@ -27,6 +27,7 @@ from flask_admin.menu import MenuLink, MenuView
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.models import  BaseOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 from airflow.www.app import cached_app
 
@@ -36,6 +37,10 @@ class PluginsTest(unittest.TestCase):
     def test_operators(self):
         from airflow.operators.test_plugin import PluginOperator
         self.assertTrue(issubclass(PluginOperator, BaseOperator))
+
+    def test_sensors(self):
+        from airflow.sensors.test_plugin import PluginSensorOperator
+        self.assertTrue(issubclass(PluginSensorOperator, BaseSensorOperator))
 
     def test_hooks(self):
         from airflow.hooks.test_plugin import PluginHook

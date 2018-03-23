@@ -17,17 +17,22 @@ from __future__ import print_function
 import requests
 import time
 
+from pydruid.db import connect
+
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class DruidHook(BaseHook):
     """
-    Connection to Druid
+    Connection to Druid overlord for ingestion
 
-    :param druid_ingest_conn_id: The connection id to the Druid overlord machine which accepts index jobs
+    :param druid_ingest_conn_id: The connection id to the Druid overlord machine
+                                 which accepts index jobs
     :type druid_ingest_conn_id: string
-    :param timeout: The interval between polling the Druid job for the status of the ingestion job
+    :param timeout: The interval between polling
+                    the Druid job for the status of the ingestion job
     :type timeout: int
     :param max_ingestion_time: The maximum ingestion time before assuming the job failed
     :type max_ingestion_time: int
@@ -90,3 +95,56 @@ class DruidHook(BaseHook):
                 raise AirflowException('Could not get status of the job, got %s', status)
 
         self.log.info('Successful index')
+
+
+class DruidDbApiHook(DbApiHook):
+    """
+    Interact with Druid broker
+
+    This hook is purely for users to query druid broker.
+    For ingestion, please use druidHook.
+    """
+    conn_name_attr = 'druid_broker_conn_id'
+    default_conn_name = 'druid_broker_default'
+    supports_autocommit = False
+
+    def __init__(self, *args, **kwargs):
+        super(DruidDbApiHook, self).__init__(*args, **kwargs)
+
+    def get_conn(self):
+        """
+        Establish a connection to druid broker.
+        """
+        conn = self.get_connection(self.druid_broker_conn_id)
+        druid_broker_conn = connect(
+            host=conn.host,
+            port=conn.port,
+            path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
+            scheme=conn.extra_dejson.get('schema', 'http')
+        )
+        self.log('Get the connection to druid broker on {host}'.format(host=conn.host))
+        return druid_broker_conn
+
+    def get_uri(self):
+        """
+        Get the connection uri for druid broker.
+
+        e.g: druid://localhost:8082/druid/v2/sql/
+        """
+        conn = self.get_connection(getattr(self, self.conn_name_attr))
+        host = conn.host
+        if conn.port is not None:
+            host += ':{port}'.format(port=conn.port)
+        conn_type = 'druid' if not conn.conn_type else conn.conn_type
+        endpoint = conn.extra_dejson.get('endpoint', 'druid/v2/sql')
+        return '{conn_type}://{host}/{endpoint}'.format(
+            conn_type=conn_type, host=host, endpoint=endpoint)
+
+    def set_autocommit(self, conn, autocommit):
+        raise NotImplementedError()
+
+    def get_pandas_df(self, sql, parameters=None):
+        raise NotImplementedError()
+
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+        raise NotImplementedError()

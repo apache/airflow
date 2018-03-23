@@ -48,13 +48,13 @@ def _integrate_plugins():
 
         if not _os.environ.get('AIRFLOW_USE_NEW_IMPORTS', False):
             from zope.deprecation import deprecated as _deprecated
-            for _operator in sensors_module._objects:
-                operator_name = _operator.__name__
-                globals()[operator_name] = _operator
+            for _sensor in sensors_module._objects:
+                sensor_name = _sensor.__name__
+                globals()[sensor_name] = _sensor
                 _deprecated(
-                    operator_name,
+                    sensor_name,
                     "Importing plugin operator '{i}' directly from "
                     "'airflow.operators' has been deprecated. Please "
                     "import from 'airflow.operators.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
-                    "entirely in Airflow 2.0.".format(i=operator_name))
+                    "entirely in Airflow 2.0.".format(i=sensor_name))

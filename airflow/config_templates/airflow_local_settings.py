@@ -22,6 +22,11 @@ from airflow import configuration as conf
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 
+
+# Flask appbuilder's info level log is very verbose,
+# so it's set to 'WARN' by default.
+FAB_LOG_LEVEL = 'WARN'
+
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
 
 BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
@@ -35,6 +40,7 @@ PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
 # Storage bucket url for remote logging
 # s3 buckets should start with "s3://"
 # gcs buckets should start with "gs://"
+# wasb buckets should start with "wasb" just to help Airflow select correct handler
 REMOTE_BASE_LOG_FOLDER = ''
 
 DEFAULT_LOGGING_CONFIG = {
@@ -75,6 +81,11 @@ DEFAULT_LOGGING_CONFIG = {
             'level': LOG_LEVEL,
             'propagate': False,
         },
+        'flask_appbuilder': {
+            'handler': ['console'],
+            'level': FAB_LOG_LEVEL,
+            'propagate': True,
+        }
     },
     'root': {
         'handlers': ['console'],
@@ -114,6 +125,26 @@ REMOTE_HANDLERS = {
             'gcs_log_folder': REMOTE_BASE_LOG_FOLDER,
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
         },
+    },
+    'wasb': {
+        'task': {
+            'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',
+            'formatter': 'airflow',
+            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+            'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
+            'wasb_container': 'airflow-logs',
+            'filename_template': FILENAME_TEMPLATE,
+            'delete_local_copy': False,
+        },
+        'processor': {
+            'class': 'airflow.utils.log.wasb_task_handler.WasbTaskHandler',
+            'formatter': 'airflow',
+            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
+            'wasb_log_folder': REMOTE_BASE_LOG_FOLDER,
+            'wasb_container': 'airflow-logs',
+            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+            'delete_local_copy': False,
+        },
     }
 }
 
@@ -123,3 +154,5 @@ if REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
         DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['s3'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
+elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
+        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])

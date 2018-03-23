@@ -37,6 +37,7 @@ _hooks = {
     'ftps_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
+    'sftp_hook': ['SFTPHook'],
     'bigquery_hook': ['BigQueryHook'],
     'qubole_hook': ['QuboleHook'],
     'gcs_hook': ['GoogleCloudStorageHook'],
@@ -50,6 +51,7 @@ _hooks = {
     'fs_hook': ['FSHook'],
     'wasb_hook': ['WasbHook'],
     'gcp_pubsub_hook': ['PubSubHook'],
+    'jenkins_hook': ['JenkinsHook'],
     'aws_dynamodb_hook': ['AwsDynamoDBHook']
 }
 

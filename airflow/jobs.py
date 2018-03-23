@@ -59,6 +59,7 @@ from airflow.utils.email import send_email
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.state import State
 from airflow.utils.configuration import tmp_configuration_copy
+from airflow.utils.net import get_hostname
 
 Base = models.Base
 ID_LEN = models.ID_LEN
@@ -99,7 +100,7 @@ class BaseJob(Base, LoggingMixin):
             executor=executors.GetDefaultExecutor(),
             heartrate=conf.getfloat('scheduler', 'JOB_HEARTBEAT_SEC'),
             *args, **kwargs):
-        self.hostname = socket.getfqdn()
+        self.hostname = get_hostname()
         self.executor = executor
         self.executor_class = executor.__class__.__name__
         self.start_date = timezone.utcnow()
@@ -1161,8 +1162,8 @@ class SchedulerJob(BaseJob):
                 if task_concurrency is not None:
                     num_running = task_concurrency_map[((task_instance.dag_id, task_instance.task_id))]
                     if num_running >= task_concurrency:
-                        self.logger.info("Not executing %s since the task concurrency for this task"
-                                         " has been reached.", task_instance)
+                        self.log.info("Not executing %s since the task concurrency for"
+                                      " this task has been reached.", task_instance)
                         continue
                     else:
                         task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
@@ -1625,7 +1626,7 @@ class SchedulerJob(BaseJob):
                 self.clear_nonexistent_import_errors(known_file_paths=known_file_paths)
 
             # Kick of new processes and collect results from finished ones
-            self.log.info("Heartbeating the process manager")
+            self.log.debug("Heartbeating the process manager")
             simple_dags = processor_manager.heartbeat()
 
             if self.using_sqlite:
@@ -1660,7 +1661,7 @@ class SchedulerJob(BaseJob):
                                              (State.SCHEDULED,))
 
             # Call heartbeats
-            self.log.info("Heartbeating the executor")
+            self.log.debug("Heartbeating the executor")
             self.executor.heartbeat()
 
             # Process events from the executor
@@ -1670,7 +1671,7 @@ class SchedulerJob(BaseJob):
             time_since_last_heartbeat = (timezone.utcnow() -
                                          last_self_heartbeat_time).total_seconds()
             if time_since_last_heartbeat > self.heartrate:
-                self.log.info("Heartbeating the scheduler")
+                self.log.debug("Heartbeating the scheduler")
                 self.heartbeat()
                 last_self_heartbeat_time = timezone.utcnow()
 
@@ -2569,7 +2570,7 @@ class LocalTaskJob(BaseJob):
         self.task_instance.refresh_from_db()
         ti = self.task_instance
 
-        fqdn = socket.getfqdn()
+        fqdn = get_hostname()
         same_hostname = fqdn == ti.hostname
         same_process = ti.pid == os.getpid()
 

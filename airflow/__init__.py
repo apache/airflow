@@ -76,11 +76,13 @@ class AirflowMacroPlugin(object):
         self.namespace = namespace
 
 from airflow import operators
+from airflow import sensors  # noqa: E402
 from airflow import hooks
 from airflow import executors
 from airflow import macros
 
 operators._integrate_plugins()
+sensors._integrate_plugins()  # noqa: E402
 hooks._integrate_plugins()
 executors._integrate_plugins()
 macros._integrate_plugins()

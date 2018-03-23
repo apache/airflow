@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 version = imp.load_source(
     'airflow.version', os.path.join('airflow', 'version.py')).version
 
+PY3 = sys.version_info[0] == 3
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
@@ -117,6 +118,7 @@ doc = [
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker-py>=1.6.0']
+druid = ['pydruid>=0.4.1']
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -128,6 +130,7 @@ gcp_api = [
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+jenkins = ['python-jenkins>=0.4.15']
 jira = ['JIRA>1.0.7']
 hive = [
     'hive-thrift-py>=0.0.1',
@@ -140,8 +143,8 @@ mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
-postgres = ['psycopg2>=2.7.1']
-ssh = ['paramiko>=2.1.1']
+postgres = ['psycopg2-binary>=2.7.4']
+ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
 salesforce = ['simple-salesforce>=0.72']
 s3 = ['boto3>=1.0.0']
 samba = ['pysmbclient>=0.1.3']
@@ -152,8 +155,7 @@ ldap = ['ldap3>=0.9.9.1']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8',
-            'kerberos>=1.2.5']
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -165,7 +167,9 @@ redis = ['redis>=2.10.5']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+zendesk = ['zdesk']
+
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid
 devel = [
     'click',
     'freezegun',
@@ -180,13 +184,22 @@ devel = [
     'qds-sdk>=1.9.6',
     'rednose',
     'paramiko',
+    'pysftp',
     'requests_mock'
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = (devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker + ssh +
-             kubernetes)
+devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
+             docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
+             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins + druid)
 
+# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+if PY3:
+    devel_ci = [package for package in devel_all if package not in
+                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8',
+                 'google-cloud-dataflow>=2.2.0']]
+else:
+    devel_ci = devel_all
 
 def do_setup():
     write_version()
@@ -206,7 +219,8 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.11, <0.12',
+            'flask>=0.12, <0.13',
+            'flask-appbuilder>=1.9.6, <2.0.0',
             'flask-admin==1.4.1',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
@@ -242,6 +256,7 @@ def do_setup():
         ],
         extras_require={
             'all': devel_all,
+            'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'async': async,
             'azure': azure,
@@ -256,6 +271,7 @@ def do_setup():
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
+            'druid': druid,
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,

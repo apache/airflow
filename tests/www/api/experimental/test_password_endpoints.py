@@ -40,7 +40,7 @@ class ApiPasswordTests(unittest.TestCase):
         configuration.conf.set("api",
                                "auth_backend",
                                "airflow.contrib.auth.backends.password_auth")
-
+        
         configuration.conf.set("webserver",
                                "authenticate",
                                "True")

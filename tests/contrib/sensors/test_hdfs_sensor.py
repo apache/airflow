@@ -17,7 +17,7 @@ import unittest
 import re
 from datetime import timedelta
 
-from airflow.contrib.sensors.hdfs_sensors import HdfsSensorFolder, HdfsSensorRegex
+from airflow.contrib.sensors.hdfs_sensor import HdfsSensorFolder, HdfsSensorRegex
 from airflow.exceptions import AirflowSensorTimeout
 
 

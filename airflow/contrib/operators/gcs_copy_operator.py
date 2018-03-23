@@ -43,14 +43,14 @@ class GoogleCloudStorageCopyOperator(BaseOperator):
     :type delegate_to: string
 
     **Example**:
-    The following Operator would move all the CSV files from `sales/sales-2017` folder in
+    The following Operator would copy all the CSV files from `sales/sales-2017` folder in
     `data` bucket to `sales` folder in `archive` bucket. ::
 
         move_file = GoogleCloudStorageCopyOperator(
-            task_id='move_file',
+            task_id='copy_files',
             source_bucket='data',
             source_object='sales/sales-2017/',
-            source_files_delimiter='.csv'
+            source_files_delimiter='.csv',
             destination_bucket='archive',
             destination_directory='sales',
             google_cloud_storage_conn_id='airflow-service-account'
@@ -67,7 +67,7 @@ class GoogleCloudStorageCopyOperator(BaseOperator):
                  source_files_delimiter=None,
                  destination_bucket=None,
                  destination_directory='',
-                 google_cloud_storage_conn_id='google_cloud_storage_default',
+                 google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
                  **kwargs):

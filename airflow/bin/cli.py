@@ -40,13 +40,14 @@ import traceback
 import time
 import psutil
 import re
+import getpass
 from urllib.parse import urlunparse
 
 import airflow
 from airflow import api
 from airflow import jobs, settings
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowWebServerTimeout
 from airflow.executors import GetDefaultExecutor
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
@@ -54,9 +55,13 @@ from airflow.models import (DagModel, DagBag, TaskInstance,
 
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import db as db_utils
+from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import (LoggingMixin, redirect_stderr,
-                                             redirect_stdout, set_context)
-from airflow.www.app import cached_app
+                                             redirect_stdout)
+from airflow.www.app import (cached_app, create_app)
+from airflow.www_rbac.app import cached_app as cached_app_rbac
+from airflow.www_rbac.app import create_app as create_app_rbac
+from airflow.www_rbac.app import cached_appbuilder
 
 from sqlalchemy import func
 from sqlalchemy.orm import exc
@@ -437,7 +442,7 @@ def run(args, dag=None):
 
     ti.init_run_context(raw=args.raw)
 
-    hostname = socket.getfqdn()
+    hostname = get_hostname()
     log.info("Running %s on host %s", ti, hostname)
 
     if args.interactive:
@@ -591,7 +596,12 @@ def get_num_ready_workers_running(gunicorn_master_proc):
     return len(ready_workers)
 
 
-def restart_workers(gunicorn_master_proc, num_workers_expected):
+def get_num_workers_running(gunicorn_master_proc):
+    workers = psutil.Process(gunicorn_master_proc.pid).children()
+    return len(workers)
+
+
+def restart_workers(gunicorn_master_proc, num_workers_expected, master_timeout):
     """
     Runs forever, monitoring the child processes of @gunicorn_master_proc and
     restarting workers occasionally.
@@ -617,16 +627,17 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
     gracefully and that the oldest worker is terminated.
     """
 
-    def wait_until_true(fn):
+    def wait_until_true(fn, timeout=0):
         """
         Sleeps until fn is true
         """
+        t = time.time()
         while not fn():
+            if 0 < timeout and timeout <= time.time() - t:
+                raise AirflowWebServerTimeout(
+                    "No response from gunicorn master within {0} seconds"
+                    .format(timeout))
             time.sleep(0.1)
-
-    def get_num_workers_running(gunicorn_master_proc):
-        workers = psutil.Process(gunicorn_master_proc.pid).children()
-        return len(workers)
 
     def start_refresh(gunicorn_master_proc):
         batch_size = conf.getint('webserver', 'worker_refresh_batch_size')
@@ -639,61 +650,72 @@ def restart_workers(gunicorn_master_proc, num_workers_expected):
             gunicorn_master_proc.send_signal(signal.SIGTTIN)
             excess += 1
             wait_until_true(lambda: num_workers_expected + excess ==
-                                    get_num_workers_running(gunicorn_master_proc))
+                            get_num_workers_running(gunicorn_master_proc),
+                            master_timeout)
 
-    wait_until_true(lambda: num_workers_expected ==
-                            get_num_workers_running(gunicorn_master_proc))
+    try:
+        wait_until_true(lambda: num_workers_expected ==
+                        get_num_workers_running(gunicorn_master_proc),
+                        master_timeout)
+        while True:
+            num_workers_running = get_num_workers_running(gunicorn_master_proc)
+            num_ready_workers_running = \
+                get_num_ready_workers_running(gunicorn_master_proc)
 
-    while True:
-        num_workers_running = get_num_workers_running(gunicorn_master_proc)
-        num_ready_workers_running = get_num_ready_workers_running(gunicorn_master_proc)
+            state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
 
-        state = '[{0} / {1}]'.format(num_ready_workers_running, num_workers_running)
+            # Whenever some workers are not ready, wait until all workers are ready
+            if num_ready_workers_running < num_workers_running:
+                log.debug('%s some workers are starting up, waiting...', state)
+                sys.stdout.flush()
+                time.sleep(1)
 
-        # Whenever some workers are not ready, wait until all workers are ready
-        if num_ready_workers_running < num_workers_running:
-            log.debug('%s some workers are starting up, waiting...', state)
-            sys.stdout.flush()
-            time.sleep(1)
+            # Kill a worker gracefully by asking gunicorn to reduce number of workers
+            elif num_workers_running > num_workers_expected:
+                excess = num_workers_running - num_workers_expected
+                log.debug('%s killing %s workers', state, excess)
 
-        # Kill a worker gracefully by asking gunicorn to reduce number of workers
-        elif num_workers_running > num_workers_expected:
-            excess = num_workers_running - num_workers_expected
-            log.debug('%s killing %s workers', state, excess)
+                for _ in range(excess):
+                    gunicorn_master_proc.send_signal(signal.SIGTTOU)
+                    excess -= 1
+                    wait_until_true(lambda: num_workers_expected + excess ==
+                                    get_num_workers_running(gunicorn_master_proc),
+                                    master_timeout)
 
-            for _ in range(excess):
-                gunicorn_master_proc.send_signal(signal.SIGTTOU)
-                excess -= 1
-                wait_until_true(lambda: num_workers_expected + excess ==
-                                        get_num_workers_running(gunicorn_master_proc))
-
-        # Start a new worker by asking gunicorn to increase number of workers
-        elif num_workers_running == num_workers_expected:
-            refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
-            log.debug(
-                '%s sleeping for %ss starting doing a refresh...',
-                state, refresh_interval
-            )
-            time.sleep(refresh_interval)
-            start_refresh(gunicorn_master_proc)
-
-        else:
-            # num_ready_workers_running == num_workers_running < num_workers_expected
-            log.error((
-                "%s some workers seem to have died and gunicorn"
-                "did not restart them as expected"
-            ), state)
-            time.sleep(10)
-            if len(
-                psutil.Process(gunicorn_master_proc.pid).children()
-            ) < num_workers_expected:
+            # Start a new worker by asking gunicorn to increase number of workers
+            elif num_workers_running == num_workers_expected:
+                refresh_interval = conf.getint('webserver', 'worker_refresh_interval')
+                log.debug(
+                    '%s sleeping for %ss starting doing a refresh...',
+                    state, refresh_interval
+                )
+                time.sleep(refresh_interval)
                 start_refresh(gunicorn_master_proc)
+
+            else:
+                # num_ready_workers_running == num_workers_running < num_workers_expected
+                log.error((
+                    "%s some workers seem to have died and gunicorn"
+                    "did not restart them as expected"
+                ), state)
+                time.sleep(10)
+                if len(
+                    psutil.Process(gunicorn_master_proc.pid).children()
+                ) < num_workers_expected:
+                    start_refresh(gunicorn_master_proc)
+    except (AirflowWebServerTimeout, OSError) as err:
+        log.error(err)
+        log.error("Shutting down webserver")
+        try:
+            gunicorn_master_proc.terminate()
+            gunicorn_master_proc.wait()
+        finally:
+            sys.exit(1)
 
 
 def webserver(args):
     print(settings.HEADER)
 
-    app = cached_app(conf)
     access_logfile = args.access_logfile or conf.get('webserver', 'access_logfile')
     error_logfile = args.error_logfile or conf.get('webserver', 'error_logfile')
     num_workers = args.workers or conf.get('webserver', 'workers')
@@ -712,10 +734,13 @@ def webserver(args):
         print(
             "Starting the web server on port {0} and host {1}.".format(
                 args.port, args.hostname))
+        app = create_app_rbac(conf) if settings.RBAC else create_app(conf)
         app.run(debug=True, port=args.port, host=args.hostname,
                 ssl_context=(ssl_cert, ssl_key) if ssl_cert and ssl_key else None)
     else:
-        pid, stdout, stderr, log_file = setup_locations("webserver", args.pid, args.stdout, args.stderr, args.log_file)
+        app = cached_app_rbac(conf) if settings.RBAC else cached_app(conf)
+        pid, stdout, stderr, log_file = setup_locations(
+            "webserver", args.pid, args.stdout, args.stderr, args.log_file)
         if args.daemon:
             handle = setup_logging(log_file)
             stdout = open(stdout, 'w+')
@@ -739,7 +764,7 @@ def webserver(args):
             '-b', args.hostname + ':' + str(args.port),
             '-n', 'airflow-webserver',
             '-p', str(pid),
-            '-c', 'python:airflow.www.gunicorn_config'
+            '-c', 'python:airflow.www.gunicorn_config',
         ]
 
         if args.access_logfile:
@@ -754,7 +779,8 @@ def webserver(args):
         if ssl_cert:
             run_args += ['--certfile', ssl_cert, '--keyfile', ssl_key]
 
-        run_args += ["airflow.www.app:cached_app()"]
+        webserver_module = 'www_rbac' if settings.RBAC else 'www'
+        run_args += ["airflow." + webserver_module + ".app:cached_app()"]
 
         gunicorn_master_proc = None
 
@@ -766,7 +792,8 @@ def webserver(args):
         def monitor_gunicorn(gunicorn_master_proc):
             # These run forever until SIG{INT, TERM, KILL, ...} signal is sent
             if conf.getint('webserver', 'worker_refresh_interval') > 0:
-                restart_workers(gunicorn_master_proc, num_workers)
+                master_timeout = conf.getint('webserver', 'web_server_master_timeout')
+                restart_workers(gunicorn_master_proc, num_workers, master_timeout)
             else:
                 while True:
                     time.sleep(1)
@@ -912,7 +939,7 @@ def worker(args):
 
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
-    db_utils.initdb()
+    db_utils.initdb(settings.RBAC)
     print("Done.")
 
 
@@ -921,7 +948,7 @@ def resetdb(args):
     if args.yes or input(
         "This will drop existing tables if they exist. "
         "Proceed? (y/n)").upper() == "Y":
-        db_utils.resetdb()
+        db_utils.resetdb(settings.RBAC)
     else:
         print("Bail.")
 
@@ -1117,7 +1144,11 @@ def kerberos(args):  # noqa
     import airflow.security.kerberos
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("kerberos", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("kerberos",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1134,6 +1165,39 @@ def kerberos(args):  # noqa
         stderr.close()
     else:
         airflow.security.kerberos.run()
+
+
+def create_user(args):
+    fields = {
+        'role': args.role,
+        'username': args.username,
+        'email': args.email,
+        'firstname': args.firstname,
+        'lastname': args.lastname,
+    }
+    empty_fields = [k for k, v in fields.items() if not v]
+    if empty_fields:
+        print('Missing arguments: {}.'.format(', '.join(empty_fields)))
+        sys.exit(0)
+
+    appbuilder = cached_appbuilder()
+    role = appbuilder.sm.find_role(args.role)
+    if not role:
+        print('{} is not a valid role.'.format(args.role))
+        sys.exit(0)
+
+    password = getpass.getpass('Password:')
+    password_confirmation = getpass.getpass('Repeat for confirmation:')
+    if password != password_confirmation:
+        print('Passwords did not match!')
+        sys.exit(0)
+
+    user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
+                                  args.email, role, password)
+    if user:
+        print('{} user {} created.'.format(args.role, args.username))
+    else:
+        print('Failed to create user.')
 
 
 Arg = namedtuple(
@@ -1501,6 +1565,27 @@ class CLIFactory(object):
             ('--conn_extra',),
             help='Connection `Extra` field, optional when adding a connection',
             type=str),
+        # create_user
+        'role': Arg(
+            ('-r', '--role',),
+            help='Role of the user',
+            type=str),
+        'firstname': Arg(
+            ('-f', '--firstname',),
+            help='First name of the admin user',
+            type=str),
+        'lastname': Arg(
+            ('-l', '--lastname',),
+            help='Last name of the admin user',
+            type=str),
+        'email': Arg(
+            ('-e', '--email',),
+            help='Email of the admin user',
+            type=str),
+        'username': Arg(
+            ('-u', '--username',),
+            help='Username of the admin user',
+            type=str),
     }
     subparsers = (
         {
@@ -1638,6 +1723,10 @@ class CLIFactory(object):
             'help': "List/Add/Delete connections",
             'args': ('list_connections', 'add_connection', 'delete_connection',
                      'conn_id', 'conn_uri', 'conn_extra') + tuple(alternative_conn_specs),
+        }, {
+            'func': create_user,
+            'help': "Create an admin account",
+            'args': ('role', 'username', 'email', 'firstname', 'lastname'),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
