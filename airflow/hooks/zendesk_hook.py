@@ -43,7 +43,7 @@ class ZendeskHook(BaseHook):
         )
         time.sleep(retry_after)
 
-    def call(self, path, query=None, get_all_pages=True):
+    def call(self, path, query=None, get_all_pages=True, side_loading=False):
         """
         Call Zendesk API and return results
 
@@ -52,6 +52,11 @@ class ZendeskHook(BaseHook):
         :param get_all_pages: Accumulate results over all pages before
                returning. Due to strict rate limiting, this can often timeout.
                Waits for recommended period between tries after a timeout.
+        :param side_loading: Retrieve related records as part of a single
+               request. In order to enable side-loading, add an 'include'
+               query parameter containing a comma-separated list of resources
+               to load. For more information on side-loading see
+               https://developer.zendesk.com/rest_api/docs/core/side_loading
         """
         zendesk = self.get_conn()
         first_request_successful = False
@@ -64,9 +69,11 @@ class ZendeskHook(BaseHook):
                 self.__handle_rate_limit_exception(rle)
 
         # Find the key with the results
-        key = path.split("/")[-1].split(".json")[0]
+        keys = [path.split("/")[-1].split(".json")[0]]
         next_page = results['next_page']
-        results = results[key]
+        if side_loading:
+            keys += query['include'].split(',')
+        results = {key: results[key] for key in keys}
 
         if get_all_pages:
             while next_page is not None:
@@ -77,12 +84,13 @@ class ZendeskHook(BaseHook):
                     next_url = next_page.split(self.__url)[1]
                     self.log.info("Calling %s", next_url)
                     more_res = zendesk.call(next_url)
-                    results.extend(more_res[key])
+                    for key in results:
+                        results[key].extend(more_res[key])
                     if next_page == more_res['next_page']:
                         # Unfortunately zdesk doesn't always throw ZendeskError
                         # when we are done getting all the data. Sometimes the
-                        # next just refers to the current set of results. Hence,
-                        # need to deal with this special case
+                        # next just refers to the current set of results.
+                        # Hence, need to deal with this special case
                         break
                     else:
                         next_page = more_res['next_page']
