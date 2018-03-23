@@ -444,6 +444,7 @@ class CoreTest(unittest.TestCase):
             task_id='test_trigger_dagrun',
             trigger_dag_id='example_bash_operator',
             python_callable=trigga,
+            execution_date=DEFAULT_DATE,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 

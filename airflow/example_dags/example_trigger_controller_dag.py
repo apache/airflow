@@ -31,6 +31,7 @@ This example illustrates the following features :
 from airflow import DAG
 from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from datetime import datetime
+from airflow.utils import timezone
 
 import pprint
 
@@ -58,6 +59,7 @@ dag = DAG(dag_id='example_trigger_controller_dag',
 trigger = TriggerDagRunOperator(task_id='test_trigger_dagrun',
                                 trigger_dag_id="example_trigger_target_dag",
                                 python_callable=conditionally_trigger,
+                                execution_date=timezone.utcnow(),
                                 params={'condition_param': True,
                                         'message': 'Hello World'},
                                 dag=dag)
