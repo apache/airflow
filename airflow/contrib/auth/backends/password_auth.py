@@ -206,4 +206,5 @@ def requires_authentication(function):
                 session.commit()
                 session.close()
         return _unauthorized()
+
     return decorated
