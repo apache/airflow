@@ -21,14 +21,12 @@ from airflow.utils import timezone
 
 from datetime import timedelta
 
-from airflow.executors.dask_executor import DaskExecutor
-
-
 try:
-    SKIP_DASK = False
+    from airflow.executors.dask_executor import DaskExecutor
     from distributed import LocalCluster
     # utility functions imported from the dask testing suite to instantiate a test cluster for tls tests
     from distributed.utils_test import get_cert, cluster as dask_testing_cluster, tls_security
+    SKIP_DASK = False
 except ImportError:
     SKIP_DASK = True
 
