@@ -33,8 +33,8 @@ class RedshiftToS3Transfer(BaseOperator):
     :type redshift_conn_id: string
     :param aws_conn_id: reference to a specific S3 connection
     :type aws_conn_id: string
-    :param options: reference to a list of UNLOAD options
-    :type options: list
+    :param unload_options: reference to a list of UNLOAD options
+    :type unload_options: list
     """
 
     template_fields = ()
