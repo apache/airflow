@@ -2081,7 +2081,7 @@ class BaseOperator(LoggingMixin):
 
     Operators derived from this class should perform or trigger certain tasks
     synchronously (wait for completion). Example of operators could be an
-    operator the runs a Pig job (PigOperator), a sensor operator that
+    operator that runs a Pig job (PigOperator), a sensor operator that
     waits for a partition to land in Hive (HiveSensorOperator), or one that
     moves data from Hive to MySQL (Hive2MySqlOperator). Instances of these
     operators (tasks) target specific operations, running specific scripts,
@@ -2175,7 +2175,7 @@ class BaseOperator(LoggingMixin):
     :type pool: str
     :param sla: time by which the job is expected to succeed. Note that
         this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send dan email
+        example if you set an SLA of 1 hour, the scheduler would send an email
         soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
         has not succeeded yet.
         The scheduler pays special attention for jobs with an SLA and
