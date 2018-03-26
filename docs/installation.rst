@@ -15,6 +15,14 @@ You can also install Airflow with support for extra features like ``s3`` or ``po
 .. code-block:: bash
 
     pip install "apache-airflow[s3, postgres]"
+    
+.. note:: GPL dependency
+   
+    One of the dependencies of Apache Airflow by default pulls in a GPL library ('unidecode').
+    In case this is a concern you can force a non GPL library by issuing
+    ``export SLUGIFY_USES_TEXT_UNIDECODE=yes`` and then proceed with the normal installation.
+    Please note that this needs to be specified at every upgrade. Also note that if `unidecode`
+    is already present on the system the dependency will still be used.
 
 Extra Packages
 ''''''''''''''
