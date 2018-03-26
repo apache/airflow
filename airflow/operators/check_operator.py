@@ -115,7 +115,7 @@ class ValueCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'ValueCheckOperator'
     }
-    template_fields = ('sql',)
+    template_fields = ('sql', 'pass_value',)
     template_ext = ('.hql', '.sql',)
     ui_color = '#fff7e6'
 
@@ -127,10 +127,9 @@ class ValueCheckOperator(BaseOperator):
         super(ValueCheckOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
-        self.pass_value = _convert_to_float_if_possible(pass_value)
+        self.pass_value = str(pass_value)
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
-        self.is_numeric_value_check = isinstance(self.pass_value, float)
         self.has_tolerance = self.tol is not None
 
     def execute(self, context=None):
@@ -138,23 +137,32 @@ class ValueCheckOperator(BaseOperator):
         records = self.get_db_hook().get_first(self.sql)
         if not records:
             raise AirflowException("The query returned None")
-        test_results = []
-        except_temp = ("Test failed.\nPass value:{self.pass_value}\n"
+
+        pass_value_conv = _convert_to_float_if_possible(self.pass_value)
+        is_numeric_value_check = isinstance(pass_value_conv, float)
+
+        tolerance_pct_str = None
+        if (self.tol is not None):
+            tolerance_pct_str = str(self.tol * 100) + '%'
+
+        except_temp = ("Test failed.\nPass value:{pass_value_conv}\n"
+                       "Tolerance:{tolerance_pct_str}\n"
                        "Query:\n{self.sql}\nResults:\n{records!s}")
-        if not self.is_numeric_value_check:
-            tests = [str(r) == self.pass_value for r in records]
-        elif self.is_numeric_value_check:
+        if not is_numeric_value_check:
+            tests = [str(r) == pass_value_conv for r in records]
+        elif is_numeric_value_check:
             try:
                 num_rec = [float(r) for r in records]
             except (ValueError, TypeError) as e:
                 cvestr = "Converting a result to float failed.\n"
-                raise AirflowException(cvestr+except_temp.format(**locals()))
+                raise AirflowException(cvestr + except_temp.format(**locals()))
             if self.has_tolerance:
                 tests = [
-                    r / (1 + self.tol) <= self.pass_value <= r / (1 - self.tol)
+                    pass_value_conv * (1 - self.tol) <=
+                    r <= pass_value_conv * (1 + self.tol)
                     for r in num_rec]
             else:
-                tests = [r == self.pass_value for r in num_rec]
+                tests = [r == pass_value_conv for r in num_rec]
         if not all(tests):
             raise AirflowException(except_temp.format(**locals()))
 
