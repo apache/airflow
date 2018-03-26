@@ -188,9 +188,17 @@ def configure_adapters():
         pass
 
 
+def configure_action_logging():
+    """
+    Any additional configuration (register callback) for airflow.utils.action_loggers
+    module
+    :return: None
+    """
+    pass
+
+
 try:
     from airflow_local_settings import *
-
     log.info("Loaded airflow_local_settings.")
 except:
     pass
@@ -199,6 +207,7 @@ configure_logging()
 configure_vars()
 configure_adapters()
 configure_orm()
+configure_action_logging()
 
 # Ensure we close DB connections at scheduler and gunicon worker terminations
 atexit.register(dispose_orm)
