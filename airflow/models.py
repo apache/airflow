@@ -116,11 +116,6 @@ def get_fernet():
         raise AirflowException("Could not create Fernet object: {}".format(ve))
 
 
-if 'mysql' in settings.SQL_ALCHEMY_CONN:
-    LongText = LONGTEXT
-else:
-    LongText = Text
-
 # Used by DAG context_managers
 _CONTEXT_MANAGER_DAG = None
 
