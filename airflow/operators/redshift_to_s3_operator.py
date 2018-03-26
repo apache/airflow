@@ -68,7 +68,7 @@ class RedshiftToS3Transfer(BaseOperator):
     def execute(self, context):
         self.hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         self.s3 = S3Hook(aws_conn_id=self.aws_conn_id)
-        a_key, s_key = self.s3.get_credentials()
+        credentials = self.s3.get_credentials()
         unload_options = '\n\t\t\t'.join(self.unload_options)
 
         self.log.info("Retrieving headers from %s.%s...", self.schema, self.table)
@@ -83,10 +83,10 @@ class RedshiftToS3Transfer(BaseOperator):
         cursor = self.hook.get_conn().cursor()
         cursor.execute(columns_query)
         rows = cursor.fetchall()
-        columns = map(lambda row: row[0], rows)
-        column_names = ', '.join(map(lambda c: "\\'{0}\\'".format(c), columns))
-        column_castings = ', '.join(map(lambda c: "CAST({0} AS text) AS {0}".format(c),
-                                        columns))
+        columns = [row[0] for row in rows]
+        column_names = ', '.join("\\'{0}\\'".format(c) for c in columns)
+        column_castings = ', '.join("CAST({0} AS text) AS {0}".format(c)
+                                    for c in columns)
 
         unload_query = """
                         UNLOAD ('SELECT {0}
@@ -98,7 +98,8 @@ class RedshiftToS3Transfer(BaseOperator):
                         credentials 'aws_access_key_id={6};aws_secret_access_key={7}'
                         {8};
                         """.format(column_names, column_castings, self.schema, self.table,
-                                self.s3_bucket, self.s3_key, a_key, s_key, unload_options)
+                                   self.s3_bucket, self.s3_key, credentials.access_key,
+                                   credentials.secret_key, unload_options)
 
         self.log.info('Executing UNLOAD command...')
         self.hook.run(unload_query, self.autocommit)
