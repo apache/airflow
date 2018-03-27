@@ -1036,7 +1036,7 @@ def resetdb(args):
             "Proceed? (y/n)").upper() == "Y":
         logging.basicConfig(level=settings.LOGGING_LEVEL,
                             format=settings.SIMPLE_LOG_FORMAT)
-        db_utils.resetdb()
+        db_utils.resetdb(skip_dagbag=args.skip_dagbag)
     else:
         print("Bail.")
 
@@ -1481,6 +1481,11 @@ class CLIFactory(object):
             "Do not prompt to confirm reset. Use with care!",
             "store_true",
             default=False),
+        'skip_dagbag': Arg(
+            ("-sd", "--skip_dagbag"),
+            "Do not load DagBag() during resetdb",
+            "store_true",
+            default=False),
         # scheduler
         'dag_id_opt': Arg(("-d", "--dag_id"), help="The id of the dag to run"),
         'run_duration': Arg(
@@ -1658,7 +1663,7 @@ class CLIFactory(object):
         }, {
             'func': resetdb,
             'help': "Burn down and rebuild the metadata database",
-            'args': ('yes',),
+            'args': ('yes', 'skip_dagbag'),
         }, {
             'func': upgradedb,
             'help': "Upgrade the metadata database to latest version",
