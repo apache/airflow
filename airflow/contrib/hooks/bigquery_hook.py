@@ -351,7 +351,7 @@ class BigQueryBaseCursor(LoggingMixin):
         source_format = source_format.upper()
         allowed_formats = [
             "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
-            "DATASTORE_BACKUP"
+            "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
             raise ValueError("{0} is not a valid source format. "
@@ -807,7 +807,7 @@ class BigQueryBaseCursor(LoggingMixin):
         source_format = source_format.upper()
         allowed_formats = [
             "CSV", "NEWLINE_DELIMITED_JSON", "AVRO", "GOOGLE_SHEETS",
-            "DATASTORE_BACKUP"
+            "DATASTORE_BACKUP", "PARQUET"
         ]
         if source_format not in allowed_formats:
             raise ValueError("{0} is not a valid source format. "
@@ -903,6 +903,7 @@ class BigQueryBaseCursor(LoggingMixin):
             ],
             'DATASTORE_BACKUP': ['projectionFields'],
             'NEWLINE_DELIMITED_JSON': ['autodetect', 'ignoreUnknownValues'],
+            'PARQUET': ['autodetect', 'ignoreUnknownValues'],
             'AVRO': [],
         }
         valid_configs = src_fmt_to_configs_mapping[source_format]
