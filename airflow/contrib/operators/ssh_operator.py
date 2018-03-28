@@ -41,6 +41,7 @@ class SSHOperator(BaseOperator):
     """
 
     template_fields = ('command',)
+    template_ext = ('.sh',)
 
     @apply_defaults
     def __init__(self,
