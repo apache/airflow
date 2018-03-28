@@ -451,8 +451,7 @@ class DagBag(BaseDagBag, LoggingMixin):
                 ignore_file = os.path.join(root, '.airflowignore')
                 if os.path.isfile(ignore_file):
                     with open(ignore_file, 'r') as f:
-                    patterns += [p for p in f.read().split('\n') if p]
-                    f.close()
+                        patterns += [p for p in f.read().split('\n') if p]
                 for f in files:
                     try:
                         filepath = os.path.join(root, f)
