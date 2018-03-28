@@ -41,7 +41,7 @@ PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
 # s3 buckets should start with "s3://"
 # gcs buckets should start with "gs://"
 # wasb buckets should start with "wasb" just to help Airflow select correct handler
-REMOTE_BASE_LOG_FOLDER = ''
+REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
