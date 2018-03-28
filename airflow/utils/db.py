@@ -99,7 +99,7 @@ def checkout(dbapi_connection, connection_record, connection_proxy):
         )
 
 
-def initdb(skip_dagbag=False):
+def initdb():
     session = settings.Session()
 
     from airflow import models
@@ -256,14 +256,13 @@ def initdb(skip_dagbag=False):
         session.add(KET(know_event_type='Marketing Campaign'))
     session.commit()
 
-    if not skip_dagbag:
-        dagbag = models.DagBag()
-        # Save individual DAGs in the ORM
-        now = datetime.utcnow()
-        for dag in dagbag.dags.values():
-            models.DAG.sync_to_db(dag, dag.owner, now)
-        # Deactivate the unknown ones
-        models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
+    dagbag = models.DagBag()
+    # Save individual DAGs in the ORM
+    now = datetime.utcnow()
+    for dag in dagbag.dags.values():
+        models.DAG.sync_to_db(dag, dag.owner, now)
+    # Deactivate the unknown ones
+    models.DAG.deactivate_unknown_dags(dagbag.dags.keys())
 
     Chart = models.Chart
     chart_label = "Airflow task instance by type"
@@ -295,7 +294,7 @@ def upgradedb():
     command.upgrade(config, 'heads')
 
 
-def resetdb(skip_dagbag=False):
+def resetdb():
     '''
     Clear out the database
     '''
@@ -306,4 +305,4 @@ def resetdb(skip_dagbag=False):
     mc = MigrationContext.configure(settings.engine)
     if mc._version.exists(settings.engine):
         mc._version.drop(settings.engine)
-    initdb(skip_dagbag)
+    initdb()
