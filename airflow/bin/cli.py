@@ -1568,23 +1568,24 @@ class CLIFactory(object):
         # create_user
         'role': Arg(
             ('-r', '--role',),
-            help='Role of the user',
+            help='Role of the user. Existing roles include Admin, '
+                 'User, Op, Viewer, and Public',
             type=str),
         'firstname': Arg(
             ('-f', '--firstname',),
-            help='First name of the admin user',
+            help='First name of the user',
             type=str),
         'lastname': Arg(
             ('-l', '--lastname',),
-            help='Last name of the admin user',
+            help='Last name of the user',
             type=str),
         'email': Arg(
             ('-e', '--email',),
-            help='Email of the admin user',
+            help='Email of the user',
             type=str),
         'username': Arg(
             ('-u', '--username',),
-            help='Username of the admin user',
+            help='Username of the user',
             type=str),
     }
     subparsers = (
