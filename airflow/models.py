@@ -446,11 +446,11 @@ class DagBag(BaseDagBag, LoggingMixin):
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
-            patterns = []
             for root, dirs, files in os.walk(dag_folder, followlinks=True):
-                ignore_file = [f for f in files if f == '.airflowignore']
-                if ignore_file:
-                    f = open(os.path.join(root, ignore_file[0]), 'r')
+                patterns = []
+                ignore_file = os.path.join(root, '.airflowignore')
+                if os.path.exists(ignore_file):
+                    f = open(ignore_file, 'r')
                     patterns += [p for p in f.read().split('\n') if p]
                     f.close()
                 for f in files:
