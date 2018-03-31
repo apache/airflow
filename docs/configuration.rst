@@ -231,6 +231,16 @@ are only sent to remote storage once a task completes (including failure). In ot
 words, remote logs for running tasks are unavailable. Logs are stored in the log
 folder as ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``.
 
+It's worth keeping in mind that since Airflow are using a ISO-8601 timestamps in the 
+log path (i.e. `execution_date`), the default config is not compatible with Windows
+filesystems (which currently includes most Azure offerings). In those cases where the
+default logging configuration is not satisfactory, the user can override the default
+logging config class in ``airflow.cfg``.
+.. code-block:: bash
+
+    [core]
+    logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
+
 Scaling Out on Mesos (community contributed)
 ''''''''''''''''''''''''''''''''''''''''''''
 ``MesosExecutor`` allows you to schedule airflow tasks on a Mesos cluster.
