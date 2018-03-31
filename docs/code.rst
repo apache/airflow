@@ -133,6 +133,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocWorkflowTemplateInstantiateInlineOperator
 .. autoclass:: airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator
 .. autoclass:: airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator
+.. autoclass:: airflow.contrib.operators.discord_webhook_operator.DiscordWebhookOperator
 .. autoclass:: airflow.contrib.operators.druid_operator.DruidOperator
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 .. autoclass:: airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator
@@ -337,6 +338,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.gcp_pubsub_hook.PubSubHook
+.. autoclass:: airflow.contrib.hooks.discord_webhook_hook.DiscordWebhookHook
 
 Executors
 ---------
