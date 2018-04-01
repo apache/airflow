@@ -86,6 +86,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_PY,
             dataflow=PY_FILE, py_options=PY_OPTIONS)
         EXPECTED_CMD = ['python', '-m', PY_FILE,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--labels=foo=bar',
                         '--staging_location=gs://test/staging',
@@ -109,6 +110,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE)
         EXPECTED_CMD = ['java', '-jar', JAR_FILE,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',
@@ -132,6 +134,7 @@ class DataFlowHookTest(unittest.TestCase):
             task_id=TASK_ID, variables=DATAFLOW_OPTIONS_JAVA,
             dataflow=JAR_FILE, job_class=JOB_CLASS)
         EXPECTED_CMD = ['java', '-cp', JAR_FILE, JOB_CLASS,
+                        '--region=us-central1',
                         '--runner=DataflowRunner', '--project=test',
                         '--stagingLocation=gs://test/staging',
                         '--labels={"foo":"bar"}',

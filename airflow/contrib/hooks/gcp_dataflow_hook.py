@@ -179,7 +179,7 @@ class DataFlowHook(GoogleCloudBaseHook):
     def _set_variables(variables):
         if variables['project'] is None:
             raise Exception('Project not specified')
-        if 'region' not in variables.keys:
+        if 'region' not in variables.keys():
             variables['region'] = DEFAULT_DATAFLOW_LOCATION
         return variables
 
