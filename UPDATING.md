@@ -58,6 +58,12 @@ Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a d
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
 
+### Redshift to S3 Operator
+With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row, 
+we need to turn off parallel unload. It is preferred to perform unload operation using all nodes so that it is
+faster for larger tables. So, parameter called `include_header` is added and default is set to False. 
+Header row will be added only if this parameter is set True and also in that case parallel will be automatically turned off (`PARALLEL OFF`)  
+
 ### Google cloud connection string
 
 With Airflow 1.9 or lower there where two connection strings for the Google Cloud operators, both `google_cloud_storage_default` and `google_cloud_default`. This can be confusing and therefore the `google_cloud_storage_default` connection id has been replaced with `google_cloud_default` to make the connection id consistent across Airflow.
