@@ -32,7 +32,7 @@ addons:
       - krb5-user
       - krb5-kdc
       - krb5-admin-server
-      - oracle-java8-installer
+      - oracle-java9-installer
       - python-selinux
   postgresql: "9.2"
 python:
