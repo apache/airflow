@@ -73,7 +73,7 @@ class BaseTaskRunner(LoggingMixin):
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
-            popen_prepend = ['sudo', '-H', '-u', self.run_as_user]
+            popen_prepend = ['sudo', '-E', '-H', '-u', self.run_as_user]
 
             if pythonpath_value:
                 popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
