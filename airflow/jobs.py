@@ -24,7 +24,6 @@ import os
 import psutil
 import signal
 import six
-import socket
 import sys
 import threading
 import time
@@ -43,7 +42,6 @@ from time import sleep
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
-from airflow.logging_config import configure_logging
 from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
@@ -672,8 +670,13 @@ class SchedulerJob(BaseJob):
             if dag.sla_miss_callback:
                 # Execute the alert callback
                 self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
-                dag.sla_miss_callback(dag, task_list, blocking_task_list, slas, blocking_tis)
-                notification_sent = True
+                try:
+                    dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
+                                          blocking_tis)
+                    notification_sent = True
+                except Exception:
+                    self.log.exception("Could not call sla_miss_callback for DAG %s",
+                                       dag.dag_id)
             email_content = """\
             Here's a list of tasks that missed their SLAs:
             <pre><code>{task_list}\n<code></pre>
@@ -691,12 +694,16 @@ class SchedulerJob(BaseJob):
                         if email not in emails:
                             emails.append(email)
             if emails and len(slas):
-                send_email(
-                    emails,
-                    "[airflow] SLA miss on DAG=" + dag.dag_id,
-                    email_content)
-                email_sent = True
-                notification_sent = True
+                try:
+                    send_email(
+                        emails,
+                        "[airflow] SLA miss on DAG=" + dag.dag_id,
+                        email_content)
+                    email_sent = True
+                    notification_sent = True
+                except Exception:
+                    self.log.exception("Could not send SLA Miss email notification for"
+                                       " DAG %s", dag.dag_id)
             # If we sent any notification, update the sla_miss table
             if notification_sent:
                 for sla in slas:
