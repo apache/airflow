@@ -181,6 +181,9 @@ class IntervalCheckOperator(BaseOperator):
 
     :param table: the table name
     :type table: str
+    :param check_with_table: the table name to check against, default None
+    indicates comparing within the same table
+    :type table: str
     :param days_back: number of days between ds and the ds we want to check
         against. Defaults to 7 days
     :type days_back: int
@@ -197,7 +200,7 @@ class IntervalCheckOperator(BaseOperator):
 
     @apply_defaults
     def __init__(
-            self, table, metrics_thresholds,
+            self, table, metrics_thresholds, check_with_table=None,
             date_filter_column='ds', days_back=-7,
             conn_id=None,
             *args, **kwargs):
@@ -208,11 +211,15 @@ class IntervalCheckOperator(BaseOperator):
         self.date_filter_column = date_filter_column
         self.days_back = -abs(days_back)
         self.conn_id = conn_id
+        if not check_with_table:
+            check_with_table = table
         sqlexp = ', '.join(self.metrics_sorted)
-        sqlt = ("SELECT {sqlexp} FROM {table}"
-                " WHERE {date_filter_column}=").format(**locals())
-        self.sql1 = sqlt + "'{{ ds }}'"
-        self.sql2 = sqlt + "'{{ macros.ds_add(ds, "+str(self.days_back)+") }}'"
+        sqlt1 = ("SELECT {sqlexp} FROM {table}"
+                 " WHERE {date_filter_column}=").format(**locals())
+        self.sql1 = sqlt1 + "'{{ ds }}'"
+        sqlt2 = ("SELECT {sqlexp} FROM {check_with_table}"
+                 " WHERE {date_filter_column}=").format(**locals())
+        self.sql2 = sqlt2 + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 
     def execute(self, context=None):
         hook = self.get_db_hook()
