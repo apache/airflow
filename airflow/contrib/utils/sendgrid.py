@@ -20,12 +20,13 @@ from __future__ import unicode_literals
 import base64
 import mimetypes
 import os
+
 import sendgrid
+from sendgrid.helpers.mail import Attachment, Content, Email, Mail, \
+    Personalization, CustomArg, Category
 
 from airflow.utils.email import get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin
-from sendgrid.helpers.mail import Attachment, Content, Email, Mail, \
-    Personalization, CustomArg
 
 
 def send_email(to, subject, html_content, files=None,
@@ -61,14 +62,19 @@ def send_email(to, subject, html_content, files=None,
         bcc = get_email_address_list(bcc)
         for bcc_address in bcc:
             personalization.add_bcc(Email(bcc_address))
-    mail.add_personalization(personalization)
-    mail.add_content(Content('text/html', html_content))
 
     # Add custom_args to personalization if present
     pers_custom_args = kwargs.get('personalization_custom_args', None)
     if isinstance(pers_custom_args, dict):
         for key in pers_custom_args.keys():
             personalization.add_custom_arg(CustomArg(key, pers_custom_args[key]))
+
+    mail.add_personalization(personalization)
+    mail.add_content(Content('text/html', html_content))
+
+    categories = kwargs.get('categories', [])
+    for cat in categories:
+        mail.add_category(Category(cat))
 
     # Add email attachment.
     for fname in files or []:
