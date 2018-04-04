@@ -24,7 +24,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from MySQLdb.constants import FIELD_TYPE
 from tempfile import NamedTemporaryFile
-from six import string_types
+from six import string_types, binary_type
 
 PY3 = sys.version_info[0] == 3
 
@@ -130,6 +130,12 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
+        class BinaryTypeEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if PY3 and isinstance(obj, binary_type):
+                    return str(obj, 'utf-8')
+                return json.JSONEncoder.default(self, obj)
+
         schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
         file_no = 0
         tmp_file_handle = NamedTemporaryFile(delete=True)
@@ -141,7 +147,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             row_dict = dict(zip(schema, row))
 
             # TODO validate that row isn't > 2MB. BQ enforces a hard row size of 2MB.
-            s = json.dumps(row_dict)
+            s = json.dumps(row_dict, cls=BinaryTypeEncoder)
             if PY3:
                 s = s.encode('utf-8')
             tmp_file_handle.write(s)
@@ -166,12 +172,12 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             name in GCS, and values are file handles to local files that
             contains the BigQuery schema fields in .json format.
         """
-        schema = []
+        schema_str = None
         tmp_schema_file_handle = NamedTemporaryFile(delete=True)
         if self.schema is not None and isinstance(self.schema, string_types):
-            schema = self.schema
-            tmp_schema_file_handle.write(schema)
+            schema_str = self.schema
         else:
+            schema = []
             if self.schema is not None and isinstance(self.schema, list):
                 schema = self.schema
             else:
@@ -191,12 +197,12 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
                         'type': field_type,
                         'mode': field_mode,
                     })
-            s = json.dumps(schema, tmp_schema_file_handle)
-            if PY3:
-                s = s.encode('utf-8')
-            tmp_schema_file_handle.write(s)
+            schema_str = json.dumps(schema)
+        if PY3:
+            schema_str = schema_str.encode('utf-8')
+        tmp_schema_file_handle.write(schema_str)
 
-        self.log.info('Using schema for %s: %s', self.schema_filename, schema)
+        self.log.info('Using schema for %s: %s', self.schema_filename, schema_str)
         return {self.schema_filename: tmp_schema_file_handle}
 
     def _upload_to_gcs(self, files_to_upload):
