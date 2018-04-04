@@ -652,7 +652,7 @@ class Airflow(BaseView):
             html_code=html_code,
             code=code,
             dag=dag,
-            title=title, 
+            title=title,
             is_editable=is_dag_editable(dag),
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
