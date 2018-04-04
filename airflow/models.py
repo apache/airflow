@@ -593,6 +593,7 @@ class Connection(Base, LoggingMixin):
         ('databricks', 'Databricks',),
         ('aws', 'Amazon Web Services',),
         ('emr', 'Elastic MapReduce',),
+        ('snowflake', 'Snowflake',),
     ]
 
     def __init__(
