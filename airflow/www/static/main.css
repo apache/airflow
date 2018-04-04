@@ -146,6 +146,24 @@ input, select {
 #sql_ace {
     visibility: hidden;
 }
+#dag_editor {
+    margin: 10px 0px;
+    width: 100%;
+    height: 100px;
+}
+#dag_edited {
+    visibility: hidden;
+    display: none;
+}
+.dag-header {
+    display: flex;
+}
+.dag-header h4{
+    flex-grow: 1;
+}
+.dag-header .btn{
+    float: right;
+}
 table.dataframe {
     font-size: 12px;
 }

@@ -607,12 +607,38 @@ class Airflow(BaseView):
                 payload[dag.safe_dag_id].append(d)
         return wwwutils.json_response(payload)
 
-    @expose('/code')
+    @expose('/code', methods=["GET", "POST"])
     @login_required
     def code(self):
+        # Checking access for given DAG for current user
+        def is_dag_editable(dag):
+            if 'editable_by' in dag.default_args:
+                if (
+                    dag.default_args['editable_by'] == '*' or (
+                        not current_user.is_anonymous and
+                        current_user.user.username in dag.default_args['editable_by']
+                    )
+                ):
+                    return True
+                else:
+                    return False
+            else:
+                return False
+
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         title = dag_id
+
+        # Writing changes to DAG file (if were made) and refreshing DAG
+        if is_dag_editable(dag) and request.form.get('dag_edited'):
+            try:
+                with open(dag.fileloc, 'w') as f:
+                    f.write(request.form.get('dag_edited'))
+                self.refresh("DAG [{}] has been saved and refreshed")
+                dag = dagbag.get_dag(dag_id)
+            except IOError as e:
+                flash('Error writing DAG to file: ' + str(e), 'error')
+
         try:
             with open(dag.fileloc, 'r') as f:
                 code = f.read()
@@ -622,7 +648,12 @@ class Airflow(BaseView):
             html_code = str(e)
 
         return self.render(
-            'airflow/dag_code.html', html_code=html_code, dag=dag, title=title,
+            'airflow/dag_code.html',
+            html_code=html_code,
+            code=code,
+            dag=dag,
+            title=title, 
+            is_editable=is_dag_editable(dag),
             root=request.args.get('root'),
             demo_mode=conf.getboolean('webserver', 'demo_mode'))
 
@@ -1669,7 +1700,7 @@ class Airflow(BaseView):
     @login_required
     @wwwutils.action_logging
     @provide_session
-    def refresh(self, session=None):
+    def refresh(self, session=None, messageText=None):
         DagModel = models.DagModel
         dag_id = request.args.get('dag_id')
         orm_dag = session.query(
@@ -1681,7 +1712,8 @@ class Airflow(BaseView):
         session.commit()
 
         dagbag.get_dag(dag_id)
-        flash("DAG [{}] is now fresh as a daisy".format(dag_id))
+        flashText = messageText if messageText else "DAG [{}] is now fresh as a daisy"
+        flash(flashText.format(dag_id))
         return redirect(request.referrer)
 
     @expose('/refresh_all')

@@ -20,39 +20,70 @@
 
 {% block body %}
     {{ super() }}
-    <h4>{{ title }}</h4>
-    {% if html_code %}
-        {{ html_code|safe }}
-    {% endif %}
-    {% if code %}
-        <pre>{{ code }}</pre>
-    {% endif %}
-
-    {% if code_dict %}
-        {% for k, v in code_dict.items() %}
-            <h5>{{ k }}</h5>
-            <pre>{{ v }}</pre>
-        {% endfor %}
-    {% endif %}
-    {% if html_dict %}
-        {% for k, v in html_dict.items() %}
-            <h5>{{ k }}</h5>
-            {{ v|safe }}
-        {% endfor %}
+    {% if (is_editable and code) %}
+      <form method="post" id="dag_form">
+        <div class="form-inline">
+          <div class="dag-header">
+            <h4>{{ title }}</h4>
+            <input name="_csrf_token" type="hidden" value="{{ csrf_token() }}">
+            <input type="submit" class="btn btn-primary" value="Save">
+          </div>
+          <span id="results"></span><br>
+          <div id='dag_editor' style="visibility: hidden;">{{ code|safe }}</div>
+          <textarea id="dag_edited" name="dag_edited">{{ code|safe }}</textarea>
+        </div>
+      </form>
+    {% else %}
+      <h4>{{ title }}</h4>
+      {% if html_code %}
+          {{ html_code|safe }}
+      {% endif %}
+      {% if code_dict %}
+          {% for k, v in code_dict.items() %}
+              <h5>{{ k }}</h5>
+              <pre>{{ v }}</pre>
+          {% endfor %}
+      {% endif %}
+      {% if html_dict %}
+          {% for k, v in html_dict.items() %}
+              <h5>{{ k }}</h5>
+              {{ v|safe }}
+          {% endfor %}
+      {% endif %}
     {% endif %}
 {% endblock %}
 
 {% block tail %}
-    {{ super() }}
-    <script>
-      // We blur task_ids in demo mode
+  {{ super() }}
+  <script src="{{ url_for('static', filename='ace.js') }}"></script>
+  <script src="{{ url_for('static', filename='mode-python.js') }}"></script>
+  <script>
     $( document ).ready(function() {
+      {% if (is_editable and code) %}
+        var editor = ace.edit("dag_editor");
+        var textarea = $('textarea[name="dag_edited"]').hide();
+        function sync() {
+            textarea.val(editor.getSession().getValue());
+        }
+        editor.setTheme("ace/theme/crimson_editor");
+        editor.setOptions({
+            minLines: 3,
+            maxLines: Infinity,
+        });
+        editor.getSession().setMode("ace/mode/python");
+        editor.getSession().on('change', sync);
+        // Prevents ugly code look before ace editor has rendered it
+        $('#dag_editor').css('visibility', 'visible');
+        editor.focus();
+      {% endif %}
+
+      // We blur task_ids in demo mode
       if ("{{ demo_mode }}" == "True") {
-          $("pre span.s").css({
-              'text-shadow': '0px 0px 10px red',
-              'color': 'transparent',
-          });
+        $("pre span.s").css({
+            'text-shadow': '0px 0px 10px red',
+            'color': 'transparent',
+        });
       }
     });
-    </script>
+  </script>
 {% endblock %}
