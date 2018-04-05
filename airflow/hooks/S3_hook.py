@@ -32,7 +32,7 @@ class S3Hook(AwsHook):
     def parse_s3_url(s3url):
         parsed_url = urlparse(s3url)
         if not parsed_url.netloc:
-            raise AirflowException('Please provide a bucket_name')
+            raise AirflowException('Please provide a bucket_name instead of "%s"' % s3url)
         else:
             bucket_name = parsed_url.netloc
             key = parsed_url.path.strip('/')
