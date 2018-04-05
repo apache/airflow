@@ -231,11 +231,15 @@ class ExternalTaskSensor(BaseSensorOperator):
         else:
             dttm = context['execution_date']
 
+        dttm_filter = dttm if isinstance(dttm, list) else [dttm]
+        serialized_dttm_filter = ','.join(
+            [datetime.isoformat() for datetime in dttm_filter])
+
         logging.info(
             'Poking for '
             '{self.external_dag_id}.'
             '{self.external_task_id} on '
-            '{dttm} ... '.format(**locals()))
+            '{} ... '.format(serialized_dttm_filter, **locals()))
         TI = TaskInstance
 
         session = settings.Session()
@@ -243,7 +247,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             TI.dag_id == self.external_dag_id,
             TI.task_id == self.external_task_id,
             TI.state.in_(self.allowed_states),
-            TI.execution_date == dttm,
+            TI.execution_date.in_(dttm_filter),
         ).count()
         session.commit()
         session.close()
