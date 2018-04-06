@@ -107,12 +107,14 @@ def reflow(text, width=80):
 
 def get_json(url):
     try:
+        print('GOT HERE 11')
         request = urllib.Request(url)
         if GITHUB_OAUTH_KEY:
             request.add_header('Authorization', 'token %s' % GITHUB_OAUTH_KEY)
-
+        print('GOT HERE 12')
         # decode response for Py3 compatibility
         response = urllib.urlopen(request).read().decode('utf-8')
+        print('GOT HERE 13')
         return json.loads(response)
     except urllib.HTTPError as e:
         if (
@@ -825,12 +827,15 @@ def main(pr_num, local=False):
 
     os.chdir(AIRFLOW_GIT_LOCATION)
     original_head = get_current_ref()
-
+    
+    print('GOT HERE 1')
     branches = get_json("%s/branches" % GITHUB_API_BASE)
+    print('GOT HERE 2')
     branch_names = filter(
         lambda x: x.startswith("branch-"), [x['name'] for x in branches])
     # Assumes branch names can be sorted lexicographically
     latest_branch = sorted(branch_names, reverse=True)
+    print('GOT HERE 3')
     if latest_branch:
         latest_branch = latest_branch[0]
     else:
