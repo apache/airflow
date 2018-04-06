@@ -180,10 +180,10 @@ class AirflowConfigParser(ConfigParser):
         # if this is a valid command key...
         if (section, key) in AirflowConfigParser.as_command_stdout:
             # if the original key is present, return it no matter what
-            if self.has_option(section, key):
+            if ConfigParser.has_option(self, section, key):
                 return ConfigParser.get(self, section, key)
             # otherwise, execute the fallback key
-            elif self.has_option(section, fallback_key):
+            elif ConfigParser.has_option(self, section, fallback_key):
                 command = self.get(section, fallback_key)
                 return run_command(command)
 
@@ -197,7 +197,7 @@ class AirflowConfigParser(ConfigParser):
             return option
 
         # ...then the config file
-        if self.has_option(section, key):
+        if ConfigParser.has_option(self, section, key)
             return expand_env_var(
                 ConfigParser.get(self, section, key, **kwargs))
 
@@ -233,6 +233,11 @@ class AirflowConfigParser(ConfigParser):
 
     def getfloat(self, section, key):
         return float(self.get(section, key))
+
+    def has_option(self, section, key):
+        return ((self._get_env_var_option(section, key) is not None) or
+               ConfigParser.has_option(self, section, key) or
+               (self._get_cmd_option(section, key) is not None))
 
     def read(self, filenames):
         ConfigParser.read(self, filenames)
