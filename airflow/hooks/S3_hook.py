@@ -183,10 +183,10 @@ class S3Hook(AwsHook):
 
     def get_wildcard_key(self, wildcard_key, bucket_name=None, delimiter=''):
         """
-        Returns a boto3.s3.Object object matching the regular expression
+        Returns a boto3.s3.Object object matching the wildcard expression
 
-        :param regex_key: the path to the key
-        :type regex_key: str
+        :param wildcard_key: the path to the key
+        :type wildcard_key: str
         :param bucket_name: the name of the bucket
         :type bucket_name: str
         """
