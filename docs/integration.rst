@@ -196,9 +196,17 @@ EmrHook
 AWS S3
 '''''''
 
+- :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
 - :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
 - :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
 - :ref:`S3Hook` : Interact with AWS S3.
+
+.. _S3ListOperator:
+
+S3ListOperator
+""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 
 .. _S3FileTransformOperator:
 
