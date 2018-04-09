@@ -122,7 +122,8 @@ class BaseTaskRunner(LoggingMixin):
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             close_fds=True,
-            env=os.environ.copy()
+            env=os.environ.copy(),
+            preexec_fn=os.setsid
         )
 
         # Start daemon thread to read subprocess logging output
