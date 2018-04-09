@@ -14,14 +14,13 @@
 
 import json
 import unittest
-
 from datetime import datetime
 
-from airflow import models
 from airflow import configuration
-from airflow.www import app as application
-from airflow.settings import Session
+from airflow import models
 from airflow.contrib.auth.backends.password_auth import PasswordUser
+from airflow.settings import Session
+from airflow.www import app as application
 
 try:
     from ConfigParser import DuplicateSectionError
@@ -38,6 +37,14 @@ class ApiPasswordTests(unittest.TestCase):
             pass
 
         configuration.conf.set("api",
+                               "auth_backend",
+                               "airflow.contrib.auth.backends.password_auth")
+
+        configuration.conf.set("webserver",
+                               "authenticate",
+                               "True")
+
+        configuration.conf.set("webserver",
                                "auth_backend",
                                "airflow.contrib.auth.backends.password_auth")
 
