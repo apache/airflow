@@ -28,18 +28,22 @@ TASK_ID = 'test-gcs-list-operator'
 TEST_BUCKET = 'test-bucket'
 DELIMITER = '.csv'
 PREFIX = 'TEST'
+MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
 class GoogleCloudStorageListOperatorTest(unittest.TestCase):
 
     @mock.patch('airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageHook')
     def test_execute(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES
+
         operator = GoogleCloudStorageListOperator(task_id=TASK_ID,
                                                   bucket=TEST_BUCKET,
                                                   prefix=PREFIX,
                                                   delimiter=DELIMITER)
 
-        operator.execute(None)
+        files = operator.execute(None)
         mock_hook.return_value.list.assert_called_once_with(
             bucket=TEST_BUCKET, prefix=PREFIX, delimiter=DELIMITER
         )
+        self.assertEqual(sorted(files), sorted(MOCK_FILES))
