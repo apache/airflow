@@ -108,10 +108,7 @@ class OperatorSubclass(BaseOperator):
 
 
 class CoreTest(unittest.TestCase):
-    # These defaults make the test faster to run
-    default_scheduler_args = {"file_process_interval": 0,
-                              "processor_poll_interval": 0.5,
-                              "num_runs": 1}
+    default_scheduler_args = {"num_runs": 1}
 
     def setUp(self):
         configuration.load_test_config()

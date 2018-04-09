@@ -224,6 +224,9 @@ indefinitely. This is only available on the command line.
 #### min_file_process_interval
 After how much time should an updated DAG be picked up from the filesystem.
 
+#### min_file_parsing_loop_time
+How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
+
 #### dag_dir_list_interval
 How often the scheduler should relist the contents of the DAG directory. If you experience that while developing your
 dags are not being picked up, have a look at this number and decrease it when necessary.
