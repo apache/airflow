@@ -140,6 +140,7 @@ class DockerOperator(BaseOperator):
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
+        self.shm_size = kwargs.get('shm_size')
 
         self.cli = None
         self.container = None
@@ -184,15 +185,17 @@ class DockerOperator(BaseOperator):
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
-                    command=self.get_command(),
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user,
-                    working_dir=self.working_dir
+                command=self.get_command(),
+                cpu_shares=cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(
+                    binds=self.volumes,
+                    network_mode=self.network_mode,
+                    shm_size=self.shm_size),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user,
+                working_dir=self.working_dir
             )
             self.cli.start(self.container['Id'])
 

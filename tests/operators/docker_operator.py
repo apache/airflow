@@ -53,7 +53,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
-                                  working_dir='/container/path')
+                                  working_dir='/container/path', shm_size=1000)
         operator.execute(None)
 
         client_class_mock.assert_called_with(base_url='unix://var/run/docker.sock', tls=None,
@@ -71,7 +71,8 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                         )
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
-                                                          network_mode='bridge')
+                                                          network_mode='bridge',
+                                                          shm_size=1000)
         client_mock.images.assert_called_with(name='ubuntu:latest')
         client_mock.logs.assert_called_with(container='some_id', stream=True)
         client_mock.pull.assert_called_with('ubuntu:latest', stream=True)
