@@ -30,8 +30,6 @@ class AwsGlueJobHook(AwsHook):
     :type int
     :param script_location: path to etl script either on s3 or local
     :type str
-    :param default_args: etl script arguments and AWS Glue arguments
-    :type dict
     :param conns: A list of connections used by the job
     :type list
     :param retry_limit: The maximum number of times to retry this job if it fails
@@ -40,6 +38,8 @@ class AwsGlueJobHook(AwsHook):
     :type int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
+    :param default_s3_bucket: This is your S3 bucket where logs and local AWS Glue etl script will be uploaded to
+    :type str
     """
 
     def __init__(self,
@@ -71,13 +71,14 @@ class AwsGlueJobHook(AwsHook):
         }
         self.S3_PROTOCOL = "s3://"
         self.S3_ARTIFACTS_PREFIX = 'artifacts/glue-scripts/'
+        self.S3_GLUE_LOGS = 'logs/glue-logs/'
         super(AwsGlueJobHook, self).__init__(*args, **kwargs)
 
     def get_conn(self):
         self.conn = self.get_client_type('glue', self.region_name)
         return self.conn
 
-    def _create_iam_role(self):
+    def _create_job_execution_role(self):
         """
         :return: iam role for job execution
         """
@@ -144,12 +145,12 @@ class AwsGlueJobHook(AwsHook):
             return job_details['Job']['Name']
         except AirflowConfigException:
             ## create job
-            execution_role = self._create_iam_role()
+            execution_role = self._create_job_execution_role()
             script_location = self._check_script_location(self.script_location)
             create_job_response = glue_client.create_job(
                 Name=self.job_name,
                 Description=self.desc,
-                LogUri="" or None,
+                LogUri="s3://{bucket_name}/{logs_path}{job_name}".format(bucket_name=self.default_s3_bucket, logs_path=self.S3_GLUE_LOGS, job_name=self.job_name),
                 Role=execution_role['Role']['RoleName'],
                 ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
                 Command={"Name": "glueetl", "ScriptLocation": script_location},
