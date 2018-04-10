@@ -76,6 +76,7 @@ Operators
 .. autoclass:: airflow.operators.python_operator.PythonVirtualenvOperator
 .. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
 .. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
+.. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
 .. autoclass:: airflow.operators.python_operator.ShortCircuitOperator
 .. autoclass:: airflow.operators.http_operator.SimpleHttpOperator
 .. autoclass:: airflow.operators.slack_operator.SlackAPIOperator
