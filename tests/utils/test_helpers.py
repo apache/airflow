@@ -22,53 +22,59 @@ import unittest
 
 from airflow.utils import helpers
 
-
 class TestHelpers(unittest.TestCase):
 
     @staticmethod
-    def _ignores_sigterm(child_pid, setup_done):
+    def _ignores_sigterm(child_pid, child_setup_done):
         def signal_handler(signum, frame):
             pass
-
         signal.signal(signal.SIGTERM, signal_handler)
         child_pid.value = os.getpid()
-        setup_done.release()
+        child_setup_done.release()
         while True:
             time.sleep(1)
 
     @staticmethod
-    def _parent_of_ignores_sigterm(child_process_killed, child_pid,
-                                   process_done, setup_done):
+    def _parent_of_ignores_sigterm(parent_pid, child_pid, setup_done):
+        def signal_handler(signum, frame):
+            pass
+        signal.signal(signal.SIGTERM, signal_handler)
+        child_setup_done = multiprocessing.Semaphore(0)
         child = multiprocessing.Process(target=TestHelpers._ignores_sigterm,
-                                        args=[child_pid, setup_done])
+                                        args=[child_pid, child_setup_done])
         child.start()
-        if setup_done.acquire(timeout=1.0):
-            helpers.kill_process_tree(logging.getLogger(), os.getpid(), timeout=1.0)
-            # Process.is_alive doesnt work with SIGKILL
-            if not psutil.pid_exists(child_pid.value):
-                child_process_killed.value = 1
-
-        process_done.release()
+        child_setup_done.acquire(timeout=5.0)
+        parent_pid.value = os.getpid()
+        setup_done.release()
+        while True:
+            time.sleep(1)
 
     def test_kill_process_tree(self):
         """Spin up a process that can't be killed by SIGTERM and make sure it gets killed anyway."""
-        child_process_killed = multiprocessing.Value('i', 0)
-        process_done = multiprocessing.Semaphore(0)
+        parent_setup_done = multiprocessing.Semaphore(0)
+        parent_pid = multiprocessing.Value('i', 0)
         child_pid = multiprocessing.Value('i', 0)
-        setup_done = multiprocessing.Semaphore(0)
-        args = [child_process_killed, child_pid, process_done, setup_done]
-        child = multiprocessing.Process(target=TestHelpers._parent_of_ignores_sigterm, args=args)
+        args = [parent_pid, child_pid, parent_setup_done]
+        parent = multiprocessing.Process(target=TestHelpers._parent_of_ignores_sigterm,
+                                         args=args)
         try:
-            child.start()
-            self.assertTrue(process_done.acquire(timeout=5.0))
-            self.assertEqual(1, child_process_killed.value)
+            parent.start()
+            self.assertTrue(parent_setup_done.acquire(timeout=5.0))
+            self.assertTrue(psutil.pid_exists(parent_pid.value))
+            self.assertTrue(psutil.pid_exists(child_pid.value))
+
+            helpers.kill_process_tree(logging.getLogger(), parent_pid.value, timeout=1)
+
+            self.assertFalse(psutil.pid_exists(parent_pid.value))
+            self.assertFalse(psutil.pid_exists(child_pid.value))
         finally:
             try:
-                os.kill(child_pid.value, signal.SIGKILL) # terminate doesnt work here
+                os.kill(parent_pid.value, signal.SIGKILL)  # terminate doesnt work here
+                os.kill(child_pid.value, signal.SIGKILL)  # terminate doesnt work here
             except OSError:
                 pass
 
-    def test_kill_using_shell(self):
+    def test_kill_processes(self):
         """Test when no process exists."""
         child_pid = multiprocessing.Value('i', 0)
         setup_done = multiprocessing.Semaphore(0)
@@ -78,11 +84,17 @@ class TestHelpers(unittest.TestCase):
 
         self.assertTrue(setup_done.acquire(timeout=1.0))
         pid_to_kill = child_pid.value
-        self.assertTrue(helpers.kill_using_shell(logging.getLogger(), pid_to_kill,
-                                                 signal=signal.SIGKILL))
+        p = psutil.Process(pid_to_kill)
+        dead, alive = helpers.kill_processes(logging.getLogger(), [p], sig=signal.SIGKILL)
+        self.assertEqual(len(dead), 1)
+        self.assertEqual(len(alive), 0)
+
         child.join() # remove orphan process
-        self.assertFalse(helpers.kill_using_shell(logging.getLogger(), pid_to_kill,
-                                                  signal=signal.SIGKILL))
+
+        # can kill already dead process
+        dead, alive = helpers.kill_processes(logging.getLogger(), [p], sig=signal.SIGKILL)
+        self.assertEqual(len(dead), 1)
+        self.assertEqual(len(alive), 0)
 
 
 if __name__ == '__main__':
