@@ -18,7 +18,7 @@ from sys import version_info
 
 import base64
 import flask_login
-from flask_login import current_user
+from flask_login import login_required, current_user, logout_user  # noqa: F401
 from flask import flash, Response
 from wtforms import Form, PasswordField, StringField
 from wtforms.validators import InputRequired
