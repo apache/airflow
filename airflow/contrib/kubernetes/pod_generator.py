@@ -201,9 +201,9 @@ class WorkerGenerator(PodGenerator):
             volumes[0]["emptyDir"] = {}
         return volumes, volume_mounts
 
-    def _init_labels(self, dag_id, task_id, execution_date):
+    def _init_labels(self, dag_id, task_id, execution_date, worker_uuid):
         return {
-            "airflow-slave": "",
+            "airflow-worker": worker_uuid,
             "dag_id": dag_id,
             "task_id": task_id,
             "execution_date": execution_date
@@ -264,6 +264,7 @@ class WorkerGenerator(PodGenerator):
 
     def make_worker_pod(self,
                         namespace,
+                        worker_uuid,
                         pod_id,
                         dag_id,
                         task_id,
@@ -271,7 +272,7 @@ class WorkerGenerator(PodGenerator):
                         airflow_command,
                         kube_executor_config):
         cmds = ["bash", "-cx", "--"]
-        labels = self._init_labels(dag_id, task_id, execution_date)
+        labels = self._init_labels(dag_id, task_id, execution_date, worker_uuid)
         PodGenerator.make_pod(self,
                               namespace=namespace,
                               pod_id=pod_id,

@@ -50,6 +50,7 @@ import traceback
 import warnings
 import hashlib
 
+import uuid
 from datetime import datetime
 from urllib.parse import urlparse, quote
 
@@ -5141,9 +5142,32 @@ class KubeResourceVersion(Base):
     @staticmethod
     @provide_session
     def reset_resource_version(session=None):
-        KubeResourceVersion.log.debug('Reset resource version')
         session.query(KubeResourceVersion).update({
             KubeResourceVersion.resource_version: '0'
         })
         session.commit()
         return '0'
+
+
+class KubeWorkerIdentifier(Base):
+    __tablename__ = "kube_worker_uuid"
+    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
+    worker_uuid = Column(String(255))
+
+    @staticmethod
+    @provide_session
+    def get_or_create_current_kube_worker_uuid(session=None):
+        (worker_uuid,) = session.query(KubeWorkerIdentifier.worker_uuid).one()
+        if worker_uuid == '':
+            worker_uuid = str(uuid.uuid4())
+            KubeWorkerIdentifier.checkpoint_kube_worker_uuid(worker_uuid, session)
+        return worker_uuid
+
+    @staticmethod
+    @provide_session
+    def checkpoint_kube_worker_uuid(worker_uuid, session=None):
+        if worker_uuid:
+            session.query(KubeWorkerIdentifier).update({
+                KubeWorkerIdentifier.worker_uuid: worker_uuid
+            })
+            session.commit()

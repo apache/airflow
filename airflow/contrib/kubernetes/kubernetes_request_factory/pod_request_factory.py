@@ -31,7 +31,7 @@ metadata:
 spec:
   containers:
     - name: base
-      image: airflow-slave:latest
+      image: airflow-worker:latest
       command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
   restartPolicy: Never
     """
