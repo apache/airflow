@@ -132,7 +132,6 @@ Follow the steps below to enable Azure Blob Storage logging.
         # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
         LOGGING_CONFIG = ...
 
-        
 
 #. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
 
@@ -151,7 +150,7 @@ Follow the steps below to enable Azure Blob Storage logging.
 .. _AWS:
 
 AWS: Amazon Web Services
------------------------
+------------------------
 
 Airflow has extensive support for Amazon Web Services. But note that the Hooks, Sensors and
 Operators are in the contrib section.
@@ -167,34 +166,34 @@ AWS EMR
 .. _EmrAddStepsOperator:
 
 EmrAddStepsOperator
-""""""""
+"""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator
 
 .. _EmrCreateJobFlowOperator:
 
 EmrCreateJobFlowOperator
-""""""""
+""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_create_job_flow_operator.EmrCreateJobFlowOperator
 
 .. _EmrTerminateJobFlowOperator:
 
 EmrTerminateJobFlowOperator
-""""""""
+"""""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
 
 .. _EmrHook:
 
 EmrHook
-""""""""
+"""""""
 
 .. autoclass:: airflow.contrib.hooks.emr_hook.EmrHook
 
 
 AWS S3
-'''''''
+''''''
 
 - :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
 - :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
@@ -211,14 +210,14 @@ S3ListOperator
 .. _S3FileTransformOperator:
 
 S3FileTransformOperator
-""""""""""""""""""""""""
+"""""""""""""""""""""""
 
 .. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
 
 .. _S3ToHiveTransfer:
 
 S3ToHiveTransfer
-"""""""""""""""""
+""""""""""""""""
 
 .. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
 
@@ -231,33 +230,33 @@ S3Hook
 
 
 AWS EC2 Container Service
-''''''''''''''''''''''''''
+'''''''''''''''''''''''''
 
 - :ref:`ECSOperator` : Execute a task on AWS EC2 Container Service.
 
 .. _ECSOperator:
 
 ECSOperator
-""""""""""""
+"""""""""""
 
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 
 
 AWS Batch Service
-''''''''''''''''''''''''''
+'''''''''''''''''
 
 - :ref:`AWSBatchOperator` : Execute a task on AWS Batch Service.
 
 .. _AWSBatchOperator:
 
 AWSBatchOperator
-""""""""""""
+""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 
 
 AWS RedShift
-'''''''''''''
+''''''''''''
 
 - :ref:`AwsRedshiftClusterSensor` : Waits for a Redshift cluster to reach a specific status.
 - :ref:`RedshiftHook` : Interact with AWS Redshift, using the boto3 library.
@@ -266,21 +265,21 @@ AWS RedShift
 .. _AwsRedshiftClusterSensor:
 
 AwsRedshiftClusterSensor
-"""""""""""""""""""""""""
+""""""""""""""""""""""""
 
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
 
 .. _RedshiftHook:
 
 RedshiftHook
-"""""""""""""
+""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
 
 .. _RedshiftToS3Transfer:
 
 RedshiftToS3Transfer
-"""""""""""""""""""""
+""""""""""""""""""""
 
 .. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
 
@@ -679,7 +678,7 @@ Cloud ML Engine Operators
 .. _MLEngineBatchPredictionOperator:
 
 MLEngineBatchPredictionOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineBatchPredictionOperator
     :members:
@@ -687,7 +686,7 @@ MLEngineBatchPredictionOperator
 .. _MLEngineModelOperator:
 
 MLEngineModelOperator
-^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
     :members:
@@ -695,7 +694,7 @@ MLEngineModelOperator
 .. _MLEngineTrainingOperator:
 
 MLEngineTrainingOperator
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
     :members:
@@ -714,7 +713,7 @@ Cloud ML Engine Hook
 .. _MLEngineHook:
 
 MLEngineHook
-^^^^^^^^^^^
+^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.hooks.gcp_mlengine_hook.MLEngineHook
     :members:
