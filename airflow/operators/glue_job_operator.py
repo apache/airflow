@@ -33,15 +33,15 @@ class GlueJobOperator(BaseOperator):
     :type int
     :param script_args: etl script arguments and AWS Glue arguments
     :type dict
-    :param connections: Glue connections to be used by the job. Check this on AWS Glue Web Console
+    :param connections: AWS Glue connections to be used by the job.
     :type list
     :param retry_limit: The maximum number of times to retry this job if it fails
     :type int
-    :param num_of_dpus: Number of AWS Glue data processing units (DPUs) to allocate to this Job.
+    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job.
     :type int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
-    :param s3_bucket: S3 bucket where logs and local AWS Glue etl script will be uploaded
+    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :type str
     """
     template_fields = ()
