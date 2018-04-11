@@ -23,4 +23,11 @@ Make sure you have checked _all_ steps below.
     5. Body wraps at 72 characters
     6. Body explains "what" and "why", not "how"
 
+
+### Documentation
+- [ ] In case of new functionality, my PR adds documentation that describes how to use it.
+    - When adding new operators/hooks/sensors, the autoclass documentation generation needs to be added.
+
+
+### Code Quality
 - [ ] Passes `git diff upstream/master -u -- "*.py" | flake8 --diff`
