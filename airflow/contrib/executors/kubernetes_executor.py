@@ -31,7 +31,7 @@ from airflow.executors import Executors
 from airflow.models import TaskInstance, KubeResourceVersion
 from airflow.utils.state import State
 from airflow import configuration, settings
-from airflow.exceptions import AirflowConfigException
+from airflow.exceptions import AirflowConfigException, AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
@@ -232,6 +232,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
             self.log.info(
                 "Event: {} had an event of type {}".format(task.metadata.name,
                                                            event['type']))
+            if event['type'] == 'ERROR':
+                return self.process_error(event)
             self.process_status(
                 task.metadata.name, task.status.phase, task.metadata.labels,
                 task.metadata.resource_version
@@ -239,6 +241,18 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
             last_resource_version = task.metadata.resource_version
 
         return last_resource_version
+
+    def process_error(self, event):
+        self.log.error('Encountered Error response from k8s list namespaced pod stream => {}'.format(event))
+        raw_object = event['raw_object']
+        if raw_object['code'] == 410:
+            self.log.info('Kubernetes resource version is too old, must reset to 0 => {}'.format(raw_object['message']))
+            # Return resource version 0
+            return '0'
+        raise AirflowException(
+            'Kubernetes failure for {} with code {} and message: {}'.format(raw_object['reason'],
+                                                                            raw_object['code'],
+                                                                            raw_object['message']))
 
     def process_status(self, pod_id, status, labels, resource_version):
         if status == 'Pending':
@@ -516,6 +530,10 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
     def start(self):
         self.log.info('k8s: starting kubernetes executor')
         self._session = settings.Session()
+        # always need to reset resource version since we don't know
+        # when we last started, note for behavior below
+        # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md#list_namespaced_pod
+        KubeResourceVersion.reset_resource_version(self._session)
         self.task_queue = Queue()
         self.result_queue = Queue()
         self.kube_client = get_kube_client()

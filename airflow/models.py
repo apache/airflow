@@ -5137,3 +5137,13 @@ class KubeResourceVersion(Base):
                 KubeResourceVersion.resource_version: resource_version
             })
             session.commit()
+
+    @staticmethod
+    @provide_session
+    def reset_resource_version(session=None):
+        KubeResourceVersion.log.debug('Reset resource version')
+        session.query(KubeResourceVersion).update({
+            KubeResourceVersion.resource_version: '0'
+        })
+        session.commit()
+        return '0'
