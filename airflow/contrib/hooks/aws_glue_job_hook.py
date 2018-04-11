@@ -18,6 +18,7 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 import json
 import os.path
 
+
 class AwsGlueJobHook(AwsHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
@@ -32,13 +33,13 @@ class AwsGlueJobHook(AwsHook):
     :type str
     :param conns: A list of connections used by the job
     :type list
-    :param retry_limit: The maximum number of times to retry this job if it fails
+    :param retry_limit: Maximum number of times to retry this job if it fails
     :type int
-    :param num_of_dpus: The number of AWS Glue data processing units (DPUs) to allocate to this Job
+    :param num_of_dpus: Number of AWS Glue data processing units (DPUs) to allocate to this Job
     :type int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
-    :param default_s3_bucket: This is your S3 bucket where logs and local AWS Glue etl script will be uploaded to
+    :param default_s3_bucket: S3 bucket where logs and local AWS Glue etl script will be uploaded
     :type str
     """
 
@@ -85,14 +86,13 @@ class AwsGlueJobHook(AwsHook):
         iam_client = self.get_client_type('iam', self.region_name)
         role_name = "{}-ExecutionRole".format(self.job_name.capitalize())
 
-        ## step 1: create job execution
         self.glue_execution_role = iam_client.create_role(
             Path="/",
             RoleName=role_name,
             Description="AWS IAM Execution Role for {}".format(self.job_name.capitalize()),
             AssumeRolePolicyDocument=json.dumps(self.assumed_policy)
         )
-        ## step 2: attached aws glue service policy to role role_name
+
         iam_client.attach_role_policy(
             RoleName=role_name,
             PolicyArn='arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole'
@@ -132,8 +132,9 @@ class AwsGlueJobHook(AwsHook):
             RunId=run_id,
             PredecessorsIncluded=False
         )
-        #
-        while job_status['JobRun']['JobRunState'] == 'STARTING' or 'RUNNING' or 'STOPPING':
+        job_run_state = job_status['JobRun']['JobRunState']
+
+        while job_run_state == 'STARTING' or 'RUNNING' or 'STOPPING':
             self.job_completion(job_name, run_id)
 
         return job_status
@@ -144,13 +145,18 @@ class AwsGlueJobHook(AwsHook):
             job_details = glue_client.get_job(JobName=self.job_name)
             return job_details['Job']['Name']
         except AirflowConfigException:
-            ## create job
+
+            s3_log_path = "s3://{bucket_name}/{logs_path}{job_name}"\
+                              .format(bucket_name=self.default_s3_bucket,
+                                      logs_path=self.S3_GLUE_LOGS,
+                                      job_name=self.job_name)
+
             execution_role = self._create_job_execution_role()
             script_location = self._check_script_location(self.script_location)
             create_job_response = glue_client.create_job(
                 Name=self.job_name,
                 Description=self.desc,
-                LogUri="s3://{bucket_name}/{logs_path}{job_name}".format(bucket_name=self.default_s3_bucket, logs_path=self.S3_GLUE_LOGS, job_name=self.job_name),
+                LogUri=s3_log_path,
                 Role=execution_role['Role']['RoleName'],
                 ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
                 Command={"Name": "glueetl", "ScriptLocation": script_location},
@@ -161,8 +167,8 @@ class AwsGlueJobHook(AwsHook):
             return create_job_response['Name']
         except Exception as general_error:
             raise AirflowException(
-                'Failed to create aws glue job, error: {error}. Check AWS Console for more details'.format(
-                    error=str(general_error)
+                'Failed to create aws glue job, error: {error}.'.format(
+                        error=str(general_error)
                 )
             )
 
@@ -176,9 +182,13 @@ class AwsGlueJobHook(AwsHook):
             s3 = self.get_resource_type('s3', self.region_name)
             script_name = os.path.basename(self.script_location)
             s3.meta.client.upload_file(self.script_location,
-                                       self.default_s3_bucket, self.S3_ARTIFACTS_PREFIX + script_name)
-            return "s3://{s3_bucket}/{prefix}{script_name}".format(s3_bucket=self.default_s3_bucket,
-                                                                   prefix=self.S3_ARTIFACTS_PREFIX,
-                                                                   script_name=script_name)
+                                       self.default_s3_bucket,
+                                       self.S3_ARTIFACTS_PREFIX + script_name)
+
+            s3_script_path = "s3://{s3_bucket}/{prefix}{script_name}" \
+                .format(s3_bucket=self.default_s3_bucket,
+                        prefix=self.S3_ARTIFACTS_PREFIX,
+                        script_name=script_name)
+            return s3_script_path
         else:
             return None
