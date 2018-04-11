@@ -35,11 +35,11 @@ class AwsGlueJobHook(AwsHook):
     :type list
     :param retry_limit: Maximum number of times to retry this job if it fails
     :type int
-    :param num_of_dpus: Number of AWS Glue data processing units (DPUs) to allocate to this Job
+    :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
     :type int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
-    :param default_s3_bucket: S3 bucket where logs and local AWS Glue etl script will be uploaded
+    :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :type str
     """
 
@@ -52,7 +52,7 @@ class AwsGlueJobHook(AwsHook):
                  retry_limit=None,
                  num_of_dpus=None,
                  region_name=None,
-                 default_s3_bucket=None, *args, **kwargs):
+                 s3_bucket=None, *args, **kwargs):
         self.job_name = job_name
         self.desc = desc
         self.concurrent_run_limit = concurrent_run_limit
@@ -61,7 +61,7 @@ class AwsGlueJobHook(AwsHook):
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
         self.region_name = region_name
-        self.default_s3_bucket = default_s3_bucket
+        self.s3_bucket = s3_bucket
         self.assumed_policy = {
             "Version": "2012-10-17",
             "Statement": {
@@ -89,7 +89,7 @@ class AwsGlueJobHook(AwsHook):
         self.glue_execution_role = iam_client.create_role(
             Path="/",
             RoleName=role_name,
-            Description="AWS IAM Execution Role for {}".format(self.job_name.capitalize()),
+            Description="AWS IAM Execution Role for {}".format(role_name),
             AssumeRolePolicyDocument=json.dumps(self.assumed_policy)
         )
 
@@ -147,9 +147,9 @@ class AwsGlueJobHook(AwsHook):
         except AirflowConfigException:
 
             s3_log_path = "s3://{bucket_name}/{logs_path}{job_name}"\
-                              .format(bucket_name=self.default_s3_bucket,
-                                      logs_path=self.S3_GLUE_LOGS,
-                                      job_name=self.job_name)
+                .format(bucket_name=self.s3_bucket,
+                        logs_path=self.S3_GLUE_LOGS,
+                        job_name=self.job_name)
 
             execution_role = self._create_job_execution_role()
             script_location = self._check_script_location(self.script_location)
@@ -168,7 +168,7 @@ class AwsGlueJobHook(AwsHook):
         except Exception as general_error:
             raise AirflowException(
                 'Failed to create aws glue job, error: {error}.'.format(
-                        error=str(general_error)
+                    error=str(general_error)
                 )
             )
 
@@ -182,11 +182,11 @@ class AwsGlueJobHook(AwsHook):
             s3 = self.get_resource_type('s3', self.region_name)
             script_name = os.path.basename(self.script_location)
             s3.meta.client.upload_file(self.script_location,
-                                       self.default_s3_bucket,
+                                       self.s3_bucket,
                                        self.S3_ARTIFACTS_PREFIX + script_name)
 
             s3_script_path = "s3://{s3_bucket}/{prefix}{script_name}" \
-                .format(s3_bucket=self.default_s3_bucket,
+                .format(s3_bucket=self.s3_bucket,
                         prefix=self.S3_ARTIFACTS_PREFIX,
                         script_name=script_name)
             return s3_script_path
