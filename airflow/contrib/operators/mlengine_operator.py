@@ -474,6 +474,16 @@ class MLEngineTrainingOperator(BaseOperator):
     :param scale_tier: Resource tier for MLEngine training job.
     :type scale_tier: string
 
+    :param runtime_version: The Google Cloud ML runtime version to use for training.
+    :type runtime_version: string
+
+    :param python_version: The version of Python used in training.
+    :type python_version: string
+
+    :param job_dir: A Google Cloud Storage path in which to store training
+        outputs and other data needed for training.
+    :type job_dir: string
+
     :param gcp_conn_id: The connection ID to use when fetching connection info.
     :type gcp_conn_id: string
 
@@ -497,6 +507,9 @@ class MLEngineTrainingOperator(BaseOperator):
         '_training_args',
         '_region',
         '_scale_tier',
+        '_runtime_version',
+        '_python_version',
+        '_job_dir'
     ]
 
     @apply_defaults
@@ -508,6 +521,9 @@ class MLEngineTrainingOperator(BaseOperator):
                  training_args,
                  region,
                  scale_tier=None,
+                 runtime_version=None,
+                 python_version=None,
+                 job_dir=None,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
                  mode='PRODUCTION',
@@ -521,6 +537,9 @@ class MLEngineTrainingOperator(BaseOperator):
         self._training_args = training_args
         self._region = region
         self._scale_tier = scale_tier
+        self._runtime_version = runtime_version
+        self._python_version = python_version
+        self._job_dir = job_dir
         self._gcp_conn_id = gcp_conn_id
         self._delegate_to = delegate_to
         self._mode = mode
@@ -554,6 +573,15 @@ class MLEngineTrainingOperator(BaseOperator):
                 'args': self._training_args,
             }
         }
+
+        if self._runtime_version:
+            training_request['trainingInput']['runtimeVersion'] = self._runtime_version
+
+        if self._python_version:
+            training_request['trainingInput']['pythonVersion'] = self._python_version
+
+        if self._job_dir:
+            training_request['trainingInput']['jobDir'] = self._job_dir
 
         if self._mode == 'DRY_RUN':
             self.log.info('In dry_run mode.')
