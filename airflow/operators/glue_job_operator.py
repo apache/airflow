@@ -33,15 +33,15 @@ class GlueJobOperator(BaseOperator):
     :type int
     :param script_args: etl script arguments and AWS Glue arguments
     :type dict
-    :param connections: A list of glue connections to be used by the job. Check this on AWS Glue Web Console
+    :param connections: Glue connections to be used by the job. Check this on AWS Glue Web Console
     :type list
     :param retry_limit: The maximum number of times to retry this job if it fails
     :type int
-    :param num_of_dpus: The number of AWS Glue data processing units (DPUs) to allocate to this Job. Default is 6
+    :param num_of_dpus: Number of AWS Glue data processing units (DPUs) to allocate to this Job.
     :type int
     :param region_name: aws region name (example: us-east-1)
     :type region_name: str
-    :param default_s3_bucket: This is your S3 bucket where logs and local AWS Glue etl script will be uploaded to
+    :param s3_bucket: S3 bucket where logs and local AWS Glue etl script will be uploaded
     :type str
     """
     template_fields = ()
@@ -79,17 +79,20 @@ class GlueJobOperator(BaseOperator):
         Executes AWS Glue Job from Airflow
         :return:
         """
-        glue_job = AwsGlueJobHook(job_name=self.job_name, desc=self.job_desc,
+        glue_job = AwsGlueJobHook(job_name=self.job_name,
+                                  desc=self.job_desc,
                                   concurrent_run_limit=self.concurrent_run_limit,
                                   script_location=self.script_location,
-                                  conns=self.connections, retry_limit=self.retry_limit,
-                                  num_of_dpus=self.num_of_dpus, region_name=self.region_name,
+                                  conns=self.connections,
+                                  retry_limit=self.retry_limit,
+                                  num_of_dpus=self.num_of_dpus,
+                                  region_name=self.region_name,
                                   default_s3_bucket=self.s3_bucket)
 
         self.log.info("Initializing AWS Glue Job")
         glue_job_status = glue_job.initialize_job(self.script_args)['JobRun']
 
-        self.log.info('AWS Glue Job {job_name} status: {job_status}. Run Id: {run_id}'
+        self.log.info('AWS Glue Job: {job_name} status: {job_status}. Run Id: {run_id}'
                       .format(run_id=glue_job_status['Id'],
                               job_name=glue_job_status['JobName'],
                               job_status=glue_job_status['JobRunState'])
