@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -69,6 +69,9 @@ SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigtable.data'
 ]
+IDLE_DELETE_TTL = 321
+AUTO_DELETE_TIME = datetime.datetime(2017, 6, 7)
+AUTO_DELETE_TTL = 654
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 REGION = 'test-region'
 MAIN_URI = 'test-uri'
@@ -102,8 +105,11 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     worker_machine_type=WORKER_MACHINE_TYPE,
                     worker_disk_size=WORKER_DISK_SIZE,
                     num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
-                    labels = deepcopy(labels),
-                    service_account_scopes = SERVICE_ACCOUNT_SCOPES
+                    labels=deepcopy(labels),
+                    service_account_scopes=SERVICE_ACCOUNT_SCOPES,
+                    idle_delete_ttl=IDLE_DELETE_TTL,
+                    auto_delete_time=AUTO_DELETE_TIME,
+                    auto_delete_ttl=AUTO_DELETE_TTL
                 )
              )
         self.dag = DAG(
@@ -136,6 +142,9 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])
             self.assertEqual(dataproc_operator.service_account_scopes,
                              SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(dataproc_operator.idle_delete_ttl, IDLE_DELETE_TTL)
+            self.assertEqual(dataproc_operator.auto_delete_time, AUTO_DELETE_TIME)
+            self.assertEqual(dataproc_operator.auto_delete_ttl, AUTO_DELETE_TTL)
 
     def test_get_init_action_timeout(self):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
@@ -160,6 +169,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 NETWORK_URI)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['tags'],
                 TAGS)
+            self.assertEqual(cluster_data['config']['lifecycleConfig']['idleDeleteTtl'],
+                             "321s")
+            self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                             "2017-06-07T00:00:00.000000Z")
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
@@ -168,6 +181,52 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertTrue(re.match(r'[a-z]([-a-z0-9]*[a-z0-9])?',
                                      cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
+
+    def test_build_cluster_data_with_autoDeleteTime(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_time=AUTO_DELETE_TIME,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                         "2017-06-07T00:00:00.000000Z")
+
+    def test_build_cluster_data_with_autoDeleteTtl(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_ttl=AUTO_DELETE_TTL,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTtl'],
+                         "654s")
+
+    def test_build_cluster_data_with_autoDeleteTime_and_autoDeleteTtl(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_time=AUTO_DELETE_TIME,
+            auto_delete_ttl=AUTO_DELETE_TTL,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        if 'autoDeleteTtl' in cluster_data['config']['lifecycleConfig']:
+            self.fail("If 'auto_delete_time' and 'auto_delete_ttl' is set, " +
+                      "only `auto_delete_time` is used")
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                         "2017-06-07T00:00:00.000000Z")
 
     def test_cluster_name_log_no_sub(self):
         with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
