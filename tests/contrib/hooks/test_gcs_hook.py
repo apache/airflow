@@ -14,12 +14,11 @@
 
 import unittest
 
-from airflow.exceptions import AirflowException
 import airflow.contrib.hooks.gcs_hook as gcs_hook
+from airflow.exceptions import AirflowException
 
 
 class TestGCSHookHelperFunctions(unittest.TestCase):
-
     def test_parse_gcs_url(self):
         """
         Test GCS url parsing
@@ -30,17 +29,14 @@ class TestGCSHookHelperFunctions(unittest.TestCase):
             ('bucket', 'path/to/blob'))
 
         # invalid URI
-        self.assertRaises(
-            AirflowException,
-            gcs_hook._parse_gcs_url,
-            'gs:/bucket/path/to/blob')
+        self.assertRaises(AirflowException, gcs_hook._parse_gcs_url,
+                          'gs:/bucket/path/to/blob')
 
         # trailing slash
         self.assertEqual(
             gcs_hook._parse_gcs_url('gs://bucket/path/to/blob/'),
-            ('bucket', 'path/to/blob'))
+            ('bucket', 'path/to/blob/'))
 
         # bucket only
         self.assertEqual(
-            gcs_hook._parse_gcs_url('gs://bucket/'),
-            ('bucket', ''))
+            gcs_hook._parse_gcs_url('gs://bucket/'), ('bucket', ''))
