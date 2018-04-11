@@ -203,6 +203,7 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.pubsub_sensor.PubSubPullSensor
 .. autoclass:: airflow.contrib.sensors.qubole_sensor.QuboleSensor
 .. autoclass:: airflow.contrib.sensors.redis_key_sensor.RedisKeySensor
+.. autoclass:: airflow.contrib.sensors.sftp_sensor.SFTPSensor
 .. autoclass:: airflow.contrib.sensors.wasb_sensor.WasbBlobSensor
 
 .. _macros:
