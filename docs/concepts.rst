@@ -380,7 +380,7 @@ opposed to XComs that are pushed manually).
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
-passed, then a correpsonding list of XCom values is returned.
+passed, then a corresponding list of XCom values is returned.
 
 .. code:: python
 
