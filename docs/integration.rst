@@ -195,17 +195,18 @@ EmrHook
 AWS S3
 ''''''
 
-- :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
-- :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
-- :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
 - :ref:`S3Hook` : Interact with AWS S3.
+- :ref:`S3FileTransformOperator` : Copies data from a source S3 location to a temporary location on the local filesystem.
+- :ref:`S3ListOperator` : Lists the files matching a key prefix from a S3 location.
+- :ref:`S3ToGoogleCloudStorageOperator` : Syncs an S3 location with a Google Cloud Storage bucket.
+- :ref:`S3ToHiveTransfer` : Moves data from S3 to Hive. The operator downloads a file from S3, stores the file locally before loading it into a Hive table.
 
-.. _S3ListOperator:
+.. _S3Hook:
 
-S3ListOperator
-""""""""""""""
+S3Hook
+""""""
 
-.. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
+.. autoclass:: airflow.hooks.S3_hook.S3Hook
 
 .. _S3FileTransformOperator:
 
@@ -214,19 +215,26 @@ S3FileTransformOperator
 
 .. autoclass:: airflow.operators.s3_file_transform_operator.S3FileTransformOperator
 
+.. _S3ListOperator:
+
+S3ListOperator
+""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
+
+.. _S3ToGoogleCloudStorageOperator:
+
+S3ToGoogleCloudStorageOperator
+""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+
 .. _S3ToHiveTransfer:
 
 S3ToHiveTransfer
 """"""""""""""""
 
 .. autoclass:: airflow.operators.s3_to_hive_operator.S3ToHiveTransfer
-
-.. _S3Hook:
-
-S3Hook
-"""""""
-
-.. autoclass:: airflow.hooks.S3_hook.S3Hook
 
 
 AWS EC2 Container Service
