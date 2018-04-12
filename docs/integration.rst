@@ -132,7 +132,7 @@ Follow the steps below to enable Azure Blob Storage logging.
         # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
         LOGGING_CONFIG = ...
 
-        
+
 
 #. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
 
@@ -255,6 +255,26 @@ AWSBatchOperator
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 
+
+AWS Glue
+''''''''''
+
+- :ref:`AWSGlueJobOperator` : Creates and starts an AWS Glue Job
+- :ref:`AwsGlueJobHook` : Interact with AWS Glue Jobs, using boto3 library
+
+.. _AWSGlueJobOperator:
+
+AWSGlueJobOperator
+"""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
+
+.. _AwsGlueJobHook:
+
+AwsGlueJobHook
+""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
 
 AWS RedShift
 '''''''''''''
