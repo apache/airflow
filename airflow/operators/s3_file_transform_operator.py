@@ -78,14 +78,13 @@ class S3FileTransformOperator(BaseOperator):
         if not source_s3.check_for_key(self.source_s3_key):
             raise AirflowException("The source key {0} does not exist".format(self.source_s3_key))
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
-        with NamedTemporaryFile("w") as f_source, NamedTemporaryFile("w") as f_dest:
+        with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
             self.log.info(
                 "Dumping S3 file %s contents to local file %s",
                 self.source_s3_key, f_source.name
             )
-            source_s3_key_object.get_contents_to_file(f_source)
+            source_s3_key_object.download_fileobj(Fileobj=f_source)
             f_source.flush()
-            source_s3.connection.close()
             transform_script_process = subprocess.Popen(
                 [self.transform_script, f_source.name, f_dest.name],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
@@ -106,4 +105,3 @@ class S3FileTransformOperator(BaseOperator):
                 replace=self.replace
             )
             self.log.info("Upload successful")
-            dest_s3.connection.close()
