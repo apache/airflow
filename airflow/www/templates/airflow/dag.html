@@ -207,6 +207,10 @@
               Downstream
             </button>
           </span>
+          <hr/>
+          <button id="rerun_dag" type="button" class="btn btn-warning">
+            Rerun DAG from here
+          </button>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-default" data-dismiss="modal">
@@ -365,6 +369,13 @@ function updateQueryStringParameter(uri, key, value) {
       }
       url = "{{ url_for('airflow.paused') }}" + '?is_paused=' + is_paused + '&dag_id=' + dag_id;
       $.ajax(url);
+    });
+
+    $("#rerun_dag").click(function() {
+      url = "/admin/rerun_dag?" +
+        "rerun_starting_task=" + dag_id + "." + task_id +
+        "&execution_date=" + execution_date;
+      window.location = url;
     });
 
   </script>
