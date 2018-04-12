@@ -183,87 +183,44 @@ def pprinttable(rows):
     return s
 
 
-def kill_using_shell(logger, pid, signal=signal.SIGTERM):
-    try:
-        process = psutil.Process(pid)
-        # Use sudo only when necessary - consider SubDagOperator and SequentialExecutor case.
-        if process.username() != getpass.getuser():
-            args = ["sudo", "kill", "-{}".format(int(signal)), str(pid)]
-        else:
-            args = ["kill", "-{}".format(int(signal)), str(pid)]
-        # PID may not exist and return a non-zero error code
-        logger.error(subprocess.check_output(args, close_fds=True))
-        logger.info("Killed process {} with signal {}".format(pid, signal))
-        return True
-    except psutil.NoSuchProcess as e:
-        logger.warning("Process {} no longer exists".format(pid))
-        return False
-    except subprocess.CalledProcessError as e:
-        logger.warning("Failed to kill process {} with signal {}. Output: {}"
-                       .format(pid, signal, e.output))
-        return False
-
-
-def kill_process_tree(logger, pid, timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
+def reap_process_group(pid, log, sig=signal.SIGTERM,
+                       timeout=DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM):
     """
-    TODO(saguziel): also kill the root process after killing descendants
-  
-    Kills the process's descendants. Kills using the `kill`
-    shell command so that it can change users. Note: killing via PIDs
-    has the potential to the wrong process if the process dies and the
-    PID gets recycled in a narrow time window.
+    Tries really hard to terminate all children (including grandchildren). Will send
+    sig (SIGTERM) to the process group of pid. If any process is alive after timeout
+    a SIGKILL will be send.
 
-    :param logger: logger
-    :type logger: logging.Logger
+    :param log: log handler
+    :param pid: pid to kill
+    :param sig: signal type
+    :param timeout: how much time a process has to terminate
     """
-    try:
-        root_process = psutil.Process(pid)
-    except psutil.NoSuchProcess:
-        logger.warning("PID: {} does not exist".format(pid))
-        return
+    def on_terminate(p):
+        log.info("Process %s (%s) terminated with exit code %s", p, p.pid, p.returncode)
 
-    # Check child processes to reduce cases where a child process died but
-    # the PID got reused.
-    descendant_processes = [x for x in root_process.children(recursive=True)
-                            if x.is_running()]
+    if pid == os.getpid():
+        raise RuntimeError("I refuse to kill myself")
 
-    if len(descendant_processes) != 0:
-        logger.info("Terminating descendant processes of {} PID: {}"
-                    .format(root_process.cmdline(),
-                            root_process.pid))
-        temp_processes = descendant_processes[:]
-        for descendant in temp_processes:
-            logger.info("Terminating descendant process {} PID: {}"
-                        .format(descendant.cmdline(), descendant.pid))
-            if not kill_using_shell(logger, descendant.pid, signal.SIGTERM):
-                descendant_processes.remove(descendant)
+    parent = psutil.Process(pid)
 
-        logger.info("Waiting up to {}s for processes to exit..."
-                    .format(timeout))
-        try:
-            psutil.wait_procs(descendant_processes, timeout)
-            logger.info("Done waiting")
-        except psutil.TimeoutExpired:
-            logger.warning("Ran out of time while waiting for "
-                           "processes to exit")
-        # Then SIGKILL
-        descendant_processes = [x for x in root_process.children(recursive=True)
-                                if x.is_running()]
+    children = parent.children(recursive=True)
+    children.append(parent)
 
-        if len(descendant_processes) > 0:
-            temp_processes = descendant_processes[:]
-            for descendant in temp_processes:
-                logger.info("Killing descendant process {} PID: {}"
-                            .format(descendant.cmdline(), descendant.pid))
-                if not kill_using_shell(logger, descendant.pid, signal.SIGKILL):
-                    descendant_processes.remove(descendant)
-                else:
-                    descendant.wait()
-            logger.info("Killed all descendant processes of {} PID: {}"
-                        .format(root_process.cmdline(),
-                                root_process.pid))
-    else:
-        logger.debug("There are no descendant processes to kill")
+    log.info("Sending %s to GPID %s", sig, os.getpgid(pid))
+    os.killpg(os.getpgid(pid), sig)
+
+    gone, alive = psutil.wait_procs(children, timeout=timeout, callback=on_terminate)
+
+    if alive:
+        for p in alive:
+            log.warn("process %s (%s) did not respond to SIGTERM. Trying SIGKILL", p, pid)
+
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+
+        gone, alive = psutil.wait_procs(alive, timeout=timeout, callback=on_terminate)
+        if alive:
+            for p in alive:
+                log.error("Process %s (%s) could not be killed. Giving up.", p, p.pid)
 
 
 class AirflowImporter(object):

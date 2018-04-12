@@ -457,5 +457,6 @@ def _parse_gcs_url(gsurl):
         raise AirflowException('Please provide a bucket name')
     else:
         bucket = parsed_url.netloc
-        blob = parsed_url.path.strip('/')
+        # Remove leading '/' but NOT trailing one
+        blob = parsed_url.path.lstrip('/')
         return bucket, blob

@@ -21,7 +21,7 @@ from cgroupspy import trees
 import psutil
 
 from airflow.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.helpers import kill_process_tree
+from airflow.utils.helpers import reap_process_group
 
 
 class CgroupTaskRunner(BaseTaskRunner):
@@ -176,7 +176,7 @@ class CgroupTaskRunner(BaseTaskRunner):
 
     def terminate(self):
         if self.process and psutil.pid_exists(self.process.pid):
-            kill_process_tree(self.log, self.process.pid)
+            reap_process_group(self.process.pid, self.log)
 
     def on_finish(self):
         # Let the OOM watcher thread know we're done to avoid false OOM alarms
