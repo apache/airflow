@@ -2855,6 +2855,24 @@ class BaseOperator(LoggingMixin):
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
+    def set_upstream_from(self, task_or_task_list):
+        """
+        synonym for set_upstream
+
+        Set a task or a task list to be directly upstream from the current
+        task.
+        """
+        self.set_upstream(task_or_task_list)
+
+    def set_downstream_from(self, task_or_task_list):
+        """
+        synonym for set_downstream
+
+        Set a task or a task list to be directly downstream from the current
+        task.
+        """
+        self.set_downstream(task_or_task_list)
+
     def set_upstream(self, task_or_task_list):
         """
         Set a task or a task list to be directly upstream from the current
