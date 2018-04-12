@@ -44,7 +44,7 @@ class TestGlueJobHook(unittest.TestCase):
                               region_name=self.some_aws_region)
 
         job_status = hook.initialize_job(script_arguments=some_script_arguments)
-        # hook.job_tear_down()
+        hook.job_tear_down()
         print(job_status, " checking status")
         self.assertEqual(job_status, "FAILED", msg="AWS Glue job status must be 'FAILED'")
 
