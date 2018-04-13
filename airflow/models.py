@@ -680,6 +680,9 @@ class Connection(Base, LoggingMixin):
                                     "using non-encrypted value.")
                 self._extra = value
                 self.is_extra_encrypted = False
+        else:
+            self._extra = value
+            self.is_extra_encrypted = False
 
     @declared_attr
     def extra(cls):
