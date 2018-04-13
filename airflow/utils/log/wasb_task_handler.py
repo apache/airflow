@@ -61,7 +61,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Local location and remote location is needed to open and
         # upload local log file to Wasb remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.is_raw
+        self.upload_on_close = not ti.raw
 
     def close(self):
         """
@@ -92,12 +92,14 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number):
+    def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from Wasb remote storage.
         If failed, read the log from task instance host machine.
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         """
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
@@ -115,7 +117,7 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         else:
             log = super(WasbTaskHandler, self)._read(ti, try_number)
 
-        return log
+        return log, {'end_of_log': True}
 
     def wasb_log_exists(self, remote_log_location):
         """

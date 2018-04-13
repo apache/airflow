@@ -39,8 +39,8 @@ import sqlalchemy as sqla
 from sqlalchemy import or_, desc, and_, union_all
 
 from flask import (
-    abort, redirect, url_for, request, Markup, Response, current_app, render_template,
-    make_response)
+    abort, jsonify, redirect, url_for, request, Markup, Response,
+    current_app, render_template, make_response)
 from flask_admin import BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
 from flask_admin.actions import action
@@ -69,7 +69,6 @@ from airflow import models
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import set_dag_run_state
 from airflow.exceptions import AirflowException
-from airflow.settings import Session
 from airflow.models import XCom, DagRun
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
@@ -719,6 +718,66 @@ class Airflow(BaseView):
             form=form,
             title=title, )
 
+    @expose('/get_logs_with_metadata')
+    @login_required
+    @wwwutils.action_logging
+    @provide_session
+    def get_logs_with_metadata(self, session=None):
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        dttm = pendulum.parse(execution_date)
+        try_number = int(request.args.get('try_number'))
+        # metadata may be None
+        metadata = request.args.get('metadata')
+        if metadata:
+            metadata = json.loads(metadata)
+
+        # Convert string datetime into actual datetime
+        try:
+            execution_date = timezone.parse(execution_date)
+        except ValueError:
+            error_message = (
+                'Given execution date, {}, could not be identified '
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+                    execution_date))
+            response = jsonify({'error': error_message})
+            response.status_code = 400
+
+            return response
+
+        logger = logging.getLogger('airflow.task')
+        task_log_reader = conf.get('core', 'task_log_reader')
+        handler = next((handler for handler in logger.handlers
+                        if handler.name == task_log_reader), None)
+
+        ti = session.query(models.TaskInstance).filter(
+            models.TaskInstance.dag_id == dag_id,
+            models.TaskInstance.task_id == task_id,
+            models.TaskInstance.execution_date == dttm).first()
+        try:
+            if ti is None:
+                logs = ["*** Task instance did not exist in the DB\n"]
+                metadata['end_of_log'] = True
+            else:
+                dag = dagbag.get_dag(dag_id)
+                ti.task = dag.get_task(ti.task_id)
+                logs, metadatas = handler.read(ti, try_number, metadata=metadata)
+                metadata = metadatas[0]
+            for i, log in enumerate(logs):
+                if PY2 and not isinstance(log, unicode):
+                    logs[i] = log.decode('utf-8')
+            message = logs[0]
+            return jsonify(message=message, metadata=metadata)
+        except AttributeError as e:
+            error_message = ["Task log handler {} does not support read logs.\n{}\n"
+                             .format(task_log_reader, str(e))]
+            metadata['end_of_log'] = True
+            return jsonify(message=error_message, error=True, metadata=metadata)
+        except AirflowException as e:
+            metadata['end_of_log'] = True
+            return jsonify(message=str(e), error=True, metadata=metadata)
+
     @expose('/log')
     @login_required
     @wwwutils.action_logging
@@ -730,31 +789,17 @@ class Airflow(BaseView):
         dttm = pendulum.parse(execution_date)
         form = DateTimeForm(data={'execution_date': dttm})
         dag = dagbag.get_dag(dag_id)
+
         ti = session.query(models.TaskInstance).filter(
             models.TaskInstance.dag_id == dag_id,
             models.TaskInstance.task_id == task_id,
             models.TaskInstance.execution_date == dttm).first()
-        if ti is None:
-            logs = ["*** Task instance did not exist in the DB\n"]
-        else:
-            logger = logging.getLogger('airflow.task')
-            task_log_reader = conf.get('core', 'task_log_reader')
-            handler = next((handler for handler in logger.handlers
-                            if handler.name == task_log_reader), None)
-            try:
-                ti.task = dag.get_task(ti.task_id)
-                logs = handler.read(ti)
-            except AttributeError as e:
-                logs = ["Task log handler {} does not support read logs.\n{}\n" \
-                            .format(task_log_reader, str(e))]
 
-        for i, log in enumerate(logs):
-            if PY2 and not isinstance(log, unicode):
-                logs[i] = log.decode('utf-8')
-
+        logs = [''] * (ti.next_try_number - 1 if ti is not None else 0)
         return self.render(
             'airflow/ti_log.html',
-            logs=logs, dag=dag, title="Log by attempts", task_id=task_id,
+            logs=logs, dag=dag, title="Log by attempts",
+            dag_id=dag.dag_id, task_id=task_id,
             execution_date=execution_date, form=form)
 
     @expose('/task')

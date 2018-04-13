@@ -20,7 +20,9 @@ import shutil
 import tempfile
 import unittest
 import sys
+import json
 
+from urllib.parse import quote_plus
 from werkzeug.test import Client
 
 from airflow import models, configuration, settings
@@ -377,8 +379,23 @@ class TestLogView(unittest.TestCase):
             follow_redirects=True,
         )
         self.assertEqual(response.status_code, 200)
-        self.assertIn('Log file does not exist',
+        self.assertIn('Log by attempts',
                       response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata(self):
+        url_template = "/admin/airflow/get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}"
+        response = \
+            self.app.get(url_template.format(self.DAG_ID,
+                                             self.TASK_ID,
+                                             quote_plus(self.DEFAULT_DATE.isoformat()),
+                                             1,
+                                             json.dumps({})))
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
 
 
 class TestVarImportView(unittest.TestCase):
