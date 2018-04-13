@@ -3,6 +3,9 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
+### Don't load example dags by default
+We change load_examples default value from True to False to avoid loading example dags by default.
+
 ## Airflow Master
 
 ### New Webserver UI with Role-Based Access Control
