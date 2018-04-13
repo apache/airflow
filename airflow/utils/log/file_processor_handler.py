@@ -16,9 +16,8 @@ import errno
 import logging
 import os
 
-from jinja2 import Template
-
 from airflow import configuration as conf
+from airflow.utils.helpers import parse_template_string
 from datetime import datetime
 
 
@@ -38,11 +37,8 @@ class FileProcessorHandler(logging.Handler):
         self.handler = None
         self.base_log_folder = base_log_folder
         self.dag_dir = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
-        self.filename_template = filename_template
-        self.filename_jinja_template = None
-
-        if "{{" in self.filename_template: #jinja mode
-            self.filename_jinja_template = Template(self.filename_template)
+        self.filename_template, self.filename_jinja_template = \
+            parse_template_string(filename_template)
 
         self._cur_date = datetime.today()
         if not os.path.exists(self._get_log_directory()):

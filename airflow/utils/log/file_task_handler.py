@@ -16,11 +16,10 @@ import logging
 import os
 import requests
 
-from jinja2 import Template
-
 from airflow import configuration as conf
 from airflow.configuration import AirflowConfigException
 from airflow.utils.file import mkdirs
+from airflow.utils.helpers import parse_template_string
 
 
 class FileTaskHandler(logging.Handler):
@@ -39,11 +38,8 @@ class FileTaskHandler(logging.Handler):
         super(FileTaskHandler, self).__init__()
         self.handler = None
         self.local_base = base_log_folder
-        self.filename_template = filename_template
-        self.filename_jinja_template = None
-
-        if "{{" in self.filename_template: #jinja mode
-            self.filename_jinja_template = Template(self.filename_template)
+        self.filename_template, self.filename_jinja_template = \
+            parse_template_string(filename_template)
 
     def set_context(self, ti):
         """
@@ -78,13 +74,15 @@ class FileTaskHandler(logging.Handler):
                                              execution_date=ti.execution_date.isoformat(),
                                              try_number=try_number)
 
-    def _read(self, ti, try_number):
+    def _read(self, ti, try_number, metadata=None):
         """
         Template method that contains custom logic of reading
         logs given the try_number.
         :param ti: task instance record
         :param try_number: current try_number to read log from
-        :return: log message as a string
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
+        :return: log message as a string and metadata.
         """
         # Task instance here might be different from task instance when
         # initializing the handler. Thus explicitly getting log location
@@ -127,14 +125,16 @@ class FileTaskHandler(logging.Handler):
             except Exception as e:
                 log += "*** Failed to fetch log file from worker. {}\n".format(str(e))
 
-        return log
+        return log, {'end_of_log': True}
 
-    def read(self, task_instance, try_number=None):
+    def read(self, task_instance, try_number=None, metadata=None):
         """
         Read logs of given task instance from local machine.
         :param task_instance: task instance object
         :param try_number: task instance try_number to read logs from. If None
                            it returns all logs separated by try_number
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         :return: a list of logs
         """
         # Task instance increments its try number when it starts to run.
@@ -154,10 +154,13 @@ class FileTaskHandler(logging.Handler):
             try_numbers = [try_number]
 
         logs = [''] * len(try_numbers)
+        metadatas = [{}] * len(try_numbers)
         for i, try_number in enumerate(try_numbers):
-            logs[i] += self._read(task_instance, try_number)
+            log, metadata = self._read(task_instance, try_number, metadata)
+            logs[i] += log
+            metadatas[i] = metadata
 
-        return logs
+        return logs, metadatas
 
     def _init_file(self, ti):
         """

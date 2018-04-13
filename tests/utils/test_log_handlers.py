@@ -91,10 +91,13 @@ class TestFileTaskLogHandler(unittest.TestCase):
         file_handler.close()
 
         self.assertTrue(hasattr(file_handler, 'read'))
-        # Return value of read must be a list.
-        logs = file_handler.read(ti)
+        # Return value of read must be a tuple of list and list.
+        logs, metadatas = file_handler.read(ti)
         self.assertTrue(isinstance(logs, list))
+        self.assertTrue(isinstance(metadatas, list))
         self.assertEqual(len(logs), 1)
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertTrue(isinstance(metadatas[0], dict))
         target_re = r'\n\[[^\]]+\] {test_log_handlers.py:\d+} INFO - test\n'
 
         # We should expect our log line from the callable above to appear in
@@ -139,11 +142,15 @@ class TestFileTaskLogHandler(unittest.TestCase):
 
         logger.info("Test")
 
-        # Return value of read must be a list.
-        logs = file_handler.read(ti)
+        # Return value of read must be a tuple of list and list.
+        logs, metadatas = file_handler.read(ti)
         self.assertTrue(isinstance(logs, list))
         # Logs for running tasks should show up too.
+        self.assertTrue(isinstance(logs, list))
+        self.assertTrue(isinstance(metadatas, list))
         self.assertEqual(len(logs), 2)
+        self.assertEqual(len(logs), len(metadatas))
+        self.assertTrue(isinstance(metadatas[0], dict))
 
         # Remove the generated tmp log file.
         os.remove(log_filename)

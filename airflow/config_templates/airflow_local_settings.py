@@ -37,11 +37,18 @@ FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.
 
 PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
 
+LOG_ID_TEMPLATE = '{dag_id}-{task_id}-{execution_date}-{try_number}'
+
 # Storage bucket url for remote logging
 # s3 buckets should start with "s3://"
 # gcs buckets should start with "gs://"
-# wasb buckets should start with "wasb" just to help Airflow select correct handler
+# wasb buckets should start with "wasb"
+# just to help Airflow select correct handler
 REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
+
+ELASTICSEARCH_HOST = conf.get('elasticsearch', 'ELASTICSEARCH_HOST')
+
+END_OF_LOG_MARK = 'end_of_log'
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
@@ -145,7 +152,18 @@ REMOTE_HANDLERS = {
             'filename_template': PROCESSOR_FILENAME_TEMPLATE,
             'delete_local_copy': False,
         },
-    }
+    },
+    'elasticsearch': {
+        'task': {
+            'class': 'airflow.utils.log.es_task_handler.ElasticsearchTaskHandler',
+            'formatter': 'airflow',
+            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+            'log_id_template': LOG_ID_TEMPLATE,
+            'filename_template': FILENAME_TEMPLATE,
+            'end_of_log_mark': END_OF_LOG_MARK,
+            'host': ELASTICSEARCH_HOST,
+        },
+    },
 }
 
 REMOTE_LOGGING = conf.get('core', 'remote_logging')
@@ -156,3 +174,5 @@ elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['gcs'])
 elif REMOTE_LOGGING and REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
         DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['wasb'])
+elif REMOTE_LOGGING and ELASTICSEARCH_HOST:
+        DEFAULT_LOGGING_CONFIG['handlers'].update(REMOTE_HANDLERS['elasticsearch'])

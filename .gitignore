@@ -130,3 +130,6 @@ ENV/
 
 # Spark
 rat-results.txt
+
+# Git stuff
+.gitattributes
