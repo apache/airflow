@@ -93,6 +93,7 @@ Currently **officially** using Airflow:
 1. [Auth0](https://auth0.com) [[@sicarul](https://github.com/sicarul)]
 1. [Away](https://awaytravel.com) [[@trunsky](https://github.com/trunsky)]
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
+1. [Banco de Formaturas](https://www.bancodeformaturas.com.br) [[@guiligan](https://github.com/guiligan)]
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
 1. [BandwidthX](http://www.bandwidthx.com) [[@dineshdsharma](https://github.com/dineshdsharma)]
 1. [Bellhops](https://github.com/bellhops)
@@ -236,7 +237,7 @@ Currently **officially** using Airflow:
 1. [Zendesk](https://www.github.com/zendesk)
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
-1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
+1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@guiligan](https://github.com/guiligan), [@gustavoamigo](https://github.com/gustavoamigo), [@jzanuto](https://github.com/jzanuto) & [@mmmaia](https://github.com/mmmaia)]
 
 ## Links
 
