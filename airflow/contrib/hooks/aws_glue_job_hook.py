@@ -53,6 +53,7 @@ class AwsGlueJobHook(AwsHook):
                  conns=None,
                  retry_limit=None,
                  num_of_dpus=None,
+                 aws_conn_id='aws_default',
                  region_name=None,
                  iam_role_name=None,
                  s3_bucket=None, *args, **kwargs):
@@ -63,13 +64,8 @@ class AwsGlueJobHook(AwsHook):
         self.conns = conns or ["s3"]
         self.retry_limit = retry_limit or 0
         self.num_of_dpus = num_of_dpus or 10
+        self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-
-        if s3_bucket is None:
-            raise AirflowException(
-                'Failed to create aws glue job, error: Specify Parameter `s3_bucket`'
-            )
-
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.S3_PROTOCOL = "s3://"
@@ -104,8 +100,16 @@ class AwsGlueJobHook(AwsHook):
 
     def initialize_job(self, script_arguments=None):
         """
+        Initializes connection with AWS Glue
+        to run job
         :return:
         """
+        if self.s3_bucket is None:
+            raise AirflowException(
+                'Could not initialize glue job, '
+                'error: Specify Parameter `s3_bucket`'
+            )
+
         glue_client = self.get_conn()
 
         try:
@@ -115,7 +119,7 @@ class AwsGlueJobHook(AwsHook):
                 JobName=job_name,
                 Arguments=script_arguments
             )
-            return self._job_completion(job_name, job_run['JobRunId'])
+            return self.job_completion(job_name, job_run['JobRunId'])
         except Exception as general_error:
             raise AirflowException(
                 'Failed to run aws glue job, error: {error}'.format(
@@ -123,7 +127,7 @@ class AwsGlueJobHook(AwsHook):
                 )
             )
 
-    def _job_completion(self, job_name=None, run_id=None):
+    def job_completion(self, job_name=None, run_id=None):
         """
         :param job_name:
         :param run_id:
@@ -144,11 +148,11 @@ class AwsGlueJobHook(AwsHook):
             if failed or stopped or completed:
                 self.log.info("Exiting Job {} Run State: {}"
                               .format(run_id, job_run_state))
-                return job_run_state
+                return {'JobRunState': job_run_state, 'JobRunId': run_id}
             else:
-                print(job_status, failed)
-                time.sleep(1000)
-                continue
+                self.log.info("Polling for AWS Glue Job {} current run state"
+                              .format(job_name))
+                time.sleep(6)
 
     def get_or_create_glue_job(self):
         glue_client = self.get_conn()
