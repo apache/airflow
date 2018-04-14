@@ -43,6 +43,8 @@ class AWSGlueJobOperator(BaseOperator):
     :type region_name: str
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
     :type str
+    :param iam_role_name: AWS IAM Role for Glue Job Execution
+    :type str
     """
     template_fields = ()
     template_ext = ()
@@ -60,6 +62,7 @@ class AWSGlueJobOperator(BaseOperator):
                  num_of_dpus=6,
                  region_name=None,
                  s3_bucket=None,
+                 iam_role_name=None,
                  *args, **kwargs
                  ):
         super(AWSGlueJobOperator, self).__init__(*args, **kwargs)
@@ -73,6 +76,7 @@ class AWSGlueJobOperator(BaseOperator):
         self.num_of_dpus = num_of_dpus
         self.region_name = region_name
         self.s3_bucket = s3_bucket
+        self.iam_role_name = iam_role_name
 
     def execute(self, context):
         """
@@ -87,7 +91,8 @@ class AWSGlueJobOperator(BaseOperator):
                                   retry_limit=self.retry_limit,
                                   num_of_dpus=self.num_of_dpus,
                                   region_name=self.region_name,
-                                  default_s3_bucket=self.s3_bucket)
+                                  default_s3_bucket=self.s3_bucket,
+                                  iam_role_name=self.iam_role_name)
 
         self.log.info("Initializing AWS Glue Job")
         glue_job_status = glue_job.initialize_job(self.script_args)['JobRun']
