@@ -1,21 +1,17 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-#   http://www.apache.org/licenses/LICENSE-2.0
+# http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 
 import unittest
 import json
@@ -27,7 +23,7 @@ except ImportError:
     try:
         import mock
     except ImportError:
-        mock = None
+        mock: None = None
 
 try:
     from moto import mock_iam
@@ -72,34 +68,29 @@ class TestGlueJobHook(unittest.TestCase):
     @mock.patch.object(AwsGlueJobHook, "_check_script_location")
     @mock.patch.object(AwsGlueJobHook, "get_iam_execution_role")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
-    def test_get_or_create_glue_job(self, mock_get_conn,
-                                    mock_get_iam_execution_role,
-                                    mock_script):
-        mock_get_iam_execution_role.return_value = \
-            mock.MagicMock(Role={'RoleName': 'my_test_role'})
-        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
+    def test_get_or_create_glue_job(self, mock_get_conn, mock_get_iam_execution_role, mock_script):
+        mock_get_iam_execution_role.return_value = mock.MagicMock(Role={'RoleName': 'my_test_role'})
+        some_script_path = "s3://my-includes/artifacts/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
-        mock_script.return_value = mock.Mock(return_value=some_script)
+        mock_script.return_value = mock.Mock(return_value=some_script_path)
 
         mock_glue_job = mock_get_conn.return_value.create_job()
         glue_job = AwsGlueJobHook(job_name='aws_test_glue_job',
                                   desc='This is test case job from Airflow',
-                                  script_location=some_script,
+                                  script_location=some_script_path,
                                   iam_role_name='my_test_role',
                                   s3_bucket=some_s3_bucket,
-                                  region_name=self.some_aws_region) \
+                                  region_name=self.some_aws_region)\
             .get_or_create_glue_job()
         self.assertEqual(glue_job, mock_glue_job)
 
-    @mock.patch.object(AwsGlueJobHook, "job_completion")
+    @mock.patch.object(AwsGlueJobHook, "_job_completion")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
-    def test_initialize_job(self, mock_get_conn,
-                            mock_get_or_create_glue_job,
-                            mock_completion):
-        some_data_path = "s3://glue-datasets/examples/medicare/SampleData.csv"
+    def test_initialize_job(self, mock_get_conn, mock_get_or_create_glue_job, mock_completion):
+        some_data_path = "s3://my-includes/glue-datasets/examples/medicare/SampleData.csv"
         some_script_arguments = {"--s3_input_data_path": some_data_path}
-        some_script = "s3:/glue-examples/glue-scripts/sample_aws_glue_job.py"
+        some_script_path = "s3://my-includes/artifacts/glue-scripts/sample_aws_glue_job.py"
         some_s3_bucket = "my-includes"
 
         mock_get_or_create_glue_job.Name = mock.Mock(Name='aws_test_glue_job')
@@ -109,9 +100,9 @@ class TestGlueJobHook(unittest.TestCase):
         glue_job_run_state = AwsGlueJobHook(job_name='aws_test_glue_job',
                                             desc='This is test case job from Airflow',
                                             iam_role_name='my_test_role',
-                                            script_location=some_script,
+                                            script_location=some_script_path,
                                             s3_bucket=some_s3_bucket,
-                                            region_name=self.some_aws_region) \
+                                            region_name=self.some_aws_region)\
             .initialize_job(some_script_arguments)
         self.assertEqual(glue_job_run_state, mock_job_run_state, msg='Mocks but be equal')
 
