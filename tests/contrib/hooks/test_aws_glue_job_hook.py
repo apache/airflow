@@ -23,7 +23,7 @@ except ImportError:
     try:
         import mock
     except ImportError:
-        mock: None = None
+        mock = None
 
 try:
     from moto import mock_iam
