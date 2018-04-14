@@ -53,13 +53,14 @@ class AWSGlueJobOperator(BaseOperator):
     @apply_defaults
     def __init__(self,
                  job_name='aws_glue_default_job',
-                 job_desc='This is my first AWS Glue Job with Airflow',
+                 job_desc='AWS Glue Job with Airflow',
                  script_location=None,
                  concurrent_run_limit=None,
                  script_args={},
                  connections=[],
                  retry_limit=None,
                  num_of_dpus=6,
+                 aws_conn_id='aws_default',
                  region_name=None,
                  s3_bucket=None,
                  iam_role_name=None,
@@ -74,6 +75,7 @@ class AWSGlueJobOperator(BaseOperator):
         self.connections = connections
         self.retry_limit = retry_limit
         self.num_of_dpus = num_of_dpus
+        self.aws_conn_id = aws_conn_id,
         self.region_name = region_name
         self.s3_bucket = s3_bucket
         self.iam_role_name = iam_role_name
@@ -90,17 +92,17 @@ class AWSGlueJobOperator(BaseOperator):
                                   conns=self.connections,
                                   retry_limit=self.retry_limit,
                                   num_of_dpus=self.num_of_dpus,
+                                  aws_conn_id=self.aws_conn_id,
                                   region_name=self.region_name,
-                                  default_s3_bucket=self.s3_bucket,
+                                  s3_bucket=self.s3_bucket,
                                   iam_role_name=self.iam_role_name)
 
-        self.log.info("Initializing AWS Glue Job")
-        glue_job_status = glue_job.initialize_job(self.script_args)
-
+        self.log.info("Initializing AWS Glue Job: {}".format(self.job_name))
+        glue_job_run = glue_job.initialize_job(self.script_args)
         self.log.info('AWS Glue Job: {job_name} status: {job_status}. Run Id: {run_id}'
-                      .format(run_id=glue_job_status['Id'],
-                              job_name=glue_job_status['JobName'],
-                              job_status=glue_job_status['JobRunState'])
+                      .format(run_id=glue_job_run['JobRunId'],
+                              job_name=self.job_name,
+                              job_status=glue_job_run['JobRunState'])
                       )
 
         self.log.info('Done.')

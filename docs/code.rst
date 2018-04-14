@@ -186,6 +186,7 @@ Sensors
 ^^^^^^^
 
 .. autoclass:: airflow.contrib.sensors.aws_redshift_cluster_sensor.AwsRedshiftClusterSensor
+.. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
