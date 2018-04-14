@@ -95,7 +95,7 @@ class AWSGlueJobOperator(BaseOperator):
                                   iam_role_name=self.iam_role_name)
 
         self.log.info("Initializing AWS Glue Job")
-        glue_job_status = glue_job.initialize_job(self.script_args)['JobRun']
+        glue_job_status = glue_job.initialize_job(self.script_args)
 
         self.log.info('AWS Glue Job: {job_name} status: {job_status}. Run Id: {run_id}'
                       .format(run_id=glue_job_status['Id'],
