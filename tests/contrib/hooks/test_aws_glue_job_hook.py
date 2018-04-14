@@ -87,7 +87,7 @@ class TestGlueJobHook(unittest.TestCase):
             .get_or_create_glue_job()
         self.assertEqual(glue_job, mock_glue_job)
 
-    @mock.patch.object(AwsGlueJobHook, "_job_completion")
+    @mock.patch.object(AwsGlueJobHook, "job_completion")
     @mock.patch.object(AwsGlueJobHook, "get_or_create_glue_job")
     @mock.patch.object(AwsGlueJobHook, "get_conn")
     def test_initialize_job(self, mock_get_conn,
