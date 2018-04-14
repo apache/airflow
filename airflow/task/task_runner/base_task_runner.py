@@ -73,7 +73,7 @@ class BaseTaskRunner(LoggingMixin):
 
             # propagate PYTHONPATH environment variable
             pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
-            popen_prepend = ['sudo', '-H', '-u', self.run_as_user]
+            popen_prepend = ['sudo', '-E', '-H', '-u', self.run_as_user]
 
             if pythonpath_value:
                 popen_prepend.append('{}={}'.format(PYTHONPATH_VAR, pythonpath_value))
@@ -122,7 +122,8 @@ class BaseTaskRunner(LoggingMixin):
             stderr=subprocess.STDOUT,
             universal_newlines=True,
             close_fds=True,
-            env=os.environ.copy()
+            env=os.environ.copy(),
+            preexec_fn=os.setsid
         )
 
         # Start daemon thread to read subprocess logging output
