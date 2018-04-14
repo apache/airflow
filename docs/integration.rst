@@ -256,8 +256,8 @@ AWSBatchOperator
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 
 
-AWS Glue
-''''''''''
+AWS Glue Job
+''''''''''''
 
 - :ref:`AWSGlueJobOperator` : Creates and starts an AWS Glue Job
 - :ref:`AwsGlueJobHook` : Interact with AWS Glue Jobs, using boto3 library
@@ -265,14 +265,14 @@ AWS Glue
 .. _AWSGlueJobOperator:
 
 AWSGlueJobOperator
-"""""""""""""""""""
+""""""""""""""""""
 
 .. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
 
 .. _AwsGlueJobHook:
 
 AwsGlueJobHook
-""""""""""""""""
+""""""""""""""
 
 .. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
 
