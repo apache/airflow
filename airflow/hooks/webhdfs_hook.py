@@ -24,7 +24,7 @@ from hdfs import InsecureClient, HdfsError
 
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-_kerberos_security_mode = configuration.get("core", "security") == "kerberos"
+_kerberos_security_mode = configuration.conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
     try:
         from hdfs.ext.kerberos import KerberosClient

@@ -38,7 +38,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
 
     def _build_hook(self):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks.S3_hook import S3Hook
             return S3Hook(remote_conn_id)
@@ -168,7 +168,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log,
                 key=remote_log_location,
                 replace=True,
-                encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                encrypt=configuration.conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
             )
         except:
             self.log.exception('Could not write logs to %s', remote_log_location)

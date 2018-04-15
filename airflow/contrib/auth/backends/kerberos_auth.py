@@ -52,8 +52,11 @@ class KerberosUser(models.User, LoggingMixin):
 
     @staticmethod
     def authenticate(username, password):
-        service_principal = "%s/%s" % (configuration.get('kerberos', 'principal'), utils.get_fqdn())
-        realm = configuration.get("kerberos", "default_realm")
+        service_principal = "%s/%s" % (
+            configuration.conf.get('kerberos', 'principal'),
+            utils.get_fqdn()
+        )
+        realm = configuration.conf.get("kerberos", "default_realm")
         user_principal = utils.principal_from_username(username)
 
         try:

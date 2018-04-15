@@ -42,7 +42,7 @@ def GetDefaultExecutor():
     if DEFAULT_EXECUTOR is not None:
         return DEFAULT_EXECUTOR
 
-    executor_name = configuration.get('core', 'EXECUTOR')
+    executor_name = configuration.conf.get('core', 'EXECUTOR')
 
     DEFAULT_EXECUTOR = _get_executor(executor_name)
 

@@ -43,7 +43,9 @@ from airflow.exceptions import AirflowException
 
 # When killing processes, time to wait after issuing a SIGTERM before issuing a
 # SIGKILL.
-DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.getint('core', 'KILLED_TASK_CLEANUP_TIME')
+DEFAULT_TIME_TO_WAIT_AFTER_SIGTERM = configuration.conf.getint(
+    'core', 'KILLED_TASK_CLEANUP_TIME'
+)
 
 
 def validate_key(k, max_length=250):

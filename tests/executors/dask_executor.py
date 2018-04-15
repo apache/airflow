@@ -33,7 +33,7 @@ try:
 except ImportError:
     SKIP_DASK = True
 
-if 'sqlite' in configuration.get('core', 'sql_alchemy_conn'):
+if 'sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'):
     SKIP_DASK = True
 
 # Always skip due to issues on python 3 issues

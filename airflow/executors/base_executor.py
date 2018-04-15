@@ -22,7 +22,7 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
-PARALLELISM = configuration.getint('core', 'PARALLELISM')
+PARALLELISM = configuration.conf.getint('core', 'PARALLELISM')
 
 
 class BaseExecutor(LoggingMixin):

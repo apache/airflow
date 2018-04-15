@@ -38,7 +38,7 @@ log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.get('google', param))
+    return str(configuration.conf.get('google', param))
 
 
 class GoogleUser(models.User):

@@ -31,22 +31,22 @@ from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.module_loading import import_string
 
-PARALLELISM = configuration.get('core', 'PARALLELISM')
+PARALLELISM = configuration.conf.get('core', 'PARALLELISM')
 
 '''
 To start the celery worker, run the command:
 airflow worker
 '''
 
-if configuration.has_option('celery', 'celery_config_options'):
+if configuration.conf.has_option('celery', 'celery_config_options'):
     celery_configuration = import_string(
-        configuration.get('celery', 'celery_config_options')
+        configuration.conf.get('celery', 'celery_config_options')
     )
 else:
     celery_configuration = DEFAULT_CELERY_CONFIG
 
 app = Celery(
-    configuration.get('celery', 'CELERY_APP_NAME'),
+    configuration.conf.get('celery', 'CELERY_APP_NAME'),
     config_source=celery_configuration)
 
 

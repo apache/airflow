@@ -59,13 +59,13 @@ def get_ldap_connection(dn=None, password=None):
     tls_configuration = None
     use_ssl = False
     try:
-        cacert = configuration.get("ldap", "cacert")
+        cacert = configuration.conf.get("ldap", "cacert")
         tls_configuration = Tls(validate=ssl.CERT_REQUIRED, ca_certs_file=cacert)
         use_ssl = True
     except:
         pass
 
-    server = Server(configuration.get("ldap", "uri"), use_ssl, tls_configuration)
+    server = Server(configuration.conf.get("ldap", "uri"), use_ssl, tls_configuration)
     conn = Connection(server, native(dn), native(password))
 
     if not conn.bind():
@@ -91,7 +91,7 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
 def groups_user(conn, search_base, user_filter, user_name_att, username):
     search_filter = "(&({0})({1}={2}))".format(user_filter, user_name_att, username)
     try:
-        memberof_attr = configuration.get("ldap", "group_member_attr")
+        memberof_attr = configuration.conf.get("ldap", "group_member_attr")
     except:
         memberof_attr = "memberOf"
     res = conn.search(native(search_base), native(search_filter),
@@ -127,13 +127,13 @@ class LdapUser(models.User):
         self.ldap_groups = []
 
         # Load and cache superuser and data_profiler settings.
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
-                                   configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.conf.get("ldap", "bind_user"),
+                                   configuration.conf.get("ldap", "bind_password"))
 
         superuser_filter = None
         data_profiler_filter = None
         try:
-            superuser_filter = configuration.get("ldap", "superuser_filter")
+            superuser_filter = configuration.conf.get("ldap", "superuser_filter")
         except AirflowConfigException:
             pass
 
@@ -142,14 +142,14 @@ class LdapUser(models.User):
             log.debug("Missing configuration for superuser settings or empty. Skipping.")
         else:
             self.superuser = group_contains_user(conn,
-                                                 configuration.get("ldap", "basedn"),
+                                                 configuration.conf.get("ldap", "basedn"),
                                                  superuser_filter,
-                                                 configuration.get("ldap",
-                                                                   "user_name_attr"),
+                                                 configuration.conf.get("ldap",
+                                                                        "user_name_attr"),
                                                  user.username)
 
         try:
-            data_profiler_filter = configuration.get("ldap", "data_profiler_filter")
+            data_profiler_filter = configuration.conf.get("ldap", "data_profiler_filter")
         except AirflowConfigException:
             pass
 
@@ -158,31 +158,35 @@ class LdapUser(models.User):
             log.debug("Missing configuration for data profiler settings or empty. "
                       "Skipping.")
         else:
-            self.data_profiler = group_contains_user(conn,
-                                                     configuration.get("ldap", "basedn"),
-                                                     data_profiler_filter,
-                                                     configuration.get("ldap",
-                                                                       "user_name_attr"),
-                                                     user.username)
+            self.data_profiler = group_contains_user(
+                conn,
+                configuration.conf.get("ldap", "basedn"),
+                data_profiler_filter,
+                configuration.conf.get("ldap",
+                                       "user_name_attr"),
+                user.username
+            )
 
         # Load the ldap group(s) a user belongs to
         try:
-            self.ldap_groups = groups_user(conn,
-                                           configuration.get("ldap", "basedn"),
-                                           configuration.get("ldap", "user_filter"),
-                                           configuration.get("ldap", "user_name_attr"),
-                                           user.username)
+            self.ldap_groups = groups_user(
+                conn,
+                configuration.conf.get("ldap", "basedn"),
+                configuration.conf.get("ldap", "user_filter"),
+                configuration.conf.get("ldap", "user_name_attr"),
+                user.username
+            )
         except AirflowConfigException:
             log.debug("Missing configuration for ldap settings. Skipping")
 
     @staticmethod
     def try_login(username, password):
-        conn = get_ldap_connection(configuration.get("ldap", "bind_user"),
-                                   configuration.get("ldap", "bind_password"))
+        conn = get_ldap_connection(configuration.conf.get("ldap", "bind_user"),
+                                   configuration.conf.get("ldap", "bind_password"))
 
         search_filter = "(&({0})({1}={2}))".format(
-            configuration.get("ldap", "user_filter"),
-            configuration.get("ldap", "user_name_attr"),
+            configuration.conf.get("ldap", "user_filter"),
+            configuration.conf.get("ldap", "user_name_attr"),
             username
         )
 
@@ -193,12 +197,15 @@ class LdapUser(models.User):
         }
 
         search_scope = LEVEL
-        if configuration.has_option("ldap", "search_scope"):
-            search_scope = SUBTREE if configuration.get("ldap", "search_scope") == "SUBTREE" else LEVEL
+        if configuration.conf.has_option("ldap", "search_scope"):
+            if configuration.conf.get("ldap", "search_scope") == "SUBTREE":
+                search_scope = SUBTREE
+            else:
+                search_scope = LEVEL
 
         # todo: BASE or ONELEVEL?
 
-        res = conn.search(native(configuration.get("ldap", "basedn")),
+        res = conn.search(native(configuration.conf.get("ldap", "basedn")),
                           native(search_filter),
                           search_scope=native(search_scope))
 

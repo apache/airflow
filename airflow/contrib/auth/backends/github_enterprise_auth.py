@@ -39,7 +39,7 @@ log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.get('github_enterprise', param))
+    return str(configuration.conf.get('github_enterprise', param))
 
 
 class GHEUser(models.User):

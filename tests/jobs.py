@@ -90,7 +90,7 @@ class BackfillJobTest(unittest.TestCase):
         self.parser = cli.CLIFactory.get_parser()
         self.dagbag = DagBag(include_examples=True)
 
-    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_trigger_controller_dag(self):
         dag = self.dagbag.get_dag('example_trigger_controller_dag')
@@ -119,7 +119,7 @@ class BackfillJobTest(unittest.TestCase):
         target_dag.clear()
         dag.clear()
 
-    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_backfill_multi_dates(self):
         dag = self.dagbag.get_dag('example_bash_operator')
@@ -147,7 +147,7 @@ class BackfillJobTest(unittest.TestCase):
         dag.clear()
         session.close()
 
-    @unittest.skipIf('sqlite' in configuration.get('core', 'sql_alchemy_conn'),
+    @unittest.skipIf('sqlite' in configuration.conf.get('core', 'sql_alchemy_conn'),
                      "concurrent access not supported in sqlite")
     def test_backfill_examples(self):
         """
@@ -2728,7 +2728,7 @@ class SchedulerJobTest(unittest.TestCase):
                   default_args=default_args
                   )
 
-        default_catchup = configuration.getboolean('scheduler', 'catchup_by_default')
+        default_catchup = configuration.conf.getboolean('scheduler', 'catchup_by_default')
         # Test configs have catchup by default ON
 
         self.assertEqual(default_catchup, True)

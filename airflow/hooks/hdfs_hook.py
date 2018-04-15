@@ -64,7 +64,7 @@ class HDFSHook(BaseHook):
         # take the first.
         effective_user = self.proxy_user
         autoconfig = self.autoconfig
-        use_sasl = configuration.get('core', 'security') == 'kerberos'
+        use_sasl = configuration.conf.get('core', 'security') == 'kerberos'
 
         try:
             connections = self.get_connections(self.hdfs_conn_id)

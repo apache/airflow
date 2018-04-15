@@ -55,9 +55,9 @@ class AirflowPlugin(object):
             raise AirflowPluginException("Your plugin needs a name.")
 
 
-plugins_folder = configuration.get('core', 'plugins_folder')
+plugins_folder = configuration.conf.get('core', 'plugins_folder')
 if not plugins_folder:
-    plugins_folder = configuration.get('core', 'airflow_home') + '/plugins'
+    plugins_folder = configuration.conf.get('core', 'airflow_home') + '/plugins'
 plugins_folder = os.path.expanduser(plugins_folder)
 
 if plugins_folder not in sys.path:

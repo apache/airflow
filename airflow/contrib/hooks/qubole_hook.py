@@ -40,7 +40,7 @@ COMMAND_CLASSES = {
     "prestocmd": PrestoCommand,
     "hadoopcmd": HadoopCommand,
     "shellcmd": ShellCommand,
-    "pigcmd":  PigCommand,
+    "pigcmd": PigCommand,
     "sparkcmd": SparkCommand,
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
@@ -146,7 +146,9 @@ class QuboleHook(BaseHook, LoggingMixin):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
+            logpath = os.path.expanduser(
+                configuration.conf.get('core', 'BASE_LOG_FOLDER')
+            )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             configuration.mkdir_p(resultpath)
             fp = open(resultpath + '/' + iso, 'wb')

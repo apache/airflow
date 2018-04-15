@@ -45,7 +45,7 @@ def send_email(to, subject, html_content, files=None,
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
-    path, attr = configuration.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
+    path, attr = configuration.conf.get('email', 'EMAIL_BACKEND').rsplit('.', 1)
     module = importlib.import_module(path)
     backend = getattr(module, attr)
     return backend(to, subject, html_content, files=files,
@@ -61,7 +61,7 @@ def send_email_smtp(to, subject, html_content, files=None,
 
     >>> send_email('test@example.com', 'foo', '<b>Foo</b> bar', ['/dev/null'], dryrun=True)
     """
-    SMTP_MAIL_FROM = configuration.get('smtp', 'SMTP_MAIL_FROM')
+    SMTP_MAIL_FROM = configuration.conf.get('smtp', 'SMTP_MAIL_FROM')
 
     to = get_email_address_list(to)
 
@@ -101,16 +101,16 @@ def send_email_smtp(to, subject, html_content, files=None,
 def send_MIME_email(e_from, e_to, mime_msg, dryrun=False):
     log = LoggingMixin().log
 
-    SMTP_HOST = configuration.get('smtp', 'SMTP_HOST')
-    SMTP_PORT = configuration.getint('smtp', 'SMTP_PORT')
-    SMTP_STARTTLS = configuration.getboolean('smtp', 'SMTP_STARTTLS')
-    SMTP_SSL = configuration.getboolean('smtp', 'SMTP_SSL')
+    SMTP_HOST = configuration.conf.get('smtp', 'SMTP_HOST')
+    SMTP_PORT = configuration.conf.getint('smtp', 'SMTP_PORT')
+    SMTP_STARTTLS = configuration.conf.getboolean('smtp', 'SMTP_STARTTLS')
+    SMTP_SSL = configuration.conf.getboolean('smtp', 'SMTP_SSL')
     SMTP_USER = None
     SMTP_PASSWORD = None
 
     try:
-        SMTP_USER = configuration.get('smtp', 'SMTP_USER')
-        SMTP_PASSWORD = configuration.get('smtp', 'SMTP_PASSWORD')
+        SMTP_USER = configuration.conf.get('smtp', 'SMTP_USER')
+        SMTP_PASSWORD = configuration.conf.get('smtp', 'SMTP_PASSWORD')
     except AirflowConfigException:
         log.debug("No user/password found for SMTP, so logging in with no authentication.")
 
