@@ -51,6 +51,7 @@ Operators
 .. autoclass:: airflow.operators.check_operator.CheckOperator
 .. autoclass:: airflow.operators.docker_operator.DockerOperator
 .. autoclass:: airflow.operators.dummy_operator.DummyOperator
+.. autoclass:: airflow.operators.druid_check_operator.DruidCheckOperator
 .. autoclass:: airflow.operators.email_operator.EmailOperator
 .. autoclass:: airflow.operators.generic_transfer.GenericTransfer
 .. autoclass:: airflow.operators.hive_to_druid.HiveToDruidTransfer

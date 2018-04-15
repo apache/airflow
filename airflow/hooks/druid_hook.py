@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -127,7 +127,8 @@ class DruidDbApiHook(DbApiHook):
             path=conn.extra_dejson.get('endpoint', '/druid/v2/sql'),
             scheme=conn.extra_dejson.get('schema', 'http')
         )
-        self.log('Get the connection to druid broker on {host}'.format(host=conn.host))
+        self.log.info('Get the connection to druid '
+                      'broker on {host}'.format(host=conn.host))
         return druid_broker_conn
 
     def get_uri(self):
