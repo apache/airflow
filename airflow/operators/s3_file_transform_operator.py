@@ -36,9 +36,12 @@ class S3FileTransformOperator(BaseOperator):
     The locations of the source and the destination files in the local
     filesystem is provided as an first and second arguments to the
     transformation script. The transformation script is expected to read the
-    data from source , transform it and write the output to the local
+    data from source, transform it and write the output to the local
     destination file. The operator then takes over control and uploads the
     local destination file to S3.
+
+    S3 Select is also available to filter the source contents. Users can
+    omit the transformation script if S3 Select expression is specified.
 
     :param source_s3_key: The key to be retrieved from S3
     :type source_s3_key: str
@@ -52,6 +55,8 @@ class S3FileTransformOperator(BaseOperator):
     :type replace: bool
     :param transform_script: location of the executable transformation script
     :type transform_script: str
+    :param select_expression: S3 Select expression
+    :type select_expression: str
     """
 
     template_fields = ('source_s3_key', 'dest_s3_key')
@@ -63,7 +68,8 @@ class S3FileTransformOperator(BaseOperator):
             self,
             source_s3_key,
             dest_s3_key,
-            transform_script,
+            transform_script=None,
+            select_expression=None,
             source_aws_conn_id='aws_default',
             dest_aws_conn_id='aws_default',
             replace=False,
@@ -75,33 +81,54 @@ class S3FileTransformOperator(BaseOperator):
         self.dest_aws_conn_id = dest_aws_conn_id
         self.replace = replace
         self.transform_script = transform_script
+        self.select_expression = select_expression
 
     def execute(self, context):
+        if self.transform_script is None and self.select_expression is None:
+            raise AirflowException(
+                "Either transform_script or select_expression must be specified")
+
         source_s3 = S3Hook(aws_conn_id=self.source_aws_conn_id)
         dest_s3 = S3Hook(aws_conn_id=self.dest_aws_conn_id)
+
         self.log.info("Downloading source S3 file %s", self.source_s3_key)
         if not source_s3.check_for_key(self.source_s3_key):
-            raise AirflowException("The source key {0} does not exist".format(self.source_s3_key))
+            raise AirflowException(
+                "The source key {0} does not exist".format(self.source_s3_key))
         source_s3_key_object = source_s3.get_key(self.source_s3_key)
+
         with NamedTemporaryFile("wb") as f_source, NamedTemporaryFile("wb") as f_dest:
             self.log.info(
                 "Dumping S3 file %s contents to local file %s",
                 self.source_s3_key, f_source.name
             )
-            source_s3_key_object.download_fileobj(Fileobj=f_source)
-            f_source.flush()
-            transform_script_process = subprocess.Popen(
-                [self.transform_script, f_source.name, f_dest.name],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
-            (transform_script_stdoutdata, transform_script_stderrdata) = transform_script_process.communicate()
-            self.log.info("Transform script stdout %s", transform_script_stdoutdata)
-            if transform_script_process.returncode > 0:
-                raise AirflowException("Transform script failed %s", transform_script_stderrdata)
-            else:
-                self.log.info(
-                    "Transform script successful. Output temporarily located at %s",
-                    f_dest.name
+
+            if self.select_expression is not None:
+                content = source_s3.select_key(
+                    key=self.source_s3_key,
+                    expression=self.select_expression
                 )
+                f_source.write(content.encode("utf-8"))
+            else:
+                source_s3_key_object.download_fileobj(Fileobj=f_source)
+            f_source.flush()
+
+            if self.transform_script is not None:
+                transform_script_process = subprocess.Popen(
+                    [self.transform_script, f_source.name, f_dest.name],
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True)
+                (transform_script_stdoutdata, transform_script_stderrdata) = \
+                    transform_script_process.communicate()
+                self.log.info("Transform script stdout %s", transform_script_stdoutdata)
+                if transform_script_process.returncode > 0:
+                    raise AirflowException(
+                        "Transform script failed %s", transform_script_stderrdata)
+                else:
+                    self.log.info(
+                        "Transform script successful. Output temporarily located at %s",
+                        f_dest.name
+                    )
+
             self.log.info("Uploading transformed file to S3")
             f_dest.flush()
             dest_s3.load_file(
