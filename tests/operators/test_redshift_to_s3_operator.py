@@ -45,7 +45,7 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
         table = "table"
         s3_bucket = "bucket"
         s3_key = "key"
-        unload_options = ""
+        unload_options = ('PARALLEL OFF',)
 
         t = RedshiftToS3Transfer(
             schema=schema,
@@ -53,33 +53,44 @@ class TestRedshiftToS3Transfer(unittest.TestCase):
             s3_bucket=s3_bucket,
             s3_key=s3_key,
             unload_options=unload_options,
+            include_header=True,
             redshift_conn_id="redshift_conn_id",
             aws_conn_id="aws_conn_id",
             task_id="task_id",
             dag=None)
         t.execute(None)
 
+        unload_options = '\n\t\t\t'.join(unload_options)
+
         columns_query = """
             SELECT column_name
             FROM information_schema.columns
-            WHERE table_schema = '{0}'
-            AND   table_name = '{1}'
+            WHERE table_schema = '{schema}'
+            AND   table_name = '{table}'
             ORDER BY ordinal_position
-            """.format(schema, table)
+            """.format(schema=schema,
+                       table=table)
 
         unload_query = """
-            UNLOAD ('SELECT \\'{0}\\'
-                     UNION ALL
-                     SELECT CAST({0} AS text) AS {0}
-                     FROM {1}.{2}
-                     ORDER BY 1 DESC')
-            TO 's3://{3}/{4}/{2}_'
-            with credentials
-            'aws_access_key_id={5};aws_secret_access_key={6}'
-            {7};
-            """.format(column_name, schema, table,
-                       s3_bucket, s3_key, access_key,
-                       secret_key, unload_options)
+                UNLOAD ('SELECT {column_name} FROM
+                            (SELECT 2 sort_order,
+                             CAST({column_name} AS text) AS {column_name}
+                            FROM {schema}.{table}
+                            UNION ALL
+                            SELECT 1 sort_order, \\'{column_name}\\')
+                         ORDER BY sort_order')
+                TO 's3://{s3_bucket}/{s3_key}/{table}_'
+                with credentials
+                'aws_access_key_id={access_key};aws_secret_access_key={secret_key}'
+                {unload_options};
+                """.format(column_name=column_name,
+                           schema=schema,
+                           table=table,
+                           s3_bucket=s3_bucket,
+                           s3_key=s3_key,
+                           access_key=access_key,
+                           secret_key=secret_key,
+                           unload_options=unload_options)
 
         def _trim(s):
             return re.sub("\s+", " ", s.strip())
