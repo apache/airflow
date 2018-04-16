@@ -21,7 +21,7 @@ from airflow import configuration
 from airflow.task.task_runner.bash_task_runner import BashTaskRunner
 from airflow.exceptions import AirflowException
 
-_TASK_RUNNER = configuration.get('core', 'TASK_RUNNER')
+_TASK_RUNNER = configuration.conf.get('core', 'TASK_RUNNER')
 
 
 def get_task_runner(local_task_job):

@@ -23,9 +23,9 @@ from airflow.bin.cli import CLIFactory
 
 if __name__ == '__main__':
 
-    if configuration.get("core", "security") == 'kerberos':
-        os.environ['KRB5CCNAME'] = configuration.get('kerberos', 'ccache')
-        os.environ['KRB5_KTNAME'] = configuration.get('kerberos', 'keytab')
+    if configuration.conf.get("core", "security") == 'kerberos':
+        os.environ['KRB5CCNAME'] = configuration.conf.get('kerberos', 'ccache')
+        os.environ['KRB5_KTNAME'] = configuration.conf.get('kerberos', 'keytab')
 
     parser = CLIFactory.get_parser()
     args = parser.parse_args()

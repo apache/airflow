@@ -104,7 +104,7 @@ class HiveCliHook(BaseHook):
         if self.use_beeline:
             hive_bin = 'beeline'
             jdbc_url = "jdbc:hive2://{conn.host}:{conn.port}/{conn.schema}"
-            if configuration.get('core', 'security') == 'kerberos':
+            if configuration.conf.get('core', 'security') == 'kerberos':
                 template = conn.extra_dejson.get(
                     'principal', "hive/_HOST@EXAMPLE.COM")
                 if "_HOST" in template:
@@ -463,12 +463,13 @@ class HiveMetastoreHook(BaseHook):
         from hive_service import ThriftHive
         ms = self.metastore_conn
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
-        if configuration.get('core', 'security') == 'kerberos':
+        if configuration.conf.get('core', 'security') == 'kerberos':
             auth_mechanism = ms.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = ms.extra_dejson.get('kerberos_service_name', 'hive')
 
         socket = TSocket.TSocket(ms.host, ms.port)
-        if configuration.get('core', 'security') == 'kerberos' and auth_mechanism == 'GSSAPI':
+        if configuration.conf.get('core', 'security') == 'kerberos' \
+                and auth_mechanism == 'GSSAPI':
             try:
                 import saslwrapper as sasl
             except ImportError:
@@ -740,7 +741,7 @@ class HiveServer2Hook(BaseHook):
         db = self.get_connection(self.hiveserver2_conn_id)
         auth_mechanism = db.extra_dejson.get('authMechanism', 'PLAIN')
         kerberos_service_name = None
-        if configuration.get('core', 'security') == 'kerberos':
+        if configuration.conf.get('core', 'security') == 'kerberos':
             auth_mechanism = db.extra_dejson.get('authMechanism', 'GSSAPI')
             kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 

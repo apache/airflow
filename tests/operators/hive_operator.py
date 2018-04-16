@@ -69,8 +69,10 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
             dag=self.dag)
 
         # just check that the correct default value in test_default.cfg is used
-        test_config_hive_mapred_queue = configuration.get('hive',
-                                                          'default_hive_mapred_queue')
+        test_config_hive_mapred_queue = configuration.conf.get(
+            'hive',
+            'default_hive_mapred_queue'
+        )
         self.assertEqual(t.get_hook().mapred_queue, test_config_hive_mapred_queue)
 
     def test_hive_airflow_default_config_queue_override(self):

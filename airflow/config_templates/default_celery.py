@@ -25,7 +25,9 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 log = LoggingMixin().log
 
-broker_transport_options = configuration.getsection('celery_broker_transport_options')
+broker_transport_options = configuration.conf.getsection(
+    'celery_broker_transport_options'
+)
 if broker_transport_options is None:
     broker_transport_options = {'visibility_timeout': 21600}
 
@@ -34,25 +36,25 @@ DEFAULT_CELERY_CONFIG = {
     'event_serializer': 'json',
     'worker_prefetch_multiplier': 1,
     'task_acks_late': True,
-    'task_default_queue': configuration.get('celery', 'DEFAULT_QUEUE'),
-    'task_default_exchange': configuration.get('celery', 'DEFAULT_QUEUE'),
-    'broker_url': configuration.get('celery', 'BROKER_URL'),
+    'task_default_queue': configuration.conf.get('celery', 'DEFAULT_QUEUE'),
+    'task_default_exchange': configuration.conf.get('celery', 'DEFAULT_QUEUE'),
+    'broker_url': configuration.conf.get('celery', 'BROKER_URL'),
     'broker_transport_options': broker_transport_options,
-    'result_backend': configuration.get('celery', 'RESULT_BACKEND'),
-    'worker_concurrency': configuration.getint('celery', 'WORKER_CONCURRENCY'),
+    'result_backend': configuration.conf.get('celery', 'RESULT_BACKEND'),
+    'worker_concurrency': configuration.conf.getint('celery', 'WORKER_CONCURRENCY'),
 }
 
 celery_ssl_active = False
 try:
-    celery_ssl_active = configuration.getboolean('celery', 'SSL_ACTIVE')
+    celery_ssl_active = configuration.conf.getboolean('celery', 'SSL_ACTIVE')
 except AirflowConfigException as e:
     log.warning("Celery Executor will run without SSL")
 
 try:
     if celery_ssl_active:
-        broker_use_ssl = {'keyfile': configuration.get('celery', 'SSL_KEY'),
-                          'certfile': configuration.get('celery', 'SSL_CERT'),
-                          'ca_certs': configuration.get('celery', 'SSL_CACERT'),
+        broker_use_ssl = {'keyfile': configuration.conf.get('celery', 'SSL_KEY'),
+                          'certfile': configuration.conf.get('celery', 'SSL_CERT'),
+                          'ca_certs': configuration.conf.get('celery', 'SSL_CACERT'),
                           'cert_reqs': ssl.CERT_REQUIRED}
         DEFAULT_CELERY_CONFIG['broker_use_ssl'] = broker_use_ssl
 except AirflowConfigException as e:

@@ -78,21 +78,21 @@ class OperatorResourcesTest(unittest.TestCase):
         resources = Resources(cpus=0, disk=1)
         self.assertEqual(resources.cpus.qty, 0)
         self.assertEqual(resources.ram.qty,
-                         configuration.getint('operators', 'default_ram'))
+                         configuration.conf.getint('operators', 'default_ram'))
         self.assertEqual(resources.disk.qty, 1)
         self.assertEqual(resources.gpus.qty,
-                         configuration.getint('operators', 'default_gpus'))
+                         configuration.conf.getint('operators', 'default_gpus'))
 
     def test_no_resources_specified(self):
         resources = Resources()
         self.assertEqual(resources.cpus.qty,
-                         configuration.getint('operators', 'default_cpus'))
+                         configuration.conf.getint('operators', 'default_cpus'))
         self.assertEqual(resources.ram.qty,
-                         configuration.getint('operators', 'default_ram'))
+                         configuration.conf.getint('operators', 'default_ram'))
         self.assertEqual(resources.disk.qty,
-                         configuration.getint('operators', 'default_disk'))
+                         configuration.conf.getint('operators', 'default_disk'))
         self.assertEqual(resources.gpus.qty,
-                         configuration.getint('operators', 'default_gpus'))
+                         configuration.conf.getint('operators', 'default_gpus'))
 
     def test_negative_resource_qty(self):
         with self.assertRaises(AirflowException):

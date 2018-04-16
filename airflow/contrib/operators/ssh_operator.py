@@ -136,8 +136,9 @@ class SSHOperator(BaseOperator):
             if exit_status is 0:
                 # returning output if do_xcom_push is set
                 if self.do_xcom_push:
-                    enable_pickling = configuration.getboolean('core',
-                                                               'enable_xcom_pickling')
+                    enable_pickling = configuration.conf.getboolean(
+                        'core', 'enable_xcom_pickling'
+                    )
                     if enable_pickling:
                         return agg_stdout
                     else:

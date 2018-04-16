@@ -31,7 +31,7 @@ class DaskExecutor(BaseExecutor):
     """
     def __init__(self, cluster_address=None):
         if cluster_address is None:
-            cluster_address = configuration.get('dask', 'cluster_address')
+            cluster_address = configuration.conf.get('dask', 'cluster_address')
         if not cluster_address:
             raise ValueError(
                 'Please provide a Dask cluster address in airflow.cfg')

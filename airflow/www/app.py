@@ -43,8 +43,9 @@ csrf = CSRFProtect()
 
 def create_app(config=None, testing=False):
     app = Flask(__name__)
-    app.secret_key = configuration.get('webserver', 'SECRET_KEY')
-    app.config['LOGIN_DISABLED'] = not configuration.getboolean('webserver', 'AUTHENTICATE')
+    app.secret_key = configuration.conf.get('webserver', 'SECRET_KEY')
+    app.config['LOGIN_DISABLED'] = not configuration.conf.getboolean(
+        'webserver', 'AUTHENTICATE')
 
     csrf.init_app(app)
 
@@ -175,7 +176,7 @@ def root_app(env, resp):
 def cached_app(config=None, testing=False):
     global app
     if not app:
-        base_url = urlparse(configuration.get('webserver', 'base_url'))[2]
+        base_url = urlparse(configuration.conf.get('webserver', 'base_url'))[2]
         if not base_url or base_url == '/':
             base_url = ""
 

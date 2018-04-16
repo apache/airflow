@@ -41,7 +41,7 @@ from airflow.utils.db import create_session
 from airflow.utils import timezone
 from airflow.utils.json import AirflowJsonEncoder
 
-AUTHENTICATE = configuration.getboolean('webserver', 'AUTHENTICATE')
+AUTHENTICATE = configuration.conf.getboolean('webserver', 'AUTHENTICATE')
 
 DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
     'password',
@@ -56,7 +56,7 @@ DEFAULT_SENSITIVE_VARIABLE_FIELDS = (
 
 def should_hide_value_for_key(key_name):
     return any(s in key_name.lower() for s in DEFAULT_SENSITIVE_VARIABLE_FIELDS) \
-           and configuration.getboolean('admin', 'hide_sensitive_variable_fields')
+        and configuration.conf.getboolean('admin', 'hide_sensitive_variable_fields')
 
 
 class LoginMixin(object):

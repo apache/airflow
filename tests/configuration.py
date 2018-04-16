@@ -18,12 +18,15 @@
 # under the License.
 
 from __future__ import print_function
+from __future__ import unicode_literals
+
 import unittest
+from collections import OrderedDict
 
 import six
 
 from airflow import configuration
-from airflow.configuration import conf
+from airflow.configuration import conf, AirflowConfigParser, parameterized_config
 
 
 class ConfTest(unittest.TestCase):
@@ -59,6 +62,88 @@ class ConfTest(unittest.TestCase):
         cfg_dict = conf.as_dict(display_sensitive=True, display_source=True)
         self.assertEqual(
             cfg_dict['testsection']['testkey'], ('testvalue', 'env var'))
+
+    def test_command_config(self):
+        TEST_CONFIG = '''[test]
+key1 = hello
+key2_cmd = printf cmd_result
+key3 = airflow
+key4_cmd = printf key4_result
+'''
+        TEST_CONFIG_DEFAULT = '''[test]
+key1 = awesome
+key2 = airflow
+
+[another]
+key6 = value6
+'''
+
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+        test_conf.as_command_stdout = test_conf.as_command_stdout | {
+            ('test', 'key2'),
+            ('test', 'key4'),
+        }
+        self.assertEqual('hello', test_conf.get('test', 'key1'))
+        self.assertEqual('cmd_result', test_conf.get('test', 'key2'))
+        self.assertEqual('airflow', test_conf.get('test', 'key3'))
+        self.assertEqual('key4_result', test_conf.get('test', 'key4'))
+        self.assertEqual('value6', test_conf.get('another', 'key6'))
+
+        self.assertTrue(test_conf.has_option('test', 'key1'))
+        self.assertTrue(test_conf.has_option('test', 'key2'))
+        self.assertTrue(test_conf.has_option('test', 'key3'))
+        self.assertTrue(test_conf.has_option('test', 'key4'))
+        self.assertFalse(test_conf.has_option('test', 'key5'))
+        self.assertTrue(test_conf.has_option('another', 'key6'))
+
+    def test_remove_option(self):
+        TEST_CONFIG = '''[test]
+key1 = hello
+key2 = airflow
+'''
+        TEST_CONFIG_DEFAULT = '''[test]
+key1 = awesome
+key2 = airflow
+'''
+
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+
+        self.assertEqual('hello', test_conf.get('test', 'key1'))
+        test_conf.remove_option('test', 'key1', remove_default=False)
+        self.assertEqual('awesome', test_conf.get('test', 'key1'))
+
+        test_conf.remove_option('test', 'key2')
+        self.assertFalse(test_conf.has_option('test', 'key2'))
+
+    def test_getsection(self):
+        TEST_CONFIG = '''
+[test]
+key1 = hello
+'''
+        TEST_CONFIG_DEFAULT = '''
+[test]
+key1 = awesome
+key2 = airflow
+
+[another]
+key3 = value3
+'''
+        test_conf = AirflowConfigParser(
+            default_config=parameterized_config(TEST_CONFIG_DEFAULT))
+        test_conf.read_string(TEST_CONFIG)
+
+        self.assertEqual(
+            OrderedDict([('key1', 'hello'), ('key2', 'airflow')]),
+            test_conf.getsection('test')
+        )
+        self.assertEqual(
+            OrderedDict([('key3', 'value3')]),
+            test_conf.getsection('another')
+        )
 
     def test_broker_transport_options(self):
         section_dict = conf.getsection("celery_broker_transport_options")
