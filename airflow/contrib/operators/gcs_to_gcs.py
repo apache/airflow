@@ -102,10 +102,10 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                                         source_object,
                                                         self.destination_bucket,
                                                         self.destination_object,
-                                                        source_object))
+                                                        source_object[wildcard_position:]))
                 hook.copy(self.source_bucket, source_object,
                           self.destination_bucket, "{}/{}".format(self.destination_object,
-                                                                  source_object))
+                                                                  source_object[wildcard_position:]))
                 if self.move_object:
                     hook.delete(self.source_bucket, source_object)
 
