@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -102,11 +102,12 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.replace = replace
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
-            self.log.info('Destination Google Cloud Storage path is not a '
-                          'valid "directory", define one and end the path '
-                          'with a slash: "/".')
+            self.log.info(
+                'Destination Google Cloud Storage path is not a valid '
+                '"directory", define a path that ends with a slash "/" or '
+                'leave it empty for the root of the bucket.')
             raise AirflowException('The destination Google Cloud Storage path '
-                                   'must end with a slash "/".')
+                                   'must end with a slash "/" or be empty.')
 
     def execute(self, context):
         # use the super method to list all the files in an S3 bucket/key
@@ -188,4 +189,4 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     def _gcs_object_is_directory(self, object):
         bucket, blob = _parse_gcs_url(object)
 
-        return blob.endswith('/')
+        return len(blob) == 0 or blob.endswith('/')
