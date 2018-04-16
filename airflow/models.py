@@ -2855,7 +2855,7 @@ class BaseOperator(LoggingMixin):
         """
         self._set_relatives(task_or_task_list, upstream=False)
 
-    def set_upstream_from(self, task_or_task_list):
+    def left_runs_after_right(self, task_or_task_list):
         """
         synonym for set_upstream
 
@@ -2864,7 +2864,7 @@ class BaseOperator(LoggingMixin):
         """
         self.set_upstream(task_or_task_list)
 
-    def set_downstream_from(self, task_or_task_list):
+    def right_runs_after_left(self, task_or_task_list):
         """
         synonym for set_downstream
 
