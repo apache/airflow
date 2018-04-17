@@ -15,7 +15,7 @@
 from datetime import timedelta
 
 from airflow import DAG
-from airflow.operators.bash_operator import BashOperator
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.contrib.sensors.dag_run_sensor import DagRunSensor
 from tests.contrib.sensors.test_dag_run_sensor import (DEFAULT_DATE,
                                                        TEST_DAG_ID)
@@ -30,14 +30,14 @@ with DAG(dag_id=TEST_DAG_ID + '_parent_clean',
          default_args=args,
          start_date=DEFAULT_DATE,
          schedule_interval=timedelta(seconds=1)) as dag_parent:
-    t1 = BashOperator(
+
+    t1 = DummyOperator(
         task_id='task_1',
-        bash_command="echo 'one'",
     )
-    t2 = BashOperator(
+    t2 = DummyOperator(
         task_id='task_2',
-        bash_command="echo 'two'",
     )
+
     t1 >> t2
 
 
@@ -55,9 +55,8 @@ with DAG(dag_id=TEST_DAG_ID + '_child_clean',
         timeout=5,
         poke_interval=1,
     )
-    t2 = BashOperator(
+    t2 = DummyOperator(
         task_id='do_stuff',
-        bash_command="echo 'finished'",
     )
 
     t1 >> t2

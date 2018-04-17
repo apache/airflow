@@ -22,8 +22,11 @@ from airflow.settings import Session
 from airflow.utils.state import State
 from airflow import configuration
 from airflow.exceptions import AirflowException
+from airflow.utils.timezone import convert_to_utc
 
-DEFAULT_DATE = datetime(2017, 1, 1)
+from airflow.jobs import BackfillJob
+
+DEFAULT_DATE = convert_to_utc(datetime(2017, 1, 1))
 TEST_DAG_ID = 'test_dagrun_sensor_dag'
 TEST_DAG_FOLDER = os.path.join(
     dirname(dirname(dirname(realpath(__file__)))), 'dags')
@@ -42,22 +45,30 @@ class TestDagRunSensor(unittest.TestCase):
 
     def test_poke(self):
         dag_parent = self.dagbag.get_dag(TEST_DAG_ID + '_parent_clean')
-        dag_parent.run(
-            start_date=DEFAULT_DATE + timedelta(seconds=0),
-            end_date=DEFAULT_DATE + timedelta(seconds=8),
-        )
+
+        dag_parent.clear()
+
+        dag_parent_job = BackfillJob(dag=dag_parent,
+                                     start_date=DEFAULT_DATE,
+                                     end_date=DEFAULT_DATE + timedelta(seconds=8),
+                                     )
+        dag_parent_job.run()
 
         dag_child = self.dagbag.get_dag(TEST_DAG_ID + '_child_clean')
+
+        dag_child.clear()
 
         # One of the following two runs should succeed (00:00:00), while the
         # other (00:00:05) should have its sensor time out, since 00:00:09
         # will never be run for the parent dag.
 
         # first (safe) run
-        dag_child.run(
-            start_date=DEFAULT_DATE + timedelta(seconds=0),
-            end_date=DEFAULT_DATE + timedelta(seconds=0),
-        )
+        dag_child_job = BackfillJob(dag=dag_child,
+                                    start_date=DEFAULT_DATE,
+                                    end_date=DEFAULT_DATE,
+                                    )
+
+        dag_child_job.run()
 
         sess = Session()
         TI = TaskInstance
@@ -89,10 +100,13 @@ class TestDagRunSensor(unittest.TestCase):
             # the executor, and what we see is an AirflowException for
             # the dependent task which fails because of a failed upstream
             # task.
-            dag_child.run(
-                start_date=DEFAULT_DATE + timedelta(seconds=5),
-                end_date=DEFAULT_DATE + timedelta(seconds=5),
-            )
+            # first (safe) run
+            dag_child_job = BackfillJob(dag=dag_child,
+                                        start_date=DEFAULT_DATE + timedelta(seconds=5),
+                                        end_date=DEFAULT_DATE + timedelta(seconds=5),
+                                        )
+
+            dag_child_job.run()
 
         failed_tis = sess.query(TI).filter(
             TI.state == State.FAILED,
