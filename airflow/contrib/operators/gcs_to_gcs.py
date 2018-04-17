@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -24,7 +24,7 @@ from airflow.utils.decorators import apply_defaults
 
 class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     """
-    Copies an object from a bucket to another, with renaming if requested.
+    Copies objects from a bucket to another, with renaming if requested.
 
     :param source_bucket: The source Google cloud storage bucket where the object is.
     :type source_bucket: string
@@ -43,8 +43,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
     destination Google cloud
         storage bucket.
         If a wildcard is supplied in the source_object argument, this is the
-        folder that the files will be
-        copied to in the destination bucket.
+        prefix that will be prepended to the final destination objects' paths.
     :type destination_object: string
     :param move_object: When move object is True, the object is moved instead
     of copied to the new location.
@@ -96,24 +95,34 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             objects = hook.list(self.source_bucket,
                                 prefix=self.source_object[:wildcard_position],
                                 delimiter=self.source_object[wildcard_position + 1:])
+
             for source_object in objects:
+                if self.destination_object:
+                    destination_object = "{}/{}".format(self.destination_object,
+                                                        source_object)
+                else:
+                    destination_object = source_object
                 self.log.info('Executing copy of gs://{0}/{1} to '
-                              'gs://{2}/{3}/{1}'.format(self.source_bucket,
-                                                        source_object,
-                                                        self.destination_bucket,
-                                                        self.destination_object,
-                                                        source_object))
+                              'gs://{2}/{3}'.format(self.source_bucket,
+                                                    source_object,
+                                                    self.destination_bucket,
+                                                    destination_object))
+
                 hook.copy(self.source_bucket, source_object,
-                          self.destination_bucket, "{}/{}".format(self.destination_object,
-                                                                  source_object))
+                          self.destination_bucket, destination_object)
                 if self.move_object:
                     hook.delete(self.source_bucket, source_object)
 
         else:
-            self.log.info('Executing copy: %s, %s, %s, %s', self.source_bucket,
-                          self.source_object,
-                          self.destination_bucket or self.source_bucket,
-                          self.destination_object or self.source_object)
+            self.log.info(
+                'Executing copy of gs://{0}/{1} to '
+                'gs://{2}/{3}'.format(
+                    self.source_bucket,
+                    self.source_object,
+                    self.destination_bucket or self.source_bucket,
+                    self.destination_object or self.source_object
+                )
+            )
             hook.copy(self.source_bucket, self.source_object,
                       self.destination_bucket, self.destination_object)
 
