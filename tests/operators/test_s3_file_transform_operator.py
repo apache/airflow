@@ -49,7 +49,7 @@ class TestS3FileTransformOperator(unittest.TestCase):
 
     @mock.patch('subprocess.Popen')
     @mock_s3
-    def test_execute(self, mock_Popen):
+    def test_execute_with_transform_script(self, mock_Popen):
         transform_script_process = mock_Popen.return_value
         transform_script_process.communicate.return_value = [None, None]
         transform_script_process.returncode = 0
@@ -68,5 +68,33 @@ class TestS3FileTransformOperator(unittest.TestCase):
             source_s3_key=s3_url.format(bucket, input_key),
             dest_s3_key=s3_url.format(bucket, output_key),
             transform_script=self.transform_script,
+            replace=True,
             task_id="task_id")
         t.execute(None)
+
+    @mock.patch('airflow.hooks.S3_hook.S3Hook.select_key', return_value="input")
+    @mock_s3
+    def test_execute_with_select_expression(self, mock_select_key):
+        bucket = "bucket"
+        input_key = "foo"
+        output_key = "bar"
+        bio = io.BytesIO(b"input")
+
+        conn = boto3.client('s3')
+        conn.create_bucket(Bucket=bucket)
+        conn.upload_fileobj(Bucket=bucket, Key=input_key, Fileobj=bio)
+
+        s3_url = "s3://{0}/{1}"
+        select_expression = "SELECT * FROM S3Object s"
+        t = S3FileTransformOperator(
+            source_s3_key=s3_url.format(bucket, input_key),
+            dest_s3_key=s3_url.format(bucket, output_key),
+            select_expression=select_expression,
+            replace=True,
+            task_id="task_id")
+        t.execute(None)
+
+        mock_select_key.assert_called_once_with(
+            key=s3_url.format(bucket, input_key),
+            expression=select_expression
+        )

@@ -177,6 +177,46 @@ class S3Hook(AwsHook):
         obj = self.get_key(key, bucket_name)
         return obj.get()['Body'].read().decode('utf-8')
 
+    def select_key(self, key, bucket_name=None,
+                   expression='SELECT * FROM S3Object',
+                   expression_type='SQL',
+                   input_serialization={'CSV': {}},
+                   output_serialization={'CSV': {}}):
+        """
+        Reads a key with S3 Select.
+
+        :param key: S3 key that will point to the file
+        :type key: str
+        :param bucket_name: Name of the bucket in which the file is stored
+        :type bucket_name: str
+        :param expression: S3 Select expression
+        :type expression: str
+        :param expression_type: S3 Select expression type
+        :type expression_type: str
+        :param input_serialization: S3 Select input data serialization format
+        :type input_serialization: str
+        :param output_serialization: S3 Select output data serialization format
+        :type output_serialization: str
+
+        .. seealso::
+            For more details about S3 Select parameters:
+            http://boto3.readthedocs.io/en/latest/reference/services/s3.html#S3.Client.select_object_content
+        """
+        if not bucket_name:
+            (bucket_name, key) = self.parse_s3_url(key)
+
+        response = self.get_conn().select_object_content(
+            Bucket=bucket_name,
+            Key=key,
+            Expression=expression,
+            ExpressionType=expression_type,
+            InputSerialization=input_serialization,
+            OutputSerialization=output_serialization)
+
+        return ''.join(event['Records']['Payload']
+                       for event in response['Payload']
+                       if 'Records' in event)
+
     def check_for_wildcard_key(self,
                                wildcard_key, bucket_name=None, delimiter=''):
         """
