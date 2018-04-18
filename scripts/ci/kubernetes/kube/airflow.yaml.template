@@ -90,11 +90,11 @@ spec:
           - "-cx"
           - "cd /usr/local/lib/python2.7/dist-packages/airflow && cp -R example_dags/* /root/airflow/dags/ && airflow initdb && alembic upgrade heads"
       containers:
-      - name: web
+      - name: webserver
         image: {{docker_image}}:{{docker_tag}}
         imagePullPolicy: IfNotPresent
         ports:
-        - name: web
+        - name: webserver
           containerPort: 8080
         args: ["webserver"]
         env:

@@ -44,8 +44,8 @@ POD=$(kubectl get pods -o go-template --template '{{range .items}}{{.metadata.na
 
 echo "------- pod description -------"
 kubectl describe pod $POD
-echo "------- web logs -------"
-kubectl logs $POD web
+echo "------- webserver logs -------"
+kubectl logs $POD webserver
 echo "------- scheduler logs -------"
 kubectl logs $POD scheduler
 echo "--------------"
