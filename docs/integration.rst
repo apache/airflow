@@ -134,10 +134,6 @@ Follow the steps below to enable Azure Blob Storage logging.
 
 
 
-
-
-
-
 #. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
 
 #. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:

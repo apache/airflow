@@ -345,7 +345,6 @@ interface when possible and acting as building blocks for operators.
 Community contributed hooks
 '''''''''''''''''''''''''''
 .. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
-.. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_labmda_hook.AwsLambdaHook
