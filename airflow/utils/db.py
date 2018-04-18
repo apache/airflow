@@ -85,7 +85,7 @@ def merge_conn(conn, session=None):
         session.commit()
 
 
-def initdb(rbac):
+def initdb(rbac=False):
     session = settings.Session()
 
     from airflow import models
