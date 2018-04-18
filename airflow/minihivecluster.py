@@ -30,7 +30,8 @@ class MiniHiveCluster(object):
         cmd = ["java", "-cp", classpath, self._minicluster_class]
 
         self.hive = subprocess.Popen(cmd, bufsize=0, stdout=subprocess.PIPE,
-                                     stderr=subprocess.PIPE, universal_newlines=True)
+                                     stderr=subprocess.PIPE, universal_newlines=True,
+                                     close_fds=True)
 
     def terminate(self):
         self.hive.terminate()

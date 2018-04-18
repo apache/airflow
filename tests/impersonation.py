@@ -1,25 +1,31 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 # from __future__ import print_function
 import errno
 import os
 import subprocess
 import unittest
+import logging
 
 from airflow import jobs, models
 from airflow.utils.state import State
-from datetime import datetime
+from airflow.utils.timezone import datetime
 
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
@@ -27,6 +33,7 @@ TEST_DAG_FOLDER = os.path.join(
 DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_USER = 'airflow_test_user'
 
+logger = logging.getLogger(__name__)
 
 # TODO(aoen): Adding/remove a user as part of a test is very bad (especially if the user
 # already existed to begin with on the OS), this logic should be moved into a test
@@ -35,12 +42,16 @@ TEST_USER = 'airflow_test_user'
 # without any manual modification of the sudoers file by the agent that is running these
 # tests.
 
+
 class ImpersonationTest(unittest.TestCase):
     def setUp(self):
         self.dagbag = models.DagBag(
             dag_folder=TEST_DAG_FOLDER,
             include_examples=False,
         )
+        logger.info('Loaded DAGS:')
+        logger.info(self.dagbag.dagbag_report())
+
         try:
             subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g',
                                      str(os.getegid())])
@@ -74,6 +85,7 @@ class ImpersonationTest(unittest.TestCase):
             task=dag.get_task(task_id),
             execution_date=DEFAULT_DATE)
         ti.refresh_from_db()
+
         self.assertEqual(ti.state, State.SUCCESS)
 
     def test_impersonation(self):
@@ -109,3 +121,26 @@ class ImpersonationTest(unittest.TestCase):
             )
         finally:
             del os.environ['AIRFLOW__CORE__DEFAULT_IMPERSONATION']
+
+    def test_impersonation_custom(self):
+        """
+        Tests that impersonation using a unix user works with custom packages in
+        PYTHONPATH
+        """
+        # PYTHONPATH is already set in script triggering tests
+        assert 'PYTHONPATH' in os.environ
+
+        self.run_backfill(
+            'impersonation_with_custom_pkg',
+            'exec_python_fn'
+        )
+
+    def test_impersonation_subdag(self):
+        """
+        Tests that impersonation using a subdag correctly passes the right configuration
+        :return:
+        """
+        self.run_backfill(
+            'impersonation_subdag',
+            'test_subdag_operation'
+        )

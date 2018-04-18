@@ -1,23 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
 from past.builtins import basestring
 from datetime import datetime
 from contextlib import closing
-import numpy
-import logging
 import sys
 
 from sqlalchemy import create_engine
@@ -88,8 +91,8 @@ class DbApiHook(BaseHook):
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
         import pandas.io.sql as psql
-        
-        with closing(self.get_conn()) as conn:        
+
+        with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters)
 
     def get_records(self, sql, parameters=None):
@@ -104,7 +107,7 @@ class DbApiHook(BaseHook):
         """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
-            
+
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -125,7 +128,7 @@ class DbApiHook(BaseHook):
         """
         if sys.version_info[0] < 3:
             sql = sql.encode('utf-8')
-        
+
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
                 if parameters is not None:
@@ -151,21 +154,21 @@ class DbApiHook(BaseHook):
         """
         if isinstance(sql, basestring):
             sql = [sql]
-        
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
-            
+
             with closing(conn.cursor()) as cur:
                 for s in sql:
                     if sys.version_info[0] < 3:
                         s = s.encode('utf-8')
-                    logging.info(s)
+                    self.log.info(s)
                     if parameters is not None:
                         cur.execute(s, parameters)
                     else:
                         cur.execute(s)
-            
+
             conn.commit()
 
     def set_autocommit(self, conn, autocommit):
@@ -197,13 +200,13 @@ class DbApiHook(BaseHook):
             target_fields = "({})".format(target_fields)
         else:
             target_fields = ''
-            
+        i = 0
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, False)
-            
+
             conn.commit()
-            
+
             with closing(conn.cursor()) as cur:
                 for i, row in enumerate(rows, 1):
                     l = []
@@ -218,11 +221,12 @@ class DbApiHook(BaseHook):
                     cur.execute(sql, values)
                     if commit_every and i % commit_every == 0:
                         conn.commit()
-                        logging.info(
-                            "Loaded {i} into {table} rows so far".format(**locals()))
-            
+                        self.log.info(
+                            "Loaded {i} into {table} rows so far".format(**locals())
+                        )
+
             conn.commit()
-        logging.info(
+        self.log.info(
             "Done loading. Loaded a total of {i} rows".format(**locals()))
 
     @staticmethod

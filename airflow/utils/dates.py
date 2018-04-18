@@ -1,23 +1,29 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-from datetime import datetime, date, timedelta
+from airflow.utils import timezone
+from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta  # for doctest
 import six
 
@@ -66,25 +72,35 @@ def date_range(
     if end_date and num:
         raise Exception("Wait. Either specify end_date OR num")
     if not end_date and not num:
-        end_date = datetime.now()
+        end_date = timezone.utcnow()
 
     delta_iscron = False
+    tz = start_date.tzinfo
     if isinstance(delta, six.string_types):
         delta_iscron = True
+        start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
     elif isinstance(delta, timedelta):
         delta = abs(delta)
     l = []
     if end_date:
         while start_date <= end_date:
-            l.append(start_date)
+            if timezone.is_naive(start_date):
+                l.append(timezone.make_aware(start_date, tz))
+            else:
+                l.append(start_date)
+
             if delta_iscron:
                 start_date = cron.get_next(datetime)
             else:
                 start_date += delta
     else:
-        for i in range(abs(num)):
-            l.append(start_date)
+        for _ in range(abs(num)):
+            if timezone.is_naive(start_date):
+                l.append(timezone.make_aware(start_date, tz))
+            else:
+                l.append(start_date)
+
             if delta_iscron:
                 if num > 0:
                     start_date = cron.get_next(datetime)
@@ -98,7 +114,7 @@ def date_range(
     return sorted(l)
 
 
-def round_time(dt, delta, start_date=datetime.min):
+def round_time(dt, delta, start_date=timezone.make_aware(datetime.min)):
     """
     Returns the datetime of the form start_date + i * delta
     which is closest to dt for any non-negative integer i.
@@ -121,19 +137,21 @@ def round_time(dt, delta, start_date=datetime.min):
 
     if isinstance(delta, six.string_types):
         # It's cron based, so it's easy
+        tz = start_date.tzinfo
+        start_date = timezone.make_naive(start_date, tz)
         cron = croniter(delta, start_date)
         prev = cron.get_prev(datetime)
         if prev == start_date:
-            return start_date
+            return timezone.make_aware(start_date, tz)
         else:
-            return prev
+            return timezone.make_aware(prev, tz)
 
     # Ignore the microseconds of dt
     dt -= timedelta(microseconds=dt.microsecond)
 
     # We are looking for a datetime in the form start_date + i * delta
     # which is as close as possible to dt. Since delta could be a relative
-    # delta we don't know it's exact length in seconds so we cannot rely on
+    # delta we don't know its exact length in seconds so we cannot rely on
     # division to find i. Instead we employ a binary search algorithm, first
     # finding an upper and lower limit and then disecting the interval until
     # we have found the closest match.
@@ -219,9 +237,16 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
-    today = datetime.today().replace(
+    today = timezone.utcnow().replace(
         hour=hour,
         minute=minute,
         second=second,
         microsecond=microsecond)
     return today - timedelta(days=n)
+
+
+def parse_execution_date(execution_date_str):
+    """
+    Parse execution date string to datetime object.
+    """
+    return timezone.parse(execution_date_str)

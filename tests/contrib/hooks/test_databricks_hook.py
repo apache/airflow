@@ -1,22 +1,28 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
+import json
 import unittest
 
 from airflow import __version__
-from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT
+from airflow.contrib.hooks.databricks_hook import DatabricksHook, RunState, SUBMIT_RUN_ENDPOINT, _TokenAuth
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.utils import db
@@ -45,6 +51,7 @@ HOST = 'xx.cloud.databricks.com'
 HOST_WITH_SCHEME = 'https://xx.cloud.databricks.com'
 LOGIN = 'login'
 PASSWORD = 'password'
+TOKEN = 'token'
 USER_AGENT_HEADER = {'user-agent': 'airflow-{v}'.format(v=__version__)}
 RUN_PAGE_URL = 'https://XX.cloud.databricks.com/#jobs/1/runs/1'
 LIFE_CYCLE_STATE = 'PENDING'
@@ -106,18 +113,17 @@ class DatabricksHookTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             DatabricksHook(retry_limit = 0)
 
-    @mock.patch('airflow.contrib.hooks.databricks_hook.logging')
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
-    def test_do_api_call_with_error_retry(self, mock_requests, mock_logging):
+    def test_do_api_call_with_error_retry(self, mock_requests):
         for exception in [requests_exceptions.ConnectionError, requests_exceptions.Timeout]:
-            mock_requests.reset_mock()
-            mock_logging.reset_mock()
-            mock_requests.post.side_effect = exception()
+            with mock.patch.object(self.hook.log, 'error') as mock_errors:
+                mock_requests.reset_mock()
+                mock_requests.post.side_effect = exception()
 
-            with self.assertRaises(AirflowException):
-                self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
+                with self.assertRaises(AirflowException):
+                    self.hook._do_api_call(SUBMIT_RUN_ENDPOINT, {})
 
-            self.assertEquals(len(mock_logging.error.mock_calls), self.hook.retry_limit)
+                self.assertEquals(len(mock_errors.mock_calls), self.hook.retry_limit)
 
     @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
     def test_do_api_call_with_bad_status_code(self, mock_requests):
@@ -202,6 +208,39 @@ class DatabricksHookTest(unittest.TestCase):
             auth=(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds)
+
+
+class DatabricksHookTokenTest(unittest.TestCase):
+    """
+    Tests for DatabricksHook when auth is done with token.
+    """
+    @db.provide_session
+    def setUp(self, session=None):
+        conn = session.query(Connection) \
+            .filter(Connection.conn_id == DEFAULT_CONN_ID) \
+            .first()
+        conn.extra = json.dumps({'token': TOKEN})
+        session.commit()
+
+        self.hook = DatabricksHook()
+
+    @mock.patch('airflow.contrib.hooks.databricks_hook.requests')
+    def test_submit_run(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.post.return_value.json.return_value = {'run_id': '1'}
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.post.return_value).status_code = status_code_mock
+        json = {
+          'notebook_task': NOTEBOOK_TASK,
+          'new_cluster': NEW_CLUSTER
+        }
+        run_id = self.hook.submit_run(json)
+
+        self.assertEquals(run_id, '1')
+        args = mock_requests.post.call_args
+        kwargs = args[1]
+        self.assertEquals(kwargs['auth'].token, TOKEN)
+
 
 class RunStateTest(unittest.TestCase):
     def test_is_terminal_true(self):

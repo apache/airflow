@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 '''
 Override this file to handle your authenticating / login.
@@ -26,6 +31,7 @@ from flask import url_for, redirect
 
 from airflow import settings
 from airflow import models
+from airflow.utils.db import provide_session
 
 DEFAULT_USERNAME = 'airflow'
 
@@ -63,17 +69,14 @@ class DefaultUser(object):
 
 
 @login_manager.user_loader
-def load_user(userid):
-    session = settings.Session()
+@provide_session
+def load_user(userid, session=None):
     user = session.query(models.User).filter(models.User.id == userid).first()
-    session.expunge_all()
-    session.commit()
-    session.close()
     return DefaultUser(user)
 
 
-def login(self, request):
-    session = settings.Session()
+@provide_session
+def login(self, request, session=None):
     user = session.query(models.User).filter(
         models.User.username == DEFAULT_USERNAME).first()
     if not user:
@@ -84,5 +87,4 @@ def login(self, request):
     session.commit()
     flask_login.login_user(DefaultUser(user))
     session.commit()
-    session.close()
     return redirect(request.args.get("next") or url_for("index"))

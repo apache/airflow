@@ -18,11 +18,15 @@
 */
 
 body { padding-top: 70px; }
+.container {
+    width: 100%;
+}
 a.navbar-brand span {
     color: white;
 }
 .modal-backdrop{
     z-index: 0;
+    position: fixed;
 }
 .modal-content{
     z-index: 5;
