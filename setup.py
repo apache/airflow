@@ -112,7 +112,7 @@ cgroups = [
 ]
 crypto = ['cryptography>=0.9.3']
 dask = [
-    'distributed>=1.15.2, <2'
+    'distributed>=1.17.1, <2'
     ]
 databricks = ['requests>=2.5.1, <3']
 datadog = ['datadog>=0.14.0']
