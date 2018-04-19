@@ -194,8 +194,38 @@ data:
     sql_alchemy_conn = $SQL_ALCHEMY_CONN
 
     [scheduler]
-    dag_dir_list_interval = 60
+    dag_dir_list_interval = 300
     child_process_log_directory = /root/airflow/logs/scheduler
+    # Task instances listen for external kill signal (when you clear tasks
+    # from the CLI or the UI), this defines the frequency at which they should
+    # listen (in seconds).
+    job_heartbeat_sec = 5
+    max_threads = 16
+
+    # The scheduler constantly tries to trigger new tasks (look at the
+    # scheduler section in the docs for more information). This defines
+    # how often the scheduler should run (in seconds).
+    scheduler_heartbeat_sec = 5
+
+    # after how much time should the scheduler terminate in seconds
+    # -1 indicates to run continuously (see also num_runs)
+    run_duration = -1
+
+    # after how much time a new DAGs should be picked up from the filesystem
+    min_file_process_interval = 0
+
+    statsd_on = False
+    statsd_host = localhost
+    statsd_port = 8125
+    statsd_prefix = airflow
+
+    # How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
+    min_file_parsing_loop_time = 1
+
+    print_stats_interval = 30
+    scheduler_zombie_task_threshold = 300
+    max_tis_per_query = 0
+    authenticate = False
 
     [kubernetes]
     airflow_configmap = airflow-configmap
