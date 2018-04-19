@@ -155,6 +155,7 @@ Currently **officially** using Airflow:
 1. [imgix](https://www.imgix.com/) [[@dclubb](https://github.com/dclubb)]
 1. [ING](http://www.ing.com/)
 1. [Intercom](http://www.intercom.com/) [[@fox](https://github.com/fox) & [@paulvic](https://github.com/paulvic)]
+1. [Investorise](https://investorise.com/) [[@svenvarkel](https://github.com/svenvarkel)]
 1. [Jampp](https://github.com/jampp)
 1. [JobTeaser](https://www.jobteaser.com) [[@stefani75](https://github.com/stefani75) &  [@knil-sama](https://github.com/knil-sama)]
 1. [Kalibrr](https://www.kalibrr.com/) [[@charlesverdad](https://github.com/charlesverdad)]
