@@ -187,7 +187,7 @@ data:
     airflow_home = /root/airflow
     dags_folder = /root/airflow/dags
     base_log_folder = /root/airflow/logs
-    logging_level = INFO
+    logging_level = DEBUG
     executor = KubernetesExecutor
     parallelism = 32
     plugins_folder = /root/airflow/plugins
@@ -196,6 +196,25 @@ data:
     [scheduler]
     dag_dir_list_interval = 60
     child_process_log_directory = /root/airflow/logs/scheduler
+    # Task instances listen for external kill signal (when you clear tasks
+    # from the CLI or the UI), this defines the frequency at which they should
+    # listen (in seconds).
+    job_heartbeat_sec = 5
+
+    # The scheduler constantly tries to trigger new tasks (look at the
+    # scheduler section in the docs for more information). This defines
+    # how often the scheduler should run (in seconds).
+    scheduler_heartbeat_sec = 5
+
+    # after how much time should the scheduler terminate in seconds
+    # -1 indicates to run continuously (see also num_runs)
+    run_duration = -1
+
+    # after how much time a new DAGs should be picked up from the filesystem
+    min_file_process_interval = 0
+
+    # How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
+    min_file_parsing_loop_time = 1
 
     [kubernetes]
     airflow_configmap = airflow-configmap
