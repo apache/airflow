@@ -266,12 +266,7 @@ def pool(args):
     else:
         log.info(_tabulate(pools=pools))
 
-<<<<<<< HEAD:airflow/bin/cli/cli.py
 @cli_utils.action_logging
-def variables(args):
-=======
->>>>>>> [AIRFLOW-1314] Rebasing against master:airflow/bin/cli.py
-
 def variables(args):
     if args.get:
         try:
