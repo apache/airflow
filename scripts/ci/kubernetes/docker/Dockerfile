@@ -33,8 +33,8 @@ RUN apt-get update -y && apt-get install -y \
 RUN pip install -U setuptools && \
     pip install -U pip
 
- COPY requirements.txt /tmp/requirements.txt
- RUN pip install -r /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install -r /tmp/requirements.txt
 
 RUN pip install kubernetes && \
     pip install cryptography && \
