@@ -99,7 +99,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             for source_object in objects:
                 if self.destination_object:
                     destination_object = "{}/{}".format(self.destination_object,
-                                                        source_object)
+                                                        source_object[wildcard_position:])
                 else:
                     destination_object = source_object
                 self.log.info('Executing copy of gs://{0}/{1} to '
