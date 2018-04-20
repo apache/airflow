@@ -21,8 +21,6 @@
 from __future__ import print_function
 import logging
 
-import reprlib
-
 import os
 import socket
 import subprocess
