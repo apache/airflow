@@ -53,6 +53,13 @@ class CeleryExecutorTest(unittest.TestCase):
         self.assertNotIn('success', executor.tasks)
         self.assertNotIn('fail', executor.tasks)
 
+    def test_executer_uuid(self):
+        executor = CeleryExecutor(parallelism=0)
+        executor.start()
+        uuid = executor.execute_async(key='fail', command='exit 1')
+        self.assertTrue(uuid)
+        self.assertIsInstance(uuid, str)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -87,6 +87,8 @@ class CeleryExecutor(BaseExecutor):
             args=[command], queue=queue)
         self.last_state[key] = celery_states.PENDING
 
+        return self.tasks[key].id
+
     def sync(self):
         self.log.debug("Inquiring about %s celery task(s)", len(self.tasks))
         for key, async in list(self.tasks.items()):

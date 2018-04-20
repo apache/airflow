@@ -19,6 +19,7 @@
 
 from builtins import str
 import subprocess
+import uuid
 
 from airflow.executors.base_executor import BaseExecutor
 from airflow.utils.state import State
@@ -39,6 +40,8 @@ class SequentialExecutor(BaseExecutor):
 
     def execute_async(self, key, command, queue=None, executor_config=None):
         self.commands_to_run.append((key, command,))
+
+        return str(uuid.uuid4())
 
     def sync(self):
         for key, command in self.commands_to_run:

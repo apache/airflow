@@ -826,6 +826,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
     executor_config = Column(PickleType(pickler=dill))
+    uuid = Column(String(ID_LEN), index=True)
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -861,6 +862,7 @@ class TaskInstance(Base, LoggingMixin):
         self.max_tries = self.task.retries
         self.unixname = getpass.getuser()
         self.run_as_user = task.run_as_user
+        self.uuid = None
         if state:
             self.state = state
         self.hostname = ''
@@ -878,7 +880,7 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def try_number(self):
         """
-        Return the try number that this task number will be when it is acutally
+        Return the try number that this task number will be when it is actually
         run.
 
         If the TI is currently running, this will match the column in the
@@ -1121,6 +1123,12 @@ class TaskInstance(Base, LoggingMixin):
         session.commit()
 
     @provide_session
+    def set_uuid(self, uuid, session=None):
+        self.uuid = uuid
+        session.merge(self)
+        session.commit()
+
+    @provide_session
     def refresh_from_db(self, session=None, lock_for_update=False):
         """
         Refreshes the task instance from the database based on the primary key
@@ -1151,6 +1159,7 @@ class TaskInstance(Base, LoggingMixin):
             self.hostname = ti.hostname
             self.pid = ti.pid
             self.executor_config = ti.executor_config
+            self.uuid = ti.uuid
         else:
             self.state = None
 

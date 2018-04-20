@@ -47,6 +47,7 @@ locally, into just one `LocalExecutor` with multiple modes.
 import multiprocessing
 import subprocess
 import time
+import uuid
 
 from builtins import range
 
@@ -223,6 +224,8 @@ class LocalExecutor(BaseExecutor):
 
     def execute_async(self, key, command, queue=None, executor_config=None):
         self.impl.execute_async(key=key, command=command)
+
+        return str(uuid.uuid4())
 
     def sync(self):
         self.impl.sync()

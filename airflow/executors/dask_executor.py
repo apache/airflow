@@ -68,6 +68,8 @@ class DaskExecutor(BaseExecutor):
         future = self.client.submit(airflow_run, pure=False)
         self.futures[future] = key
 
+        return future.key
+
     def _process_future(self, future):
         if future.done():
             key = self.futures[future]

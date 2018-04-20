@@ -2571,7 +2571,7 @@ class TaskInstanceModelView(ModelViewOnly):
     verbose_name = "task instance"
     column_filters = (
         'state', 'dag_id', 'task_id', 'execution_date', 'hostname',
-        'queue', 'pool', 'operator', 'start_date', 'end_date')
+        'queue', 'pool', 'operator', 'start_date', 'end_date', 'uuid')
     filter_converter = wwwutils.UtcFilterConverter()
     named_filter_urls = True
     column_formatters = dict(
@@ -2586,7 +2586,7 @@ class TaskInstanceModelView(ModelViewOnly):
         dag_id=dag_link,
         run_id=dag_run_link,
         duration=duration_f)
-    column_searchable_list = ('dag_id', 'task_id', 'state')
+    column_searchable_list = ('dag_id', 'task_id', 'state', 'uuid')
     column_default_sort = ('job_id', True)
     form_choices = {
         'state': [
@@ -2597,7 +2597,7 @@ class TaskInstanceModelView(ModelViewOnly):
     }
     column_list = (
         'state', 'dag_id', 'task_id', 'execution_date', 'operator',
-        'start_date', 'end_date', 'duration', 'job_id', 'hostname',
+        'start_date', 'end_date', 'duration', 'job_id', 'uuid', 'hostname',
         'unixname', 'priority_weight', 'queue', 'queued_dttm', 'try_number',
         'pool', 'log_url')
     page_size = PAGE_SIZE

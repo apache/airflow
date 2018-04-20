@@ -122,6 +122,14 @@ class DaskExecutorTest(BaseDaskTest):
                     cluster_address=self.cluster.scheduler_address))
             job.run()
 
+    @unittest.skipIf(SKIP_DASK, 'Dask unsupported by this configuration')
+    def test_executer_uuid(self):
+        executor = DaskExecutor(cluster_address=self.cluster.scheduler_address)
+        executor.start()
+        uuid = executor.execute_async(key='fail', command='exit 1')
+        self.assertTrue(uuid)
+        self.assertIsInstance(uuid, str)
+
     def tearDown(self):
         self.cluster.close(timeout=5)
 

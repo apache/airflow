@@ -74,6 +74,13 @@ class LocalExecutorTest(unittest.TestCase):
         test_parallelism = 2
         self.execution_parallelism(parallelism=test_parallelism)
 
+    def test_executer_uuid(self):
+        executor = LocalExecutor(parallelism=0)
+        executor.start()
+        uuid = executor.execute_async(key='fail', command='exit 1')
+        self.assertTrue(uuid)
+        self.assertIsInstance(uuid, str)
+
 
 if __name__ == '__main__':
     unittest.main()
