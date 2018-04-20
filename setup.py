@@ -23,7 +23,6 @@ from setuptools.command.test import test as TestCommand
 import imp
 import logging
 import os
-import pip
 import sys
 
 logger = logging.getLogger(__name__)
