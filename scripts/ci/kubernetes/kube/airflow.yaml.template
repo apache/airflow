@@ -200,6 +200,7 @@ data:
     # from the CLI or the UI), this defines the frequency at which they should
     # listen (in seconds).
     job_heartbeat_sec = 5
+    max_threads = 16
 
     # The scheduler constantly tries to trigger new tasks (look at the
     # scheduler section in the docs for more information). This defines
