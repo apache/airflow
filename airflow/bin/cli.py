@@ -266,6 +266,7 @@ def pool(args):
     else:
         log.info(_tabulate(pools=pools))
 
+
 @cli_utils.action_logging
 def variables(args):
     if args.get:
