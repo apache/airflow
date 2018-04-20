@@ -93,6 +93,7 @@ Currently **officially** using Airflow:
 1. [Auth0](https://auth0.com) [[@sicarul](https://github.com/sicarul)]
 1. [Away](https://awaytravel.com) [[@trunsky](https://github.com/trunsky)]
 1. [BalanceHero](http://truebalance.io/) [[@swalloow](https://github.com/swalloow)]
+1. [Banco de Formaturas](https://www.bancodeformaturas.com.br) [[@guiligan](https://github.com/guiligan)]
 1. [Azri Solutions](http://www.azrisolutions.com/) [[@userimack](https://github.com/userimack)]
 1. [BandwidthX](http://www.bandwidthx.com) [[@dineshdsharma](https://github.com/dineshdsharma)]
 1. [Bellhops](https://github.com/bellhops)
