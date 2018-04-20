@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from airflow.hooks.mssql_hook import MsSqlHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -22,11 +24,11 @@ from airflow.utils.decorators import apply_defaults
 class MsSqlOperator(BaseOperator):
     """
     Executes sql code in a specific Microsoft SQL database
+
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file.
-    File must have a '.sql' extensions.
+    :type sql: string or string pointing to a template file with .sql extension
     :param database: name of database which overwrite defined one in connection
     :type database: string
     """
@@ -47,7 +49,7 @@ class MsSqlOperator(BaseOperator):
         self.database = database
 
     def execute(self, context):
-        logging.info('Executing: ' + str(self.sql))
+        self.log.info('Executing: %s', self.sql)
         hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id,
                          schema=self.database)
         hook.run(self.sql, autocommit=self.autocommit,

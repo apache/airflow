@@ -1,18 +1,22 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import sys
-import logging
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -22,7 +26,6 @@ from airflow.contrib.hooks.aws_hook import AwsHook
 
 
 class ECSOperator(BaseOperator):
-
     """
     Execute a task on AWS EC2 Container Service
 
@@ -30,9 +33,11 @@ class ECSOperator(BaseOperator):
     :type task_definition: str
     :param cluster: the cluster name on EC2 Container Service
     :type cluster: str
-    :param: overrides: the same parameter that boto3 will receive: http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
+    :param: overrides: the same parameter that boto3 will receive:
+            http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
     :type: overrides: dict
-    :param aws_conn_id: connection id of AWS credentials / region name. If None, credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+    :param aws_conn_id: connection id of AWS credentials / region name. If None,
+            credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
     """
@@ -56,12 +61,11 @@ class ECSOperator(BaseOperator):
         self.hook = self.get_hook()
 
     def execute(self, context):
-
-        logging.info('Running ECS Task - Task definition: {} - on cluster {}'.format(
-            self.task_definition,
-            self.cluster
-        ))
-        logging.info('ECSOperator overrides: {}'.format(self.overrides))
+        self.log.info(
+            'Running ECS Task - Task definition: %s - on cluster %s',
+            self.task_definition,self.cluster
+        )
+        self.log.info('ECSOperator overrides: %s', self.overrides)
 
         self.client = self.hook.get_client_type(
             'ecs',
@@ -76,19 +80,19 @@ class ECSOperator(BaseOperator):
         )
 
         failures = response['failures']
-        if (len(failures) > 0):
+        if len(failures) > 0:
             raise AirflowException(response)
-        logging.info('ECS Task started: {}'.format(response))
+        self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
         self._wait_for_task_ended()
 
         self._check_success_task()
-        logging.info('ECS Task has been successfully executed: {}'.format(response))
+        self.log.info('ECS Task has been successfully executed: %s', response)
 
     def _wait_for_task_ended(self):
         waiter = self.client.get_waiter('tasks_stopped')
-        waiter.config.max_attempts = sys.maxint  # timeout is managed by airflow
+        waiter.config.max_attempts = sys.maxsize  # timeout is managed by airflow
         waiter.wait(
             cluster=self.cluster,
             tasks=[self.arn]
@@ -99,9 +103,9 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             tasks=[self.arn]
         )
-        logging.info('ECS Task stopped, check status: {}'.format(response))
+        self.log.info('ECS Task stopped, check status: %s', response)
 
-        if (len(response.get('failures', [])) > 0):
+        if len(response.get('failures', [])) > 0:
             raise AirflowException(response)
 
         for task in response['tasks']:
@@ -112,7 +116,8 @@ class ECSOperator(BaseOperator):
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException('This task is still pending {}'.format(task))
                 elif 'error' in container.get('reason', '').lower():
-                    raise AirflowException('This containers encounter an error during launching : {}'.format(container.get('reason', '').lower()))
+                    raise AirflowException('This containers encounter an error during launching : {}'.
+                                           format(container.get('reason', '').lower()))
 
     def get_hook(self):
         return AwsHook(
@@ -124,4 +129,4 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             task=self.arn,
             reason='Task killed by the user')
-        logging.info(response)
+        self.log.info(response)

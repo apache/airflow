@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
-import logging
 
 import requests
 
@@ -37,9 +41,13 @@ class HttpHook(BaseHook):
         """
         conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
-        self.base_url = conn.host
-        if not self.base_url.startswith('http'):
-            self.base_url = 'http://' + self.base_url
+
+        if "://" in conn.host:
+            self.base_url = conn.host
+        else:
+            # schema defaults to HTTP
+            schema = conn.schema if conn.schema else "http"
+            self.base_url = schema + "://" + conn.host
 
         if conn.port:
             self.base_url = self.base_url + ":" + str(conn.port) + "/"
@@ -66,6 +74,11 @@ class HttpHook(BaseHook):
                                    url,
                                    params=data,
                                    headers=headers)
+        elif self.method == 'HEAD':
+            # HEAD doesn't use params
+            req = requests.Request(self.method,
+                                   url,
+                                   headers=headers)
         else:
             # Others use data
             req = requests.Request(self.method,
@@ -74,7 +87,7 @@ class HttpHook(BaseHook):
                                    headers=headers)
 
         prepped_request = session.prepare_request(req)
-        logging.info("Sending '" + self.method + "' to url: " + url)
+        self.log.info("Sending '%s' to url: %s", self.method, url)
         return self.run_and_check(session, prepped_request, extra_options)
 
     def run_and_check(self, session, prepped_request, extra_options):
@@ -99,12 +112,12 @@ class HttpHook(BaseHook):
             # Tried rewrapping, but not supported. This way, it's possible
             # to get reason and code for failure by checking first 3 chars
             # for the code, or do a split on ':'
-            logging.error("HTTP error: " + response.reason)
-            if self.method != 'GET':
+            self.log.error("HTTP error: %s", response.reason)
+            if self.method not in ('GET', 'HEAD'):
                 # The sensor uses GET, so this prevents filling up the log
                 # with the body every time the GET 'misses'.
                 # That's ok to do, because GETs should be repeatable and
                 # all data should be visible in the log (no post data)
-                logging.error(response.text)
+                self.log.error(response.text)
             raise AirflowException(str(response.status_code)+":"+response.reason)
         return response

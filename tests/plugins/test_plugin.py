@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 # This is the class you derive to create a plugin
 from airflow.plugins_manager import AirflowPlugin
@@ -21,7 +26,8 @@ from flask_admin.base import MenuLink
 
 # Importing base classes that we need to derive
 from airflow.hooks.base_hook import BaseHook
-from airflow.models import  BaseOperator
+from airflow.models import BaseOperator
+from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.executors.base_executor import BaseExecutor
 
 # Will show up under airflow.hooks.test_plugin.PluginHook
@@ -31,6 +37,12 @@ class PluginHook(BaseHook):
 # Will show up under airflow.operators.test_plugin.PluginOperator
 class PluginOperator(BaseOperator):
     pass
+
+
+# Will show up under airflow.sensors.test_plugin.PluginSensorOperator
+class PluginSensorOperator(BaseSensorOperator):
+    pass
+
 
 # Will show up under airflow.executors.test_plugin.PluginExecutor
 class PluginExecutor(BaseExecutor):
@@ -58,12 +70,14 @@ bp = Blueprint(
 ml = MenuLink(
     category='Test Plugin',
     name='Test Menu Link',
-    url='http://pythonhosted.org/airflow/')
+    url='https://airflow.incubator.apache.org/')
+
 
 # Defining the plugin class
 class AirflowTestPlugin(AirflowPlugin):
     name = "test_plugin"
     operators = [PluginOperator]
+    sensors = [PluginSensorOperator]
     hooks = [PluginHook]
     executors = [PluginExecutor]
     macros = [plugin_macro]

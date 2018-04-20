@@ -1,22 +1,27 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, Pool
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.db import provide_session
-from airflow.executors import DEFAULT_EXECUTOR
+from airflow.executors import GetDefaultExecutor
 
 
 class SubDagOperator(BaseOperator):
@@ -30,7 +35,7 @@ class SubDagOperator(BaseOperator):
     def __init__(
             self,
             subdag,
-            executor=DEFAULT_EXECUTOR,
+            executor=GetDefaultExecutor(),
             *args, **kwargs):
         """
         Yo dawg. This runs a sub dag. By convention, a sub dag's dag_id
@@ -60,25 +65,27 @@ class SubDagOperator(BaseOperator):
         # validate that subdag operator and subdag tasks don't have a
         # pool conflict
         if self.pool:
-            pool = (
-                session
-                .query(Pool)
-                .filter(Pool.slots == 1)
-                .filter(Pool.pool == self.pool)
-                .first()
-            )
             conflicts = [t for t in subdag.tasks if t.pool == self.pool]
-            if pool and any(t.pool == self.pool for t in subdag.tasks):
-                raise AirflowException(
-                    'SubDagOperator {sd} and subdag task{plural} {t} both use '
-                    'pool {p}, but the pool only has 1 slot. The subdag tasks'
-                    'will never run.'.format(
-                        sd=self.task_id,
-                        plural=len(conflicts) > 1,
-                        t=', '.join(t.task_id for t in conflicts),
-                        p=self.pool
-                    )
+            if conflicts:
+                # only query for pool conflicts if one may exist
+                pool = (
+                    session
+                    .query(Pool)
+                    .filter(Pool.slots == 1)
+                    .filter(Pool.pool == self.pool)
+                    .first()
                 )
+                if pool and any(t.pool == self.pool for t in subdag.tasks):
+                    raise AirflowException(
+                        'SubDagOperator {sd} and subdag task{plural} {t} both '
+                        'use pool {p}, but the pool only has 1 slot. The '
+                        'subdag tasks will never run.'.format(
+                            sd=self.task_id,
+                            plural=len(conflicts) > 1,
+                            t=', '.join(t.task_id for t in conflicts),
+                            p=self.pool
+                        )
+                    )
 
         self.subdag = subdag
         self.executor = executor

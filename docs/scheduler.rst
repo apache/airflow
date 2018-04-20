@@ -84,7 +84,7 @@ Airflow is that these DAG Runs are atomic, idempotent items, and the scheduler, 
 the lifetime of the DAG (from start to end/now, one interval at a time) and kick off a DAG Run for any
 interval that has not been run (or has been cleared). This concept is called Catchup.
 
-If your DAG is written to handle it's own catchup (IE not limited to the interval, but instead to "Now"
+If your DAG is written to handle its own catchup (IE not limited to the interval, but instead to "Now"
 for instance.), then you will want to turn catchup off (Either on the DAG itself with ``dag.catchup =
 False``) or by default at the configuration file level with ``catchup_by_default = False``. What this
 will do, is to instruct the scheduler to only create a DAG Run for the most current instance of the DAG
@@ -105,7 +105,7 @@ interval series.
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 12, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -147,8 +147,19 @@ To Keep in Mind
 
 Here are some of the ways you can **unblock tasks**:
 
-* From the UI, you can **clear** (as in delete the status of) individual task instances from the task instances dialog, while defining whether you want to includes the past/future and the upstream/downstream dependencies. Note that a confirmation window comes next and allows you to see the set you are about to clear.
-* The CLI command ``airflow clear -h`` has lots of options when it comes to clearing task instance states, including specifying date ranges, targeting task_ids by specifying a regular expression, flags for including upstream and downstream relatives, and targeting task instances in specific states (``failed``, or ``success``)
-* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives, or for instance when the fix has been applied outside of Airflow.
-* The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting subsections of the DAG as well as specifying date ranges.
+* From the UI, you can **clear** (as in delete the status of) individual task instances
+  from the task instances dialog, while defining whether you want to includes the past/future
+  and the upstream/downstream dependencies. Note that a confirmation window comes next and
+  allows you to see the set you are about to clear. You can also clear all task instances
+  associated with the dag.
+* The CLI command ``airflow clear -h`` has lots of options when it comes to clearing task instance
+  states, including specifying date ranges, targeting task_ids by specifying a regular expression,
+  flags for including upstream and downstream relatives, and targeting task instances in specific
+  states (``failed``, or ``success``)
+* Clearing a task instance will no longer delete the task instance record. Instead it updates
+  max_tries and set the current task instance state to be None.
+* Marking task instances as successful can be done through the UI. This is mostly to fix false negatives,
+  or for instance when the fix has been applied outside of Airflow.
+* The ``airflow backfill`` CLI subcommand has a flag to ``--mark_success`` and allows selecting
+  subsections of the DAG as well as specifying date ranges.
 

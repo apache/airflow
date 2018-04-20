@@ -1,27 +1,32 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import os
 import time
 import datetime
-import logging
 import six
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.state import State
 
 from qds_sdk.qubole import Qubole
@@ -35,14 +40,14 @@ COMMAND_CLASSES = {
     "prestocmd": PrestoCommand,
     "hadoopcmd": HadoopCommand,
     "shellcmd": ShellCommand,
-    "pigcmd":  PigCommand,
+    "pigcmd": PigCommand,
     "sparkcmd": SparkCommand,
     "dbtapquerycmd": DbTapQueryCommand,
     "dbexportcmd": DbExportCommand,
     "dbimportcmd": DbImportCommand
 }
 
-HYPHEN_ARGS = ['cluster_label', 'app_id']
+HYPHEN_ARGS = ['cluster_label', 'app_id', 'note_id']
 
 POSITIONAL_ARGS = ['sub_command', 'parameters']
 
@@ -57,7 +62,7 @@ COMMAND_ARGS = {
                'name'],
     'dbtapquerycmd': ['db_tap_id', 'query', 'macros', 'tags', 'name'],
     'sparkcmd': ['program', 'cmdline', 'sql', 'script_location', 'macros', 'tags',
-                 'cluster_label', 'language', 'app_id', 'name', 'arguments',
+                 'cluster_label', 'language', 'app_id', 'name', 'arguments', 'note_id',
                  'user_program_arguments'],
     'dbexportcmd': ['mode', 'hive_table', 'partition_spec', 'dbtap_id', 'db_table',
                     'db_update_mode', 'db_update_keys', 'export_dir',
@@ -68,7 +73,7 @@ COMMAND_ARGS = {
 }
 
 
-class QuboleHook(BaseHook):
+class QuboleHook(BaseHook, LoggingMixin):
     def __init__(self, *args, **kwargs):
         conn = self.get_connection(kwargs['qubole_conn_id'])
         Qubole.configure(api_token=conn.password, api_url=conn.host)
@@ -84,31 +89,33 @@ class QuboleHook(BaseHook):
         cmd_id = ti.xcom_pull(key='qbol_cmd_id', task_ids=ti.task_id)
 
         if cmd_id is not None:
-            logger = logging.getLogger("QuboleHook")
             cmd = Command.find(cmd_id)
             if cmd is not None:
+                log = LoggingMixin().log
                 if cmd.status == 'done':
-                    logger.info('Command ID: %s has been succeeded, hence marking this '
+                    log.info('Command ID: %s has been succeeded, hence marking this '
                                 'TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
-                    logger.info('Cancelling the Qubole Command Id: %s', cmd_id)
+                    log.info('Cancelling the Qubole Command Id: %s', cmd_id)
                     cmd.cancel()
 
     def execute(self, context):
         args = self.cls.parse(self.create_cmd_args(context))
         self.cmd = self.cls.create(**args)
         context['task_instance'].xcom_push(key='qbol_cmd_id', value=self.cmd.id)
-        logging.info("Qubole command created with Id: %s and Status: %s",
-                     self.cmd.id, self.cmd.status)
+        self.log.info(
+            "Qubole command created with Id: %s and Status: %s",
+            self.cmd.id, self.cmd.status
+        )
 
         while not Command.is_done(self.cmd.status):
             time.sleep(Qubole.poll_interval)
             self.cmd = self.cls.find(self.cmd.id)
-            logging.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
+            self.log.info("Command Id: %s and Status: %s", self.cmd.id, self.cmd.status)
 
         if 'fetch_logs' in self.kwargs and self.kwargs['fetch_logs'] is True:
-            logging.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
+            self.log.info("Logs for Command Id: %s \n%s", self.cmd.id, self.cmd.get_log())
 
         if self.cmd.status != 'done':
             raise AirflowException('Command Id: {0} failed with Status: {1}'.format(
@@ -124,7 +131,7 @@ class QuboleHook(BaseHook):
             cmd_id = ti.xcom_pull(key="qbol_cmd_id", task_ids=ti.task_id)
             self.cmd = self.cls.find(cmd_id)
         if self.cls and self.cmd:
-            logging.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
+            self.log.info('Sending KILL signal to Qubole Command Id: %s', self.cmd.id)
             self.cmd.cancel()
 
     def get_results(self, ti=None, fp=None, inline=True, delim=None, fetch=True):
@@ -139,7 +146,9 @@ class QuboleHook(BaseHook):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(configuration.get('core', 'BASE_LOG_FOLDER'))
+            logpath = os.path.expanduser(
+                configuration.conf.get('core', 'BASE_LOG_FOLDER')
+            )
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             configuration.mkdir_p(resultpath)
             fp = open(resultpath + '/' + iso, 'wb')
@@ -200,9 +209,6 @@ class QuboleHook(BaseHook):
         args.append("--tags={0}".format(','.join(filter(None,tags))))
 
         if inplace_args is not None:
-            if cmd_type == 'hadoopcmd':
-                args += inplace_args.split(' ', 1)
-            else:
-                args += inplace_args.split(' ')
+            args += inplace_args.split(' ')
 
         return args

@@ -15,7 +15,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -26,7 +26,7 @@ complicated, a line by line explanation follows below.
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -117,7 +117,7 @@ of default parameters that we can use when creating tasks.
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,
@@ -129,7 +129,7 @@ of default parameters that we can use when creating tasks.
     }
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:``airflow.models.BaseOperator`` documentation.
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have
@@ -195,7 +195,8 @@ templates.
 This tutorial barely scratches the surface of what you can do with
 templating in Airflow, but the goal of this section is to let you know
 this feature exists, get you familiar with double curly brackets, and
-point to the most common template variable: ``{{ ds }}``.
+point to the most common template variable: ``{{ ds }}`` (today's "date
+stamp").
 
 .. code:: python
 
@@ -230,6 +231,16 @@ pipeline code, allowing for proper code highlighting in files composed in
 different languages, and general flexibility in structuring pipelines. It is
 also possible to define your ``template_searchpath`` as pointing to any folder
 locations in the DAG constructor call.
+
+Using that same DAG constructor call, it is possible to define
+``user_defined_macros`` which allow you to specify your own variables.
+For example, passing ``dict(foo='bar')`` to this argument allows you
+to use ``{{ foo }}`` in your templates. Moreover, specifying
+``user_defined_filters`` allow you to register you own filters. For example,
+passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
+you to use ``{{ 'world' | hello }}`` in your templates. For more information
+regarding custom filters have a look at the
+`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_
 
 For more information on the variables and macros that can be referenced
 in templates, make sure to read through the :ref:`macros` section
@@ -278,7 +289,7 @@ something like this:
         'owner': 'airflow',
         'depends_on_past': False,
         'start_date': datetime(2015, 6, 1),
-        'email': ['airflow@airflow.com'],
+        'email': ['airflow@example.com'],
         'email_on_failure': False,
         'email_on_retry': False,
         'retries': 1,

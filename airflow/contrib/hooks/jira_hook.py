@@ -1,34 +1,36 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from jira import JIRA
 from jira.exceptions import JIRAError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class JiraHook(BaseHook):
+class JiraHook(BaseHook, LoggingMixin):
     """
     Jira interaction hook, a Wrapper around JIRA Python SDK.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
     :type jira_conn_id: string
     """
-
     def __init__(self,
                  jira_conn_id='jira_default'):
         super(JiraHook, self).__init__(jira_conn_id)
@@ -38,7 +40,7 @@ class JiraHook(BaseHook):
 
     def get_conn(self):
         if not self.client:
-            logging.debug('creating jira client for conn_id: {0}'.format(self.jira_conn_id))
+            self.log.debug('Creating Jira client for conn_id: %s', self.jira_conn_id)
 
             get_server_info = True
             validate = True

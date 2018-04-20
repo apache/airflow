@@ -1,17 +1,34 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
+"""
+This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
+some of these tasks may or may not work based on your Qubole account setup.
+
+Run a shell command from Qubole Analyze against your Airflow cluster with following to
+trigger it manually `airflow trigger_dag example_qubole_operator`.
+
+*Note: Make sure that connection `qubole_default` is properly set before running this
+example. Also be aware that it might spin up clusters to run these examples.*
+"""
+
+import airflow
 from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
@@ -19,20 +36,18 @@ from airflow.contrib.operators.qubole_operator import QuboleOperator
 import filecmp
 import random
 
-
-
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2)
-    'email': ['airflow@airflow.com'],
+    'start_date': airflow.utils.dates.days_ago(2),
+    'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False
 }
 
-# NOTE:: This is only an example DAG to highlight usage of QuboleOperator in various scenarios,
-# some of the tasks may or may not work based on your QDS account setup
-dag = DAG('example_qubole_operator', default_args=default_args, schedule_interval='@daily')
+dag = DAG('example_qubole_operator', default_args=default_args, schedule_interval=None)
+
+dag.doc_md = __doc__
 
 def compare_result(ds, **kwargs):
     ti = kwargs['ti']

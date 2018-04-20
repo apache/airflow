@@ -199,3 +199,50 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+============================================================================
+   APACHE AIRFLOW SUBCOMPONENTS:
+
+   The Apache Airflow project contains subcomponents with separate copyright
+   notices and license terms. Your use of the source code for the these
+   subcomponents is subject to the terms and conditions of the following
+   licenses.
+
+
+========================================================================
+MIT licenses
+========================================================================
+
+The following components are provided under the MIT License. See project link for details.
+The text of each license is also included at licenses/LICENSE-[project].txt.
+
+    (MIT License) jquery (https://jquery.org/license/)
+    (MIT License) dagre-d3 (https://github.com/cpettitt/dagre-d3)
+    (MIT License) bootstrap (https://github.com/twbs/bootstrap/)
+    (MIT License) d3-tip (https://github.com/Caged/d3-tip)
+    (MIT License) dataTables (https://datatables.net)
+    (MIT License) WebGL-2D (https://github.com/gameclosure/webgl-2d)
+    (MIT License) Underscorejs (http://underscorejs.org)
+    (MIT License) Bootstrap Toggle (http://www.bootstraptoggle.com)
+    (MIT License) normalize.css (http://necolas.github.io/normalize.css/)
+    (MIT License) ElasticMock (https://github.com/vrcmarcos/elasticmock)
+
+========================================================================
+BSD 2-Clause licenses
+========================================================================
+The following components are provided under the BSD 2-Clause license.
+See file headers and project links for details.
+The text of each license is also included at licenses/LICENSE-[project].txt.
+
+    (BSD 2 License) flask-kerberos (https://github.com/mkomitee/flask-kerberos)
+
+========================================================================
+BSD 3-Clause licenses
+========================================================================
+The following components are provided under the BSD 2-Clause license.
+See file headers and project links for details.
+The text of each license is also included at licenses/LICENSE-[project].txt.
+
+    (BSD 3 License) Ace (https://github.com/ajaxorg/ace)
+    (BSD 3 License) d3js (https://d3js.org)
+    (BSD 3 License) parallel-coordinates (http://syntagmatic.github.com/parallel-coordinates/)

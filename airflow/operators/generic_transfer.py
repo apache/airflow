@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-import logging
-
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.hooks.base_hook import BaseHook
@@ -26,7 +28,7 @@ class GenericTransfer(BaseOperator):
     needs to expose a `get_records` method, and the destination a
     `insert_rows` method.
 
-    This is mean to be used on small-ish datasets that fit in memory.
+    This is meant to be used on small-ish datasets that fit in memory.
 
     :param sql: SQL query to execute against the source database
     :type sql: str
@@ -64,15 +66,15 @@ class GenericTransfer(BaseOperator):
     def execute(self, context):
         source_hook = BaseHook.get_hook(self.source_conn_id)
 
-        logging.info("Extracting data from {}".format(self.source_conn_id))
-        logging.info("Executing: \n" + self.sql)
+        self.log.info("Extracting data from %s", self.source_conn_id)
+        self.log.info("Executing: \n %s", self.sql)
         results = source_hook.get_records(self.sql)
 
         destination_hook = BaseHook.get_hook(self.destination_conn_id)
         if self.preoperator:
-            logging.info("Running preoperator")
-            logging.info(self.preoperator)
+            self.log.info("Running preoperator")
+            self.log.info(self.preoperator)
             destination_hook.run(self.preoperator)
 
-        logging.info("Inserting rows into {}".format(self.destination_conn_id))
+        self.log.info("Inserting rows into %s", self.destination_conn_id)
         destination_hook.insert_rows(table=self.destination_table, rows=results)

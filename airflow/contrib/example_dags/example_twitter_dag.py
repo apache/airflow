@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 # --------------------------------------------------------------------------------
 # Written By: Ekhtiar Syed
 # Last Update: 8th April 2016
@@ -59,7 +64,7 @@ default_args = {
     'owner': 'Ekhtiar',
     'depends_on_past': False,
     'start_date': airflow.utils.dates.days_ago(5),
-    'email': ['airflow@airflow.com'],
+    'email': ['airflow@example.com'],
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -127,7 +132,7 @@ hive_to_mysql = PythonOperator(
 # csv files to HDFS. The second task loads these files from HDFS to respected Hive
 # tables. These two for loops could be combined into one loop. However, in most cases,
 # you will be running different analysis on your incoming incoming and outgoing tweets,
-# and hence they are kept seperated in this example.
+# and hence they are kept separated in this example.
 # --------------------------------------------------------------------------------
 
 from_channels = ['fromTwitter_A', 'fromTwitter_B', 'fromTwitter_C', 'fromTwitter_D']

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 
@@ -48,12 +53,17 @@ _hooks = {
     'samba_hook': ['SambaHook'],
     'sqlite_hook': ['SqliteHook'],
     'S3_hook': ['S3Hook'],
+    'zendesk_hook': ['ZendeskHook'],
     'http_hook': ['HttpHook'],
-    'druid_hook': ['DruidHook'],
+    'druid_hook': [
+        'DruidHook',
+        'DruidDbApiHook',
+    ],
     'jdbc_hook': ['JdbcHook'],
     'dbapi_hook': ['DbApiHook'],
     'mssql_hook': ['MsSqlHook'],
     'oracle_hook': ['OracleHook'],
+    'slack_hook': ['SlackHook'],
 }
 
 import os as _os
@@ -84,4 +94,3 @@ def _integrate_plugins():
                     "import from 'airflow.hooks.[plugin_module]' "
                     "instead. Support for direct imports will be dropped "
                     "entirely in Airflow 2.0.".format(i=hook_name))
-

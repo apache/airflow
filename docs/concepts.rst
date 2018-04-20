@@ -380,7 +380,7 @@ opposed to XComs that are pushed manually).
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
-passed, then a correpsonding list of XCom values is returned.
+passed, then a corresponding list of XCom values is returned.
 
 .. code:: python
 
@@ -731,7 +731,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, dag_md is the only attribute interpreted.
+Please note that for dags, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led
@@ -754,6 +754,8 @@ to the related tasks in Airflow.
 
 This content will get rendered as markdown respectively in the "Graph View" and
 "Task Details" pages.
+
+.. _jinja-templating:
 
 Jinja Templating
 ================
@@ -780,7 +782,8 @@ Here, ``{{ ds }}`` is a macro, and because the ``env`` parameter of the
 as an environment variable named ``EXECUTION_DATE`` in your Bash script.
 
 You can use Jinja templating with every parameter that is marked as "templated"
-in the documentation.
+in the documentation. Template substitution occurs just before the pre_execute
+function of your operator is called.
 
 Packaged dags
 '''''''''''''
