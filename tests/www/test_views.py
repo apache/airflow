@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,6 +29,7 @@ import json
 
 from urllib.parse import quote_plus
 from werkzeug.test import Client
+from mock import Mock
 
 from airflow import models, configuration, settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -488,6 +489,81 @@ class TestMountPoint(unittest.TestCase):
         response, _, _ = self.client.get('/test', follow_redirects=True)
         resp_html = b''.join(response)
         self.assertIn(b"DAGs", resp_html)
+
+
+class TestRunTaskInstanceView(unittest.TestCase):
+    DAG_ID = 'example_bash_operator'
+    TASK_ID = 'runme_0'
+    DEFAULT_DATE = datetime(2018, 3, 1)
+    ENDPOINT = "/admin/airflow/run?task_id={task_id}&dag_id={dag_id}" \
+               "&execution_date={execution_date}".format(dag_id=DAG_ID,
+                                                         task_id=TASK_ID,
+                                                         execution_date=DEFAULT_DATE)
+    EXPECTED_FLASH_ERROR = 'Doesn\'t work with the LocalExecutor or ' \
+                           'SequentialExecutor, sorry'
+    EXPECTED_FLASH_MESSAGE = 'to the message queue, it should start any moment now.'
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestRunTaskInstanceView, cls).setUpClass()
+        session = Session()
+        session.query(TaskInstance).delete()
+        session.commit()
+        session.close()
+
+    def setUp(self):
+        super(TestRunTaskInstanceView, self).setUp()
+
+    def tearDown(self):
+        super(TestRunTaskInstanceView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        session = Session()
+        session.query(TaskInstance).delete()
+        session.commit()
+        session.close()
+        super(TestRunTaskInstanceView, cls).tearDownClass()
+
+    def _create_app(self, executor):
+        from airflow import executors
+        executor = executors._get_executor(executor)
+        mock_executor = Mock(executor.__class__)
+        executors.GetDefaultExecutor = Mock(return_value=mock_executor)
+
+        configuration.load_test_config()
+        app = application.create_app(testing=True)
+        app.config['WTF_CSRF_METHODS'] = []
+        return app.test_client()
+
+    def test_run_task_instance_with_sequential_executor(self):
+        app = self._create_app('SequentialExecutor')
+
+        response = app.get(
+            TestRunTaskInstanceView.ENDPOINT,
+        )
+        with app.session_transaction() as session:
+            flash_error = dict(session['_flashes']).get('error')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNotNone(flash_error)
+        self.assertEqual(flash_error, self.EXPECTED_FLASH_ERROR)
+
+    def test_run_task_instance_with_celery_executor(self):
+        app = self._create_app('CeleryExecutor')
+
+        response = app.get(
+            TestRunTaskInstanceView.ENDPOINT,
+        )
+        with app.session_transaction() as session:
+            flash_d = dict(session['_flashes'])
+            flash_error = flash_d.get('error')
+            flash_message = flash_d.get('message')
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(flash_error)
+        self.assertIsNotNone(flash_message)
+        self.assertTrue(self.EXPECTED_FLASH_MESSAGE in flash_message)
 
 
 if __name__ == '__main__':

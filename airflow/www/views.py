@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -944,14 +944,16 @@ class Airflow(BaseView):
 
         try:
             from airflow.executors import GetDefaultExecutor
-            from airflow.executors.celery_executor import CeleryExecutor
+            from airflow.executors.local_executor import LocalExecutor
+            from airflow.executors.sequential_executor import SequentialExecutor
             executor = GetDefaultExecutor()
-            if not isinstance(executor, CeleryExecutor):
-                flash("Only works with the CeleryExecutor, sorry", "error")
+            if isinstance(executor, LocalExecutor) or \
+                    isinstance(executor, SequentialExecutor):
+                flash("Doesn't work with the LocalExecutor or SequentialExecutor, sorry",
+                      "error")
                 return redirect(origin)
         except ImportError:
-            # in case CeleryExecutor cannot be imported it is not active either
-            flash("Only works with the CeleryExecutor, sorry", "error")
+            flash("Error when attempting to validate the executor", "error")
             return redirect(origin)
 
         ti = models.TaskInstance(task=task, execution_date=execution_date)
