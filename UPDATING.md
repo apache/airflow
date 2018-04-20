@@ -1,15 +1,15 @@
 # Updating Airflow
 
 This file documents any backwards-incompatible changes in Airflow and
-assists people when migrating to a new version.
+assists users migrating to a new version.
 
 ## Airflow Master
 
 ### New Webserver UI with Role-Based Access Control
 
-Our current webserver UI uses the Flask-Admin extension. The new webserver UI uses the [Flask-AppBuilder (FAB)](https://github.com/dpgaspar/Flask-AppBuilder) extension. It has built-in authentication support and Role-Based Access Control (RBAC), which provides configurable roles and permissions for individual users.
+The current webserver UI uses the Flask-Admin extension. The new webserver UI uses the [Flask-AppBuilder (FAB)](https://github.com/dpgaspar/Flask-AppBuilder) extension. FAB has built-in authentication support and Role-Based Access Control (RBAC), which provides configurable roles and permissions for individual users.
 
-To turn on this feature, in your airflow.cfg file, under [webserver], set configuration variable `rbac = True`, and then run `airflow` command, which will generate the `webserver_config.py` file in your $AIRFLOW_HOME.
+To turn on this feature, in your airflow.cfg file (under [webserver]), set the configuration variable `rbac = True`, and then run `airflow` command, which will generate the `webserver_config.py` file in your $AIRFLOW_HOME.
 
 #### Setting up Authentication
 
@@ -21,16 +21,16 @@ Once you modify your config file, run `airflow initdb` to generate new tables fo
 
 #### Creating an Admin Account
 
-Once you updated configuration settings and generated new tables, you need to create an admin account with `airflow create_user` command.
+Once configuration settings have been updated and new tables have been generated, create an admin account with `airflow create_user` command.
 
 #### Using your new UI
 
-Run `airflow webserver` as usual to start the new UI. This will bring you to a log in page, enter the admin username and password that were just created.
+Run `airflow webserver` to start the new UI. This will bring up a log in page, enter the recently created admin username and password.
 
 There are five roles created for Airflow by default: Admin, User, Op, Viewer, and Public. To configure roles/permissions, go to the `Security` tab and click `List Roles` in the new UI.
 
 #### Breaking changes
-- Users created and stored in the old users table will not be migrated automatically. You will need to reconfigure with one of FAB's built-in authentication support.
+- Users created and stored in the old users table will not be migrated automatically. FAB's built-in authentication support must be reconfigured.
 - Airflow dag home page is now `/home` (instead of `/admin`).
 - All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the url path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
 - Due to security concerns, the new webserver will no longer support the features in the `Data Profiling` menu of old UI, including `Ad Hoc Query`, `Charts`, and `Known Events`.
@@ -51,7 +51,7 @@ To make the config of Airflow compatible with Celery, some properties have been 
 celeryd_concurrency -> worker_concurrency
 celery_result_backend -> result_backend
 ```
-This will result in the same config parameters as Celery 4 and will make it more transparent.
+Resulting in the same config parameters as Celery 4, with more transparency.
 
 ### GCP Dataflow Operators
 Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a default
@@ -66,7 +66,7 @@ Header row will be added only if this parameter is set True and also in that cas
 
 ### Google cloud connection string
 
-With Airflow 1.9 or lower there where two connection strings for the Google Cloud operators, both `google_cloud_storage_default` and `google_cloud_default`. This can be confusing and therefore the `google_cloud_storage_default` connection id has been replaced with `google_cloud_default` to make the connection id consistent across Airflow.
+With Airflow 1.9 or lower, there were two connection strings for the Google Cloud operators, both `google_cloud_storage_default` and `google_cloud_default`. This can be confusing and therefore the `google_cloud_storage_default` connection id has been replaced with `google_cloud_default` to make the connection id consistent across Airflow.
 
 ## Airflow 1.9
 
@@ -76,11 +76,11 @@ SSH Hook now uses Paramiko library to create ssh client connection, instead of s
   - update SSHHook constructor
   - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer test_ssh_operator.py for usage info.
   - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info.
-  - No updates are required if you are using ftpHook, it will continue work as is.
+  - No updates are required if you are using ftpHook, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
 
-The airflow.hooks.S3_hook.S3Hook has been switched to use boto3 instead of the older boto (a.k.a. boto2). This result in a few backwards incompatible changes to the following classes: S3Hook:
+The airflow.hooks.S3_hook.S3Hook has been switched to use boto3 instead of the older boto (a.k.a. boto2). This results in a few backwards incompatible changes to the following classes: S3Hook:
   - the constructors no longer accepts `s3_conn_id`. It is now called `aws_conn_id`.
   - the default conneciton is now "aws_default" instead of "s3_default"
   - the return type of objects returned by `get_bucket` is now boto3.s3.Bucket
@@ -96,7 +96,7 @@ The logging structure of Airflow has been rewritten to make configuration easier
 
 A logger is the entry point into the logging system. Each logger is a named bucket to which messages can be written for processing. A logger is configured to have a log level. This log level describes the severity of the messages that the logger will handle. Python defines the following log levels: DEBUG, INFO, WARNING, ERROR or CRITICAL.
 
-Each message that is written to the logger is a Log Record. Each log record also has a log level indicating the severity of that specific message. A log record can also contain useful metadata that describes the event that is being logged. This can include details such as a stack trace or an error code.
+Each message that is written to the logger is a Log Record. Each log record contains a log level indicating the severity of that specific message. A log record can also contain useful metadata that describes the event that is being logged. This can include details such as a stack trace or an error code.
 
 When a message is given to the logger, the log level of the message is compared to the log level of the logger. If the log level of the message meets or exceeds the log level of the logger itself, the message will undergo further processing. If it doesn’t, the message will be ignored.
 
@@ -115,11 +115,11 @@ The main benefit is easier configuration of the logging by setting a single cent
 logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
 ```
 
-The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Of course you are free to add any directory to the `PYTHONPATH`, this might be handy when you have the config in another directory or you mount a volume in case of Docker.
+The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Any directory may be added to the `PYTHONPATH`, this might be handy when the config is in another directory or a volume is mounted in case of Docker.
 
-You can take the config from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as you like.
+The config can be taken from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as is preferred. 
 
-If you want to customize the logging (for example, use logging rotate), you can do this by defining one or more of the logging handles that [Python has to offer](https://docs.python.org/3/library/logging.handlers.html). For more details about the Python logging, please refer to the [official logging documentation](https://docs.python.org/3/library/logging.html).
+To customize the logging (for example, use logging rotate), define one or more of the logging handles that [Python has to offer](https://docs.python.org/3/library/logging.handlers.html). For more details about the Python logging, please refer to the [official logging documentation](https://docs.python.org/3/library/logging.html).
 
 Furthermore, this change also simplifies logging within the DAG itself:
 
@@ -144,7 +144,7 @@ Type "help", "copyright", "credits" or "license" for more information.
 
 #### Template path of the file_task_handler
 
-The `file_task_handler` logger is more flexible. You can change the default format, `{dag_id}/{task_id}/{execution_date}/{try_number}.log` by supplying Jinja templating in the `FILENAME_TEMPLATE` configuration variable. See the `file_task_handler` for more information.
+The `file_task_handler` logger has been made more flexible. The default format can be changed, `{dag_id}/{task_id}/{execution_date}/{try_number}.log` by supplying Jinja templating in the `FILENAME_TEMPLATE` configuration variable. See the `file_task_handler` for more information.
 
 #### I'm using S3Log or GCSLogs, what do I do!?
 
@@ -182,7 +182,7 @@ supported and will be removed entirely in Airflow 2.0
 
 ## Airflow 1.8.1
 
-The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall your
+The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall
 previously installed version of Airflow before installing 1.8.1.
 
 ## Airflow 1.8
@@ -209,11 +209,11 @@ renaming your dag. The last step is required to make sure you start with a clean
 interfere.
 
 ### New and updated scheduler options
-Please read through these options, defaults have changed since 1.7.1.
+Please read through the new scheduler options, defaults have changed since 1.7.1.
 
 #### child_process_log_directory
-In order to increase the robustness of the scheduler, DAGs are now processed in their own processes. Therefore each
-DAG has its own log file for the scheduler. These are placed in `child_process_log_directory` which defaults to
+In order to increase the robustness of the scheduler, DAGS are now processed in their own process. Therefore each
+DAG has its own log file for the scheduler. These log files are placed in `child_process_log_directory` which defaults to
 `<AIRFLOW_HOME>/scheduler/latest`. You will need to make sure these log files are removed.
 
 > DAG logs or processor logs ignore and command line settings for log file locations.
@@ -234,8 +234,7 @@ After how much time should an updated DAG be picked up from the filesystem.
 How many seconds to wait between file-parsing loops to prevent the logs from being spammed.
 
 #### dag_dir_list_interval
-How often the scheduler should relist the contents of the DAG directory. If you experience that while developing your
-dags are not being picked up, have a look at this number and decrease it when necessary.
+The frequency with which the scheduler should relist the contents of the DAG directory. If while developing +dags, they are not being picked up, have a look at this number and decrease it when necessary.
 
 #### catchup_by_default
 By default the scheduler will fill any missing interval DAG Runs between the last execution date and the current date.
@@ -259,7 +258,7 @@ dags_are_paused_at_creation = False
 ### Airflow Context variable are passed to Hive config if conf is specified
 
 If you specify a hive conf to the run_cli command of the HiveHook, Airflow add some
-convenience variables to the config. In case your run a sceure Hadoop setup it might be
+convenience variables to the config. In case you run a secure Hadoop setup it might be
 required to whitelist these variables by adding the following to your configuration:
 
 ```
@@ -307,7 +306,7 @@ To do this edit `cli.py`, find the following:
             help="Set the number of runs to execute before exiting"),
 ```
 
-and change `default=-1` to `default=None`. Please report on the mailing list if you have this issue.
+and change `default=-1` to `default=None`. If you have this issue please report it on the mailing list.
 
 ## Airflow 1.7.1.2
 
