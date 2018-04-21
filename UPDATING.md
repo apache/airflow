@@ -5,6 +5,8 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Default executor for SubDagOperator is changed to SequentialExecutor
+
 ### New Webserver UI with Role-Based Access Control
 
 The current webserver UI uses the Flask-Admin extension. The new webserver UI uses the [Flask-AppBuilder (FAB)](https://github.com/dpgaspar/Flask-AppBuilder) extension. FAB has built-in authentication support and Role-Based Access Control (RBAC), which provides configurable roles and permissions for individual users.
