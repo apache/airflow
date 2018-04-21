@@ -734,12 +734,11 @@ Storage Operators
 """""""""""""""""
 
 - :ref:`FileToGoogleCloudStorageOperator` : Uploads a file to Google Cloud Storage.
-- :ref:`GoogleCloudStorageCopyOperator` : Copies objects (optionally from a directory) filtered by 'delimiter' (file extension for e.g .json) from a bucket to another bucket in a different directory, if required.
 - :ref:`GoogleCloudStorageCreateBucketOperator` : Creates a new cloud storage bucket.
 - :ref:`GoogleCloudStorageListOperator` : List all objects from the bucket with the give string prefix and delimiter in name.
 - :ref:`GoogleCloudStorageDownloadOperator` : Downloads a file from Google Cloud Storage.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
-- :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies a single object from a bucket to another, with renaming if requested.
+- :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies objects from a bucket to another, with renaming if requested.
 
 .. _FileToGoogleCloudStorageOperator:
 
@@ -747,13 +746,6 @@ FileToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
-
-.. _GoogleCloudStorageCopyOperator:
-
-GoogleCloudStorageCopyOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
 
 .. _GoogleCloudStorageCreateBucketOperator:
 

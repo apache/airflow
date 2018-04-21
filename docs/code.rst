@@ -145,7 +145,6 @@ Operators
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
-.. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
