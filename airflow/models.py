@@ -619,6 +619,7 @@ class Connection(Base, LoggingMixin):
         ('segment', 'Segment',),
         ('azure_data_lake', 'Azure Data Lake'),
         ('cassandra', 'Cassandra',),
+        ('dms', 'Database Migration Service',),
     ]
 
     def __init__(

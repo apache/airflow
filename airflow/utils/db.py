@@ -266,6 +266,19 @@ def initdb(rbac=False):
             '''))
     merge_conn(
         models.Connection(
+            conn_id='dms_default', conn_type='dms',
+            extra='''
+                    {   "ReplicationTaskIdentifier": "default_replication_task_name",
+                        "SourceEndpointArn": "source-arn",
+                        "TargetEndpointArn": "endpoint-arn",
+                        "ReplicationInstanceArn": "instance-arn",
+                        "MigrationType": "full-load",
+                        "TableMappings": "my-table-mappings",
+                        "ReplicationTaskSettings": "my-replication-task_settings"
+                    }
+                '''))
+    merge_conn(
+        models.Connection(
             conn_id='databricks_default', conn_type='databricks',
             host='localhost'))
     merge_conn(

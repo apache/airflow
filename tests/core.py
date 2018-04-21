@@ -1054,6 +1054,7 @@ class CliTests(unittest.TestCase):
         self.assertIn(['aws_default', 'aws'], conns)
         self.assertIn(['beeline_default', 'beeline'], conns)
         self.assertIn(['emr_default', 'emr'], conns)
+
         self.assertIn(['mssql_default', 'mssql'], conns)
         self.assertIn(['mysql_default', 'mysql'], conns)
         self.assertIn(['postgres_default', 'postgres'], conns)

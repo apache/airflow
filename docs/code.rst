@@ -372,6 +372,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.datadog_hook.DatadogHook
 .. autoclass:: airflow.contrib.hooks.datastore_hook.DatastoreHook
 .. autoclass:: airflow.contrib.hooks.discord_webhook_hook.DiscordWebhookHook
+.. autoclass:: airflow.contrib.hooks.dms_hook.DMSHook
 .. autoclass:: airflow.contrib.hooks.emr_hook.EmrHook
 .. autoclass:: airflow.contrib.hooks.fs_hook.FSHook
 .. autoclass:: airflow.contrib.hooks.ftp_hook.FTPHook
