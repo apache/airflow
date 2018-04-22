@@ -194,9 +194,11 @@ class S3Hook(AwsHook):
         :param expression_type: S3 Select expression type
         :type expression_type: str
         :param input_serialization: S3 Select input data serialization format
-        :type input_serialization: str
+        :type input_serialization: dict
         :param output_serialization: S3 Select output data serialization format
-        :type output_serialization: str
+        :type output_serialization: dict
+        :return: retrieved subset of original data by S3 Select
+        :rtype: str
 
         .. seealso::
             For more details about S3 Select parameters:
