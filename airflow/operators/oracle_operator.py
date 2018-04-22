@@ -30,6 +30,8 @@ class OracleOperator(BaseOperator):
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'
+    :param run_as_script: Split sql into individual statements
+    :type run_as_script: bool
     """
 
     template_fields = ('sql',)
@@ -39,11 +41,12 @@ class OracleOperator(BaseOperator):
     @apply_defaults
     def __init__(
             self, sql, oracle_conn_id='oracle_default', parameters=None,
-            autocommit=False, *args, **kwargs):
+            autocommit=False, run_as_script=False, *args, **kwargs):
         super(OracleOperator, self).__init__(*args, **kwargs)
         self.oracle_conn_id = oracle_conn_id
         self.sql = sql
         self.autocommit = autocommit
+        self.run_as_script = run_as_script
         self.parameters = parameters
 
     def execute(self, context):
@@ -52,4 +55,5 @@ class OracleOperator(BaseOperator):
         hook.run(
             self.sql,
             autocommit=self.autocommit,
+            run_as_script=self.run_as_script,
             parameters=self.parameters)
