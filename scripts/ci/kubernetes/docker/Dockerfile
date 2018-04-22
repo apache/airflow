@@ -28,17 +28,16 @@ RUN apt-get update -y && apt-get install -y \
         libssl-dev \
         git \
         inetutils-telnet \
-        bind9utils
+        bind9utils \
+        zip \
+        unzip \
+    && apt-get clean
 
+# Since we install vanilla Airflow, we also want to have support for Postgres and Kubernetes
 RUN pip install -U setuptools && \
-    pip install -U pip
-
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install -r /tmp/requirements.txt
-
-RUN pip install kubernetes && \
+    pip install kubernetes && \
     pip install cryptography && \
-    pip install psycopg2==2.7.3.1  # I had issues with older versions of psycopg2, just a warning
+    pip install psycopg2-binary==2.7.4  # I had issues with older versions of psycopg2, just a warning
 
 # install airflow
 COPY airflow.tar.gz /tmp/airflow.tar.gz

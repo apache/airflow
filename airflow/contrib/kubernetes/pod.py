@@ -44,10 +44,10 @@ class Pod:
     Represents a kubernetes pod and manages execution of a single pod.
     :param image: The docker image
     :type image: str
-    :param env: A dict containing the environment variables
-    :type env: dict
+    :param envs: A dict containing the environment variables
+    :type envs:s dict
     :param cmds: The command to be run on the pod
-    :type cmd: list str
+    :type cmds: list str
     :param secrets: Secrets to be launched to the pod
     :type secrets: list Secret
     :param result: The result that will be returned to the operator after
@@ -68,7 +68,7 @@ class Pod:
             volume_mounts=None,
             namespace='default',
             result=None,
-            image_pull_policy="IfNotPresent",
+            image_pull_policy='IfNotPresent',
             image_pull_secrets=None,
             init_containers=None,
             service_account_name=None,

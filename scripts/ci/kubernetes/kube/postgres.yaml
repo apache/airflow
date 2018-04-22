@@ -14,31 +14,7 @@
 #  KIND, either express or implied.  See the License for the    *
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
-#
-#apiVersion: v1
-#kind: PersistentVolume
-#metadata:
-#  name: postgres-airflow
-#spec:
-#  accessModes:
-#    - ReadWriteOnce
-#  capacity:
-#    storage: 5Gi
-#  hostPath:
-#    path: /data/postgres-airflow
-#
-#---
-#kind: PersistentVolumeClaim
-#apiVersion: v1
-#metadata:
-#  name: postgres-airflow
-#spec:
-#  accessModes:
-#    - ReadWriteOnce
-#  resources:
-#    requests:
-#      storage: 5Gi
-#---
+
 kind: Deployment
 apiVersion: extensions/v1beta1
 metadata:
@@ -97,8 +73,6 @@ spec:
       volumes:
         - name: dbvol
           emptyDir: {}
-#          persistentVolumeClaim:
-#            claimName: postgres-airflow
 ---
 apiVersion: v1
 kind: Service

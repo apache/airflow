@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -15,7 +17,7 @@
 #  specific language governing permissions and limitations      *
 #  under the License.                                           *
 
-IMAGE=${1:-airflow/ci}
+IMAGE=${1:-airflow}
 TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 AIRFLOW_ROOT="$DIRNAME/../../../.."
@@ -27,5 +29,5 @@ fi
 
 cd $AIRFLOW_ROOT && python setup.py sdist && cp $AIRFLOW_ROOT/dist/*.tar.gz $DIRNAME/airflow.tar.gz && \
 cd $DIRNAME && \
-docker build -f Dockerfile $DIRNAME --tag=${IMAGE}:${TAG} && \
-docker build -f Dockerfile_zip $DIRNAME --tag=${IMAGE}_zip:${TAG}
+docker build --pull $DIRNAME --tag=${IMAGE}:${TAG} && \
+rm $DIRNAME/airflow.tar.gz

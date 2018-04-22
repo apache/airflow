@@ -72,48 +72,6 @@ class WorkerConfiguration:
             'volumeMounts': volume_mounts
         }]
 
-    def _get_volumes_and_mounts(self):
-        """Determine volumes and volume mounts for Airflow workers"""
-        dags_volume_name = "airflow-dags"
-        dags_path = os.path.join(self.kube_config.dags_folder,
-                                 self.kube_config.git_subpath)
-        volumes = [{
-            'name': dags_volume_name
-        }]
-        volume_mounts = [{
-            'name': dags_volume_name,
-            'mountPath': dags_path,
-            'readOnly': True
-        }]
-
-        # Mount the airflow.cfg file via a configmap the user has specified
-        if self.kube_config.airflow_configmap:
-            config_volume_name = "airflow-config"
-            config_path = '{}/airflow.cfg'.format(self.kube_config.airflow_home)
-            volumes.append({
-                'name': config_volume_name,
-                'configMap': {
-                    'name': self.kube_config.airflow_configmap
-                }
-            })
-            volume_mounts.append({
-                'name': config_volume_name,
-                'mountPath': config_path,
-                'subPath': 'airflow.cfg',
-                'readOnly': True
-            })
-
-        # A PV with the DAGs should be mounted
-        if self.kube_config.dags_volume_claim:
-            volumes[0]['persistentVolumeClaim'] = {
-                "claimName": self.kube_config.dags_volume_claim}
-            if self.kube_config.dags_volume_subpath:
-                volume_mounts[0]["subPath"] = self.kube_config.dags_volume_subpath
-        else:
-            # Create a Shared Volume for the Git-Sync module to populate
-            volumes[0]["emptyDir"] = {}
-        return volumes, volume_mounts
-
     def _get_environment(self):
         """Defines any necessary environment variables for the pod executor"""
         env = {
@@ -139,9 +97,69 @@ class WorkerConfiguration:
             return []
         return self.kube_config.image_pull_secrets.split(',')
 
+    def init_volumes_and_mounts(self):
+        dags_volume_name = 'airflow-dags'
+        logs_volume_name = 'airflow-logs'
+
+        def _construct_volume(name, claim, subpath=None):
+            vo = {
+                'name': name
+            }
+            if claim:
+                vo['persistentVolumeClaim'] = {
+                    'claimName': claim
+                }
+                if subpath:
+                    vo['subPath'] = subpath
+            else:
+                vo['emptyDir'] = {}
+            return vo
+
+        volumes = [
+            _construct_volume(
+                dags_volume_name,
+                self.kube_config.dags_volume_claim,
+                self.kube_config.dags_volume_subpath
+            ),
+            _construct_volume(
+                logs_volume_name,
+                self.kube_config.logs_volume_claim
+            )
+        ]
+        volume_mounts = [{
+            'name': dags_volume_name,
+            'mountPath': os.path.join(
+                self.kube_config.dags_folder,
+                self.kube_config.git_subpath
+            ),
+            'readOnly': True
+        }, {
+            'name': logs_volume_name,
+            'mountPath': self.kube_config.base_log_folder
+        }]
+
+        # Mount the airflow.cfg file via a configmap the user has specified
+        if self.kube_config.airflow_configmap:
+            config_volume_name = 'airflow-config'
+            config_path = '{}/airflow.cfg'.format(self.kube_config.airflow_home)
+            volumes.append({
+                'name': config_volume_name,
+                'configMap': {
+                    'name': self.kube_config.airflow_configmap
+                }
+            })
+            volume_mounts.append({
+                'name': config_volume_name,
+                'mountPath': config_path,
+                'subPath': 'airflow.cfg',
+                'readOnly': True
+            })
+
+        return volumes, volume_mounts
+
     def make_pod(self, namespace, worker_uuid, pod_id, dag_id, task_id, execution_date,
                  airflow_command, kube_executor_config):
-        volumes, volume_mounts = self._get_volumes_and_mounts()
+        volumes, volume_mounts = self.init_volumes_and_mounts()
         worker_init_container_spec = self._get_init_containers(
             copy.deepcopy(volume_mounts))
         resources = Resources(
@@ -152,20 +170,20 @@ class WorkerConfiguration:
         )
         gcp_sa_key = kube_executor_config.gcp_service_account_key
         annotations = {
-            "iam.cloud.google.com/service-account": gcp_sa_key
+            'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
 
         return Pod(
             namespace=namespace,
             name=pod_id,
             image=kube_executor_config.image or self.kube_config.kube_image,
-            cmds=["bash", "-cx", "--"],
+            cmds=['bash', '-cx', '--'],
             args=[airflow_command],
             labels={
-                "airflow-worker": worker_uuid,
-                "dag_id": dag_id,
-                "task_id": task_id,
-                "execution_date": execution_date
+                'airflow-worker': worker_uuid,
+                'dag_id': dag_id,
+                'task_id': task_id,
+                'execution_date': execution_date
             },
             envs=self._get_environment(),
             secrets=self._get_secrets(),
