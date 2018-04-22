@@ -33,44 +33,48 @@ except Exception as e:
 
 class KubernetesPodOperatorTest(unittest.TestCase):
     def test_working_pod(self):
-        k = KubernetesPodOperator(namespace='default',
-                                  image="ubuntu:16.04",
-                                  cmds=["bash", "-cx"],
-                                  arguments=["echo", "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task"
-                                  )
+        pod = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task"
+        )
 
-        k.execute(None)
+        pod.execute(None)
 
     def test_logging(self):
+        test_str = 'awesome_kubernetes_operator'
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
-            k = KubernetesPodOperator(namespace='default',
-                                      image="ubuntu:16.04",
-                                      cmds=["bash", "-cx"],
-                                      arguments=["echo", "10"],
-                                      labels={"foo": "bar"},
-                                      name="test",
-                                      task_id="task",
-                                      get_logs=True
-                                      )
-            k.execute(None)
-            mock_logger.info.assert_any_call("+ echo\n")
+            pod = KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo", test_str],
+                labels={"foo": "bar"},
+                name="test",
+                task_id="task",
+                get_logs=True
+            )
+            pod.execute(None)
+            mock_logger.info.assert_any_call(test_str)
 
     def test_faulty_image(self):
         bad_image_name = "foobar"
-        k = KubernetesPodOperator(namespace='default',
-                                  image=bad_image_name,
-                                  cmds=["bash", "-cx"],
-                                  arguments=["echo", "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task",
-                                  startup_timeout_seconds=5
-                                  )
+        pod = KubernetesPodOperator(
+            namespace='default',
+            image=bad_image_name,
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            startup_timeout_seconds=5
+        )
         with self.assertRaises(AirflowException) as cm:
-            k.execute(None),
+            pod.execute(None)
 
         print("exception: {}".format(cm))
 
@@ -78,16 +82,16 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         """
             Tests that the task fails when a pod reports a failure
         """
-
         bad_internal_command = "foobar"
-        k = KubernetesPodOperator(namespace='default',
-                                  image="ubuntu:16.04",
-                                  cmds=["bash", "-cx"],
-                                  arguments=[bad_internal_command, "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task"
-                                  )
+        pod = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=[bad_internal_command, "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task"
+        )
 
         with self.assertRaises(AirflowException):
-            k.execute(None)
+            pod.execute(None)
