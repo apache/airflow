@@ -141,6 +141,9 @@ Operators
 .. autoclass:: airflow.contrib.operators.datastore_export_operator.DatastoreExportOperator
 .. autoclass:: airflow.contrib.operators.datastore_import_operator.DatastoreImportOperator
 .. autoclass:: airflow.contrib.operators.discord_webhook_operator.DiscordWebhookOperator
+.. autoclass:: airflow.contrib.operators.dms_create_replication_task_operator.DMSCreateReplicationTaskOperator
+.. autoclass:: airflow.contrib.operators.dms_delete_replication_task_operator.DMSDeleteReplicationTaskOperator
+.. autoclass:: airflow.contrib.operators.dms_start_replication_task_operator.DMSStartReplicationTaskOperator
 .. autoclass:: airflow.contrib.operators.druid_operator.DruidOperator
 .. autoclass:: airflow.contrib.operators.ecs_operator.ECSOperator
 .. autoclass:: airflow.contrib.operators.emr_add_steps_operator.EmrAddStepsOperator
@@ -199,6 +202,9 @@ Sensors
 .. autoclass:: airflow.contrib.sensors.bash_sensor.BashSensor
 .. autoclass:: airflow.contrib.sensors.bigquery_sensor.BigQueryTableSensor
 .. autoclass:: airflow.contrib.sensors.datadog_sensor.DatadogSensor
+.. autoclass:: airflow.contrib.sensors.dms_base_sensor.DMSBaseSensor
+.. autoclass:: airflow.contrib.sensors.dms_replication_task_ready_sensor.DMSReplicationTaskReadySensor
+.. autoclass:: airflow.contrib.sensors.dms_replication_task_stopped_sensor.DMSReplicationTaskStoppedSensor
 .. autoclass:: airflow.contrib.sensors.emr_base_sensor.EmrBaseSensor
 .. autoclass:: airflow.contrib.sensors.emr_job_flow_sensor.EmrJobFlowSensor
 .. autoclass:: airflow.contrib.sensors.emr_step_sensor.EmrStepSensor
