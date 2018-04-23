@@ -3099,7 +3099,10 @@ class DAG(BaseDag, LoggingMixin):
                 self.default_args['start_date'] = (
                     timezone.parse(self.default_args['start_date'])
                 )
-            self.timezone = self.default_args['start_date'].tzinfo
+            if self.default_args['start_date']:
+                self.timezone = self.default_args['start_date'].tzinfo
+            else:
+                self.timezone = settings.TIMEZONE
         else:
             self.timezone = settings.TIMEZONE
 
