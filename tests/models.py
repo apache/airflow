@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -211,6 +211,14 @@ class DagTest(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         self.assertEquals(tuple(), dag.topological_sort())
+
+    def test_dag_none_default_args_start_date(self):
+        """
+        Tests if a start_date of None in default_args
+        works.
+        """
+        dag = DAG('DAG', default_args={'start_date': None})
+        self.assertEqual(dag.timezone, settings.TIMEZONE)
 
     def test_dag_task_priority_weight_total(self):
         width = 5
