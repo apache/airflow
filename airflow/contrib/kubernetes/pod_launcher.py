@@ -45,10 +45,10 @@ class PodLauncher(LoggingMixin):
 
     def run_pod_async(self, pod):
         req = self.kube_req_factory.create(pod)
-        self.log.debug('Pod Creation Request: \n{}'.format(json.dumps(req, indent=2)))
+        self.log.debug('Pod Creation Request: \n%s', json.dumps(req, indent=2))
         try:
             resp = self._client.create_namespaced_pod(body=req, namespace=pod.namespace)
-            self.log.debug('Pod Creation Response: {}'.format(resp))
+            self.log.debug('Pod Creation Response: %s', resp)
         except ApiException:
             self.log.exception('Exception when attempting to create Namespaced Pod.')
             raise
@@ -90,15 +90,14 @@ class PodLauncher(LoggingMixin):
                 self.log.info(line)
         else:
             while self.pod_is_running(pod):
-                self.log.info("Pod {} has state {}".format(pod.name, State.RUNNING))
+                self.log.info('Pod %s has state %s', pod.name, State.RUNNING)
                 time.sleep(2)
         return self._task_status(self.read_pod(pod))
 
     def _task_status(self, event):
-        # type: (V1Pod) -> State
         self.log.info(
-            "Event: {} had an event of type {}".format(event.metadata.name,
-                                                       event.status.phase))
+            'Event: %s had an event of type %s',
+            event.metadata.name, event.status.phase)
         status = self.process_status(event.metadata.name, event.status.phase)
         return status
 
@@ -114,21 +113,22 @@ class PodLauncher(LoggingMixin):
         try:
             return self._client.read_namespaced_pod(pod.name, pod.namespace)
         except HTTPError as e:
-            raise AirflowException("There was an error reading the kubernetes API: {}"
-                                   .format(e))
+            raise AirflowException(
+                'There was an error reading the kubernetes API: {}'.format(e)
+            )
 
     def process_status(self, job_id, status):
         status = status.lower()
         if status == PodStatus.PENDING:
             return State.QUEUED
         elif status == PodStatus.FAILED:
-            self.log.info("Event: {} Failed".format(job_id))
+            self.log.info('Event with job id %s Failed', job_id)
             return State.FAILED
         elif status == PodStatus.SUCCEEDED:
-            self.log.info("Event: {} Succeeded".format(job_id))
+            self.log.info('Event with job id %s Succeeded', job_id)
             return State.SUCCESS
         elif status == PodStatus.RUNNING:
             return State.RUNNING
         else:
-            self.log.info("Event: Invalid state {} on job {}".format(status, job_id))
+            self.log.info('Event: Invalid state %s on job %s', status, job_id)
             return State.FAILED

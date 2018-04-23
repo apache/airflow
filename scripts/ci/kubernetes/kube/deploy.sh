@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+#
 #  Licensed to the Apache Software Foundation (ASF) under one   *
 #  or more contributor license agreements.  See the NOTICE file *
 #  distributed with this work for additional information        *
@@ -19,12 +21,9 @@ IMAGE=${1:-airflow/ci}
 TAG=${2:-latest}
 DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
-# create an emptydir for postgres to store it's volume data in
-#sudo mkdir -p /data/postgres-airflow
-
-mkdir -p $DIRNAME/.generated
 kubectl apply -f $DIRNAME/postgres.yaml
-sed -e "s#{{docker_image}}#$IMAGE#g" -e "s#{{docker_tag}}#$TAG#g" $DIRNAME/airflow.yaml.template > $DIRNAME/.generated/airflow.yaml && kubectl apply -f $DIRNAME/.generated/airflow.yaml
+kubectl apply -f $DIRNAME/volumes.yaml
+kubectl apply -f $DIRNAME/airflow.yaml
 
 # wait for up to 10 minutes for everything to be deployed
 for i in {1..150}
