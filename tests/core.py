@@ -30,6 +30,7 @@ import os
 import re
 import signal
 import sqlalchemy
+import subprocess
 import tempfile
 import warnings
 from datetime import timedelta
@@ -1037,8 +1038,17 @@ class CliTests(unittest.TestCase):
         lines = [l for l in stdout.split('\n') if len(l) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
-             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', 'conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']"),
+             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
+             "'conn_type', 'conn_host', 'conn_login', " +
+             "'conn_password', 'conn_schema', 'conn_port']"),
         ])
+
+    def test_cli_connections_list_redirect(self):
+        cmd = ['airflow', 'connections', '--list']
+        with tempfile.TemporaryFile() as fp:
+            p = subprocess.Popen(cmd, stdout=fp)
+            p.wait()
+            self.assertEqual(0, p.returncode)
 
     def test_cli_connections_add_delete(self):
         # Add connections:
@@ -1415,8 +1425,6 @@ class CliTests(unittest.TestCase):
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
-        import subprocess
-
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
@@ -1434,8 +1442,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
-        import subprocess
-
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
         p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
@@ -1450,7 +1456,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
-        import subprocess
         import psutil
 
         # Confirm that webserver hasn't been launched.

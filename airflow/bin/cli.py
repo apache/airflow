@@ -1025,9 +1025,12 @@ def connections(args):
                               Connection.is_extra_encrypted,
                               Connection.extra).all()
         conns = [map(reprlib.repr, conn) for conn in conns]
-        print(tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
+        msg = tabulate(conns, ['Conn Id', 'Conn Type', 'Host', 'Port',
                                'Is Encrypted', 'Is Extra Encrypted', 'Extra'],
-                       tablefmt="fancy_grid"))
+                       tablefmt="fancy_grid")
+        if sys.version_info[0] < 3:
+            msg = msg.encode('utf-8')
+        print(msg)
         return
 
     if args.delete:
