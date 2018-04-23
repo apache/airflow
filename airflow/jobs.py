@@ -2121,7 +2121,8 @@ class BackfillJob(BaseJob):
             # all tasks part of the backfill are scheduled to run
             if ti.state == State.NONE:
                 ti.set_state(State.SCHEDULED, session=session)
-            tasks_to_run[ti.key] = ti
+            if ti.state != State.REMOVED:
+                tasks_to_run[ti.key] = ti
 
         return tasks_to_run
 
