@@ -68,6 +68,10 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
         self.task_mem = task_mem
         self.task_counter = 0
         self.task_key_map = {}
+        if configuration.get('mesos', 'DOCKER_IMAGE_SLAVE'):
+            self.mesos_slave_docker_image = configuration.get(
+                'mesos', 'DOCKER_IMAGE_SLAVE'
+            )
 
     def registered(self, driver, frameworkId, masterInfo):
         self.log.info("AirflowScheduler registered to Mesos with framework ID %s", frameworkId.value)
@@ -158,6 +162,21 @@ class AirflowMesosScheduler(mesos.interface.Scheduler, LoggingMixin):
                 command.shell = True
                 command.value = cmd
                 task.command.MergeFrom(command)
+
+                # If docker image for airflow is specified in config then pull that
+                # image before running the above airflow command
+                if self.mesos_slave_docker_image:
+                    network = mesos_pb2.ContainerInfo.DockerInfo.Network.Value('BRIDGE')
+                    docker = mesos_pb2.ContainerInfo.DockerInfo(
+                        image=self.mesos_slave_docker_image,
+                        force_pull_image=False,
+                        network=network
+                    )
+                    container = mesos_pb2.ContainerInfo(
+                        type=mesos_pb2.ContainerInfo.DOCKER,
+                        docker=docker
+                    )
+                    task.container.MergeFrom(container)
 
                 tasks.append(task)
 
