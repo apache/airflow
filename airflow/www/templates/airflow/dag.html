@@ -197,6 +197,24 @@
             </button>
           </span>
           <hr/>
+          <button id="btn_failed" type="button" class="btn btn-primary">
+            Mark Failed
+          </button>
+          <span class="btn-group">
+            <button id="btn_failed_past"
+              type="button" class="btn" data-toggle="button">Past</button>
+            <button id="btn_failed_future"
+              type="button" class="btn" data-toggle="button">
+              Future
+            </button>
+            <button id="btn_failed_upstream"
+              type="button" class="btn" data-toggle="button">Upstream</button>
+            <button id="btn_failed_downstream"
+              type="button" class="btn" data-toggle="button">
+              Downstream
+            </button>
+          </span>
+          <hr/>
           <button id="btn_success" type="button" class="btn btn-primary">
             Mark Success
           </button>
@@ -240,6 +258,9 @@
           </button>
           <button id="btn_dagrun_clear" type="button" class="btn btn-primary">
             Clear
+          </button>
+          <button id="btn_dagrun_failed" type="button" class="btn btn-primary">
+            Mark Failed
           </button>
           <button id="btn_dagrun_success" type="button" class="btn btn-primary">
             Mark Success
@@ -389,6 +410,20 @@ function updateQueryStringParameter(uri, key, value) {
       window.location = url;
     });
 
+    $("#btn_failed").click(function(){
+      url = "{{ url_for('airflow.failed') }}" +
+        "?task_id=" + encodeURIComponent(task_id) +
+        "&dag_id=" + encodeURIComponent(dag_id) +
+        "&upstream=" + $('#btn_failed_upstream').hasClass('active') +
+        "&downstream=" + $('#btn_failed_downstream').hasClass('active') +
+        "&future=" + $('#btn_failed_future').hasClass('active') +
+        "&past=" + $('#btn_failed_past').hasClass('active') +
+        "&execution_date=" + encodeURIComponent(execution_date) +
+        "&origin=" + encodeURIComponent(window.location);
+
+      window.location = url;
+    });
+
     $("#btn_success").click(function(){
       url = "{{ url_for('airflow.success') }}" +
         "?task_id=" + encodeURIComponent(task_id) +
@@ -400,6 +435,14 @@ function updateQueryStringParameter(uri, key, value) {
         "&execution_date=" + encodeURIComponent(execution_date) +
         "&origin=" + encodeURIComponent(window.location);
 
+      window.location = url;
+    });
+
+    $('#btn_dagrun_failed').click(function(){
+      url = "{{ url_for('airflow.dagrun_failed') }}" +
+        "?dag_id=" + encodeURIComponent(dag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date) +
+        "&origin=" + encodeURIComponent(window.location);
       window.location = url;
     });
 
