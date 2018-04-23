@@ -31,13 +31,12 @@ class DMSReplicationTaskStoppedSensor(DMSBaseSensor):
     NON_TERMINAL_STATUSES = ['creating', 'running', 'ready', 'starting']
     FAILED_STATUSES = ['failed']
     TARGET_STATUSES = ['stopped']
+    STOP_REASONS = ['Stop Reason FULL_LOAD_ONLY_FINISHED', 'Stop Reason NORMAL']
 
     @apply_defaults
     def __init__(
             self,
-            # job_flow_id,
-            # step_id,
-            stop_reasons,
+            stop_reasons=STOP_REASONS,
             *args, **kwargs):
         super(DMSReplicationTaskStoppedSensor, self).__init__(*args, **kwargs)
         self.stop_reasons = stop_reasons

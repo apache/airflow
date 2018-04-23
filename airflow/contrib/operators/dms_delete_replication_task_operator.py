@@ -40,27 +40,32 @@ class DMSDeleteReplicationTaskOperator(BaseOperator):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self, dms_conn_id='dms_default',
-                 aws_conn_id=None, region_name=None, **kwargs):
+    def __init__(self, replication_task_arn, dms_conn_id='dms_default',
+                 aws_conn_id=None, **kwargs):
         super(DMSDeleteReplicationTaskOperator, self).__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
+        # self.region_name = region_name
         self.dms_conn_id = dms_conn_id
+        self.replication_task_arn = replication_task_arn
 
         self.hook = self.get_hook()
 
     def execute(self, context):
-        self.log.info('Starting DMS Delete Replication Task')
-        response = self.client.delete_replication_task(
+        self.log.info(
+            'Deleting DMS task using aws-conn-id: %s, dms-conn-id: %s',
+            self.aws_conn_id, self.dms_conn_id
+        )
+        response = self.hook.delete_replication_task(
             ReplicationTaskArn=self.replication_task_arn
         )
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException('Adding steps failed: %s' % response)
+            raise AirflowException('Deleting DMS task failed: %s' % response)
         else:
-            self.log.info('Running Delete DMS Task with arn: %s', response['ReplicationTask']['ReplicationTaskArn'])
-            return response['ReplicationTask']['ReplicationTaskArn']
+            task_arn = response['ReplicationTask']['ReplicationTaskArn']
+            self.log.info('Running Delete DMS Task with arn: %s', task_arn)
+            return task_arn
 
     def get_hook(self):
         return DMSHook(
@@ -69,7 +74,7 @@ class DMSDeleteReplicationTaskOperator(BaseOperator):
         )
 
     def on_kill(self):
-        response = self.get_hook().stop_replication_task(
+        response = self.hook.stop_replication_task(
             ReplicationTaskArn=self.replication_task_arn
         )
-        self.log.info('Delete DMS on_kill: %s', response)
+        self.log.info('Stop DMS task on_kill: %s', response)

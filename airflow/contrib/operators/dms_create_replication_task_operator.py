@@ -41,33 +41,34 @@ class DMSCreateReplicationTaskOperator(BaseOperator):
     template_ext = ()
 
     @apply_defaults
-    def __init__(self, dms_conn_id='dms_default',
-                 aws_conn_id=None, region_name=None, **kwargs):
+    def __init__(self, dms_conn_id='dms_default', aws_conn_id=None,
+                 replication_task_overrides=None, region_name=None, **kwargs):
         super(DMSCreateReplicationTaskOperator, self).__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
+        # self.region_name = region_name
         self.dms_conn_id = dms_conn_id
+        if replication_task_overrides is None:
+            replication_task_overrides = {}
+        self.replication_task_overrides = replication_task_overrides
 
         self.hook = self.get_hook()
 
     def execute(self, context):
-        self.log.info('Creating DMS Delete Replication Task')
-        response = self.get_hook().create_replication_task(
-            ReplicationTaskIdentifier=self.replication_task_identifier,
-            SourceEndpointArn=self.source_endpoint_arn,
-            TargetEndpointArn=self.target_endpoint_arn,
-            ReplicationInstanceArn=self.replication_instance_arn,
-            MigrationType=self.migration_type,
-            TableMappings=self.table_mappings,
-            ReplicationTaskSettings=self.replication_task_settings
+        self.log.info(
+            'Creating DMS task using aws-conn-id: %s, dms-conn-id: %s',
+            self.aws_conn_id, self.dms_conn_id
+        )
+        response = self.hook.create_replication_task(
+            self.replication_task_overrides
         )
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
-            raise AirflowException('Creating DMS failed: %s' % response)
+            raise AirflowException('Creating DMS task failed: %s' % response)
         else:
-            self.log.info('Running Create DMS Task with arn: %s', response['ReplicationTask']['ReplicationTaskArn'])
-            return response['ReplicationTask']['ReplicationTaskArn']
+            task_arn = response['ReplicationTask']['ReplicationTaskArn']
+            self.log.info('Running Create DMS Task with task arn: %s', task_arn)
+            return task_arn
 
     def get_hook(self):
         return DMSHook(
@@ -75,8 +76,8 @@ class DMSCreateReplicationTaskOperator(BaseOperator):
             aws_conn_id=self.aws_conn_id
         )
 
-    def on_kill(self):
-        response = self.get_hook().stop_replication_task(
-            ReplicationTaskArn=self.replication_task_arn
-        )
-        self.log.info('Create DMS on_kill: %s', response)
+    # def on_kill(self):
+    #     response = self.get_hook().stop_replication_task(
+    #         ReplicationTaskArn=self.replication_task_arn
+    #     )
+    #     self.log.info('Create DMS on_kill: %s', response)

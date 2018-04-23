@@ -34,7 +34,5 @@ class DMSReplicationTaskReadySensor(DMSBaseSensor):
     @apply_defaults
     def __init__(
         self,
-        # job_flow_id,
-        # step_id,
         *args, **kwargs):
         super(DMSReplicationTaskReadySensor, self).__init__(*args, **kwargs)
