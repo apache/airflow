@@ -114,5 +114,18 @@ class PrestoHook(DbApiHook):
         """
         return super(PrestoHook, self).run(self._strip_sql(hql), parameters)
 
-    def insert_rows(self):
-        raise NotImplementedError()
+    # TODO Enable commit_every once PyHive supports transaction.
+    # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
+    # whereas Presto 0.132+ does.
+    def insert_rows(self, table, rows, target_fields=None):
+        """
+        A generic way to insert a set of tuples into a table.
+
+        :param table: Name of the target table
+        :type table: str
+        :param rows: The rows to insert into the table
+        :type rows: iterable of tuples
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        """
+        super(PrestoHook, self).insert_rows(table, rows, target_fields, 0)
