@@ -54,7 +54,7 @@
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
       {% endif %}
-      <li><a href="{{ url_for("airflow.graph", dag_id=dag.dag_id, root=root) }}">
+      <li><a href="{{ url_for("airflow.graph", dag_id=dag.dag_id, root=root, execution_date=execution_date) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
       <li><a href="{{ url_for("airflow.tree", dag_id=dag.dag_id, num_runs=25, root=root) }}">

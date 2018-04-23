@@ -259,7 +259,7 @@ def action_logging(f):
             task_id=request.args.get('task_id'),
             dag_id=request.args.get('dag_id'))
 
-        if 'execution_date' in request.args:
+        if request.args.get('execution_date'):
             log.execution_date = timezone.parse(request.args.get('execution_date'))
 
         with create_session() as session:

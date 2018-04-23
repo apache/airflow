@@ -1596,12 +1596,12 @@ class WebUiTests(unittest.TestCase):
 
         self.dagbag = models.DagBag(include_examples=True)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
-        self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
+        self.dag_python = self.dagbag.dags['example_python_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.example_xcom = self.dagbag.dags['example_xcom']
 
-        self.dagrun_bash2 = self.dag_bash2.create_dagrun(
+        self.dagrun_python = self.dag_python.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
             start_date=timezone.utcnow(),
@@ -1628,14 +1628,16 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("DAGs", resp_html)
         self.assertIn("example_bash_operator", resp_html)
 
-        # The HTML should contain data for the last-run. A link to the specific run, and the text of
-        # the date.
+        # The HTML should contain data for the last-run. A link to the specific run,
+        #  and the text of the date.
         url = "/admin/airflow/graph?" + urlencode({
-            "dag_id": self.dag_bash2.dag_id,
-            "execution_date": self.dagrun_bash2.execution_date,
+            "dag_id": self.dag_python.dag_id,
+            "execution_date": self.dagrun_python.execution_date,
         }).replace("&", "&amp;")
         self.assertIn(url, resp_html)
-        self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
+        self.assertIn(
+            self.dagrun_python.execution_date.strftime("%Y-%m-%d %H:%M"),
+            resp_html)
 
     def test_query(self):
         response = self.app.get('/admin/queryview/')
@@ -1662,6 +1664,10 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
+        # confirm that the graph page loads when execution_date is blank
+        response = self.app.get(
+            '/admin/airflow/graph?dag_id=example_bash_operator&execution_date=')
+        self.assertIn("runme_0", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
@@ -1673,8 +1679,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=test_example_bash_operator')
-        self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
+            'days=30&dag_id=example_python_operator')
+        self.assertIn("example_python_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_xcom')
@@ -1713,16 +1719,16 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
-            "/admin/airflow/success?task_id=run_this_last&"
-            "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
+            "/admin/airflow/success?task_id=print_the_context&"
+            "dag_id=example_python_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
-            '/admin/airflow/clear?task_id=run_this_last&'
-            'dag_id=test_example_bash_operator&future=true&past=false&'
+            '/admin/airflow/clear?task_id=print_the_context&'
+            'dag_id=example_python_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
             'origin=/admin'.format(DEFAULT_DATE_DS))
@@ -1741,8 +1747,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("section-1-task-5", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         url = (
-            "/admin/airflow/clear?task_id=runme_1&"
-            "dag_id=test_example_bash_operator&future=false&past=false&"
+            "/admin/airflow/clear?task_id=print_the_context&"
+            "dag_id=example_python_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1787,10 +1793,10 @@ class WebUiTests(unittest.TestCase):
     def test_fetch_task_instance(self):
         url = (
             "/admin/airflow/object/task_instances?"
-            "dag_id=test_example_bash_operator&"
+            "dag_id=example_python_operator&"
             "execution_date={}".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
-        self.assertIn("run_this_last", response.data.decode('utf-8'))
+        self.assertIn("print_the_context", response.data.decode('utf-8'))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
