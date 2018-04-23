@@ -40,6 +40,7 @@ from email.mime.multipart import MIMEMultipart
 from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
+from sqlalchemy import and_
 from time import sleep
 
 from airflow import configuration
@@ -449,6 +450,37 @@ class CoreTest(unittest.TestCase):
             python_callable=trigga,
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_trigger_dagrun_with_same_execution_date(self):
+        trigger_dag_id = 'example_trigger_target_dag'
+        DR = models.DagRun
+        TI = models.TaskInstance
+
+        session = settings.Session()
+        session.query(DR).filter(DR.dag_id == trigger_dag_id).delete()
+        session.query(TI).filter(TI.dag_id == trigger_dag_id).delete()
+        session.commit()
+
+        t = TriggerDagRunOperator(
+            task_id='test_trigger_dagrun',
+            trigger_dag_id=trigger_dag_id,
+            python_callable=lambda context, obj: obj,
+            dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        e = (
+            session.query(DR)
+                   .filter(DR.dag_id == trigger_dag_id)
+                   .join(TI, and_(DR.dag_id == TI.dag_id,
+                                  DR.execution_date == TI.execution_date))
+                   .first()
+        )
+        self.assertIsNotNone(e)
+
+        session.query(DR).filter(DR.dag_id == trigger_dag_id).delete()
+        session.query(TI).filter(TI.dag_id == trigger_dag_id).delete()
+        session.commit()
+        session.close()
 
     def test_dryrun(self):
         t = BashOperator(

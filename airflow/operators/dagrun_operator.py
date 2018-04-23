@@ -53,11 +53,7 @@ class TriggerDagRunOperator(BaseOperator):
     ui_color = '#ffefeb'
 
     @apply_defaults
-    def __init__(
-            self,
-            trigger_dag_id,
-            python_callable=None,
-            *args, **kwargs):
+    def __init__(self, trigger_dag_id, python_callable=None, *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
         self.trigger_dag_id = trigger_dag_id
@@ -73,6 +69,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dr = trigger_dag.create_dagrun(
                     run_id=dro.run_id,
                     state=State.RUNNING,
+                    execution_date=context['execution_date'],
                     conf=dro.payload,
                     external_trigger=True)
                 self.log.info("Creating DagRun %s", dr)
