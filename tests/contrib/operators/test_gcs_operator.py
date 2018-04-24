@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,6 +20,7 @@
 import unittest
 
 from airflow.contrib.operators.gcs_operator import GoogleCloudStorageCreateBucketOperator
+from airflow.version import version
 
 try:
     from unittest import mock
@@ -50,6 +51,8 @@ class GoogleCloudStorageCreateBucketTest(unittest.TestCase):
         operator.execute(None)
         mock_hook.return_value.create_bucket.assert_called_once_with(
             bucket_name=TEST_BUCKET, storage_class='MULTI_REGIONAL',
-            location='EU', labels={'airflow-version': 'v1-10-0dev0-incubating',
-                                   'env': 'prod'}, project_id=TEST_PROJECT
+            location='EU', labels={
+                'airflow-version': 'v' + version.replace('.', '-').replace('+', '-'),
+                'env': 'prod'
+            }, project_id=TEST_PROJECT
         )
