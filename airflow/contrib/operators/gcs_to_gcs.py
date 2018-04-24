@@ -44,12 +44,17 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         storage bucket.
         If a wildcard is supplied in the source_object argument, this is the
         prefix that will be prepended to the final destination objects' paths.
+        Note that the source path's part before the wildcard will be removed;
+        if it needs to be retained it should be appended to destionation_object.
     :type destination_object: string
     :param move_object: When move object is True, the object is moved instead
     of copied to the new location.
                         This is the equivalent of a mv command as opposed to a
                         cp command.
     :type move_object: bool
+    :param push_xcom: When push_xcom is True, the list of copied files is saved
+    to XCom so it can be used by downstream tasks.
+    :type push_xcom: bool
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.
     :type google_cloud_storage_conn_id: string
@@ -69,6 +74,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  destination_bucket=None,
                  destination_object=None,
                  move_object=False,
+                 push_xcom=False,
                  google_cloud_storage_conn_id='google_cloud_default',
                  delegate_to=None,
                  *args,
@@ -80,6 +86,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.destination_bucket = destination_bucket
         self.destination_object = destination_object
         self.move_object = move_object
+        self.push_xcom = push_xcom
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
@@ -90,6 +97,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             delegate_to=self.delegate_to
         )
 
+        copied_objects = []
         if '*' in self.source_object:
             wildcard_position = self.source_object.index('*')
             objects = hook.list(self.source_bucket,
@@ -97,11 +105,12 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                 delimiter=self.source_object[wildcard_position + 1:])
 
             for source_object in objects:
+                destination_object_path = source_object[wildcard_position + 1:]
                 if self.destination_object:
                     destination_object = "{}/{}".format(self.destination_object,
-                                                        source_object[wildcard_position:])
+                                                        destination_object_path)
                 else:
-                    destination_object = source_object
+                    destination_object = destination_object_path
                 self.log.info('Executing copy of gs://{0}/{1} to '
                               'gs://{2}/{3}'.format(self.source_bucket,
                                                     source_object,
@@ -110,8 +119,11 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
                 hook.copy(self.source_bucket, source_object,
                           self.destination_bucket, destination_object)
+
                 if self.move_object:
                     hook.delete(self.source_bucket, source_object)
+
+                copied_objects.append((source_object, destination_object))
 
         else:
             self.log.info(
@@ -128,3 +140,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
             if self.move_object:
                 hook.delete(self.source_bucket, self.source_object)
+
+            copied_objects.append((self.source_object, self.destination_object))
+
+        if self.push_xcom:
+            return copied_objects

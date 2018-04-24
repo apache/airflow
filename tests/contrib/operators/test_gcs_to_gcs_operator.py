@@ -41,19 +41,29 @@ DESTINATION_BUCKET = 'archive'
 DESTINATION_OBJECT_PREFIX = 'foo/bar'
 SOURCE_FILES_LIST = [
     'test_object/file1.txt',
-    'test_object/file2.txt',
-    'some_other/file.txt'
+    'test_object/file2.txt'
 ]
 MOCK_CALLS = [
-    mock.call(TEST_BUCKET, file_path, DESTINATION_BUCKET,
-              DESTINATION_OBJECT_PREFIX + '/' + file_path)
-    for file_path in SOURCE_FILES_LIST
-    if file_path.startswith(SOURCE_OBJECT_1)
+    mock.call(TEST_BUCKET, 'test_object/file1.txt',
+              DESTINATION_BUCKET, 'foo/bar/file1.txt'),
+    mock.call(TEST_BUCKET, 'test_object/file2.txt',
+              DESTINATION_BUCKET, 'foo/bar/file2.txt'),
+]
+MOCK_CALLS_RETAINED = [
+    mock.call(TEST_BUCKET, 'test_object/file1.txt',
+              DESTINATION_BUCKET, 'foo/bar/test_object/file1.txt'),
+    mock.call(TEST_BUCKET, 'test_object/file2.txt',
+              DESTINATION_BUCKET, 'foo/bar/test_object/file2.txt'),
 ]
 MOCK_CALLS_EMPTY = [
-    mock.call(TEST_BUCKET, file_path, DESTINATION_BUCKET, file_path)
-    for file_path in SOURCE_FILES_LIST
-    if file_path.startswith(SOURCE_OBJECT_1)
+    mock.call(TEST_BUCKET, 'test_object/file1.txt',
+              DESTINATION_BUCKET, 'file1.txt'),
+    mock.call(TEST_BUCKET, 'test_object/file2.txt',
+              DESTINATION_BUCKET, 'file2.txt'),
+]
+COPIED_OBJECTS = [
+    ('test_object/file1.txt', 'foo/bar/file1.txt'),
+    ('test_object/file2.txt', 'foo/bar/file2.txt'),
 ]
 
 
@@ -116,7 +126,21 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
         mock_hook.return_value.copy.assert_has_calls(MOCK_CALLS)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
-    def test_execute_no_suffix_without_destination_object(self, mock_hook):
+    def test_execute_no_suffix_with_destination_object_retained_prefix(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_2,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object='{}/{}'.format(DESTINATION_OBJECT_PREFIX,
+                                              SOURCE_OBJECT_2[:-1])
+        )
+
+        operator.execute(None)
+        mock_hook.return_value.copy.assert_has_calls(MOCK_CALLS_RETAINED)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_no_suffix_no_destination_object(self, mock_hook):
         mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
         operator = GoogleCloudStorageToGoogleCloudStorageOperator(
             task_id=TASK_ID, source_bucket=TEST_BUCKET,
@@ -137,3 +161,16 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
 
         operator.execute(None)
         mock_hook.return_value.copy.assert_has_calls(MOCK_CALLS_EMPTY)
+
+    @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
+    def test_execute_push_xcom(self, mock_hook):
+        mock_hook.return_value.list.return_value = SOURCE_FILES_LIST
+        operator = GoogleCloudStorageToGoogleCloudStorageOperator(
+            task_id=TASK_ID, source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_2,
+            destination_bucket=DESTINATION_BUCKET,
+            destination_object=DESTINATION_OBJECT_PREFIX,
+            push_xcom=True)
+
+        result = operator.execute(None)
+        self.assertEqual(result, COPIED_OBJECTS)
