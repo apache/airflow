@@ -983,6 +983,13 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
 
+    def test_cli_create_user(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@foo.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
             args = self.parser.parse_args(['list_tasks', dag_id])
