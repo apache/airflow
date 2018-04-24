@@ -467,6 +467,7 @@ def run(args, dag=None):
     else:
         with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
             _run(args, dag, ti)
+    logging.shutdown()
 
 
 @cli_utils.action_logging
