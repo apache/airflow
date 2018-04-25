@@ -410,7 +410,8 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. While your pipeline code definition and most of your constants
+code or CLI. In addition, json settings files can be bulk uploaded through 
+the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
