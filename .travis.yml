@@ -105,6 +105,7 @@ before_install:
   - sudo apt-get install -y oracle-java8-installer
   - jdk_switcher use oraclejdk8
   - cd $TRAVIS_BUILD_DIR
+  - find ${HOME}/.wheelhouse/ \! -user ${USER} -exec sudo rm -rf {} \;
 install:
   - pip install --upgrade pip
   - pip install tox
