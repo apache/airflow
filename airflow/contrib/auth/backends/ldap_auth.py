@@ -77,12 +77,13 @@ def get_ldap_connection(dn=None, password=None):
 
 def group_contains_user(conn, search_base, group_filter, user_name_attr, username):
     search_filter = '(&({0}))'.format(group_filter)
+
     if not conn.search(native(search_base), native(search_filter),
                        attributes=[native(user_name_attr)]):
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for entry in conn.entries:
-            if username in getattr(entry, user_name_attr).values:
+            if username.lower() in map(lambda attr: attr.lower(), getattr(entry, user_name_attr).values):
                 return True
 
     return False
