@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -117,7 +117,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
             log = '*** Unable to read remote log from {}\n*** {}\n\n'.format(
                 remote_loc, str(e))
             self.log.error(log)
-            log += super(GCSTaskHandler, self)._read(ti, try_number)
+            log += super(GCSTaskHandler, self)._read(ti, try_number)[0]
 
         return log, {'end_of_log': True}
 

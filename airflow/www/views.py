@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -763,7 +763,8 @@ class Airflow(BaseView):
         try:
             if ti is None:
                 logs = ["*** Task instance did not exist in the DB\n"]
-                metadata['end_of_log'] = True
+                if metadata:
+                    metadata['end_of_log'] = True
             else:
                 dag = dagbag.get_dag(dag_id)
                 ti.task = dag.get_task(ti.task_id)
@@ -777,10 +778,12 @@ class Airflow(BaseView):
         except AttributeError as e:
             error_message = ["Task log handler {} does not support read logs.\n{}\n"
                              .format(task_log_reader, str(e))]
-            metadata['end_of_log'] = True
+            if metadata:
+                metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
         except AirflowException as e:
-            metadata['end_of_log'] = True
+            if metadata:
+                metadata['end_of_log'] = True
             return jsonify(message=str(e), error=True, metadata=metadata)
 
     @expose('/log')
