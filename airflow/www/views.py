@@ -26,7 +26,7 @@ import logging
 import os
 import pkg_resources
 import socket
-from functools import wraps
+from functools import wraps, partial
 from datetime import timedelta
 import copy
 import math
@@ -245,6 +245,31 @@ def wrapped_markdown(s):
     return '<div class="rich_doc">' + markdown.markdown(s) + "</div>"
 
 
+def get_python_source(x):
+    """ Helper function to get Python source, or not, without exceptions"""
+    source_code = None
+
+    if isinstance(x, partial):
+        source_code = inspect.getsource(x.func)
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        try:
+            source_code = inspect.getsource(x.__call__)
+        except TypeError:
+            pass
+
+    if source_code is None:
+        source_code = 'No source code available for {}'.format(type(x))
+
+    return source_code
+
+
 attr_renderer = {
     'bash_command': lambda x: render(x, lexers.BashLexer),
     'hql': lambda x: render(x, lexers.SqlLexer),
@@ -255,7 +280,9 @@ attr_renderer = {
     'doc_yaml': lambda x: render(x, lexers.YamlLexer),
     'doc_md': wrapped_markdown,
     'python_callable': lambda x: render(
-        inspect.getsource(x), lexers.PythonLexer),
+        get_python_source(x),
+        lexers.PythonLexer,
+    ),
 }
 
 
