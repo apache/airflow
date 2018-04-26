@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -77,6 +77,9 @@ class SparkSubmitOperator(BaseOperator):
     :type num_executors: int
     :param application_args: Arguments for the application being submitted
     :type application_args: list
+    :param env_vars: Environment variables for spark-submit. It
+                     supports yarn and k8s mode too.
+    :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
@@ -105,6 +108,7 @@ class SparkSubmitOperator(BaseOperator):
                  name='airflow-spark',
                  num_executors=None,
                  application_args=None,
+                 env_vars=None,
                  verbose=False,
                  *args,
                  **kwargs):
@@ -128,6 +132,7 @@ class SparkSubmitOperator(BaseOperator):
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
+        self._env_vars = env_vars
         self._verbose = verbose
         self._hook = None
         self._conn_id = conn_id
@@ -156,6 +161,7 @@ class SparkSubmitOperator(BaseOperator):
             name=self._name,
             num_executors=self._num_executors,
             application_args=self._application_args,
+            env_vars=self._env_vars,
             verbose=self._verbose
         )
         self._hook.submit(self._application)

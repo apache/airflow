@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,7 +20,7 @@
 import six
 import unittest
 
-from airflow import configuration, models
+from airflow import configuration, models, AirflowException
 from airflow.utils import db
 from mock import patch, call
 
@@ -120,6 +120,12 @@ class TestSparkSubmitHook(unittest.TestCase):
                 conn_id='spark_standalone_cluster', conn_type='spark',
                 host='spark://spark-standalone-master:6066',
                 extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "cluster"}')
+        )
+        db.merge_conn(
+            models.Connection(
+                conn_id='spark_standalone_cluster_client_mode', conn_type='spark',
+                host='spark://spark-standalone-master:6066',
+                extra='{"spark-home": "/path/to/spark_home", "deploy-mode": "client"}')
         )
 
     def test_build_spark_submit_command(self):
@@ -408,6 +414,53 @@ class TestSparkSubmitHook(unittest.TestCase):
                                      "namespace": 'default'}
         self.assertEqual(connection, expected_spark_connection)
         self.assertEqual(cmd[0], '/path/to/spark_home/bin/spark-submit')
+
+    def test_resolve_spark_submit_env_vars_standalone_client_mode(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster_client_mode',
+                               env_vars={"bar": "foo"})
+
+        # When
+        hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        self.assertEqual(hook._env, {"bar": "foo"})
+
+    def test_resolve_spark_submit_env_vars_standalone_cluster_mode(self):
+
+        def env_vars_exception_in_standalone_cluster_mode():
+            # Given
+            hook = SparkSubmitHook(conn_id='spark_standalone_cluster',
+                                   env_vars={"bar": "foo"})
+
+            # When
+            hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        self.assertRaises(AirflowException,
+                          env_vars_exception_in_standalone_cluster_mode)
+
+    def test_resolve_spark_submit_env_vars_yarn(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_yarn_cluster',
+                               env_vars={"bar": "foo"})
+
+        # When
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        self.assertEqual(cmd[4], "spark.yarn.appMasterEnv.bar=foo")
+
+    def test_resolve_spark_submit_env_vars_k8s(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_k8s_cluster',
+                               env_vars={"bar": "foo"})
+
+        # When
+        cmd = hook._build_spark_submit_command(self._spark_job_file)
+
+        # Then
+        self.assertEqual(cmd[4], "spark.kubernetes.driverEnv.bar=foo")
 
     def test_process_spark_submit_log_yarn(self):
         # Given
