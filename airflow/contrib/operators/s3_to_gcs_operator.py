@@ -37,12 +37,10 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix.
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects on.
-        E.g. to list CSV files from a S3 key you would do the following,
-        `delimiter='.csv'`.
+    :param delimiter: the delimiter marks key hierarchy.
     :type delimiter: string
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
+    :type aws_conn_id: string
     :param dest_gcs_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
     :type dest_gcs_conn_id: string
