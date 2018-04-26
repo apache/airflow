@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -582,6 +582,31 @@ class CoreTest(unittest.TestCase):
             some_templated_field=NonBoolObject(),
             dag=self.dag)
         t.resolve_template_files()
+
+    def test_template_field_is_str(self):
+        """
+        Test template when it is given as "template_fields = ('hql')"
+        """
+        class TestOperator(BaseOperator):
+            """
+            An operator to test template substitution
+            """
+            template_fields = ('some_templated_field')
+
+            def __init__(self, *args, **kwargs):
+                super(TestOperator, self).__init__(*args, **kwargs)
+
+            def execute(*args, **kwargs):
+                pass
+
+        op = TestOperator(
+            task_id='test_template_is_str',
+            dag=self.dag
+        )
+        op.resolve_template_files()
+
+        self.assertEqual(type(op.template_fields), list)
+        self.assertEqual(op.template_fields[0], 'some_templated_field')
 
     def test_import_examples(self):
         self.assertEqual(len(self.dagbag.dags), NUM_EXAMPLE_DAGS)
