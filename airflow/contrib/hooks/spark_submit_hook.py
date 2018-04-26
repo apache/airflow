@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -80,6 +80,9 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     :type num_executors: int
     :param application_args: Arguments for the application being submitted
     :type application_args: list
+    :param env_vars: Environment variables for spark-submit. It
+                     supports yarn and k8s mode too.
+    :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
     :type verbose: bool
     """
@@ -103,6 +106,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                  name='default-name',
                  num_executors=None,
                  application_args=None,
+                 env_vars=None,
                  verbose=False):
         self._conf = conf
         self._conn_id = conn_id
@@ -123,6 +127,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         self._name = name
         self._num_executors = num_executors
         self._application_args = application_args
+        self._env_vars = env_vars
         self._verbose = verbose
         self._submit_sp = None
         self._yarn_application_id = None
@@ -209,6 +214,20 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         if self._conf:
             for key in self._conf:
                 connection_cmd += ["--conf", "{}={}".format(key, str(self._conf[key]))]
+        if self._env_vars and (self._is_kubernetes or self._is_yarn):
+            if self._is_yarn:
+                tmpl = "spark.yarn.appMasterEnv.{}={}"
+            else:
+                tmpl = "spark.kubernetes.driverEnv.{}={}"
+            for key in self._env_vars:
+                connection_cmd += [
+                    "--conf",
+                    tmpl.format(key, str(self._env_vars[key]))]
+        elif self._env_vars and self._connection['deploy_mode'] != "cluster":
+            self._env = self._env_vars  # Do it on Popen of the process
+        elif self._env_vars and self._connection['deploy_mode'] == "cluster":
+            raise AirflowException(
+                "SparkSubmitHook env_vars is not supported in standalone-cluster mode.")
         if self._is_kubernetes:
             connection_cmd += ["--conf", "spark.kubernetes.namespace={}".format(
                 self._connection['namespace'])]
@@ -294,6 +313,12 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
         spark_submit_cmd = self._build_spark_submit_command(application)
+
+        if hasattr(self, '_env'):
+            env = os.environ.copy()
+            env.update(self._env)
+            kwargs["env"] = env
+
         self._submit_sp = subprocess.Popen(spark_submit_cmd,
                                            stdout=subprocess.PIPE,
                                            stderr=subprocess.STDOUT,
