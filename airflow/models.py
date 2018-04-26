@@ -35,6 +35,7 @@ import zipfile
 import jinja2
 import json
 import logging
+from numbers import Number
 import os
 import pickle
 import re
@@ -2280,6 +2281,8 @@ class BaseOperator(object):
             result = {
                 k: rt("{}[{}]".format(attr, k), v, context)
                 for k, v in list(content.items())}
+        elif isinstance(content, Number):
+            result = content
         else:
             param_type = type(content)
             msg = (
