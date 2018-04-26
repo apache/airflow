@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -51,7 +51,9 @@ def send_email(to, subject, html_content, files=None,
     SENDGRID_API_KEY={your-sendgrid-api-key}.
     """
     mail = Mail()
-    mail.from_email = Email(os.environ.get('SENDGRID_MAIL_FROM'))
+    from_email = kwargs.get('from_email') or os.environ.get('SENDGRID_MAIL_FROM')
+    from_name = kwargs.get('from_name') or os.environ.get('SENDGRID_MAIL_SENDER')
+    mail.from_email = Email(from_email, from_name)
     mail.subject = subject
 
     # Add the recipient list of to emails.
