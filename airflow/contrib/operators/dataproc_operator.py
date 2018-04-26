@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,8 +20,10 @@
 
 import ntpath
 import os
+import re
 import time
 import uuid
+from datetime import timedelta
 
 from airflow.contrib.hooks.gcp_dataproc_hook import DataProcHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
@@ -57,6 +59,9 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param init_actions_uris: List of GCS uri's containing
         dataproc initialization scripts
     :type init_actions_uris: list[string]
+    :param init_action_timeout: Amount of time executable scripts in
+        init_actions_uris has to complete
+    :type init_action_timeout: string
     :param metadata: dict of key-value google compute engine metadata entries
         to add to all instances
     :type metadata: dict
@@ -115,6 +120,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  tags=None,
                  storage_bucket=None,
                  init_actions_uris=None,
+                 init_action_timeout="10m",
                  metadata=None,
                  image_version=None,
                  properties=None,
@@ -141,6 +147,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.num_preemptible_workers = num_preemptible_workers
         self.storage_bucket = storage_bucket
         self.init_actions_uris = init_actions_uris
+        self.init_action_timeout = init_action_timeout
         self.metadata = metadata
         self.image_version = image_version
         self.properties = properties
@@ -205,6 +212,19 @@ class DataprocClusterCreateOperator(BaseOperator):
                     )
                     return
                 time.sleep(15)
+
+    def _get_init_action_timeout(self):
+        match = re.match(r"^(\d+)(s|m)$", self.init_action_timeout)
+        if match:
+            if match.group(2) == "s":
+                return self.init_action_timeout
+            elif match.group(2) == "m":
+                val = float(match.group(1))
+                return "{}s".format(timedelta(minutes=val).seconds)
+
+        raise AirflowException(
+            "DataprocClusterCreateOperator init_action_timeout"
+            " should be expressed in minutes or seconds. i.e. 10m, 30s")
 
     def _build_cluster_data(self):
         zone_uri = \
@@ -276,7 +296,10 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['softwareConfig']['properties'] = self.properties
         if self.init_actions_uris:
             init_actions_dict = [
-                {'executableFile': uri} for uri in self.init_actions_uris
+                {
+                    'executableFile': uri,
+                    'executionTimeout': self._get_init_action_timeout()
+                } for uri in self.init_actions_uris
             ]
             cluster_data['config']['initializationActions'] = init_actions_dict
         if self.service_account:

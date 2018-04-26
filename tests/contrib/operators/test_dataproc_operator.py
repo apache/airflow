@@ -62,6 +62,7 @@ MASTER_DISK_SIZE = 100
 WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
 NUM_PREEMPTIBLE_WORKERS = 2
+GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
 LABEL1 = {}
 LABEL2 = {'application': 'test', 'year': 2017}
 SERVICE_ACCOUNT_SCOPES = [
@@ -130,9 +131,16 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.master_disk_size, MASTER_DISK_SIZE)
             self.assertEqual(dataproc_operator.worker_machine_type, WORKER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.worker_disk_size, WORKER_DISK_SIZE)
-            self.assertEqual(dataproc_operator.num_preemptible_workers, NUM_PREEMPTIBLE_WORKERS)
+            self.assertEqual(dataproc_operator.num_preemptible_workers,
+                             NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])
-            self.assertEqual(dataproc_operator.service_account_scopes, SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(dataproc_operator.service_account_scopes,
+                             SERVICE_ACCOUNT_SCOPES)
+
+    def test_get_init_action_timeout(self):
+        for suffix, dataproc_operator in enumerate(self.dataproc_operators):
+            timeout = dataproc_operator._get_init_action_timeout()
+            self.assertEqual(timeout, "600s")
 
     def test_build_cluster_data(self):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
