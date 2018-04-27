@@ -23,6 +23,8 @@ DIRNAME=$(cd "$(dirname "$0")"; pwd)
 
 kubectl apply -f $DIRNAME/postgres.yaml
 kubectl apply -f $DIRNAME/volumes.yaml
+kubectl apply -f $DIRNAME/secrets.yaml
+kubectl apply -f $DIRNAME/configmaps.yaml
 kubectl apply -f $DIRNAME/airflow.yaml
 
 # wait for up to 10 minutes for everything to be deployed
