@@ -300,7 +300,7 @@
           $('.label.schedule.' + this.dag_id)
           .attr('title', this.active_dag_run + '/' + this.max_active_runs + ' active dag runs')
           .tooltip();
-          if(this.active_dag_run >= this.max_active_runs) {
+          if(this.active_dag_run > this.max_active_runs) {
             $('.label.schedule.' + this.dag_id)
             .css('background-color', 'red');
           }
