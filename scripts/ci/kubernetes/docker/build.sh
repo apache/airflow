@@ -27,7 +27,12 @@ if [ $? -eq 0 ]; then
   eval $ENVCONFIG
 fi
 
-cd $AIRFLOW_ROOT && python setup.py sdist && cp $AIRFLOW_ROOT/dist/*.tar.gz $DIRNAME/airflow.tar.gz && \
+cd $AIRFLOW_ROOT
+python setup.py sdist
+cp $AIRFLOW_ROOT/dist/*.tar.gz $DIRNAME/airflow.tar.gz
+pip freeze | grep -v airflow > requirements.txt
+mv $AIRFLOW_ROOT/requirements.txt $DIRNAME
 cd $DIRNAME && \
 docker build --pull $DIRNAME --tag=${IMAGE}:${TAG} && \
 rm $DIRNAME/airflow.tar.gz
+rm $DIRNAME/requirements.txt

@@ -23,6 +23,7 @@ from uuid import uuid4
 import kubernetes
 from kubernetes import watch, client
 from kubernetes.client.rest import ApiException
+from airflow.configuration import conf
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.kube_client import get_kube_client
 from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
@@ -83,23 +84,12 @@ class KubernetesExecutorConfig:
         }
 
 
+
+
+
 class KubeConfig:
     core_section = 'core'
     kubernetes_section = 'kubernetes'
-
-    @staticmethod
-    def safe_get(section, option, default):
-        try:
-            return configuration.get(section, option)
-        except AirflowConfigException:
-            return default
-
-    @staticmethod
-    def safe_getboolean(section, option, default):
-        try:
-            return configuration.getboolean(section, option)
-        except AirflowConfigException:
-            return default
 
     def __init__(self):
         configuration_dict = configuration.as_dict(display_sensitive=True)
@@ -114,39 +104,39 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_tag')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
-        self.delete_worker_pods = self.safe_getboolean(
+        self.delete_worker_pods = conf.safe_getboolean(
             self.kubernetes_section, 'delete_worker_pods', True)
 
-        self.worker_service_account_name = self.safe_get(
+        self.worker_service_account_name = conf.safe_get(
             self.kubernetes_section, 'worker_service_account_name', 'default')
-        self.image_pull_secrets = self.safe_get(
+        self.image_pull_secrets = conf.safe_get(
             self.kubernetes_section, 'image_pull_secrets', '')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
-        self.git_repo = self.safe_get(self.kubernetes_section, 'git_repo', None)
+        self.git_repo = conf.safe_get(self.kubernetes_section, 'git_repo', None)
         # The branch of the repository to be checked out
-        self.git_branch = self.safe_get(self.kubernetes_section, 'git_branch', None)
+        self.git_branch = conf.safe_get(self.kubernetes_section, 'git_branch', None)
         # Optionally, the directory in the git repository containing the dags
-        self.git_subpath = self.safe_get(self.kubernetes_section, 'git_subpath', '')
+        self.git_subpath = conf.safe_get(self.kubernetes_section, 'git_subpath', '')
 
         # Optionally a user may supply a `git_user` and `git_password` for private
         # repositories
-        self.git_user = self.safe_get(self.kubernetes_section, 'git_user', None)
-        self.git_password = self.safe_get(self.kubernetes_section, 'git_password', None)
+        self.git_user = conf.safe_get(self.kubernetes_section, 'git_user', None)
+        self.git_password = conf.safe_get(self.kubernetes_section, 'git_password', None)
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
-        self.dags_volume_claim = self.safe_get(self.kubernetes_section,
+        self.dags_volume_claim = conf.safe_get(self.kubernetes_section,
                                                'dags_volume_claim', None)
 
         # This prop may optionally be set for PV Claims and is used to write logs
-        self.logs_volume_claim = self.safe_get(
+        self.logs_volume_claim = conf.safe_get(
             self.kubernetes_section, 'logs_volume_claim', None)
 
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
-        self.dags_volume_subpath = self.safe_get(
+        self.dags_volume_subpath = conf.safe_get(
             self.kubernetes_section, 'dags_volume_subpath', None)
 
         # This prop may optionally be set for PV Claims and is used to write logs
@@ -156,35 +146,35 @@ class KubeConfig:
         # that if your
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
-        self.kube_namespace = self.safe_get(self.kubernetes_section, 'namespace',
+        self.kube_namespace = conf.safe_get(self.kubernetes_section, 'namespace',
                                             'default')
         # The Kubernetes Namespace in which pods will be created by the executor. Note
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
-        self.executor_namespace = self.safe_get(self.kubernetes_section, 'namespace',
+        self.executor_namespace = conf.safe_get(self.kubernetes_section, 'namespace',
                                                 'default')
         # Task secrets managed by KubernetesExecutor.
-        self.gcp_service_account_keys = self.safe_get(
+        self.gcp_service_account_keys = conf.safe_get(
             self.kubernetes_section, 'gcp_service_account_keys', None)
 
         # If the user is using the git-sync container to clone their repository via git,
         # allow them to specify repository, tag, and pod name for the init container.
-        self.git_sync_container_repository = self.safe_get(
+        self.git_sync_container_repository = conf.safe_get(
             self.kubernetes_section, 'git_sync_container_repository',
             'gcr.io/google-containers/git-sync-amd64')
 
-        self.git_sync_container_tag = self.safe_get(
+        self.git_sync_container_tag = conf.safe_get(
             self.kubernetes_section, 'git_sync_container_tag', 'v2.0.5')
         self.git_sync_container = '{}:{}'.format(
             self.git_sync_container_repository, self.git_sync_container_tag)
 
-        self.git_sync_init_container_name = self.safe_get(
+        self.git_sync_init_container_name = conf.safe_get(
             self.kubernetes_section, 'git_sync_init_container_name', 'git-sync-clone')
 
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
-        self.airflow_configmap = self.safe_get(self.kubernetes_section,
+        self.airflow_configmap = conf.safe_get(self.kubernetes_section,
                                                'airflow_configmap', None)
 
         self._validate()
@@ -272,7 +262,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin, object):
             self.watcher_queue.put((pod_id, State.FAILED, labels, resource_version))
         elif status == 'Succeeded':
             self.log.info('Event: %s Succeeded', pod_id)
-            self.watcher_queue.put((pod_id, State.SUCCESS, labels, resource_version))
+            self.watcher_queue.put((pod_id, None, labels, resource_version))
         elif status == 'Running':
             self.log.info('Event: %s is Running', pod_id)
         else:
@@ -552,10 +542,13 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         self.log.debug('Start with worker_uuid: %s', self.worker_uuid)
         # always need to reset resource version since we don't know
         # when we last started, note for behavior below
-        # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs/CoreV1Api.md#list_namespaced_pod
+        # https://github.com/kubernetes-client/python/blob/master/kubernetes/docs
+        # /CoreV1Api.md#list_namespaced_pod
         KubeResourceVersion.reset_resource_version(self._session)
         self.task_queue = Queue()
         self.result_queue = Queue()
+        self.log.info("in-cluster mode: {}".format(
+            conf.safe_getboolean('kubernetes', 'in_cluster', True)))
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue, self._session,
@@ -610,8 +603,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             task_id=task_id,
             execution_date=ex_time
         ).one()
-
-        if item.state == State.RUNNING or item.state == State.QUEUED:
+        if state:
             item.state = state
             self._session.add(item)
             self._session.commit()

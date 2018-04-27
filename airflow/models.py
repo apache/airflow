@@ -1111,6 +1111,15 @@ class TaskInstance(Base, LoggingMixin):
         return state
 
     @provide_session
+    def delete(self, session=None):
+        TI = TaskInstance
+        session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.task_id == self.task_id,
+            TI.execution_date == self.execution_date,
+        ).delete()
+
+    @provide_session
     def error(self, session=None):
         """
         Forces the task instance's state to FAILED in the database.
@@ -1440,7 +1449,6 @@ class TaskInstance(Base, LoggingMixin):
                 verbose=True):
             session.commit()
             return False
-
         #TODO: Logging needs cleanup, not clear what is being printed
         hr = "\n" + ("-" * 80) + "\n"  # Line break
 
@@ -1545,6 +1553,7 @@ class TaskInstance(Base, LoggingMixin):
         context = {}
         try:
             if not mark_success:
+                self.log.info("not marked for success")
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)
@@ -1647,6 +1656,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=False,
             job_id=None,
             pool=None,
+            kube_mode=False,
             session=None):
         res = self._check_and_change_state_before_execution(
                 verbose=verbose,
@@ -1660,12 +1670,16 @@ class TaskInstance(Base, LoggingMixin):
                 pool=pool,
                 session=session)
         if res:
+            if kube_mode:
+                self.set_state(State.RUNNING)
             self._run_raw_task(
                     mark_success=mark_success,
                     test_mode=test_mode,
                     job_id=job_id,
                     pool=pool,
                     session=session)
+        else:
+            self.log.info("could not run task due to dependencies")
 
     def dry_run(self):
         task = self.task

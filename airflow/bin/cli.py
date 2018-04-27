@@ -146,6 +146,15 @@ def get_dag(args):
     return dagbag.dags[args.dag_id]
 
 
+def _get_dag(subdir, dag_id):
+    dagbag = DagBag(process_subdir(subdir))
+    if dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(dag_id))
+    return dagbag.dags[dag_id]
+
+
 def get_dags(args):
     if not args.dag_regex:
         return [get_dag(args)]
@@ -368,6 +377,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 def _run(args, dag, ti):
     if args.local:
+        log.info("running locally")
         run_job = jobs.LocalTaskJob(
             task_instance=ti,
             mark_success=args.mark_success,
@@ -430,6 +440,7 @@ def run(args, dag=None):
     log = LoggingMixin().log
 
     # Load custom airflow config
+    log.info("loading config path")
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
             conf_dict = json.load(conf_file)
@@ -442,7 +453,6 @@ def run(args, dag=None):
                 conf.set(section, option, value)
         settings.configure_vars()
         settings.configure_orm()
-
     if not args.pickle and not dag:
         dag = get_dag(args)
     elif not dag:
@@ -462,11 +472,13 @@ def run(args, dag=None):
 
     hostname = get_hostname()
     log.info("Running %s on host %s", ti, hostname)
-
+    log.info("args {}".format(args))
     if args.interactive:
+        log.info("running interactive")
         _run(args, dag, ti)
     else:
         with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+            log.info("running non-interactive")
             _run(args, dag, ti)
     logging.shutdown()
 
@@ -562,6 +574,27 @@ def test(args, dag=None):
         ti.dry_run()
     else:
         ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+
+
+@cli_utils.action_logging
+def kube_run(args, dag=None):
+    dag = dag or get_dag(args)
+    task = dag.get_task(task_id=args.task_id)
+    # Add CLI provided task_params to task.params
+    if args.task_params:
+        passed_in_params = json.loads(args.task_params)
+        task.params.update(passed_in_params)
+    ti = TaskInstance(task, args.execution_date)
+
+    if args.dry_run:
+        ti.dry_run()
+    else:
+        log.info("running task {} starting state {}".format(args.task_id, ti.state))
+        ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True,
+               kube_mode=True)
+        log.info("final state: {}".format(ti.state))
+        ti.set_state(ti.state)
+        return ti
 
 
 @cli_utils.action_logging
@@ -1776,10 +1809,17 @@ class CLIFactory(object):
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'password', 'use_random_password'),
         },
+        {
+            'func': kube_run,
+            'help': "Used by the kubernetes executor to run individual tasks",
+            'args': (
+                'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
+                'task_params')
+        },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause')
+        'list_tasks', 'backfill', 'kube_run', 'test', 'run', 'pause', 'unpause')
 
     @classmethod
     def get_parser(cls, dag_parser=False):
