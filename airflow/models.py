@@ -1417,6 +1417,7 @@ class TaskInstance(Base, LoggingMixin):
         :return: whether the state was changed to running or not
         :rtype: bool
         """
+        self.log.info("chedcking status")
         task = self.task
         self.pool = pool or task.pool
         self.test_mode = test_mode
@@ -1440,7 +1441,6 @@ class TaskInstance(Base, LoggingMixin):
                 verbose=True):
             session.commit()
             return False
-
         #TODO: Logging needs cleanup, not clear what is being printed
         hr = "\n" + ("-" * 80) + "\n"  # Line break
 
@@ -1545,6 +1545,7 @@ class TaskInstance(Base, LoggingMixin):
         context = {}
         try:
             if not mark_success:
+                self.log.info("not marked for success")
                 context = self.get_template_context()
 
                 task_copy = copy.copy(task)

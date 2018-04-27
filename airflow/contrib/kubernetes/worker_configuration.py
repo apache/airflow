@@ -21,13 +21,15 @@ import six
 
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
+from airflow.utils.log import logging_mixin
 
 
-class WorkerConfiguration:
+class WorkerConfiguration(logging_mixin.LoggingMixin):
     """Contains Kubernetes Airflow Worker configuration logic"""
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
+        super(WorkerConfiguration, self).__init__()
 
     def _get_init_containers(self, volume_mounts):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
@@ -76,7 +78,7 @@ class WorkerConfiguration:
         """Defines any necessary environment variables for the pod executor"""
         env = {
             'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
+            'AIRFLOW__CORE__EXECUTOR': 'SequentialExecutor'
         }
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.kube_config.airflow_home
@@ -172,6 +174,12 @@ class WorkerConfiguration:
         annotations = {
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
+        airflow_command = airflow_command\
+            .replace("--local ", "")\
+            .replace("run", "kube_run")
+        airflow_path = airflow_command.split('-sd')[-1]
+        airflow_path = '/root/airflow/dags/' + airflow_path.split('/')[-1]
+        airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path
 
         return Pod(
             namespace=namespace,

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,11 +22,11 @@ import unittest
 
 from mock import patch, Mock, MagicMock
 from time import sleep
-
+from pendulum import Pendulum
 import psutil
 
 from airflow import settings
-from airflow.bin.cli import get_num_ready_workers_running
+from airflow.bin.cli import get_num_ready_workers_running, kube_run
 
 
 class TestCLI(unittest.TestCase):
@@ -74,3 +74,14 @@ class TestCLI(unittest.TestCase):
             "webserver terminated with return code {} in debug mode".format(return_code))
         p.terminate()
         p.wait()
+
+    def test_kube_run(self):
+        args = {
+            'task_id': 'print_the_context',
+            'dag_id': 'example_python_operator',
+            'dry_run'
+            'execution_date:' : '2018-04-27T08:39:51.298439+00:00'
+        }
+        kube_run(task_id='print_the_context', dag_id='example_python_operator',
+                 dry_run=False,
+                 execution_date=Pendulum.parse(time='2018-04-27T08:39:51.298439+00:00'))

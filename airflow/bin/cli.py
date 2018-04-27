@@ -27,6 +27,7 @@ import textwrap
 import random
 import string
 from importlib import import_module
+from airflow.utils import state
 
 import daemon
 import psutil
@@ -145,6 +146,14 @@ def get_dag(args):
             'parse.'.format(args.dag_id))
     return dagbag.dags[args.dag_id]
 
+
+def _get_dag(subdir, dag_id):
+    dagbag = DagBag(process_subdir(subdir))
+    if dag_id not in dagbag.dags:
+        raise AirflowException(
+            'dag_id could not be found: {}. Either the dag did not exist or it failed to '
+            'parse.'.format(dag_id))
+    return dagbag.dags[dag_id]
 
 def get_dags(args):
     if not args.dag_regex:
@@ -562,6 +571,23 @@ def test(args, dag=None):
     else:
         ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
 
+@cli_utils.action_logging
+def kube_run(args, dag=None):
+    dag = dag or get_dag(args)
+    task = dag.get_task(task_id=args.task_id)
+    # Add CLI provided task_params to task.params
+    if args.task_params:
+        passed_in_params = json.loads(args.task_params)
+        task.params.update(passed_in_params)
+    ti = TaskInstance(task, args.execution_date)
+    ti.set_state(state=state.State.RUNNING)
+
+    if args.dry_run:
+        ti.dry_run()
+    else:
+        log.info("running task {}".format(args.task_id))
+        ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+        ti.set_state(state.State.SUCCESS)
 
 @cli_utils.action_logging
 def render(args):
@@ -1769,10 +1795,17 @@ class CLIFactory(object):
             'args': ('role', 'username', 'email', 'firstname', 'lastname',
                      'use_random_password'),
         },
+        {
+            'func': kube_run,
+            'help': "Create an admin account",
+            'args': (
+                'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
+                'task_params')
+        },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
     dag_subparsers = (
-        'list_tasks', 'backfill', 'test', 'run', 'pause', 'unpause')
+        'list_tasks', 'backfill', 'kube_run', 'test', 'run', 'pause', 'unpause')
 
     @classmethod
     def get_parser(cls, dag_parser=False):
