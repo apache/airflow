@@ -24,8 +24,7 @@ from airflow.utils.decorators import apply_defaults
 
 class S3ListOperator(BaseOperator):
     """
-    List all objects from the bucket with the given string prefix and delimiter
-    in name.
+    List all objects from the bucket with the given string prefix in name.
 
     This operator returns a python list with the name of objects which can be
     used by `xcom` in the downstream task.
@@ -35,22 +34,21 @@ class S3ListOperator(BaseOperator):
     :param prefix: Prefix string to filters the objects whose name begin with
         such prefix
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects.
-        For e.g to lists the CSV files from in a directory in S3 you would use
-        delimiter='.csv'.
+    :param delimiter: the delimiter marks key hierarchy.
     :type delimiter: string
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :type aws_conn_id: string
 
     **Example**:
-        The following operator would list all the CSV files from the S3
+        The following operator would list all the files
+        (excluding subfolders) from the S3
         ``customers/2018/04/`` key in the ``data`` bucket. ::
 
             s3_file = S3ListOperator(
                 task_id='list_3s_files',
                 bucket='data',
                 prefix='customers/2018/04/',
-                delimiter='.csv',
+                delimiter='/',
                 aws_conn_id='aws_customers_conn'
             )
     """
