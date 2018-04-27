@@ -1111,6 +1111,15 @@ class TaskInstance(Base, LoggingMixin):
         return state
 
     @provide_session
+    def delete(self, session=None):
+        TI = TaskInstance
+        ti = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.task_id == self.task_id,
+            TI.execution_date == self.execution_date,
+        ).delete()
+
+    @provide_session
     def error(self, session=None):
         """
         Forces the task instance's state to FAILED in the database.
@@ -1417,7 +1426,6 @@ class TaskInstance(Base, LoggingMixin):
         :return: whether the state was changed to running or not
         :rtype: bool
         """
-        self.log.info("chedcking status")
         task = self.task
         self.pool = pool or task.pool
         self.test_mode = test_mode

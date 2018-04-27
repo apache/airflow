@@ -33,6 +33,9 @@ RUN apt-get update -y && apt-get install -y \
         unzip \
     && apt-get clean
 
+
+RUN pip install --upgrade pip
+
 # Since we install vanilla Airflow, we also want to have support for Postgres and Kubernetes
 RUN pip install -U setuptools && \
     pip install kubernetes && \

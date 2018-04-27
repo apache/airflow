@@ -587,7 +587,8 @@ def kube_run(args, dag=None):
     else:
         log.info("running task {}".format(args.task_id))
         ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
-        ti.set_state(state.State.SUCCESS)
+        ti.set_state(ti.state)
+        return ti
 
 @cli_utils.action_logging
 def render(args):
