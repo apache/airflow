@@ -22,9 +22,10 @@ from __future__ import print_function
 import logging
 
 import os
-import socket
 import subprocess
 import textwrap
+import random
+import string
 from importlib import import_module
 
 import daemon
@@ -1209,27 +1210,28 @@ def create_user(args):
     }
     empty_fields = [k for k, v in fields.items() if not v]
     if empty_fields:
-        print('Missing arguments: {}.'.format(', '.join(empty_fields)))
-        sys.exit(0)
+        raise SystemExit('Required arguments are missing: {}.'.format(
+            ', '.join(empty_fields)))
 
     appbuilder = cached_appbuilder()
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        print('{} is not a valid role.'.format(args.role))
-        sys.exit(0)
+        raise SystemExit('{} is not a valid role.'.format(args.role))
 
-    password = getpass.getpass('Password:')
-    password_confirmation = getpass.getpass('Repeat for confirmation:')
-    if password != password_confirmation:
-        print('Passwords did not match!')
-        sys.exit(0)
+    if args.use_random_password:
+        password = ''.join(random.choice(string.printable) for _ in range(16))
+    else:
+        password = getpass.getpass('Password:')
+        password_confirmation = getpass.getpass('Repeat for confirmation:')
+        if password != password_confirmation:
+            raise SystemExit('Passwords did not match!')
 
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
         print('{} user {} created.'.format(args.role, args.username))
     else:
-        print('Failed to create user.')
+        raise SystemExit('Failed to create user.')
 
 
 Arg = namedtuple(
@@ -1619,6 +1621,11 @@ class CLIFactory(object):
             ('-u', '--username',),
             help='Username of the user',
             type=str),
+        'use_random_password': Arg(
+            ('--use_random_password',),
+            help='Do not prompt for password.  Use random string instead',
+            default=False,
+            action='store_true'),
     }
     subparsers = (
         {
@@ -1759,7 +1766,8 @@ class CLIFactory(object):
         }, {
             'func': create_user,
             'help': "Create an admin account",
-            'args': ('role', 'username', 'email', 'firstname', 'lastname'),
+            'args': ('role', 'username', 'email', 'firstname', 'lastname',
+                     'use_random_password'),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}
