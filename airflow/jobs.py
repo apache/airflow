@@ -1076,7 +1076,7 @@ class SchedulerJob(BaseJob):
                     not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
             .outerjoin(DM, DM.dag_id==TI.dag_id)
             .filter(or_(DM.dag_id == None,
-                    not_(DM.is_paused)))
+                    DM.is_paused == 0))
         )
         if None in states:
             ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states)))

@@ -1902,23 +1902,23 @@ class HomeView(AdminIndexView):
 
         if do_filter and owner_mode == 'ldapgroup':
             sql_query = sql_query.filter(
-                ~DM.is_subdag,
-                DM.is_active,
+                DM.is_subdag == 0,
+                DM.is_active == 1,
                 DM.owners.in_(current_user.ldap_groups)
             )
         elif do_filter and owner_mode == 'user':
             sql_query = sql_query.filter(
-                ~DM.is_subdag, DM.is_active,
+                DM.is_subdag == 0, DM.is_active == 1,
                 DM.owners == current_user.user.username
             )
         else:
             sql_query = sql_query.filter(
-                ~DM.is_subdag, DM.is_active
+                DM.is_subdag == 0, DM.is_active == 1
             )
 
         # optionally filter out "paused" dags
         if hide_paused:
-            sql_query = sql_query.filter(~DM.is_paused)
+            sql_query = sql_query.filter(DM.is_paused == 0)
 
         orm_dags = {dag.dag_id: dag for dag
                     in sql_query
