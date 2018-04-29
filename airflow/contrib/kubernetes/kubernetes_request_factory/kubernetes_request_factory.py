@@ -84,7 +84,10 @@ class KubernetesRequestFactory:
 
     @staticmethod
     def attach_volumes(pod, req):
-        req['spec']['volumes'] = pod.volumes
+        req['spec']['volumes'] = (
+            req['spec'].get('volumes', []))
+        if len(pod.volumes) > 0:
+            req['spec']['volumes'].extend(pod.volumes)
 
     @staticmethod
     def attach_volume_mounts(pod, req):
@@ -101,8 +104,10 @@ class KubernetesRequestFactory:
     def extract_volume_secrets(pod, req):
         vol_secrets = [s for s in pod.secrets if s.deploy_type == 'volume']
         if any(vol_secrets):
-            req['spec']['containers'][0]['volumeMounts'] = []
-            req['spec']['volumes'] = []
+            req['spec']['containers'][0]['volumeMounts'] = (
+                req['spec']['containers'][0].get('volumeMounts', []))
+            req['spec']['volumes'] = (
+                req['spec'].get('volumes', []))
         for idx, vol in enumerate(vol_secrets):
             vol_id = 'secretvol' + str(idx)
             req['spec']['containers'][0]['volumeMounts'].append({
