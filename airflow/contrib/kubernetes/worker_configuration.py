@@ -22,6 +22,7 @@ import six
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
 from airflow.utils.log import logging_mixin
+from airflow.configuration import conf
 
 
 class WorkerConfiguration(logging_mixin.LoggingMixin):
@@ -29,6 +30,12 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
+        self.worker_airflow_home = conf.safe_get('kubernetes', 'worker_airflow_home',
+                                                 self.kube_config.airflow_home)
+        self.worker_airflow_dags = conf.safe_get('kubernetes', 'worker_airflow_dags',
+                                                 self.kube_config.dags_folder)
+        self.worker_airflow_logs = conf.safe_get('kubernetes', 'worker_airflow_logs',
+                                                 self.kube_config.base_log_folder)
         super(WorkerConfiguration, self).__init__()
 
     def _get_init_containers(self, volume_mounts):
@@ -81,7 +88,7 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
             'AIRFLOW__CORE__EXECUTOR': 'SequentialExecutor'
         }
         if self.kube_config.airflow_configmap:
-            env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.kube_config.airflow_home
+            env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
         return env
 
     def _get_secrets(self):
@@ -131,19 +138,19 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
         volume_mounts = [{
             'name': dags_volume_name,
             'mountPath': os.path.join(
-                self.kube_config.dags_folder,
+                self.worker_airflow_dags,
                 self.kube_config.git_subpath
             ),
             'readOnly': True
         }, {
             'name': logs_volume_name,
-            'mountPath': self.kube_config.base_log_folder
+            'mountPath': self.worker_airflow_logs
         }]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
-            config_path = '{}/airflow.cfg'.format(self.kube_config.airflow_home)
+            config_path = '{}/airflow.cfg'.format(self.worker_airflow_home)
             volumes.append({
                 'name': config_volume_name,
                 'configMap': {
@@ -178,7 +185,7 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
             .replace("--local ", "")\
             .replace("run", "kube_run")
         airflow_path = airflow_command.split('-sd')[-1]
-        airflow_path = '/root/airflow/dags/' + airflow_path.split('/')[-1]
+        airflow_path = self.worker_airflow_home + airflow_path.split('/')[-1]
         airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path
 
         return Pod(

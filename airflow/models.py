@@ -1113,7 +1113,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def delete(self, session=None):
         TI = TaskInstance
-        ti = session.query(TI).filter(
+        session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == self.task_id,
             TI.execution_date == self.execution_date,
@@ -1656,6 +1656,7 @@ class TaskInstance(Base, LoggingMixin):
             test_mode=False,
             job_id=None,
             pool=None,
+            kube_mode=False,
             session=None):
         res = self._check_and_change_state_before_execution(
                 verbose=verbose,
@@ -1669,12 +1670,16 @@ class TaskInstance(Base, LoggingMixin):
                 pool=pool,
                 session=session)
         if res:
+            if kube_mode:
+                self.set_state(State.RUNNING)
             self._run_raw_task(
                     mark_success=mark_success,
                     test_mode=test_mode,
                     job_id=job_id,
                     pool=pool,
                     session=session)
+        else:
+            self.log.info("could not run task due to dependencies")
 
     def dry_run(self):
         task = self.task
