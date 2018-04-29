@@ -92,5 +92,6 @@ statsd
 thrift
 thrift_sasl
 unicodecsv
+vertica_python
 zdesk
 kubernetes
