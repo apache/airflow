@@ -46,7 +46,7 @@ class KubernetesPodOperator(BaseOperator):
     :param name: name for the pod
     :type name: str
     :param env_vars: Environment variables initialized in the container
-    :type env_vars: list
+    :type env_vars: dict
     :param secrets: Secrets to attach to the container
     :type secrets: list
     :param in_cluster: run kubernetes client with in_cluster configuration
