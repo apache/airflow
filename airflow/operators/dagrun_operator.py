@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,18 +22,38 @@ from airflow.utils import timezone
 from airflow.utils.db import create_session
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.state import State
-from airflow import settings
+from airflow import settings, LoggingMixin, AirflowException
 
 
-class DagRunOrder(object):
-    def __init__(self, run_id=None, payload=None):
+class DagRunOrder(LoggingMixin):
+    def __init__(self, run_id=None, payload=None, dag_id=None):
         self.run_id = run_id
         self.payload = payload
+        self.dag_id = dag_id
+        super().__init__()
+
+    def trigger(self):
+        if self.dag_id is None:
+            raise AirflowException("{} requires a dag_id to be triggered".format(self.__class__.__name__))
+        with create_session() as session:
+            dbag = DagBag(settings.DAGS_FOLDER)
+            trigger_dag = dbag.get_dag(self.dag_id)
+            dr = trigger_dag.create_dagrun(
+                run_id=self.run_id,
+                state=State.RUNNING,
+                conf=self.payload,
+                external_trigger=True)
+            self.log.info("Creating DagRun %s", dr)
+            session.add(dr)
+            session.commit()
 
 
 class TriggerDagRunOperator(BaseOperator):
     """
     Triggers a DAG run for a specified ``dag_id``
+
+    NOTE: The dag id that is triggered can be updated by the python callable
+          by altering the ``dag_id`` attribute of the DagRunOrder
 
     :param trigger_dag_id: the dag_id to trigger
     :type trigger_dag_id: str
@@ -67,16 +87,6 @@ class TriggerDagRunOperator(BaseOperator):
         if self.python_callable is not None:
             dro = self.python_callable(context, dro)
         if dro:
-            with create_session() as session:
-                dbag = DagBag(settings.DAGS_FOLDER)
-                trigger_dag = dbag.get_dag(self.trigger_dag_id)
-                dr = trigger_dag.create_dagrun(
-                    run_id=dro.run_id,
-                    state=State.RUNNING,
-                    conf=dro.payload,
-                    external_trigger=True)
-                self.log.info("Creating DagRun %s", dr)
-                session.add(dr)
-                session.commit()
+            dro.trigger()
         else:
             self.log.info("Criteria not met, moving on")
