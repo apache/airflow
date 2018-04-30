@@ -69,7 +69,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
             pod.secrets = self.secrets
-            pod.env_vars = self.env_vars
+            pod.envs = self.env_vars
 
             launcher = pod_launcher.PodLauncher(client)
             final_state = launcher.run_pod(
