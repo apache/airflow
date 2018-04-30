@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,20 +30,20 @@ from flask_appbuilder.fieldwidgets import (BS3TextFieldWidget, BS3TextAreaFieldW
                                            BS3PasswordFieldWidget, Select2Widget,
                                            DateTimePickerWidget)
 from flask_babel import lazy_gettext
-from flask_wtf import Form
+from flask_wtf import FlaskForm
 
 from wtforms import validators
 from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordField,
                             StringField, DateTimeField, BooleanField)
 
 
-class DateTimeForm(Form):
+class DateTimeForm(FlaskForm):
     # Date filter form needed for gantt and graph view
     execution_date = DateTimeField(
         "Execution date", widget=DateTimePickerWidget())
 
 
-class DateTimeWithNumRunsForm(Form):
+class DateTimeWithNumRunsForm(FlaskForm):
     # Date time and number of runs form for tree view, task duration
     # and landing times
     base_date = DateTimeField(
