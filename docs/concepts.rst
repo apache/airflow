@@ -427,6 +427,18 @@ The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
 
+You can use a variable from a jinja template with the syntax : 
+
+.. code:: bash
+
+    echo {{ var.value.<variable_name> }}
+    
+or if you need to deserialize a json object from the variable : 
+
+.. code:: bash
+
+    echo {{ var.json.<variable_name> }}
+    
 
 Branching
 =========
