@@ -45,7 +45,7 @@ class Pod:
     :param image: The docker image
     :type image: str
     :param envs: A dict containing the environment variables
-    :type envs:s dict
+    :type envs: dict
     :param cmds: The command to be run on the pod
     :type cmds: list str
     :param secrets: Secrets to be launched to the pod
