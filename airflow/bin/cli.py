@@ -1801,7 +1801,7 @@ class CLIFactory(object):
         },
         {
             'func': kube_run,
-            'help': "Create an admin account",
+            'help': "Used by the kubernetes executor to run individual tasks",
             'args': (
                 'dag_id', 'task_id', 'execution_date', 'subdir', 'dry_run',
                 'task_params')
