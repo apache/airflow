@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -119,10 +119,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
             remote_log = self.wasb_read(remote_loc, return_error=True)
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
+            return log, {'end_of_log': True}
         else:
-            log = super(WasbTaskHandler, self)._read(ti, try_number)
-
-        return log, {'end_of_log': True}
+            return super(WasbTaskHandler, self)._read(ti, try_number)
 
     def wasb_log_exists(self, remote_log_location):
         """

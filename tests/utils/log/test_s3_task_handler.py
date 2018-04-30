@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -116,6 +116,14 @@ class TestS3TaskHandler(unittest.TestCase):
             (['*** Reading remote log from s3://bucket/remote/log/location/1.log.\n'
              'Log line\n\n'], [{'end_of_log': True}])
         )
+
+    def test_read_when_s3_log_missing(self):
+        log, metadata = self.s3_task_handler.read(self.ti)
+
+        self.assertEqual(1, len(log))
+        self.assertEqual(len(log), len(metadata))
+        self.assertIn('*** Log file does not exist:', log[0])
+        self.assertEqual({'end_of_log': True}, metadata[0])
 
     def test_read_raises_return_error(self):
         handler = self.s3_task_handler
