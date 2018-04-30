@@ -20,11 +20,17 @@ from airflow.hooks.base_hook import BaseHook
 
 import nomad
 
+
 class NomadHook(BaseHook):
 
-    def __init__(self, ip='127.0.0.1', port='4646'):
-        self.log.info('Trying to connect to Nomad Server in {}:{}'.format(ip, port))
-        self.nomad_client = nomad.Nomad(host=ip, port=port)
+    def __init__(self, nomad_conn_id='nomad_default', *args, **kwargs):
+        self.get_connection = self.get_connection(nomad_conn_id)
+        self.nomad_client = nomad.Nomad(host=self.get_connection.host,
+                                        port=self.get_connection.port,
+                                        *args,
+                                        **kwargs)
+        self.log.debug('Trying to connect to Nomad Server in {}:{}'.format(self.get_connection.host,
+                                                                           self.get_connection.port,))
 
     def get_nomad_client(self):
         return self.nomad_client
