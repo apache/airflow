@@ -29,7 +29,6 @@ Report bugs through [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
 Please report relevant information and preferably code that exhibits
 the problem.
 
-
 ### Fix Bugs
 
 Look through the Jira issues for bugs. Anything is open to whoever wants
@@ -37,12 +36,11 @@ to implement it.
 
 ### Implement Features
 
-Look through the GitHub issues for features. Anything tagged with
-"feature" is open to whoever wants to implement it.
+Look through the [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW) for features. Any unassigned "Improvement" issue is open to whoever wants to implement it.
 
 We've created the operators, hooks, macros and executors we needed, but we
 made sure that this part of Airflow is extensible. New operators,
-hooks and operators are very welcomed!
+hooks, macros and executors are very welcomed!
 
 ### Improve Documentation
 
@@ -53,7 +51,7 @@ articles.
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue on Github.
+The best way to send feedback is to open an issue on [Apache Jira](https://issues.apache.org/jira/browse/AIRFLOW)
 
 If you are proposing a feature:
 
@@ -65,7 +63,7 @@ If you are proposing a feature:
 
 ## Documentation
 
-The latest API documentation is usually available [here](http://pythonhosted.org/airflow).
+The latest API documentation is usually available [here](https://airflow.incubator.apache.org/).
 To generate a local version, you need to have installed airflow with
 the `doc` extra. In that case you can generate the doc by running:
 
@@ -123,7 +121,7 @@ which you can setup on your fork as well to check before you submit your
 PR. We currently enforce most [PEP8](https://www.python.org/dev/peps/pep-0008/)
 and a few other linting rules. It is usually a good idea to lint locally
 as well using [flake8](https://flake8.readthedocs.org/en/latest/)
-using `flake8 airflow tests`
+using `flake8 airflow tests`. `git diff upstream/master -u -- "*.py" | flake8 --diff` will return any changed files in your branch that require linting.
 9. Please read this excellent [article](http://chris.beams.io/posts/git-commit/) on
 commit messages and adhere to them. It makes the lives of those who
 come after you a lot easier.
@@ -134,6 +132,10 @@ come after you a lot easier.
 Tests can then be run with (see also the [Running unit tests](#running-unit-tests) section below):
 
     ./run_unit_tests.sh
+
+Individual test files can be run with:
+
+    nosetests [path to file]
 
 #### Running unit tests
 

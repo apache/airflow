@@ -14,23 +14,25 @@
 #
 
 """ Hook to manage connection to nomad server
-    NOTE: this operator also relies on the python-nomad package https://github.com/jrxFive/python-nomad """
-
-from airflow.hooks.base_hook import BaseHook
+    NOTE: this operator also relies on the python-nomad
+          package https://github.com/jrxFive/python-nomad """
 
 import nomad
 
+from airflow.hooks.base_hook import BaseHook
+from airflow.utils.log.logging_mixin import LoggingMixin
 
-class NomadHook(BaseHook):
 
-    def __init__(self, nomad_conn_id='nomad_default', *args, **kwargs):
-        self.get_connection = self.get_connection(nomad_conn_id)
-        self.nomad_client = nomad.Nomad(host=self.get_connection.host,
-                                        port=self.get_connection.port,
-                                        *args,
-                                        **kwargs)
-        self.log.debug('Trying to connect to Nomad Server in {}:{}'.format(self.get_connection.host,
-                                                                           self.get_connection.port,))
+class NomadHook(BaseHook, LoggingMixin):
+    def __init__(self,
+                 nomad_conn_id='nomad_default',
+                 *args,
+                 **kwargs):
+        self.connection = self.get_connection(nomad_conn_id)
+        self.nomad_client = self.get_nomad_client(*args, **kwargs)
 
-    def get_nomad_client(self):
-        return self.nomad_client
+    def get_nomad_client(self, *args, **kwargs):
+        return nomad.Nomad(host=self.connection.host,
+                           port=self.connection.port,
+                           *args,
+                           **kwargs)

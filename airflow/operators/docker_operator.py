@@ -1,24 +1,30 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import json
 
+from airflow.hooks.docker_hook import DockerHook
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-from docker import APIClient as Client, tls
+from docker import Client, tls
 import ast
 
 
@@ -30,9 +36,14 @@ class DockerOperator(BaseOperator):
     that together exceed the default disk size of 10GB in a container. The path to the mounted
     directory can be accessed via the environment variable ``AIRFLOW_TMP_DIR``.
 
+    If a login to a private registry is required prior to pulling the image, a
+    Docker connection needs to be configured in Airflow and the connection ID
+    be provided with the parameter ``docker_conn_id``.
+
     :param image: Docker image from which to create the container.
     :type image: str
-    :param api_version: Remote API version.
+    :param api_version: Remote API version. Set to ``auto`` to automatically
+        detect the server's version.
     :type api_version: str
     :param command: Command to be run in the container.
     :type command: str or list
@@ -41,10 +52,11 @@ class DockerOperator(BaseOperator):
         https://docs.docker.com/engine/reference/run/#cpu-share-constraint
     :type cpus: float
     :param docker_url: URL of the host running the docker daemon.
+        Default is unix://var/run/docker.sock
     :type docker_url: str
     :param environment: Environment variables to set in the container.
     :type environment: dict
-    :param force_pull: Pull the docker image on every run.
+    :param force_pull: Pull the docker image on every run. Default is false.
     :type force_pull: bool
     :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
         represents the limit in bytes, or a string like ``128m`` or ``1g``.
@@ -78,8 +90,10 @@ class DockerOperator(BaseOperator):
     :type xcom_push: bool
     :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
     :type xcom_all: bool
+    :param docker_conn_id: ID of the Airflow connection to use
+    :type docker_conn_id: str
     """
-    template_fields = ('command',)
+    template_fields = ('command', 'environment',)
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
@@ -105,6 +119,7 @@ class DockerOperator(BaseOperator):
             working_dir=None,
             xcom_push=False,
             xcom_all=False,
+            docker_conn_id=None,
             *args,
             **kwargs):
 
@@ -129,25 +144,33 @@ class DockerOperator(BaseOperator):
         self.working_dir = working_dir
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
+        self.docker_conn_id = docker_conn_id
+        self.shm_size = kwargs.get('shm_size')
 
         self.cli = None
         self.container = None
 
+    def get_hook(self):
+        return DockerHook(
+            docker_conn_id=self.docker_conn_id,
+            base_url=self.docker_url,
+            version=self.api_version,
+            tls=self.__get_tls_config()
+        )
+
     def execute(self, context):
         self.log.info('Starting docker container from image %s', self.image)
 
-        tls_config = None
-        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
-            tls_config = tls.TLSConfig(
-                    ca_cert=self.tls_ca_cert,
-                    client_cert=(self.tls_client_cert, self.tls_client_key),
-                    verify=True,
-                    ssl_version=self.tls_ssl_version,
-                    assert_hostname=self.tls_hostname
-            )
-            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        tls_config = self.__get_tls_config()
 
-        self.cli = Client(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+        if self.docker_conn_id:
+            self.cli = self.get_hook().get_conn()
+        else:
+            self.cli = Client(
+                base_url=self.docker_url,
+                version=self.api_version,
+                tls=tls_config
+            )
 
         if ':' not in self.image:
             image = self.image + ':latest'
@@ -167,15 +190,17 @@ class DockerOperator(BaseOperator):
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
-                    command=self.get_command(),
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user,
-                    working_dir=self.working_dir
+                command=self.get_command(),
+                cpu_shares=cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(
+                    binds=self.volumes,
+                    network_mode=self.network_mode,
+                    shm_size=self.shm_size),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user,
+                working_dir=self.working_dir
             )
             self.cli.start(self.container['Id'])
 
@@ -204,3 +229,16 @@ class DockerOperator(BaseOperator):
         if self.cli is not None:
             self.log.info('Stopping docker container')
             self.cli.stop(self.container['Id'])
+
+    def __get_tls_config(self):
+        tls_config = None
+        if self.tls_ca_cert and self.tls_client_cert and self.tls_client_key:
+            tls_config = tls.TLSConfig(
+                ca_cert=self.tls_ca_cert,
+                client_cert=(self.tls_client_cert, self.tls_client_key),
+                verify=True,
+                ssl_version=self.tls_ssl_version,
+                assert_hostname=self.tls_hostname
+            )
+            self.docker_url = self.docker_url.replace('tcp://', 'https://')
+        return tls_config

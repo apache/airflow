@@ -1,18 +1,24 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from base64 import b64encode
+from select import select
 
 from airflow import configuration
 from airflow.contrib.hooks.ssh_hook import SSHHook
@@ -22,7 +28,6 @@ from airflow.utils.decorators import apply_defaults
 
 
 class SSHOperator(BaseOperator):
-
     """
     SSHOperator to execute commands on given remote host using the ssh_hook.
 
@@ -34,13 +39,14 @@ class SSHOperator(BaseOperator):
     :type remote_host: str
     :param command: command to execute on remote host
     :type command: str
-    :param timeout: timeout for executing the command.
+    :param timeout: timeout (in seconds) for executing the command.
     :type timeout: int
     :param do_xcom_push: return the stdout which also get set in xcom by airflow platform
     :type do_xcom_push: bool
     """
 
     template_fields = ('command',)
+    template_ext = ('.sh',)
 
     @apply_defaults
     def __init__(self,
@@ -86,22 +92,62 @@ class SSHOperator(BaseOperator):
                                                             get_pty=get_pty,
                                                             timeout=self.timeout
                                                             )
+            # get channels
+            channel = stdout.channel
+
+            # closing stdin
+            stdin.close()
+            channel.shutdown_write()
+
+            agg_stdout = b''
+            agg_stderr = b''
+
+            # capture any initial output in case channel is closed already
+            stdout_buffer_length = len(stdout.channel.in_buffer)
+
+            if stdout_buffer_length > 0:
+                agg_stdout += stdout.channel.recv(stdout_buffer_length)
+
+            # read from both stdout and stderr
+            while not channel.closed or channel.recv_ready() or channel.recv_stderr_ready():
+                readq, _, _ = select([channel], [], [], self.timeout)
+                for c in readq:
+                    if c.recv_ready():
+                        line = stdout.channel.recv(len(c.in_buffer))
+                        line = line
+                        agg_stdout += line
+                        self.log.info(line.decode('utf-8').strip('\n'))
+                    if c.recv_stderr_ready():
+                        line = stderr.channel.recv_stderr(len(c.in_stderr_buffer))
+                        line = line
+                        agg_stderr += line
+                        self.log.warning(line.decode('utf-8').strip('\n'))
+                if stdout.channel.exit_status_ready()\
+                        and not stderr.channel.recv_stderr_ready()\
+                        and not stdout.channel.recv_ready():
+                    stdout.channel.shutdown_read()
+                    stdout.channel.close()
+                    break
+
+            stdout.close()
+            stderr.close()
+
             exit_status = stdout.channel.recv_exit_status()
             if exit_status is 0:
-                # only returning on output if do_xcom_push is set
-                # otherwise its not suppose to be disclosed
+                # returning output if do_xcom_push is set
                 if self.do_xcom_push:
-                    enable_pickling = configuration.getboolean('core',
-                                                               'enable_xcom_pickling')
+                    enable_pickling = configuration.conf.getboolean(
+                        'core', 'enable_xcom_pickling'
+                    )
                     if enable_pickling:
-                        return stdout.read()
+                        return agg_stdout
                     else:
-                        return b64encode(stdout.read()).decode('utf-8')
+                        return b64encode(agg_stdout).decode('utf-8')
 
             else:
-                error_msg = stderr.read()
+                error_msg = agg_stderr.decode('utf-8')
                 raise AirflowException("error running cmd: {0}, error: {1}"
-                                        .format(self.command, error_msg))
+                                       .format(self.command, error_msg))
 
         except Exception as e:
             raise AirflowException("SSH operator error: {0}".format(str(e)))

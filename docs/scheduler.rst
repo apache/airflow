@@ -84,7 +84,7 @@ Airflow is that these DAG Runs are atomic, idempotent items, and the scheduler, 
 the lifetime of the DAG (from start to end/now, one interval at a time) and kick off a DAG Run for any
 interval that has not been run (or has been cleared). This concept is called Catchup.
 
-If your DAG is written to handle it's own catchup (IE not limited to the interval, but instead to "Now"
+If your DAG is written to handle its own catchup (IE not limited to the interval, but instead to "Now"
 for instance.), then you will want to turn catchup off (Either on the DAG itself with ``dag.catchup =
 False``) or by default at the configuration file level with ``catchup_by_default = False``. What this
 will do, is to instruct the scheduler to only create a DAG Run for the most current instance of the DAG

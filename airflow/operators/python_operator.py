@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
 import dill
@@ -54,6 +59,7 @@ class PythonOperator(BaseOperator):
     :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
+    :type templates_exts: list(str)
     """
     template_fields = ('templates_dict',)
     template_ext = tuple()
@@ -194,15 +200,25 @@ class PythonVirtualenvOperator(PythonOperator):
         available to python_callable at runtime as a list(str). Note that args are split
         by newline.
     :type string_args: list(str)
-
+    :param templates_dict: a dictionary where the values are templates that
+        will get templated by the Airflow engine sometime between
+        ``__init__`` and ``execute`` takes place and are made available
+        in your callable's context after the template has been applied
+    :type templates_dict: dict of str
+    :param templates_exts: a list of file extensions to resolve while
+        processing templated fields, for examples ``['.sql', '.hql']``
+    :type templates_exts: list(str)
     """
     def __init__(self, python_callable, requirements=None, python_version=None, use_dill=False,
                  system_site_packages=True, op_args=None, op_kwargs=None, string_args=None,
-                 *args, **kwargs):
+                 templates_dict=None, templates_exts=None, *args, **kwargs):
         super(PythonVirtualenvOperator, self).__init__(
             python_callable=python_callable,
             op_args=op_args,
             op_kwargs=op_kwargs,
+            templates_dict=templates_dict,
+            templates_exts=templates_exts,
+            provide_context=False,
             *args,
             **kwargs)
         self.requirements = requirements or []
@@ -230,6 +246,8 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
+            if self.templates_dict:
+                self.op_kwargs['templates_dict'] = self.templates_dict
             # generate filenames
             input_filename = os.path.join(tmp_dir, 'script.in')
             output_filename = os.path.join(tmp_dir, 'script.out')
@@ -262,7 +280,9 @@ class PythonVirtualenvOperator(PythonOperator):
     def _execute_in_subprocess(self, cmd):
         try:
             self.log.info("Executing cmd\n{}".format(cmd))
-            output = subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+            output = subprocess.check_output(cmd,
+                                             stderr=subprocess.STDOUT,
+                                             close_fds=True)
             if output:
                 self.log.info("Got output\n{}".format(output))
         except subprocess.CalledProcessError as e:

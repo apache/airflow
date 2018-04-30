@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import os
 import shutil
 import sys
@@ -196,7 +201,13 @@ class TestLoggingSettings(unittest.TestCase):
     def test_when_the_config_key_does_not_exists(self):
         from airflow import logging_config
 
-        logging_config.conf.get = mock.Mock(side_effect=AirflowConfigException('boom'))
+        def side_effect(*args):
+            if args[1] == 'logging_config_class':
+                raise AirflowConfigException
+            else:
+                return "bla_bla_from_test"
+
+        logging_config.conf.get = mock.Mock(side_effect=side_effect)
 
         with patch.object(logging_config.log, 'debug') as mock_debug:
             logging_config.configure_logging()

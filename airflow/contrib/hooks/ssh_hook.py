@@ -3,22 +3,28 @@
 # Copyright 2012-2015 Spotify AB
 # Ported to Airflow by Bolke de Bruin
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import getpass
 import os
 
 import paramiko
+from paramiko.config import SSH_PORT
 
 from contextlib import contextmanager
 from airflow.exceptions import AirflowException
@@ -44,8 +50,12 @@ class SSHHook(BaseHook, LoggingMixin):
     :type password: str
     :param key_file: key file to use to connect to the remote_host.
     :type key_file: str
+    :param port: port of remote host to connect (Default is paramiko SSH_PORT)
+    :type port: int
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
+    :param keepalive_interval: send a keepalive packet to remote host every keepalive_interval seconds
+    :type keepalive_interval: int
     """
 
     def __init__(self,
@@ -54,7 +64,9 @@ class SSHHook(BaseHook, LoggingMixin):
                  username=None,
                  password=None,
                  key_file=None,
-                 timeout=10
+                 port=SSH_PORT,
+                 timeout=10,
+                 keepalive_interval=30
                  ):
         super(SSHHook, self).__init__(ssh_conn_id)
         self.ssh_conn_id = ssh_conn_id
@@ -63,10 +75,12 @@ class SSHHook(BaseHook, LoggingMixin):
         self.password = password
         self.key_file = key_file
         self.timeout = timeout
+        self.keepalive_interval = keepalive_interval
         # Default values, overridable from Connection
         self.compress = True
         self.no_host_key_check = True
         self.client = None
+        self.port = port
 
     def get_conn(self):
         if not self.client:
@@ -79,6 +93,8 @@ class SSHHook(BaseHook, LoggingMixin):
                     self.password = conn.password
                 if self.remote_host is None:
                     self.remote_host = conn.host
+                if conn.port is not None:
+                    self.port = conn.port
                 if conn.extra is not None:
                     extra_options = conn.extra_dejson
                     self.key_file = extra_options.get("key_file")
@@ -87,10 +103,11 @@ class SSHHook(BaseHook, LoggingMixin):
                         self.timeout = int(extra_options["timeout"], 10)
 
                     if "compress" in extra_options \
-                            and extra_options["compress"].lower() == 'false':
+                            and str(extra_options["compress"]).lower() == 'false':
                         self.compress = False
                     if "no_host_key_check" in extra_options \
-                            and extra_options["no_host_key_check"].lower() == 'false':
+                            and \
+                            str(extra_options["no_host_key_check"]).lower() == 'false':
                         self.no_host_key_check = False
 
             if not self.remote_host:
@@ -131,6 +148,7 @@ class SSHHook(BaseHook, LoggingMixin):
                                    password=self.password,
                                    timeout=self.timeout,
                                    compress=self.compress,
+                                   port=self.port,
                                    sock=host_proxy)
                 else:
                     client.connect(hostname=self.remote_host,
@@ -138,7 +156,11 @@ class SSHHook(BaseHook, LoggingMixin):
                                    key_filename=self.key_file,
                                    timeout=self.timeout,
                                    compress=self.compress,
+                                   port=self.port,
                                    sock=host_proxy)
+
+                if self.keepalive_interval:
+                    client.get_transport().set_keepalive(self.keepalive_interval)
 
                 self.client = client
             except paramiko.AuthenticationException as auth_error:
@@ -195,7 +217,8 @@ class SSHHook(BaseHook, LoggingMixin):
 
         proc = subprocess.Popen(ssh_cmd,
                                 stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
+                                stdout=subprocess.PIPE,
+                                close_fds=True)
         ready = proc.stdout.read(5)
         assert ready == b"ready", \
             "Did not get 'ready' from remote, got '{0}' instead".format(ready)
