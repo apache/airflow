@@ -894,6 +894,10 @@ class Airflow(AirflowBaseView):
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         dates = sorted(list(dag_runs.keys()))
+        # Only show the desired number of runs regardless of the trigger method
+        if len(dates) > num_runs:
+            dates = dates[-num_runs:]
+
         max_date = max(dates) if dates else None
 
         tis = dag.get_task_instances(
