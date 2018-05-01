@@ -26,7 +26,8 @@ from pendulum import Pendulum
 import psutil
 from argparse import Namespace
 from airflow import settings
-from airflow.bin.cli import get_num_ready_workers_running, kube_run
+from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
+from airflow.models import TaskInstance
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
@@ -59,6 +60,11 @@ def create_mock_args(
     priority_weight_total=None,
     retries=0,
     local=True,
+    mark_success=False,
+    ignore_all_dependencies=False,
+    ignore_depends_on_past=False,
+    ignore_dependencies=False,
+    force=False,
     run_as_user=None,
     executor_config={},
     cfg_path=None,
@@ -83,6 +89,11 @@ def create_mock_args(
     args.cfg_path = cfg_path
     args.pickle = pickle
     args.raw = raw
+    args.mark_success=mark_success
+    args.ignore_all_dependencies=ignore_all_dependencies
+    args.ignore_depends_on_past=ignore_depends_on_past
+    args.ignore_dependencies=ignore_dependencies
+    args.force=force
     args.interactive = interactive
     return args
 
@@ -132,41 +143,23 @@ class TestCLI(unittest.TestCase):
         p.terminate()
         p.wait()
 
-    def test_kube_run(self):
+    def test_local_run(self):
         args = create_mock_args(
             task_id='print_the_context',
             dag_id='example_python_operator',
             subdir='/root/dags/example_python_operator.py',
+            interactive=True,
             execution_date=Pendulum.parse('2018-04-27T08:39:51.298439+00:00')
         )
 
         reset(args.dag_id)
-        #
-        print(TEST_DAG_FOLDER)
-        # dag = get_dag(args)
-        # task = dag.get_task(task_id=args.task_id) # type: TaskInstance
-        # ti = TaskInstance(task, args.execution_date)
-        # ti.delete()
 
-        with patch('argparse.Namespace', args):
-            ti = kube_run(args)
+        with patch('argparse.Namespace', args) as mock_args:
+            run(mock_args)
+            dag = get_dag(mock_args)
+            task = dag.get_task(task_id=args.task_id)
+            ti = TaskInstance(task, args.execution_date)
+            ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
 
-    # def test_kube_run_faulty_argument(self):
-    #     args = create_mock_args(
-    #         task_id='print_the_context',
-    #         dag_id='example_python_operator',
-    #         subdir='/root/dags/example_python_operator.py',
-    #         execution_date=Pendulum.parse('2018-04-27T08:39:51.298439+00:00')
-    #     )
-    #
-    #     # dag = get_dag(args)
-    #     # task = dag.get_task(task_id=args.task_id) # type: TaskInstance
-    #     # ti = TaskInstance(task, args.execution_date)
-    #     # ti.delete()
-    #
-    #     with patch('argparse.Namespace', args):
-    #         ti = run(args)
-    #         state = ti.current_state()
-    #         print(state)

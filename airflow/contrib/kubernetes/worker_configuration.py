@@ -85,7 +85,7 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {
             'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'SequentialExecutor'
+            'AIRFLOW__CORE__EXECUTOR': 'KubernetesExecutor'
         }
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
@@ -181,9 +181,10 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
         annotations = {
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
-        airflow_command = airflow_command\
-            .replace("--local ", "")\
-            .replace("run", "kube_run")
+        airflow_command = airflow_command
+            # .replace("--local ", "")\
+            # .replace("run", "kube_run")
+        airflow_command = airflow_command.replace("-sd", "-i -sd")
         airflow_path = airflow_command.split('-sd')[-1]
         airflow_path = self.worker_airflow_home + airflow_path.split('/')[-1]
         airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path

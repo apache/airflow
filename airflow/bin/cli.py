@@ -377,6 +377,7 @@ def set_is_paused(is_paused, args, dag=None):
 
 def _run(args, dag, ti):
     if args.local:
+        log.info("running locally")
         run_job = jobs.LocalTaskJob(
             task_instance=ti,
             mark_success=args.mark_success,
@@ -439,6 +440,7 @@ def run(args, dag=None):
     log = LoggingMixin().log
 
     # Load custom airflow config
+    log.info("loading config path")
     if args.cfg_path:
         with open(args.cfg_path, 'r') as conf_file:
             conf_dict = json.load(conf_file)
@@ -451,7 +453,6 @@ def run(args, dag=None):
                 conf.set(section, option, value)
         settings.configure_vars()
         settings.configure_orm()
-
     if not args.pickle and not dag:
         dag = get_dag(args)
     elif not dag:
@@ -471,11 +472,13 @@ def run(args, dag=None):
 
     hostname = get_hostname()
     log.info("Running %s on host %s", ti, hostname)
-
+    log.info("args {}".format(args))
     if args.interactive:
+        log.info("running interactive")
         _run(args, dag, ti)
     else:
         with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
+            log.info("running non-interactive")
             _run(args, dag, ti)
 
 
