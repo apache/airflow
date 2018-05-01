@@ -45,6 +45,8 @@ class KubernetesPodOperator(BaseOperator):
     :type startup_timeout_seconds: int
     :param name: name for the pod
     :type name: str
+    :param env_vars: Environment variables initialized in the container
+    :type env_vars: dict
     :param secrets: Secrets to attach to the container
     :type secrets: list
     :param in_cluster: run kubernetes client with in_cluster configuration
@@ -54,7 +56,6 @@ class KubernetesPodOperator(BaseOperator):
 
     def execute(self, context):
         try:
-
             client = kube_client.get_kube_client(in_cluster=self.in_cluster)
             gen = pod_generator.PodGenerator()
 
@@ -68,6 +69,7 @@ class KubernetesPodOperator(BaseOperator):
             )
 
             pod.secrets = self.secrets
+            pod.envs = self.env_vars
 
             launcher = pod_launcher.PodLauncher(client)
             final_state = launcher.run_pod(
@@ -86,6 +88,7 @@ class KubernetesPodOperator(BaseOperator):
                  cmds,
                  arguments,
                  name,
+                 env_vars=None,
                  secrets=None,
                  in_cluster=False,
                  labels=None,
@@ -101,6 +104,7 @@ class KubernetesPodOperator(BaseOperator):
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = name
+        self.env_vars = env_vars or {}
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.get_logs = get_logs
