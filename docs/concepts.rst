@@ -47,7 +47,7 @@ scope.
 
     dag_1 = DAG('this_dag_will_be_discovered')
 
-    def my_function()
+    def my_function():
         dag_2 = DAG('but_this_dag_will_not')
 
     my_function()
@@ -64,9 +64,10 @@ any of its operators. This makes it easy to apply a common parameter to many ope
 
 .. code:: python
 
-    default_args=dict(
-        start_date=datetime(2016, 1, 1),
-        owner='Airflow')
+    default_args = {
+        'start_date': datetime(2016, 1, 1),
+        'owner': 'Airflow'
+    }
 
     dag = DAG('my_dag', default_args=default_args)
     op = DummyOperator(task_id='dummy', dag=dag)
@@ -380,7 +381,7 @@ opposed to XComs that are pushed manually).
 
 If ``xcom_pull`` is passed a single string for ``task_ids``, then the most
 recent XCom value from that task is returned; if a list of ``task_ids`` is
-passed, then a correpsonding list of XCom values is returned.
+passed, then a corresponding list of XCom values is returned.
 
 .. code:: python
 
@@ -409,7 +410,8 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. While your pipeline code definition and most of your constants
+code or CLI. In addition, json settings files can be bulk uploaded through 
+the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
 accessible and modifiable through the UI.
@@ -425,6 +427,18 @@ The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
 
+You can use a variable from a jinja template with the syntax : 
+
+.. code:: bash
+
+    echo {{ var.value.<variable_name> }}
+    
+or if you need to deserialize a json object from the variable : 
+
+.. code:: bash
+
+    echo {{ var.json.<variable_name> }}
+    
 
 Branching
 =========
@@ -731,7 +745,7 @@ doc_md      markdown
 doc_rst     reStructuredText
 ==========  ================
 
-Please note that for dags, dag_md is the only attribute interpreted.
+Please note that for dags, doc_md is the only attribute interpreted.
 
 This is especially useful if your tasks are built dynamically from
 configuration files, it allows you to expose the configuration that led

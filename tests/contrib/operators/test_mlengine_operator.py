@@ -15,21 +15,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
+import copy
 import datetime
-from apiclient import errors
-import httplib2
 import unittest
 
-from airflow import configuration, DAG
-from airflow.contrib.operators.mlengine_operator import MLEngineBatchPredictionOperator
-from airflow.contrib.operators.mlengine_operator import MLEngineTrainingOperator
+import httplib2
+from apiclient import errors
+from mock import ANY, patch
 
-from mock import ANY
-from mock import patch
+from airflow import DAG, configuration
+from airflow.contrib.operators.mlengine_operator import (MLEngineBatchPredictionOperator,
+                                                         MLEngineTrainingOperator,
+                                                         MLEngineVersionOperator)
+from airflow.exceptions import AirflowException
 
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 
@@ -58,7 +58,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
         'data_format': 'TEXT',
         'input_paths': ['gs://legal-bucket-dash-Capital/legal-input-path/*'],
         'output_path':
-            'gs://12_legal_bucket_underscore_number/legal-output-path',
+        'gs://12_legal_bucket_underscore_number/legal-output-path',
         'task_id': 'test-prediction'
     }
 
@@ -105,14 +105,12 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
 
             mock_hook.assert_called_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_once_with(
-                'test-project',
-                {
+                'test-project', {
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_model
                 }, ANY)
-            self.assertEquals(
-                success_message['predictionOutput'],
-                prediction_output)
+            self.assertEquals(success_message['predictionOutput'],
+                              prediction_output)
 
     def testSuccessWithVersion(self):
         with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
@@ -132,7 +130,8 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             hook_instance.create_job.return_value = success_message
 
             prediction_task = MLEngineBatchPredictionOperator(
-                job_id='test_prediction', project_id='test-project',
+                job_id='test_prediction',
+                project_id='test-project',
                 region=input_with_version['region'],
                 data_format=input_with_version['dataFormat'],
                 input_paths=input_with_version['inputPaths'],
@@ -145,14 +144,12 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
 
             mock_hook.assert_called_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_with(
-                'test-project',
-                {
+                'test-project', {
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_version
                 }, ANY)
-            self.assertEquals(
-                success_message['predictionOutput'],
-                prediction_output)
+            self.assertEquals(success_message['predictionOutput'],
+                              prediction_output)
 
     def testSuccessWithURI(self):
         with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
@@ -184,48 +181,51 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
 
             mock_hook.assert_called_with('google_cloud_default', None)
             hook_instance.create_job.assert_called_with(
-                'test-project',
-                {
+                'test-project', {
                     'jobId': 'test_prediction',
                     'predictionInput': input_with_uri
                 }, ANY)
-            self.assertEquals(
-                success_message['predictionOutput'],
-                prediction_output)
+            self.assertEquals(success_message['predictionOutput'],
+                              prediction_output)
 
     def testInvalidModelOrigin(self):
         # Test that both uri and model is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args['uri'] = 'gs://fake-uri/saved_model'
         task_args['model_name'] = 'fake_model'
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AirflowException) as context:
             MLEngineBatchPredictionOperator(**task_args).execute(None)
-        self.assertEquals('Ambiguous model origin.', str(context.exception))
+        self.assertEquals('Ambiguous model origin: Both uri and '
+                          'model/version name are provided.',
+                          str(context.exception))
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args['uri'] = 'gs://fake-uri/saved_model'
         task_args['model_name'] = 'fake_model'
         task_args['version_name'] = 'fake_version'
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AirflowException) as context:
             MLEngineBatchPredictionOperator(**task_args).execute(None)
-        self.assertEquals('Ambiguous model origin.', str(context.exception))
+        self.assertEquals('Ambiguous model origin: Both uri and '
+                          'model/version name are provided.',
+                          str(context.exception))
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
         task_args['version_name'] = 'bare_version'
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AirflowException) as context:
             MLEngineBatchPredictionOperator(**task_args).execute(None)
-        self.assertEquals(
-            'Missing model origin.',
-            str(context.exception))
+        self.assertEquals('Missing model: Batch prediction expects a model '
+                          'name when a version name is provided.',
+                          str(context.exception))
 
         # Test that none of uri, model, model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
-        with self.assertRaises(ValueError) as context:
+        with self.assertRaises(AirflowException) as context:
             MLEngineBatchPredictionOperator(**task_args).execute(None)
         self.assertEquals(
-            'Missing model origin.',
+            'Missing model origin: Batch prediction expects a '
+            'model, a model & version combination, or a URI to a savedModel.',
             str(context.exception))
 
     def testHttpError(self):
@@ -241,7 +241,8 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
             hook_instance.create_job.side_effect = errors.HttpError(
                 resp=httplib2.Response({
                     'status': http_error_code
-                }), content=b'Forbidden')
+                }),
+                content=b'Forbidden')
 
             with self.assertRaises(errors.HttpError) as context:
                 prediction_task = MLEngineBatchPredictionOperator(
@@ -258,8 +259,7 @@ class MLEngineBatchPredictionOperatorTest(unittest.TestCase):
 
                 mock_hook.assert_called_with('google_cloud_default', None)
                 hook_instance.create_job.assert_called_with(
-                    'test-project',
-                    {
+                    'test-project', {
                         'jobId': 'test_prediction',
                         'predictionInput': input_with_model
                     }, ANY)
@@ -313,7 +313,35 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             hook_instance = mock_hook.return_value
             hook_instance.create_job.return_value = success_response
 
-            training_op = MLEngineTrainingOperator(**self.TRAINING_DEFAULT_ARGS)
+            training_op = MLEngineTrainingOperator(
+                **self.TRAINING_DEFAULT_ARGS)
+            training_op.execute(None)
+
+            mock_hook.assert_called_with(
+                gcp_conn_id='google_cloud_default', delegate_to=None)
+            # Make sure only 'create_job' is invoked on hook instance
+            self.assertEquals(len(hook_instance.mock_calls), 1)
+            hook_instance.create_job.assert_called_with(
+                'test-project', self.TRAINING_INPUT, ANY)
+
+    def testSuccessCreateTrainingJobWithOptionalArgs(self):
+        training_input = copy.deepcopy(self.TRAINING_INPUT)
+        training_input['trainingInput']['runtimeVersion'] = '1.6'
+        training_input['trainingInput']['pythonVersion'] = '3.5'
+        training_input['trainingInput']['jobDir'] = 'gs://some-bucket/jobs/test_training'
+
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+                as mock_hook:
+            success_response = self.TRAINING_INPUT.copy()
+            success_response['state'] = 'SUCCEEDED'
+            hook_instance = mock_hook.return_value
+            hook_instance.create_job.return_value = success_response
+
+            training_op = MLEngineTrainingOperator(
+                runtime_version='1.6',
+                python_version='3.5',
+                job_dir='gs://some-bucket/jobs/test_training',
+                **self.TRAINING_DEFAULT_ARGS)
             training_op.execute(None)
 
             mock_hook.assert_called_with(gcp_conn_id='google_cloud_default',
@@ -321,7 +349,7 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             # Make sure only 'create_job' is invoked on hook instance
             self.assertEquals(len(hook_instance.mock_calls), 1)
             hook_instance.create_job.assert_called_with(
-                'test-project', self.TRAINING_INPUT, ANY)
+                'test-project', training_input, ANY)
 
     def testHttpError(self):
         http_error_code = 403
@@ -331,7 +359,8 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             hook_instance.create_job.side_effect = errors.HttpError(
                 resp=httplib2.Response({
                     'status': http_error_code
-                }), content=b'Forbidden')
+                }),
+                content=b'Forbidden')
 
             with self.assertRaises(errors.HttpError) as context:
                 training_op = MLEngineTrainingOperator(
@@ -367,6 +396,38 @@ class MLEngineTrainingOperatorTest(unittest.TestCase):
             hook_instance.create_job.assert_called_with(
                 'test-project', self.TRAINING_INPUT, ANY)
             self.assertEquals('A failure message', str(context.exception))
+
+
+class MLEngineVersionOperatorTest(unittest.TestCase):
+    VERSION_DEFAULT_ARGS = {
+        'project_id': 'test-project',
+        'model_name': 'test-model',
+        'task_id': 'test-version'
+    }
+    VERSION_INPUT = {
+        'name': 'v1',
+        'deploymentUri': 'gs://some-bucket/jobs/test_training/model.pb',
+        'runtimeVersion': '1.6'
+    }
+
+    def testSuccessCreateVersion(self):
+        with patch('airflow.contrib.operators.mlengine_operator.MLEngineHook') \
+                as mock_hook:
+            success_response = {'name': 'some-name', 'done': True}
+            hook_instance = mock_hook.return_value
+            hook_instance.create_version.return_value = success_response
+
+            training_op = MLEngineVersionOperator(
+                version=self.VERSION_INPUT,
+                **self.VERSION_DEFAULT_ARGS)
+            training_op.execute(None)
+
+            mock_hook.assert_called_with(gcp_conn_id='google_cloud_default',
+                                         delegate_to=None)
+            # Make sure only 'create_version' is invoked on hook instance
+            self.assertEquals(len(hook_instance.mock_calls), 1)
+            hook_instance.create_version.assert_called_with(
+                'test-project', 'test-model', self.VERSION_INPUT)
 
 
 if __name__ == '__main__':

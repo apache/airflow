@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import next
 from builtins import zip
@@ -80,6 +85,8 @@ class S3ToHiveTransfer(BaseOperator):
     :type input_compressed: bool
     :param tblproperties: TBLPROPERTIES of the hive table being created
     :type tblproperties: dict
+    :param select_expression: S3 Select expression
+    :type select_expression: str
     """
 
     template_fields = ('s3_key', 'partition', 'hive_table')
@@ -103,6 +110,7 @@ class S3ToHiveTransfer(BaseOperator):
             hive_cli_conn_id='hive_cli_default',
             input_compressed=False,
             tblproperties=None,
+            select_expression=None,
             *args, **kwargs):
         super(S3ToHiveTransfer, self).__init__(*args, **kwargs)
         self.s3_key = s3_key
@@ -119,6 +127,7 @@ class S3ToHiveTransfer(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.input_compressed = input_compressed
         self.tblproperties = tblproperties
+        self.select_expression = select_expression
 
         if (self.check_headers and
                 not (self.field_dict is not None and self.headers)):
@@ -141,16 +150,42 @@ class S3ToHiveTransfer(BaseOperator):
                 raise AirflowException(
                     "The key {0} does not exists".format(self.s3_key))
             s3_key_object = self.s3.get_key(self.s3_key)
+
         root, file_ext = os.path.splitext(s3_key_object.key)
+        if (self.select_expression and self.input_compressed and
+                file_ext != '.gz'):
+            raise AirflowException("GZIP is the only compression " +
+                                   "format Amazon S3 Select supports")
+
         with TemporaryDirectory(prefix='tmps32hive_') as tmp_dir,\
                 NamedTemporaryFile(mode="wb",
                                    dir=tmp_dir,
                                    suffix=file_ext) as f:
             self.log.info("Dumping S3 key {0} contents to local file {1}"
                           .format(s3_key_object.key, f.name))
-            s3_key_object.download_fileobj(f)
+            if self.select_expression:
+                option = {}
+                if self.headers:
+                    option['FileHeaderInfo'] = 'USE'
+                if self.delimiter:
+                    option['FieldDelimiter'] = self.delimiter
+
+                input_serialization = {'CSV': option}
+                if self.input_compressed:
+                    input_serialization['CompressionType'] = 'GZIP'
+
+                content = self.s3.select_key(
+                    bucket_name=s3_key_object.bucket_name,
+                    key=s3_key_object.key,
+                    expression=self.select_expression,
+                    input_serialization=input_serialization
+                )
+                f.write(content.encode("utf-8"))
+            else:
+                s3_key_object.download_fileobj(f)
             f.flush()
-            if not self.headers:
+
+            if self.select_expression or not self.headers:
                 self.log.info("Loading file %s into Hive", f.name)
                 self.hive.load_file(
                     f.name,

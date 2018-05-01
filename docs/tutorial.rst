@@ -15,7 +15,7 @@ complicated, a line by line explanation follows below.
 
     """
     Code that goes along with the Airflow tutorial located at:
-    https://github.com/airbnb/airflow/blob/master/airflow/example_dags/tutorial.py
+    https://github.com/apache/incubator-airflow/blob/master/airflow/example_dags/tutorial.py
     """
     from airflow import DAG
     from airflow.operators.bash_operator import BashOperator
@@ -129,7 +129,7 @@ of default parameters that we can use when creating tasks.
     }
 
 For more information about the BaseOperator's parameters and what they do,
-refer to the :py:class:``airflow.models.BaseOperator`` documentation.
+refer to the :py:class:`airflow.models.BaseOperator` documentation.
 
 Also, note that you could easily define different sets of arguments that
 would serve different purposes. An example of that would be to have

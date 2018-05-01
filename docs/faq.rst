@@ -12,7 +12,7 @@ Here are some of the common causes:
   confirm that your DAG shows up in the list. You can also run
   ``airflow list_tasks foo_dag_id --tree`` and confirm that your task
   shows up in the list as expected. If you use the CeleryExecutor, you
-  may way to confirm that this works both where the scheduler runs as well
+  may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
@@ -116,7 +116,7 @@ actually start, if that wasn't the case, the backfill just wouldn't start.
 How can I create DAGs dynamically?
 ----------------------------------
 
-Airflow looks in you ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
+Airflow looks in your ``DAGS_FOLDER`` for modules that contain ``DAG`` objects
 in their global namespace, and adds the objects it finds in the
 ``DagBag``. Knowing this all we need is a way to dynamically assign
 variable in the global namespace, which is easily done in python using the

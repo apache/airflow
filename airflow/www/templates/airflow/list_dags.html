@@ -172,7 +172,7 @@
               <a href="{{ url_for("airflow.refresh", dag_id=row.dag_id) }}" title="Refresh">
                 <span class="glyphicon glyphicon-refresh" aria-hidden="true"></span>
               </a>
-              <a href="/admin/log/?sort=1&desc=1&flt1_dag_id_equals={{ row.dag_id }}" title="Logs">
+              <a href="{{ url_for('log.index_view') }}?sort=1&desc=1&flt1_dag_id_equals={{ row.dag_id }}" title="Logs">
                  <i class="icon-list"></i>
                  <span class="glyphicon glyphicon-align-justify" aria-hidden="true"></span>
               </a>
@@ -276,7 +276,7 @@
               })
               .on('click', function(d, i) {
                   if (d.count > 0)
-                    window.location = "/admin/taskinstance/?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
+                    window.location = "{{ url_for('taskinstance.index_view') }}?flt1_dag_id_equals=" + d.dag_id + "&flt2_state_equals=" + d.state;
               })
               .on('mouseover', function(d, i) {
                 if (d.count > 0) {

@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from __future__ import absolute_import
 from __future__ import division
@@ -23,9 +28,14 @@ import os
 import pendulum
 import unittest
 import time
+import six
+import re
+import urllib
+import textwrap
+import inspect
 
 from airflow import configuration, models, settings, AirflowException
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
 from airflow.models import State as ST
@@ -39,11 +49,12 @@ from airflow.operators.python_operator import PythonOperator
 from airflow.operators.python_operator import ShortCircuitOperator
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 from airflow.utils import timezone
+from airflow.utils.weight_rule import WeightRule
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from mock import patch
 from parameterized import parameterized
-
+from tempfile import NamedTemporaryFile
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 TEST_DAGS_FOLDER = os.path.join(
@@ -201,6 +212,104 @@ class DagTest(unittest.TestCase):
 
         self.assertEquals(tuple(), dag.topological_sort())
 
+    def test_dag_none_default_args_start_date(self):
+        """
+        Tests if a start_date of None in default_args
+        works.
+        """
+        dag = DAG('DAG', default_args={'start_date': None})
+        self.assertEqual(dag.timezone, settings.TIMEZONE)
+
+    def test_dag_task_priority_weight_total(self):
+        width = 5
+        depth = 5
+        weight = 5
+        pattern = re.compile('stage(\\d*).(\\d*)')
+        # Fully connected parallel tasks. i.e. every task at each parallel
+        # stage is dependent on every task in the previous stage.
+        # Default weight should be calculated using downstream descendants
+        with DAG('dag', start_date=DEFAULT_DATE,
+                 default_args={'owner': 'owner1'}) as dag:
+            pipeline = [
+                [DummyOperator(
+                    task_id='stage{}.{}'.format(i, j), priority_weight=weight)
+                    for j in range(0, width)] for i in range(0, depth)
+            ]
+            for d, stage in enumerate(pipeline):
+                if d == 0:
+                    continue
+                for current_task in stage:
+                    for prev_task in pipeline[d - 1]:
+                        current_task.set_upstream(prev_task)
+
+            for task in six.itervalues(dag.task_dict):
+                match = pattern.match(task.task_id)
+                task_depth = int(match.group(1))
+                # the sum of each stages after this task + itself
+                correct_weight = ((depth - (task_depth + 1)) * width + 1) * weight
+
+                calculated_weight = task.priority_weight_total
+                self.assertEquals(calculated_weight, correct_weight)
+
+        # Same test as above except use 'upstream' for weight calculation
+        weight = 3
+        with DAG('dag', start_date=DEFAULT_DATE,
+                 default_args={'owner': 'owner1'}) as dag:
+            pipeline = [
+                [DummyOperator(
+                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    weight_rule=WeightRule.UPSTREAM)
+                    for j in range(0, width)] for i in range(0, depth)
+            ]
+            for d, stage in enumerate(pipeline):
+                if d == 0:
+                    continue
+                for current_task in stage:
+                    for prev_task in pipeline[d - 1]:
+                        current_task.set_upstream(prev_task)
+
+            for task in six.itervalues(dag.task_dict):
+                match = pattern.match(task.task_id)
+                task_depth = int(match.group(1))
+                # the sum of each stages after this task + itself
+                correct_weight = ((task_depth) * width + 1) * weight
+
+                calculated_weight = task.priority_weight_total
+                self.assertEquals(calculated_weight, correct_weight)
+
+        # Same test as above except use 'absolute' for weight calculation
+        weight = 10
+        with DAG('dag', start_date=DEFAULT_DATE,
+                 default_args={'owner': 'owner1'}) as dag:
+            pipeline = [
+                [DummyOperator(
+                    task_id='stage{}.{}'.format(i, j), priority_weight=weight,
+                    weight_rule=WeightRule.ABSOLUTE)
+                    for j in range(0, width)] for i in range(0, depth)
+            ]
+            for d, stage in enumerate(pipeline):
+                if d == 0:
+                    continue
+                for current_task in stage:
+                    for prev_task in pipeline[d - 1]:
+                        current_task.set_upstream(prev_task)
+
+            for task in six.itervalues(dag.task_dict):
+                match = pattern.match(task.task_id)
+                task_depth = int(match.group(1))
+                # the sum of each stages after this task + itself
+                correct_weight = weight
+
+                calculated_weight = task.priority_weight_total
+                self.assertEquals(calculated_weight, correct_weight)
+
+        # Test if we enter an invalid weight rule
+        with DAG('dag', start_date=DEFAULT_DATE,
+                 default_args={'owner': 'owner1'}) as dag:
+            with self.assertRaises(AirflowException):
+                DummyOperator(task_id='should_fail', weight_rule='no rule')
+
+
     def test_get_num_task_instances(self):
         test_dag_id = 'test_get_num_task_instances_dag'
         test_task_id = 'task_1'
@@ -293,6 +402,132 @@ class DagTest(unittest.TestCase):
 
         result = task.render_template('', "{{ 'world' | hello}}", dict())
         self.assertEqual(result, 'Hello world')
+
+    def test_cycle(self):
+        # test empty
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        self.assertFalse(dag.test_cycle())
+
+        # test single task
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        with dag:
+            opA = DummyOperator(task_id='A')
+
+        self.assertFalse(dag.test_cycle())
+
+        # test no cycle
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B -> C
+        #      B -> D
+        # E -> F
+        with dag:
+            opA = DummyOperator(task_id='A')
+            opB = DummyOperator(task_id='B')
+            opC = DummyOperator(task_id='C')
+            opD = DummyOperator(task_id='D')
+            opE = DummyOperator(task_id='E')
+            opF = DummyOperator(task_id='F')
+            opA.set_downstream(opB)
+            opB.set_downstream(opC)
+            opB.set_downstream(opD)
+            opE.set_downstream(opF)
+
+        self.assertFalse(dag.test_cycle())
+
+        # test self loop
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> A
+        with dag:
+            opA = DummyOperator(task_id='A')
+            opA.set_downstream(opA)
+
+        with self.assertRaises(AirflowDagCycleException):
+            dag.test_cycle()
+
+        # test downstream self loop
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B -> C -> D -> E -> E
+        with dag:
+            opA = DummyOperator(task_id='A')
+            opB = DummyOperator(task_id='B')
+            opC = DummyOperator(task_id='C')
+            opD = DummyOperator(task_id='D')
+            opE = DummyOperator(task_id='E')
+            opA.set_downstream(opB)
+            opB.set_downstream(opC)
+            opC.set_downstream(opD)
+            opD.set_downstream(opE)
+            opE.set_downstream(opE)
+
+        with self.assertRaises(AirflowDagCycleException):
+            dag.test_cycle()
+
+        # large loop
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # A -> B -> C -> D -> E -> A
+        with dag:
+            opA = DummyOperator(task_id='A')
+            opB = DummyOperator(task_id='B')
+            opC = DummyOperator(task_id='C')
+            opD = DummyOperator(task_id='D')
+            opE = DummyOperator(task_id='E')
+            opA.set_downstream(opB)
+            opB.set_downstream(opC)
+            opC.set_downstream(opD)
+            opD.set_downstream(opE)
+            opE.set_downstream(opA)
+
+        with self.assertRaises(AirflowDagCycleException):
+            dag.test_cycle()
+
+        # test arbitrary loop
+        dag = DAG(
+            'dag',
+            start_date=DEFAULT_DATE,
+            default_args={'owner': 'owner1'})
+
+        # E-> A -> B -> F -> A
+        #       -> C -> F
+        with dag:
+            opA = DummyOperator(task_id='A')
+            opB = DummyOperator(task_id='B')
+            opC = DummyOperator(task_id='C')
+            opD = DummyOperator(task_id='D')
+            opE = DummyOperator(task_id='E')
+            opF = DummyOperator(task_id='F')
+            opA.set_downstream(opB)
+            opA.set_downstream(opC)
+            opE.set_downstream(opA)
+            opC.set_downstream(opF)
+            opB.set_downstream(opF)
+            opF.set_downstream(opA)
+
+        with self.assertRaises(AirflowDagCycleException):
+            dag.test_cycle()
 
 
 class DagStatTest(unittest.TestCase):
@@ -552,6 +787,68 @@ class DagRunTest(unittest.TestCase):
         self.assertEqual(dr.state, State.RUNNING)
         self.assertEqual(dr2.state, State.RUNNING)
 
+    def test_dagrun_success_callback(self):
+        def on_success_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_success_callback'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_success_callback',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_success_callback=on_success_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_succeeded2',
+            dag=dag)
+        dag_task1.set_downstream(dag_task2)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_succeeded2': State.SUCCESS,
+        }
+
+        dag_run = self.create_dag_run(dag=dag,
+                                      state=State.RUNNING,
+                                      task_states=initial_task_states)
+        updated_dag_state = dag_run.update_state()
+        self.assertEqual(State.SUCCESS, updated_dag_state)
+
+    def test_dagrun_failure_callback(self):
+        def on_failure_callable(context):
+            self.assertEqual(
+                context['dag_run'].dag_id,
+                'test_dagrun_failure_callback'
+            )
+
+        dag = DAG(
+            dag_id='test_dagrun_failure_callback',
+            start_date=datetime.datetime(2017, 1, 1),
+            on_failure_callback=on_failure_callable,
+        )
+        dag_task1 = DummyOperator(
+            task_id='test_state_succeeded1',
+            dag=dag)
+        dag_task2 = DummyOperator(
+            task_id='test_state_failed2',
+            dag=dag)
+
+        initial_task_states = {
+            'test_state_succeeded1': State.SUCCESS,
+            'test_state_failed2': State.FAILED,
+        }
+        dag_task1.set_downstream(dag_task2)
+
+        dag_run = self.create_dag_run(dag=dag,
+                                      state=State.RUNNING,
+                                      task_states=initial_task_states)
+        updated_dag_state = dag_run.update_state()
+        self.assertEqual(State.FAILED, updated_dag_state)
+
     def test_get_task_instance_on_empty_dagrun(self):
         """
         Make sure that a proper value is returned when a dagrun has no task instances
@@ -608,6 +905,30 @@ class DagRunTest(unittest.TestCase):
         self.assertTrue(dagrun.is_backfill)
         self.assertFalse(dagrun2.is_backfill)
 
+    def test_removed_task_instances_can_be_restored(self):
+        def with_all_tasks_removed(dag):
+            return DAG(dag_id=dag.dag_id, start_date=dag.start_date)
+
+        dag = DAG('test_task_restoration', start_date=DEFAULT_DATE)
+        dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+
+        dagrun = self.create_dag_run(dag)
+        flaky_ti = dagrun.get_task_instances()[0]
+        self.assertEquals('flaky_task', flaky_ti.task_id)
+        self.assertEquals(State.NONE, flaky_ti.state)
+
+        dagrun.dag = with_all_tasks_removed(dag)
+
+        dagrun.verify_integrity()
+        flaky_ti.refresh_from_db()
+        self.assertEquals(State.REMOVED, flaky_ti.state)
+
+        dagrun.dag.add_task(DummyOperator(task_id='flaky_task', owner='test'))
+
+        dagrun.verify_integrity()
+        flaky_ti.refresh_from_db()
+        self.assertEquals(State.NONE, flaky_ti.state)
+
 class DagBagTest(unittest.TestCase):
 
     def test_get_existing_dag(self):
@@ -640,7 +961,6 @@ class DagBagTest(unittest.TestCase):
         """
         test that we're able to parse file that contains multi-byte char
         """
-        from tempfile import NamedTemporaryFile
         f = NamedTemporaryFile()
         f.write('\u3042'.encode('utf8'))  # write multi-byte char (hiragana)
         f.flush()
@@ -701,6 +1021,331 @@ class DagBagTest(unittest.TestCase):
             self.assertTrue(
                 dag.fileloc.endswith('airflow/example_dags/' + path))
 
+    def process_dag(self, create_dag):
+        """
+        Helper method to process a file generated from the input create_dag function.
+        """
+        # write source to file
+        source = textwrap.dedent(''.join(
+            inspect.getsource(create_dag).splitlines(True)[1:-1]))
+        f = NamedTemporaryFile()
+        f.write(source.encode('utf8'))
+        f.flush()
+
+        dagbag = models.DagBag(include_examples=False)
+        found_dags = dagbag.process_file(f.name)
+        return (dagbag, found_dags, f.name)
+
+    def validate_dags(self, expected_parent_dag, actual_found_dags, actual_dagbag,
+                      should_be_found=True):
+        expected_dag_ids = list(map(lambda dag: dag.dag_id, expected_parent_dag.subdags))
+        expected_dag_ids.append(expected_parent_dag.dag_id)
+
+        actual_found_dag_ids = list(map(lambda dag: dag.dag_id, actual_found_dags))
+
+        for dag_id in expected_dag_ids:
+            actual_dagbag.log.info('validating %s' % dag_id)
+            self.assertEquals(
+                dag_id in actual_found_dag_ids, should_be_found,
+                'dag "%s" should %shave been found after processing dag "%s"' %
+                (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
+            )
+            self.assertEquals(
+                dag_id in actual_dagbag.dags, should_be_found,
+                'dag "%s" should %sbe in dagbag.dags after processing dag "%s"' %
+                (dag_id, '' if should_be_found else 'not ', expected_parent_dag.dag_id)
+            )
+
+    def test_load_subdags(self):
+        # Define Dag to load
+        def standard_subdag():
+            from airflow.models import DAG
+            from airflow.operators.dummy_operator import DummyOperator
+            from airflow.operators.subdag_operator import SubDagOperator
+            import datetime
+            DAG_NAME = 'master'
+            DEFAULT_ARGS = {
+                'owner': 'owner1',
+                'start_date': datetime.datetime(2016, 1, 1)
+            }
+            dag = DAG(
+                DAG_NAME,
+                default_args=DEFAULT_ARGS)
+
+            # master:
+            #     A -> opSubDag_0
+            #          master.opsubdag_0:
+            #              -> subdag_0.task
+            #     A -> opSubDag_1
+            #          master.opsubdag_1:
+            #              -> subdag_1.task
+
+            with dag:
+                def subdag_0():
+                    subdag_0 = DAG('master.opSubdag_0', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_0.task', dag=subdag_0)
+                    return subdag_0
+
+                def subdag_1():
+                    subdag_1 = DAG('master.opSubdag_1', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_1.task', dag=subdag_1)
+                    return subdag_1
+
+                opSubdag_0 = SubDagOperator(
+                    task_id='opSubdag_0', dag=dag, subdag=subdag_0())
+                opSubdag_1 = SubDagOperator(
+                    task_id='opSubdag_1', dag=dag, subdag=subdag_1())
+
+                opA = DummyOperator(task_id='A')
+                opA.set_downstream(opSubdag_0)
+                opA.set_downstream(opSubdag_1)
+            return dag
+
+        testDag = standard_subdag()
+        # sanity check to make sure DAG.subdag is still functioning properly
+        self.assertEqual(len(testDag.subdags), 2)
+
+        # Perform processing dag
+        dagbag, found_dags, _ = self.process_dag(standard_subdag)
+
+        # Validate correctness
+        # all dags from testDag should be listed
+        self.validate_dags(testDag, found_dags, dagbag)
+
+        # Define Dag to load
+        def nested_subdags():
+            from airflow.models import DAG
+            from airflow.operators.dummy_operator import DummyOperator
+            from airflow.operators.subdag_operator import SubDagOperator
+            import datetime
+            DAG_NAME = 'master'
+            DEFAULT_ARGS = {
+                'owner': 'owner1',
+                'start_date': datetime.datetime(2016, 1, 1)
+            }
+            dag = DAG(
+                DAG_NAME,
+                default_args=DEFAULT_ARGS)
+
+            # master:
+            #     A -> opSubdag_0
+            #          master.opSubdag_0:
+            #              -> opSubDag_A
+            #                 master.opSubdag_0.opSubdag_A:
+            #                     -> subdag_A.task
+            #              -> opSubdag_B
+            #                 master.opSubdag_0.opSubdag_B:
+            #                     -> subdag_B.task
+            #     A -> opSubdag_1
+            #          master.opSubdag_1:
+            #              -> opSubdag_C
+            #                 master.opSubdag_1.opSubdag_C:
+            #                     -> subdag_C.task
+            #              -> opSubDag_D
+            #                 master.opSubdag_1.opSubdag_D:
+            #                     -> subdag_D.task
+
+            with dag:
+                def subdag_A():
+                    subdag_A = DAG(
+                        'master.opSubdag_0.opSubdag_A', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_A.task', dag=subdag_A)
+                    return subdag_A
+
+                def subdag_B():
+                    subdag_B = DAG(
+                        'master.opSubdag_0.opSubdag_B', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_B.task', dag=subdag_B)
+                    return subdag_B
+
+                def subdag_C():
+                    subdag_C = DAG(
+                        'master.opSubdag_1.opSubdag_C', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_C.task', dag=subdag_C)
+                    return subdag_C
+
+                def subdag_D():
+                    subdag_D = DAG(
+                        'master.opSubdag_1.opSubdag_D', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_D.task', dag=subdag_D)
+                    return subdag_D
+
+                def subdag_0():
+                    subdag_0 = DAG('master.opSubdag_0', default_args=DEFAULT_ARGS)
+                    SubDagOperator(task_id='opSubdag_A', dag=subdag_0, subdag=subdag_A())
+                    SubDagOperator(task_id='opSubdag_B', dag=subdag_0, subdag=subdag_B())
+                    return subdag_0
+
+                def subdag_1():
+                    subdag_1 = DAG('master.opSubdag_1', default_args=DEFAULT_ARGS)
+                    SubDagOperator(task_id='opSubdag_C', dag=subdag_1, subdag=subdag_C())
+                    SubDagOperator(task_id='opSubdag_D', dag=subdag_1, subdag=subdag_D())
+                    return subdag_1
+
+                opSubdag_0 = SubDagOperator(
+                    task_id='opSubdag_0', dag=dag, subdag=subdag_0())
+                opSubdag_1 = SubDagOperator(
+                    task_id='opSubdag_1', dag=dag, subdag=subdag_1())
+
+                opA = DummyOperator(task_id='A')
+                opA.set_downstream(opSubdag_0)
+                opA.set_downstream(opSubdag_1)
+
+            return dag
+
+        testDag = nested_subdags()
+        # sanity check to make sure DAG.subdag is still functioning properly
+        self.assertEqual(len(testDag.subdags), 6)
+
+        # Perform processing dag
+        dagbag, found_dags, _ = self.process_dag(nested_subdags)
+
+        # Validate correctness
+        # all dags from testDag should be listed
+        self.validate_dags(testDag, found_dags, dagbag)
+
+    def test_skip_cycle_dags(self):
+        """
+        Don't crash when loading an invalid (contains a cycle) DAG file.
+        Don't load the dag into the DagBag either
+        """
+        # Define Dag to load
+        def basic_cycle():
+            from airflow.models import DAG
+            from airflow.operators.dummy_operator import DummyOperator
+            import datetime
+            DAG_NAME = 'cycle_dag'
+            DEFAULT_ARGS = {
+                'owner': 'owner1',
+                'start_date': datetime.datetime(2016, 1, 1)
+            }
+            dag = DAG(
+                DAG_NAME,
+                default_args=DEFAULT_ARGS)
+
+            # A -> A
+            with dag:
+                opA = DummyOperator(task_id='A')
+                opA.set_downstream(opA)
+
+            return dag
+
+        testDag = basic_cycle()
+        # sanity check to make sure DAG.subdag is still functioning properly
+        self.assertEqual(len(testDag.subdags), 0)
+
+        # Perform processing dag
+        dagbag, found_dags, file_path = self.process_dag(basic_cycle)
+
+        # #Validate correctness
+        # None of the dags should be found
+        self.validate_dags(testDag, found_dags, dagbag, should_be_found=False)
+        self.assertIn(file_path, dagbag.import_errors)
+
+        # Define Dag to load
+        def nested_subdag_cycle():
+            from airflow.models import DAG
+            from airflow.operators.dummy_operator import DummyOperator
+            from airflow.operators.subdag_operator import SubDagOperator
+            import datetime
+            DAG_NAME = 'nested_cycle'
+            DEFAULT_ARGS = {
+                'owner': 'owner1',
+                'start_date': datetime.datetime(2016, 1, 1)
+            }
+            dag = DAG(
+                DAG_NAME,
+                default_args=DEFAULT_ARGS)
+
+            # cycle:
+            #     A -> opSubdag_0
+            #          cycle.opSubdag_0:
+            #              -> opSubDag_A
+            #                 cycle.opSubdag_0.opSubdag_A:
+            #                     -> subdag_A.task
+            #              -> opSubdag_B
+            #                 cycle.opSubdag_0.opSubdag_B:
+            #                     -> subdag_B.task
+            #     A -> opSubdag_1
+            #          cycle.opSubdag_1:
+            #              -> opSubdag_C
+            #                 cycle.opSubdag_1.opSubdag_C:
+            #                     -> subdag_C.task -> subdag_C.task  >Invalid Loop<
+            #              -> opSubDag_D
+            #                 cycle.opSubdag_1.opSubdag_D:
+            #                     -> subdag_D.task
+
+            with dag:
+                def subdag_A():
+                    subdag_A = DAG(
+                        'nested_cycle.opSubdag_0.opSubdag_A', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_A.task', dag=subdag_A)
+                    return subdag_A
+
+                def subdag_B():
+                    subdag_B = DAG(
+                        'nested_cycle.opSubdag_0.opSubdag_B', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_B.task', dag=subdag_B)
+                    return subdag_B
+
+                def subdag_C():
+                    subdag_C = DAG(
+                        'nested_cycle.opSubdag_1.opSubdag_C', default_args=DEFAULT_ARGS)
+                    opSubdag_C_task = DummyOperator(
+                        task_id='subdag_C.task', dag=subdag_C)
+                    # introduce a loop in opSubdag_C
+                    opSubdag_C_task.set_downstream(opSubdag_C_task)
+                    return subdag_C
+
+                def subdag_D():
+                    subdag_D = DAG(
+                        'nested_cycle.opSubdag_1.opSubdag_D', default_args=DEFAULT_ARGS)
+                    DummyOperator(task_id='subdag_D.task', dag=subdag_D)
+                    return subdag_D
+
+                def subdag_0():
+                    subdag_0 = DAG('nested_cycle.opSubdag_0', default_args=DEFAULT_ARGS)
+                    SubDagOperator(task_id='opSubdag_A', dag=subdag_0, subdag=subdag_A())
+                    SubDagOperator(task_id='opSubdag_B', dag=subdag_0, subdag=subdag_B())
+                    return subdag_0
+
+                def subdag_1():
+                    subdag_1 = DAG('nested_cycle.opSubdag_1', default_args=DEFAULT_ARGS)
+                    SubDagOperator(task_id='opSubdag_C', dag=subdag_1, subdag=subdag_C())
+                    SubDagOperator(task_id='opSubdag_D', dag=subdag_1, subdag=subdag_D())
+                    return subdag_1
+
+                opSubdag_0 = SubDagOperator(
+                    task_id='opSubdag_0', dag=dag, subdag=subdag_0())
+                opSubdag_1 = SubDagOperator(
+                    task_id='opSubdag_1', dag=dag, subdag=subdag_1())
+
+                opA = DummyOperator(task_id='A')
+                opA.set_downstream(opSubdag_0)
+                opA.set_downstream(opSubdag_1)
+
+            return dag
+
+        testDag = nested_subdag_cycle()
+        # sanity check to make sure DAG.subdag is still functioning properly
+        self.assertEqual(len(testDag.subdags), 6)
+
+        # Perform processing dag
+        dagbag, found_dags, file_path = self.process_dag(nested_subdag_cycle)
+
+        # Validate correctness
+        # None of the dags should be found
+        self.validate_dags(testDag, found_dags, dagbag, should_be_found=False)
+        self.assertIn(file_path, dagbag.import_errors)
+
+    def test_process_file_with_none(self):
+        """
+        test that process_file can handle Nones
+        """
+        dagbag = models.DagBag(include_examples=True)
+
+        self.assertEqual([], dagbag.process_file(None))
+
 
 class TaskInstanceTest(unittest.TestCase):
 
@@ -742,6 +1387,29 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertTrue(
             op3.end_date == DEFAULT_DATE + datetime.timedelta(days=9))
 
+    def test_timezone_awareness(self):
+        NAIVE_DATETIME = DEFAULT_DATE.replace(tzinfo=None)
+
+        # check ti without dag (just for bw compat)
+        op_no_dag = DummyOperator(task_id='op_no_dag')
+        ti = TI(task=op_no_dag, execution_date=NAIVE_DATETIME)
+
+        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+
+        # check with dag without localized execution_date
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        op1 = DummyOperator(task_id='op_1')
+        dag.add_task(op1)
+        ti = TI(task=op1, execution_date=NAIVE_DATETIME)
+
+        self.assertEquals(ti.execution_date, DEFAULT_DATE)
+
+        # with dag and localized execution_date
+        tz = pendulum.timezone("Europe/Amsterdam")
+        execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tz)
+        utc_date = timezone.convert_to_utc(execution_date)
+        ti = TI(task=op1, execution_date=execution_date)
+        self.assertEquals(ti.execution_date, utc_date)
 
     def test_set_dag(self):
         """
@@ -1135,6 +1803,43 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(completed, expect_completed)
         self.assertEqual(ti.state, expect_state)
 
+    def test_xcom_pull(self):
+        """
+        Test xcom_pull, using different filtering methods.
+        """
+        dag = models.DAG(
+            dag_id='test_xcom', schedule_interval='@monthly',
+            start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
+
+        exec_date = timezone.utcnow()
+
+        # Push a value
+        task1 = DummyOperator(task_id='test_xcom_1', dag=dag, owner='airflow')
+        ti1 = TI(task=task1, execution_date=exec_date)
+        ti1.xcom_push(key='foo', value='bar')
+
+        # Push another value with the same key (but by a different task)
+        task2 = DummyOperator(task_id='test_xcom_2', dag=dag, owner='airflow')
+        ti2 = TI(task=task2, execution_date=exec_date)
+        ti2.xcom_push(key='foo', value='baz')
+
+        # Pull with no arguments
+        result = ti1.xcom_pull()
+        self.assertEqual(result, None)
+        # Pull the value pushed most recently by any task.
+        result = ti1.xcom_pull(key='foo')
+        self.assertIn(result, 'baz')
+        # Pull the value pushed by the first task
+        result = ti1.xcom_pull(task_ids='test_xcom_1', key='foo')
+        self.assertEqual(result, 'bar')
+        # Pull the value pushed by the second task
+        result = ti1.xcom_pull(task_ids='test_xcom_2', key='foo')
+        self.assertEqual(result, 'baz')
+        # Pull the values pushed by both tasks
+        result = ti1.xcom_pull(
+            task_ids=['test_xcom_1', 'test_xcom_2'], key='foo')
+        self.assertEqual(result, ('bar', 'baz'))
+
     def test_xcom_pull_after_success(self):
         """
         tests xcom set/clear relative to a task in a 'success' rerun scenario
@@ -1286,6 +1991,30 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEquals(1, ti1.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti2.get_num_running_task_instances(session=session))
         self.assertEquals(1, ti3.get_num_running_task_instances(session=session))
+
+    def test_log_url(self):
+        now = pendulum.now('Europe/Brussels')
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=now)
+        d = urllib.parse.parse_qs(
+            urllib.parse.urlparse(ti.log_url).query,
+            keep_blank_values=True, strict_parsing=True)
+        self.assertEqual(d['dag_id'][0], 'dag')
+        self.assertEqual(d['task_id'][0], 'op')
+        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+
+    def test_mark_success_url(self):
+        now = pendulum.now('Europe/Brussels')
+        dag = DAG('dag', start_date=DEFAULT_DATE)
+        task = DummyOperator(task_id='op', dag=dag)
+        ti = TI(task=task, execution_date=now)
+        d = urllib.parse.parse_qs(
+            urllib.parse.urlparse(ti.mark_success_url).query,
+            keep_blank_values=True, strict_parsing=True)
+        self.assertEqual(d['dag_id'][0], 'dag')
+        self.assertEqual(d['task_id'][0], 'op')
+        self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
 
 
 class ClearTasksTest(unittest.TestCase):

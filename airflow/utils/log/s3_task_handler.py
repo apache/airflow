@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import os
 
 from airflow import configuration
@@ -33,7 +38,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         self.upload_on_close = True
 
     def _build_hook(self):
-        remote_conn_id = configuration.get('core', 'REMOTE_LOG_CONN_ID')
+        remote_conn_id = configuration.conf.get('core', 'REMOTE_LOG_CONN_ID')
         try:
             from airflow.hooks.S3_hook import S3Hook
             return S3Hook(remote_conn_id)
@@ -55,7 +60,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Local location and remote location is needed to open and
         # upload local log file to S3 remote storage.
         self.log_relative_path = self._render_filename(ti, ti.try_number)
-        self.upload_on_close = not ti.is_raw
+        self.upload_on_close = not ti.raw
 
     def close(self):
         """
@@ -84,12 +89,14 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
         # Mark closed so we don't double write if close is called twice
         self.closed = True
 
-    def _read(self, ti, try_number):
+    def _read(self, ti, try_number, metadata=None):
         """
         Read logs of given task instance and try_number from S3 remote storage.
         If failed, read the log from task instance host machine.
         :param ti: task instance object
         :param try_number: task instance try_number to read logs from
+        :param metadata: log metadata,
+                         can be used for steaming log reading and auto-tailing.
         """
         # Explicitly getting log relative path is necessary as the given
         # task instance might be different than task instance passed in
@@ -104,10 +111,9 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             remote_log = self.s3_read(remote_loc, return_error=True)
             log = '*** Reading remote log from {}.\n{}\n'.format(
                 remote_loc, remote_log)
+            return log, {'end_of_log': True}
         else:
-            log = super(S3TaskHandler, self)._read(ti, try_number)
-
-        return log
+            return super(S3TaskHandler, self)._read(ti, try_number)
 
     def s3_log_exists(self, remote_log_location):
         """
@@ -161,7 +167,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
                 log,
                 key=remote_log_location,
                 replace=True,
-                encrypt=configuration.getboolean('core', 'ENCRYPT_S3_LOGS'),
+                encrypt=configuration.conf.getboolean('core', 'ENCRYPT_S3_LOGS'),
             )
         except:
             self.log.exception('Could not write logs to %s', remote_log_location)

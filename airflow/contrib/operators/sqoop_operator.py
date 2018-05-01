@@ -1,21 +1,28 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 """
 This module contains a sqoop 1 operator
 """
+import os
+import signal
 
 from airflow.contrib.hooks.sqoop_hook import SqoopHook
 from airflow.exceptions import AirflowException
@@ -148,22 +155,24 @@ class SqoopOperator(BaseOperator):
         self.hcatalog_table = hcatalog_table
         self.create_hcatalog_table = create_hcatalog_table
         self.properties = properties
-        self.extra_import_options = extra_import_options
-        self.extra_export_options = extra_export_options
+        self.extra_import_options = extra_import_options or {}
+        self.extra_export_options = extra_export_options or {}
 
     def execute(self, context):
         """
         Execute sqoop job
         """
-        hook = SqoopHook(conn_id=self.conn_id,
-                         verbose=self.verbose,
-                         num_mappers=self.num_mappers,
-                         hcatalog_database=self.hcatalog_database,
-                         hcatalog_table=self.hcatalog_table,
-                         properties=self.properties)
+        self.hook = SqoopHook(
+            conn_id=self.conn_id,
+            verbose=self.verbose,
+            num_mappers=self.num_mappers,
+            hcatalog_database=self.hcatalog_database,
+            hcatalog_table=self.hcatalog_table,
+            properties=self.properties
+        )
 
         if self.cmd_type == 'export':
-            hook.export_table(
+            self.hook.export_table(
                 table=self.table,
                 export_dir=self.export_dir,
                 input_null_string=self.input_null_string,
@@ -185,10 +194,12 @@ class SqoopOperator(BaseOperator):
                 self.extra_import_options['create-hcatalog-table'] = ''
 
             if self.table and self.query:
-                raise AirflowException('Cannot specify query and table together. Need to specify either or.')
+                raise AirflowException(
+                    'Cannot specify query and table together. Need to specify either or.'
+                )
 
             if self.table:
-                hook.import_table(
+                self.hook.import_table(
                     table=self.table,
                     target_dir=self.target_dir,
                     append=self.append,
@@ -200,7 +211,7 @@ class SqoopOperator(BaseOperator):
                     driver=self.driver,
                     extra_import_options=self.extra_import_options)
             elif self.query:
-                hook.import_query(
+                self.hook.import_query(
                     query=self.query,
                     target_dir=self.target_dir,
                     append=self.append,
@@ -215,3 +226,7 @@ class SqoopOperator(BaseOperator):
                 )
         else:
             raise AirflowException("cmd_type should be 'import' or 'export'")
+
+    def on_kill(self):
+        self.log.info('Sending SIGTERM signal to bash process group')
+        os.killpg(os.getpgid(self.hook.sp.pid), signal.SIGTERM)

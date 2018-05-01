@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import json
 
@@ -88,7 +93,7 @@ class DockerOperator(BaseOperator):
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
     """
-    template_fields = ('command',)
+    template_fields = ('command', 'environment',)
     template_ext = ('.sh', '.bash',)
 
     @apply_defaults
@@ -140,6 +145,7 @@ class DockerOperator(BaseOperator):
         self.xcom_push_flag = xcom_push
         self.xcom_all = xcom_all
         self.docker_conn_id = docker_conn_id
+        self.shm_size = kwargs.get('shm_size')
 
         self.cli = None
         self.container = None
@@ -147,7 +153,7 @@ class DockerOperator(BaseOperator):
     def get_hook(self):
         return DockerHook(
             docker_conn_id=self.docker_conn_id,
-            base_url=self.base_url,
+            base_url=self.docker_url,
             version=self.api_version,
             tls=self.__get_tls_config()
         )
@@ -184,15 +190,17 @@ class DockerOperator(BaseOperator):
             self.volumes.append('{0}:{1}'.format(host_tmp_dir, self.tmp_dir))
 
             self.container = self.cli.create_container(
-                    command=self.get_command(),
-                    cpu_shares=cpu_shares,
-                    environment=self.environment,
-                    host_config=self.cli.create_host_config(binds=self.volumes,
-                                                            network_mode=self.network_mode),
-                    image=image,
-                    mem_limit=self.mem_limit,
-                    user=self.user,
-                    working_dir=self.working_dir
+                command=self.get_command(),
+                cpu_shares=cpu_shares,
+                environment=self.environment,
+                host_config=self.cli.create_host_config(
+                    binds=self.volumes,
+                    network_mode=self.network_mode,
+                    shm_size=self.shm_size),
+                image=image,
+                mem_limit=self.mem_limit,
+                user=self.user,
+                working_dir=self.working_dir
             )
             self.cli.start(self.container['Id'])
 

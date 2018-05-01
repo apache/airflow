@@ -1,31 +1,35 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import airflow.api
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+from flask import (
+    g, Blueprint, jsonify, request, url_for
+)
 
+import airflow.api
+from airflow.api.common.experimental import delete_dag as delete
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.exceptions import AirflowException
-from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.www.app import csrf
-
-from flask import (
-    g, Markup, Blueprint, redirect, jsonify, abort,
-    request, current_app, send_file, url_for
-)
 
 _log = LoggingMixin().log
 
@@ -62,8 +66,8 @@ def trigger_dag(dag_id):
         except ValueError:
             error_message = (
                 'Given execution date, {}, could not be identified '
-                'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-                .format(execution_date))
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+                    execution_date))
             _log.info(error_message)
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -83,6 +87,23 @@ def trigger_dag(dag_id):
 
     response = jsonify(message="Created {}".format(dr))
     return response
+
+
+@csrf.exempt
+@api_experimental.route('/dags/<string:dag_id>', methods=['DELETE'])
+@requires_authentication
+def delete_dag(dag_id):
+    """
+    Delete all DB records related to the specified Dag.
+    """
+    try:
+        count = delete.delete_dag(dag_id)
+    except AirflowException as e:
+        _log.error(e)
+        response = jsonify(error="{}".format(e))
+        response.status_code = getattr(e, 'status', 500)
+        return response
+    return jsonify(message="Removed {} record(s)".format(count), count=count)
 
 
 @api_experimental.route('/test', methods=['GET'])
@@ -110,7 +131,9 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
-@api_experimental.route('/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>', methods=['GET'])
+@api_experimental.route(
+    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/tasks/<string:task_id>',
+    methods=['GET'])
 @requires_authentication
 def task_instance_info(dag_id, execution_date, task_id):
     """
@@ -126,8 +149,8 @@ def task_instance_info(dag_id, execution_date, task_id):
     except ValueError:
         error_message = (
             'Given execution date, {}, could not be identified '
-            'as a date. Example date format: 2015-11-16T14:34:15+00:00'
-            .format(execution_date))
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(
+                execution_date))
         _log.info(error_message)
         response = jsonify({'error': error_message})
         response.status_code = 400

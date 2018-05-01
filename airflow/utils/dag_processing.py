@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 from __future__ import absolute_import
 from __future__ import division
@@ -304,6 +309,7 @@ class DagFileProcessorManager(LoggingMixin):
                  file_paths,
                  parallelism,
                  process_file_interval,
+                 min_file_parsing_loop_time,
                  max_runs,
                  processor_factory):
         """
@@ -317,6 +323,9 @@ class DagFileProcessorManager(LoggingMixin):
         :param process_file_interval: process a file at most once every this
         many seconds
         :type process_file_interval: float
+        :param min_file_parsing_loop_time: wait until at least this many seconds have
+        passed before parsing files once all files have finished parsing.
+        :type min_file_parsing_loop_time: float
         :param max_runs: The number of times to parse and schedule each file. -1
         for unlimited.
         :type max_runs: int
@@ -332,6 +341,7 @@ class DagFileProcessorManager(LoggingMixin):
         self._dag_directory = dag_directory
         self._max_runs = max_runs
         self._process_file_interval = process_file_interval
+        self._min_file_parsing_loop_time = min_file_parsing_loop_time
         self._processor_factory = processor_factory
         # Map from file path to the processor
         self._processors = {}
@@ -451,7 +461,7 @@ class DagFileProcessorManager(LoggingMixin):
     def heartbeat(self):
         """
         This should be periodically called by the scheduler. This method will
-        kick of new processes to process DAG definition files and read the
+        kick off new processes to process DAG definition files and read the
         results from the finished processors.
 
         :return: a list of SimpleDags that were produced by processors that
@@ -476,6 +486,12 @@ class DagFileProcessorManager(LoggingMixin):
                 running_processors[file_path] = processor
         self._processors = running_processors
 
+        self.log.debug("%s/%s scheduler processes running",
+                       len(self._processors), self._parallelism)
+
+        self.log.debug("%s file paths queued for processing",
+                       len(self._file_path_queue))
+
         # Collect all the DAGs that were found in the processed files
         simple_dags = []
         for file_path, processor in finished_processors.items():
@@ -496,12 +512,24 @@ class DagFileProcessorManager(LoggingMixin):
             file_paths_in_progress = self._processors.keys()
             now = timezone.utcnow()
             file_paths_recently_processed = []
+
+            longest_parse_duration = 0
             for file_path in self._file_paths:
                 last_finish_time = self.get_last_finish_time(file_path)
-                if (last_finish_time is not None and
-                    (now - last_finish_time).total_seconds() <
-                        self._process_file_interval):
-                    file_paths_recently_processed.append(file_path)
+                if last_finish_time is not None:
+                    duration = now - last_finish_time
+                    longest_parse_duration = max(duration.total_seconds(),
+                                                 longest_parse_duration)
+                    if duration.total_seconds() < self._process_file_interval:
+                        file_paths_recently_processed.append(file_path)
+
+            sleep_length = max(self._min_file_parsing_loop_time - longest_parse_duration,
+                               0)
+            if sleep_length > 0:
+                self.log.debug("Sleeping for %.2f seconds to prevent excessive "
+                               "logging",
+                               sleep_length)
+                time.sleep(sleep_length)
 
             files_paths_at_run_limit = [file_path
                                         for file_path, num_runs in self._run_count.items()

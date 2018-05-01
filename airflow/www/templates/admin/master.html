@@ -85,7 +85,7 @@
         <ul class="nav navbar-nav navbar-right">
             <li><a id="clock"></a></li>
             {% if current_user.is_authenticated %}
-              <li><a href="{{ url_for('airflow.logout') }}"><span data-toggle="tooltip" data-placement="left" title="Logout" class="glyphicon glyphicon-off"></span></a></li>
+              <li><a href="{{ url_for('airflow.logout') }}"><span data-toggle="tooltip" data-placement="left" title="Logout" class="glyphicon glyphicon-log-out"></span></a></li>
             {% endif %}
         </ul>
           <ul class="nav navbar-nav navbar-right">

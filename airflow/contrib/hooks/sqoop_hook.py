@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 """
@@ -88,21 +93,22 @@ class SqoopHook(BaseHook, LoggingMixin):
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         :return: handle to subprocess
         """
-        self.log.info("Executing command: {}".format(' '.join(self.cmd_mask_password(cmd))))
-        sp = subprocess.Popen(cmd,
+        masked_cmd = ' '.join(self.cmd_mask_password(cmd))
+        self.log.info("Executing command: {}".format(masked_cmd))
+        self.sp = subprocess.Popen(cmd,
                               stdout=subprocess.PIPE,
                               stderr=subprocess.STDOUT,
                               **kwargs)
 
-        for line in iter(sp.stdout):
+        for line in iter(self.sp.stdout):
             self.log.info(line.strip())
 
-        sp.wait()
+        self.sp.wait()
 
-        self.log.info("Command exited with return code %s", sp.returncode)
+        self.log.info("Command exited with return code %s", self.sp.returncode)
 
-        if sp.returncode:
-            raise AirflowException("Sqoop command failed: {}".format(' '.join(self.cmd_mask_password(cmd))))
+        if self.sp.returncode:
+            raise AirflowException("Sqoop command failed: {}".format(masked_cmd))
 
     def _prepare_command(self, export=False):
         sqoop_cmd_type = "export" if export else "import"

@@ -294,7 +294,6 @@ backend. In order to setup an application:
 
 1. Navigate to https://console.developers.google.com/apis/
 2. Select 'Credentials' from the left hand nav
-2. Select 'Credentials' from the left hand nav
 3. Click 'Create credentials' and choose 'OAuth client ID'
 4. Choose 'Web application'
 5. Fill in the required information (the 'Authorized redirect URIs' must be fully qualifed e.g. http://airflow.example.com/oauth2callback)
