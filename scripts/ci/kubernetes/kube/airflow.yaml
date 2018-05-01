@@ -61,7 +61,7 @@ spec:
           - "bash"
         args:
           - "-cx"
-          - "cd /usr/local/lib/python2.7/dist-packages/airflow && cp -R example_dags/* /root/airflow/dags/ && airflow initdb && alembic upgrade heads"
+          - "./tmp/airflow-init.sh"
       containers:
       - name: webserver
         image: airflow
@@ -88,20 +88,20 @@ spec:
           mountPath: /root/airflow/dags
         - name: airflow-logs
           mountPath: /root/airflow/logs
-        readinessProbe:
-          initialDelaySeconds: 5
-          timeoutSeconds: 5
-          periodSeconds: 5
-          httpGet:
-            path: /admin
-            port: 8080
-        livenessProbe:
-          initialDelaySeconds: 5
-          timeoutSeconds: 5
-          failureThreshold: 5
-          httpGet:
-            path: /admin
-            port: 8080
+#        readinessProbe:
+#          initialDelaySeconds: 5
+#          timeoutSeconds: 5
+#          periodSeconds: 5
+#          httpGet:
+#            path: /login
+#            port: 8080
+#        livenessProbe:
+#          initialDelaySeconds: 5
+#          timeoutSeconds: 5
+#          failureThreshold: 5
+#          httpGet:
+#            path: /login
+#            port: 8080
       - name: scheduler
         image: airflow
         imagePullPolicy: IfNotPresent

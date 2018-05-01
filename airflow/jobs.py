@@ -189,7 +189,6 @@ class BaseJob(Base, LoggingMixin):
         Stats.incr(self.__class__.__name__.lower() + '_start', 1, 1)
         # Adding an entry in the DB
         with create_session() as session:
-            self.log.info("setting state to running")
             self.state = State.RUNNING
             session.add(self)
             session.commit()

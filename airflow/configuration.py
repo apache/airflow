@@ -216,18 +216,6 @@ class AirflowConfigParser(ConfigParser):
                 "section/key [{section}/{key}] not found "
                 "in config".format(**locals()))
 
-    def safe_get(self, section, option, default):
-        try:
-            return self.get(section, option)
-        except AirflowConfigException:
-            return default
-
-    def safe_getboolean(self, section, option, default):
-        try:
-            return self.getboolean(section, option)
-        except AirflowConfigException:
-            return default
-
     def getboolean(self, section, key):
         val = str(self.get(section, key)).lower().strip()
         if '#' in val:
@@ -454,7 +442,10 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     )
     with open(AIRFLOW_CONFIG, 'w') as f:
         cfg = parameterized_config(DEFAULT_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
+        cfg = cfg.split(TEMPLATE_START)[-1].strip()
+        if six.PY2:
+            cfg = cfg.encode('utf8')
+        f.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 

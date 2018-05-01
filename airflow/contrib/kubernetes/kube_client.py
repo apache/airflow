@@ -26,6 +26,6 @@ def _load_kube_config(in_cluster):
         return client.CoreV1Api()
 
 
-def get_kube_client(in_cluster=conf.safe_getboolean('kubernetes', 'in_cluster', True)):
+def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster')):
     # TODO: This should also allow people to point to a cluster.
     return _load_kube_config(in_cluster)

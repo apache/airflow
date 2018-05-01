@@ -84,9 +84,6 @@ class KubernetesExecutorConfig:
         }
 
 
-
-
-
 class KubeConfig:
     core_section = 'core'
     kubernetes_section = 'kubernetes'
@@ -104,40 +101,37 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_tag')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
-        self.delete_worker_pods = conf.safe_getboolean(
-            self.kubernetes_section, 'delete_worker_pods', True)
+        self.delete_worker_pods = conf.getboolean(
+            self.kubernetes_section, 'delete_worker_pods')
 
-        self.worker_service_account_name = conf.safe_get(
-            self.kubernetes_section, 'worker_service_account_name', 'default')
-        self.image_pull_secrets = conf.safe_get(
-            self.kubernetes_section, 'image_pull_secrets', '')
+        self.worker_service_account_name = conf.get(
+            self.kubernetes_section, 'worker_service_account_name')
+        self.image_pull_secrets = conf.get(self.kubernetes_section, 'image_pull_secrets')
 
         # NOTE: `git_repo` and `git_branch` must be specified together as a pair
         # The http URL of the git repository to clone from
-        self.git_repo = conf.safe_get(self.kubernetes_section, 'git_repo', None)
+        self.git_repo = conf.get(self.kubernetes_section, 'git_repo')
         # The branch of the repository to be checked out
-        self.git_branch = conf.safe_get(self.kubernetes_section, 'git_branch', None)
+        self.git_branch = conf.get(self.kubernetes_section, 'git_branch')
         # Optionally, the directory in the git repository containing the dags
-        self.git_subpath = conf.safe_get(self.kubernetes_section, 'git_subpath', '')
+        self.git_subpath = conf.get(self.kubernetes_section, 'git_subpath')
 
         # Optionally a user may supply a `git_user` and `git_password` for private
         # repositories
-        self.git_user = conf.safe_get(self.kubernetes_section, 'git_user', None)
-        self.git_password = conf.safe_get(self.kubernetes_section, 'git_password', None)
+        self.git_user = conf.get(self.kubernetes_section, 'git_user')
+        self.git_password = conf.get(self.kubernetes_section, 'git_password')
 
         # NOTE: The user may optionally use a volume claim to mount a PV containing
         # DAGs directly
-        self.dags_volume_claim = conf.safe_get(self.kubernetes_section,
-                                               'dags_volume_claim', None)
+        self.dags_volume_claim = conf.get(self.kubernetes_section, 'dags_volume_claim')
 
         # This prop may optionally be set for PV Claims and is used to write logs
-        self.logs_volume_claim = conf.safe_get(
-            self.kubernetes_section, 'logs_volume_claim', None)
+        self.logs_volume_claim = conf.get(self.kubernetes_section, 'logs_volume_claim')
 
         # This prop may optionally be set for PV Claims and is used to locate DAGs
         # on a SubPath
-        self.dags_volume_subpath = conf.safe_get(
-            self.kubernetes_section, 'dags_volume_subpath', None)
+        self.dags_volume_subpath = conf.get(
+            self.kubernetes_section, 'dags_volume_subpath')
 
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
@@ -146,36 +140,32 @@ class KubeConfig:
         # that if your
         # cluster has RBAC enabled, your scheduler may need service account permissions to
         # create, watch, get, and delete pods in this namespace.
-        self.kube_namespace = conf.safe_get(self.kubernetes_section, 'namespace',
-                                            'default')
+        self.kube_namespace = conf.get(self.kubernetes_section, 'namespace')
         # The Kubernetes Namespace in which pods will be created by the executor. Note
         # that if your
         # cluster has RBAC enabled, your workers may need service account permissions to
         # interact with cluster components.
-        self.executor_namespace = conf.safe_get(self.kubernetes_section, 'namespace',
-                                                'default')
+        self.executor_namespace = conf.get(self.kubernetes_section, 'namespace')
         # Task secrets managed by KubernetesExecutor.
-        self.gcp_service_account_keys = conf.safe_get(
-            self.kubernetes_section, 'gcp_service_account_keys', None)
+        self.gcp_service_account_keys = conf.get(self.kubernetes_section,
+                                                 'gcp_service_account_keys')
 
         # If the user is using the git-sync container to clone their repository via git,
         # allow them to specify repository, tag, and pod name for the init container.
-        self.git_sync_container_repository = conf.safe_get(
-            self.kubernetes_section, 'git_sync_container_repository',
-            'gcr.io/google-containers/git-sync-amd64')
+        self.git_sync_container_repository = conf.get(
+            self.kubernetes_section, 'git_sync_container_repository')
 
-        self.git_sync_container_tag = conf.safe_get(
-            self.kubernetes_section, 'git_sync_container_tag', 'v2.0.5')
+        self.git_sync_container_tag = conf.get(
+            self.kubernetes_section, 'git_sync_container_tag')
         self.git_sync_container = '{}:{}'.format(
             self.git_sync_container_repository, self.git_sync_container_tag)
 
-        self.git_sync_init_container_name = conf.safe_get(
-            self.kubernetes_section, 'git_sync_init_container_name', 'git-sync-clone')
+        self.git_sync_init_container_name = conf.get(
+            self.kubernetes_section, 'git_sync_init_container_name')
 
         # The worker pod may optionally have a  valid Airflow config loaded via a
         # configmap
-        self.airflow_configmap = conf.safe_get(self.kubernetes_section,
-                                               'airflow_configmap', None)
+        self.airflow_configmap = conf.get(self.kubernetes_section, 'airflow_configmap')
 
         self._validate()
 
@@ -547,8 +537,6 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
         KubeResourceVersion.reset_resource_version(self._session)
         self.task_queue = Queue()
         self.result_queue = Queue()
-        self.log.info("in-cluster mode: {}".format(
-            conf.safe_getboolean('kubernetes', 'in_cluster', True)))
         self.kube_client = get_kube_client()
         self.kube_scheduler = AirflowKubernetesScheduler(
             self.kube_config, self.task_queue, self.result_queue, self._session,

@@ -21,21 +21,17 @@ import six
 
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
-from airflow.utils.log import logging_mixin
-from airflow.configuration import conf
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class WorkerConfiguration(logging_mixin.LoggingMixin):
+class WorkerConfiguration(LoggingMixin):
     """Contains Kubernetes Airflow Worker configuration logic"""
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
-        self.worker_airflow_home = conf.safe_get('kubernetes', 'worker_airflow_home',
-                                                 self.kube_config.airflow_home)
-        self.worker_airflow_dags = conf.safe_get('kubernetes', 'worker_airflow_dags',
-                                                 self.kube_config.dags_folder)
-        self.worker_airflow_logs = conf.safe_get('kubernetes', 'worker_airflow_logs',
-                                                 self.kube_config.base_log_folder)
+        self.worker_airflow_home = self.kube_config.airflow_home
+        self.worker_airflow_dags = self.kube_config.dags_folder
+        self.worker_airflow_logs = self.kube_config.base_log_folder
         super(WorkerConfiguration, self).__init__()
 
     def _get_init_containers(self, volume_mounts):
@@ -85,7 +81,7 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
         """Defines any necessary environment variables for the pod executor"""
         env = {
             'AIRFLOW__CORE__DAGS_FOLDER': '/tmp/dags',
-            'AIRFLOW__CORE__EXECUTOR': 'KubernetesExecutor'
+            'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
         }
         if self.kube_config.airflow_configmap:
             env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
@@ -181,9 +177,6 @@ class WorkerConfiguration(logging_mixin.LoggingMixin):
         annotations = {
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
-        airflow_command = airflow_command
-            # .replace("--local ", "")\
-            # .replace("run", "kube_run")
         airflow_command = airflow_command.replace("-sd", "-i -sd")
         airflow_path = airflow_command.split('-sd')[-1]
         airflow_path = self.worker_airflow_home + airflow_path.split('/')[-1]

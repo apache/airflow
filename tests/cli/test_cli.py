@@ -22,15 +22,16 @@ import unittest
 
 from mock import patch, Mock, MagicMock
 from time import sleep
-from pendulum import Pendulum
 import psutil
 from argparse import Namespace
 from airflow import settings
 from airflow.bin.cli import get_num_ready_workers_running, run, get_dag
 from airflow.models import TaskInstance
+from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.settings import Session
 from airflow import models
+
 import os
 
 dag_folder_path = '/'.join(os.path.realpath(__file__).split('/')[:-1])
@@ -89,11 +90,11 @@ def create_mock_args(
     args.cfg_path = cfg_path
     args.pickle = pickle
     args.raw = raw
-    args.mark_success=mark_success
-    args.ignore_all_dependencies=ignore_all_dependencies
-    args.ignore_depends_on_past=ignore_depends_on_past
-    args.ignore_dependencies=ignore_dependencies
-    args.force=force
+    args.mark_success = mark_success
+    args.ignore_all_dependencies = ignore_all_dependencies
+    args.ignore_depends_on_past = ignore_depends_on_past
+    args.ignore_dependencies = ignore_dependencies
+    args.force = force
     args.interactive = interactive
     return args
 
@@ -149,7 +150,7 @@ class TestCLI(unittest.TestCase):
             dag_id='example_python_operator',
             subdir='/root/dags/example_python_operator.py',
             interactive=True,
-            execution_date=Pendulum.parse('2018-04-27T08:39:51.298439+00:00')
+            execution_date=timezone.parse('2018-04-27T08:39:51.298439+00:00')
         )
 
         reset(args.dag_id)
@@ -162,4 +163,3 @@ class TestCLI(unittest.TestCase):
             ti.refresh_from_db()
             state = ti.current_state()
             self.assertEqual(state, State.SUCCESS)
-
