@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,7 @@ from airflow.utils import db
 
 try:
     from airflow.hooks.docker_hook import DockerHook
-    from docker import Client
+    from docker import APIClient
 except ImportError:
     pass
 
@@ -39,7 +39,7 @@ except ImportError:
         mock = None
 
 
-@mock.patch('airflow.hooks.docker_hook.Client', autospec=True)
+@mock.patch('airflow.hooks.docker_hook.APIClient', autospec=True)
 class DockerHookTest(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
