@@ -26,7 +26,6 @@ from airflow.utils import db
 
 try:
     from airflow.hooks.docker_hook import DockerHook
-    from docker import APIClient
 except ImportError:
     pass
 
