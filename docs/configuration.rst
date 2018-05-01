@@ -35,7 +35,7 @@ You can also derive the connection string at run time by appending ``_cmd`` to t
     [core]
     sql_alchemy_conn_cmd = bash_command_to_run
 
-But only three such configuration elements namely sql_alchemy_conn, broker_url and celery_result_backend can be fetched as a command. The idea behind this is to not store passwords on boxes in plain text files. The order of precedence is as follows -
+-But only three such configuration elements namely sql_alchemy_conn, broker_url and result_backend can be fetched as a command. The idea behind this is to not store passwords on boxes in plain text files. The order of precedence is as follows -
 
 1. environment variable
 2. configuration in airflow.cfg
@@ -50,6 +50,10 @@ setting up a real database backend and switching to the LocalExecutor.
 As Airflow was built to interact with its metadata using the great SqlAlchemy
 library, you should be able to use any database backend supported as a
 SqlAlchemy backend. We recommend using **MySQL** or **Postgres**.
+
+.. note:: We rely on more strict ANSI SQL settings for MySQL in order to have
+   sane defaults. Make sure to have specified `explicit_defaults_for_timestamp=1`
+   in your my.cnf under `[mysqld]`
 
 .. note:: If you decide to use **Postgres**, we recommend using the ``psycopg2``
    driver and specifying it in your SqlAlchemy connection string.
@@ -83,7 +87,7 @@ within the metadata database. The ``crypto`` package is highly recommended
 during installation. The ``crypto`` package does require that your operating
 system have libffi-dev installed.
 
-If ``crypto`` package was not installed initially, you can still enable encryption for 
+If ``crypto`` package was not installed initially, you can still enable encryption for
 connections by following steps below:
 
 1. Install crypto package ``pip install apache-airflow[crypto]``
@@ -94,18 +98,18 @@ connections by following steps below:
     from cryptography.fernet import Fernet
     fernet_key= Fernet.generate_key()
     print(fernet_key) # your fernet_key, keep it in secured place!
-    
-3. Replace ``airflow.cfg`` fernet_key value with the one from step 2. 
+
+3. Replace ``airflow.cfg`` fernet_key value with the one from step 2.
 Alternatively, you can store your fernet_key in OS environment variable. You
-do not need to change ``airflow.cfg`` in this case as AirFlow will use environment 
+do not need to change ``airflow.cfg`` in this case as Airflow will use environment
 variable over the value in ``airflow.cfg``:
 
 .. code-block:: bash
-  
+
   # Note the double underscores
   EXPORT AIRFLOW__CORE__FERNET_KEY = your_fernet_key
- 
-4. Restart AirFlow webserver.
+
+4. Restart Airflow webserver.
 5. For existing connections (the ones that you had defined before installing ``airflow[crypto]`` and creating a Fernet key), you need to open each connection in the connection admin UI, re-type the password, and save it.
 
 Connections in Airflow pipelines can be created using environment variables.
@@ -155,6 +159,11 @@ Note that you can also run "Celery Flower", a web UI built on top of Celery,
 to monitor your workers. You can use the shortcut command ``airflow flower``
 to start a Flower web server.
 
+Some caveats:
+
+- Make sure to use a database backed result backend
+- Make sure to set a visibility timeout in [celery_broker_transport_options] that exceeds the ETA of your longest running task
+- Tasks can and consume resources, make sure your worker as enough resources to run `worker_concurrency` tasks
 
 Scaling Out with Dask
 '''''''''''''''''''''
@@ -219,19 +228,27 @@ try to use ``S3Hook('MyS3Conn')``.
 In the Airflow Web UI, local logs take precedance over remote logs. If local logs
 can not be found or accessed, the remote logs will be displayed. Note that logs
 are only sent to remote storage once a task completes (including failure). In other
-words, remote logs for running tasks are unavailable.
+words, remote logs for running tasks are unavailable. Logs are stored in the log
+folder as ``{dag_id}/{task_id}/{execution_date}/{try_number}.log``.
 
 Scaling Out on Mesos (community contributed)
 ''''''''''''''''''''''''''''''''''''''''''''
+There are two ways you can run airflow as a mesos framework:
+
+1. Running airflow tasks directly on mesos slaves, requiring each mesos slave to have airflow installed and configured.
+2. Running airflow tasks inside a docker container that has airflow installed, which is run on a mesos slave.
+
+Tasks executed directly on mesos slaves
+=======================================
 ``MesosExecutor`` allows you to schedule airflow tasks on a Mesos cluster.
 For this to work, you need a running mesos cluster and you must perform the following
 steps -
 
-1. Install airflow on a machine where web server and scheduler will run,
+1. Install airflow on a mesos slave where web server and scheduler will run,
    let's refer to this as the "Airflow server".
 2. On the Airflow server, install mesos python eggs from `mesos downloads <http://open.mesosphere.com/downloads/mesos/>`_.
-3. On the Airflow server, use a database (such as mysql) which can be accessed from mesos
-   slave machines and add configuration in ``airflow.cfg``.
+3. On the Airflow server, use a database (such as mysql) which can be accessed from all mesos
+   slaves and add configuration in ``airflow.cfg``.
 4. Change your ``airflow.cfg`` to point executor parameter to
    `MesosExecutor` and provide related Mesos settings.
 5. On all mesos slaves, install airflow. Copy the ``airflow.cfg`` from
@@ -255,6 +272,28 @@ The logs for airflow tasks can be seen in airflow UI as usual.
 
 For more information about mesos, refer to `mesos documentation <http://mesos.apache.org/documentation/latest/>`_.
 For any queries/bugs on `MesosExecutor`, please contact `@kapil-malik <https://github.com/kapil-malik>`_.
+
+Tasks executed in containers on mesos slaves
+============================================
+
+`This gist <https://gist.github.com/sebradloff/f158874e615bda0005c6f4577b20036e>`_ contains all files and configuration changes necessary to achieve the following:
+
+1. Create a dockerized version of airflow with mesos python eggs installed.
+
+  We recommend taking advantage of docker's multi stage builds in order to achieve this. We have one Dockerfile that defines building a specific version of mesos from source (Dockerfile-mesos), in order to create the python eggs. In the airflow Dockerfile (Dockerfile-airflow) we copy the python eggs from the mesos image.
+
+2. Create a mesos configuration block within the ``airflow.cfg``.
+
+  The configuration block remains the same as the default airflow configuration (default_airflow.cfg), but has the addition of an option ``docker_image_slave``. This should be set to the name of the image you would like mesos to use when running airflow tasks. Make sure you have the proper configuration of the DNS record for your mesos master and any sort of authorization if any exists.
+
+3. Change your ``airflow.cfg`` to point the executor parameter to
+   `MesosExecutor` (`executor = SequentialExecutor`).
+
+4. Make sure your mesos slave has access to the docker repository you are using for your ``docker_image_slave``.
+
+  `Instructions are available in the mesos docs. <https://mesos.readthedocs.io/en/latest/docker-containerizer/#private-docker-repository>`_
+
+The rest is up to you and how you want to work with a dockerized airflow configuration.
 
 Integration with systemd
 ''''''''''''''''''''''''

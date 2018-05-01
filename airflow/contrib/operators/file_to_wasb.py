@@ -1,20 +1,22 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-#
-
-import logging
-
 from airflow.contrib.hooks.wasb_hook import WasbHook
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
@@ -23,7 +25,7 @@ from airflow.utils.decorators import apply_defaults
 class FileToWasbOperator(BaseOperator):
     """
     Uploads a file to Azure Blob Storage.
-    
+
     :param file_path: Path to the file to load.
     :type file_path: str
     :param container_name: Name of the container.
@@ -54,8 +56,7 @@ class FileToWasbOperator(BaseOperator):
     def execute(self, context):
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
-        logging.info(
-            'Uploading {self.file_path} to wasb://{self.container_name} as '
-            '{self.blob_name}'.format(**locals()))
-        hook.load_file(self.file_path, self.container_name, self.blob_name,
-                       **self.load_options)
+        self.log.info(
+            'Uploading {self.file_path} to wasb://{self.container_name} as {self.blob_name}'.format(**locals())
+        )
+        hook.load_file(self.file_path, self.container_name, self.blob_name, **self.load_options)

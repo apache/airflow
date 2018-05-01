@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from setuptools import setup, find_packages, Command
 from setuptools.command.test import test as TestCommand
@@ -18,7 +23,6 @@ from setuptools.command.test import test as TestCommand
 import imp
 import logging
 import os
-import pip
 import sys
 
 logger = logging.getLogger(__name__)
@@ -27,6 +31,7 @@ logger = logging.getLogger(__name__)
 version = imp.load_source(
     'airflow.version', os.path.join('airflow', 'version.py')).version
 
+PY3 = sys.version_info[0] == 3
 
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
@@ -72,23 +77,14 @@ def git_version(version):
         logger.warning('gitpython not found: Cannot compute the git version.')
         return ''
     except Exception as e:
-        logger.warning('Git repo not found: Cannot compute the git version.')
+        logger.warning('Cannot compute the git version. {}'.format(e))
         return ''
     if repo:
         sha = repo.head.commit.hexsha
         if repo.is_dirty():
             return '.dev0+{sha}.dirty'.format(sha=sha)
         # commit is clean
-        # is it release of `version` ?
-        try:
-            tag = repo.git.describe(
-                match='[0-9]*', exact_match=True,
-                tags=True, dirty=True)
-            assert tag == version, (tag, version)
-            return '.release:{version}+{sha}'.format(version=version,
-                                                     sha=sha)
-        except git.GitCommandError:
-            return '.dev0+{sha}'.format(sha=sha)
+        return '.release:{version}+{sha}'.format(version=version, sha=sha)
     else:
         return 'no_git_version'
 
@@ -99,24 +95,15 @@ def write_version(filename=os.path.join(*['airflow',
     with open(filename, 'w') as a:
         a.write(text)
 
-
-def check_previous():
-    installed_packages = ([package.project_name for package
-                           in pip.get_installed_distributions()])
-    if 'airflow' in installed_packages:
-        print("An earlier non-apache version of Airflow was installed, "
-              "please uninstall it first. Then reinstall.")
-        sys.exit(1)
-
-
 async = [
     'greenlet>=0.4.9',
     'eventlet>= 0.9.7',
     'gevent>=0.13'
 ]
 azure = ['azure-storage>=0.34.0']
+sendgrid = ['sendgrid>=5.2.0']
 celery = [
-    'celery>=3.1.17',
+    'celery>=4.0.2',
     'flower>=0.7.3'
 ]
 cgroups = [
@@ -124,7 +111,7 @@ cgroups = [
 ]
 crypto = ['cryptography>=0.9.3']
 dask = [
-    'distributed>=1.15.2, <2'
+    'distributed>=1.17.1, <2'
     ]
 databricks = ['requests>=2.5.1, <3']
 datadog = ['datadog>=0.14.0']
@@ -135,7 +122,11 @@ doc = [
     'Sphinx-PyPI-upload>=0.2.1'
 ]
 docker = ['docker>=2.0.0']
-druid = ['pydruid>=0.2.1']
+druid = ['pydruid>=0.4.1']
+elasticsearch = [
+    'elasticsearch>=5.0.0,<6.0.0',
+    'elasticsearch-dsl>=5.0.0,<6.0.0'
+]
 emr = ['boto3>=1.0.0']
 gcp_api = [
     'httplib2',
@@ -146,24 +137,24 @@ gcp_api = [
 ]
 hdfs = ['snakebite>=2.7.8']
 webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+jenkins = ['python-jenkins>=0.4.15']
 jira = ['JIRA>1.0.7']
 hive = [
-    'hive-thrift-py>=0.0.1',
+    'hmsclient>=0.1.0',
     'pyhive>=0.1.3',
     'impyla>=0.13.3',
     'unicodecsv>=0.14.1'
 ]
-jdbc = ['jaydebeapi>=0.2.0']
+jdbc = ['jaydebeapi>=1.1.1']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 oracle = ['cx_Oracle>=5.1.2']
-postgres = ['psycopg2>=2.7.1']
+postgres = ['psycopg2-binary>=2.7.4']
+pinot = ['pinotdb>=0.1.1']
+ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
 salesforce = ['simple-salesforce>=0.72']
-s3 = [
-    'boto>=2.36.0',
-    'filechunkio>=1.6',
-]
+s3 = ['boto3>=1.7.0']
 samba = ['pysmbclient>=0.1.3']
 slack = ['slackclient>=1.0.0']
 statsd = ['statsd>=3.0.1, <4.0']
@@ -172,8 +163,7 @@ ldap = ['ldap3>=0.9.9.1']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
-            'snakebite[kerberos]>=2.7.8',
-            'kerberos>=1.2.5']
+            'snakebite[kerberos]>=2.7.8']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
@@ -182,73 +172,100 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 qds = ['qds-sdk>=1.9.6']
 cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
+kubernetes = ['kubernetes>=3.0.0',
+              'cryptography>=2.0.0']
+snowflake = ['snowflake-connector-python>=1.5.2',
+             'snowflake-sqlalchemy>=1.1.0']
+zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot
 devel = [
     'click',
     'freezegun',
     'jira',
     'lxml>=3.3.4',
     'mock',
-    'moto',
+    'moto==1.1.19',
     'nose',
     'nose-ignore-docstring==0.2',
     'nose-timer',
     'parameterized',
-    'rednose'
+    'qds-sdk>=1.9.6',
+    'rednose',
+    'paramiko',
+    'pysftp',
+    'requests_mock'
 ]
-devel_minreq = devel + mysql + doc + password + s3 + cgroups
+devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
-devel_all = devel + all_dbs + doc + samba + s3 + slack + crypto + oracle + docker
+devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
+             docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
+             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
+             druid + pinot + snowflake + elasticsearch)
 
+# Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
+if PY3:
+    devel_ci = [package for package in devel_all if package not in
+                ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
+else:
+    devel_ci = devel_all
 
 def do_setup():
-    check_previous()
     write_version()
     setup(
         name='apache-airflow',
         description='Programmatically author, schedule and monitor data pipelines',
         license='Apache License 2.0',
         version=version,
-        packages=find_packages(),
+        packages=find_packages(exclude=['tests*']),
         package_data={'': ['airflow/alembic.ini', "airflow/git_version"]},
         include_package_data=True,
         zip_safe=False,
         scripts=['airflow/bin/airflow'],
         install_requires=[
             'alembic>=0.8.3, <0.9',
-            'bleach==2.0.0',
+            'bleach==2.1.2',
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.11, <0.12',
+            'flask>=0.12, <0.13',
+            'flask-appbuilder>=1.9.6, <2.0.0',
             'flask-admin==1.4.1',
-            'flask-cache>=0.13.1, <0.14',
+            'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
-            'flask-wtf==0.14',
+            'flask-wtf>=0.14, <0.15',
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
-            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
+            'gunicorn>=19.4.0, <20.0',
+            'iso8601>=0.1.12',
             'jinja2>=2.7.3, <2.9.0',
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
             'pandas>=0.17.1, <1.0.0',
+            'pendulum==1.4.4',
             'psutil>=4.2.0, <5.0.0',
             'pygments>=2.0.1, <3.0',
             'python-daemon>=2.1.1, <2.2',
             'python-dateutil>=2.3, <3',
-            'python-nvd3==0.14.2',
+            'python-nvd3==0.15.0',
             'requests>=2.5.1, <3',
             'setproctitle>=1.1.8, <2',
-            'sqlalchemy>=0.9.8',
+            'sqlalchemy>=1.1.15, <1.2.0',
+            'sqlalchemy-utc>=0.9.0',
             'tabulate>=0.7.5, <0.8.0',
-            'thrift>=0.9.2, <0.10',
+            'thrift>=0.9.2',
+            'tzlocal>=1.4',
+            'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
+        ],
+        setup_requires=[
+            'docutils>=0.14, <1.0',
         ],
         extras_require={
             'all': devel_all,
+            'devel_ci': devel_ci,
             'all_dbs': all_dbs,
             'async': async,
             'azure': azure,
@@ -264,6 +281,7 @@ def do_setup():
             'doc': doc,
             'docker': docker,
             'druid': druid,
+            'elasticsearch': elasticsearch,
             'emr': emr,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
@@ -276,18 +294,23 @@ def do_setup():
             'mysql': mysql,
             'oracle': oracle,
             'password': password,
+            'pinot': pinot,
             'postgres': postgres,
             'qds': qds,
             'rabbitmq': rabbitmq,
             's3': s3,
             'salesforce': salesforce,
             'samba': samba,
+            'sendgrid' : sendgrid,
             'slack': slack,
+            'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
             'jira': jira,
             'redis': redis,
+            'kubernetes': kubernetes,
+            'snowflake': snowflake
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

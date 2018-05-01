@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
-import logging
 import six
 import time
 
@@ -21,7 +25,9 @@ from airflow.exceptions import AirflowException
 from airflow.contrib.hooks.databricks_hook import DatabricksHook
 from airflow.models import BaseOperator
 
-LINE_BREAK = ('-' * 80)
+
+XCOM_RUN_ID_KEY = 'run_id'
+XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
 
 
 class DatabricksSubmitRunOperator(BaseOperator):
@@ -131,7 +137,9 @@ class DatabricksSubmitRunOperator(BaseOperator):
         This field will be templated.
     :type timeout_seconds: int32
     :param databricks_conn_id: The name of the Airflow connection to use.
-        By default and in the common case this will be ``databricks_default``.
+        By default and in the common case this will be ``databricks_default``. To use
+        token based authentication, provide the key ``token`` in the extra field for the
+        connection.
     :type databricks_conn_id: string
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
@@ -139,6 +147,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
         unreachable. Its value must be greater than or equal to 1.
     :type databricks_retry_limit: int
+    :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :type do_xcom_push: boolean
     """
     # Used in airflow.models.BaseOperator
     template_fields = ('json',)
@@ -159,6 +169,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             databricks_conn_id='databricks_default',
             polling_period_seconds=30,
             databricks_retry_limit=3,
+            do_xcom_push=False,
             **kwargs):
         """
         Creates a new ``DatabricksSubmitRunOperator``.
@@ -188,6 +199,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         self.json = self._deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id = None
+        self.do_xcom_push = do_xcom_push
 
     def _deep_string_coerce(self, content, json_path='json'):
         """
@@ -215,7 +227,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             raise AirflowException(msg)
 
     def _log_run_page_url(self, url):
-        logging.info('View run status, Spark UI, and logs at {}'.format(url))
+        self.log.info('View run status, Spark UI, and logs at %s', url)
 
     def get_hook(self):
         return DatabricksHook(
@@ -225,17 +237,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def execute(self, context):
         hook = self.get_hook()
         self.run_id = hook.submit_run(self.json)
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=self.run_id)
+        self.log.info('Run submitted with run_id: %s', self.run_id)
         run_page_url = hook.get_run_page_url(self.run_id)
-        logging.info(LINE_BREAK)
-        logging.info('Run submitted with run_id: {}'.format(self.run_id))
+        if self.do_xcom_push:
+            context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
         self._log_run_page_url(run_page_url)
-        logging.info(LINE_BREAK)
         while True:
             run_state = hook.get_run_state(self.run_id)
             if run_state.is_terminal:
                 if run_state.is_successful:
-                    logging.info('{} completed successfully.'.format(
-                        self.task_id))
+                    self.log.info('%s completed successfully.', self.task_id)
                     self._log_run_page_url(run_page_url)
                     return
                 else:
@@ -244,16 +257,15 @@ class DatabricksSubmitRunOperator(BaseOperator):
                         s=run_state)
                     raise AirflowException(error_message)
             else:
-                logging.info('{t} in run state: {s}'.format(t=self.task_id,
-                                                            s=run_state))
+                self.log.info('%s in run state: %s', self.task_id, run_state)
                 self._log_run_page_url(run_page_url)
-                logging.info('Sleeping for {} seconds.'.format(
-                    self.polling_period_seconds))
+                self.log.info('Sleeping for %s seconds.', self.polling_period_seconds)
                 time.sleep(self.polling_period_seconds)
 
     def on_kill(self):
         hook = self.get_hook()
         hook.cancel_run(self.run_id)
-        logging.info('Task: {t} with run_id: {r} was requested to be cancelled.'.format(
-            t=self.task_id,
-            r=self.run_id))
+        self.log.info(
+            'Task: %s with run_id: %s was requested to be cancelled.',
+            self.task_id, self.run_id
+        )

@@ -1,20 +1,24 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import zip
 from builtins import str
-import logging
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
@@ -72,15 +76,15 @@ class CheckOperator(BaseOperator):
         self.sql = sql
 
     def execute(self, context=None):
-        logging.info('Executing SQL check: ' + self.sql)
+        self.log.info('Executing SQL check: %s', self.sql)
         records = self.get_db_hook().get_first(self.sql)
-        logging.info("Record: " + str(records))
+        self.log.info('Record: %s', records)
         if not records:
             raise AirflowException("The query returned None")
         elif not all([bool(r) for r in records]):
             exceptstr = "Test failed.\nQuery:\n{q}\nResults:\n{r!s}"
             raise AirflowException(exceptstr.format(q=self.sql, r=records))
-        logging.info("Success.")
+        self.log.info("Success.")
 
     def get_db_hook(self):
         return BaseHook.get_hook(conn_id=self.conn_id)
@@ -116,7 +120,7 @@ class ValueCheckOperator(BaseOperator):
     __mapper_args__ = {
         'polymorphic_identity': 'ValueCheckOperator'
     }
-    template_fields = ('sql',)
+    template_fields = ('sql', 'pass_value',)
     template_ext = ('.hql', '.sql',)
     ui_color = '#fff7e6'
 
@@ -128,34 +132,42 @@ class ValueCheckOperator(BaseOperator):
         super(ValueCheckOperator, self).__init__(*args, **kwargs)
         self.sql = sql
         self.conn_id = conn_id
-        self.pass_value = _convert_to_float_if_possible(pass_value)
+        self.pass_value = str(pass_value)
         tol = _convert_to_float_if_possible(tolerance)
         self.tol = tol if isinstance(tol, float) else None
-        self.is_numeric_value_check = isinstance(self.pass_value, float)
         self.has_tolerance = self.tol is not None
 
     def execute(self, context=None):
-        logging.info('Executing SQL check: ' + self.sql)
+        self.log.info('Executing SQL check: %s', self.sql)
         records = self.get_db_hook().get_first(self.sql)
         if not records:
             raise AirflowException("The query returned None")
-        test_results = []
-        except_temp = ("Test failed.\nPass value:{self.pass_value}\n"
+
+        pass_value_conv = _convert_to_float_if_possible(self.pass_value)
+        is_numeric_value_check = isinstance(pass_value_conv, float)
+
+        tolerance_pct_str = None
+        if (self.tol is not None):
+            tolerance_pct_str = str(self.tol * 100) + '%'
+
+        except_temp = ("Test failed.\nPass value:{pass_value_conv}\n"
+                       "Tolerance:{tolerance_pct_str}\n"
                        "Query:\n{self.sql}\nResults:\n{records!s}")
-        if not self.is_numeric_value_check:
-            tests = [str(r) == self.pass_value for r in records]
-        elif self.is_numeric_value_check:
+        if not is_numeric_value_check:
+            tests = [str(r) == pass_value_conv for r in records]
+        elif is_numeric_value_check:
             try:
                 num_rec = [float(r) for r in records]
             except (ValueError, TypeError) as e:
                 cvestr = "Converting a result to float failed.\n"
-                raise AirflowException(cvestr+except_temp.format(**locals()))
+                raise AirflowException(cvestr + except_temp.format(**locals()))
             if self.has_tolerance:
                 tests = [
-                    r / (1 + self.tol) <= self.pass_value <= r / (1 - self.tol)
+                    pass_value_conv * (1 - self.tol) <=
+                    r <= pass_value_conv * (1 + self.tol)
                     for r in num_rec]
             else:
-                tests = [r == self.pass_value for r in num_rec]
+                tests = [r == pass_value_conv for r in num_rec]
         if not all(tests):
             raise AirflowException(except_temp.format(**locals()))
 
@@ -209,14 +221,14 @@ class IntervalCheckOperator(BaseOperator):
 
     def execute(self, context=None):
         hook = self.get_db_hook()
-        logging.info('Executing SQL check: ' + self.sql2)
+        self.log.info('Executing SQL check: %s', self.sql2)
         row2 = hook.get_first(self.sql2)
-        logging.info('Executing SQL check: ' + self.sql1)
+        self.log.info('Executing SQL check: %s', self.sql1)
         row1 = hook.get_first(self.sql1)
         if not row2:
-            raise AirflowException("The query {q} returned None").format(q=self.sql2)
+            raise AirflowException("The query {q} returned None".format(q=self.sql2))
         if not row1:
-            raise AirflowException("The query {q} returned None").format(q=self.sql1)
+            raise AirflowException("The query {q} returned None".format(q=self.sql1))
         current = dict(zip(self.metrics_sorted, row1))
         reference = dict(zip(self.metrics_sorted, row2))
         ratios = {}
@@ -231,19 +243,20 @@ class IntervalCheckOperator(BaseOperator):
             else:
                 ratio = float(max(current[m], reference[m])) / \
                     min(current[m], reference[m])
-            logging.info(rlog.format(m, ratio, self.metrics_thresholds[m]))
+            self.log.info(rlog.format(m, ratio, self.metrics_thresholds[m]))
             ratios[m] = ratio
             test_results[m] = ratio < self.metrics_thresholds[m]
         if not all(test_results.values()):
             failed_tests = [it[0] for it in test_results.items() if not it[1]]
             j = len(failed_tests)
             n = len(self.metrics_sorted)
-            logging.warning(countstr.format(**locals()))
+            self.log.warning(countstr.format(**locals()))
             for k in failed_tests:
-                logging.warning(fstr.format(k=k, r=ratios[k],
-                                tr=self.metrics_thresholds[k]))
+                self.log.warning(
+                    fstr.format(k=k, r=ratios[k], tr=self.metrics_thresholds[k])
+                )
             raise AirflowException(estr.format(", ".join(failed_tests)))
-        logging.info("All tests have passed")
+        self.log.info("All tests have passed")
 
     def get_db_hook(self):
         return BaseHook.get_hook(conn_id=self.conn_id)
