@@ -74,7 +74,7 @@ matrix:
       env: TOX_ENV=py35-backend_sqlite
     - python: "2.7"
       env: TOX_ENV=py35-backend_postgres
-    - python: "2.7"
+    - python: "3.5"
       env: TOX_ENV=flake8
     - python: "3.5"
       env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
