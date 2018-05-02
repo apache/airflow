@@ -50,7 +50,7 @@ from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
-from airflow.utils import asciiart, helpers, timezone
+from airflow.utils import helpers, timezone
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           DagFileProcessorManager,
@@ -58,7 +58,6 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           SimpleDagBag,
                                           list_py_file_paths)
 from airflow.utils.db import create_session, provide_session
-from airflow.utils.email import send_email, get_email_address_list
 from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
 from airflow.utils.net import get_hostname
 from airflow.utils.state import State
@@ -603,141 +602,6 @@ class SchedulerJob(BaseJob):
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
-
-    @provide_session
-    def manage_slas(self, dag, session=None):
-        """
-        Finding all tasks that have SLAs defined, and sending alert emails
-        where needed. New SLA misses are also recorded in the database.
-
-        Where assuming that the scheduler runs often, so we only check for
-        tasks that should have succeeded in the past hour.
-        """
-        if not any([ti.sla for ti in dag.tasks]):
-            self.log.info(
-                "Skipping SLA check for %s because no tasks in DAG have SLAs",
-                dag
-            )
-            return
-
-        TI = models.TaskInstance
-        sq = (
-            session
-            .query(
-                TI.task_id,
-                func.max(TI.execution_date).label('max_ti'))
-            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
-            .filter(TI.dag_id == dag.dag_id)
-            .filter(or_(
-                TI.state == State.SUCCESS,
-                TI.state == State.SKIPPED))
-            .filter(TI.task_id.in_(dag.task_ids))
-            .group_by(TI.task_id).subquery('sq')
-        )
-
-        max_tis = session.query(TI).filter(
-            TI.dag_id == dag.dag_id,
-            TI.task_id == sq.c.task_id,
-            TI.execution_date == sq.c.max_ti,
-        ).all()
-
-        ts = timezone.utcnow()
-        SlaMiss = models.SlaMiss
-        for ti in max_tis:
-            task = dag.get_task(ti.task_id)
-            dttm = ti.execution_date
-            if task.sla:
-                dttm = dag.following_schedule(dttm)
-                while dttm < timezone.utcnow():
-                    following_schedule = dag.following_schedule(dttm)
-                    if following_schedule + task.sla < timezone.utcnow():
-                        session.merge(models.SlaMiss(
-                            task_id=ti.task_id,
-                            dag_id=ti.dag_id,
-                            execution_date=dttm,
-                            timestamp=ts))
-                    dttm = dag.following_schedule(dttm)
-        session.commit()
-
-        slas = (
-            session
-            .query(SlaMiss)
-            .filter(SlaMiss.notification_sent == False)  # noqa: E712
-            .filter(SlaMiss.dag_id == dag.dag_id)
-            .all()
-        )
-
-        if slas:
-            sla_dates = [sla.execution_date for sla in slas]
-            qry = (
-                session
-                .query(TI)
-                .filter(TI.state != State.SUCCESS)
-                .filter(TI.execution_date.in_(sla_dates))
-                .filter(TI.dag_id == dag.dag_id)
-                .all()
-            )
-            blocking_tis = []
-            for ti in qry:
-                if ti.task_id in dag.task_ids:
-                    ti.task = dag.get_task(ti.task_id)
-                    blocking_tis.append(ti)
-                else:
-                    session.delete(ti)
-                    session.commit()
-
-            task_list = "\n".join([
-                sla.task_id + ' on ' + sla.execution_date.isoformat()
-                for sla in slas])
-            blocking_task_list = "\n".join([
-                ti.task_id + ' on ' + ti.execution_date.isoformat()
-                for ti in blocking_tis])
-            # Track whether email or any alert notification sent
-            # We consider email or the alert callback as notifications
-            email_sent = False
-            notification_sent = False
-            if dag.sla_miss_callback:
-                # Execute the alert callback
-                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
-                try:
-                    dag.sla_miss_callback(dag, task_list, blocking_task_list, slas,
-                                          blocking_tis)
-                    notification_sent = True
-                except Exception:
-                    self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                       dag.dag_id)
-            email_content = """\
-            Here's a list of tasks that missed their SLAs:
-            <pre><code>{task_list}\n<code></pre>
-            Blocking tasks:
-            <pre><code>{blocking_task_list}\n{bug}<code></pre>
-            """.format(bug=asciiart.bug, **locals())
-            emails = set()
-            for task in dag.tasks:
-                if task.email:
-                    if isinstance(task.email, basestring):
-                        emails |= set(get_email_address_list(task.email))
-                    elif isinstance(task.email, (list, tuple)):
-                        emails |= set(task.email)
-            if emails and len(slas):
-                try:
-                    send_email(
-                        emails,
-                        "[airflow] SLA miss on DAG=" + dag.dag_id,
-                        email_content)
-                    email_sent = True
-                    notification_sent = True
-                except Exception:
-                    self.log.exception("Could not send SLA Miss email notification for"
-                                       " DAG %s", dag.dag_id)
-            # If we sent any notification, update the sla_miss table
-            if notification_sent:
-                for sla in slas:
-                    if email_sent:
-                        sla.email_sent = True
-                    sla.notification_sent = True
-                    session.merge(sla)
-            session.commit()
 
     @staticmethod
     @provide_session
@@ -1433,7 +1297,7 @@ class SchedulerJob(BaseJob):
             if dag_run:
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
-            self.manage_slas(dag)
+            dag.manage_slas()
 
         models.DagStat.update([d.dag_id for d in dags])
 

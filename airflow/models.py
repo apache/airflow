@@ -86,7 +86,7 @@ from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
 
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
-from airflow.utils import timezone
+from airflow.utils import asciiart, timezone
 from airflow.utils.dag_processing import list_py_file_paths
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.db import provide_session
@@ -4446,6 +4446,183 @@ class DAG(BaseDag, LoggingMixin):
                 self._test_cycle_helper(visit_map, descendant_id)
 
         visit_map[task_id] = DagBag.CYCLE_DONE
+
+    def manage_slas(self):
+        """
+        Helper function to encapsulate the sequence of SLA operations.
+        """
+        self.record_sla_misses()
+
+        unsent_sla_misses = self.get_unsent_sla_misses()
+
+        if unsent_sla_misses:
+            self.send_sla_notifications(unsent_sla_misses)
+
+    @provide_session
+    def record_sla_misses(self, session=None):
+        """
+        Create SLAMiss records for tasks in this DAG that have an SLA defined,
+        but are missing task instances for expected execution dates. In this
+        case, "missing" means the task instance either doesn't exist, or exists
+        in any state other than "success" or "skipped".
+        """
+        if not any([ti.sla for ti in self.tasks]):
+            self.log.info(
+                "Skipping SLA check for %s because no tasks in DAG have SLAs",
+                self
+            )
+            return
+
+        # For each task in this DAG, find the max execution date among
+        # that task's instances.
+        TI = TaskInstance
+        sq = (
+            session
+            .query(
+                TI.task_id,
+                func.max(TI.execution_date).label('max_ti'))
+            .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
+            .filter(TI.dag_id == self.dag_id)
+            .filter(TI.state == State.SUCCESS)
+            .filter(TI.task_id.in_(self.task_ids))
+            .group_by(TI.task_id).subquery('sq')
+        )
+
+        # Find the task instances in this DAG that have that max date
+        max_tis = session.query(TI).filter(
+            TI.dag_id == self.dag_id,
+            TI.task_id == sq.c.task_id,
+            TI.execution_date == sq.c.max_ti,
+        ).all()
+
+        # For each max-execution-date task instance, create an SLAMiss for each
+        # execution date where that task
+        ts = timezone.utcnow()
+        for ti in max_tis:
+            task = self.get_task(ti.task_id)
+            exc_date = ti.execution_date
+            if task.sla:
+                # Start with the next execution date
+                next_exc_date = self.following_schedule(exc_date)
+
+                while next_exc_date < timezone.utcnow():
+                    following_schedule = self.following_schedule(next_exc_date)
+                    if following_schedule + task.sla < timezone.utcnow():
+                        session.merge(SlaMiss(
+                            task_id=ti.task_id,
+                            dag_id=ti.dag_id,
+                            execution_date=next_exc_date,
+                            timestamp=ts))
+
+                    # Increment by one execution date
+                    next_exc_date = self.following_schedule(next_exc_date)
+
+        # Save the created SlaMisses
+        session.commit()
+
+    @provide_session
+    def get_unsent_sla_misses(self, session=None):
+        """
+        Find all SlaMisses for this DAG that haven't yet been notified.
+        """
+        return (
+            session
+            .query(SlaMiss)
+            .filter(SlaMiss.notification_sent is False)
+            .filter(SlaMiss.dag_id == self.dag_id)
+            .all()
+        )
+
+    @provide_session
+    def send_sla_notifications(self, sla_misses, session=None):
+        """
+        Given a list of SLA misses, send emails and/or do SLA miss callback.
+        """
+        TI = TaskInstance
+
+        if sla_misses:
+            sla_miss_dates = [sla_miss.execution_date for sla_miss
+                              in sla_misses]
+            qry = (
+                session
+                .query(TI)
+                .filter(TI.state != State.SUCCESS)
+                .filter(TI.execution_date.in_(sla_miss_dates))
+                .filter(TI.dag_id == self.dag_id)
+                .all()
+            )
+            blocking_tis = []
+            for ti in qry:
+                if ti.task_id in self.task_ids:
+                    ti.task = self.get_task(ti.task_id)
+                    blocking_tis.append(ti)
+                else:
+                    session.delete(ti)
+                    session.commit()
+
+            task_list = "\n".join([
+                sla.task_id + ' on ' + sla.execution_date.isoformat()
+                for sla in sla_misses])
+            blocking_task_list = "\n".join([
+                ti.task_id + ' on ' + ti.execution_date.isoformat()
+                for ti in blocking_tis])
+
+            # Track whether email or any alert notification sent
+            # We consider email or the alert callback as notifications
+            email_sent = False
+            notification_sent = False
+            if self.sla_miss_callback:
+                # Execute the alert callback
+                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+                try:
+                    self.sla_miss_callback(self, task_list, blocking_task_list,
+                                           sla_misses, blocking_tis)
+                    notification_sent = True
+                except Exception:
+                    self.log.exception("Could not call sla_miss_callback for DAG %s",
+                                       self.dag_id)
+
+            # If we sent any notification, update the sla_miss table
+            if notification_sent:
+                for sla in sla_misses:
+                    if email_sent:
+                        sla.email_sent = True
+                    sla.notification_sent = True
+                    session.merge(sla)
+            session.commit()
+
+    def send_sla_miss_email(self, task_list, blocking_task_list, slas, blocking_tis):
+        """
+        Send an SLA miss email.
+        """
+
+        email_content = """\
+        Here's a list of tasks that missed their SLAs:
+        <pre><code>{task_list}\n<code></pre>
+        Blocking tasks:
+        <pre><code>{blocking_task_list}\n{bug}<code></pre>
+        """.format(bug=asciiart.bug, **locals())
+        emails = []
+        for t in self.tasks:
+            if t.email:
+                if isinstance(t.email, basestring):
+                    l = [t.email]
+                elif isinstance(t.email, (list, tuple)):
+                    l = t.email
+                for email in l:
+                    if email not in emails:
+                        emails.append(email)
+        if emails and len(slas):
+            try:
+                send_email(
+                    emails,
+                    "[airflow] SLA miss on DAG=" + self.dag_id,
+                    email_content)
+                email_sent = True
+                notification_sent = True
+            except Exception:
+                self.log.exception("Could not send SLA Miss email notification for"
+                                   " DAG %s", self.dag_id)
 
 
 class Chart(Base):
