@@ -4538,9 +4538,9 @@ class DAG(BaseDag, LoggingMixin):
         """
         Given a list of SLA misses, send emails and/or do SLA miss callback.
         """
-
         if not sla_misses:
-            self.log.info("Tried to send SLA misses, but there were none!")
+            self.log.info("send_sla_notifications wasa called without any SLA "
+                          "notifications to send!")
             return
 
         TI = TaskInstance
