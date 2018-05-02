@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import flask_login
 from flask_login import login_required, current_user, logout_user
 from flask import flash
