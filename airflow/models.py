@@ -4538,58 +4538,61 @@ class DAG(BaseDag, LoggingMixin):
         """
         Given a list of SLA misses, send emails and/or do SLA miss callback.
         """
+
+        if not sla_misses:
+            self.log.info("Tried to send SLA misses, but there were none!")
+            return
+
         TI = TaskInstance
 
-        if sla_misses:
-            sla_miss_dates = [sla_miss.execution_date for sla_miss
-                              in sla_misses]
-            qry = (
-                session
-                .query(TI)
-                .filter(TI.state != State.SUCCESS)
-                .filter(TI.execution_date.in_(sla_miss_dates))
-                .filter(TI.dag_id == self.dag_id)
-                .all()
-            )
-            blocking_tis = []
-            for ti in qry:
-                if ti.task_id in self.task_ids:
-                    ti.task = self.get_task(ti.task_id)
-                    blocking_tis.append(ti)
-                else:
-                    session.delete(ti)
-                    session.commit()
+        sla_miss_dates = [sla_miss.execution_date for sla_miss in sla_misses]
+        qry = (
+            session
+            .query(TI)
+            .filter(TI.state != State.SUCCESS)
+            .filter(TI.execution_date.in_(sla_miss_dates))
+            .filter(TI.dag_id == self.dag_id)
+            .all()
+        )
+        blocking_tis = []
+        for ti in qry:
+            if ti.task_id in self.task_ids:
+                ti.task = self.get_task(ti.task_id)
+                blocking_tis.append(ti)
+            else:
+                session.delete(ti)
+                session.commit()
 
-            task_list = "\n".join([
-                sla.task_id + ' on ' + sla.execution_date.isoformat()
-                for sla in sla_misses])
-            blocking_task_list = "\n".join([
-                ti.task_id + ' on ' + ti.execution_date.isoformat()
-                for ti in blocking_tis])
+        task_list = "\n".join([
+            sla.task_id + ' on ' + sla.execution_date.isoformat()
+            for sla in sla_misses])
+        blocking_task_list = "\n".join([
+            ti.task_id + ' on ' + ti.execution_date.isoformat()
+            for ti in blocking_tis])
 
-            # Track whether email or any alert notification sent
-            # We consider email or the alert callback as notifications
-            email_sent = False
-            notification_sent = False
-            if self.sla_miss_callback:
-                # Execute the alert callback
-                self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
-                try:
-                    self.sla_miss_callback(self, task_list, blocking_task_list,
-                                           sla_misses, blocking_tis)
-                    notification_sent = True
-                except Exception:
-                    self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                       self.dag_id)
+        # Track whether email or any alert notification sent
+        # We consider email or the alert callback as notifications
+        email_sent = False
+        notification_sent = False
+        if self.sla_miss_callback:
+            # Execute the alert callback
+            self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
+            try:
+                self.sla_miss_callback(self, task_list, blocking_task_list,
+                                       sla_misses, blocking_tis)
+                notification_sent = True
+            except Exception:
+                self.log.exception("Could not call sla_miss_callback for DAG %s",
+                                   self.dag_id)
 
-            # If we sent any notification, update the sla_miss table
-            if notification_sent:
-                for sla in sla_misses:
-                    if email_sent:
-                        sla.email_sent = True
-                    sla.notification_sent = True
-                    session.merge(sla)
-            session.commit()
+        # If we sent any notification, update the sla_miss table
+        if notification_sent:
+            for sla in sla_misses:
+                if email_sent:
+                    sla.email_sent = True
+                sla.notification_sent = True
+                session.merge(sla)
+        session.commit()
 
     def send_sla_miss_email(self, task_list, blocking_task_list, slas, blocking_tis):
         """
