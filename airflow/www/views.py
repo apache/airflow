@@ -858,8 +858,16 @@ class Airflow(BaseView):
         no_failed_deps_result = [(
             "Unknown",
             dedent("""\
-            All dependencies are met but the task instance is not running. In most cases this just means that the task will probably be scheduled soon unless:<br/>
+            All dependencies are met but the task instance is not running.
+            In most cases this just means that the task will probably
+            be scheduled soon unless:<br/>
             - The scheduler is down or under heavy load<br/>
+            - The following configuration values may be limiting the number
+            of queueable processes:
+              <code>parallelism</code>,
+              <code>dag_concurrency</code>,
+              <code>max_active_dag_runs_per_dag</code>,
+              <code>non_pooled_task_slot_count</code><br/>
             {}
             <br/>
             If this task instance does not start soon please contact your Airflow """
