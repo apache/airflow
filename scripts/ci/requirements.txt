@@ -22,7 +22,6 @@ cgroupspy
 chartkick
 cloudant
 coverage
-coveralls
 croniter>=0.3.17
 cryptography
 datadog
