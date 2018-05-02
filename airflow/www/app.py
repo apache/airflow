@@ -144,11 +144,11 @@ def create_app(config=None, testing=False):
         # required for testing purposes otherwise the module retains
         # a link to the default_auth
         if app.config['TESTING']:
-            if six.PY2:
-                reload(e)
-            else:
-                import importlib
-                importlib.reload(e)
+            try:
+                reload         # Python 2
+            except NameError:  # Python 3
+                from importlib import reload
+            reload(e)
 
         app.register_blueprint(e.api_experimental, url_prefix='/api/experimental')
 
