@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -983,10 +983,17 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
 
-    def test_cli_create_user(self):
+    def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
-            'create_user', '-u', 'test', '-l', 'doe', '-f', 'jon',
+            'create_user', '-u', 'test1', '-l', 'doe', '-f', 'jon',
             '-e', 'jdoe@foo.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+
+    def test_cli_create_user_supplied_password(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test2', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
         ])
         cli.create_user(args)
 
