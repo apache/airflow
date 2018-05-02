@@ -26,11 +26,9 @@ class PodGenerator:
 
     def __init__(self, kube_config=None):
         self.kube_config = kube_config
-        self.env_vars = {}
         self.volumes = []
         self.volume_mounts = []
         self.init_containers = []
-        self.secrets = []
 
     def add_init_container(self,
                            name,
@@ -129,8 +127,8 @@ class PodGenerator:
             cmds=cmds,
             args=arguments,
             labels=labels,
-            envs=self.env_vars,
-            secrets={},
+            envs={},
+            secrets=[],
             # service_account_name=self.kube_config.worker_service_account_name,
             # image_pull_secrets=self.kube_config.image_pull_secrets,
             init_containers=worker_init_container_spec,
