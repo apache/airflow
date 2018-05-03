@@ -481,7 +481,7 @@ class DataProcPigOperator(BaseOperator):
     :param region: The specified region where the dataproc cluster is created.
     :type region: string
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.pg', '.pig',)
     ui_color = '#0273d4'
 
@@ -561,7 +561,7 @@ class DataProcHiveOperator(BaseOperator):
     :param region: The specified region where the dataproc cluster is created.
     :type region: string
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -642,7 +642,7 @@ class DataProcSparkSqlOperator(BaseOperator):
     :param region: The specified region where the dataproc cluster is created.
     :type region: string
     """
-    template_fields = ['query', 'variables', 'job_name', 'cluster_name']
+    template_fields = ['query', 'variables', 'job_name', 'cluster_name', 'dataproc_jars']
     template_ext = ('.q',)
     ui_color = '#0273d4'
 
@@ -731,7 +731,7 @@ class DataProcSparkOperator(BaseOperator):
     :type region: string
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name']
+    template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']
     ui_color = '#0273d4'
 
     @apply_defaults
@@ -821,7 +821,7 @@ class DataProcHadoopOperator(BaseOperator):
     :type region: string
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name']
+    template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']
     ui_color = '#0273d4'
 
     @apply_defaults
@@ -911,7 +911,7 @@ class DataProcPySparkOperator(BaseOperator):
     :type region: string
     """
 
-    template_fields = ['arguments', 'job_name', 'cluster_name']
+    template_fields = ['arguments', 'job_name', 'cluster_name', 'dataproc_jars']
     ui_color = '#0273d4'
 
     @staticmethod
