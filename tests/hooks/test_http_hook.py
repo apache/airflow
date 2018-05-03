@@ -22,11 +22,7 @@ import tenacity
 
 from airflow import configuration, models
 from airflow.exceptions import AirflowException
-
-try:
-    from airflow.hooks.http_hook import HttpHook
-except ImportError:
-    HttpHook = None
+from airflow.hooks.http_hook import HttpHook
 
 try:
     from unittest import mock
@@ -46,8 +42,6 @@ def get_airflow_connection(conn_id=None):
     )
 
 
-@unittest.skipIf(HttpHook is None,
-                 "Skipping test because HttpHook is not installed")
 class TestHttpHook(unittest.TestCase):
     """Test get, post and raise_for_status"""
     def setUp(self):

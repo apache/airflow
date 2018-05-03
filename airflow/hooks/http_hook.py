@@ -20,6 +20,7 @@
 from builtins import str
 
 import requests
+import tenacity
 
 from airflow.hooks.base_hook import BaseHook
 from airflow.exceptions import AirflowException
@@ -38,6 +39,7 @@ class HttpHook(BaseHook):
         self.http_conn_id = http_conn_id
         self.method = method
         self.base_url = None
+        self._retry_obj = None
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -129,5 +131,20 @@ class HttpHook(BaseHook):
             return response
 
         except requests.exceptions.ConnectionError as ex:
-            self.log.error(str(ex) + ' Tenacity will retry to execute the operation')
+            self.log.warn(str(ex) + ' Tenacity will retry to execute the operation')
             raise ex
+
+    def run_with_advanced_retry(self, _retry_args, *args, **kwargs):
+        """
+        Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
+        connectors which might be disturbed by intermittent issues and should not
+        instantly fail.
+        :param _retry_args: Arguments which define the retry behaviour.
+            See Tenacity documentation at https://github.com/jd/tenacity
+        :type _retry_args: dict
+        """
+        self._retry_obj = tenacity.Retrying(
+            **_retry_args
+        )
+
+        self._retry_obj(self.run, *args, **kwargs)

@@ -25,8 +25,6 @@ from __future__ import unicode_literals
 import os
 import random
 
-import tenacity
-
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
@@ -44,7 +42,7 @@ class BaseHook(LoggingMixin):
     with them.
     """
     def __init__(self, source):
-        self._retry_obj = None
+        pass
 
     @classmethod
     @provide_session
@@ -101,18 +99,3 @@ class BaseHook(LoggingMixin):
 
     def run(self, sql):
         raise NotImplementedError()
-
-    def run_with_advanced_retry(self, _retry_args, *args, **kwargs):
-        """
-        Runs Hook.run() with a Tenacity decorator attached to it. This is useful for
-        connectors which might be disturbed by intermittent issues and should not
-        instantly fail.
-        :param _retry_args: Arguments which define the retry behaviour.
-            See Tenacity documentation at https://github.com/jd/tenacity
-        :type _retry_args: dict
-        """
-        self._retry_obj = tenacity.Retrying(
-            **_retry_args
-        )
-
-        self._retry_obj(self.run, *args, **kwargs)
