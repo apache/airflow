@@ -451,11 +451,15 @@ class Airflow(AirflowBaseView):
 
         for i, log in enumerate(logs):
             if PY2 and not isinstance(log, unicode):
-                logs[i] = log.decode('utf-8')
+                tup_iter = [x for x in log if isinstance(x, dict)]
+                if tup_iter:
+                    pass
+                for i, each in enumerate(log):
+                    log[i] = each.decode('utf-8')
 
         return self.render(
             'airflow/ti_log.html',
-            logs=logs, dag=dag, title="Log by attempts", task_id=task_id,
+            logs=log, dag=dag, title="Log by attempts", task_id=task_id,
             execution_date=execution_date, form=form)
 
     @expose('/task')
