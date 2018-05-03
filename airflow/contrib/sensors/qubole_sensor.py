@@ -17,6 +17,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
+
 from qds_sdk.qubole import Qubole
 from qds_sdk.sensors import FileSensor, PartitionSensor
 
