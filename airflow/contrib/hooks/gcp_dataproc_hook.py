@@ -197,7 +197,7 @@ class DataProcHook(GoogleCloudBaseHook):
     def __init__(self,
                  gcp_conn_id='google_cloud_default',
                  delegate_to=None,
-                 api_version='v1'):
+                 api_version='v1beta2'):
         super(DataProcHook, self).__init__(gcp_conn_id, delegate_to)
         self.api_version = api_version
 
