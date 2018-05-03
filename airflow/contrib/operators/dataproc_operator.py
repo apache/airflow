@@ -32,6 +32,7 @@ from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.version import version
 from googleapiclient.errors import HttpError
+from airflow.utils import timezone
 
 
 class DataprocClusterCreateOperator(BaseOperator):
@@ -105,6 +106,16 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type service_account: string
     :param service_account_scopes: The URIs of service account scopes to be included.
     :type service_account_scopes: list[string]
+    :param idle_delete_ttl: The longest duration that cluster would keep alive while
+        staying idle. Passing this threshold will cause cluster to be auto-deleted.
+        A duration in seconds.
+    :type idle_delete_ttl: int
+    :param auto_delete_time:  The time when cluster will be auto-deleted.
+    :type auto_delete_time: datetime
+    :param auto_delete_ttl: The life duration of cluster, the cluster will be
+        auto-deleted at the end of this duration.
+        A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
+    :type auto_delete_ttl: int
     """
 
     template_fields = ['cluster_name', 'project_id', 'zone', 'region']
@@ -135,6 +146,9 @@ class DataprocClusterCreateOperator(BaseOperator):
                  delegate_to=None,
                  service_account=None,
                  service_account_scopes=None,
+                 idle_delete_ttl=None,
+                 auto_delete_time=None,
+                 auto_delete_ttl=None,
                  *args,
                  **kwargs):
 
@@ -163,6 +177,9 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.region = region
         self.service_account = service_account
         self.service_account_scopes = service_account_scopes
+        self.idle_delete_ttl = idle_delete_ttl
+        self.auto_delete_time = auto_delete_time
+        self.auto_delete_ttl = auto_delete_ttl
 
     def _get_cluster_list_for_project(self, service):
         result = service.projects().regions().clusters().list(
@@ -261,7 +278,8 @@ class DataprocClusterCreateOperator(BaseOperator):
                     }
                 },
                 'secondaryWorkerConfig': {},
-                'softwareConfig': {}
+                'softwareConfig': {},
+                'lifecycleConfig': {}
             }
         }
         if self.num_preemptible_workers > 0:
@@ -294,6 +312,16 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['softwareConfig']['imageVersion'] = self.image_version
         if self.properties:
             cluster_data['config']['softwareConfig']['properties'] = self.properties
+        if self.idle_delete_ttl:
+            cluster_data['config']['lifecycleConfig']['idleDeleteTtl'] = \
+                "{}s".format(self.idle_delete_ttl)
+        if self.auto_delete_time:
+            utc_auto_delete_time = timezone.convert_to_utc(self.auto_delete_time)
+            cluster_data['config']['lifecycleConfig']['autoDeleteTime'] = \
+                utc_auto_delete_time.format('%Y-%m-%dT%H:%M:%S.%fZ', formatter='classic')
+        elif self.auto_delete_ttl:
+            cluster_data['config']['lifecycleConfig']['autoDeleteTtl'] = \
+                "{}s".format(self.auto_delete_ttl)
         if self.init_actions_uris:
             init_actions_dict = [
                 {
