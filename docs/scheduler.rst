@@ -45,7 +45,7 @@ a ``str``, or a ``datetime.timedelta`` object. Alternatively, you can also
 use one of these cron "preset":
 
 +--------------+----------------------------------------------------------------+---------------+
-| preset       | Run once a year at midnight of January 1                       | cron          |
+| preset       | meaning                                                        | cron          |
 +==============+================================================================+===============+
 | ``None``     | Don't schedule, use for exclusively "externally triggered"     |               |
 |              | DAGs                                                           |               |
