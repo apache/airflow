@@ -39,7 +39,7 @@ def run_command(command):
             "Error while running command: {}; Stdout: {}; Stderr: {}".format(
                 command, stdout, stderr
             ))
-    return stdout, stderr
+    return stdout.decode(), stderr.decode()
 
 
 def run_command_in_pod(pod_name, container_name, command):
@@ -130,7 +130,7 @@ def get_dag_run_state(dag_id, run_id, postgres_pod=None):
 
 def dag_final_state(dag_id, run_id, postgres_pod=None, poll_interval=1, timeout=120):
     postgres_pod = postgres_pod or _get_postgres_pod()
-    for _ in range(0, timeout / poll_interval):
+    for _ in range(0, int(timeout / poll_interval)):
         dag_state = get_dag_run_state(dag_id, run_id, postgres_pod)
         if dag_state != DagRunState.RUNNING:
             capture_logs_for_failure(dag_state)

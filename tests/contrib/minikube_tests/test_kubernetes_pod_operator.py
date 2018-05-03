@@ -56,7 +56,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                                       get_logs=True
                                       )
             k.execute(None)
-            mock_logger.info.assert_any_call("+ echo\n")
+            mock_logger.info.assert_any_call(b"+ echo\n")
 
     def test_faulty_image(self):
         bad_image_name = "foobar"

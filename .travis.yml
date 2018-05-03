@@ -51,6 +51,8 @@ env:
     # does not work with python 3
     - BOTO_CONFIG=/tmp/bogusvalue
   matrix:
+    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
+    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.9.0
     - TOX_ENV=py27-backend_mysql
     - TOX_ENV=py27-backend_sqlite
     - TOX_ENV=py27-backend_postgres
@@ -58,8 +60,6 @@ env:
     - TOX_ENV=py35-backend_sqlite
     - TOX_ENV=py35-backend_postgres
     - TOX_ENV=flake8
-    - TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
-    - TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.9.0
 matrix:
   exclude:
     - python: "3.5"
