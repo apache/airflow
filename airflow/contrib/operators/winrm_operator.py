@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -80,8 +80,10 @@ class WinRMOperator(BaseOperator):
             if not self.command:
                 raise AirflowException("no command specified so nothing to execute here.")
 
-            self.log.info("Starting command: '{command}' on remote host: {remotehost}".
-                format(command=self.command, remotehost=self.winrm_hook.remote_host))
+            self.log.info(
+                "Starting command: '{command}' on remote host: {remotehost}".
+                format(command=self.command, remotehost=self.winrm_hook.remote_host)
+                )
             command_id = self.winrm_hook.winrm_protocol. \
                 run_command(winrm_client, self.command)
             std_out, std_err, status_code = self.winrm_hook.winrm_protocol. \
