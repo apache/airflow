@@ -153,6 +153,7 @@ oracle = ['cx_Oracle>=5.1.2']
 postgres = ['psycopg2-binary>=2.7.4']
 pinot = ['pinotdb>=0.1.1']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
+winrm =['pywinrm==0.2.2']
 salesforce = ['simple-salesforce>=0.72']
 s3 = ['boto3>=1.7.0']
 samba = ['pysmbclient>=0.1.3']
@@ -194,6 +195,7 @@ devel = [
     'rednose',
     'paramiko',
     'pysftp',
+	'pywinrm',
     'requests_mock'
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
@@ -304,6 +306,7 @@ def do_setup():
             'sendgrid' : sendgrid,
             'slack': slack,
             'ssh': ssh,
+            'winrm': winrm,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
