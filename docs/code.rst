@@ -179,6 +179,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.spark_submit_operator.SparkSubmitOperator
 .. autoclass:: airflow.contrib.operators.sqoop_operator.SqoopOperator
 .. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
+.. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
 .. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
 .. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
 
