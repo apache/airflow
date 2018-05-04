@@ -80,9 +80,6 @@ matrix:
       env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
     - python: "2.7"
       env: TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.9.0
-  allow_failures:
-    - env: TOX_ENV=py27-backend_postgres KUBERNETES_VERSION=v1.8.0
-    - env: TOX_ENV=py35-backend_postgres KUBERNETES_VERSION=v1.9.0
 cache:
   directories:
     - $HOME/.wheelhouse/

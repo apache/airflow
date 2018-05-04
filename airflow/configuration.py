@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -442,7 +442,10 @@ if not os.path.isfile(AIRFLOW_CONFIG):
     )
     with open(AIRFLOW_CONFIG, 'w') as f:
         cfg = parameterized_config(DEFAULT_CONFIG)
-        f.write(cfg.split(TEMPLATE_START)[-1].strip())
+        cfg = cfg.split(TEMPLATE_START)[-1].strip()
+        if six.PY2:
+            cfg = cfg.encode('utf8')
+        f.write(cfg)
 
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
