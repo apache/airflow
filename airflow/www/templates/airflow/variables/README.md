@@ -9,7 +9,7 @@ interface.
 
 1. Create an html template in `templates/variables` folder
 2. Provide an interface for the user to provide input data
-3. Submit a post request that adds the data as json.  
+3. Submit a post request that adds the data as json.
 
 An example ajax POST request is provided below:
 ```js
@@ -26,7 +26,7 @@ $("#submit-btn").click(function() {
         console.log("success.")
       },
       failure: function(response_data) {
-        console.log("post error.")            
+        console.log("post error.")
       }
     })
   }

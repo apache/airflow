@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 import unittest
 from airflow import configuration
-
+from airflow.utils import db
+from airflow import models
 
 HELLO_SERVER_CMD = """
 import socket, sys
@@ -55,7 +61,7 @@ class SSHHookTest(unittest.TestCase):
             print("Connecting to server via tunnel")
             s = socket.socket()
             s.connect(("localhost", 2135))
-            print("Receiving...", )
+            print("Receiving...",)
             response = s.recv(5)
             self.assertEqual(response, b"hello")
             print("Closing connection")
@@ -64,6 +70,20 @@ class SSHHookTest(unittest.TestCase):
             output, _ = self.server_handle.communicate()
             self.assertEqual(self.server_handle.returncode, 0)
             print("Closing tunnel")
+
+    def test_conn_with_extra_parameters(self):
+        from airflow.contrib.hooks.ssh_hook import SSHHook
+        db.merge_conn(
+            models.Connection(conn_id='ssh_with_extra',
+                              host='localhost',
+                              conn_type='ssh',
+                              extra='{"compress" : true, "no_host_key_check" : "true"}'
+                              )
+        )
+        ssh_hook = SSHHook(ssh_conn_id='ssh_with_extra', keepalive_interval=10)
+        ssh_hook.get_conn()
+        self.assertEqual(ssh_hook.compress, True)
+        self.assertEqual(ssh_hook.no_host_key_check, True)
 
 
 if __name__ == '__main__':

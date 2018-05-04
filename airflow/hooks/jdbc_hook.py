@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
 
@@ -23,21 +28,9 @@ class JdbcHook(DbApiHook):
     """
     General hook for jdbc db access.
 
-    If a connection id is specified, host, port, schema, username and password will be taken from the predefined connection.
+    JDBC URL, username and password will be taken from the predefined connection.
+    Note that the whole JDBC URL must be specified in the "host" field in the DB.
     Raises an airflow error if the given connection id doesn't exist.
-    Otherwise host, port, schema, username and password can be specified on the fly.
-
-    :param jdbc_url: jdbc connection url
-    :type jdbc_url: string
-    :param jdbc_driver_name: jdbc driver name
-    :type jdbc_driver_name: string
-    :param jdbc_driver_loc: path to jdbc driver
-    :type jdbc_driver_loc: string
-    :param conn_id: reference to a predefined database
-    :type conn_id: string
-    :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file. File must have
-        a '.sql' extensions.
     """
 
     conn_name_attr = 'jdbc_conn_id'
@@ -65,4 +58,4 @@ class JdbcHook(DbApiHook):
         :param conn: The connection
         :return:
         """
-        conn.jconn.autocommit = autocommit
+        conn.jconn.setAutoCommit(autocommit)

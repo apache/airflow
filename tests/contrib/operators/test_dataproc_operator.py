@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-# http://www.apache.org/licenses/LICENSE-2.0
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 #
 
 import datetime
@@ -18,12 +23,15 @@ import re
 import unittest
 
 from airflow import DAG
-from airflow.contrib.operators.dataproc_operator import DataprocClusterCreateOperator
-from airflow.contrib.operators.dataproc_operator import DataprocClusterDeleteOperator
-from airflow.contrib.operators.dataproc_operator import DataProcHadoopOperator
-from airflow.contrib.operators.dataproc_operator import DataProcHiveOperator
-from airflow.contrib.operators.dataproc_operator import DataProcPySparkOperator
-from airflow.contrib.operators.dataproc_operator import DataProcSparkOperator
+from airflow.contrib.operators.dataproc_operator import \
+    DataprocClusterCreateOperator,\
+    DataprocClusterDeleteOperator,\
+    DataProcHadoopOperator,\
+    DataProcHiveOperator,\
+    DataProcPySparkOperator,\
+    DataProcSparkOperator,\
+    DataprocWorkflowTemplateInstantiateInlineOperator,\
+    DataprocWorkflowTemplateInstantiateOperator
 from airflow.version import version
 
 from copy import deepcopy
@@ -54,15 +62,23 @@ MASTER_DISK_SIZE = 100
 WORKER_MACHINE_TYPE = 'n1-standard-2'
 WORKER_DISK_SIZE = 100
 NUM_PREEMPTIBLE_WORKERS = 2
+GET_INIT_ACTION_TIMEOUT = "600s"  # 10m
 LABEL1 = {}
-LABEL2 = {'application':'test', 'year': 2017}
+LABEL2 = {'application': 'test', 'year': 2017}
 SERVICE_ACCOUNT_SCOPES = [
     'https://www.googleapis.com/auth/bigquery',
     'https://www.googleapis.com/auth/bigtable.data'
 ]
+IDLE_DELETE_TTL = 321
+AUTO_DELETE_TIME = datetime.datetime(2017, 6, 7)
+AUTO_DELETE_TTL = 654
 DEFAULT_DATE = datetime.datetime(2017, 6, 6)
 REGION = 'test-region'
 MAIN_URI = 'test-uri'
+TEMPLATE_ID = 'template-id'
+
+HOOK = 'airflow.contrib.operators.dataproc_operator.DataProcHook'
+
 
 class DataprocClusterCreateOperatorTest(unittest.TestCase):
     # Unit test for the DataprocClusterCreateOperator
@@ -89,8 +105,11 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     worker_machine_type=WORKER_MACHINE_TYPE,
                     worker_disk_size=WORKER_DISK_SIZE,
                     num_preemptible_workers=NUM_PREEMPTIBLE_WORKERS,
-                    labels = deepcopy(labels),
-                    service_account_scopes = SERVICE_ACCOUNT_SCOPES
+                    labels=deepcopy(labels),
+                    service_account_scopes=SERVICE_ACCOUNT_SCOPES,
+                    idle_delete_ttl=IDLE_DELETE_TTL,
+                    auto_delete_time=AUTO_DELETE_TIME,
+                    auto_delete_ttl=AUTO_DELETE_TTL
                 )
              )
         self.dag = DAG(
@@ -118,9 +137,19 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertEqual(dataproc_operator.master_disk_size, MASTER_DISK_SIZE)
             self.assertEqual(dataproc_operator.worker_machine_type, WORKER_MACHINE_TYPE)
             self.assertEqual(dataproc_operator.worker_disk_size, WORKER_DISK_SIZE)
-            self.assertEqual(dataproc_operator.num_preemptible_workers, NUM_PREEMPTIBLE_WORKERS)
+            self.assertEqual(dataproc_operator.num_preemptible_workers,
+                             NUM_PREEMPTIBLE_WORKERS)
             self.assertEqual(dataproc_operator.labels, self.labels[suffix])
-            self.assertEqual(dataproc_operator.service_account_scopes, SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(dataproc_operator.service_account_scopes,
+                             SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(dataproc_operator.idle_delete_ttl, IDLE_DELETE_TTL)
+            self.assertEqual(dataproc_operator.auto_delete_time, AUTO_DELETE_TIME)
+            self.assertEqual(dataproc_operator.auto_delete_ttl, AUTO_DELETE_TTL)
+
+    def test_get_init_action_timeout(self):
+        for suffix, dataproc_operator in enumerate(self.dataproc_operators):
+            timeout = dataproc_operator._get_init_action_timeout()
+            self.assertEqual(timeout, "600s")
 
     def test_build_cluster_data(self):
         for suffix, dataproc_operator in enumerate(self.dataproc_operators):
@@ -140,6 +169,10 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                 NETWORK_URI)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['tags'],
                 TAGS)
+            self.assertEqual(cluster_data['config']['lifecycleConfig']['idleDeleteTtl'],
+                             "321s")
+            self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                             "2017-06-07T00:00:00.000000Z")
             # test whether the default airflow-version label has been properly
             # set to the dataproc operator.
             merged_labels = {}
@@ -148,6 +181,52 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             self.assertTrue(re.match(r'[a-z]([-a-z0-9]*[a-z0-9])?',
                                      cluster_data['labels']['airflow-version']))
             self.assertEqual(cluster_data['labels'], merged_labels)
+
+    def test_build_cluster_data_with_autoDeleteTime(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_time=AUTO_DELETE_TIME,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                         "2017-06-07T00:00:00.000000Z")
+
+    def test_build_cluster_data_with_autoDeleteTtl(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_ttl=AUTO_DELETE_TTL,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTtl'],
+                         "654s")
+
+    def test_build_cluster_data_with_autoDeleteTime_and_autoDeleteTtl(self):
+        dataproc_operator = DataprocClusterCreateOperator(
+            task_id=TASK_ID,
+            cluster_name=CLUSTER_NAME,
+            project_id=PROJECT_ID,
+            num_workers=NUM_WORKERS,
+            zone=ZONE,
+            dag=self.dag,
+            auto_delete_time=AUTO_DELETE_TIME,
+            auto_delete_ttl=AUTO_DELETE_TTL,
+        )
+        cluster_data = dataproc_operator._build_cluster_data()
+        if 'autoDeleteTtl' in cluster_data['config']['lifecycleConfig']:
+            self.fail("If 'auto_delete_time' and 'auto_delete_ttl' is set, " +
+                      "only `auto_delete_time` is used")
+        self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
+                         "2017-06-07T00:00:00.000000Z")
 
     def test_cluster_name_log_no_sub(self):
         with patch('airflow.contrib.operators.dataproc_operator.DataProcHook') as mock_hook:
@@ -290,3 +369,116 @@ class DataProcSparkOperatorTest(unittest.TestCase):
 
             dataproc_task.execute(None)
             mock_hook.return_value.submit.assert_called_once_with(mock.ANY, mock.ANY, REGION)
+
+
+class DataprocWorkflowTemplateInstantiateOperatorTest(unittest.TestCase):
+    def setUp(self):
+        # Setup service.projects().regions().workflowTemplates().instantiate().execute()
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_workflows = Mock()
+        self.mock_workflows.instantiate.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.workflowTemplates.return_value = self.mock_workflows
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+                'end_date': DEFAULT_DATE,
+            },
+            schedule_interval='@daily')
+
+    def test_workflow(self):
+        with patch(HOOK) as MockHook:
+            hook = MockHook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.await.return_value = None
+
+            dataproc_task = DataprocWorkflowTemplateInstantiateOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                template_id=TEMPLATE_ID,
+                dag=self.dag
+            )
+
+            dataproc_task.execute(None)
+            template_name = (
+                'projects/test-project-id/regions/test-region/'
+                'workflowTemplates/template-id')
+            self.mock_workflows.instantiate.assert_called_once_with(
+                name=template_name,
+                body=mock.ANY)
+            hook.await.assert_called_once_with(self.operation)
+
+
+class DataprocWorkflowTemplateInstantiateInlineOperatorTest(unittest.TestCase):
+    def setUp(self):
+        # Setup service.projects().regions().workflowTemplates().instantiateInline()
+        #              .execute()
+        self.operation = {'name': 'operation', 'done': True}
+        self.mock_execute = Mock()
+        self.mock_execute.execute.return_value = self.operation
+        self.mock_workflows = Mock()
+        self.mock_workflows.instantiateInline.return_value = self.mock_execute
+        self.mock_regions = Mock()
+        self.mock_regions.workflowTemplates.return_value = self.mock_workflows
+        self.mock_projects = Mock()
+        self.mock_projects.regions.return_value = self.mock_regions
+        self.mock_conn = Mock()
+        self.mock_conn.projects.return_value = self.mock_projects
+        self.dag = DAG(
+            'test_dag',
+            default_args={
+                'owner': 'airflow',
+                'start_date': DEFAULT_DATE,
+                'end_date': DEFAULT_DATE,
+            },
+            schedule_interval='@daily')
+
+    def test_iniline_workflow(self):
+        with patch(HOOK) as MockHook:
+            hook = MockHook()
+            hook.get_conn.return_value = self.mock_conn
+            hook.await.return_value = None
+
+            template = {
+                "placement": {
+                    "managed_cluster": {
+                        "cluster_name": CLUSTER_NAME,
+                        "config": {
+                            "gce_cluster_config": {
+                                "zone_uri": ZONE,
+                            }
+                        }
+                    }
+                },
+                "jobs": [
+                    {
+                        "step_id": "say-hello",
+                        "pig_job": {
+                            "query": "sh echo hello"
+                        }
+                    }],
+            }
+
+            dataproc_task = DataprocWorkflowTemplateInstantiateInlineOperator(
+                task_id=TASK_ID,
+                project_id=PROJECT_ID,
+                region=REGION,
+                template=template,
+                dag=self.dag
+            )
+
+            dataproc_task.execute(None)
+            self.mock_workflows.instantiateInline.assert_called_once_with(
+                parent='projects/test-project-id/regions/test-region',
+                instanceId=mock.ANY,
+                body=template)
+            hook.await.assert_called_once_with(self.operation)

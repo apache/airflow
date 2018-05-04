@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from builtins import str
 
@@ -71,7 +76,7 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_records(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
 
     def get_first(self, hql, parameters=None):
         """
@@ -82,7 +87,7 @@ class PrestoHook(DbApiHook):
             return super(PrestoHook, self).get_first(
                 self._strip_sql(hql), parameters)
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
 
     def get_pandas_df(self, hql, parameters=None):
         """
@@ -94,7 +99,7 @@ class PrestoHook(DbApiHook):
             cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
-            raise PrestoException(self._parse_exception_message(e))
+            raise PrestoException(self._get_pretty_exception_message(e))
         column_descriptions = cursor.description
         if data:
             df = pandas.DataFrame(data)
@@ -109,5 +114,18 @@ class PrestoHook(DbApiHook):
         """
         return super(PrestoHook, self).run(self._strip_sql(hql), parameters)
 
-    def insert_rows(self):
-        raise NotImplementedError()
+    # TODO Enable commit_every once PyHive supports transaction.
+    # Unfortunately, PyHive 0.5.1 doesn't support transaction for now,
+    # whereas Presto 0.132+ does.
+    def insert_rows(self, table, rows, target_fields=None):
+        """
+        A generic way to insert a set of tuples into a table.
+
+        :param table: Name of the target table
+        :type table: str
+        :param rows: The rows to insert into the table
+        :type rows: iterable of tuples
+        :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
+        """
+        super(PrestoHook, self).insert_rows(table, rows, target_fields, 0)

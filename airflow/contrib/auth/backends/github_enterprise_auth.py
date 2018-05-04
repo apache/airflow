@@ -1,16 +1,21 @@
 # Copyright 2015 Matthew Pelland (matt@pelland.io)
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 import flask_login
 
 # Need to expose these downstream
@@ -34,7 +39,7 @@ log = LoggingMixin().log
 
 
 def get_config_param(param):
-    return str(configuration.get('github_enterprise', param))
+    return str(configuration.conf.get('github_enterprise', param))
 
 
 class GHEUser(models.User):
@@ -119,11 +124,11 @@ class GHEAuthBackend(object):
                                     self.oauth_callback)
 
     def login(self, request):
-        _log.debug('Redirecting user to GHE login')
+        log.debug('Redirecting user to GHE login')
         return self.ghe_oauth.authorize(callback=url_for(
             'ghe_oauth_callback',
-            _external=True,
-            next=request.args.get('next') or request.referrer or None))
+            _external=True),
+            state=request.args.get('next') or request.referrer or None)
 
     def get_ghe_user_profile_info(self, ghe_token):
         resp = self.ghe_oauth.get(self.ghe_api_route('/user'),
@@ -169,7 +174,7 @@ class GHEAuthBackend(object):
             if team['id'] in allowed_teams:
                 return True
 
-        _log.debug('Denying access for user "%s", not a member of "%s"',
+        log.debug('Denying access for user "%s", not a member of "%s"',
                    username,
                    str(allowed_teams))
 
@@ -186,9 +191,9 @@ class GHEAuthBackend(object):
 
     @provide_session
     def oauth_callback(self, session=None):
-        _log.debug('GHE OAuth callback called')
+        log.debug('GHE OAuth callback called')
 
-        next_url = request.args.get('next') or url_for('admin.index')
+        next_url = request.args.get('state') or url_for('admin.index')
 
         resp = self.ghe_oauth.authorized_response()
 
@@ -206,7 +211,7 @@ class GHEAuthBackend(object):
                 return redirect(url_for('airflow.noaccess'))
 
         except AuthenticationError:
-            _log.exception('')
+            log.exception('')
             return redirect(url_for('airflow.noaccess'))
 
         user = session.query(models.User).filter(

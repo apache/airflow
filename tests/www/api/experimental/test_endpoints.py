@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from datetime import timedelta
 import json
@@ -19,7 +24,7 @@ from urllib.parse import quote_plus
 
 from airflow import configuration
 from airflow.api.common.experimental.trigger_dag import trigger_dag
-from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models import DagBag, DagModel, DagRun, Pool, TaskInstance
 from airflow.settings import Session
 from airflow.utils.timezone import datetime, utcnow
 from airflow.www import app as application
@@ -85,6 +90,26 @@ class TestApiExperimental(unittest.TestCase):
         response = self.app.post(
             url_template.format('does_not_exist_dag'),
             data=json.dumps({}),
+            content_type="application/json"
+        )
+        self.assertEqual(404, response.status_code)
+
+    def test_delete_dag(self):
+        url_template = '/api/experimental/dags/{}'
+
+        from airflow import settings
+        session = settings.Session()
+        key = "my_dag_id"
+        session.add(DagModel(dag_id=key))
+        session.commit()
+        response = self.app.delete(
+            url_template.format(key),
+            content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code)
+
+        response = self.app.delete(
+            url_template.format('does_not_exist_dag'),
             content_type="application/json"
         )
         self.assertEqual(404, response.status_code)

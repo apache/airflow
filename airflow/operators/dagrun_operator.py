@@ -1,16 +1,21 @@
 # -*- coding: utf-8 -*-
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+# 
+#   http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 from airflow.models import BaseOperator, DagBag
 from airflow.utils import timezone
@@ -28,7 +33,7 @@ class DagRunOrder(object):
 
 class TriggerDagRunOperator(BaseOperator):
     """
-    Triggers a DAG run for a specified ``dag_id`` if a criteria is met
+    Triggers a DAG run for a specified ``dag_id``
 
     :param trigger_dag_id: the dag_id to trigger
     :type trigger_dag_id: str
@@ -51,7 +56,7 @@ class TriggerDagRunOperator(BaseOperator):
     def __init__(
             self,
             trigger_dag_id,
-            python_callable,
+            python_callable=None,
             *args, **kwargs):
         super(TriggerDagRunOperator, self).__init__(*args, **kwargs)
         self.python_callable = python_callable
@@ -59,7 +64,8 @@ class TriggerDagRunOperator(BaseOperator):
 
     def execute(self, context):
         dro = DagRunOrder(run_id='trig__' + timezone.utcnow().isoformat())
-        dro = self.python_callable(context, dro)
+        if self.python_callable is not None:
+            dro = self.python_callable(context, dro)
         if dro:
             with create_session() as session:
                 dbag = DagBag(settings.DAGS_FOLDER)

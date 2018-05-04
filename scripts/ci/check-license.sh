@@ -63,7 +63,7 @@ else
     declare java_cmd=java
 fi
 
-export RAT_VERSION=0.11
+export RAT_VERSION=0.12
 export rat_jar="${TRAVIS_CACHE}"/lib/apache-rat-${RAT_VERSION}.jar
 mkdir -p ${TRAVIS_CACHE}/lib
 
