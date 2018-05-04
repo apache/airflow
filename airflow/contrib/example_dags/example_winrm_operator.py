@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,8 +27,6 @@
 # Load The Dependencies
 # --------------------------------------------------------------------------------
 import airflow
-from builtins import range
-#from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.models import DAG
 from datetime import timedelta
@@ -68,7 +66,7 @@ t3 = WinRMOperator(
     task_id="wintask3",
     command='echo \'luke test\' ',
     winrm_hook=winRMHook,
-    dag=dag)    
+    dag=dag)
 
 t1.set_downstream(run_this_last)
 t2.set_downstream(run_this_last)
