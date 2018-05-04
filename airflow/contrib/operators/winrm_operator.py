@@ -83,7 +83,7 @@ class WinRMOperator(BaseOperator):
             self.log.info(
                 "Starting command: '{command}' on remote host: {remotehost}".
                 format(command=self.command, remotehost=self.winrm_hook.remote_host)
-                )
+            )
             command_id = self.winrm_hook.winrm_protocol. \
                 run_command(winrm_client, self.command)
             std_out, std_err, status_code = self.winrm_hook.winrm_protocol. \
