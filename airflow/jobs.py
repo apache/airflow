@@ -1549,6 +1549,12 @@ class SchedulerJob(BaseJob):
         # Build up a list of Python files that could contain DAGs
         self.log.info("Searching for files in %s", self.subdir)
         known_file_paths = list_py_file_paths(self.subdir)
+
+        # Sync DAGs from S3 in the scheduler and metadata backend, if S3 DAGs
+        # location is defined in config
+        self.dagbag = models.DagBag()
+        self.dagbag.get_dags_from_s3(force=False)
+
         self.log.info("There are %s files in %s", len(known_file_paths), self.subdir)
 
         def processor_factory(file_path):

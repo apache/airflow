@@ -93,6 +93,7 @@ from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
 from airflow.utils.net import get_hostname
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.configuration import conf, mkdir_p
 
 install_aliases()
 
@@ -207,6 +208,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+        self.s3_dag_counter = 0
 
         if include_examples:
             example_dag_folder = os.path.join(
@@ -220,6 +222,63 @@ class DagBag(BaseDagBag, LoggingMixin):
         :return: the amount of dags contained in this dagbag
         """
         return len(self.dags)
+
+    def get_dags_from_s3(self, force=False, fileloc=None, refresh_every=5):
+        """
+
+        Syncing DAGs from a common remote location is useful while running Airflow on
+        a distributed setup (like mesos), where the hosts running the scheduler and
+        the web-server can vary with time. Also, where scheduler and
+        web-server restart is to be avoided for every DAG update/addition.
+
+        If [CORE]/s3_dags_folder property is defined in the airflow config,
+        this function will recursively download any '.py' files found
+        there to {dags_folder}/s3_dags/. This folder is scanned to sync all
+        the newly added DAGs in S3 location with the web-server, scheduler
+        and backend metastore.
+        While syncing, the corresponding DAG file from S3 is downloaded only if its
+        new or its last update timestamp is later than the local DAG file's last
+        update timestamp.
+
+        If force is set to True, the S3 DAGs will be refreshed, otherwise they are
+        refreshed every 'refresh_every' time this function is called.
+        If fileloc is provided, only the DAGs at that specific location will be
+        checked. Fileloc should be relative to{DAGS_FOLDER}/s3_dags/{FILELOC};
+        It corresponds to the part of the directory structured mirrored from S3
+
+        """
+
+        if not force and self._s3_dag_counter % refresh_every != 0:
+            return
+
+        self.s3_dag_counter += 1
+
+        # get S3 location of DAGs and create the necessary directories
+        s3_dag_folder = os.path.join(
+            conf.get('core', 'dags_folder'), 's3_dags')
+
+        mkdir_p(s3_dag_folder)
+
+        # use airflow S3Hook and Connection
+        from airflow.hooks.S3_hook import S3Hook
+        s3_hook = S3Hook(conf.get('core', 's3_dags_folder_conn_id'))
+        bucket, prefix = s3_hook.parse_s3_url(
+            conf.get('core', 's3_dags_folder'))
+        if fileloc:
+            prefix = fileloc
+
+        logging.info('Retrieving DAGs from S3...')
+
+        # download keys if they are new or modified later than local version
+        keys = s3_hook.list_keys(bucket, prefix)
+        for key in keys:
+            filename = os.path.join(s3_dag_folder, key)
+            key_obj = s3_hook.get_key(key, bucket)
+            with open(filename, 'wb') as data:
+                key_obj.download_fileobj(data)
+            logging.info("file download done for" + str(key))
+        if fileloc:
+            return
 
     def get_dag(self, dag_id):
         """
@@ -264,6 +323,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         # todo: raise exception?
         if filepath is None or not os.path.isfile(filepath):
             return found_dags
+        if 's3_dags' in filepath:
+            fileloc = filepath.split('s3_dags/')[-1]
+            self.get_dags_from_s3(force=True, fileloc=fileloc)
 
         try:
             # This failed before in what may have been a git sync
@@ -449,6 +511,9 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
+        has_s3_dags_folder = conf.has_option('core', 's3_dags_folder')
+        if has_s3_dags_folder and conf.get('core', 's3_dags_folder'):
+            self.get_dags_from_s3()
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
         elif os.path.isdir(dag_folder):
