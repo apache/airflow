@@ -21,13 +21,18 @@ import six
 
 from airflow.contrib.kubernetes.pod import Pod, Resources
 from airflow.contrib.kubernetes.secret import Secret
+from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-class WorkerConfiguration:
+class WorkerConfiguration(LoggingMixin):
     """Contains Kubernetes Airflow Worker configuration logic"""
 
     def __init__(self, kube_config):
         self.kube_config = kube_config
+        self.worker_airflow_home = self.kube_config.airflow_home
+        self.worker_airflow_dags = self.kube_config.dags_folder
+        self.worker_airflow_logs = self.kube_config.base_log_folder
+        super(WorkerConfiguration, self).__init__()
 
     def _get_init_containers(self, volume_mounts):
         """When using git to retrieve the DAGs, use the GitSync Init Container"""
@@ -79,7 +84,7 @@ class WorkerConfiguration:
             'AIRFLOW__CORE__EXECUTOR': 'LocalExecutor'
         }
         if self.kube_config.airflow_configmap:
-            env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.kube_config.airflow_home
+            env['AIRFLOW__CORE__AIRFLOW_HOME'] = self.worker_airflow_home
         return env
 
     def _get_secrets(self):
@@ -129,19 +134,19 @@ class WorkerConfiguration:
         volume_mounts = [{
             'name': dags_volume_name,
             'mountPath': os.path.join(
-                self.kube_config.dags_folder,
+                self.worker_airflow_dags,
                 self.kube_config.git_subpath
             ),
             'readOnly': True
         }, {
             'name': logs_volume_name,
-            'mountPath': self.kube_config.base_log_folder
+            'mountPath': self.worker_airflow_logs
         }]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
             config_volume_name = 'airflow-config'
-            config_path = '{}/airflow.cfg'.format(self.kube_config.airflow_home)
+            config_path = '{}/airflow.cfg'.format(self.worker_airflow_home)
             volumes.append({
                 'name': config_volume_name,
                 'configMap': {
@@ -172,6 +177,10 @@ class WorkerConfiguration:
         annotations = {
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
+        airflow_command = airflow_command.replace("-sd", "-i -sd")
+        airflow_path = airflow_command.split('-sd')[-1]
+        airflow_path = self.worker_airflow_home + airflow_path.split('/')[-1]
+        airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path
 
         return Pod(
             namespace=namespace,

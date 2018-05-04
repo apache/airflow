@@ -33,42 +33,44 @@ except Exception as e:
 
 class KubernetesPodOperatorTest(unittest.TestCase):
     def test_working_pod(self):
-        k = KubernetesPodOperator(namespace='default',
-                                  image="ubuntu:16.04",
-                                  cmds=["bash", "-cx"],
-                                  arguments=["echo", "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task"
-                                  )
-
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task"
+        )
         k.execute(None)
 
     def test_logging(self):
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
-            k = KubernetesPodOperator(namespace='default',
-                                      image="ubuntu:16.04",
-                                      cmds=["bash", "-cx"],
-                                      arguments=["echo", "10"],
-                                      labels={"foo": "bar"},
-                                      name="test",
-                                      task_id="task",
-                                      get_logs=True
-                                      )
+            k = KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["echo", "10"],
+                labels={"foo": "bar"},
+                name="test",
+                task_id="task",
+                get_logs=True
+            )
             k.execute(None)
-            mock_logger.info.assert_any_call("+ echo\n")
+            mock_logger.info.assert_any_call(b"+ echo\n")
 
     def test_faulty_image(self):
         bad_image_name = "foobar"
-        k = KubernetesPodOperator(namespace='default',
-                                  image=bad_image_name,
-                                  cmds=["bash", "-cx"],
-                                  arguments=["echo", "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task",
-                                  startup_timeout_seconds=5
-                                  )
+        k = KubernetesPodOperator(
+            namespace='default',
+            image=bad_image_name,
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            startup_timeout_seconds=5
+        )
         with self.assertRaises(AirflowException) as cm:
             k.execute(None),
 
@@ -78,16 +80,19 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         """
             Tests that the task fails when a pod reports a failure
         """
-
         bad_internal_command = "foobar"
-        k = KubernetesPodOperator(namespace='default',
-                                  image="ubuntu:16.04",
-                                  cmds=["bash", "-cx"],
-                                  arguments=[bad_internal_command, "10"],
-                                  labels={"foo": "bar"},
-                                  name="test",
-                                  task_id="task"
-                                  )
-
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=[bad_internal_command, "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task"
+        )
         with self.assertRaises(AirflowException):
             k.execute(None)
+
+
+if __name__ == '__main__':
+    unittest.main()
