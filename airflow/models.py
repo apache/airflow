@@ -29,7 +29,6 @@ from builtins import object, bytes
 import copy
 from collections import namedtuple, defaultdict
 from datetime import timedelta
-import botocore
 
 import dill
 import functools
@@ -231,7 +230,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         a distributed setup (like mesos), where the hosts running the scheduler and
         the web-server can vary with time. Also, where scheduler and
         web-server restart is to be avoided for every DAG update/addition.
-        
+
         If [CORE]/s3_dags_folder property is defined in the airflow config,
         this function will recursively download any '.py' files found
         there to {dags_folder}/s3_dags/. This folder is scanned to sync all
@@ -269,6 +268,7 @@ class DagBag(BaseDagBag, LoggingMixin):
             prefix = fileloc
 
         logging.info('Retrieving DAGs from S3...')
+
         # download keys if they are new or modified later than local version
         keys = s3_hook.list_keys(bucket, prefix)
         for key in keys:
@@ -279,18 +279,6 @@ class DagBag(BaseDagBag, LoggingMixin):
             logging.info("file download done for" + str(key))
         if fileloc:
             return
-
-        # remove any files that aren't in the key list
-        key_names = [os.path.join(s3_dag_folder, key) for key in keys]
-        for root, dirs, files in os.walk(s3_dag_folder):
-            for f in files:
-                full_f = os.path.join(root, f)
-                if full_f not in key_names:
-                    os.remove(full_f)
-                    try:
-                        os.removedirs(root)
-                    except:
-                        pass
 
     def get_dag(self, dag_id):
         """
@@ -523,7 +511,8 @@ class DagBag(BaseDagBag, LoggingMixin):
         stats = []
         FileLoadStat = namedtuple(
             'FileLoadStat', "file duration dag_num task_num dags")
-        if conf.has_option('core', 's3_dags_folder') and conf.get('core', 's3_dags_folder'):
+        has_s3_dags_folder = conf.has_option('core', 's3_dags_folder')
+        if has_s3_dags_folder and conf.get('core', 's3_dags_folder'):
             self.get_dags_from_s3()
         if os.path.isfile(dag_folder):
             self.process_file(dag_folder, only_if_updated=only_if_updated)
