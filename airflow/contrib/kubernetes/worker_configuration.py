@@ -177,7 +177,6 @@ class WorkerConfiguration(LoggingMixin):
         annotations = {
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
-        airflow_command = airflow_command.replace("-sd", "-i -sd")
         airflow_path = airflow_command.split('-sd')[-1]
         airflow_path = self.worker_airflow_home + airflow_path.split('/')[-1]
         airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path
