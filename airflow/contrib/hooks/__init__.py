@@ -58,7 +58,8 @@ _hooks = {
     'wasb_hook': ['WasbHook'],
     'gcp_pubsub_hook': ['PubSubHook'],
     'jenkins_hook': ['JenkinsHook'],
-    'aws_dynamodb_hook': ['AwsDynamoDBHook']
+    'aws_dynamodb_hook': ['AwsDynamoDBHook'],
+    'azure_data_lake_hook': ['AzureDataLakeHook'],
 }
 
 import os as _os
