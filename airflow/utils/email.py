@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,9 +39,9 @@ from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 
-def send_email(to, subject, html_content, files=None,
-               dryrun=False, cc=None, bcc=None,
-               mime_subtype='mixed', **kwargs):
+def send_email(to, subject, html_content,
+               files=None, dryrun=False, cc=None, bcc=None,
+               mime_subtype='mixed', mime_charset='us-ascii', **kwargs):
     """
     Send email using backend specified in EMAIL_BACKEND.
     """
@@ -50,12 +50,13 @@ def send_email(to, subject, html_content, files=None,
     backend = getattr(module, attr)
     return backend(to, subject, html_content, files=files,
                    dryrun=dryrun, cc=cc, bcc=bcc,
-                   mime_subtype=mime_subtype, **kwargs)
+                   mime_subtype=mime_subtype, mime_charset=mime_charset, **kwargs)
 
 
 def send_email_smtp(to, subject, html_content, files=None,
                     dryrun=False, cc=None, bcc=None,
-                    mime_subtype='mixed', **kwargs):
+                    mime_subtype='mixed', mime_charset='us-ascii',
+                    **kwargs):
     """
     Send an email with html content
 
@@ -81,7 +82,7 @@ def send_email_smtp(to, subject, html_content, files=None,
         recipients = recipients + bcc
 
     msg['Date'] = formatdate(localtime=True)
-    mime_text = MIMEText(html_content, 'html')
+    mime_text = MIMEText(html_content, 'html', mime_charset)
     msg.attach(mime_text)
 
     for fname in files or []:
