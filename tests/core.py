@@ -37,6 +37,7 @@ from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
@@ -2409,8 +2410,7 @@ class EmailTest(unittest.TestCase):
         utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
-            cc=None, bcc=None, mime_subtype='mixed'
-        )
+            cc=None, bcc=None, mime_charset='us-ascii', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
 
@@ -2432,10 +2432,19 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual('subject', msg['Subject'])
         self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-                         msg.get_payload()[-1].get(u'Content-Disposition'))
+        filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
+        self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
+
+    @mock.patch('airflow.utils.email.send_MIME_email')
+    def test_send_smtp_with_multibyte_content(self, mock_send_mime):
+        utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
+        self.assertTrue(mock_send_mime.called)
+        call_args = mock_send_mime.call_args[0]
+        msg = call_args[2]
+        mimetext = MIMEText('🔥', 'mixed', 'utf-8')
+        self.assertEqual(mimetext.get_payload(), msg.get_payload()[0].get_payload())
 
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_bcc_smtp(self, mock_send_mime):
