@@ -88,10 +88,9 @@ class PodLauncher(LoggingMixin):
                 _preload_content=False)
             for line in logs:
                 self.log.info(line)
-        else:
-            while self.pod_is_running(pod):
-                self.log.info('Pod %s has state %s', pod.name, State.RUNNING)
-                time.sleep(2)
+        while self.pod_is_running(pod):
+            self.log.info('Pod %s has state %s', pod.name, State.RUNNING)
+            time.sleep(2)
         return self._task_status(self.read_pod(pod))
 
     def _task_status(self, event):
