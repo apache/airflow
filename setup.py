@@ -234,7 +234,7 @@ def do_setup():
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
             'flask-swagger==0.2.13',
-            'flask-wtf>=0.14, <0.15',
+            'flask-wtf>=0.14.2, <0.15',
             'funcsigs==1.0.0',
             'future>=0.16.0, <0.17',
             'gitpython>=2.0.2',
