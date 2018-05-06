@@ -82,7 +82,9 @@ class KubernetesPodOperator(BaseOperator):
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs)
             if final_state != State.SUCCESS:
-                raise AirflowException('Pod returned a failure')
+                raise AirflowException(
+                    'Pod returned a failure: {state}'.format(state=final_state)
+                )
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
