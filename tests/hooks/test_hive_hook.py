@@ -20,12 +20,14 @@
 
 import datetime
 import random
+
+import mock
 import unittest
 
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveMetastoreHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
 
@@ -80,6 +82,28 @@ class HiveEnvironmentTest(unittest.TestCase):
         hook = HiveMetastoreHook()
         with hook.get_conn() as metastore:
             metastore.drop_table(self.database, self.table, deleteData=True)
+
+
+class TestHiveCliHook(unittest.TestCase):
+
+    def test_run_cli(self):
+        hook = HiveCliHook()
+        hook.run_cli("SHOW DATABASES")
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    def test_load_file(self, mock_run_cli):
+        filepath = "/path/to/input/file"
+        table = "output_table"
+
+        hook = HiveCliHook()
+        hook.load_file(filepath=filepath, table=table, create=False)
+
+        query = (
+            "LOAD DATA LOCAL INPATH '{filepath}' "
+            "OVERWRITE INTO TABLE {table} \n"
+            .format(filepath=filepath, table=table)
+        )
+        mock_run_cli.assert_called_with(query)
 
 
 class TestHiveMetastoreHook(HiveEnvironmentTest):
