@@ -163,6 +163,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 
     def test_string_args(self):
         def f():
+            global virtualenv_string_args
             print(virtualenv_string_args)
             if virtualenv_string_args[0] != virtualenv_string_args[2]:
                 raise Exception
@@ -197,4 +198,3 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         def f(**kwargs):
             return kwargs['templates_dict']['ds']
         self._run_as_operator(f, templates_dict={'ds': '{{ ds }}'})
-

@@ -20,6 +20,7 @@
 
 import boto3
 import configparser
+import logging
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook

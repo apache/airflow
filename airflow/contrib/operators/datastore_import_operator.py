@@ -18,6 +18,7 @@
 # under the License.
 #
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -88,11 +89,9 @@ class DatastoreImportOperator(BaseOperator):
         result = ds_hook.poll_operation_until_done(operation_name,
                                                    self.polling_interval_in_seconds)
 
-
         state = result['metadata']['common']['state']
         if state != 'SUCCESSFUL':
             raise AirflowException('Operation failed: result={}'.format(result))
 
         if self.xcom_push:
             return result
-

@@ -19,6 +19,7 @@
 #
 from airflow.contrib.hooks.datastore_hook import DatastoreHook
 from airflow.contrib.hooks.gcs_hook import GoogleCloudStorageHook
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 
