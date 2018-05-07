@@ -156,6 +156,7 @@ def create_app(config=None, testing=False):
         def jinja_globals():
             return {
                 'hostname': get_hostname(),
+                'navbar_color': configuration.get('webserver', 'NAVBAR_COLOR'),
             }
 
         @app.teardown_appcontext
