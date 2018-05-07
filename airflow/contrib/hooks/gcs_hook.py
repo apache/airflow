@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,6 +23,8 @@ from googleapiclient import errors
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.exceptions import AirflowException
+
+import re
 
 
 class GoogleCloudStorageHook(GoogleCloudBaseHook):
@@ -416,6 +418,12 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         assert storage_class in storage_classes, \
             'Invalid value ({}) passed to storage_class. Value should be ' \
             'one of {}'.format(storage_class, storage_classes)
+
+        assert re.match('[a-zA-Z0-9]+', bucket_name[0]), \
+            'Bucket names must start with a number or letter.'
+
+        assert re.match('[a-zA-Z0-9]+', bucket_name[-1]), \
+            'Bucket names must end with a number or letter.'
 
         service = self.get_conn()
         bucket_resource = {
