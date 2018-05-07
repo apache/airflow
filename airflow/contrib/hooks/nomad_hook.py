@@ -13,9 +13,6 @@
 # limitations under the License.
 #
 
-""" Hook to manage connection to nomad server
-    NOTE: this operator also relies on the python-nomad
-          package https://github.com/jrxFive/python-nomad """
 
 import nomad
 
@@ -24,15 +21,24 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class NomadHook(BaseHook, LoggingMixin):
+    """ Hook to manage connection to nomad server
+        NOTE: this operator also relies on the python-nomad
+              package https://github.com/jrxFive/python-nomad
+    """
+
     def __init__(self,
                  nomad_conn_id='nomad_default',
                  *args,
                  **kwargs):
         self.connection = self.get_connection(nomad_conn_id)
-        self.nomad_client = self.get_nomad_client(*args, **kwargs)
+        self.nomad_client = self.prepare_nomad_client(*args, **kwargs)
 
-    def get_nomad_client(self, *args, **kwargs):
+    def prepare_nomad_client(self, *args, **kwargs):
         return nomad.Nomad(host=self.connection.host,
                            port=self.connection.port,
                            *args,
                            **kwargs)
+
+    def get_nomad_client(self):
+        return self.nomad_client
+

@@ -281,7 +281,6 @@ def do_setup():
             'devel_hadoop': devel_hadoop,
             'doc': doc,
             'docker': docker,
-
             'druid': druid,
             'elasticsearch': elasticsearch,
             'emr': emr,

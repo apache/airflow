@@ -234,13 +234,13 @@ Currently **officially** using Airflow:
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu)]
 1. [Xoom](https://www.xoom.com/india/send-money) [[@gepser](https://github.com/gepser) & [@omarvides](https://github.com/omarvides)]
 1. [Yahoo!](https://www.yahoo.com/)
+1. [Yotpo](https://www.yotpo.com) [[@etrabelsi](https://github.com/etrabelsi)]
 1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
 1. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl)]
 1. [Zendesk](https://www.github.com/zendesk)
 1. [Zenly](https://zen.ly) [[@cerisier](https://github.com/cerisier) & [@jbdalido](https://github.com/jbdalido)]
 1. [Zymergen](https://www.zymergen.com/)
 1. [99](https://99taxis.com) [[@fbenevides](https://github.com/fbenevides), [@gustavoamigo](https://github.com/gustavoamigo) & [@mmmaia](https://github.com/mmmaia)]
-
 ## Links
 
 

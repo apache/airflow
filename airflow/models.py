@@ -595,6 +595,7 @@ class Connection(Base, LoggingMixin):
         ('mesos_framework-id', 'Mesos Framework ID'),
         ('jira', 'JIRA',),
         ('redis', 'Redis',),
+        ('nomad', 'Nomad',),
         ('wasb', 'Azure Blob Storage'),
         ('databricks', 'Databricks',),
         ('aws', 'Amazon Web Services',),
@@ -739,6 +740,9 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'redis':
                 from airflow.contrib.hooks.redis_hook import RedisHook
                 return RedisHook(redis_conn_id=self.conn_id)
+            elif self.conn_type == 'nomad':
+                from airflow.contrib.hooks.nomad_hook import NomadHook
+                return NomadHook(nomad_conn_id=self.conn_id)
             elif self.conn_type == 'wasb':
                 from airflow.contrib.hooks.wasb_hook import WasbHook
                 return WasbHook(wasb_conn_id=self.conn_id)
