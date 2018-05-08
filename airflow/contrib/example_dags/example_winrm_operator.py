@@ -42,7 +42,7 @@ args = {
 
 dag = DAG(
     dag_id='POC_winrm_parallel', default_args=args,
-    schedule_interval='46 23 21 11 *',
+    schedule_interval='0 0 * * *',
     dagrun_timeout=timedelta(minutes=60))
 
 cmd = 'ls -l'
