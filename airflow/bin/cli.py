@@ -960,7 +960,6 @@ def worker(args):
         sp.kill()
 
 
-@cli_utils.action_logging
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
     db_utils.initdb(settings.RBAC)
