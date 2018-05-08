@@ -37,6 +37,7 @@ addons:
       - krb5-user
       - krb5-kdc
       - krb5-admin-server
+      - oracle-java8-installer
       - python-selinux
   postgresql: "9.2"
 python:
@@ -89,20 +90,7 @@ before_install:
   - cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
   - ln -s ~/.ssh/authorized_keys ~/.ssh/authorized_keys2
   - chmod 600 ~/.ssh/*
-  - sudo add-apt-repository -y ppa:webupd8team/java
-  - sudo apt-get update
-  - sudo apt-get install -y oracle-java8-installer || true
-  #todo remove this kludge and the above || true when the ppa is fixed
-  - cd /var/lib/dpkg/info
-  - sudo sed -i 's|JAVA_VERSION=8u161|JAVA_VERSION=8u172|' oracle-java8-installer.*
-  - sudo sed -i 's|PARTNER_URL=http://download.oracle.com/otn-pub/java/jdk/8u161-b12/2f38c3b165be4555a1fa6e98c45e0808/|PARTNER_URL=http://download.oracle.com/otn-pub/java/jdk/8u172-b11/a58eab1ec242421181065cdc37240b08/|' oracle-java8-installer.*
-  - sudo sed -i 's|SHA256SUM_TGZ="6dbc56a0e3310b69e91bb64db63a485bd7b6a8083f08e48047276380a0e2021e"|SHA256SUM_TGZ="28a00b9400b6913563553e09e8024c286b506d8523334c93ddec6c9ec7e9d346"|' oracle-java8-installer.*
-  - sudo sed -i 's|J_DIR=jdk1.8.0_161|J_DIR=jdk1.8.0_172|' oracle-java8-installer.*
-  - sudo apt-get update
-  - sudo apt-get install -y oracle-java8-installer
   - jdk_switcher use oraclejdk8
-  - cd $TRAVIS_BUILD_DIR
-  - find ${HOME}/.wheelhouse/ \! -user ${USER} -exec sudo rm -rf {} \;
 install:
   - pip install --upgrade pip
   - pip install tox
