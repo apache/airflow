@@ -97,6 +97,7 @@ class TestECSOperator(unittest.TestCase):
         self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs', region_name='eu-west-1')
         client_mock.run_task.assert_called_once_with(
             cluster='c',
+            launchType='EC2',
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition='t'
@@ -119,6 +120,7 @@ class TestECSOperator(unittest.TestCase):
         self.aws_hook_mock.return_value.get_client_type.assert_called_once_with('ecs', region_name='eu-west-1')
         client_mock.run_task.assert_called_once_with(
             cluster='c',
+            launchType='EC2',
             overrides={},
             startedBy=mock.ANY,  # Can by 'airflow' or 'Airflow'
             taskDefinition='t'
