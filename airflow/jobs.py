@@ -1403,10 +1403,12 @@ class SchedulerJob(BaseJob):
                 continue
 
             self.log.info("Processing %s", dag.dag_id)
-
+			create_num = 1
             dag_run = self.create_dag_run(dag)
-            if dag_run:
-                self.log.info("Created %s", dag_run)
+			while create_num < dag.max_active_runs and dag_run:
+				dag_run = self.create_dag_run(dag)
+				if dag_run:
+					self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
             self.manage_slas(dag)
 
