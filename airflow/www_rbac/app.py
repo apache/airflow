@@ -147,6 +147,7 @@ def create_app(config=None, testing=False, app_name="Airflow"):
         def jinja_globals():
             return {
                 'hostname': socket.getfqdn(),
+                'navbar_color': conf.get('webserver', 'NAVBAR_COLOR'),
             }
 
         @app.teardown_appcontext
