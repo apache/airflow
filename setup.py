@@ -33,17 +33,21 @@ version = imp.load_source(
 
 PY3 = sys.version_info[0] == 3
 
+
 class Tox(TestCommand):
     user_options = [('tox-args=', None, "Arguments to pass to tox")]
+
     def initialize_options(self):
         TestCommand.initialize_options(self)
         self.tox_args = ''
+
     def finalize_options(self):
         TestCommand.finalize_options(self)
         self.test_args = []
         self.test_suite = True
+
     def run_tests(self):
-        #import here, cause outside the eggs aren't loaded
+        # import here, cause outside the eggs aren't loaded
         import tox
         errno = tox.cmdline(args=self.tox_args.split())
         sys.exit(errno)
@@ -52,10 +56,13 @@ class Tox(TestCommand):
 class CleanCommand(Command):
     """Custom clean command to tidy up the project root."""
     user_options = []
+
     def initialize_options(self):
         pass
+
     def finalize_options(self):
         pass
+
     def run(self):
         os.system('rm -vrf ./build ./dist ./*.pyc ./*.tgz ./*.egg-info')
 
@@ -66,8 +73,8 @@ def git_version(version):
     indicate whether the head of the current git-backed working directory is tied to a
     release tag or not : it will indicate the former with a 'release:{version}' prefix
     and the latter with a 'dev0' prefix. Following the prefix will be a sha of the current
-    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted changes
-    are present.
+    branch head. Finally, a "dirty" suffix is appended to indicate that uncommitted
+    changes are present.
     """
     repo = None
     try:
@@ -109,10 +116,12 @@ celery = [
 cgroups = [
     'cgroupspy>=0.1.4',
 ]
+# major update coming soon, clamp to 0.x
+cloudant = ['cloudant>=0.5.9,<2.0']
 crypto = ['cryptography>=0.9.3']
 dask = [
     'distributed>=1.17.1, <2'
-    ]
+]
 databricks = ['requests>=2.5.1, <3']
 datadog = ['datadog>=0.14.0']
 doc = [
@@ -135,10 +144,8 @@ gcp_api = [
     'PyOpenSSL',
     'pandas-gbq'
 ]
+github_enterprise = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
-webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
-jenkins = ['python-jenkins>=0.4.15']
-jira = ['JIRA>1.0.7']
 hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.1.3',
@@ -146,36 +153,38 @@ hive = [
     'unicodecsv>=0.14.1'
 ]
 jdbc = ['jaydebeapi>=1.1.1']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
-mysql = ['mysqlclient>=1.3.6']
-rabbitmq = ['librabbitmq>=1.6.1']
-oracle = ['cx_Oracle>=5.1.2']
-postgres = ['psycopg2-binary>=2.7.4']
-pinot = ['pinotdb>=0.1.1']
-ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
-salesforce = ['simple-salesforce>=0.72']
-s3 = ['boto3>=1.7.0']
-samba = ['pysmbclient>=0.1.3']
-slack = ['slackclient>=1.0.0']
-statsd = ['statsd>=3.0.1, <4.0']
-vertica = ['vertica-python>=0.5.1']
-ldap = ['ldap3>=0.9.9.1']
+jenkins = ['python-jenkins>=0.4.15']
+jira = ['JIRA>1.0.7']
 kerberos = ['pykerberos>=1.1.13',
             'requests_kerberos>=0.10.0',
             'thrift_sasl>=0.2.0',
             'snakebite[kerberos]>=2.7.8']
+kubernetes = ['kubernetes>=3.0.0',
+              'cryptography>=2.0.0']
+ldap = ['ldap3>=0.9.9.1']
+mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
+mysql = ['mysqlclient>=1.3.6']
+oracle = ['cx_Oracle>=5.1.2']
 password = [
     'bcrypt>=2.0.0',
     'flask-bcrypt>=0.7.1',
 ]
-github_enterprise = ['Flask-OAuthlib>=0.9.1']
+pinot = ['pinotdb>=0.1.1']
+postgres = ['psycopg2-binary>=2.7.4']
 qds = ['qds-sdk>=1.9.6']
-cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
+rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5']
-kubernetes = ['kubernetes>=3.0.0',
-              'cryptography>=2.0.0']
+s3 = ['boto3>=1.7.0']
+salesforce = ['simple-salesforce>=0.72']
+samba = ['pysmbclient>=0.1.3']
+slack = ['slackclient>=1.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
+ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
+statsd = ['statsd>=3.0.1, <4.0']
+vertica = ['vertica-python>=0.5.1']
+webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
+winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot
@@ -190,10 +199,11 @@ devel = [
     'nose-ignore-docstring==0.2',
     'nose-timer',
     'parameterized',
-    'qds-sdk>=1.9.6',
-    'rednose',
     'paramiko',
     'pysftp',
+    'pywinrm',
+    'qds-sdk>=1.9.6',
+    'rednose',
     'requests_mock'
 ]
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
@@ -209,6 +219,7 @@ if PY3:
                 ['snakebite>=2.7.8', 'snakebite[kerberos]>=2.7.8']]
 else:
     devel_ci = devel_all
+
 
 def do_setup():
     write_version()
@@ -288,7 +299,9 @@ def do_setup():
             'hdfs': hdfs,
             'hive': hive,
             'jdbc': jdbc,
+            'jira': jira,
             'kerberos': kerberos,
+            'kubernetes': kubernetes,
             'ldap': ldap,
             'mssql': mssql,
             'mysql': mysql,
@@ -298,19 +311,18 @@ def do_setup():
             'postgres': postgres,
             'qds': qds,
             'rabbitmq': rabbitmq,
+            'redis': redis,
             's3': s3,
             'salesforce': salesforce,
             'samba': samba,
-            'sendgrid' : sendgrid,
+            'sendgrid': sendgrid,
             'slack': slack,
+            'snowflake': snowflake,
             'ssh': ssh,
             'statsd': statsd,
             'vertica': vertica,
             'webhdfs': webhdfs,
-            'jira': jira,
-            'redis': redis,
-            'kubernetes': kubernetes,
-            'snowflake': snowflake
+            'winrm': winrm
         },
         classifiers=[
             'Development Status :: 5 - Production/Stable',

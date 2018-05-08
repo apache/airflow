@@ -42,6 +42,7 @@ _hooks = {
     'ftps_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
+    'winrm_hook': ['WinRMHook'],
     'sftp_hook': ['SFTPHook'],
     'bigquery_hook': ['BigQueryHook'],
     'qubole_hook': ['QuboleHook'],

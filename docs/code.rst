@@ -108,6 +108,7 @@ Community-contributed Operators
 
 Operators
 ^^^^^^^^^
+.. Alphabetize this list
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
@@ -181,6 +182,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
 .. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
 .. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
+.. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
 
 Sensors
 ^^^^^^^
@@ -343,7 +345,7 @@ interface when possible and acting as building blocks for operators.
 
 Community contributed hooks
 '''''''''''''''''''''''''''
-
+.. Alphabetize this list
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
@@ -379,8 +381,8 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.sqoop_hook.SqoopHook
 .. autoclass:: airflow.contrib.hooks.ssh_hook.SSHHook
 .. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
-.. autoclass:: airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
+.. autoclass:: airflow.contrib.hooks.winrm_hook.WinRMHook
 
 Executors
 ---------
