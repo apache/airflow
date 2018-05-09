@@ -58,6 +58,7 @@ class KubernetesPodOperator(BaseOperator):
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
     """
+    template_fields = ('cmds', 'arguments', 'env_vars')
 
     def execute(self, context):
         try:
