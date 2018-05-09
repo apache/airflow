@@ -5,6 +5,9 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Add a configuration variable(default_dag_run_display_number) to control numbers of dag run for display
+Add a configuration variable(default_dag_run_display_number) under webserver section to control num of dag run to show in UI.
+
 ### Default executor for SubDagOperator is changed to SequentialExecutor
 
 ### New Webserver UI with Role-Based Access Control
