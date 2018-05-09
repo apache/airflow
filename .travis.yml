@@ -101,6 +101,9 @@ before_script:
   - sudo service mysql restart
   - psql -c 'create database airflow;' -U postgres
   - export PATH=${PATH}:/tmp/hive/bin
+  # Required for K8s v1.10.x. See
+  # https://github.com/kubernetes/kubernetes/issues/61058#issuecomment-372764783
+  - sudo mount --make-shared / && sudo service docker restart
 script:
   - ./scripts/ci/travis_script.sh
 after_success:
