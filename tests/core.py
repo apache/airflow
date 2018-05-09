@@ -1038,6 +1038,7 @@ class CliTests(unittest.TestCase):
         self.assertIn(['mysql_default', 'mysql'], conns)
         self.assertIn(['postgres_default', 'postgres'], conns)
         self.assertIn(['wasb_default', 'wasb'], conns)
+        self.assertIn(['segment_default', 'segment'], conns)
 
         # Attempt to list connections with invalid cli args
         with mock.patch('sys.stdout',
