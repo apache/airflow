@@ -56,7 +56,7 @@
       <li><a href="{{ url_for("Airflow.graph", dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
-      <li><a href="{{ url_for("Airflow.tree", dag_id=dag.dag_id, num_runs=25, root=root) }}">
+      <li><a href="{{ url_for("Airflow.tree", dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
           <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
