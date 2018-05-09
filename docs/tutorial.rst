@@ -353,7 +353,17 @@ sound.
 
 Command Line Metadata Validation
 '''''''''''''''''''''''''''''''''
-Let's run a few commands to validate this script further.
+Let's run a few commands to validate this script further. If this is 
+the first time you are running airflow:
+
+.. code-block:: bash
+
+    # initialize the database, you only need to do this once
+    airflow init
+    
+..
+
+Then run some commands:
 
 .. code-block:: bash
 
