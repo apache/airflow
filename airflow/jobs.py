@@ -1942,7 +1942,6 @@ class BackfillJob(BaseJob):
             start_date=None,
             end_date=None,
             mark_success=False,
-            include_adhoc=False,
             donot_pickle=False,
             ignore_first_depends_on_past=False,
             ignore_task_deps=False,
@@ -1954,7 +1953,6 @@ class BackfillJob(BaseJob):
         self.bf_start_date = start_date
         self.bf_end_date = end_date
         self.mark_success = mark_success
-        self.include_adhoc = include_adhoc
         self.donot_pickle = donot_pickle
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
