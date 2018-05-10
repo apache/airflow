@@ -268,7 +268,8 @@ AWS RedShift
 
 - :ref:`AwsRedshiftClusterSensor` : Waits for a Redshift cluster to reach a specific status.
 - :ref:`RedshiftHook` : Interact with AWS Redshift, using the boto3 library.
-- :ref:`RedshiftToS3Transfer` : Executes an unload command to S3 as a CSV with headers.
+- :ref:`RedshiftToS3Transfer` : Executes an unload command to S3 as CSV with or without headers.
+- :ref:`S3ToRedshiftTransfer` : Executes an copy command from S3 as CSV with or without headers.
 
 .. _AwsRedshiftClusterSensor:
 
@@ -290,6 +291,13 @@ RedshiftToS3Transfer
 """"""""""""""""""""
 
 .. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
+
+.. _S3ToRedshiftTransfer:
+
+S3ToRedshiftTransfer
+""""""""""""""""""""
+
+.. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
 
 
 .. _Databricks:
