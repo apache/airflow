@@ -22,30 +22,26 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from builtins import str
+from collections import OrderedDict
 import copy
 import errno
-import os
-import subprocess
-import warnings
-import shlex
-import sys
-
 from future import standard_library
-
+import os
+import shlex
 import six
 from six import iteritems
+import subprocess
+import sys
+import warnings
+
 from backports.configparser import ConfigParser
 from zope.deprecation import deprecated as _deprecated
 
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
-
-from builtins import str
-from collections import OrderedDict
-
-from airflow.exceptions import AirflowConfigException
-
 
 log = LoggingMixin().log
 
@@ -323,8 +319,8 @@ class AirflowConfigParser(ConfigParser):
                 opt = None
             if opt:
                 if (
-                        not display_sensitive
-                        and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+                    not display_sensitive and
+                        ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
                     opt = '< hidden >'
                 if display_source:
                     opt = (opt, 'env var')
