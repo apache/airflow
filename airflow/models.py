@@ -3910,7 +3910,6 @@ class DAG(BaseDag, LoggingMixin):
             start_date=None,
             end_date=None,
             mark_success=False,
-            include_adhoc=False,
             local=False,
             executor=None,
             donot_pickle=configuration.conf.getboolean('core', 'donot_pickle'),
@@ -3927,8 +3926,6 @@ class DAG(BaseDag, LoggingMixin):
         :type end_date: datetime
         :param mark_success: True to mark jobs as succeeded without running them
         :type mark_success: bool
-        :param include_adhoc: True to include dags with the adhoc parameter
-        :type include_adhoc: bool
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
@@ -3956,7 +3953,6 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date,
             end_date=end_date,
             mark_success=mark_success,
-            include_adhoc=include_adhoc,
             executor=executor,
             donot_pickle=donot_pickle,
             ignore_task_deps=ignore_task_deps,
