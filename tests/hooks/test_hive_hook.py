@@ -208,7 +208,7 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
                                       pattern=self.table + "*")
         self.assertIn(self.table, {table.tableName for table in tables})
 
-    def get_databases(self):
+    def test_get_databases(self):
         databases = self.hook.get_databases(pattern='*')
         self.assertIn(self.database, databases)
 
