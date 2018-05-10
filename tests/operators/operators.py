@@ -45,7 +45,7 @@ class MySqlTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def mysql_operator_test(self):
+    def test_mysql_operator_test(self):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
@@ -59,7 +59,7 @@ class MySqlTest(unittest.TestCase):
             dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def mysql_operator_test_multi(self):
+    def test_mysql_operator_test_multi(self):
         sql = [
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
@@ -71,7 +71,7 @@ class MySqlTest(unittest.TestCase):
             sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    def mysql_hook_test_bulk_load(self):
+    def test_mysql_hook_test_bulk_load(self):
         records = ("foo", "bar", "baz")
 
         import tempfile
@@ -140,7 +140,7 @@ class PostgresTest(unittest.TestCase):
         dag = DAG(TEST_DAG_ID, default_args=args)
         self.dag = dag
 
-    def postgres_operator_test(self):
+    def test_postgres_operator_test(self):
         sql = """
         CREATE TABLE IF NOT EXISTS test_airflow (
             dummy VARCHAR(50)
@@ -161,7 +161,7 @@ class PostgresTest(unittest.TestCase):
             end_date=DEFAULT_DATE,
             ignore_ti_state=True)
 
-    def postgres_operator_test_multi(self):
+    def test_postgres_operator_test_multi(self):
         sql = [
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
