@@ -1031,8 +1031,6 @@ class DataProcPySparkOperator(BaseOperator):
 
 
 class DataprocWorkflowTemplateBaseOperator(BaseOperator):
-    template_fields = ['template_id', 'template']
-
     @apply_defaults
     def __init__(self,
                  project_id,
@@ -1083,6 +1081,8 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
     :type delegate_to: string
     """
 
+    template_fields = ['template_id']
+
     @apply_defaults
     def __init__(self, template_id, *args, **kwargs):
         (super(DataprocWorkflowTemplateInstantiateOperator, self)
@@ -1124,6 +1124,8 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
         delegation enabled.
     :type delegate_to: string
     """
+
+    template_fields = ['template']
 
     @apply_defaults
     def __init__(self, template, *args, **kwargs):
