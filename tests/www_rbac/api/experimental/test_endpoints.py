@@ -204,6 +204,48 @@ class TestApiExperimental(unittest.TestCase):
         self.assertEqual(400, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
+    def test_dagrun_status(self):
+        url_template = '/api/experimental/dags/{}/dag_runs/{}'
+        dag_id = 'example_bash_operator'
+        execution_date = utcnow().replace(microsecond=0)
+        datetime_string = quote_plus(execution_date.isoformat())
+        wrong_datetime_string = quote_plus(
+            datetime(1990, 1, 1, 1, 1, 1).isoformat()
+        )
+
+        # Create DagRun
+        trigger_dag(dag_id=dag_id,
+                    run_id='test_task_instance_info_run',
+                    execution_date=execution_date)
+
+        # Test Correct execution
+        response = self.app.get(
+            url_template.format(dag_id, datetime_string)
+        )
+        self.assertEqual(200, response.status_code)
+        self.assertIn('state', response.data.decode('utf-8'))
+        self.assertNotIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag
+        response = self.app.get(
+            url_template.format('does_not_exist_dag', datetime_string),
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for nonexistent dag run (wrong execution_date)
+        response = self.app.get(
+            url_template.format(dag_id, wrong_datetime_string)
+        )
+        self.assertEqual(404, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
+
+        # Test error for bad datetime format
+        response = self.app.get(
+            url_template.format(dag_id, 'not_a_datetime')
+        )
+        self.assertEqual(400, response.status_code)
+        self.assertIn('error', response.data.decode('utf-8'))
 
 class TestPoolApiExperimental(unittest.TestCase):
 
