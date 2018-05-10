@@ -336,7 +336,12 @@ class HiveCliHook(BaseHook):
                 if field_dict is None and (create or recreate):
                     field_dict = _infer_field_types_from_df(df)
 
-                df.to_csv(f, sep=delimiter, **pandas_kwargs)
+                df.to_csv(path_or_buf=f,
+                          sep=delimiter.encode(encoding),
+                          header=False,
+                          index=False,
+                          **pandas_kwargs)
+                f.flush()
 
                 return self.load_file(filepath=f.name,
                                       table=table,
