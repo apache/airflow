@@ -205,7 +205,7 @@ class TestApiExperimental(unittest.TestCase):
         self.assertIn('error', response.data.decode('utf-8'))
 
     def test_dagrun_status(self):
-        url_template = '/api/experimental/dags/{}/dag_runs/{}/status'
+        url_template = '/api/experimental/dags/{}/dag_runs/{}'
         dag_id = 'example_bash_operator'
         execution_date = utcnow().replace(microsecond=0)
         datetime_string = quote_plus(execution_date.isoformat())

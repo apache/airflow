@@ -97,7 +97,7 @@ class KubernetesExecutorTest(unittest.TestCase):
             # Trigger a new dagrun
             result = requests.get(
                 'http://{host}/api/experimental/dags/{dag_id}/'
-                'dag_runs/{execution_date}/status'
+                'dag_runs/{execution_date}'
                 .format(host=host,
                         dag_id=dag_id,
                         execution_date=execution_date)

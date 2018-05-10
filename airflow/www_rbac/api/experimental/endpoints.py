@@ -178,7 +178,7 @@ def task_instance_info(dag_id, execution_date, task_id):
 
 
 @api_experimental.route(
-    '/dags/<string:dag_id>/dag_runs/<string:execution_date>/status',
+    '/dags/<string:dag_id>/dag_runs/<string:execution_date>',
     methods=['GET'])
 @requires_authentication
 def dag_run_status(dag_id, execution_date):
