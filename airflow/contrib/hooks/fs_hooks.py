@@ -22,6 +22,7 @@ import errno
 import glob
 import os
 from os import path
+import posixpath
 import shutil
 
 from airflow.hooks.base_hook import BaseHook
@@ -112,6 +113,11 @@ class FsHook(BaseHook):
         """
         raise NotImplementedError()
 
+    @staticmethod
+    def _raise_dir_exists(dir_path):
+        raise IOError(errno.EEXIST,
+                      'Directory exists: {!r}'.format(dir_path))
+
     # General utility methods built on the above interface.
     #
     # These methodscan/should be overridden in sub-classes if more
@@ -190,8 +196,7 @@ class LocalHook(FsHook):
     def makedir(self, dir_path, mode=0o755, exist_ok=True):
         if path.exists(dir_path):
             if not exist_ok:
-                raise IOError(errno.EEXIST,
-                              'Directory exists: {!r}'.format(dir_path))
+                self._raise_dir_exists(dir_path)
         else:
             os.mkdir(dir_path, mode=mode)
 
@@ -253,8 +258,7 @@ class S3FsHook(FsHook):
 
     def makedirs(self, dir_path, mode=0o755, exist_ok=True):
         if not exist_ok and self.exists(dir_path):
-            raise IOError(errno.EEXIST,
-                          'Directory exists: {!r}'.format(dir_path))
+            self._raise_dir_exists(dir_path)
 
     def walk(self, dir_path):
         if dir_path.startswith('s3://'):
@@ -274,7 +278,7 @@ class S3FsHook(FsHook):
 
         # Walk over sub-directories, in top-down fashion.
         for dir_name in dir_names:
-            for tup in self.walk(path.join(dir_path, dir_name)):
+            for tup in self.walk(posixpath.join(dir_path, dir_name)):
                 yield tup
 
     def glob(self, pattern):
@@ -291,3 +295,236 @@ class S3FsHook(FsHook):
 
     def rmtree(self, dir_path):
         self.get_conn().rm(dir_path, recursive=True)
+
+
+class Hdfs3Hook(FsHook):
+    """Hook for interacting with files over HDFS."""
+
+    def __init__(self, conn_id=None):
+        super().__init__()
+        self._conn_id = conn_id
+        self._conn = None
+
+    def get_conn(self):
+        import hdfs3
+
+        if self._conn is None:
+            if self._conn_id is None:
+                self._conn = hdfs3.HDFileSystem()
+            else:
+                config = self.get_connection(self._conn_id)
+                config_extra = config.extra_dejson
+
+                # Extract hadoop parameters from extra.
+                pars = config_extra.get('pars', {})
+
+                # Collect extra parameters to pass to kwargs.
+                extra_kws = {}
+                if config.login is not None:
+                    extra_kws['user'] = config.login
+
+                # Build connection.
+                self._conn = hdfs3.HDFileSystem(
+                    host=config.host, port=config.port, pars=pars, **extra_kws)
+
+        return self._conn
+
+    def disconnect(self):
+        if self._conn is not None:
+            self._conn.disconnect()
+        self._conn = None
+
+    def open(self, file_path, mode='rb'):
+        return self.get_conn().open(file_path, mode=mode)
+
+    def exists(self, file_path):
+        return self.get_conn().exists(file_path)
+
+    def makedir(self, dir_path, mode=0e755, exist_ok=True):
+        conn = self.get_conn()
+
+        if conn.exists(dir_path):
+            if not exist_ok:
+                self._raise_dir_exists(dir_path)
+        else:
+            conn.mkdir(dir_path)
+            conn.chmod(dir_path, mode=mode)
+
+    def makedirs(self, dir_path, mode=0o755, exist_ok=True):
+        if not exist_ok and self.exists(dir_path):
+            self._raise_dir_exists(dir_path)
+        self.get_conn().makedirs(dir_path, mode=mode)
+
+    def walk(self, dir_path):
+        for tup in self.get_conn().walk(dir_path):
+            yield tup
+
+    def glob(self, pattern):
+        return self.get_conn().glob(pattern)
+
+    def rm(self, file_path):
+        self.get_conn().rm(file_path, recursive=False)
+
+    def rmtree(self, dir_path):
+        self.get_conn().rm(dir_path, recursive=True)
+
+
+class FtpHook(FsHook):
+    """Hook for interacting with files over FTP."""
+
+    def __init__(self, conn_id):
+        super().__init__()
+        self._conn_id = conn_id
+        self._conn = None
+
+    def get_conn(self):
+        import ftplib
+
+        import ftputil
+        from ftputil import session as ftp_session
+
+        if self._conn is None:
+            config = self.get_connection(self._conn_id)
+
+            secure = config.extra_dejson.get('tls', False)
+            base_class = ftplib.FTP_TLS if secure else ftplib.FTP
+
+            session_factory = ftp_session.session_factory(
+                base_class=base_class,
+                port=config.port or 21,
+                encrypt_data_channel=secure)
+
+            self._conn = ftputil.FTPHost(
+                config.host,
+                config.login,
+                config.password,
+                session_factory=session_factory)
+
+        return self._conn
+
+    def disconnect(self):
+        if self._conn is not None:
+            self._conn.close()
+            self._conn = None
+
+    def open(self, file_path, mode='rb'):
+        return self.get_conn().open(file_path, mode=mode)
+
+    def exists(self, file_path):
+        return self.get_conn().path.exists(file_path)
+
+    def makedir(self, dir_path, mode=0o755, exist_ok=True):
+        if not exist_ok and self.exists(dir_path):
+            self._raise_dir_exists(dir_path)
+        self.get_conn().mkdir(dir_path, mode=mode)
+
+    def makedirs(self, dir_path, mode=0o755, exist_ok=True):
+        if not exist_ok and self.exists(dir_path):
+            self._raise_dir_exists(dir_path)
+        self.get_conn().makedirs(dir_path, mode=mode)
+
+    def walk(self, dir_path):
+        for tup in self.get_conn().walk(dir_path):
+            yield tup
+
+    def glob(self, pattern):
+        raise NotImplementedError()
+
+    def rm(self, file_path):
+        self.get_conn().remove(file_path)
+
+    def rmtree(self, dir_path):
+        self.get_conn().rmtree(dir_path, ignore_errors=False)
+
+class SftpHook(FsHook):
+    """Hook for interacting with files over SFTP."""
+
+    def __init__(self, conn_id):
+        super().__init__()
+        self._conn_id = conn_id
+        self._conn = None
+
+    def get_conn(self):
+        import pysftp
+
+        if self._conn is None:
+            config = self.get_connection(self._conn_id)
+
+            private_key = config.extra_dejson.get('private_key', None)
+
+            if not private_key:
+                self._conn = pysftp.Connection(
+                    config.host,
+                    username=config.login,
+                    password=config.password)
+            elif private_key and config.password:
+                self._conn = pysftp.Connection(
+                    config.host,
+                    username=config.login,
+                    private_key=private_key,
+                    private_key_pass=config.password)
+            else:
+                self._conn = pysftp.Connection(
+                    config.host,
+                    username=config.login,
+                    private_key=private_key)
+
+        return self._conn
+
+    def disconnect(self):
+        if self._conn is not None:
+            self._conn.close()
+        self._conn = None
+
+    def open(self, file_path, mode='rb'):
+        return self.get_conn().open(file_path, mode=mode)
+
+    def exists(self, file_path):
+        return self.get_conn().exists(file_path)
+
+    def makedir(self, dir_path, mode=0o755, exist_ok=True):
+        if not exist_ok and self.exists(dir_path):
+            self._raise_dir_exists(dir_path)
+        self.get_conn().mkdir(dir_path, mode=int(oct(mode)[2:]))
+
+    def makedirs(self, dir_path, mode=0o755, exist_ok=True):
+        if not exist_ok and self.exists(dir_path):
+            self._raise_dir_exists(dir_path)
+        self.get_conn().makedirs(dir_path, mode=int(oct(mode)[2:]))
+
+    def walk(self, dir_path):
+        from stat import S_ISDIR, S_ISREG
+
+        conn = self.get_conn()
+        client = conn.sftp_client
+
+        # Yield contents of current directory.
+        dir_names, file_names = [], []
+        for entry in conn.listdir(dir_path):
+            full_path = posixpath.join(dir_path, entry)
+            mode = client.stat(full_path).st_mode
+
+            if S_ISDIR(mode):
+                dir_names.append(entry)
+            elif S_ISREG(mode):
+                file_names.append(entry)
+
+        yield dir_path, dir_names, file_names
+
+        # Walk over sub-directories, in top-down fashion.
+        for dir_name in dir_names:
+            for tup in self.walk(posixpath.join(dir_path, dir_name)):
+                yield tup
+
+    def glob(self, pattern):
+        raise NotImplementedError()
+
+    def rm(self, file_path):
+        self.get_conn().remove(file_path)
+
+    def rmtree(self, dir_path):
+        result = self.get_conn().execute('rm -r {!r}'.format(dir_path))
+
+        if result:
+            message = b'\n'.join(result)
+            raise OSError(message.decode())
