@@ -57,7 +57,13 @@ class KubernetesPodOperator(BaseOperator):
     :type in_cluster: bool
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param image_pull_policy: set the policy to perform pulls of the docker
+        images in Kubernetes pod
+    :type image_pull_policy: str
+    :param annotations: arbitrary metadata to set in the Kubernetes pod
+    :type annotations: dict
     """
+
     template_fields = ('cmds', 'arguments', 'env_vars')
 
     def execute(self, context):
@@ -77,6 +83,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.secrets = self.secrets
             pod.envs = self.env_vars
             pod.image_pull_policy = self.image_pull_policy
+            pod.annotations = self.annotations
 
             launcher = pod_launcher.PodLauncher(client)
             final_state = launcher.run_pod(
@@ -104,6 +111,7 @@ class KubernetesPodOperator(BaseOperator):
                  startup_timeout_seconds=120,
                  get_logs=True,
                  image_pull_policy='IfNotPresent',
+                 annotations=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -119,3 +127,4 @@ class KubernetesPodOperator(BaseOperator):
         self.in_cluster = in_cluster
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
+        self.annotations = annotations or {}
