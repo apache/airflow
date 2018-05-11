@@ -25,6 +25,7 @@ import random
 import mock
 import unittest
 
+from collections import OrderedDict
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
@@ -130,6 +131,7 @@ class TestHiveCliHook(unittest.TestCase):
         kwargs = mock_load_file.call_args[1]
         self.assertEqual(kwargs["delimiter"], delimiter)
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
+        self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
 
 

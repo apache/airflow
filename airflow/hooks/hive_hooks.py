@@ -27,6 +27,7 @@ import itertools
 import re
 import subprocess
 import time
+from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 import hmsclient
 
@@ -303,8 +304,9 @@ class HiveCliHook(BaseHook):
         :param recreate: whether to drop and recreate the table at every
             execution
         :type recreate: bool
-        :param field_dict: mapping from column name to hive data type
-        :type field_dict: dict
+        :param field_dict: mapping from column name to hive data type.
+            Note that it must be OrderedDict so as to keep columns' order.
+        :type field_dict: OrderedDict
         :param encoding: string encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -325,7 +327,10 @@ class HiveCliHook(BaseHook):
                 'V': 'STRING'    # void
             }
 
-            return dict((col, DTYPE_KIND_HIVE_TYPE[dtype.kind]) for col, dtype in df.dtypes.iteritems())
+            d = OrderedDict()
+            for col, dtype in df.dtypes.iteritems():
+                d[col] = DTYPE_KIND_HIVE_TYPE[dtype.kind]
+            return d
 
         if pandas_kwargs is None:
             pandas_kwargs = {}
@@ -378,8 +383,9 @@ class HiveCliHook(BaseHook):
         :param delimiter: field delimiter in the file
         :type delimiter: str
         :param field_dict: A dictionary of the fields name in the file
-            as keys and their Hive types as values
-        :type field_dict: dict
+            as keys and their Hive types as values.
+            Note that it must be OrderedDict so as to keep columns' order.
+        :type field_dict: OrderedDict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
