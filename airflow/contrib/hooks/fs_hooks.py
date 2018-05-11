@@ -121,7 +121,7 @@ class FsHook(BaseHook):
 
     # General utility methods built on the above interface.
     #
-    # These methodscan/should be overridden in sub-classes if more
+    # These methods can/should be overridden in sub-classes if more
     # efficient implementations are available for a specific file system.
 
     # def copy_file(self, src_path, dest_path):
@@ -183,7 +183,7 @@ class NotSupportedError(NotImplementedError):
 
 
 class LocalHook(FsHook):
-    """Dummy fs hook for interacting with files on the local file system."""
+    """Hook for interacting with local files on the local file system."""
 
     def get_conn(self):
         return None
@@ -199,10 +199,14 @@ class LocalHook(FsHook):
             if not exist_ok:
                 self._raise_dir_exists(dir_path)
         else:
-            os.mkdir(dir_path, mode=mode)
+            os.mkdir(dir_path, mode)
 
     def makedirs(self, dir_path, mode=0o755, exist_ok=True):
-        os.makedirs(str(dir_path), mode=mode, exist_ok=exist_ok)
+        if path.exists(dir_path):
+            if not exist_ok:
+                self._raise_dir_exists(dir_path)
+        else:
+            os.makedirs(str(dir_path), mode=mode, exist_ok=exist_ok)
 
     def walk(self, dir_path):
         for tup in os.walk(dir_path):
@@ -233,6 +237,7 @@ class S3FsHook(FsHook):
             if self._conn_id is None:
                 self._conn = s3fs.S3FileSystem()
             else:
+                # TODO: Use same logic as existing S3/AWS hooks.
                 config = self.get_connection(self._conn_id)
 
                 extra_kwargs = {}
@@ -243,6 +248,7 @@ class S3FsHook(FsHook):
                     key=config.login,
                     secret=config.password,
                     s3_additional_kwargs=extra_kwargs)
+
         return self._conn
 
     def disconnect(self):
@@ -307,9 +313,9 @@ class Hdfs3Hook(FsHook):
         self._conn = None
 
     def get_conn(self):
-        import hdfs3
-
         if self._conn is None:
+            import hdfs3
+
             if self._conn_id is None:
                 self._conn = hdfs3.HDFileSystem()
             else:
@@ -437,6 +443,7 @@ class FtpHook(FsHook):
     def rmtree(self, dir_path):
         self.get_conn().rmtree(dir_path, ignore_errors=False)
 
+
 class SftpHook(FsHook):
     """Hook for interacting with files over SFTP."""
 
@@ -518,7 +525,8 @@ class SftpHook(FsHook):
                 yield tup
 
     def glob(self, pattern):
-        raise NotImplementedError()
+        # TODO: Implement glob for Sftp.
+        raise NotSupportedError()
 
     def rm(self, file_path):
         self.get_conn().remove(file_path)
