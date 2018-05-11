@@ -1,3 +1,4 @@
+import errno
 import glob
 import os
 from os import path
@@ -73,7 +74,7 @@ class FsHook(BaseHook):
         :param str dir_path: Path to the directory to create.
         :param int mode: Mode to use for directory (if created).
         :param bool exist_ok: Whether the directory is already allowed to exist.
-            If false, a ValueError is raised if the directory exists.
+            If false, an IOError is raised if the directory exists.
         """
         raise NotImplementedError()
 
@@ -169,9 +170,8 @@ class LocalHook(FsHook):
     def makedir(self, dir_path, mode=0o755, exist_ok=True):
         if path.exists(dir_path):
             if not exist_ok:
-                # TODO: Implement FileExistsError for Python 2.
-                raise FileExistsError('[Errno 17] File exists: {!r}'
-                                      .format(dir_path))
+                raise IOError(errno.EEXIST,
+                              'Directory exists: {!r}'.format(dir_path))
         else:
             os.mkdir(dir_path, mode=mode)
 
@@ -233,7 +233,8 @@ class S3FsHook(FsHook):
 
     def makedirs(self, dir_path, mode=0o755, exist_ok=True):
         if not exist_ok and self.exists(dir_path):
-            raise ValueError('Directory already exists')
+            raise IOError(errno.EEXIST,
+                          'Directory exists: {!r}'.format(dir_path))
 
     def walk(self, dir_path):
         if dir_path.startswith('s3://'):
@@ -259,8 +260,11 @@ class S3FsHook(FsHook):
     def glob(self, pattern):
         try:
             return self.get_conn().glob(pattern)
-        except FileNotFoundError:
-            return []
+        except IOError as err:
+            if err.errno == errno.ENOENT:
+                return []
+            else:
+                raise err
 
     def rm(self, file_path):
         self.get_conn().rm(file_path, recursive=False)

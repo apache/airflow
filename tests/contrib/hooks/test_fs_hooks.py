@@ -98,12 +98,12 @@ class TestLocalFsHook(unittest.TestCase):
             hook.makedir(dir_path, exist_ok=True)
 
             # Test existing directory with exist_ok = False.
-            with self.assertRaises(FileExistsError):
+            with self.assertRaises(IOError):
                 hook.makedir(dir_path, exist_ok=False)
 
             # Test nested directory (should fail).
             dir_path = path.join(self._tmp_dir, 'new2', 'nested')
-            with self.assertRaises(FileNotFoundError):
+            with self.assertRaises(IOError):
                 hook.makedir(dir_path)
 
     def test_makedirs(self):
@@ -122,7 +122,7 @@ class TestLocalFsHook(unittest.TestCase):
             hook.makedirs(dir_path, exist_ok=True)
 
             # Test existing directory with exist_ok = False.
-            with self.assertRaises(FileExistsError):
+            with self.assertRaises(IOError):
                 hook.makedirs(dir_path, exist_ok=False)
 
             # Test nested directory (should fail).
@@ -278,7 +278,6 @@ class TestS3FsHook(unittest.TestCase):
 
         with S3FsHook() as hook:
             self.assertTrue(hook.exists('s3://test_bucket/test/nested.txt'))
-
             hook.rmtree('s3://test_bucket/test')
             self.assertFalse(hook.exists('s3://test_bucket/test/nested.txt'))
 
