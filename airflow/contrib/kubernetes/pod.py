@@ -1,4 +1,3 @@
-
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -53,6 +52,8 @@ class Pod:
     :param result: The result that will be returned to the operator after
                    successful execution of the pod
     :type result: any
+    :param image_pull_policy: Specify a policy to cache or always pull an image
+    :type image_pull_policy: str
     """
     def __init__(
             self,

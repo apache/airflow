@@ -76,6 +76,7 @@ class KubernetesPodOperator(BaseOperator):
 
             pod.secrets = self.secrets
             pod.envs = self.env_vars
+            pod.image_pull_policy = self.image_pull_policy
 
             launcher = pod_launcher.PodLauncher(client)
             final_state = launcher.run_pod(
@@ -102,6 +103,7 @@ class KubernetesPodOperator(BaseOperator):
                  labels=None,
                  startup_timeout_seconds=120,
                  get_logs=True,
+                 image_pull_policy='IfNotPresent',
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -116,3 +118,4 @@ class KubernetesPodOperator(BaseOperator):
         self.secrets = secrets or []
         self.in_cluster = in_cluster
         self.get_logs = get_logs
+        self.image_pull_policy = image_pull_policy
