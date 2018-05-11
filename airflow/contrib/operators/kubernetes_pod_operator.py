@@ -125,4 +125,3 @@ class KubernetesPodOperator(BaseOperator):
         self.image_pull_policy = image_pull_policy
         self.annotations = annotations or {}
         self.resources = resources or Resources()
-
