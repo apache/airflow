@@ -12,6 +12,7 @@
 # limitations under the License.
 
 alembic
+atlasclient
 azure-storage>=0.34.0
 bcrypt
 bleach
