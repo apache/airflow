@@ -143,6 +143,7 @@ elasticsearch = [
     'elasticsearch-dsl>=5.0.0,<6.0.0'
 ]
 emr = ['boto3>=1.0.0']
+ftp = ['ftputil>=3.4']
 gcp_api = [
     'httplib2>=0.9.2',
     'google-api-python-client>=1.6.0, <2.0.0dev',
@@ -180,7 +181,7 @@ postgres = ['psycopg2-binary>=2.7.4']
 qds = ['qds-sdk>=1.9.6']
 rabbitmq = ['librabbitmq>=1.6.1']
 redis = ['redis>=2.10.5']
-s3 = ['boto3>=1.7.0']
+s3 = ['boto3>=1.7.0', 's3fs>=0.1.5']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
@@ -224,7 +225,7 @@ devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + or
              docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
              datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
              druid + pinot + segment + snowflake + elasticsearch + azure_data_lake +
-             atlas)
+             atlas + ftp)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -312,6 +313,7 @@ def do_setup():
             'druid': druid,
             'elasticsearch': elasticsearch,
             'emr': emr,
+            'ftp': ftp,
             'gcp_api': gcp_api,
             'github_enterprise': github_enterprise,
             'hdfs': hdfs,

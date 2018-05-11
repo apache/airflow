@@ -18,6 +18,7 @@
 # under the License.
 #
 
+from builtins import str, open, super
 import errno
 import glob
 import os

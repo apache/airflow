@@ -137,7 +137,12 @@ class TestLocalFsHook(unittest.TestCase):
                     (path.join(self._tmp_dir, 'test'), [], ['nested.txt'])]
 
         with LocalFsHook() as hook:
-            self.assertEqual(list(hook.walk(self._tmp_dir)), expected)
+            result = list(hook.walk(self._tmp_dir))
+
+        for res_item, exp_item in zip(result, expected):
+            self.assertEqual(res_item[0], exp_item[0])
+            self.assertEqual(sorted(res_item[1]), sorted(exp_item[1]))
+            self.assertEqual(sorted(res_item[2]), sorted(exp_item[2]))
 
     def test_glob(self):
         """Tests glob method."""
@@ -249,7 +254,12 @@ class TestS3FsHook(unittest.TestCase):
                     ('test_bucket/test', [], ['nested.txt'])]
 
         with S3FsHook() as hook:
-            self.assertEqual(list(hook.walk('s3://test_bucket')), expected)
+            result = list(hook.walk('s3://test_bucket'))
+
+        for res_item, exp_item in zip(result, expected):
+            self.assertEqual(res_item[0], exp_item[0])
+            self.assertEqual(sorted(res_item[1]), sorted(exp_item[1]))
+            self.assertEqual(sorted(res_item[2]), sorted(exp_item[2]))
 
     def test_glob(self):
         """Tests glob method."""
