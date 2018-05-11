@@ -600,6 +600,7 @@ class Connection(Base, LoggingMixin):
         ('aws', 'Amazon Web Services',),
         ('emr', 'Elastic MapReduce',),
         ('snowflake', 'Snowflake',),
+        ('segment', 'Segment',),
     ]
 
     def __init__(

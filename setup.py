@@ -174,6 +174,11 @@ cloudant = ['cloudant>=0.5.9,<2.0'] # major update coming soon, clamp to 0.x
 redis = ['redis>=2.10.5']
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
+s3 = ['boto3>=1.7.0']
+salesforce = ['simple-salesforce>=0.72']
+samba = ['pysmbclient>=0.1.3']
+segment = ['analytics-python>=1.2.9']
+slack = ['slackclient>=1.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 zendesk = ['zdesk']
@@ -201,7 +206,7 @@ devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
              docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
              zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + snowflake + elasticsearch)
+             druid + pinot + segment + snowflake + elasticsearch)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -301,7 +306,8 @@ def do_setup():
             's3': s3,
             'salesforce': salesforce,
             'samba': samba,
-            'sendgrid' : sendgrid,
+            'sendgrid': sendgrid,
+            'segment': segment,
             'slack': slack,
             'ssh': ssh,
             'statsd': statsd,
