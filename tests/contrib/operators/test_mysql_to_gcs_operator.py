@@ -18,6 +18,7 @@
 # under the License.
 
 import unittest
+import json
 from mock import MagicMock
 
 from airflow.contrib.operators.mysql_to_gcs import \
@@ -33,19 +34,28 @@ class MySqlToGoogleCloudStorageOperatorTest(unittest.TestCase):
         sql = "some_sql"
         bucket = "some_bucket"
         filename = "some_filename"
-        schema = "some_schema"
-        description_list = [['col_integer'], ['col_byte']]
         row_iter = [[1, b'byte_str_1'], [2, b'byte_str_2']]
+        schema = []
+        schema.append({
+            'name': 'location',
+            'type': 'STRING',
+            'mode': 'nullable',
+        })
+        schema.append({
+            'name': 'uuid',
+            'type': 'BYTES',
+            'mode': 'nullable',
+        })
+        schema_str = json.dumps(schema)
 
         op = MySqlToGoogleCloudStorageOperator(
             task_id=task_id,
             sql=sql,
             bucket=bucket,
             filename=filename,
-            schema=schema)
+            schema=schema_str)
 
         cursor_mock = MagicMock()
-        cursor_mock.description = description_list
         cursor_mock.__iter__.return_value = row_iter
 
         # Run
