@@ -29,6 +29,12 @@ from airflow.exceptions import AirflowException
 class HttpHook(BaseHook):
     """
     Interact with HTTP servers.
+    :param http_conn_id: connection that has the base API url i.e https://www.google.com/
+        and optional authentication credentials. Default headers can also be specified in
+        the Extra field in json format.
+    :type http_conn_id: str
+    :param method: the API method to be called
+    :type method: str
     """
 
     def __init__(
@@ -46,6 +52,8 @@ class HttpHook(BaseHook):
     def get_conn(self, headers=None):
         """
         Returns http session for use with requests
+        :param headers: additional headers to be passed through as a dictionary
+        :type headers: dict
         """
         conn = self.get_connection(self.http_conn_id)
         session = requests.Session()
@@ -71,6 +79,16 @@ class HttpHook(BaseHook):
     def run(self, endpoint, data=None, headers=None, extra_options=None):
         """
         Performs the request
+        :param endpoint: the endpoint to be called i.e. resource/v1/query?
+        :type endpoint: str
+        :param data: payload to be uploaded or request parameters
+        :type data: dict
+        :param headers: additional headers to be passed through as a dictionary
+        :type headers: dict
+        :param extra_options: additional options to be used when executing the request
+            i.e. {'check_response': False} to avoid checking raising exceptions on non
+            2XX or 3XX status codes
+        :type extra_options: dict
         """
         extra_options = extra_options or {}
 
@@ -101,6 +119,12 @@ class HttpHook(BaseHook):
         return self.run_and_check(session, prepped_request, extra_options)
 
     def check_response(self, response):
+        """
+        Checks the status code and raise an AirflowException exception on non 2XX or 3XX
+        status codes
+        :param response: A requests response object
+        :type response: requests.response
+        """
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError:
@@ -113,6 +137,14 @@ class HttpHook(BaseHook):
         """
         Grabs extra options like timeout and actually runs the request,
         checking for the result
+        :param session: the session to be used to execute the request
+        :type session: requests.Session
+        :param prepped_request: the prepared request generated in run()
+        :type prepped_request: session.prepare_request
+        :param extra_options: additional options to be used when executing the request
+            i.e. {'check_response': False} to avoid checking raising exceptions on non 2XX
+            or 3XX status codes
+        :type extra_options: dict
         """
         extra_options = extra_options or {}
 
@@ -142,6 +174,19 @@ class HttpHook(BaseHook):
         :param _retry_args: Arguments which define the retry behaviour.
             See Tenacity documentation at https://github.com/jd/tenacity
         :type _retry_args: dict
+
+
+        Example: ::
+            hook = HttpHook(http_conn_id='my_conn',method='GET')
+            retry_args = dict(
+                 wait=tenacity.wait_exponential(),
+                 stop=tenacity.stop_after_attempt(10),
+                 retry=requests.exceptions.ConnectionError
+             )
+             hook.run_with_advanced_retry(
+                     endpoint='v1/test',
+                     _retry_args=retry_args
+                 )
         """
         self._retry_obj = tenacity.Retrying(
             **_retry_args
