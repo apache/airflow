@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,21 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+#
 
-# flake8: noqa
 
-from __future__ import absolute_import
-
-from .api import *
-from .configuration import *
-from .contrib import *
-from .core import *
-from .executors import *
-from .jobs import *
-from .impersonation import *
-from .lineage import *
-from .models import *
-from .operators import *
-from .security import *
-from .task import *
-from .utils import *
+class LineageBackend(object):
+    def send_lineage(self,
+                     operator=None, inlets=None, outlets=None, context=None):
+        """
+        Sends lineage metadata to a backend
+        :param operator: the operator executing a transformation on the inlets and outlets
+        :param inlets: the inlets to this operator
+        :param outlets: the outlets from this operator
+        :param context: the current context of the task instance
+        """
+        raise NotImplementedError()
