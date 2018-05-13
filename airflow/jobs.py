@@ -51,7 +51,7 @@ from airflow.models import DAG, DagRun
 from airflow.settings import Stats
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
-from airflow.utils import asciiart, timezone
+from airflow.utils import asciiart, helpers, timezone
 from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           DagFileProcessorManager,
                                           SimpleDag,
@@ -110,6 +110,7 @@ class BaseJob(Base, LoggingMixin):
         self.latest_heartbeat = timezone.utcnow()
         self.heartrate = heartrate
         self.unixname = getpass.getuser()
+        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         super(BaseJob, self).__init__(*args, **kwargs)
 
     def is_alive(self):
@@ -254,21 +255,30 @@ class BaseJob(Base, LoggingMixin):
             if ti.key not in queued_tis and ti.key not in running_tis:
                 tis_to_reset.append(ti)
 
-        filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
-                                TI.task_id == ti.task_id,
-                                TI.execution_date == ti.execution_date)
-                           for ti in tis_to_reset])
         if len(tis_to_reset) == 0:
             return []
-        reset_tis = (
-            session
-            .query(TI)
-            .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
-            .with_for_update()
-            .all())
-        for ti in reset_tis:
-            ti.state = State.NONE
-            session.merge(ti)
+
+        def query(result, items):
+            filter_for_tis = ([and_(TI.dag_id == ti.dag_id,
+                                    TI.task_id == ti.task_id,
+                                    TI.execution_date == ti.execution_date)
+                               for ti in items])
+            reset_tis = (
+                session
+                .query(TI)
+                .filter(or_(*filter_for_tis), TI.state.in_(resettable_states))
+                .with_for_update()
+                .all())
+            for ti in reset_tis:
+                ti.state = State.NONE
+                session.merge(ti)
+            return result + reset_tis
+
+        reset_tis = helpers.reduce_in_chunks(query,
+                                             tis_to_reset,
+                                             [],
+                                             self.max_tis_per_query)
+
         task_instance_str = '\n\t'.join(
             ["{}".format(x) for x in reset_tis])
         session.commit()
@@ -579,7 +589,6 @@ class SchedulerJob(BaseJob):
         # files have finished parsing.
         self.min_file_parsing_loop_time = min_file_parsing_loop_time
 
-        self.max_tis_per_query = conf.getint('scheduler', 'max_tis_per_query')
         if run_duration is None:
             self.run_duration = conf.getint('scheduler',
                                             'run_duration')
@@ -1261,19 +1270,28 @@ class SchedulerJob(BaseJob):
         filter_for_ti_enqueue = ([and_(TI.dag_id == ti.dag_id,
                                   TI.task_id == ti.task_id,
                                   TI.execution_date == ti.execution_date)
-                             for ti in tis_to_set_to_queued])
+                                  for ti in tis_to_set_to_queued])
         session.commit()
 
-        # requery in batch since above was expired by commit
-        tis_to_be_queued = (
-            session
-            .query(TI)
-            .filter(or_(*filter_for_ti_enqueue))
-            .all())
+        # requery in batches since above was expired by commit
 
-        task_instance_str = "\n\t".join(
-            ["{}".format(x) for x in tis_to_be_queued])
-        self.log.info("Setting the follow tasks to queued state:\n\t%s", task_instance_str)
+        def query(result, items):
+            tis_to_be_queued = (
+                session
+                .query(TI)
+                .filter(or_(*items))
+                .all())
+            task_instance_str = "\n\t".join(
+                ["{}".format(x) for x in tis_to_be_queued])
+            self.log.info("Setting the follow tasks to queued state:\n\t%s",
+                          task_instance_str)
+            return result + tis_to_be_queued
+
+        tis_to_be_queued = helpers.reduce_in_chunks(query,
+                                                    filter_for_ti_enqueue,
+                                                    [],
+                                                    self.max_tis_per_query)
+
         return tis_to_be_queued
 
     def _enqueue_task_instances_with_queued_state(self, simple_dag_bag, task_instances):
@@ -1349,32 +1367,19 @@ class SchedulerJob(BaseJob):
         """
         executable_tis = self._find_executable_task_instances(simple_dag_bag, states,
                                                               session=session)
-        if self.max_tis_per_query == 0:
+
+        def query(result, items):
             tis_with_state_changed = self._change_state_for_executable_task_instances(
-                executable_tis,
+                items,
                 states,
                 session=session)
             self._enqueue_task_instances_with_queued_state(
                 simple_dag_bag,
                 tis_with_state_changed)
             session.commit()
-            return len(tis_with_state_changed)
-        else:
-            # makes chunks of max_tis_per_query size
-            chunks = ([executable_tis[i:i + self.max_tis_per_query]
-                      for i in range(0, len(executable_tis), self.max_tis_per_query)])
-            total_tis_queued = 0
-            for chunk in chunks:
-                tis_with_state_changed = self._change_state_for_executable_task_instances(
-                    chunk,
-                    states,
-                    session=session)
-                self._enqueue_task_instances_with_queued_state(
-                    simple_dag_bag,
-                    tis_with_state_changed)
-                session.commit()
-                total_tis_queued += len(tis_with_state_changed)
-            return total_tis_queued
+            return result + len(tis_with_state_changed)
+
+        return helpers.reduce_in_chunks(query, executable_tis, 0, self.max_tis_per_query)
 
     def _process_dags(self, dagbag, dags, tis_out):
         """

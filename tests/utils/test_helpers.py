@@ -86,6 +86,36 @@ class TestHelpers(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_chunks(self):
+        with self.assertRaises(ValueError):
+            [i for i in helpers.chunks([1, 2, 3], 0)]
+
+        with self.assertRaises(ValueError):
+            [i for i in helpers.chunks([1, 2, 3], -3)]
+
+        self.assertEqual([i for i in helpers.chunks([], 5)], [])
+        self.assertEqual([i for i in helpers.chunks([1], 1)], [[1]])
+        self.assertEqual([i for i in helpers.chunks([1, 2, 3], 2)],
+                         [[1, 2], [3]])
+
+    def test_reduce_in_chunks(self):
+        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
+                                                  [1, 2, 3, 4, 5],
+                                                  []),
+                         [[1, 2, 3, 4, 5]])
+
+        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + [y],
+                                                  [1, 2, 3, 4, 5],
+                                                  [],
+                                                  2),
+                         [[1, 2], [3, 4], [5]])
+
+        self.assertEqual(helpers.reduce_in_chunks(lambda x, y: x + y[0] * y[1],
+                                                  [1, 2, 3, 4],
+                                                  0,
+                                                  2),
+                         14)
+
 
 if __name__ == '__main__':
     unittest.main()
