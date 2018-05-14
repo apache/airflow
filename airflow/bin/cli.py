@@ -19,6 +19,7 @@
 # under the License.
 
 from __future__ import print_function
+from backports.configparser import NoSectionError
 import logging
 
 import os
@@ -438,7 +439,13 @@ def run(args, dag=None):
         # core.sql_alchemy_pool_recycle
         for section, config in conf_dict.items():
             for option, value in config.items():
-                conf.set(section, option, value)
+                try:
+                    conf.set(section, option, value)
+                except NoSectionError:
+                    log.error('Section {section} Option {option} '
+                              'does not exist in the config!'.format(section=section,
+                                                                     option=option))
+
         settings.configure_vars()
 
     # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
