@@ -25,7 +25,6 @@ from __future__ import unicode_literals
 import os
 import random
 
-from airflow import settings
 from airflow.models import Connection
 from airflow.exceptions import AirflowException
 from airflow.utils.db import provide_session
@@ -44,7 +43,6 @@ class BaseHook(LoggingMixin):
     """
     def __init__(self, source):
         pass
-
 
     @classmethod
     @provide_session
