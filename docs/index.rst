@@ -86,5 +86,6 @@ Content
     timezone
     api
     integration
+    lineage
     faq
     code
