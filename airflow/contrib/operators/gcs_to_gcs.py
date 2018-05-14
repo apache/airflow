@@ -44,6 +44,12 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         storage bucket.
         If a wildcard is supplied in the source_object argument, this is the
         prefix that will be prepended to the final destination objects' paths.
+        Note that the source path's part before the wildcard will be removed;
+        if it needs to be retained it should be appended to destination_object.
+        For example, with prefix ``foo/*`` and destination_object `'blah/``, the
+        file ``foo/baz`` will be copied to ``blah/baz``; to retain the prefix write
+        the destination_object as e.g. ``blah/foo``, in which case the copied file
+        will be named ``blah/foo/baz``.
     :type destination_object: string
     :param move_object: When move object is True, the object is moved instead
     of copied to the new location.
@@ -57,6 +63,44 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         For this to work, the service account making the request must have
         domain-wide delegation enabled.
     :type delegate_to: string
+
+    **Examples**:
+        The following Operator would copy a single file named
+        ``sales/sales-2017/january.avro`` in the ``data`` bucket to the file named
+        ``copied_sales/2017/january-backup.avro` in the ``data_backup`` bucket ::
+            copy_single_file = GoogleCloudStorageToGoogleCloudStorageOperator(
+                task_id='copy_single_file',
+                source_bucket='data',
+                source_object='sales/sales-2017/january.avro',
+                destination_bucket='data_backup',
+                destination_object='copied_sales/2017/january-backup.avro',
+                google_cloud_storage_conn_id=google_cloud_conn_id
+            )
+
+        The following Operator would copy all the Avro files from ``sales/sales-2017``
+        folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+        ``copied_sales/2017`` folder in the ``data_backup`` bucket. ::
+            copy_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+                task_id='copy_files',
+                source_bucket='data',
+                source_object='sales/sales-2017/*.avro',
+                destination_bucket='data_backup',
+                destination_object='copied_sales/2017/',
+                google_cloud_storage_conn_id=google_cloud_conn_id
+            )
+
+        The following Operator would move all the Avro files from ``sales/sales-2017``
+        folder (i.e. with names starting with that prefix) in ``data`` bucket to the
+        same folder in the ``data_backup`` bucket, deleting the original files in the
+        process. ::
+            move_files = GoogleCloudStorageToGoogleCloudStorageOperator(
+                task_id='move_files',
+                source_bucket='data',
+                source_object='sales/sales-2017/*.avro',
+                destination_bucket='data_backup',
+                move_object=True,
+                google_cloud_storage_conn_id=google_cloud_conn_id
+            )
     """
     template_fields = ('source_bucket', 'source_object', 'destination_bucket',
                        'destination_object',)
@@ -73,8 +117,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                  delegate_to=None,
                  *args,
                  **kwargs):
-        super(GoogleCloudStorageToGoogleCloudStorageOperator, self).__init__(
-            *args, **kwargs)
+        super(GoogleCloudStorageToGoogleCloudStorageOperator,
+              self).__init__(*args, **kwargs)
         self.source_bucket = source_bucket
         self.source_object = source_object
         self.destination_bucket = destination_bucket
@@ -82,6 +126,7 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
         self.move_object = move_object
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
+        self.wildcard = '*'
 
     def execute(self, context):
 
@@ -89,24 +134,22 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
             google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
             delegate_to=self.delegate_to
         )
+        log_message = 'Executing copy of gs://{0}/{1} to gs://{2}/{3}'
 
-        if '*' in self.source_object:
-            wildcard_position = self.source_object.index('*')
-            objects = hook.list(self.source_bucket,
-                                prefix=self.source_object[:wildcard_position],
-                                delimiter=self.source_object[wildcard_position + 1:])
+        if self.wildcard in self.source_object:
+            prefix, delimiter = self.source_object.split(self.wildcard, 1)
+            objects = hook.list(self.source_bucket, prefix=prefix, delimiter=delimiter)
 
             for source_object in objects:
-                if self.destination_object:
-                    destination_object = "{}/{}".format(self.destination_object,
-                                                        source_object[wildcard_position:])
-                else:
+                if self.destination_object is None:
                     destination_object = source_object
-                self.log.info('Executing copy of gs://{0}/{1} to '
-                              'gs://{2}/{3}'.format(self.source_bucket,
-                                                    source_object,
-                                                    self.destination_bucket,
-                                                    destination_object))
+                else:
+                    destination_object = source_object.replace(prefix,
+                                                               self.destination_object, 1)
+                self.log.info(
+                    log_message.format(self.source_bucket, source_object,
+                                       self.destination_bucket, destination_object)
+                )
 
                 hook.copy(self.source_bucket, source_object,
                           self.destination_bucket, destination_object)
@@ -115,13 +158,9 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
 
         else:
             self.log.info(
-                'Executing copy of gs://{0}/{1} to '
-                'gs://{2}/{3}'.format(
-                    self.source_bucket,
-                    self.source_object,
-                    self.destination_bucket or self.source_bucket,
-                    self.destination_object or self.source_object
-                )
+                log_message.format(self.source_bucket, self.source_object,
+                                   self.destination_bucket or self.source_bucket,
+                                   self.destination_object or self.source_object)
             )
             hook.copy(self.source_bucket, self.source_object,
                       self.destination_bucket, self.destination_object)
