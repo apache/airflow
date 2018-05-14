@@ -21,6 +21,8 @@ from airflow import AirflowException
 from subprocess import check_call
 import mock
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
+from airflow.contrib.kubernetes.volume_mount import VolumeMount
+from airflow.contrib.kubernetes.volume import Volume
 
 try:
     check_call(["kubectl", "get", "pods"])
@@ -37,7 +39,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
-            arguments=["echo", "10"],
+            arguments=["echo 10"],
             labels={"foo": "bar"},
             name="test",
             task_id="task"
@@ -50,14 +52,42 @@ class KubernetesPodOperatorTest(unittest.TestCase):
                 namespace='default',
                 image="ubuntu:16.04",
                 cmds=["bash", "-cx"],
-                arguments=["echo", "10"],
+                arguments=["echo 10"],
                 labels={"foo": "bar"},
                 name="test",
                 task_id="task",
                 get_logs=True
             )
             k.execute(None)
-            mock_logger.info.assert_any_call(b"+ echo\n")
+            mock_logger.info.assert_any_call(b"+ echo 10\n")
+
+    def test_volume_mount(self):
+        with mock.patch.object(PodLauncher, 'log') as mock_logger:
+            volume_mount = VolumeMount('test-volume',
+                                       mount_path='/root/mount_file',
+                                       sub_path=None,
+                                       read_only=True)
+
+            volume_config = {
+                'persistentVolumeClaim':
+                    {
+                        'claimName': 'test-volume'
+                    }
+            }
+            volume = Volume(name='test-volume', configs=volume_config)
+            k = KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["cat /root/mount_file/test.txt"],
+                labels={"foo": "bar"},
+                volume_mounts=[volume_mount],
+                volumes=[volume],
+                name="test",
+                task_id="task"
+            )
+            k.execute(None)
+            mock_logger.info.assert_any_call(b"retrieved from mount\n")
 
     def test_faulty_image(self):
         bad_image_name = "foobar"
@@ -65,7 +95,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             namespace='default',
             image=bad_image_name,
             cmds=["bash", "-cx"],
-            arguments=["echo", "10"],
+            arguments=["echo 10"],
             labels={"foo": "bar"},
             name="test",
             task_id="task",
@@ -85,7 +115,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             namespace='default',
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
-            arguments=[bad_internal_command, "10"],
+            arguments=[bad_internal_command + " 10"],
             labels={"foo": "bar"},
             name="test",
             task_id="task"

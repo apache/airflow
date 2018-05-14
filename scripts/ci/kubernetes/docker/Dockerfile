@@ -46,7 +46,7 @@ RUN pip install -U setuptools && \
 COPY airflow.tar.gz /tmp/airflow.tar.gz
 RUN pip install /tmp/airflow.tar.gz
 
-COPY airflow-init.sh /tmp/airflow-init.sh
+COPY airflow-test-env-init.sh /tmp/airflow-test-env-init.sh
 
 COPY bootstrap.sh /bootstrap.sh
 RUN chmod +x /bootstrap.sh
