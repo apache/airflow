@@ -19,13 +19,26 @@ Kubernetes Operator
 
     secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
     secret_env  = Secret('env', 'SQL_CONN', 'airflow-secrets', 'sql_alchemy_conn')
+    volume_mount = VolumeMount('test-volume',
+                                mount_path='/root/mount_file',
+                                sub_path=None,
+                                read_only=True)
 
+    volume_config= {
+        'persistentVolumeClaim':
+          {
+            'claimName': 'test-volume'
+          }
+        }
+    volume = Volume(name='test-volume', configs=volume_config)
     k = KubernetesPodOperator(namespace='default',
                               image="ubuntu:16.04",
                               cmds=["bash", "-cx"],
                               arguments=["echo", "10"],
                               labels={"foo": "bar"},
                               secrets=[secret_file,secret_env]
+                              volume=[volume],
+                              volume_mounts=[volume_mount]
                               name="test",
                               task_id="task"
                               )
