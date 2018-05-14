@@ -40,6 +40,8 @@ class ECSOperator(BaseOperator):
             credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
+    :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
+    :type: launch_type: str
     """
 
     ui_color = '#f0ede4'
@@ -49,7 +51,7 @@ class ECSOperator(BaseOperator):
 
     @apply_defaults
     def __init__(self, task_definition, cluster, overrides,
-                 aws_conn_id=None, region_name=None, **kwargs):
+                 aws_conn_id=None, region_name=None, launch_type='EC2', **kwargs):
         super(ECSOperator, self).__init__(**kwargs)
 
         self.aws_conn_id = aws_conn_id
@@ -57,6 +59,7 @@ class ECSOperator(BaseOperator):
         self.task_definition = task_definition
         self.cluster = cluster
         self.overrides = overrides
+        self.launch_type = launch_type
 
         self.hook = self.get_hook()
 
@@ -76,7 +79,8 @@ class ECSOperator(BaseOperator):
             cluster=self.cluster,
             taskDefinition=self.task_definition,
             overrides=self.overrides,
-            startedBy=self.owner
+            startedBy=self.owner,
+            launchType=self.launch_type
         )
 
         failures = response['failures']
