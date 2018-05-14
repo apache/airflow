@@ -268,6 +268,7 @@ def do_setup():
             'sqlalchemy>=1.1.15, <1.2.0',
             'sqlalchemy-utc>=0.9.0',
             'tabulate>=0.7.5, <0.8.0',
+            'tenacity==4.8.0',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'werkzeug>=0.14.1, <0.15.0',
