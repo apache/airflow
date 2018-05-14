@@ -1014,6 +1014,7 @@ class SchedulerJob(BaseJob):
                 .query(models.TaskInstance) \
                 .filter(and_(
                     models.TaskInstance.dag_id == subq.c.dag_id,
+                    models.TaskInstance.task_id == subq.c.task_id,
                     models.TaskInstance.execution_date ==
                     subq.c.execution_date)) \
                 .update({models.TaskInstance.state: new_state},
