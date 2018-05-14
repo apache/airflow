@@ -377,6 +377,154 @@ class DataprocClusterCreateOperator(BaseOperator):
         self._wait_for_done(service)
 
 
+class DataprocClusterScaleOperator(BaseOperator):
+    """
+    Scale, up or down, a cluster on Google Cloud Dataproc.
+    The operator will wait until the cluster is re-scaled.
+
+    **Example**: ::
+
+    t1 = DataprocClusterScaleOperator(
+            task_id='dataproc_scale',
+            project_id='my-project',
+            cluster_name='cluster-1',
+            num_workers=10,
+            num_preemptible_workers=10,
+            graceful_decommission_timeout='1h'
+            dag=dag)
+
+    .. seealso::
+        For more detail on about scaling clusters have a look at the reference:
+        https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
+
+    :param cluster_name: The name of the cluster to scale.
+    :type cluster_name: string
+    :param project_id: The ID of the google cloud project in which
+        the cluster runs
+    :type project_id: string
+    :param region: The region for the dataproc cluster
+    :type region: string
+    :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
+    :type gcp_conn_id: string
+    :param num_workers: The new number of workers
+    :type num_workers: int
+    :param num_preemptible_workers: The new number of preemptible workers
+    :type num_preemptible_workers: int
+    :param graceful_decommission_timeout: Timeout for graceful YARN decomissioning.
+        Maximum value is 1d
+    :type graceful_decommission_timeout: string
+    :param delegate_to: The account to impersonate, if any.
+        For this to work, the service account making the request must have domain-wide
+        delegation enabled.
+    :type delegate_to: string
+    """
+
+    template_fields = ['cluster_name', 'project_id', 'region']
+
+    @apply_defaults
+    def __init__(self,
+                 cluster_name,
+                 project_id,
+                 region='global',
+                 gcp_conn_id='google_cloud_default',
+                 delegate_to=None,
+                 num_workers=2,
+                 num_preemptible_workers=0,
+                 graceful_decommission_timeout=None,
+                 *args,
+                 **kwargs):
+        super(DataprocClusterScaleOperator, self).__init__(*args, **kwargs)
+        self.gcp_conn_id = gcp_conn_id
+        self.delegate_to = delegate_to
+        self.cluster_name = cluster_name
+        self.project_id = project_id
+        self.region = region
+        self.num_workers = num_workers
+        self.num_preemptible_workers = num_preemptible_workers
+
+        # Optional
+        self.optional_arguments = {}
+        if graceful_decommission_timeout:
+            self.optional_arguments['gracefulDecommissionTimeout'] = \
+                self._get_graceful_decommission_timeout(
+                    graceful_decommission_timeout)
+
+    def _wait_for_done(self, service, operation_name):
+        time.sleep(15)
+        while True:
+            try:
+                response = service.projects().regions().operations().get(
+                    name=operation_name
+                ).execute()
+
+                if 'done' in response and response['done']:
+                    if 'error' in response:
+                        raise Exception(str(response['error']))
+                    else:
+                        return
+                time.sleep(15)
+            except HttpError as e:
+                self.log.error("Operation not found.")
+                raise e
+
+    def _build_scale_cluster_data(self):
+        scale_data = {
+            'config': {
+                'workerConfig': {
+                    'numInstances': self.num_workers
+                },
+                'secondaryWorkerConfig': {
+                    'numInstances': self.num_preemptible_workers
+                }
+            }
+        }
+        return scale_data
+
+    def _get_graceful_decommission_timeout(self, timeout):
+        match = re.match(r"^(\d+)(s|m|h|d)$", timeout)
+        if match:
+            if match.group(2) == "s":
+                return timeout
+            elif match.group(2) == "m":
+                val = float(match.group(1))
+                return "{}s".format(timedelta(minutes=val).seconds)
+            elif match.group(2) == "h":
+                val = float(match.group(1))
+                return "{}s".format(timedelta(hours=val).seconds)
+            elif match.group(2) == "d":
+                val = float(match.group(1))
+                return "{}s".format(timedelta(days=val).seconds)
+
+        raise AirflowException(
+            "DataprocClusterScaleOperator "
+            " should be expressed in day, hours, minutes or seconds. "
+            " i.e. 1d, 4h, 10m, 30s")
+
+    def execute(self, context):
+        self.log.info("Scaling cluster: %s", self.cluster_name)
+        hook = DataProcHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to
+        )
+        service = hook.get_conn()
+
+        update_mask = "config.worker_config.num_instances," \
+                      + "config.secondary_worker_config.num_instances"
+        scaling_cluster_data = self._build_scale_cluster_data()
+
+        response = service.projects().regions().clusters().patch(
+            projectId=self.project_id,
+            region=self.region,
+            clusterName=self.cluster_name,
+            updateMask=update_mask,
+            body=scaling_cluster_data,
+            **self.optional_arguments
+        ).execute()
+        operation_name = response['name']
+        self.log.info("Cluster scale operation name: %s", operation_name)
+        self._wait_for_done(service, operation_name)
+
+
 class DataprocClusterDeleteOperator(BaseOperator):
     """
     Delete a cluster on Google Cloud Dataproc. The operator will wait until the

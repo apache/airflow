@@ -571,6 +571,7 @@ DataProc Operators
 
 - :ref:`DataprocClusterCreateOperator` : Create a new cluster on Google Cloud Dataproc.
 - :ref:`DataprocClusterDeleteOperator` : Delete a cluster on Google Cloud Dataproc.
+- :ref:`DataprocClusterScaleOperator` : Scale up or down a cluster on Google Cloud Dataproc.
 - :ref:`DataProcPigOperator` : Start a Pig query Job on a Cloud DataProc cluster.
 - :ref:`DataProcHiveOperator` : Start a Hive query Job on a Cloud DataProc cluster.
 - :ref:`DataProcSparkSqlOperator` : Start a Spark SQL query Job on a Cloud DataProc cluster.
@@ -586,6 +587,13 @@ DataprocClusterCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+
+.. _DataprocClusterScaleOperator:
+
+DataprocClusterScaleOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 
 .. _DataprocClusterDeleteOperator:
 
