@@ -62,4 +62,26 @@ spec:
   resources:
     requests:
       storage: 2Gi
-
+---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: test-volume
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 2Gi
+  hostPath:
+    path: /airflow-dags/
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: test-volume
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi
