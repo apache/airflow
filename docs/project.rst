@@ -23,6 +23,13 @@ Committers
 - @patrickleotardif (Patrick Leo Tardif)
 - @aoen (Dan Davydov)
 - @syvineckruyk (Steven Yvinec-Kruyk)
+- @msumit (Sumit Maheshwari)
+- @alexvanboxel (Alex Van Boxel)
+- @saguziel (Alex Guziel)
+- @joygao (Joy Gao)
+- @fokko (Fokko Driesprong)
+- @ash (Ash Berlin-Taylor)
+- @kaxilnaik (Kaxil Naik)
 
 For the full list of contributors, take a look at `Airflow's Github
 Contributor page:
