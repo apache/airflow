@@ -126,6 +126,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPigOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHiveOperator
