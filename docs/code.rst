@@ -170,6 +170,8 @@ Operators
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubPublishOperator
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
