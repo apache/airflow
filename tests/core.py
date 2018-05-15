@@ -949,6 +949,26 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(run_command('echo "foo bar"'), u'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
+    def test_trigger_dagrun_with_execution_date(self):
+        utc_now = timezone.utcnow()
+        run_id = 'trig__' + utc_now.isoformat()
+
+        def payload_generator(context, object):
+            object.run_id = run_id
+            return object
+
+        task = TriggerDagRunOperator(task_id='test_trigger_dagrun_with_execution_date',
+                                     trigger_dag_id='example_bash_operator',
+                                     python_callable=payload_generator,
+                                     execution_date=utc_now,
+                                     dag=self.dag)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
+                                      run_id=run_id)
+        self.assertEquals(len(dag_runs), 1)
+        dag_run = dag_runs[0]
+        self.assertEquals(dag_run.execution_date, utc_now)
+
 
 class CliTests(unittest.TestCase):
 
