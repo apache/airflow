@@ -108,7 +108,12 @@ async = [
     'gevent>=0.13'
 ]
 atlas = ['atlasclient>=0.1.2']
-azure = ['azure-storage>=0.34.0']
+azure_blob_storage = ['azure-storage>=0.34.0']
+azure_data_lake = [
+    'azure-mgmt-resource==1.2.2',
+    'azure-mgmt-datalake-store==0.4.0',
+    'azure-datalake-store==0.0.19'
+]
 sendgrid = ['sendgrid>=5.2.0']
 celery = [
     'celery>=4.0.2',
@@ -211,9 +216,9 @@ devel = [
 devel_minreq = devel + kubernetes + mysql + doc + password + s3 + cgroups
 devel_hadoop = devel_minreq + hive + hdfs + webhdfs + kerberos
 devel_all = (sendgrid + devel + all_dbs + doc + samba + s3 + slack + crypto + oracle +
-             docker + ssh + kubernetes + celery + azure + redis + gcp_api + datadog +
-             zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
-             druid + pinot + segment + snowflake + elasticsearch + atlas)
+             docker + ssh + kubernetes + celery + azure_blob_storage + redis + gcp_api +
+             datadog + zendesk + jdbc + ldap + kerberos + password + webhdfs + jenkins +
+             druid + pinot + segment + snowflake + elasticsearch + azure_data_lake, atlas)
 
 # Snakebite & Google Cloud Dataflow are not Python 3 compatible :'(
 if PY3:
@@ -283,7 +288,8 @@ def do_setup():
             'all_dbs': all_dbs,
             'atlas': atlas,
             'async': async,
-            'azure': azure,
+            'azure_blob_storage': azure_blob_storage,
+            'azure_data_lake': azure_data_lake,
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,

@@ -70,7 +70,8 @@ Azure: Microsoft Azure
 ----------------------
 
 Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
-Storage. Note that the Hook, Sensor and Operator are in the contrib section.
+Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and 
+Azure Data Lake Hook are in contrib section.
 
 Azure Blob Storage
 ''''''''''''''''''
@@ -146,6 +147,22 @@ Follow the steps below to enable Azure Blob Storage logging.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 
+Azure Data Lake
+''''''''''''''''''
+
+AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
+Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
+ (see connection `azure_data_lake_default` for an example).
+
+- :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
+
+.. _AzureDataLakeHook:
+
+AzureDataLakeHook
+"""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 
 .. _AWS:
 
