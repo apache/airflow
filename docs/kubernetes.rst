@@ -46,5 +46,5 @@ Kubernetes Operator
 
 .. autoclass:: airflow.contrib.operators.kubernetes_pod_operator.KubernetesPodOperator
 
-.. autoclass:: airflow.contrib.operators.secret.Secret
+.. autoclass:: airflow.contrib.kubernetes.secret.Secret
 
