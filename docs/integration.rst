@@ -70,7 +70,8 @@ Azure: Microsoft Azure
 ----------------------
 
 Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
-Storage. Note that the Hook, Sensor and Operator are in the contrib section.
+Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and 
+Azure Data Lake Hook are in contrib section.
 
 Azure Blob Storage
 ''''''''''''''''''
@@ -146,6 +147,22 @@ Follow the steps below to enable Azure Blob Storage logging.
 #. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
 #. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
 
+Azure Data Lake
+''''''''''''''''''
+
+AzureDataLakeHook communicates via a REST API compatible with WebHDFS. Make sure that a
+Airflow connection of type `azure_data_lake` exists. Authorization can be done by supplying a
+login (=Client ID), password (=Client Secret) and extra fields tenant (Tenant) and account_name (Account Name)
+ (see connection `azure_data_lake_default` for an example).
+
+- :ref:`AzureDataLakeHook`: Interface with Azure Data Lake.
+
+.. _AzureDataLakeHook:
+
+AzureDataLakeHook
+"""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 
 .. _AWS:
 
@@ -268,7 +285,8 @@ AWS RedShift
 
 - :ref:`AwsRedshiftClusterSensor` : Waits for a Redshift cluster to reach a specific status.
 - :ref:`RedshiftHook` : Interact with AWS Redshift, using the boto3 library.
-- :ref:`RedshiftToS3Transfer` : Executes an unload command to S3 as a CSV with headers.
+- :ref:`RedshiftToS3Transfer` : Executes an unload command to S3 as CSV with or without headers.
+- :ref:`S3ToRedshiftTransfer` : Executes an copy command from S3 as CSV with or without headers.
 
 .. _AwsRedshiftClusterSensor:
 
@@ -290,6 +308,13 @@ RedshiftToS3Transfer
 """"""""""""""""""""
 
 .. autoclass:: airflow.operators.redshift_to_s3_operator.RedshiftToS3Transfer
+
+.. _S3ToRedshiftTransfer:
+
+S3ToRedshiftTransfer
+""""""""""""""""""""
+
+.. autoclass:: airflow.operators.s3_to_redshift_operator.S3ToRedshiftTransfer
 
 
 .. _Databricks:
@@ -563,6 +588,7 @@ DataProc Operators
 
 - :ref:`DataprocClusterCreateOperator` : Create a new cluster on Google Cloud Dataproc.
 - :ref:`DataprocClusterDeleteOperator` : Delete a cluster on Google Cloud Dataproc.
+- :ref:`DataprocClusterScaleOperator` : Scale up or down a cluster on Google Cloud Dataproc.
 - :ref:`DataProcPigOperator` : Start a Pig query Job on a Cloud DataProc cluster.
 - :ref:`DataProcHiveOperator` : Start a Hive query Job on a Cloud DataProc cluster.
 - :ref:`DataProcSparkSqlOperator` : Start a Spark SQL query Job on a Cloud DataProc cluster.
@@ -578,6 +604,13 @@ DataprocClusterCreateOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+
+.. _DataprocClusterScaleOperator:
+
+DataprocClusterScaleOperator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 
 .. _DataprocClusterDeleteOperator:
 
@@ -734,12 +767,11 @@ Storage Operators
 """""""""""""""""
 
 - :ref:`FileToGoogleCloudStorageOperator` : Uploads a file to Google Cloud Storage.
-- :ref:`GoogleCloudStorageCopyOperator` : Copies objects (optionally from a directory) filtered by 'delimiter' (file extension for e.g .json) from a bucket to another bucket in a different directory, if required.
 - :ref:`GoogleCloudStorageCreateBucketOperator` : Creates a new cloud storage bucket.
 - :ref:`GoogleCloudStorageListOperator` : List all objects from the bucket with the give string prefix and delimiter in name.
 - :ref:`GoogleCloudStorageDownloadOperator` : Downloads a file from Google Cloud Storage.
 - :ref:`GoogleCloudStorageToBigQueryOperator` : Loads files from Google cloud storage into BigQuery.
-- :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies a single object from a bucket to another, with renaming if requested.
+- :ref:`GoogleCloudStorageToGoogleCloudStorageOperator` : Copies objects from a bucket to another, with renaming if requested.
 
 .. _FileToGoogleCloudStorageOperator:
 
@@ -747,13 +779,6 @@ FileToGoogleCloudStorageOperator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
-
-.. _GoogleCloudStorageCopyOperator:
-
-GoogleCloudStorageCopyOperator
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-.. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
 
 .. _GoogleCloudStorageCreateBucketOperator:
 

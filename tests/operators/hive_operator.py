@@ -98,6 +98,16 @@ class HiveOperatorTest(HiveEnvironmentTest):
         t.prepare_template()
         self.assertEqual(t.hql, "SELECT {{ num_col }} FROM {{ table }};")
 
+    def test_hiveconf(self):
+        hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
+        t = operators.hive_operator.HiveOperator(
+            hiveconfs={'table': 'static_babynames', 'day': '{{ ds }}'},
+            task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
+        t.prepare_template()
+        self.assertEqual(
+            t.hql,
+            "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
+
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
 

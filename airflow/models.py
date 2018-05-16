@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -50,13 +50,14 @@ import traceback
 import warnings
 import hashlib
 
+import uuid
 from datetime import datetime
-from urllib.parse import urlparse, quote
+from urllib.parse import urlparse, quote, parse_qsl
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
     Index, Float, LargeBinary)
-from sqlalchemy import func, or_, and_
+from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.dialects.mysql import LONGTEXT
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -72,6 +73,7 @@ from airflow.exceptions import (
     AirflowDagCycleException, AirflowException, AirflowSkipException, AirflowTaskTimeout
 )
 from airflow.dag.base_dag import BaseDag, BaseDagBag
+from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.ti_deps.deps.not_in_retry_period_dep import NotInRetryPeriodDep
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.ti_deps.deps.trigger_rule_dep import TriggerRuleDep
@@ -599,6 +601,8 @@ class Connection(Base, LoggingMixin):
         ('aws', 'Amazon Web Services',),
         ('emr', 'Elastic MapReduce',),
         ('snowflake', 'Snowflake',),
+        ('segment', 'Segment',),
+        ('azure_data_lake', 'Azure Data Lake'),
     ]
 
     def __init__(
@@ -632,6 +636,8 @@ class Connection(Base, LoggingMixin):
         self.login = temp_uri.username
         self.password = temp_uri.password
         self.port = temp_uri.port
+        if temp_uri.query:
+            self.extra = json.dumps(dict(parse_qsl(temp_uri.query)))
 
     def get_password(self):
         if self._password and self.is_encrypted:
@@ -744,6 +750,9 @@ class Connection(Base, LoggingMixin):
             elif self.conn_type == 'docker':
                 from airflow.hooks.docker_hook import DockerHook
                 return DockerHook(docker_conn_id=self.conn_id)
+            elif self.conn_type == 'azure_data_lake':
+                from airflow.contrib.hooks.azure_data_lake_hook import AzureDataLakeHook
+                return AzureDataLakeHook(azure_data_lake_conn_id=self.conn_id)
         except:
             pass
 
@@ -824,6 +833,7 @@ class TaskInstance(Base, LoggingMixin):
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     pid = Column(Integer)
+    executor_config = Column(PickleType(pickler=dill))
 
     __table_args__ = (
         Index('ti_dag_state', dag_id, state),
@@ -862,6 +872,7 @@ class TaskInstance(Base, LoggingMixin):
         if state:
             self.state = state
         self.hostname = ''
+        self.executor_config = task.executor_config
         self.init_on_load()
         # Is this TaskInstance being currently running within `airflow run --raw`.
         # Not persisted to the database so only valid for the current process
@@ -1147,6 +1158,7 @@ class TaskInstance(Base, LoggingMixin):
             self.max_tries = ti.max_tries
             self.hostname = ti.hostname
             self.pid = ti.pid
+            self.executor_config = ti.executor_config
         else:
             self.state = None
 
@@ -1827,7 +1839,9 @@ class TaskInstance(Base, LoggingMixin):
             'var': {
                 'value': VariableAccessor(),
                 'json': VariableJsonAccessor()
-            }
+            },
+            'inlets': task.inlets,
+            'outlets': task.outlets,
         }
 
     def render_templates(self):
@@ -2220,6 +2234,18 @@ class BaseOperator(LoggingMixin):
     :param task_concurrency: When set, a task will be able to limit the concurrent
         runs across execution_dates
     :type task_concurrency: int
+    :param executor_config: Additional task-level configuration parameters that are
+        interpreted by a specific executor. Parameters are namespaced by the name of
+        executor.
+        ``example: to run this task in a specific docker container through
+        the KubernetesExecutor
+        MyOperator(...,
+            executor_config={
+            "KubernetesExecutor":
+                {"image": "myCustomDockerImage"}
+                }
+        )``
+    :type executor_config: dict
     """
 
     # For derived classes to define which fields will get jinjaified
@@ -2264,6 +2290,9 @@ class BaseOperator(LoggingMixin):
             resources=None,
             run_as_user=None,
             task_concurrency=None,
+            executor_config=None,
+            inlets=None,
+            outlets=None,
             *args,
             **kwargs):
 
@@ -2338,6 +2367,7 @@ class BaseOperator(LoggingMixin):
         self.resources = Resources(**(resources or {}))
         self.run_as_user = run_as_user
         self.task_concurrency = task_concurrency
+        self.executor_config = executor_config or {}
 
         # Private attributes
         self._upstream_task_ids = set()
@@ -2349,6 +2379,27 @@ class BaseOperator(LoggingMixin):
             self.dag = dag
 
         self._log = logging.getLogger("airflow.task.operators")
+
+        # lineage
+        self.inlets = []
+        self.outlets = []
+        self.lineage_data = None
+
+        self._inlets = {
+            "auto": False,
+            "task_ids": [],
+            "datasets": [],
+        }
+
+        self._outlets = {
+            "datasets": [],
+        }
+
+        if inlets:
+            self._inlets.update(inlets)
+
+        if outlets:
+            self._outlets.update(outlets)
 
         self._comps = {
             'task_id',
@@ -2527,6 +2578,7 @@ class BaseOperator(LoggingMixin):
                 self.get_flat_relative_ids(upstream=upstream))
         )
 
+    @prepare_lineage
     def pre_execute(self, context):
         """
         This hook is triggered right before self.execute() is called.
@@ -2542,6 +2594,7 @@ class BaseOperator(LoggingMixin):
         """
         raise NotImplementedError()
 
+    @apply_lineage
     def post_execute(self, context, result=None):
         """
         This hook is triggered right after self.execute() is called.
@@ -3076,7 +3129,7 @@ class DAG(BaseDag, LoggingMixin):
         # set timezone
         if start_date and start_date.tzinfo:
             self.timezone = start_date.tzinfo
-        elif 'start_date' in self.default_args:
+        elif 'start_date' in self.default_args and self.default_args['start_date']:
             if isinstance(self.default_args['start_date'], six.string_types):
                 self.default_args['start_date'] = (
                     timezone.parse(self.default_args['start_date'])
@@ -3892,7 +3945,6 @@ class DAG(BaseDag, LoggingMixin):
             start_date=None,
             end_date=None,
             mark_success=False,
-            include_adhoc=False,
             local=False,
             executor=None,
             donot_pickle=configuration.conf.getboolean('core', 'donot_pickle'),
@@ -3909,8 +3961,6 @@ class DAG(BaseDag, LoggingMixin):
         :type end_date: datetime
         :param mark_success: True to mark jobs as succeeded without running them
         :type mark_success: bool
-        :param include_adhoc: True to include dags with the adhoc parameter
-        :type include_adhoc: bool
         :param local: True to run the tasks using the LocalExecutor
         :type local: bool
         :param executor: The executor instance to run the tasks
@@ -3938,7 +3988,6 @@ class DAG(BaseDag, LoggingMixin):
             start_date=start_date,
             end_date=end_date,
             mark_success=mark_success,
-            include_adhoc=include_adhoc,
             executor=executor,
             donot_pickle=donot_pickle,
             ignore_task_deps=ignore_task_deps,
@@ -5099,3 +5148,57 @@ class ImportError(Base):
     timestamp = Column(UtcDateTime)
     filename = Column(String(1024))
     stacktrace = Column(Text)
+
+
+class KubeResourceVersion(Base):
+    __tablename__ = "kube_resource_version"
+    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
+    resource_version = Column(String(255))
+
+    @staticmethod
+    @provide_session
+    def get_current_resource_version(session=None):
+        (resource_version,) = session.query(KubeResourceVersion.resource_version).one()
+        return resource_version
+
+    @staticmethod
+    @provide_session
+    def checkpoint_resource_version(resource_version, session=None):
+        if resource_version:
+            session.query(KubeResourceVersion).update({
+                KubeResourceVersion.resource_version: resource_version
+            })
+            session.commit()
+
+    @staticmethod
+    @provide_session
+    def reset_resource_version(session=None):
+        session.query(KubeResourceVersion).update({
+            KubeResourceVersion.resource_version: '0'
+        })
+        session.commit()
+        return '0'
+
+
+class KubeWorkerIdentifier(Base):
+    __tablename__ = "kube_worker_uuid"
+    one_row_id = Column(Boolean, server_default=sqltrue(), primary_key=True)
+    worker_uuid = Column(String(255))
+
+    @staticmethod
+    @provide_session
+    def get_or_create_current_kube_worker_uuid(session=None):
+        (worker_uuid,) = session.query(KubeWorkerIdentifier.worker_uuid).one()
+        if worker_uuid == '':
+            worker_uuid = str(uuid.uuid4())
+            KubeWorkerIdentifier.checkpoint_kube_worker_uuid(worker_uuid, session)
+        return worker_uuid
+
+    @staticmethod
+    @provide_session
+    def checkpoint_kube_worker_uuid(worker_uuid, session=None):
+        if worker_uuid:
+            session.query(KubeWorkerIdentifier).update({
+                KubeWorkerIdentifier.worker_uuid: worker_uuid
+            })
+            session.commit()

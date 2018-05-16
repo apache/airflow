@@ -108,6 +108,7 @@ Community-contributed Operators
 
 Operators
 ^^^^^^^^^
+.. Alphabetize this list
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
@@ -125,6 +126,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowPythonOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterCreateOperator
+.. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterScaleOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataprocClusterDeleteOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcPigOperator
 .. autoclass:: airflow.contrib.operators.dataproc_operator.DataProcHiveOperator
@@ -145,7 +147,6 @@ Operators
 .. autoclass:: airflow.contrib.operators.emr_terminate_job_flow_operator.EmrTerminateJobFlowOperator
 .. autoclass:: airflow.contrib.operators.file_to_gcs.FileToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.file_to_wasb.FileToWasbOperator
-.. autoclass:: airflow.contrib.operators.gcs_copy_operator.GoogleCloudStorageCopyOperator
 .. autoclass:: airflow.contrib.operators.gcs_download_operator.GoogleCloudStorageDownloadOperator
 .. autoclass:: airflow.contrib.operators.gcs_list_operator.GoogleCloudStorageListOperator
 .. autoclass:: airflow.contrib.operators.gcs_operator.GoogleCloudStorageCreateBucketOperator
@@ -169,9 +170,12 @@ Operators
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionCreateOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubSubscriptionDeleteOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubPublishOperator
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleCheckOperator
+.. autoclass:: airflow.contrib.operators.qubole_check_operator.QuboleValueCheckOperator
 .. autoclass:: airflow.contrib.operators.qubole_operator.QuboleOperator
 .. autoclass:: airflow.contrib.operators.s3_list_operator.S3ListOperator
 .. autoclass:: airflow.contrib.operators.s3_to_gcs_operator.S3ToGoogleCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.segment_track_event_operator.SegmentTrackEventOperator
 .. autoclass:: airflow.contrib.operators.sftp_operator.SFTPOperator
 .. autoclass:: airflow.contrib.operators.slack_webhook_operator.SlackWebhookOperator
 .. autoclass:: airflow.contrib.operators.snowflake_operator.SnowflakeOperator
@@ -182,6 +186,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.ssh_operator.SSHOperator
 .. autoclass:: airflow.contrib.operators.vertica_operator.VerticaOperator
 .. autoclass:: airflow.contrib.operators.vertica_to_hive.VerticaToHiveTransfer
+.. autoclass:: airflow.contrib.operators.winrm_operator.WinRMOperator
 
 Sensors
 ^^^^^^^
@@ -344,7 +349,7 @@ interface when possible and acting as building blocks for operators.
 
 Community contributed hooks
 '''''''''''''''''''''''''''
-
+.. Alphabetize this list
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
@@ -366,10 +371,12 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
+.. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
 .. autoclass:: airflow.contrib.hooks.redshift_hook.RedshiftHook
 .. autoclass:: airflow.contrib.hooks.salesforce_hook.SalesforceHook
+.. autoclass:: airflow.contrib.hooks.segment_hook.SegmentHook
 .. autoclass:: airflow.contrib.hooks.sftp_hook.SFTPHook
 .. autoclass:: airflow.contrib.hooks.slack_webhook_hook.SlackWebhookHook
 .. autoclass:: airflow.contrib.hooks.snowflake_hook.SnowflakeHook
@@ -379,8 +386,8 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.sqoop_hook.SqoopHook
 .. autoclass:: airflow.contrib.hooks.ssh_hook.SSHHook
 .. autoclass:: airflow.contrib.hooks.vertica_hook.VerticaHook
-.. autoclass:: airflow.contrib.hooks.spark_jdbc_hook.SparkJDBCHook
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
+.. autoclass:: airflow.contrib.hooks.winrm_hook.WinRMHook
 
 Executors
 ---------

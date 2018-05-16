@@ -42,6 +42,7 @@ _hooks = {
     'ftps_hook': ['FTPSHook'],
     'vertica_hook': ['VerticaHook'],
     'ssh_hook': ['SSHHook'],
+    'winrm_hook': ['WinRMHook'],
     'sftp_hook': ['SFTPHook'],
     'bigquery_hook': ['BigQueryHook'],
     'qubole_hook': ['QuboleHook'],
@@ -57,7 +58,8 @@ _hooks = {
     'wasb_hook': ['WasbHook'],
     'gcp_pubsub_hook': ['PubSubHook'],
     'jenkins_hook': ['JenkinsHook'],
-    'aws_dynamodb_hook': ['AwsDynamoDBHook']
+    'aws_dynamodb_hook': ['AwsDynamoDBHook'],
+    'azure_data_lake_hook': ['AzureDataLakeHook'],
 }
 
 import os as _os

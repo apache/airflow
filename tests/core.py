@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -30,12 +30,14 @@ import os
 import re
 import signal
 import sqlalchemy
+import subprocess
 import tempfile
 import warnings
 from datetime import timedelta
 from dateutil.relativedelta import relativedelta
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from freezegun import freeze_time
 from numpy.testing import assert_array_almost_equal
 from six.moves.urllib.parse import urlencode
@@ -71,7 +73,7 @@ from jinja2 import UndefinedError
 
 import six
 
-NUM_EXAMPLE_DAGS = 19
+NUM_EXAMPLE_DAGS = 20
 DEV_NULL = '/dev/null'
 TEST_DAG_FOLDER = os.path.join(
     os.path.dirname(os.path.realpath(__file__)), 'dags')
@@ -947,6 +949,26 @@ class CoreTest(unittest.TestCase):
         self.assertEqual(run_command('echo "foo bar"'), u'foo bar\n')
         self.assertRaises(AirflowConfigException, run_command, 'bash -c "exit 1"')
 
+    def test_trigger_dagrun_with_execution_date(self):
+        utc_now = timezone.utcnow()
+        run_id = 'trig__' + utc_now.isoformat()
+
+        def payload_generator(context, object):
+            object.run_id = run_id
+            return object
+
+        task = TriggerDagRunOperator(task_id='test_trigger_dagrun_with_execution_date',
+                                     trigger_dag_id='example_bash_operator',
+                                     python_callable=payload_generator,
+                                     execution_date=utc_now,
+                                     dag=self.dag)
+        task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        dag_runs = models.DagRun.find(dag_id='example_bash_operator',
+                                      run_id=run_id)
+        self.assertEquals(len(dag_runs), 1)
+        dag_run = dag_runs[0]
+        self.assertEquals(dag_run.execution_date, utc_now)
+
 
 class CliTests(unittest.TestCase):
 
@@ -981,6 +1003,20 @@ class CliTests(unittest.TestCase):
     def test_cli_list_dags(self):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
+
+    def test_cli_create_user_random_password(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test1', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@foo.com', '-r', 'Viewer', '--use_random_password'
+        ])
+        cli.create_user(args)
+
+    def test_cli_create_user_supplied_password(self):
+        args = self.parser.parse_args([
+            'create_user', '-u', 'test2', '-l', 'doe', '-f', 'jon',
+            '-e', 'jdoe@apache.org', '-r', 'Viewer', '-p', 'test'
+        ])
+        cli.create_user(args)
 
     def test_cli_list_tasks(self):
         for dag_id in self.dagbag.dags.keys():
@@ -1022,6 +1058,7 @@ class CliTests(unittest.TestCase):
         self.assertIn(['mysql_default', 'mysql'], conns)
         self.assertIn(['postgres_default', 'postgres'], conns)
         self.assertIn(['wasb_default', 'wasb'], conns)
+        self.assertIn(['segment_default', 'segment'], conns)
 
         # Attempt to list connections with invalid cli args
         with mock.patch('sys.stdout',
@@ -1037,8 +1074,17 @@ class CliTests(unittest.TestCase):
         lines = [l for l in stdout.split('\n') if len(l) > 0]
         self.assertListEqual(lines, [
             ("\tThe following args are not compatible with the " +
-             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', 'conn_type', 'conn_host', 'conn_login', 'conn_password', 'conn_schema', 'conn_port']"),
+             "--list flag: ['conn_id', 'conn_uri', 'conn_extra', " +
+             "'conn_type', 'conn_host', 'conn_login', " +
+             "'conn_password', 'conn_schema', 'conn_port']"),
         ])
+
+    def test_cli_connections_list_redirect(self):
+        cmd = ['airflow', 'connections', '--list']
+        with tempfile.TemporaryFile() as fp:
+            p = subprocess.Popen(cmd, stdout=fp)
+            p.wait()
+            self.assertEqual(0, p.returncode)
 
     def test_cli_connections_add_delete(self):
         # Add connections:
@@ -1415,8 +1461,6 @@ class CliTests(unittest.TestCase):
                 sleep(1)
 
     def test_cli_webserver_foreground(self):
-        import subprocess
-
         # Confirm that webserver hasn't been launched.
         # pgrep returns exit status 1 if no process matched.
         self.assertEqual(1, subprocess.Popen(["pgrep", "-c", "airflow"]).wait())
@@ -1434,8 +1478,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_foreground_with_pid(self):
-        import subprocess
-
         # Run webserver in foreground with --pid option
         pidfile = tempfile.mkstemp()[1]
         p = subprocess.Popen(["airflow", "webserver", "--pid", pidfile])
@@ -1450,7 +1492,6 @@ class CliTests(unittest.TestCase):
     @unittest.skipIf("TRAVIS" in os.environ and bool(os.environ["TRAVIS"]),
                      "Skipping test due to lack of required file permission")
     def test_cli_webserver_background(self):
-        import subprocess
         import psutil
 
         # Confirm that webserver hasn't been launched.
@@ -1591,12 +1632,12 @@ class WebUiTests(unittest.TestCase):
 
         self.dagbag = models.DagBag(include_examples=True)
         self.dag_bash = self.dagbag.dags['example_bash_operator']
-        self.dag_bash2 = self.dagbag.dags['test_example_bash_operator']
+        self.dag_python = self.dagbag.dags['example_python_operator']
         self.sub_dag = self.dagbag.dags['example_subdag_operator']
         self.runme_0 = self.dag_bash.get_task('runme_0')
         self.example_xcom = self.dagbag.dags['example_xcom']
 
-        self.dagrun_bash2 = self.dag_bash2.create_dagrun(
+        self.dagrun_python = self.dag_python.create_dagrun(
             run_id="test_{}".format(models.DagRun.id_for_date(timezone.utcnow())),
             execution_date=DEFAULT_DATE,
             start_date=timezone.utcnow(),
@@ -1623,14 +1664,16 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("DAGs", resp_html)
         self.assertIn("example_bash_operator", resp_html)
 
-        # The HTML should contain data for the last-run. A link to the specific run, and the text of
-        # the date.
+        # The HTML should contain data for the last-run. A link to the specific run,
+        #  and the text of the date.
         url = "/admin/airflow/graph?" + urlencode({
-            "dag_id": self.dag_bash2.dag_id,
-            "execution_date": self.dagrun_bash2.execution_date,
+            "dag_id": self.dag_python.dag_id,
+            "execution_date": self.dagrun_python.execution_date,
         }).replace("&", "&amp;")
         self.assertIn(url, resp_html)
-        self.assertIn(self.dagrun_bash2.execution_date.strftime("%Y-%m-%d %H:%M"), resp_html)
+        self.assertIn(
+            self.dagrun_python.execution_date.strftime("%Y-%m-%d %H:%M"),
+            resp_html)
 
     def test_query(self):
         response = self.app.get('/admin/queryview/')
@@ -1657,6 +1700,10 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(
             '/admin/airflow/graph?dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
+        # confirm that the graph page loads when execution_date is blank
+        response = self.app.get(
+            '/admin/airflow/graph?dag_id=example_bash_operator&execution_date=')
+        self.assertIn("runme_0", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/tree?num_runs=25&dag_id=example_bash_operator')
         self.assertIn("runme_0", response.data.decode('utf-8'))
@@ -1668,8 +1715,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
-            'days=30&dag_id=test_example_bash_operator')
-        self.assertIn("test_example_bash_operator", response.data.decode('utf-8'))
+            'days=30&dag_id=example_python_operator')
+        self.assertIn("example_python_operator", response.data.decode('utf-8'))
         response = self.app.get(
             '/admin/airflow/landing_times?'
             'days=30&dag_id=example_xcom')
@@ -1708,16 +1755,16 @@ class WebUiTests(unittest.TestCase):
             '/admin/airflow/task_stats')
         self.assertIn("example_bash_operator", response.data.decode('utf-8'))
         url = (
-            "/admin/airflow/success?task_id=run_this_last&"
-            "dag_id=test_example_bash_operator&upstream=false&downstream=false&"
+            "/admin/airflow/success?task_id=print_the_context&"
+            "dag_id=example_python_operator&upstream=false&downstream=false&"
             "future=false&past=false&execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
         self.assertIn("Wait a minute", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         response = self.app.get(
-            '/admin/airflow/clear?task_id=run_this_last&'
-            'dag_id=test_example_bash_operator&future=true&past=false&'
+            '/admin/airflow/clear?task_id=print_the_context&'
+            'dag_id=example_python_operator&future=true&past=false&'
             'upstream=true&downstream=false&'
             'execution_date={}&'
             'origin=/admin'.format(DEFAULT_DATE_DS))
@@ -1736,8 +1783,8 @@ class WebUiTests(unittest.TestCase):
         self.assertIn("section-1-task-5", response.data.decode('utf-8'))
         response = self.app.get(url + "&confirmed=true")
         url = (
-            "/admin/airflow/clear?task_id=runme_1&"
-            "dag_id=test_example_bash_operator&future=false&past=false&"
+            "/admin/airflow/clear?task_id=print_the_context&"
+            "dag_id=example_python_operator&future=false&past=false&"
             "upstream=false&downstream=true&"
             "execution_date={}&"
             "origin=/admin".format(DEFAULT_DATE_DS))
@@ -1782,10 +1829,10 @@ class WebUiTests(unittest.TestCase):
     def test_fetch_task_instance(self):
         url = (
             "/admin/airflow/object/task_instances?"
-            "dag_id=test_example_bash_operator&"
+            "dag_id=example_python_operator&"
             "execution_date={}".format(DEFAULT_DATE_DS))
         response = self.app.get(url)
-        self.assertIn("run_this_last", response.data.decode('utf-8'))
+        self.assertIn("print_the_context", response.data.decode('utf-8'))
 
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
@@ -2315,56 +2362,6 @@ class HDFSHookTest(unittest.TestCase):
         client = HDFSHook().get_conn()
         self.assertIsInstance(client, snakebite.client.HAClient)
 
-
-try:
-    from airflow.hooks.http_hook import HttpHook
-except ImportError:
-    HttpHook = None
-
-
-@unittest.skipIf(HttpHook is None,
-                 "Skipping test because HttpHook is not installed")
-class HttpHookTest(unittest.TestCase):
-    def setUp(self):
-        configuration.load_test_config()
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='http')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'http://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='localhost', schema='https')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'https://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_host_encoded_http_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='http://localhost')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'http://localhost')
-
-    @mock.patch('airflow.hooks.http_hook.HttpHook.get_connection')
-    def test_host_encoded_https_connection(self, mock_get_connection):
-        c = models.Connection(conn_id='http_default', conn_type='http',
-                              host='https://localhost')
-        mock_get_connection.return_value = c
-        hook = HttpHook()
-        hook.get_conn({})
-        self.assertEqual(hook.base_url, 'https://localhost')
-
-
 send_email_test = mock.Mock()
 
 
@@ -2384,8 +2381,7 @@ class EmailTest(unittest.TestCase):
         utils.email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_with(
             'to', 'subject', 'content', files=None, dryrun=False,
-            cc=None, bcc=None, mime_subtype='mixed'
-        )
+            cc=None, bcc=None, mime_charset='us-ascii', mime_subtype='mixed')
         self.assertFalse(mock_send_email.called)
 
 
@@ -2407,10 +2403,19 @@ class EmailSmtpTest(unittest.TestCase):
         self.assertEqual('subject', msg['Subject'])
         self.assertEqual(configuration.conf.get('smtp', 'SMTP_MAIL_FROM'), msg['From'])
         self.assertEqual(2, len(msg.get_payload()))
-        self.assertEqual(u'attachment; filename="' + os.path.basename(attachment.name) + '"',
-                         msg.get_payload()[-1].get(u'Content-Disposition'))
+        filename = u'attachment; filename="' + os.path.basename(attachment.name) + '"'
+        self.assertEqual(filename, msg.get_payload()[-1].get(u'Content-Disposition'))
         mimeapp = MIMEApplication('attachment')
         self.assertEqual(mimeapp.get_payload(), msg.get_payload()[-1].get_payload())
+
+    @mock.patch('airflow.utils.email.send_MIME_email')
+    def test_send_smtp_with_multibyte_content(self, mock_send_mime):
+        utils.email.send_email_smtp('to', 'subject', '🔥', mime_charset='utf-8')
+        self.assertTrue(mock_send_mime.called)
+        call_args = mock_send_mime.call_args[0]
+        msg = call_args[2]
+        mimetext = MIMEText('🔥', 'mixed', 'utf-8')
+        self.assertEqual(mimetext.get_payload(), msg.get_payload()[0].get_payload())
 
     @mock.patch('airflow.utils.email.send_MIME_email')
     def test_send_bcc_smtp(self, mock_send_mime):

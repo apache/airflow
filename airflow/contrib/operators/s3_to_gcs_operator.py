@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,12 +37,10 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix.
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects on.
-        E.g. to list CSV files from a S3 key you would do the following,
-        `delimiter='.csv'`.
+    :param delimiter: the delimiter marks key hierarchy.
     :type delimiter: string
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
+    :type aws_conn_id: string
     :param dest_gcs_conn_id: The destination connection ID to use
         when connecting to Google Cloud Storage.
     :type dest_gcs_conn_id: string
@@ -102,11 +100,12 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         self.replace = replace
 
         if dest_gcs and not self._gcs_object_is_directory(self.dest_gcs):
-            self.log.info('Destination Google Cloud Storage path is not a '
-                          'valid "directory", define one and end the path '
-                          'with a slash: "/".')
+            self.log.info(
+                'Destination Google Cloud Storage path is not a valid '
+                '"directory", define a path that ends with a slash "/" or '
+                'leave it empty for the root of the bucket.')
             raise AirflowException('The destination Google Cloud Storage path '
-                                   'must end with a slash "/".')
+                                   'must end with a slash "/" or be empty.')
 
     def execute(self, context):
         # use the super method to list all the files in an S3 bucket/key
@@ -188,4 +187,4 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     def _gcs_object_is_directory(self, object):
         bucket, blob = _parse_gcs_url(object)
 
-        return blob.endswith('/')
+        return len(blob) == 0 or blob.endswith('/')

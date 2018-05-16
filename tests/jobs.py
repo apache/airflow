@@ -161,7 +161,8 @@ class BackfillJobTest(unittest.TestCase):
             'example_trigger_target_dag',
             'example_trigger_controller_dag',  # tested above
             'test_utils',  # sleeps forever
-            'example_kubernetes_operator',  # only works with k8s cluster
+            'example_kubernetes_executor',  # requires kubernetes cluster
+            'example_kubernetes_operator'  # requires kubernetes cluster
         ]
 
         logger = logging.getLogger('BackfillJobTest.test_backfill_examples')
@@ -709,6 +710,50 @@ class BackfillJobTest(unittest.TestCase):
         for sdh in subdag_history:
             ti = sdh[3]
             self.assertIn('section-1-task-', ti.task_id)
+
+        subdag.clear()
+        dag.clear()
+
+
+    def test_backfill_execute_subdag_with_removed_task(self):
+        """
+        Ensure that subdag operators execute properly in the case where
+        an associated task of the subdag has been removed from the dag
+        definition, but has instances in the database from previous runs.
+        """
+        dag = self.dagbag.get_dag('example_subdag_operator')
+        subdag = dag.get_task('section-1').subdag
+
+        executor = TestExecutor(do_update=True)
+        job = BackfillJob(dag=subdag,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE,
+                          executor=executor,
+                          donot_pickle=True)
+
+        removed_task_ti = TI(
+            task=DummyOperator(task_id='removed_task'),
+            execution_date=DEFAULT_DATE,
+            state=State.REMOVED)
+        removed_task_ti.dag_id = subdag.dag_id
+
+        session = settings.Session()
+        session.merge(removed_task_ti)
+
+        with timeout(seconds=30):
+            job.run()
+
+        for task in subdag.tasks:
+            instance = session.query(TI).filter(
+                TI.dag_id == subdag.dag_id,
+                TI.task_id == task.task_id,
+                TI.execution_date == DEFAULT_DATE).first()
+
+            self.assertIsNotNone(instance)
+            self.assertEqual(instance.state, State.SUCCESS)
+
+        removed_task_ti.refresh_from_db()
+        self.assertEqual(removed_task_ti.state, State.REMOVED)
 
         subdag.clear()
         dag.clear()

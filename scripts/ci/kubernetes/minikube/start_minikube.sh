@@ -15,66 +15,115 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# Guard against a kubernetes cluster already being up
-kubectl get pods &> /dev/null
-if [ $? -eq 0 ]; then
-  echo "kubectl get pods returned 0 exit code, exiting early"
-  exit 0
-fi
-#
+# This script was based on one made by @kimoonkim for kubernetes-hdfs
 
-curl -Lo minikube https://storage.googleapis.com/minikube/releases/v0.24.1/minikube-linux-amd64 && chmod +x minikube
-curl -Lo kubectl  https://storage.googleapis.com/kubernetes-release/release/${KUBERNETES_VERSION}/bin/linux/amd64/kubectl && chmod +x kubectl
+#!/usr/bin/env bash
 
-sudo mkdir -p /usr/local/bin
-sudo mv minikube /usr/local/bin/minikube
-sudo mv kubectl /usr/local/bin/kubectl
+
+_MY_SCRIPT="${BASH_SOURCE[0]}"
+_MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
+# Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
+_KUBERNETES_VERSION="${KUBERNETES_VERSION}"
+
+echo "setting up kubernetes ${_KUBERNETES_VERSION}"
+
+_MINIKUBE_VERSION="v0.26.0"
+_HELM_VERSION=v2.8.1
+_VM_DRIVER=none
+USE_MINIKUBE_DRIVER_NONE=true
+
+_UNAME_OUT=$(uname -s)
+case "${_UNAME_OUT}" in
+    Linux*)     _MY_OS=linux;;
+    Darwin*)    _MY_OS=darwin;;
+    *)          _MY_OS="UNKNOWN:${unameOut}"
+esac
+echo "Local OS is ${_MY_OS}"
 
 export MINIKUBE_WANTUPDATENOTIFICATION=false
 export MINIKUBE_WANTREPORTERRORPROMPT=false
-export MINIKUBE_HOME=$HOME
 export CHANGE_MINIKUBE_NONE_USER=true
-mkdir $HOME/.kube || true
-touch $HOME/.kube/config
 
-export KUBECONFIG=$HOME/.kube/config
+cd $_MY_DIR
 
-start_minikube(){
-  sudo -E minikube start --vm-driver=none --kubernetes-version="${KUBERNETES_VERSION}"
+source _k8s.sh
 
-  # this for loop waits until kubectl can access the api server that minikube has created
-  for i in {1..90} # timeout 3 minutes
-  do
-    echo "------- Running kubectl get pods -------"
-    STDERR=$(kubectl get pods  2>&1 >/dev/null)
-    if [ $? -eq 0 ]; then
-      echo $STDERR
+rm -rf tmp
+mkdir -p bin tmp
 
-      # We do not need dynamic hostpath provisioning, so disable the default storageclass
-      sudo -E minikube addons disable default-storageclass && kubectl delete storageclasses --all
+sudo mkdir -p /usr/local/bin
 
-      # We need to give permission to watch pods to the airflow scheduler.
-      # The easiest way to do that is by giving admin access to the default serviceaccount (NOT SAFE!)
-      kubectl create clusterrolebinding add-on-cluster-admin   --clusterrole=cluster-admin   --serviceaccount=default:default
-      exit 0
+if [[ ! -x /usr/local/bin/kubectl ]]; then
+  echo Downloading kubectl, which is a requirement for using minikube.
+  curl -Lo bin/kubectl  \
+    https://storage.googleapis.com/kubernetes-release/release/${_KUBERNETES_VERSION}/bin/${_MY_OS}/amd64/kubectl
+  chmod +x bin/kubectl
+fi
+if [[ ! -x /usr/local/bin/minikube ]]; then
+  echo Downloading minikube.
+  curl -Lo bin/minikube  \
+    https://storage.googleapis.com/minikube/releases/${_MINIKUBE_VERSION}/minikube-${_MY_OS}-amd64
+  chmod +x bin/minikube
+fi
+
+sudo mv bin/minikube /usr/local/bin/minikube
+sudo mv bin/kubectl /usr/local/bin/kubectl
+
+export PATH="${_MY_DIR}/bin:$PATH"
+
+if [[ "${USE_MINIKUBE_DRIVER_NONE:-}" = "true" ]]; then
+  # Run minikube with none driver.
+  # See https://blog.travis-ci.com/2017-10-26-running-kubernetes-on-travis-ci-with-minikube
+  _VM_DRIVER="--vm-driver=none"
+  if [[ ! -x /usr/local/bin/nsenter ]]; then
+    # From https://engineering.bitnami.com/articles/implementing-kubernetes-integration-tests-in-travis.html
+    # Travis ubuntu trusty env doesn't have nsenter, needed for --vm-driver=none
+    which nsenter >/dev/null && return 0
+    echo "INFO: Building 'nsenter' ..."
+cat <<-EOF | docker run -i --rm -v "$(pwd):/build" ubuntu:14.04 >& nsenter.build.log
+        apt-get update
+        apt-get install -qy git bison build-essential autopoint libtool automake autoconf gettext pkg-config
+        git clone --depth 1 git://git.kernel.org/pub/scm/utils/util-linux/util-linux.git /tmp/util-linux
+        cd /tmp/util-linux
+        ./autogen.sh
+        ./configure --without-python --disable-all-programs --enable-nsenter
+        make nsenter
+        cp -pfv nsenter /build
+EOF
+    if [ ! -f ./nsenter ]; then
+        echo "ERROR: nsenter build failed, log:"
+        cat nsenter.build.log
+        return 1
     fi
-    echo $STDERR
-    sleep 2
-  done
-}
+    echo "INFO: nsenter build OK"
+    sudo mv ./nsenter /usr/local/bin
+  fi
+fi
 
-cleanup_minikube(){
-  sudo -E minikube stop
-  sudo -E minikube delete
-  docker stop $(docker ps -a -q) || true
-  docker rm $(docker ps -a -q) || true
-  sleep 1
-}
+echo "your path is ${PATH}"
 
-start_minikube
-echo "Minikube cluster creation timedout. Attempting to restart the minikube cluster."
-cleanup_minikube
-start_minikube
-echo "Minikube cluster creation timedout a second time. Failing."
+_MINIKUBE="sudo PATH=$PATH minikube"
 
-exit 1
+$_MINIKUBE config set bootstrapper localkube
+$_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION}  --vm-driver=none
+$_MINIKUBE update-context
+
+# Wait for Kubernetes to be up and ready.
+k8s_single_node_ready
+
+echo Minikube addons:
+$_MINIKUBE addons list
+kubectl get storageclass
+echo Showing kube-system pods
+kubectl get -n kube-system pods
+
+(k8s_single_pod_ready -n kube-system -l component=kube-addon-manager) ||
+  (_ADDON=$(kubectl get pod -n kube-system -l component=kube-addon-manager
+      --no-headers -o name| cut -d/ -f2);
+   echo Addon-manager describe:;
+   kubectl describe pod -n kube-system $_ADDON;
+   echo Addon-manager log:;
+   kubectl logs -n kube-system $_ADDON;
+   exit 1)
+k8s_single_pod_ready -n kube-system -l k8s-app=kube-dns
+k8s_single_pod_ready -n kube-system storage-provisioner

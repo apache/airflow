@@ -56,6 +56,7 @@ class QuboleSensor(BaseSensorOperator):
         super(QuboleSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
+        global this  # apache/incubator-airflow/pull/3297#issuecomment-385988083
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
 
@@ -65,7 +66,7 @@ class QuboleSensor(BaseSensorOperator):
         try:
             status = self.sensor_class.check(self.data)
         except Exception as e:
-            logging.exception(e)
+            this.log.exception(e)
             status = False
 
         this.log.info('Status of this Poke: %s', status)

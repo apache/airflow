@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -211,6 +211,14 @@ class DagTest(unittest.TestCase):
             default_args={'owner': 'owner1'})
 
         self.assertEquals(tuple(), dag.topological_sort())
+
+    def test_dag_none_default_args_start_date(self):
+        """
+        Tests if a start_date of None in default_args
+        works.
+        """
+        dag = DAG('DAG', default_args={'start_date': None})
+        self.assertEqual(dag.timezone, settings.TIMEZONE)
 
     def test_dag_task_priority_weight_total(self):
         width = 5
@@ -2318,3 +2326,27 @@ class ConnectionTest(unittest.TestCase):
         mock_get.return_value = 'dGVzdA=='
         test_connection = Connection(extra='testextra')
         self.assertEqual(test_connection.extra, 'testextra')
+
+    def test_connection_from_uri_without_extras(self):
+        uri = 'scheme://user:password@host%2flocation:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertIsNone(connection.extra)
+
+    def test_connection_from_uri_with_extras(self):
+        uri = 'scheme://user:password@host%2flocation:1234/schema?'\
+            'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': '/path/'})

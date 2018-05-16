@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -89,6 +89,7 @@ class BashOperator(BaseOperator):
         bash_command = ('export {}={}; '.format(AIRFLOW_HOME_VAR, airflow_home_value) +
                         'export {}={}; '.format(PYTHONPATH_VAR, pythonpath_value) +
                         self.bash_command)
+        self.lineage_data = bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:

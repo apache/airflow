@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -169,9 +169,18 @@ class DbApiHook(BaseHook):
                     else:
                         cur.execute(s)
 
-            conn.commit()
+            if not getattr(conn, 'autocommit', False):
+                conn.commit()
 
     def set_autocommit(self, conn, autocommit):
+        """
+        Sets the autocommit flag on the connection
+        """
+        if not self.supports_autocommit and autocommit:
+            self.log.warn(
+                ("%s connection doesn't support "
+                 "autocommit but autocommit activated."),
+                getattr(self, self.conn_name_attr))
         conn.autocommit = autocommit
 
     def get_cursor(self):
@@ -213,8 +222,8 @@ class DbApiHook(BaseHook):
                     for cell in row:
                         l.append(self._serialize_cell(cell, conn))
                     values = tuple(l)
-                    placeholders = ["%s",]*len(values)
-                    sql = "INSERT INTO {0} {1} VALUES ({2});".format(
+                    placeholders = ["%s", ] * len(values)
+                    sql = "INSERT INTO {0} {1} VALUES ({2})".format(
                         table,
                         target_fields,
                         ",".join(placeholders))
