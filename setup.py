@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -255,7 +255,7 @@ def do_setup():
             'setproctitle>=1.1.8, <2',
             'sqlalchemy>=1.1.15, <1.2.0',
             'sqlalchemy-utc>=0.9.0',
-            'tabulate>=0.7.5, <0.8.0',
+            'tabulate>=0.7.5, <=0.8.2',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
             'werkzeug>=0.14.1, <0.15.0',
