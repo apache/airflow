@@ -234,6 +234,8 @@ function update(source) {
             call_modal_dag(d);
         else if(nodeobj[d.task_id].operator=='SubDagOperator')
             call_modal(d.task_id, d.execution_date, true);
+        else if(nodeobj[d.task_id].operator=='TriggerDagRunOperator')
+            call_modal(d.task_id, d.execution_date, false, nodeobj[d.task_id].ui_fields.trigger_dag_id);
         else
             call_modal(d.task_id, d.execution_date);
       })

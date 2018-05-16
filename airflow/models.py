@@ -2262,6 +2262,8 @@ class BaseOperator(LoggingMixin):
     # Defines the color in the UI
     ui_color = '#fff'
     ui_fgcolor = '#000'
+    # Defines attributes to be passed to the UI
+    ui_fields = []
 
     @apply_defaults
     def __init__(

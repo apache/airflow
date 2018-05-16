@@ -1326,6 +1326,7 @@ class Airflow(BaseView):
                 'end_date': task.end_date,
                 'depends_on_past': task.depends_on_past,
                 'ui_color': task.ui_color,
+                'ui_fields': {attr: getattr(task, attr) for attr in task.ui_fields}
             }
 
         data = {
@@ -1436,6 +1437,7 @@ class Airflow(BaseView):
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
+                'ui_fields': {attr: getattr(t, attr) for attr in t.ui_fields}
             }
             for t in dag.tasks}
         if not tasks:

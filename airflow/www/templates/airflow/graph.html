@@ -124,10 +124,9 @@
 
     d3.selectAll("g.node").on("click", function(d){
         task = tasks[d];
-        if (task.task_type == "SubDagOperator")
-            call_modal(d, execution_date, true);
-        else
-            call_modal(d, execution_date);
+        subdag = (task.task_type == "SubDagOperator")
+        triggerdag = ((task.task_type == "TriggerDagRunOperator") ? task.ui_fields.trigger_dag_id : false);
+        call_modal(d, execution_date, subdag, triggerdag);
     });
 
 

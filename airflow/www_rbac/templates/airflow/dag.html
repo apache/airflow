@@ -125,6 +125,12 @@
               </button>
               <hr/>
           </div>
+          <div id="div_btn_triggerdag">
+            <button id="btn_triggerdag" type="button" class="btn btn-primary">
+              Go to triggered DAG
+            </button>
+            <hr/>
+          </div>
           <button id="btn_task" type="button" class="btn btn-primary">
             Task Instance Details
           </button>
@@ -272,24 +278,33 @@ function updateQueryStringParameter(uri, key, value) {
     var task_id = '';
     var exection_date = '';
     var subdag_id = '';
-    function call_modal(t, d, sd) {
+    function call_modal(t, d, sd, td) {
       task_id = t;
       loc = String(window.location);
       $("#btn_filter").on("click", function(){
         window.location = updateQueryStringParameter(loc, "root", task_id);
       });
       subdag_id = sd;
+      triggered_dag = td;
       execution_date = d;
       $('#task_id').html(t);
       $('#execution_date').html(d);
       $('#myModal').modal({});
-      $("#myModal").css("margin-top","0px")
-        if (subdag_id===undefined)
-            $("#div_btn_subdag").hide();
-        else {
-            $("#div_btn_subdag").show();
-            subdag_id = "{{ dag.dag_id }}."+t;
-        }
+      $("#myModal").css("margin-top","0px");
+
+      if (subdag_id===undefined || subdag_id==false)
+          $("#div_btn_subdag").hide();
+      else {
+          $("#div_btn_subdag").show();
+          subdag_id = "{{ dag.dag_id }}."+t;
+      }
+
+      if (triggered_dag===undefined || triggered_dag==false)
+        $("#div_btn_triggerdag").hide();
+      else {
+        $("#div_btn_triggerdag").show();
+        triggerdag_id = triggered_dag;
+      }
     }
 
     function call_modal_dag(dag) {
@@ -311,6 +326,13 @@ function updateQueryStringParameter(uri, key, value) {
     $("#btn_subdag").click(function(){
       url = "{{ url_for('Airflow.graph') }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
+        "&execution_date=" + encodeURIComponent(execution_date);
+      window.location = url;
+    });
+
+    $("#btn_triggerdag").click(function(){
+      url = "{{ url_for('airflow.graph') }}" +
+        "?dag_id=" + encodeURIComponent(triggerdag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;
     });
