@@ -617,7 +617,9 @@ class SchedulerJob(BaseJob):
                 func.max(TI.execution_date).label('max_ti'))
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == dag.dag_id)
-            .filter(TI.state == State.SUCCESS)
+            .filter(or_(
+                TI.state == State.SUCCESS,
+                TI.state == State.SKIPPED))
             .filter(TI.task_id.in_(dag.task_ids))
             .group_by(TI.task_id).subquery('sq')
         )
