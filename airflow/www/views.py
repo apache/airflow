@@ -1231,6 +1231,13 @@ class Airflow(BaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
+        if not dag:
+            flash(
+                "DAG [{}] doesn't seem to exist"
+                " at the moment".format(dag_id),
+                "error")
+            return redirect('/admin/')
+
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(

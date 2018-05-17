@@ -1834,6 +1834,19 @@ class WebUiTests(unittest.TestCase):
         response = self.app.get(url)
         self.assertIn("print_the_context", response.data.decode('utf-8'))
 
+    def test_missing_dag_request(self):
+        response = self.app.get("/admin/airflow/graph?dag_id=missing_dag", follow_redirects=True)
+        # verify that user is redirected to the index page with an error message
+        assert "DAGs" in response.data.decode('utf-8')
+        assert "example_bash_operator" in response.data.decode('utf-8')
+        assert "alert-danger" in response.data.decode('utf-8')
+
+        response = self.app.get("/admin/airflow/graph?dag_id=example_bash_operator", follow_redirects=True)
+        # verify that the page for a valid DAG is rendered correctly
+        assert "example_bash_operator" in response.data.decode('utf-8')
+        assert "Graph View" in response.data.decode('utf-8')
+
+
     def tearDown(self):
         configuration.conf.set("webserver", "expose_config", "False")
         self.dag_bash.clear(start_date=DEFAULT_DATE, end_date=timezone.utcnow())
