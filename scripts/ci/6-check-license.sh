@@ -53,9 +53,7 @@ acquire_rat_jar () {
 FWDIR="$(cd "`dirname "$0"`"/../..; pwd)"
 cd "$FWDIR"
 
-if [ -z "${TRAVIS_CACHE}" ]; then
-    TRAVIS_CACHE=/tmp
-fi
+TMP_DIR=/tmp
 
 if test -x "$JAVA_HOME/bin/java"; then
     declare java_cmd="$JAVA_HOME/bin/java"
@@ -64,8 +62,8 @@ else
 fi
 
 export RAT_VERSION=0.12
-export rat_jar="${TRAVIS_CACHE}"/lib/apache-rat-${RAT_VERSION}.jar
-mkdir -p ${TRAVIS_CACHE}/lib
+export rat_jar="${TMP_DIR}"/lib/apache-rat-${RAT_VERSION}.jar
+mkdir -p ${TMP_DIR}/lib
 
 
 [[ -f "$rat_jar" ]] || acquire_rat_jar || {
@@ -88,18 +86,18 @@ if test ! -z "$ERRORS"; then
     echo "$ERRORS"
     COUNT=`echo "${ERRORS}" | wc -l`
     # due to old builds can be removed later
-    rm -rf ${TRAVIS_CACHE}/rat-error-count
-    if [ ! -f ${TRAVIS_CACHE}/rat-error-count-builds ]; then
-        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TRAVIS_CACHE}/rat-error-count-builds
+    rm -rf ${TMP_DIR}/rat-error-count
+    if [ ! -f ${TMP_DIR}/rat-error-count-builds ]; then
+        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TMP_DIR}/rat-error-count-builds
         OLD_COUNT=${COUNT}
     else
-        typeset -i OLD_COUNT=$(cat ${TRAVIS_CACHE}/rat-error-count-builds)
+        typeset -i OLD_COUNT=$(cat ${TMP_DIR}/rat-error-count-builds)
     fi
     if [ ${COUNT} -gt ${OLD_COUNT} ]; then
         echo "New missing licenses (${COUNT} vs ${OLD_COUNT}) detected. Please correct them by adding them to to header of your files"
         exit 1
     else
-        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TRAVIS_CACHE}/rat-error-count-builds
+        [ "${TRAVIS_PULL_REQUEST}" = "false" ] && echo ${COUNT} > ${TMP_DIR}/rat-error-count-builds
     fi
     exit 0
 else
