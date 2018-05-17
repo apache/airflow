@@ -114,7 +114,7 @@ azure_data_lake = [
     'azure-mgmt-datalake-store==0.4.0',
     'azure-datalake-store==0.0.19'
 ]
-sendgrid = ['sendgrid>=5.2.0']
+cassandra = ['cassandra-driver>=3.13.0']
 celery = [
     'celery>=4.0.2',
     'flower>=0.7.3'
@@ -184,6 +184,7 @@ s3 = ['boto3>=1.7.0']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
+sendgrid = ['sendgrid>=5.2.0']
 slack = ['slackclient>=1.0.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
@@ -194,7 +195,8 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
+    + cassandra
 devel = [
     'click',
     'freezegun',
@@ -290,6 +292,7 @@ def do_setup():
             'async': async,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
+            'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
