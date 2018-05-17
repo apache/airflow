@@ -21,23 +21,21 @@
 import datetime
 import itertools
 import os
-
-import pandas as pd
 import random
+import unittest
+from collections import OrderedDict
 
 import mock
-import unittest
-
-from collections import OrderedDict
+import pandas as pd
 from hmsclient import HMSClient
 
+from airflow import DAG, configuration
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
-from airflow import DAG, configuration
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
-
 
 configuration.load_test_config()
 
@@ -96,6 +94,39 @@ class TestHiveCliHook(unittest.TestCase):
     def test_run_cli(self):
         hook = HiveCliHook()
         hook.run_cli("SHOW DATABASES")
+
+    def test_run_cli_with_hive_conf(self):
+        hql = "set key;\n" \
+              "set airflow.ctx.dag_id;\nset airflow.ctx.dag_run_id;\n" \
+              "set airflow.ctx.task_id;\nset airflow.ctx.execution_date;\n"
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveCliHook()
+        output = hook.run_cli(hql=hql, hive_conf={'key': 'value'})
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_file(self, mock_run_cli):
@@ -419,3 +450,41 @@ class TestHiveServer2Hook(unittest.TestCase):
         hook = HiveServer2Hook()
         results = hook.get_records(sqls, schema=self.database)
         self.assertListEqual(results, [(1, 1), (2, 2)])
+
+    def test_get_results_with_hive_conf(self):
+        hql = ["set key",
+               "set airflow.ctx.dag_id",
+               "set airflow.ctx.dag_run_id",
+               "set airflow.ctx.task_id",
+               "set airflow.ctx.execution_date"]
+
+        dag_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_ID']['env_var_format']
+        task_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_TASK_ID']['env_var_format']
+        execution_date_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_EXECUTION_DATE'][
+                'env_var_format']
+        dag_run_id_ctx_var_name = \
+            AIRFLOW_VAR_NAME_FORMAT_MAPPING['AIRFLOW_CONTEXT_DAG_RUN_ID'][
+                'env_var_format']
+        os.environ[dag_id_ctx_var_name] = 'test_dag_id'
+        os.environ[task_id_ctx_var_name] = 'test_task_id'
+        os.environ[execution_date_ctx_var_name] = 'test_execution_date'
+        os.environ[dag_run_id_ctx_var_name] = 'test_dag_run_id'
+
+        hook = HiveServer2Hook()
+        output = '\n'.join(res_tuple[0]
+                           for res_tuple
+                           in hook.get_results(hql=hql,
+                                               hive_conf={'key': 'value'})['data'])
+        self.assertIn('value', output)
+        self.assertIn('test_dag_id', output)
+        self.assertIn('test_task_id', output)
+        self.assertIn('test_execution_date', output)
+        self.assertIn('test_dag_run_id', output)
+
+        del os.environ[dag_id_ctx_var_name]
+        del os.environ[task_id_ctx_var_name]
+        del os.environ[execution_date_ctx_var_name]
+        del os.environ[dag_run_id_ctx_var_name]
