@@ -2313,11 +2313,10 @@ class WebHDFSHookTest(unittest.TestCase):
         self.assertEqual('someone', c.proxy_user)
 
 
-try:
+HDFSHook = None
+if six.PY2:
     from airflow.hooks.hdfs_hook import HDFSHook
     import snakebite
-except ImportError:
-    HDFSHook = None
 
 
 @unittest.skipIf(HDFSHook is None,
