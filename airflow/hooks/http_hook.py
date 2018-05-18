@@ -66,7 +66,7 @@ class HttpHook(BaseHook):
             self.base_url = schema + "://" + conn.host
 
         if conn.port:
-            self.base_url = self.base_url + ":" + str(conn.port) + "/"
+            self.base_url = self.base_url + ":" + str(conn.port)
         if conn.login:
             session.auth = (conn.login, conn.password)
         if conn.extra:
