@@ -188,7 +188,7 @@ class KubernetesExecutorTest(unittest.TestCase):
                           execution_date=execution_date,
                           dag_id='example_python_operator',
                           task_id='print_the_context',
-                          expected_final_state='success', timeout=100)
+                          expected_final_state='success', timeout=120)
 
         self.ensure_dag_expected_state(host=host,
                                        execution_date=execution_date,
