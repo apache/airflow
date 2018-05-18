@@ -250,6 +250,73 @@ class TestGoogleCloudStorageHook(unittest.TestCase):
         )
 
     @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
+    def test_rewrite(self, mock_service):
+        source_bucket = 'test-source-bucket'
+        source_object = 'test-source-object'
+        destination_bucket = 'test-dest-bucket'
+        destination_object = 'test-dest-object'
+
+        # First response has `done` equals False has it has not completed copying
+        # It also has `rewriteToken` which would be passed to the second call
+        # to the api.
+        first_response = {
+            "kind": "storage#rewriteResponse",
+            "totalBytesRewritten": "9111",
+            "objectSize": "9111",
+            "done": False,
+            "rewriteToken": "testRewriteToken"
+        }
+
+        second_response = {
+            "kind": "storage#rewriteResponse",
+            "totalBytesRewritten": "9111",
+            "objectSize": "9111",
+            "done": True,
+            "resource": {
+                "kind": "storage#object",
+                # The ID of the object, including the bucket name,
+                # object name, and generation number.
+                "id": "{}/{}/1521132662504504".format(
+                    destination_bucket, destination_object),
+                "name": destination_object,
+                "bucket": destination_bucket,
+                "generation": "1521132662504504",
+                "contentType": "text/csv",
+                "timeCreated": "2018-03-15T16:51:02.502Z",
+                "updated": "2018-03-15T16:51:02.502Z",
+                "storageClass": "MULTI_REGIONAL",
+                "timeStorageClassUpdated": "2018-03-15T16:51:02.502Z",
+                "size": "9111",
+                "md5Hash": "leYUJBUWrRtks1UeUFONJQ==",
+                "metadata": {
+                    "md5-hash": "95e614241516ad1b64b3551e50538d25"
+                },
+                "crc32c": "xgdNfQ==",
+                "etag": "CLf4hODk7tkCEAE="
+            }
+        }
+
+        (mock_service.return_value.objects.return_value
+         .rewrite.return_value.execute.side_effect) = [first_response, second_response]
+
+        result = self.gcs_hook.rewrite(
+            source_bucket=source_bucket,
+            source_object=source_object,
+            destination_bucket=destination_bucket,
+            destination_object=destination_object
+        )
+
+        self.assertTrue(result)
+        mock_service.return_value.objects.return_value.rewrite.assert_called_with(
+            sourceBucket=source_bucket,
+            sourceObject=source_object,
+            destinationBucket=destination_bucket,
+            destinationObject=destination_object,
+            rewriteToken=first_response['rewriteToken'],
+            body=''
+        )
+
+    @mock.patch(GCS_STRING.format('GoogleCloudStorageHook.get_conn'))
     def test_delete(self, mock_service):
         test_bucket = 'test_bucket'
         test_object = 'test_object'
