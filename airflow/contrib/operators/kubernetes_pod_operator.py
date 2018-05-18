@@ -64,6 +64,8 @@ class KubernetesPodOperator(BaseOperator):
     :type in_cluster: bool
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
     template_fields = ('cmds', 'arguments', 'env_vars')
 
@@ -91,6 +93,7 @@ class KubernetesPodOperator(BaseOperator):
             pod.image_pull_policy = self.image_pull_policy
             pod.annotations = self.annotations
             pod.resources = self.resources
+            pod.affinity = self.affinity
 
             launcher = pod_launcher.PodLauncher(client)
             final_state = launcher.run_pod(
@@ -122,6 +125,7 @@ class KubernetesPodOperator(BaseOperator):
                  image_pull_policy='IfNotPresent',
                  annotations=None,
                  resources=None,
+                 affinity=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -140,4 +144,5 @@ class KubernetesPodOperator(BaseOperator):
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
         self.annotations = annotations or {}
+        self.affinity = affinity or {}
         self.resources = resources or Resources()
