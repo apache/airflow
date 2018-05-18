@@ -145,3 +145,19 @@ There are many layers of ``airflow run`` commands, meaning it can call itself.
   and ensures some cleanup takes place if the subprocess fails
 - Raw ``airflow run --raw`` runs the actual operator's execute method and
   performs the actual work
+
+
+How can my airflow dag run faster?
+----------------------------------
+
+There are three variables we could control to improve airflow dag performance:
+
+- ``parallelism``: This variable controls the number of task instances that the airflow worker can run simultaneously. User could increase the parallelism variable in the ``airflow.cfg``.
+- ``concurrency``: The Airflow scheduler will run no more than ``$concurrency`` task instances for your DAG at any given time. Concurrency is defined in your Airflow DAG. If you do not set the concurrency on your DAG, the scheduler will use the default value from the ``dag_concurrency`` entry in your ``airflow.cfg``.
+- ``max_active_runs``: the Airflow scheduler will run no more than ``max_active_runs`` DagRuns of your DAG at a given time. If you do not set the ``max_active_runs`` in your DAG, the scheduler will use the default value from the ``max_active_runs_per_dag`` entry in your ``airflow.cfg``.
+
+
+How can we reduce the airflow UI page load time?
+------------------------------------------------
+
+If your dag takes long time to load, you could reduce the value of ``default_dag_run_display_number`` configuration in ``airflow.cfg`` to a smaller value. This configurable controls the number of dag run to show in UI with default value 25.
