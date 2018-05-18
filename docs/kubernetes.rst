@@ -31,6 +31,56 @@ Kubernetes Operator
           }
         }
     volume = Volume(name='test-volume', configs=volume_config)
+
+    affinity = {
+        'nodeAffinity': {
+          'preferredDuringSchedulingIgnoredDuringExecution': [
+            {
+              "weight": 1,
+              "preference": {
+                "matchExpressions": [
+                  "key": "disktype",
+                  "operator": "In",
+                  "values": ["ssd"]
+                ]
+              }
+            }
+          ]
+        },
+        "podAffinity": {
+          "requiredDuringSchedulingIgnoredDuringExecution": [
+            {
+              "labelSelector": {
+                "matchExpressions": [
+                  {
+                    "key": "security",
+                    "operator": "In",
+                    "values": ["S1"]
+                  }
+                ]
+              },
+              "topologyKey": "failure-domain.beta.kubernetes.io/zone"
+            }
+          ]
+        },
+        "podAntiAffinity": {
+          "requiredDuringSchedulingIgnoredDuringExecution": [
+            {
+              "labelSelector": {
+                "matchExpressions": [
+                  {
+                    "key": "security",
+                    "operator": "In",
+                    "values": ["S2"]
+                  }
+                ]
+              },
+              "topologyKey": "kubernetes.io/hostname"
+            }
+          ]
+        }
+    }
+
     k = KubernetesPodOperator(namespace='default',
                               image="ubuntu:16.04",
                               cmds=["bash", "-cx"],
@@ -40,7 +90,8 @@ Kubernetes Operator
                               volume=[volume],
                               volume_mounts=[volume_mount]
                               name="test",
-                              task_id="task"
+                              task_id="task",
+                              affinity=affinity
                               )
 
 

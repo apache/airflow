@@ -54,6 +54,8 @@ class Pod:
     :type result: any
     :param image_pull_policy: Specify a policy to cache or always pull an image
     :type image_pull_policy: str
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
     def __init__(
             self,
@@ -74,7 +76,8 @@ class Pod:
             init_containers=None,
             service_account_name=None,
             resources=None,
-            annotations=None
+            annotations=None,
+            affinity=None
     ):
         self.image = image
         self.envs = envs or {}
@@ -94,3 +97,4 @@ class Pod:
         self.service_account_name = service_account_name
         self.resources = resources or Resources()
         self.annotations = annotations or {}
+        self.affinity = affinity or {}
