@@ -1078,17 +1078,16 @@ class SchedulerJob(BaseJob):
             session
             .query(TI)
             .filter(TI.dag_id.in_(simple_dag_bag.dag_ids))
-            .outerjoin(DR,
-                and_(DR.dag_id == TI.dag_id,
-                     DR.execution_date == TI.execution_date))
-            .filter(or_(DR.run_id == None,
-                    not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
-            .outerjoin(DM, DM.dag_id==TI.dag_id)
-            .filter(or_(DM.dag_id == None,
-                    not_(DM.is_paused)))
+            .outerjoin(DR, and_(DR.dag_id == TI.dag_id,
+                                DR.execution_date == TI.execution_date))
+            .filter(or_(DR.run_id is None,
+                        not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
+            .outerjoin(DM, DM.dag_id == TI.dag_id)
+            .filter(or_(DM.dag_id is None,
+                        not_(DM.is_paused)))
         )
         if None in states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(states)))
+            ti_query = ti_query.filter(or_(TI.state is None, TI.state.in_(states)))
         else:
             ti_query = ti_query.filter(TI.state.in_(states))
 
@@ -1245,7 +1244,8 @@ class SchedulerJob(BaseJob):
             .filter(or_(*filter_for_ti_state_change)))
 
         if None in acceptable_states:
-            ti_query = ti_query.filter(or_(TI.state == None, TI.state.in_(acceptable_states)))
+            ti_query = ti_query.filter(or_(TI.state is None,
+                                           TI.state.in_(acceptable_states)))
         else:
             ti_query = ti_query.filter(TI.state.in_(acceptable_states))
 
