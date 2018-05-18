@@ -279,7 +279,6 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             FIELD_TYPE.NEWDECIMAL: 'FLOAT',
             FIELD_TYPE.DOUBLE: 'FLOAT',
             FIELD_TYPE.FLOAT: 'FLOAT',
-            FIELD_TYPE.INT24: 'INTEGER',
             FIELD_TYPE.LONG: 'INTEGER',
             FIELD_TYPE.LONGLONG: 'INTEGER',
             FIELD_TYPE.SHORT: 'INTEGER',
