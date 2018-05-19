@@ -3,6 +3,17 @@
 This file documents any backwards-incompatible changes in Airflow and
 assists people when migrating to a new version.
 
+## Airflow 1.9.1
+
+### Celery config
+
+To make the config of Airflow compatible with Celery, some properties have been renamed:
+```
+celeryd_concurrency -> worker_concurrency
+celery_result_backend -> result_backend
+```
+This will result in the same config parameters as Celery 4 and will make it more transparent.
+
 ## Airflow 1.9
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
