@@ -21,6 +21,7 @@
 import datetime
 import pandas as pd
 import random
+import re
 
 import mock
 import unittest
@@ -125,7 +126,7 @@ class TestHiveCliHook(unittest.TestCase):
         kwargs = mock_to_csv.call_args[1]
         self.assertEqual(kwargs["header"], False)
         self.assertEqual(kwargs["index"], False)
-        self.assertEqual(kwargs["sep"], delimiter.encode(encoding))
+        self.assertEqual(kwargs["sep"], delimiter)
 
         mock_load_file.assert_called_once()
         kwargs = mock_load_file.call_args[1]
@@ -133,6 +134,48 @@ class TestHiveCliHook(unittest.TestCase):
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
         self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    def test_load_df_with_data_types(self, mock_run_cli):
+        d = OrderedDict()
+        d['b'] = [True]
+        d['i'] = [-1]
+        d['t'] = [1]
+        d['f'] = [0.0]
+        d['c'] = ['c']
+        d['M'] = [datetime.datetime(2018, 1, 1)]
+        d['O'] = [object()]
+        d['S'] = ['STRING'.encode('utf-8')]
+        d['U'] = ['STRING']
+        d['V'] = [None]
+        df = pd.DataFrame(d)
+
+        hook = HiveCliHook()
+        hook.load_df(df, 't')
+
+        query = """
+            CREATE TABLE IF NOT EXISTS t (
+                b BOOLEAN,
+                i BIGINT,
+                t BIGINT,
+                f DOUBLE,
+                c STRING,
+                M TIMESTAMP,
+                O STRING,
+                S STRING,
+                U STRING,
+                V STRING)
+            ROW FORMAT DELIMITED
+            FIELDS TERMINATED BY ','
+            STORED AS textfile
+            ;
+        """
+
+        def _trim(s):
+            return re.sub("\s+", " ", s.strip())
+
+        self.assertEqual(_trim(mock_run_cli.call_args_list[0][0][0]),
+                         _trim(query))
 
 
 class TestHiveMetastoreHook(HiveEnvironmentTest):

@@ -20,11 +20,12 @@
 
 from __future__ import print_function, unicode_literals
 from six.moves import zip
-from past.builtins import basestring
+from past.builtins import basestring, unicode
 
 import unicodecsv as csv
 import itertools
 import re
+import six
 import subprocess
 import time
 from collections import OrderedDict
@@ -316,15 +317,16 @@ class HiveCliHook(BaseHook):
 
         def _infer_field_types_from_df(df):
             DTYPE_KIND_HIVE_TYPE = {
-                'b': 'BOOLEAN',  # boolean
-                'i': 'BIGINT',   # signed integer
-                'u': 'BIGINT',   # unsigned integer
-                'f': 'DOUBLE',   # floating-point
-                'c': 'STRING',   # complex floating-point
-                'O': 'STRING',   # object
-                'S': 'STRING',   # (byte-)string
-                'U': 'STRING',   # Unicode
-                'V': 'STRING'    # void
+                'b': 'BOOLEAN',    # boolean
+                'i': 'BIGINT',     # signed integer
+                'u': 'BIGINT',     # unsigned integer
+                'f': 'DOUBLE',     # floating-point
+                'c': 'STRING',     # complex floating-point
+                'M': 'TIMESTAMP',  # datetime
+                'O': 'STRING',     # object
+                'S': 'STRING',     # (byte-)string
+                'U': 'STRING',     # Unicode
+                'V': 'STRING'      # void
             }
 
             d = OrderedDict()
@@ -336,15 +338,19 @@ class HiveCliHook(BaseHook):
             pandas_kwargs = {}
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
+            with NamedTemporaryFile(dir=tmp_dir, mode="w") as f:
 
                 if field_dict is None and (create or recreate):
                     field_dict = _infer_field_types_from_df(df)
 
                 df.to_csv(path_or_buf=f,
-                          sep=delimiter.encode(encoding),
+                          sep=(delimiter.encode(encoding)
+                               if six.PY2 and isinstance(delimiter, unicode)
+                               else delimiter),
                           header=False,
                           index=False,
+                          encoding=encoding,
+                          date_format="%Y-%m-%d %H:%M:%S",
                           **pandas_kwargs)
                 f.flush()
 
