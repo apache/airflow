@@ -19,8 +19,7 @@ import six
 from flask import Flask
 from flask_admin import Admin, base
 from flask_cache import Cache
-from flask_wtf.csrf import CsrfProtect
-csrf = CsrfProtect()
+from flask_wtf.csrf import CSRFProtect
 
 import airflow
 from airflow import models
@@ -30,6 +29,9 @@ from airflow.www.blueprints import routes
 from airflow import jobs
 from airflow import settings
 from airflow import configuration
+
+
+csrf = CSRFProtect()
 
 
 def create_app(config=None, testing=False):
