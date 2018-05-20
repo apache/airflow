@@ -31,9 +31,10 @@ class HiveOperator(BaseOperator):
     Executes hql code or hive script in a specific Hive database.
 
     :param hql: the hql to be executed. Note that you may also use
-        a relative path from the dag file of a (template) hive script.
+        a relative path from the dag file of a (template) hive
+        script. (templated)
     :type hql: string
-    :param hive_cli_conn_id: reference to the Hive database
+    :param hive_cli_conn_id: reference to the Hive database. (templated)
     :type hive_cli_conn_id: string
     :param hiveconfs: if defined, these key value pairs will be passed
         to hive as ``-hiveconf "key"="value"``
@@ -48,7 +49,7 @@ class HiveOperator(BaseOperator):
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
-    :param mapred_queue: queue used by the Hadoop CapacityScheduler
+    :param mapred_queue: queue used by the Hadoop CapacityScheduler. (templated)
     :type  mapred_queue: string
     :param mapred_queue_priority: priority within CapacityScheduler queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW

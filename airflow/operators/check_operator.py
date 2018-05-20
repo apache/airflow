@@ -58,7 +58,7 @@ class CheckOperator(BaseOperator):
     needs to be defined. Whereas a get_db_hook is hook that gets a
     single record from an external source.
 
-    :param sql: the sql to be executed
+    :param sql: the sql to be executed. (templated)
     :type sql: string
     """
 
@@ -113,7 +113,7 @@ class ValueCheckOperator(BaseOperator):
     needs to be defined. Whereas a get_db_hook is hook that gets a
     single record from an external source.
 
-    :param sql: the sql to be executed
+    :param sql: the sql to be executed. (templated)
     :type sql: string
     """
 

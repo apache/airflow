@@ -27,7 +27,7 @@ class SqliteOperator(BaseOperator):
 
     :param sqlite_conn_id: reference to a specific sqlite database
     :type sqlite_conn_id: string
-    :param sql: the sql code to be executed
+    :param sql: the sql code to be executed. (templated)
     :type sql: string or string pointing to a template file. File must have
         a '.sql' extensions.
     """

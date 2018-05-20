@@ -50,12 +50,12 @@ class BigQueryGetDataOperator(BaseOperator):
             bigquery_conn_id='airflow-service-account'
         )
 
-    :param dataset_id: The dataset ID of the requested table.
+    :param dataset_id: The dataset ID of the requested table. (templated)
     :type destination_dataset_table: string
-    :param table_id: The table ID of the requested table.
+    :param table_id: The table ID of the requested table. (templated)
     :type table_id: string
     :param max_results: The maximum number of records (rows) to be fetched
-        from the table.
+        from the table. (templated)
     :type max_results: string
     :param selected_fields: List of fields to return (comma-separated). If
         unspecified, all fields are returned.

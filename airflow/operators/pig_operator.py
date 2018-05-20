@@ -27,7 +27,7 @@ class PigOperator(BaseOperator):
     """
     Executes pig script.
 
-    :param pig: the pig latin script to be executed
+    :param pig: the pig latin script to be executed. (templated)
     :type pig: string
     :param pig_cli_conn_id: reference to the Hive database
     :type pig_cli_conn_id: string

@@ -27,11 +27,11 @@ class FileToGoogleCloudStorageOperator(BaseOperator):
     """
     Uploads a file to Google Cloud Storage
 
-    :param src: Path to the local file
+    :param src: Path to the local file. (templated)
     :type src: string
-    :param dst: Destination path within the specified bucket
+    :param dst: Destination path within the specified bucket. (templated)
     :type dst: string
-    :param bucket: The bucket to upload to
+    :param bucket: The bucket to upload to. (templated)
     :type bucket: string
     :param google_cloud_storage_conn_id: The Airflow connection ID to upload with
     :type google_cloud_storage_conn_id: string

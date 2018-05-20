@@ -26,11 +26,11 @@ class EmrAddStepsOperator(BaseOperator):
     """
     An operator that adds steps to an existing EMR job_flow.
 
-    :param job_flow_id: id of the JobFlow to add steps to
+    :param job_flow_id: id of the JobFlow to add steps to. (templated)
     :type job_flow_name: str
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str
-    :param steps: boto3 style steps to be added to the jobflow
+    :param steps: boto3 style steps to be added to the jobflow. (templated)
     :type steps: list
     """
     template_fields = ['job_flow_id', 'steps']

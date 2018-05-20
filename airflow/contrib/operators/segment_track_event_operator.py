@@ -26,11 +26,11 @@ class SegmentTrackEventOperator(BaseOperator):
     """
     Send Track Event to Segment for a specified user_id and event
 
-    :param user_id: The ID for this user in your database
+    :param user_id: The ID for this user in your database. (templated)
     :type user_id: string
-    :param event: The name of the event you're tracking
+    :param event: The name of the event you're tracking. (templated)
     :type event: string
-    :param properties: A dictionary of properties for the event.
+    :param properties: A dictionary of properties for the event. (templated)
     :type properties: dict
     :param segment_conn_id: The connection ID to use when connecting to Segment.
     :type segment_conn_id: string

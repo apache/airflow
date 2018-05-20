@@ -41,9 +41,9 @@ class DiscordWebhookOperator(SimpleHttpOperator):
                              "webhooks/{webhook.id}/{webhook.token}"
     :type webhook_endpoint: str
     :param message: The message you want to send to your Discord channel
-                    (max 2000 characters)
+                    (max 2000 characters). (templated)
     :type message: str
-    :param username: Override the default username of the webhook
+    :param username: Override the default username of the webhook. (templated)
     :type username: str
     :param avatar_url: Override the default avatar of the webhook
     :type avatar_url: str

@@ -39,7 +39,8 @@ class AWSBatchOperator(BaseOperator):
     :type job_definition: str
     :param queue: the queue name on AWS Batch
     :type queue: str
-    :param: overrides: the same parameter that boto3 will receive on containerOverrides:
+    :param: overrides: the same parameter that boto3 will receive on
+            containerOverrides (templated):
             http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
     :type: overrides: dict
     :param max_retries: exponential backoff retries while waiter is not merged

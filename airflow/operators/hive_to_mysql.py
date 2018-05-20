@@ -30,23 +30,23 @@ class HiveToMySqlTransfer(BaseOperator):
     into memory before being pushed to MySQL, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against Hive server
+    :param sql: SQL query to execute against Hive server. (templated)
     :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type mysql_table: str
     :param mysql_conn_id: source mysql connection
     :type mysql_conn_id: str
     :param hiveserver2_conn_id: destination hive connection
     :type hiveserver2_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
-        import, typically use to truncate of delete in place of the data
-        coming in, allowing the task to be idempotent (running the task
-        twice won't double load data)
+        import, typically use to truncate of delete in place
+        of the data coming in, allowing the task to be idempotent (running
+        the task twice won't double load data). (templated)
     :type mysql_preoperator: str
     :param mysql_postoperator: sql statement to run against mysql after the
-        import, typically used to move data from staging to production
-        and issue cleanup commands.
+        import, typically used to move data from staging to
+        production and issue cleanup commands. (templated)
     :type mysql_postoperator: str
     :param bulk_load: flag to use bulk_load option.  This loads mysql directly
         from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.

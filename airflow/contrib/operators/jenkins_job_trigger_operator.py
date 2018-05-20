@@ -98,7 +98,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :type jenkins_connection_id: string
     :param job_name: The name of the job to trigger
     :type job_name: string
-    :param parameters: The parameters block to provide to jenkins
+    :param parameters: The parameters block to provide to jenkins. (templated)
     :type parameters: string
     :param sleep_time: How long will the operator sleep between each status
     request for the job (min 1, default 10)

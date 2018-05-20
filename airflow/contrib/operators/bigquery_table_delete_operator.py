@@ -28,7 +28,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
 
     :param deletion_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that indicates which table
-        will be deleted.
+        will be deleted. (templated)
     :type deletion_dataset_table: string
     :param bigquery_conn_id: reference to a specific BigQuery hook.
     :type bigquery_conn_id: string

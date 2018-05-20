@@ -26,7 +26,7 @@ class SparkSqlOperator(BaseOperator):
     """
     Execute Spark SQL query
 
-    :param sql: The SQL query to execute
+    :param sql: The SQL query to execute. (templated)
     :type sql: str
     :param conf: arbitrary Spark configuration property
     :type conf: str (format: PROP=VALUE)

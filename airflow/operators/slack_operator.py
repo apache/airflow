@@ -87,15 +87,17 @@ class SlackAPIPostOperator(SlackAPIOperator):
     """
     Posts messages to a slack channel
 
-    :param channel: channel in which to post message on slack name (#general) or ID (C12318391)
+    :param channel: channel in which to post message on slack name (#general) or
+        ID (C12318391). (templated)
     :type channel: string
-    :param username: Username that airflow will be posting to Slack as
+    :param username: Username that airflow will be posting to Slack as. (templated)
     :type username: string
-    :param text: message to send to slack
+    :param text: message to send to slack. (templated)
     :type text: string
     :param icon_url: url to icon used for this message
     :type icon_url: string
-    :param attachments: extra formatting details - see https://api.slack.com/docs/attachments
+    :param attachments: extra formatting details. (templated)
+        - see https://api.slack.com/docs/attachments.
     :type attachments: array of hashes
     """
 

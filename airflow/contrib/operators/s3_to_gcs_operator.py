@@ -32,12 +32,12 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
     Synchronizes an S3 key, possibly a prefix, with a Google Cloud Storage
     destination path.
 
-    :param bucket: The S3 bucket where to find the objects.
+    :param bucket: The S3 bucket where to find the objects. (templated)
     :type bucket: string
     :param prefix: Prefix string which filters objects whose name begin with
-        such prefix.
+        such prefix. (templated)
     :type prefix: string
-    :param delimiter: the delimiter marks key hierarchy.
+    :param delimiter: the delimiter marks key hierarchy. (templated)
     :type delimiter: string
     :param aws_conn_id: The source S3 connection
     :type aws_conn_id: string
@@ -45,7 +45,7 @@ class S3ToGoogleCloudStorageOperator(S3ListOperator):
         when connecting to Google Cloud Storage.
     :type dest_gcs_conn_id: string
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
-        where you want to store the files.
+        where you want to store the files. (templated)
     :type dest_gcs: string
     :param delegate_to: The account to impersonate, if any.
         For this to work, the service account making the request must have

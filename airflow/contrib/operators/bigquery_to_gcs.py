@@ -32,11 +32,11 @@ class BigQueryToCloudStorageOperator(BaseOperator):
 
     :param source_project_dataset_table: The dotted
         (<project>.|<project>:)<dataset>.<table> BigQuery table to use as the source
-        data. If <project> is not included, project will be the project defined in
-        the connection json.
+        data. If <project> is not included, project will be the project
+        defined in the connection json. (templated)
     :type source_project_dataset_table: string
     :param destination_cloud_storage_uris: The destination Google Cloud
-        Storage URI (e.g. gs://some-bucket/some-file.txt). Follows
+        Storage URI (e.g. gs://some-bucket/some-file.txt). (templated) Follows
         convention defined here:
         https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
     :type destination_cloud_storage_uris: list

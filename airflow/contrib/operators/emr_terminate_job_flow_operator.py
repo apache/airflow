@@ -26,7 +26,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     """
     Operator to terminate EMR JobFlows.
 
-    :param job_flow_id: id of the JobFlow to terminate
+    :param job_flow_id: id of the JobFlow to terminate. (templated)
     :type job_flow_name: str
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str

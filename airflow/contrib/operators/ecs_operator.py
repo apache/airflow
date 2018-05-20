@@ -33,7 +33,7 @@ class ECSOperator(BaseOperator):
     :type task_definition: str
     :param cluster: the cluster name on EC2 Container Service
     :type cluster: str
-    :param: overrides: the same parameter that boto3 will receive:
+    :param: overrides: the same parameter that boto3 will receive (templated):
             http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
     :type: overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,

@@ -38,10 +38,10 @@ class KubernetesPodOperator(BaseOperator):
     :type image: str
     :param: namespace: the namespace to run within kubernetes
     :type: namespace: str
-    :param cmds: entrypoint of the container.
+    :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
     :type cmds: list of str
-    :param arguments: arguments of to the entrypoint.
+    :param arguments: arguments of to the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
     :type arguments: list of str
     :param volume_mounts: volumeMounts for launched pod
@@ -55,7 +55,7 @@ class KubernetesPodOperator(BaseOperator):
     :param name: name of the task you want to run,
         will be used to generate a pod id
     :type name: str
-    :param env_vars: Environment variables initialized in the container
+    :param env_vars: Environment variables initialized in the container. (templated)
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container,
         They can be exposed as environment vars or files in a volume.

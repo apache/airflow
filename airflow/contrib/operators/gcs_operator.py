@@ -32,10 +32,10 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             For more information, see Bucket Naming Guidelines:
             https://cloud.google.com/storage/docs/bucketnaming.html#requirements
 
-    :param bucket_name: The name of the bucket.
+    :param bucket_name: The name of the bucket. (templated)
     :type bucket_name: string
     :param storage_class: This defines how objects in the bucket are stored
-            and determines the SLA and the cost of storage. Values include
+            and determines the SLA and the cost of storage (templated). Values include
 
             - ``MULTI_REGIONAL``
             - ``REGIONAL``
@@ -45,7 +45,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             If this value is not specified when the bucket is
             created, it will default to STANDARD.
     :type storage_class: string
-    :param location: The location of the bucket.
+    :param location: The location of the bucket. (templated)
         Object data for objects in the bucket resides in physical storage
         within this region. Defaults to US.
 
@@ -53,7 +53,7 @@ class GoogleCloudStorageCreateBucketOperator(BaseOperator):
             https://developers.google.com/storage/docs/bucket-locations
 
     :type location: string
-    :param project_id: The ID of the GCP Project.
+    :param project_id: The ID of the GCP Project. (templated)
     :type project_id: string
     :param labels: User-provided labels, in key/value pairs.
     :type labels: dict
