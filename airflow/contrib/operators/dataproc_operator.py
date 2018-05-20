@@ -47,10 +47,10 @@ class DataprocClusterCreateOperator(BaseOperator):
     for a detailed explanation on the different parameters. Most of the configuration
     parameters detailed in the link are available as a parameter to this operator.
 
-    :param cluster_name: The name of the DataProc cluster to create.
+    :param cluster_name: The name of the DataProc cluster to create. (templated)
     :type cluster_name: string
     :param project_id: The ID of the google cloud project in which
-        to create the cluster
+        to create the cluster. (templated)
     :type project_id: string
     :param num_workers: The # of workers to spin up
     :type num_workers: int
@@ -85,7 +85,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type num_preemptible_workers: int
     :param labels: dict of labels to add to the cluster
     :type labels: dict
-    :param zone: The zone where the cluster will be located
+    :param zone: The zone where the cluster will be located. (templated)
     :type zone: string
     :param network_uri: The network uri to be used for machine communication, cannot be
         specified with subnetwork_uri
@@ -95,7 +95,7 @@ class DataprocClusterCreateOperator(BaseOperator):
     :type subnetwork_uri: string
     :param tags: The GCE tags to add to all instances
     :type tags: list[string]
-    :param region: leave as 'global', might become relevant in the future
+    :param region: leave as 'global', might become relevant in the future. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: string
     :param delegate_to: The account to impersonate, if any.
@@ -397,12 +397,12 @@ class DataprocClusterScaleOperator(BaseOperator):
         For more detail on about scaling clusters have a look at the reference:
         https://cloud.google.com/dataproc/docs/concepts/configuring-clusters/scaling-clusters
 
-    :param cluster_name: The name of the cluster to scale.
+    :param cluster_name: The name of the cluster to scale. (templated)
     :type cluster_name: string
     :param project_id: The ID of the google cloud project in which
-        the cluster runs
+        the cluster runs. (templated)
     :type project_id: string
-    :param region: The region for the dataproc cluster
+    :param region: The region for the dataproc cluster. (templated)
     :type region: string
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: string
@@ -530,12 +530,12 @@ class DataprocClusterDeleteOperator(BaseOperator):
     Delete a cluster on Google Cloud Dataproc. The operator will wait until the
     cluster is destroyed.
 
-    :param cluster_name: The name of the cluster to create.
+    :param cluster_name: The name of the cluster to create. (templated)
     :type cluster_name: string
     :param project_id: The ID of the google cloud project in which
-        the cluster runs
+        the cluster runs. (templated)
     :type project_id: string
-    :param region: leave as 'global', might become relevant in the future
+    :param region: leave as 'global', might become relevant in the future. (templated)
     :type region: string
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
     :type gcp_conn_id: string
@@ -630,17 +630,19 @@ class DataProcPigOperator(BaseOperator):
         For more detail on about job submission have a look at the reference:
         https://cloud.google.com/dataproc/reference/rest/v1/projects.regions.jobs
 
-    :param query: The query or reference to the query file (pg or pig extension).
+    :param query: The query or reference to the query
+        file (pg or pig extension). (templated)
     :type query: string
     :param query_uri: The uri of a pig script on Cloud Storage.
     :type query_uri: string
-    :param variables: Map of named parameters for the query.
+    :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
+    :param job_name: The job name used in the DataProc cluster. This
+        name by default is the task_id appended with the execution data, but can
+        be templated. The name will always be appended with a random number to
+        avoid name clashes. (templated)
     :type job_name: string
-    :param cluster_name: The name of the DataProc cluster.
+    :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: string
     :param dataproc_pig_properties: Map for the Pig properties. Ideal to put in
         default arguments
@@ -791,17 +793,18 @@ class DataProcSparkSqlOperator(BaseOperator):
     """
     Start a Spark SQL query Job on a Cloud DataProc cluster.
 
-    :param query: The query or reference to the query file (q extension).
+    :param query: The query or reference to the query file (q extension). (templated)
     :type query: string
     :param query_uri: The uri of a spark sql script on Cloud Storage.
     :type query_uri: string
-    :param variables: Map of named parameters for the query.
+    :param variables: Map of named parameters for the query. (templated)
     :type variables: dict
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
+    :param job_name: The job name used in the DataProc cluster. This
+        name by default is the task_id appended with the execution data, but can
+        be templated. The name will always be appended with a random number to
+        avoid name clashes. (templated)
     :type job_name: string
-    :param cluster_name: The name of the DataProc cluster.
+    :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: string
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
         default arguments
@@ -878,18 +881,19 @@ class DataProcSparkOperator(BaseOperator):
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
     :type main_class: string
-    :param arguments: Arguments for the job.
+    :param arguments: Arguments for the job. (templated)
     :type arguments: list
     :param archives: List of archived files that will be unpacked in the work
         directory. Should be stored in Cloud Storage.
     :type archives: list
     :param files: List of files to be copied to the working directory
     :type files: list
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
+    :param job_name: The job name used in the DataProc cluster. This
+        name by default is the task_id appended with the execution data, but can
+        be templated. The name will always be appended with a random number to
+        avoid name clashes. (templated)
     :type job_name: string
-    :param cluster_name: The name of the DataProc cluster.
+    :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: string
     :param dataproc_spark_properties: Map for the Pig properties. Ideal to put in
         default arguments
@@ -968,18 +972,19 @@ class DataProcHadoopOperator(BaseOperator):
     :param main_class: Name of the job class. (use this or the main_jar, not both
         together).
     :type main_class: string
-    :param arguments: Arguments for the job.
+    :param arguments: Arguments for the job. (templated)
     :type arguments: list
     :param archives: List of archived files that will be unpacked in the work
         directory. Should be stored in Cloud Storage.
     :type archives: list
     :param files: List of files to be copied to the working directory
     :type files: list
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
+    :param job_name: The job name used in the DataProc cluster. This
+        name by default is the task_id appended with the execution data, but can
+        be templated. The name will always be appended with a random number to
+        avoid name clashes. (templated)
     :type job_name: string
-    :param cluster_name: The name of the DataProc cluster.
+    :param cluster_name: The name of the DataProc cluster. (templated)
     :type cluster_name: string
     :param dataproc_hadoop_properties: Map for the Pig properties. Ideal to put in
         default arguments
@@ -1055,7 +1060,7 @@ class DataProcPySparkOperator(BaseOperator):
     :param main: [Required] The Hadoop Compatible Filesystem (HCFS) URI of the main
             Python file to use as the driver. Must be a .py file.
     :type main: string
-    :param arguments: Arguments for the job.
+    :param arguments: Arguments for the job. (templated)
     :type arguments: list
     :param archives: List of archived files that will be unpacked in the work
         directory. Should be stored in Cloud Storage.
@@ -1065,9 +1070,10 @@ class DataProcPySparkOperator(BaseOperator):
     :param pyfiles: List of Python files to pass to the PySpark framework.
         Supported file types: .py, .egg, and .zip
     :type pyfiles: list
-    :param job_name: The job name used in the DataProc cluster. This name by default
-        is the task_id appended with the execution data, but can be templated. The
-        name will always be appended with a random number to avoid name clashes.
+    :param job_name: The job name used in the DataProc cluster. This
+        name by default is the task_id appended with the execution data, but can
+        be templated. The name will always be appended with a random number to
+        avoid name clashes. (templated)
     :type job_name: string
     :param cluster_name: The name of the DataProc cluster.
     :type cluster_name: string
@@ -1214,7 +1220,7 @@ class DataprocWorkflowTemplateInstantiateOperator(DataprocWorkflowTemplateBaseOp
         Please refer to:
         https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiate
 
-    :param template_id: The id of the template.
+    :param template_id: The id of the template. (templated)
     :type template_id: string
     :param project_id: The ID of the google cloud project in which
         the template runs
@@ -1258,7 +1264,7 @@ class DataprocWorkflowTemplateInstantiateInlineOperator(
         Please refer to:
         https://cloud.google.com/dataproc/docs/reference/rest/v1beta2/projects.regions.workflowTemplates/instantiateInline
 
-    :param template: The template contents.
+    :param template: The template contents. (templated)
     :type template: map
     :param project_id: The ID of the google cloud project in which
         the template runs

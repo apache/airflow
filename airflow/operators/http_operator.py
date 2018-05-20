@@ -29,12 +29,12 @@ class SimpleHttpOperator(BaseOperator):
 
     :param http_conn_id: The connection to run the sensor against
     :type http_conn_id: string
-    :param endpoint: The relative part of the full url
+    :param endpoint: The relative part of the full url. (templated)
     :type endpoint: string
     :param method: The HTTP method to use, default = "POST"
     :type method: string
     :param data: The data to pass. POST-data in POST/PUT and params
-        in the URL for a GET request.
+        in the URL for a GET request. (templated)
     :type data: For POST/PUT, depends on the content-type parameter,
         for GET a dictionary of key/value string pairs
     :param headers: The HTTP headers to be added to the GET request

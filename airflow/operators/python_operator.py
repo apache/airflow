@@ -55,7 +55,7 @@ class PythonOperator(BaseOperator):
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
-        in your callable's context after the template has been applied
+        in your callable's context after the template has been applied. (templated)
     :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``

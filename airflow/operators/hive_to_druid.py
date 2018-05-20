@@ -31,7 +31,7 @@ class HiveToDruidTransfer(BaseOperator):
     into memory before being pushed to Druid, so this operator should
     be used for smallish amount of data.[/del]
 
-    :param sql: SQL query to execute against the Druid database
+    :param sql: SQL query to execute against the Druid database. (templated)
     :type sql: str
     :param druid_datasource: the datasource you want to ingest into in druid
     :type druid_datasource: str
@@ -48,8 +48,8 @@ class HiveToDruidTransfer(BaseOperator):
     :param hadoop_dependency_coordinates: list of coordinates to squeeze
         int the ingest json
     :type hadoop_dependency_coordinates: list of str
-    :param intervals: list of time intervals that defines segments, this
-        is passed as is to the json object
+    :param intervals: list of time intervals that defines segments,
+        this is passed as is to the json object. (templated)
     :type intervals: list
     :param hive_tblproperties: additional properties for tblproperties in
         hive for the staging table

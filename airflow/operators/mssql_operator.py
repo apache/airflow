@@ -28,7 +28,8 @@ class MsSqlOperator(BaseOperator):
     :param mssql_conn_id: reference to a specific mssql database
     :type mssql_conn_id: string
     :param sql: the sql code to be executed
-    :type sql: string or string pointing to a template file with .sql extension
+    :type sql: string or string pointing to a template file with .sql
+        extension. (templated)
     :param database: name of database which overwrite defined one in connection
     :type database: string
     """

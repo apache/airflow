@@ -34,7 +34,7 @@ class JiraOperator(BaseOperator):
     :type jira_conn_id: str
     :param jira_method: method name from Jira Python SDK to be called
     :type jira_method: str
-    :param jira_method_args: required method parameters for the jira_method
+    :param jira_method_args: required method parameters for the jira_method. (templated)
     :type jira_method_args: dict
     :param result_processor: function to further process the response from Jira
     :type result_processor: function
