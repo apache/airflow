@@ -31,7 +31,7 @@ class HiveToDynamoDBTransferOperator(BaseOperator):
     into memory before being pushed to DynamoDB, so this operator should
     be used for smallish amount of data.
 
-    :param sql: SQL query to execute against the hive database
+    :param sql: SQL query to execute against the hive database. (templated)
     :type sql: str
     :param table_name: target DynamoDB table
     :type table_name: str

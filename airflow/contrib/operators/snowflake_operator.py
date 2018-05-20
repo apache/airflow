@@ -27,7 +27,7 @@ class SnowflakeOperator(BaseOperator):
 
     :param snowflake_conn_id: reference to specific snowflake connection id
     :type snowflake_conn_id: string
-    :param sql: the sql code to be executed
+    :param sql: the sql code to be executed. (templated)
     :type sql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
         Template reference are recognized by str ending in '.sql'

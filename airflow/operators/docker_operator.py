@@ -45,7 +45,7 @@ class DockerOperator(BaseOperator):
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
     :type api_version: str
-    :param command: Command to be run in the container.
+    :param command: Command to be run in the container. (templated)
     :type command: str or list
     :param cpus: Number of CPUs to assign to the container.
         This value gets multiplied with 1024. See
@@ -54,7 +54,7 @@ class DockerOperator(BaseOperator):
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
     :type docker_url: str
-    :param environment: Environment variables to set in the container.
+    :param environment: Environment variables to set in the container. (templated)
     :type environment: dict
     :param force_pull: Pull the docker image on every run. Default is false.
     :type force_pull: bool

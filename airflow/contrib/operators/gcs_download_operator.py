@@ -28,19 +28,19 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
     """
     Downloads a file from Google Cloud Storage.
 
-    :param bucket: The Google cloud storage bucket where the object is.
+    :param bucket: The Google cloud storage bucket where the object is. (templated)
     :type bucket: string
     :param object: The name of the object to download in the Google cloud
-        storage bucket.
+        storage bucket. (templated)
     :type object: string
     :param filename: The file path on the local file system (where the
-        operator is being executed) that the file should be downloaded to.
+        operator is being executed) that the file should be downloaded to. (templated)
         If no filename passed, the downloaded data will not be stored on the local file
         system.
     :type filename: string
     :param store_to_xcom_key: If this param is set, the operator will push
         the contents of the downloaded file to XCom with the key set in this
-        parameter. If not set, the downloaded data will not be pushed to XCom.
+        parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
     :type store_to_xcom_key: string
     :param google_cloud_storage_conn_id: The connection ID to use when
         connecting to Google cloud storage.

@@ -82,9 +82,9 @@ class HipChatAPISendRoomNotificationOperator(HipChatAPIOperator):
     Send notification to a specific HipChat room.
     More info: https://www.hipchat.com/docs/apiv2/method/send_room_notification
 
-    :param room_id: Room in which to send notification on HipChat
+    :param room_id: Room in which to send notification on HipChat. (templated)
     :type room_id: str
-    :param message: The message body
+    :param message: The message body. (templated)
     :type message: str
     :param frm: Label to be shown in addition to sender's name
     :type frm: str

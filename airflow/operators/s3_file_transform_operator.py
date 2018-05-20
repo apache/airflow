@@ -43,11 +43,11 @@ class S3FileTransformOperator(BaseOperator):
     S3 Select is also available to filter the source contents. Users can
     omit the transformation script if S3 Select expression is specified.
 
-    :param source_s3_key: The key to be retrieved from S3
+    :param source_s3_key: The key to be retrieved from S3. (templated)
     :type source_s3_key: str
     :param source_aws_conn_id: source s3 connection
     :type source_aws_conn_id: str
-    :param dest_s3_key: The key to be written from S3
+    :param dest_s3_key: The key to be written from S3. (templated)
     :type dest_s3_key: str
     :param dest_aws_conn_id: destination s3 connection
     :type dest_aws_conn_id: str

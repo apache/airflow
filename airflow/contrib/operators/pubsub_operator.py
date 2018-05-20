@@ -408,9 +408,8 @@ class PubSubPublishOperator(BaseOperator):
             * 'data': a base64-encoded string
             * 'attributes': {'key1': 'value1', ...}
             Each message must contain at least a non-empty 'data' value
-            or an attribute dict with at least one key. See
+            or an attribute dict with at least one key (templated). See
             https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-            (templated)
         :type messages: list
         :param gcp_conn_id: The connection ID to use connecting to
             Google Cloud Platform.

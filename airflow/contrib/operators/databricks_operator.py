@@ -88,8 +88,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         (i.e. ``spark_jar_task``, ``notebook_task``..) to this operator will
         be merged with this json dictionary if they are provided.
         If there are conflicts during the merge, the named parameters will
-        take precedence and override the top level json keys. This field will be
-        templated.
+        take precedence and override the top level json keys. (templated)
 
         .. seealso::
             For more information about templating see :ref:`jinja-templating`.

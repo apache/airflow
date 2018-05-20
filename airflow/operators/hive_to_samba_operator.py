@@ -29,7 +29,7 @@ class Hive2SambaOperator(BaseOperator):
     Executes hql code in a specific Hive database and loads the
     results of the query as a csv to a Samba location.
 
-    :param hql: the hql to be exported
+    :param hql: the hql to be exported. (templated)
     :type hql: string
     :param hiveserver2_conn_id: reference to the hiveserver2 service
     :type hiveserver2_conn_id: string

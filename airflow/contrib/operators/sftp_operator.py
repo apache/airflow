@@ -39,9 +39,9 @@ class SFTPOperator(BaseOperator):
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
-    :param local_filepath: local file path to get or put
+    :param local_filepath: local file path to get or put. (templated)
     :type local_filepath: str
-    :param remote_filepath: remote file path to get or put
+    :param remote_filepath: remote file path to get or put. (templated)
     :type remote_filepath: str
     :param operation: specify operation 'get' or 'put', defaults to get
     :type get: bool
