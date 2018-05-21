@@ -343,9 +343,9 @@ def upgradedb():
 
 
 def resetdb(rbac):
-    '''
+    """
     Clear out the database
-    '''
+    """
     from airflow import models
 
     # alembic adds significant import time, so we import it lazily

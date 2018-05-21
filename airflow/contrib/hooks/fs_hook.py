@@ -22,7 +22,7 @@ from airflow.hooks.base_hook import BaseHook
 
 
 class FSHook(BaseHook):
-    '''
+    """
     Allows for interaction with an file server.
 
     Connection should have a name and a path specified under extra:
@@ -32,7 +32,7 @@ class FSHook(BaseHook):
     Conn Type: File (path)
     Host, Shchema, Login, Password, Port: empty
     Extra: {"path": "/tmp"}
-    '''
+    """
 
     def __init__(self, conn_id='fs_default'):
         conn = self.get_connection(conn_id)

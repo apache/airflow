@@ -24,9 +24,9 @@ from airflow.hooks.dbapi_hook import DbApiHook
 
 
 class VerticaHook(DbApiHook):
-    '''
+    """
     Interact with Vertica.
-    '''
+    """
 
     conn_name_attr = 'vertica_conn_id'
     default_conn_name = 'vertica_default'

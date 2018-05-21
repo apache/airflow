@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -198,9 +198,9 @@ def json_response(obj):
 
 
 def make_cache_key(*args, **kwargs):
-    '''
+    """
     Used by cache to get a unique key per URL
-    '''
+    """
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')

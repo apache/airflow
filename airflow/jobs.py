@@ -132,16 +132,16 @@ class BaseJob(Base, LoggingMixin):
         raise AirflowException("Job shut down externally.")
 
     def on_kill(self):
-        '''
+        """
         Will be called when an external kill command is received
-        '''
+        """
         pass
 
     def heartbeat_callback(self, session=None):
         pass
 
     def heartbeat(self):
-        '''
+        """
         Heartbeats update the job's entry in the database with a timestamp
         for the latest_heartbeat and allows for the job to be killed
         externally. This allows at the system level to monitor what is
@@ -158,7 +158,7 @@ class BaseJob(Base, LoggingMixin):
         will sleep 50 seconds to complete the 60 seconds and keep a steady
         heart rate. If you go over 60 seconds before calling it, it won't
         sleep at all.
-        '''
+        """
         with create_session() as session:
             job = session.query(BaseJob).filter_by(id=self.id).one()
             make_transient(job)
