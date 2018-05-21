@@ -29,11 +29,7 @@ import random
 import string
 from importlib import import_module
 
-import daemon
-import psutil
-import re
 import getpass
-from urllib.parse import urlunparse
 import reprlib
 import argparse
 from builtins import input
@@ -120,13 +116,17 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.err".format(process))
+        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.out".format(process))
+        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.log".format(process))
+        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.pid".format(process))
+        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
@@ -491,7 +491,8 @@ def task_failed_deps(args):
     >>> airflow task_failed_deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
-    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks to have succeeded, but found 1 non-success(es).
+    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
+    to have succeeded, but found 1 non-success(es).
     """
     dag = get_dag(args)
     task = dag.get_task(task_id=args.task_id)
@@ -880,7 +881,11 @@ def scheduler(args):
         do_pickle=args.do_pickle)
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("scheduler",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -943,7 +948,11 @@ def worker(args):
     }
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("worker",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -980,9 +989,9 @@ def initdb(args):  # noqa
 @cli_utils.action_logging
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input(
-        "This will drop existing tables if they exist. "
-        "Proceed? (y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables "
+                         "if they exist. Proceed? "
+                         "(y/n)").upper() == "Y":
         db_utils.resetdb(settings.RBAC)
     else:
         print("Bail.")
@@ -999,7 +1008,7 @@ def upgradedb(args):  # noqa
     if not ds_rows:
         qry = (
             session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                .group_by(DagRun.dag_id, DagRun.state)
+                   .group_by(DagRun.dag_id, DagRun.state)
         )
         for dag_id, state, count in qry:
             session.add(DagStat(dag_id=dag_id, state=state, count=count))
@@ -1116,20 +1125,31 @@ def connections(args):
         if args.conn_uri:
             new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
         else:
-            new_conn = Connection(conn_id=args.conn_id, conn_type=args.conn_type, host=args.conn_host,
-                                  login=args.conn_login, password=args.conn_password, schema=args.conn_schema, port=args.conn_port)
+            new_conn = Connection(conn_id=args.conn_id,
+                                  conn_type=args.conn_type,
+                                  host=args.conn_host,
+                                  login=args.conn_login,
+                                  password=args.conn_password,
+                                  schema=args.conn_schema,
+                                  port=args.conn_port)
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
         session = settings.Session()
-        if not (session
-                    .query(Connection)
-                    .filter(Connection.conn_id == new_conn.conn_id).first()):
+        if not (session.query(Connection)
+                       .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             session.commit()
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id, uri=args.conn_uri or urlunparse((args.conn_type, '{login}:{password}@{host}:{port}'.format(
-                login=args.conn_login or '', password=args.conn_password or '', host=args.conn_host or '', port=args.conn_port or ''), args.conn_schema or '', '', '', '')))
+            msg = msg.format(conn_id=new_conn.conn_id,
+                             uri=args.conn_uri or
+                             urlunparse((args.conn_type,
+                                        '{login}:{password}@{host}:{port}'
+                                         .format(login=args.conn_login or '',
+                                                 password=args.conn_password or '',
+                                                 host=args.conn_host or '',
+                                                 port=args.conn_port or ''),
+                                         args.conn_schema or '', '', '', '')))
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -1157,7 +1177,11 @@ def flower(args):
         flower_conf = '--conf=' + args.flower_conf
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("flower",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1684,7 +1708,8 @@ class CLIFactory(object):
         }, {
             'func': variables,
             'help': "CRUD operations on variables",
-            "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
+            "args": ('set', 'get', 'json', 'default',
+                     'var_import', 'var_export', 'var_delete'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
