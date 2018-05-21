@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -184,8 +184,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and self.schema_object \
-                                  and self.source_format != 'DATASTORE_BACKUP':
+        if not self.schema_fields and \
+                self.schema_object and \
+                self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)

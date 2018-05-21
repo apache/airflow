@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -205,13 +205,14 @@ class DatabricksSubmitRunOperator(BaseOperator):
         Coerces content or all values of content if it is a dict to a string. The
         function will throw if content contains non-string or non-numeric types.
 
-        The reason why we have this function is because the ``self.json`` field must be a dict
-        with only string values. This is because ``render_template`` will fail for numerical values.
+        The reason why we have this function is because the ``self.json`` field must be a
+         dict with only string values. This is because ``render_template`` will fail
+        for numerical values.
         """
         c = self._deep_string_coerce
         if isinstance(content, six.string_types):
             return content
-        elif isinstance(content, six.integer_types+(float,)):
+        elif isinstance(content, six.integer_types + (float,)):
             # Databricks can tolerate either numeric or string types in the API backend.
             return str(content)
         elif isinstance(content, (list, tuple)):
@@ -221,8 +222,8 @@ class DatabricksSubmitRunOperator(BaseOperator):
                     for k, v in list(content.items())}
         else:
             param_type = type(content)
-            msg = 'Type {0} used for parameter {1} is not a number or a string' \
-                    .format(param_type, json_path)
+            msg = 'Type {0} used for parameter {1} is not a number or a string'\
+                .format(param_type, json_path)
             raise AirflowException(msg)
 
     def _log_run_page_url(self, url):

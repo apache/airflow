@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -101,13 +101,16 @@ class AwsHook(BaseHook):
                     aws_secret_access_key = connection_object.password
 
                 elif 'aws_secret_access_key' in connection_object.extra_dejson:
-                    aws_access_key_id = connection_object.extra_dejson['aws_access_key_id']
-                    aws_secret_access_key = connection_object.extra_dejson['aws_secret_access_key']
+                    aws_access_key_id = connection_object.extra_dejson[
+                        'aws_access_key_id']
+                    aws_secret_access_key = connection_object.extra_dejson[
+                        'aws_secret_access_key']
 
                 elif 's3_config_file' in connection_object.extra_dejson:
                     aws_access_key_id, aws_secret_access_key = \
-                        _parse_s3_config(connection_object.extra_dejson['s3_config_file'],
-                                         connection_object.extra_dejson.get('s3_config_format'))
+                        _parse_s3_config(
+                            connection_object.extra_dejson['s3_config_file'],
+                            connection_object.extra_dejson.get('s3_config_format'))
 
                 if region_name is None:
                     region_name = connection_object.extra_dejson.get('region_name')
@@ -118,7 +121,6 @@ class AwsHook(BaseHook):
 
                 if role_arn is None and aws_account_id is not None and \
                         aws_iam_role is not None:
-
                     role_arn = "arn:aws:iam::" + aws_account_id + ":role/" + aws_iam_role
 
                 if role_arn is not None:

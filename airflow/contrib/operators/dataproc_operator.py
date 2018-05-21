@@ -249,13 +249,12 @@ class DataprocClusterCreateOperator(BaseOperator):
                 self.project_id, self.zone
             )
         master_type_uri = \
-            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}".format(
-                self.project_id, self.zone, self.master_machine_type
-            )
+            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
+            .format(self.project_id, self.zone, self.master_machine_type)
         worker_type_uri = \
-            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}".format(
-                self.project_id, self.zone, self.worker_machine_type
-            )
+            "https://www.googleapis.com/compute/v1/projects/{}/zones/{}/machineTypes/{}"\
+            .format(self.project_id, self.zone, self.worker_machine_type)
+
         cluster_data = {
             'projectId': self.project_id,
             'clusterName': self.cluster_name,
@@ -297,7 +296,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         # [a-z]([-a-z0-9]*[a-z0-9])? (current airflow version string follows
         # semantic versioning spec: x.y.z).
         cluster_data['labels'].update({'airflow-version':
-                                       'v' + version.replace('.', '-').replace('+','-')})
+                                       'v' + version.replace('.', '-').replace('+', '-')})
         if self.storage_bucket:
             cluster_data['config']['configBucket'] = self.storage_bucket
         if self.metadata:
@@ -305,7 +304,8 @@ class DataprocClusterCreateOperator(BaseOperator):
         if self.network_uri:
             cluster_data['config']['gceClusterConfig']['networkUri'] = self.network_uri
         if self.subnetwork_uri:
-            cluster_data['config']['gceClusterConfig']['subnetworkUri'] = self.subnetwork_uri
+            cluster_data['config']['gceClusterConfig']['subnetworkUri'] = \
+                self.subnetwork_uri
         if self.tags:
             cluster_data['config']['gceClusterConfig']['tags'] = self.tags
         if self.image_version:
@@ -332,10 +332,10 @@ class DataprocClusterCreateOperator(BaseOperator):
             cluster_data['config']['initializationActions'] = init_actions_dict
         if self.service_account:
             cluster_data['config']['gceClusterConfig']['serviceAccount'] =\
-                    self.service_account
+                self.service_account
         if self.service_account_scopes:
             cluster_data['config']['gceClusterConfig']['serviceAccountScopes'] =\
-                    self.service_account_scopes
+                self.service_account_scopes
         return cluster_data
 
     def execute(self, context):
@@ -368,7 +368,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                 self.log.info(
                     'Cluster {} already exists... Checking status...',
                     self.cluster_name
-                 )
+                )
                 self._wait_for_done(service)
                 return True
             else:
