@@ -583,6 +583,7 @@ class Connection(Base, LoggingMixin):
         ('jenkins', 'Jenkins'),
         ('mysql', 'MySQL',),
         ('postgres', 'Postgres',),
+        ('mongo', 'MongoDB',),
         ('oracle', 'Oracle',),
         ('vertica', 'Vertica',),
         ('presto', 'Presto',),
