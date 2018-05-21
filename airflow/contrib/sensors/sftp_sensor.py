@@ -38,7 +38,7 @@ class SFTPSensor(BaseSensorOperator):
     def __init__(self, path, sftp_conn_id='sftp_default', *args, **kwargs):
         super(SFTPSensor, self).__init__(*args, **kwargs)
         self.path = path
-        self.hook = SFTPHook(sftp_conn_id=sftp_conn_id)
+        self.hook = SFTPHook(sftp_conn_id)
 
     def poke(self, context):
         logging.info('Poking for %s', self.path)
