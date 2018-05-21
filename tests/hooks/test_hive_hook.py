@@ -19,6 +19,7 @@
 #
 
 import datetime
+import itertools
 import pandas as pd
 import random
 import re
@@ -134,6 +135,23 @@ class TestHiveCliHook(unittest.TestCase):
         self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
         self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
         self.assertEqual(kwargs["table"], table)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('pandas.DataFrame.to_csv')
+    def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
+        hook = HiveCliHook()
+        b = (True, False)
+        for create, recreate in itertools.product(b, b):
+            mock_load_file.reset_mock()
+            hook.load_df(df=pd.DataFrame({"c": range(0, 10)}),
+                         table="t",
+                         create=create,
+                         recreate=recreate)
+
+            mock_load_file.assert_called_once()
+            kwargs = mock_load_file.call_args[1]
+            self.assertEqual(kwargs["create"], create)
+            self.assertEqual(kwargs["recreate"], recreate)
 
     @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
     def test_load_df_with_data_types(self, mock_run_cli):
