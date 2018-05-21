@@ -285,8 +285,6 @@ class HiveCliHook(BaseHook):
             self,
             df,
             table,
-            create=True,
-            recreate=False,
             field_dict=None,
             delimiter=',',
             encoding='utf8',
@@ -297,17 +295,16 @@ class HiveCliHook(BaseHook):
         Hive data types will be inferred if not passed but column names will
         not be sanitized.
 
+        :param df: DataFrame to load into a Hive table
+        :type df: DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
-        :param create: whether to create the table if it doesn't exist
-        :type create: bool
-        :param recreate: whether to drop and recreate the table at every
-            execution
-        :type recreate: bool
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
         :type field_dict: OrderedDict
+        :param delimiter: field delimiter in the file
+        :type delimiter: str
         :param encoding: string encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -340,7 +337,7 @@ class HiveCliHook(BaseHook):
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, mode="w") as f:
 
-                if field_dict is None and (create or recreate):
+                if field_dict is None:
                     field_dict = _infer_field_types_from_df(df)
 
                 df.to_csv(path_or_buf=f,
