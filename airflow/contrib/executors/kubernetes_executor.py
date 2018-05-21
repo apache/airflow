@@ -581,7 +581,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             try:
                 self.log.info('Deleted pod: %s', str(key))
                 self.running.pop(key)
-            except KeyError as _:
+            except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state

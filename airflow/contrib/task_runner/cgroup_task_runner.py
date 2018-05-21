@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -113,7 +113,8 @@ class CgroupTaskRunner(BaseTaskRunner):
         cgroups = self._get_cgroup_names()
         if cgroups["cpu"] != "/" or cgroups["memory"] != "/":
             self.log.debug(
-                "Already running in a cgroup (cpu: %s memory: %s) so not creating another one",
+                "Already running in a cgroup (cpu: %s memory: %s) so not "
+                "creating another one",
                 cgroups.get("cpu"), cgroups.get("memory")
             )
             self.process = self.run_command(['bash', '-c'], join_args=True)
@@ -174,9 +175,9 @@ class CgroupTaskRunner(BaseTaskRunner):
         # we might want to revisit that approach at some other point.
         if return_code == 137:
             self.log.warning("Task failed with return code of 137. This may indicate "
-                              "that it was killed due to excessive memory usage. "
-                              "Please consider optimizing your task or using the "
-                              "resources argument to reserve more memory for your task")
+                             "that it was killed due to excessive memory usage. "
+                             "Please consider optimizing your task or using the "
+                             "resources argument to reserve more memory for your task")
         return return_code
 
     def terminate(self):

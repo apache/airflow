@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -62,10 +62,13 @@ class KerberosUser(models.User, LoggingMixin):
 
         try:
             # this is pykerberos specific, verify = True is needed to prevent KDC spoofing
-            if not kerberos.checkPassword(user_principal, password, service_principal, realm, True):
+            if not kerberos.checkPassword(user_principal,
+                                          password,
+                                          service_principal, realm, True):
                 raise AuthenticationError()
         except kerberos.KrbError as e:
-            logging.error('Password validation for principal %s failed %s', user_principal, e)
+            logging.error(
+                'Password validation for principal %s failed %s', user_principal, e)
             raise AuthenticationError(e)
 
         return

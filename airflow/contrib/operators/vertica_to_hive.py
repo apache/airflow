@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -94,7 +94,9 @@ class VerticaToHiveTransfer(BaseOperator):
     @classmethod
     def type_map(cls, vertica_type):
         # vertica-python datatype.py donot provied the full type mapping access.
-        # Manual hack. Reference: https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
+        # Manual hack.
+        # Reference:
+        # https://github.com/uber/vertica-python/blob/master/vertica_python/vertica/column.py
         d = {
             5: 'BOOLEAN',
             6: 'INT',
@@ -120,7 +122,8 @@ class VerticaToHiveTransfer(BaseOperator):
             for field in cursor.description:
                 col_count += 1
                 col_position = "Column{position}".format(position=col_count)
-                field_dict[col_position if field[0] == '' else field[0]] = self.type_map(field[1])
+                field_dict[col_position if field[0] == '' else field[0]] = \
+                    self.type_map(field[1])
             csv_writer.writerows(cursor.iterate())
             f.flush()
             cursor.close()

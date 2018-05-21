@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -94,7 +94,7 @@ class QuboleHook(BaseHook, LoggingMixin):
                 log = LoggingMixin().log
                 if cmd.status == 'done':
                     log.info('Command ID: %s has been succeeded, hence marking this '
-                                'TI as Success.', cmd_id)
+                             'TI as Success.', cmd_id)
                     ti.state = State.SUCCESS
                 elif cmd.status == 'running':
                     log.info('Cancelling the Qubole Command Id: %s', cmd_id)
@@ -188,10 +188,10 @@ class QuboleHook(BaseHook, LoggingMixin):
         inplace_args = None
         tags = set([self.dag_id, self.task_id, context['run_id']])
 
-        for k,v in self.kwargs.items():
+        for k, v in self.kwargs.items():
             if k in COMMAND_ARGS[cmd_type]:
                 if k in HYPHEN_ARGS:
-                    args.append("--{0}={1}".format(k.replace('_', '-'),v))
+                    args.append("--{0}={1}".format(k.replace('_', '-'), v))
                 elif k in POSITIONAL_ARGS:
                     inplace_args = v
                 elif k == 'tags':
@@ -201,12 +201,12 @@ class QuboleHook(BaseHook, LoggingMixin):
                         for val in v:
                             tags.add(val)
                 else:
-                    args.append("--{0}={1}".format(k,v))
+                    args.append("--{0}={1}".format(k, v))
 
             if k == 'notify' and v is True:
                 args.append("--notify")
 
-        args.append("--tags={0}".format(','.join(filter(None,tags))))
+        args.append("--tags={0}".format(','.join(filter(None, tags))))
 
         if inplace_args is not None:
             args += inplace_args.split(' ')

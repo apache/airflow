@@ -67,8 +67,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         destination_bucket = destination_bucket or source_bucket
         destination_object = destination_object or source_object
-        if (source_bucket == destination_bucket and
-            source_object == destination_object):
+        if source_bucket == destination_bucket and \
+                source_object == destination_object:
+
             raise ValueError(
                 'Either source/destination bucket or source/destination object '
                 'must be different, not both the same: bucket=%s, object=%s' %
@@ -184,10 +185,16 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         """
         service = self.get_conn()
         media = MediaFileUpload(filename, mime_type)
-        response = service \
-            .objects() \
-            .insert(bucket=bucket, name=object, media_body=media) \
-            .execute()
+        try:
+            service \
+                .objects() \
+                .insert(bucket=bucket, name=object, media_body=media) \
+                .execute()
+            return True
+        except errors.HttpError as ex:
+            if ex.resp['status'] == '404':
+                return False
+            raise
 
     # pylint:disable=redefined-builtin
     def exists(self, bucket, object):
@@ -287,7 +294,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type versions: boolean
         :param maxResults: max count of items to return in a single page of responses
         :type maxResults: integer
-        :param prefix: prefix string which filters objects whose name begin with this prefix
+        :param prefix: prefix string which filters objects whose name begin with
+            this prefix
         :type prefix: string
         :param delimiter: filters objects based on the delimiter (for e.g '.csv')
         :type delimiter: string
@@ -339,7 +347,9 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         :type object: string
 
         """
-        self.log.info('Checking the file size of object: %s in bucket: %s', object, bucket)
+        self.log.info('Checking the file size of object: %s in bucket: %s',
+                      object,
+                      bucket)
         service = self.get_conn()
         try:
             response = service.objects().get(
