@@ -4170,10 +4170,10 @@ class DAG(BaseDag, LoggingMixin):
         return qry.scalar()
 
     def test_cycle(self):
-        '''
+        """
         Check to see if there are any cycles in the DAG. Returns False if no cycle found,
         otherwise raises exception.
-        '''
+        """
 
         # default of int is 0 which corresponds to CYCLE_NEW
         visit_map = defaultdict(int)
@@ -4184,9 +4184,9 @@ class DAG(BaseDag, LoggingMixin):
         return False
 
     def _test_cycle_helper(self, visit_map, task_id):
-        '''
+        """
         Checks if a cycle exists from the input task using DFS traversal
-        '''
+        """
 
         # print('Inspecting %s' % task_id)
         if visit_map[task_id] == DagBag.CYCLE_DONE:

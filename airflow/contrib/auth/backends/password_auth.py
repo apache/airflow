@@ -72,27 +72,27 @@ class PasswordUser(models.User):
         return check_password_hash(self._password, plaintext)
 
     def is_active(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_authenticated(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return True
 
     def is_anonymous(self):
-        '''Required by flask_login'''
+        """Required by flask_login"""
         return False
 
     def get_id(self):
-        '''Returns the current user id as required by flask_login'''
+        """Returns the current user id as required by flask_login"""
         return str(self.id)
 
     def data_profiling(self):
-        '''Provides access to data profiling tools'''
+        """Provides access to data profiling tools"""
         return True
 
     def is_superuser(self):
-        '''Access all the things'''
+        """Access all the things"""
         return True
 
 

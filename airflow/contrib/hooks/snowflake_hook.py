@@ -41,10 +41,10 @@ class SnowflakeHook(DbApiHook):
         self.database = kwargs.pop("database", None)
 
     def _get_conn_params(self):
-        '''
+        """
         one method to fetch connection params as a dict
         used in get_uri() and get_connection()
-        '''
+        """
         conn = self.get_connection(self.snowflake_conn_id)
         account = conn.extra_dejson.get('account', None)
         warehouse = conn.extra_dejson.get('warehouse', None)
@@ -61,9 +61,9 @@ class SnowflakeHook(DbApiHook):
         return conn_config
 
     def get_uri(self):
-        '''
+        """
         override DbApiHook get_uri method for get_sqlalchemy_engine()
-        '''
+        """
         conn_config = self._get_conn_params()
         uri = 'snowflake://{user}:{password}@{account}/{database}/'
         uri += '{schema}?warehouse={warehouse}'
@@ -79,12 +79,12 @@ class SnowflakeHook(DbApiHook):
         return conn
 
     def _get_aws_credentials(self):
-        '''
+        """
         returns aws_access_key_id, aws_secret_access_key
         from extra
 
         intended to be used by external import and export statements
-        '''
+        """
         if self.snowflake_conn_id:
             connection_object = self.get_connection(self.snowflake_conn_id)
             if 'aws_secret_access_key' in connection_object.extra_dejson:
