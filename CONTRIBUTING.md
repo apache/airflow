@@ -63,11 +63,19 @@ If you are proposing a feature:
 
 ## Documentation
 
-The latest API documentation is usually available [here](https://airflow.incubator.apache.org/).
-To generate a local version, you need to have installed airflow with
-the `doc` extra. In that case you can generate the doc by running:
+The latest API documentation is usually available
+[here](https://airflow.incubator.apache.org/). To generate a local version,
+you need to have set up an Airflow development environemnt (see below). Also
+install the `doc` extra.
+
+    pip install -e .[doc]
+
+Generate the documentation by running:
 
     cd docs && ./build.sh
+
+Only a subset of the API reference documentation builds. Install additional
+extras to build the full API reference.
 
 ## Development and Testing
 
