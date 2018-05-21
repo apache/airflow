@@ -36,9 +36,9 @@ from .exceptions import AirflowConfigException
 
 # show Airflow's deprecation warnings
 warnings.filterwarnings(
-    action='default', category=DeprecationWarning, module='airflow')
+    action='ignore', category=DeprecationWarning, module='airflow')
 warnings.filterwarnings(
-    action='default', category=PendingDeprecationWarning, module='airflow')
+    action='ignore', category=PendingDeprecationWarning, module='airflow')
 
 
 try:
