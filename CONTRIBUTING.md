@@ -6,7 +6,7 @@ little bit helps, and credit will always be given.
 
 # Table of Contents
   * [TOC](#table-of-contents)
-  * [Types of Contributions](#types-of-contribution)
+  * [Types of Contributions](#types-of-contributions)
       - [Report Bugs](#report-bugs)
       - [Fix Bugs](#fix-bugs)
       - [Implement Features](#implement-features)
@@ -15,7 +15,7 @@ little bit helps, and credit will always be given.
   * [Documentation](#documentation)
   * [Development and Testing](#development-and-testing)
       - [Setting up a development environment](#setting-up-a-development-environment)
-      - [Pull requests guidelines](#pull-requests-guidelines)
+      - [Pull requests guidelines](#pull-request-guidelines)
       - [Testing Locally](#testing-locally)
   * [Changing the Metadata Database](#changing-the-metadata-database)
 
