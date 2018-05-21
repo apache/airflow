@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -91,13 +91,13 @@ class CheckOperator(BaseOperator):
 
 
 def _convert_to_float_if_possible(s):
-    '''
+    """
     A small helper function to convert a string to a numeric value
     if appropriate
 
     :param s: the string to be converted
     :type s: str
-    '''
+    """
     try:
         ret = float(s)
     except (ValueError, TypeError):
