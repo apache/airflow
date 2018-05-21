@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -136,12 +136,16 @@ class JiraTicketSensor(JiraSensor):
                         )
 
         except JIRAError as jira_error:
-            self.log.error("Jira error while checking with expected value: %s", jira_error)
+            self.log.error("Jira error while checking with expected value: %s",
+                           jira_error)
         except Exception as e:
-            self.log.error("Error while checking with expected value %s:", self.expected_value)
+            self.log.error("Error while checking with expected value %s:",
+                           self.expected_value)
             self.log.exception(e)
         if result is True:
-            self.log.info("Issue field %s has expected value %s, returning success", self.field, self.expected_value)
+            self.log.info("Issue field %s has expected value %s, returning success",
+                          self.field, self.expected_value)
         else:
-            self.log.info("Issue field %s don't have expected value %s yet.", self.field, self.expected_value)
+            self.log.info("Issue field %s don't have expected value %s yet.",
+                          self.field, self.expected_value)
         return result

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,9 +37,11 @@ class ECSOperator(BaseOperator):
             http://boto3.readthedocs.org/en/latest/reference/services/ecs.html#ECS.Client.run_task
     :type: overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
-            credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+            credential boto3 strategy will be used
+            (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
-    :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
+    :param region_name: region name to use in AWS Hook.
+        Override the region_name in connection (if provided)
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
     :type: launch_type: str
     """
@@ -66,7 +68,7 @@ class ECSOperator(BaseOperator):
     def execute(self, context):
         self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s',
-            self.task_definition,self.cluster
+            self.task_definition, self.cluster
         )
         self.log.info('ECSOperator overrides: %s', self.overrides)
 
@@ -115,13 +117,16 @@ class ECSOperator(BaseOperator):
         for task in response['tasks']:
             containers = task['containers']
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
-                    raise AirflowException('This task is not in success state {}'.format(task))
+                if container.get('lastStatus') == 'STOPPED' and \
+                        container['exitCode'] != 0:
+                    raise AirflowException(
+                        'This task is not in success state {}'.format(task))
                 elif container.get('lastStatus') == 'PENDING':
                     raise AirflowException('This task is still pending {}'.format(task))
                 elif 'error' in container.get('reason', '').lower():
-                    raise AirflowException('This containers encounter an error during launching : {}'.
-                                           format(container.get('reason', '').lower()))
+                    raise AirflowException(
+                        'This containers encounter an error during launching : {}'.
+                        format(container.get('reason', '').lower()))
 
     def get_hook(self):
         return AwsHook(

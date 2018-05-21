@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,12 +33,16 @@ from airflow.utils.decorators import apply_defaults
 class SqoopOperator(BaseOperator):
     """
     Execute a Sqoop job.
-    Documentation for Apache Sqoop can be found here: https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html.
+    Documentation for Apache Sqoop can be found here:
+        https://sqoop.apache.org/docs/1.4.2/SqoopUserGuide.html.
     """
-    template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir', 'file_type', 'columns', 'split_by',
-                       'where', 'export_dir', 'input_null_string', 'input_null_non_string', 'staging_table',
-                       'enclosed_by', 'escaped_by', 'input_fields_terminated_by', 'input_lines_terminated_by',
-                       'input_optionally_enclosed_by', 'properties', 'extra_import_options', 'driver',
+    template_fields = ('conn_id', 'cmd_type', 'table', 'query', 'target_dir',
+                       'file_type', 'columns', 'split_by',
+                       'where', 'export_dir', 'input_null_string',
+                       'input_null_non_string', 'staging_table',
+                       'enclosed_by', 'escaped_by', 'input_fields_terminated_by',
+                       'input_lines_terminated_by', 'input_optionally_enclosed_by',
+                       'properties', 'extra_import_options', 'driver',
                        'extra_export_options', 'hcatalog_database', 'hcatalog_table',)
     ui_color = '#7D8CA4'
 
@@ -115,7 +119,8 @@ class SqoopOperator(BaseOperator):
         :param relaxed_isolation: use read uncommitted isolation level
         :param hcatalog_database: Specifies the database name for the HCatalog table
         :param hcatalog_table: The argument value for this option is the HCatalog table
-        :param create_hcatalog_table: Have sqoop create the hcatalog table passed in or not
+        :param create_hcatalog_table: Have sqoop create the hcatalog table passed
+            in or not
         :param properties: additional JVM properties passed to sqoop
         :param extra_import_options: Extra import options to pass as dict.
             If a key doesn't have a value, just pass an empty string to it.
@@ -189,7 +194,8 @@ class SqoopOperator(BaseOperator):
                 extra_export_options=self.extra_export_options)
         elif self.cmd_type == 'import':
             # add create hcatalog table to extra import options if option passed
-            # if new params are added to constructor can pass them in here so don't modify sqoop_hook for each param
+            # if new params are added to constructor can pass them in here
+            # so don't modify sqoop_hook for each param
             if self.create_hcatalog_table:
                 self.extra_import_options['create-hcatalog-table'] = ''
 

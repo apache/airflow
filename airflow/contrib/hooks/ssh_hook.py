@@ -10,9 +10,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -54,7 +54,8 @@ class SSHHook(BaseHook, LoggingMixin):
     :type port: int
     :param timeout: timeout for the attempt to connect to the remote_host.
     :type timeout: int
-    :param keepalive_interval: send a keepalive packet to remote host every keepalive_interval seconds
+    :param keepalive_interval: send a keepalive packet to remote host every
+        keepalive_interval seconds
     :type keepalive_interval: int
     """
 

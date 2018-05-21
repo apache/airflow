@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,7 +46,8 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
         connecting to Google cloud storage.
     :type google_cloud_storage_conn_id: string
     :param delegate_to: The account to impersonate, if any.
-        For this to work, the service account making the request must have domain-wide delegation enabled.
+        For this to work, the service account making the request must have
+        domain-wide delegation enabled.
     :type delegate_to: string
     """
     template_fields = ('bucket', 'object', 'filename', 'store_to_xcom_key',)
@@ -84,5 +85,7 @@ class GoogleCloudStorageDownloadOperator(BaseOperator):
             if sys.getsizeof(file_bytes) < 48000:
                 context['ti'].xcom_push(key=self.store_to_xcom_key, value=file_bytes)
             else:
-                raise RuntimeError('The size of the downloaded file is too large to push to XCom!')
+                raise RuntimeError(
+                    'The size of the downloaded file is too large to push to XCom!'
+                )
         self.log.debug(file_bytes)

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -150,8 +150,9 @@ class GHEAuthBackend(object):
                                  get_config_param('allowed_teams').split(',')]
             except ValueError:
                 # this is to deprecate using the string name for a team
-                raise ValueError('it appears that you are using the string name for a team, '
-                                 'please use the id number instead')
+                raise ValueError(
+                    'it appears that you are using the string name for a team, '
+                    'please use the id number instead')
 
         except AirflowConfigException:
             # No allowed teams defined, let anyone in GHE in.
@@ -175,8 +176,8 @@ class GHEAuthBackend(object):
                 return True
 
         log.debug('Denying access for user "%s", not a member of "%s"',
-                   username,
-                   str(allowed_teams))
+                  username,
+                  str(allowed_teams))
 
         return False
 
@@ -229,6 +230,7 @@ class GHEAuthBackend(object):
         session.commit()
 
         return redirect(next_url)
+
 
 login_manager = GHEAuthBackend()
 

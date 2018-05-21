@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -83,7 +83,8 @@ def group_contains_user(conn, search_base, group_filter, user_name_attr, usernam
         log.warning("Unable to find group for %s %s", search_base, search_filter)
     else:
         for entry in conn.entries:
-            if username.lower() in map(lambda attr: attr.lower(), getattr(entry, user_name_attr).values):
+            if username.lower() in map(lambda attr: attr.lower(),
+                                       getattr(entry, user_name_attr).values):
                 return True
 
     return False
@@ -191,12 +192,6 @@ class LdapUser(models.User):
             username
         )
 
-        search_scopes = {
-            "LEVEL": LEVEL,
-            "SUBTREE": SUBTREE,
-            "BASE": BASE
-        }
-
         search_scope = LEVEL
         if configuration.conf.has_option("ldap", "search_scope"):
             if configuration.conf.get("ldap", "search_scope") == "SUBTREE":
@@ -226,12 +221,16 @@ class LdapUser(models.User):
 
         try:
             conn = get_ldap_connection(entry['dn'], password)
-        except KeyError as e:
+        except KeyError:
             log.error("""
-            Unable to parse LDAP structure. If you're using Active Directory and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
+            Unable to parse LDAP structure. If you're using Active Directory
+            and not specifying an OU, you must set search_scope=SUBTREE in airflow.cfg.
             %s
             """ % traceback.format_exc())
-            raise LdapException("Could not parse LDAP structure. Try setting search_scope in airflow.cfg, or check logs")
+            raise LdapException(
+                "Could not parse LDAP structure. "
+                "Try setting search_scope in airflow.cfg, or check logs"
+            )
 
         if not conn:
             log.info("Password incorrect for user %s", username)
@@ -271,6 +270,7 @@ def load_user(userid, session=None):
 
     user = session.query(models.User).filter(models.User.id == int(userid)).first()
     return LdapUser(user)
+
 
 @provide_session
 def login(self, request, session=None):

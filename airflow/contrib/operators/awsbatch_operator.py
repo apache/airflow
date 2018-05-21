@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,9 +46,11 @@ class AWSBatchOperator(BaseOperator):
     :param max_retries: exponential backoff retries while waiter is not merged
     :type max_retries: int
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
-            credential boto3 strategy will be used (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+            credential boto3 strategy will be used
+            (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :type aws_conn_id: str
-    :param region_name: region name to use in AWS Hook. Override the region_name in connection (if provided)
+    :param region_name: region name to use in AWS Hook.
+        Override the region_name in connection (if provided)
     """
 
     ui_color = '#c3dae0'
@@ -152,9 +154,12 @@ class AWSBatchOperator(BaseOperator):
                     if (job['status'] == 'FAILED' or
                             container['container']['exitCode'] != 0):
                         print("@@@@")
-                        raise AirflowException('This containers encounter an error during execution {}'.format(job))
+                        raise AirflowException(
+                            'This containers encounter an error during '
+                            'execution {}'.format(job))
             elif job['status'] is not 'SUCCEEDED':
-                raise AirflowException('This task is still pending {}'.format(job['status']))
+                raise AirflowException(
+                    'This task is still pending {}'.format(job['status']))
 
     def get_hook(self):
         return AwsHook(

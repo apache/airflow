@@ -16,6 +16,7 @@
 # under the License.
 from airflow.configuration import conf
 
+
 def _load_kube_config(in_cluster):
     from kubernetes import config, client
     if in_cluster:

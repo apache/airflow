@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-
 from airflow.contrib.kubernetes.pod import Pod
 import uuid
 from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa

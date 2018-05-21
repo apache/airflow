@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -118,8 +118,9 @@ class GoogleAuthBackend(object):
             state=request.args.get('next') or request.referrer or None)
 
     def get_google_user_profile_info(self, google_token):
-        resp = self.google_oauth.get('https://www.googleapis.com/oauth2/v1/userinfo',
-                                    token=(google_token, ''))
+        resp = self.google_oauth.get(
+            'https://www.googleapis.com/oauth2/v1/userinfo',
+            token=(google_token, ''))
 
         if not resp or resp.status != 200:
             raise AuthenticationError(
@@ -183,6 +184,7 @@ class GoogleAuthBackend(object):
         session.commit()
 
         return redirect(next_url)
+
 
 login_manager = GoogleAuthBackend()
 

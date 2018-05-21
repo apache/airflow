@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -35,8 +35,9 @@ class DatastoreImportOperator(BaseOperator):
     :param namespace: optional namespace of the backup metadata file in
         the specified Cloud Storage bucket.
     :type namespace: str
-    :param entity_filter: description of what data from the project is included in the export,
-        refer to https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
+    :param entity_filter: description of what data from the project is included in
+        the export, refer to
+        https://cloud.google.com/datastore/docs/reference/rest/Shared.Types/EntityFilter
     :type entity_filter: dict
     :param labels: client-assigned labels for cloud storage
     :type labels: dict

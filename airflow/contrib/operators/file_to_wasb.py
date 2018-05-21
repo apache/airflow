@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -57,6 +57,8 @@ class FileToWasbOperator(BaseOperator):
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(
-            'Uploading {self.file_path} to wasb://{self.container_name} as {self.blob_name}'.format(**locals())
+            'Uploading {self.file_path} to wasb://{self.container_name} '
+            'as {self.blob_name}'.format(**locals())
         )
-        hook.load_file(self.file_path, self.container_name, self.blob_name, **self.load_options)
+        hook.load_file(self.file_path, self.container_name,
+                       self.blob_name, **self.load_options)
