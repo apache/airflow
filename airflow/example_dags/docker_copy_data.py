@@ -16,12 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """
 This sample "listen to directory". move the new file and print it,
 using docker-containers.
-The following operators are being used: DockerOperator, BashOperator &
-ShortCircuitOperator.
-TODO: Review the workflow, change it accordingly to to your environment & enable the code.
+The following operators are being used: DockerOperator,
+BashOperator & ShortCircuitOperator.
+TODO: Review the workflow, change it accordingly to
+      your environment & enable the code.
 """
 
 # from __future__ import print_function
@@ -45,7 +47,8 @@ TODO: Review the workflow, change it accordingly to to your environment & enable
 # }
 #
 # dag = DAG(
-#         'docker_sample_copy_data', default_args=default_args, schedule_interval=timedelta(minutes=10))
+#         'docker_sample_copy_data', default_args=
+#           default_args, schedule_interval=timedelta(minutes=10))
 #
 # locate_file_cmd = """
 #     sleep 10

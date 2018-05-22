@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import print_function
 from builtins import range
 import airflow
@@ -44,6 +45,7 @@ def print_context(ds, **kwargs):
     pprint(kwargs)
     print(ds)
     return 'Whatever you return gets printed in the logs'
+
 
 run_this = PythonOperator(
     task_id='print_the_context',

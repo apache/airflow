@@ -7,24 +7,25 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 import sys
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow import configuration
 from airflow.exceptions import AirflowException
-from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
 DEFAULT_EXECUTOR = None
+
 
 def _integrate_plugins():
     """Integrate plugins to the context."""
@@ -32,6 +33,7 @@ def _integrate_plugins():
     for executors_module in executors_modules:
         sys.modules[executors_module.__name__] = executors_module
         globals()[executors_module._name] = executors_module
+
 
 def GetDefaultExecutor():
     """Creates a new instance of the configured executor if none exists and returns it"""
@@ -59,10 +61,10 @@ class Executors:
     KubernetesExecutor = "KubernetesExecutor"
 
 
-
 def _get_executor(executor_name):
     """
-    Creates a new instance of the named executor. In case the executor name is not know in airflow,
+    Creates a new instance of the named executor.
+    In case the executor name is not know in airflow,
     look for it in the plugins
     """
     if executor_name == Executors.LocalExecutor:
@@ -87,11 +89,10 @@ def _get_executor(executor_name):
         executor_path = executor_name.split('.')
         if len(executor_path) != 2:
             raise AirflowException(
-                "Executor {0} not supported: please specify in format plugin_module.executor".format(executor_name))
+                "Executor {0} not supported: "
+                "please specify in format plugin_module.executor".format(executor_name))
 
         if executor_path[0] in globals():
             return globals()[executor_path[0]].__dict__[executor_path[1]]()
         else:
             raise AirflowException("Executor {0} not supported.".format(executor_name))
-
-
