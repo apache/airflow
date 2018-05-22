@@ -1494,6 +1494,9 @@ class TaskInstance(Base):
         prev_execution_date = task.dag.previous_schedule(self.execution_date)
         next_execution_date = task.dag.following_schedule(self.execution_date)
 
+        next_ds = next_execution_date.isoformat()[:10]
+        prev_ds = prev_execution_date.isoformat()[:10]
+
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
         yesterday_ds_nodash = yesterday_ds.replace('-', '')
@@ -1551,6 +1554,8 @@ class TaskInstance(Base):
         return {
             'dag': task.dag,
             'ds': ds,
+            'next_ds': next_ds,
+            'prev_ds': prev_ds,
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
