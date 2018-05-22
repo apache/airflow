@@ -21,6 +21,7 @@ import sys
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow import configuration
 from airflow.exceptions import AirflowException
+from airflow.executors.base_executor import BaseExecutor # noqa
 from airflow.executors.local_executor import LocalExecutor
 from airflow.executors.sequential_executor import SequentialExecutor
 
