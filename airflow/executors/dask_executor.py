@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -59,7 +59,8 @@ class DaskExecutor(BaseExecutor):
     def execute_async(self, key, command, queue=None, executor_config=None):
         if queue is not None:
             warnings.warn(
-                'DaskExecutor does not support queues. All tasks will be run in the same cluster'
+                'DaskExecutor does not support queues. '
+                'All tasks will be run in the same cluster'
             )
 
         def airflow_run():
