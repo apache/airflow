@@ -4473,8 +4473,10 @@ class DAG(BaseDag, LoggingMixin):
             )
             return
 
-        # For each task in this DAG, find the max execution date among
-        # that task's instances.
+        # For each task in this DAG, find the max successful execution date
+        # among that task's instances. This includes either "success" or
+        # "skipped" TIs; if a TI was skipped, it's treated as an intentional
+        # outcome.
         TI = TaskInstance
         sq = (
             session
@@ -4483,7 +4485,7 @@ class DAG(BaseDag, LoggingMixin):
                 func.max(TI.execution_date).label('max_ti'))
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
             .filter(TI.dag_id == self.dag_id)
-            .filter(TI.state == State.SUCCESS)
+            .filter(TI.state in (State.SUCCESS, State.SKIPPED))
             .filter(TI.task_id.in_(self.task_ids))
             .group_by(TI.task_id).subquery('sq')
         )
