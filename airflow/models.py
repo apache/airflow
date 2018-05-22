@@ -2594,6 +2594,22 @@ class BaseOperator(LoggingMixin):
         elif expected_finish:
             self.expected_finish = expected_finish
 
+        # Warn the user if they've set any non-sensical combinations of SLAs
+        if expected_start and expected_finish \
+           and expected_start >= expected_finish:
+            self.log.warning(
+                "Task %s has an expected start >= expected finish.",
+                self
+            )
+
+            if expected_duration \
+               and (expected_start + expected_duration) >= expected_finish:
+                self.log.warning(
+                    "Task %s has an expected start + expected duration "
+                    ">= expected finish.",
+                    self
+                )
+
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
