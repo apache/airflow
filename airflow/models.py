@@ -2579,7 +2579,7 @@ class BaseOperator(LoggingMixin):
         if sla and expected_finish:
             self.log.warning(
                 "Both sla and expected_finish provided as task "
-                "parameters to %s; using expected_duration and ignoring "
+                "parameters to %s; using expected_finish and ignoring "
                 "sla.",
                 self
             )
@@ -2587,7 +2587,7 @@ class BaseOperator(LoggingMixin):
         elif sla:
             self.log.warning(
                 "sla is deprecated as a task parameter for %s; use "
-                "expected_duration instead.",
+                "expected_finish instead.",
                 self
             )
             self.expected_finish = sla
