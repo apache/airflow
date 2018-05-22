@@ -2364,18 +2364,54 @@ class BaseOperator(LoggingMixin):
     :param pool: the slot pool this task should run in, slot pools are a
         way to limit concurrency for certain tasks
     :type pool: str
-    :param sla: time by which the job is expected to succeed. Note that
-        this represents the ``timedelta`` after the period is closed. For
-        example if you set an SLA of 1 hour, the scheduler would send an email
-        soon after 1:00AM on the ``2016-01-02`` if the ``2016-01-01`` instance
-        has not succeeded yet.
-        The scheduler pays special attention for jobs with an SLA and
-        sends alert
-        emails for sla misses. SLA misses are also recorded in the database
-        for future reference. All tasks that share the same SLA time
-        get bundled in a single email, sent soon after that time. SLA
-        notification are sent once and only once for each task instance.
+    :param sla: Deprecated in favor of ``expected_finish``.
     :type sla: datetime.timedelta
+    :param expected_duration: time by which the task is expected to complete,
+        provided as a ``timedelta`` relative to the actual start time of
+        the task instance. This expected duration is not reset by task retries.
+
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_start`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_duration: datetime.timedelta
+    :param expected_start: time by which the task is expected to start,
+        provided as a ``timedelta`` relative to the scheduled start time of
+        this task's DAG. For instance, if you set an ``expected_start`` of
+        ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
+        midnight UTC schedule, any unscheduled instances would be marked as
+        missing their ``expected_start`` SLA shortly after 1 AM UTC.
+
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_start`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_start: datetime.timedelta
+    :param expected_finish: time by which the task is expected to finish,
+        provided as a ``timedelta`` relative to the scheduled start time of
+        this task's DAG. For instance, if you set an ``expected_finish`` of
+        ``timedelta(hours=1)`` on a task inside of a DAG that runs on a
+        midnight UTC schedule, any unscheduled or still-executing task
+        instances would be marked as missing their ``expected_finish`` SLA
+        shortly after 1 AM UTC.
+
+        SLA misses are stored in the database, and then SLA miss callbacks
+        are triggered. The default SLA miss callback is to email task owners.
+
+        Note that SLA parameters do not influence the scheduler, so you should
+        set appropriate SLA parameters given your DAG's schedule. For example,
+        setting an ``expected_finish`` of ``timedelta(hours=2)`` on a task that
+        depends on a ``TimeDeltaSensor`` with ``timedelta(hours=3)`` would be
+        expected to always cause an SLA miss.
+    :type expected_finish: datetime.timedelta
     :param execution_timeout: max time allowed for the execution of
         this task instance, if it goes beyond it will raise and fail.
     :type execution_timeout: datetime.timedelta
@@ -2467,6 +2503,9 @@ class BaseOperator(LoggingMixin):
             queue=configuration.conf.get('celery', 'default_queue'),
             pool=None,
             sla=None,
+            expected_duration=None,
+            expected_start=None,
+            expected_finish=None,
             execution_timeout=None,
             on_failure_callback=None,
             on_success_callback=None,
@@ -2533,7 +2572,28 @@ class BaseOperator(LoggingMixin):
         self.retries = retries
         self.queue = queue
         self.pool = pool
-        self.sla = sla
+
+        self.expected_duration = expected_duration
+        self.expected_start = expected_start
+
+        if sla and expected_finish:
+            self.log.warning(
+                "Both sla and expected_finish provided as task "
+                "parameters to %s; using expected_duration and ignoring "
+                "sla.",
+                self
+            )
+            self.expected_finish = expected_finish
+        elif sla:
+            self.log.warning(
+                "sla is deprecated as a task parameter for %s; use "
+                "expected_duration instead.",
+                self
+            )
+            self.expected_finish = sla
+        elif expected_finish:
+            self.expected_finish = expected_finish
+
         self.execution_timeout = execution_timeout
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
