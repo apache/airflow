@@ -22,7 +22,6 @@ import datetime
 import itertools
 import pandas as pd
 import random
-import re
 
 import mock
 import unittest
@@ -34,6 +33,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow import DAG, configuration, operators
 from airflow.utils import timezone
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
 configuration.load_test_config()
@@ -188,12 +188,7 @@ class TestHiveCliHook(unittest.TestCase):
             STORED AS textfile
             ;
         """
-
-        def _trim(s):
-            return re.sub("\s+", " ", s.strip())
-
-        self.assertEqual(_trim(mock_run_cli.call_args_list[0][0][0]),
-                         _trim(query))
+        assertEqualIgnoreMultipleSpaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
 class TestHiveMetastoreHook(HiveEnvironmentTest):

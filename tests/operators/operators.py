@@ -23,9 +23,11 @@ from airflow import DAG, configuration, operators
 from airflow.utils.tests import skipUnlessImported
 from airflow.utils import timezone
 
-configuration.load_test_config()
-
+import os
+import mock
 import unittest
+
+configuration.load_test_config()
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()
@@ -51,8 +53,8 @@ class MySqlTest(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        import airflow.operators.mysql_operator
-        t = operators.mysql_operator.MySqlOperator(
+        from airflow.operators.mysql_operator import MySqlOperator
+        t = MySqlOperator(
             task_id='basic_mysql',
             sql=sql,
             mysql_conn_id='airflow_db',
@@ -64,8 +66,8 @@ class MySqlTest(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        import airflow.operators.mysql_operator
-        t = operators.mysql_operator.MySqlOperator(
+        from airflow.operators.mysql_operator import MySqlOperator
+        t = MySqlOperator(
             task_id='mysql_operator_test_multi',
             mysql_conn_id='airflow_db',
             sql=sql, dag=self.dag)
@@ -93,10 +95,40 @@ class MySqlTest(unittest.TestCase):
                 results = tuple(result[0] for result in c.fetchall())
                 self.assertEqual(sorted(results), sorted(records))
 
+    def test_mysql_hook_test_bulk_dump(self):
+        from airflow.hooks.mysql_hook import MySqlHook
+        hook = MySqlHook('airflow_ci')
+        priv = hook.get_first("SELECT @@global.secure_file_priv")
+        if priv and priv[0]:
+            # Confirm that no error occurs
+            hook.bulk_dump("INFORMATION_SCHEMA.TABLES", os.path.join(priv[0], "TABLES"))
+        else:
+            self.skipTest("Skip test_mysql_hook_test_bulk_load "
+                          "since file output is not permitted")
+
+    @mock.patch('airflow.hooks.mysql_hook.MySqlHook.get_conn')
+    def test_mysql_hook_test_bulk_dump_mock(self, mock_get_conn):
+        mock_execute = mock.MagicMock()
+        mock_get_conn.return_value.cursor.return_value.execute = mock_execute
+
+        from airflow.hooks.mysql_hook import MySqlHook
+        hook = MySqlHook('airflow_ci')
+        table = "INFORMATION_SCHEMA.TABLES"
+        tmp_file = "/path/to/output/file"
+        hook.bulk_dump(table, tmp_file)
+
+        from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
+        mock_execute.assert_called_once()
+        query = """
+            SELECT * INTO OUTFILE '{tmp_file}'
+            FROM {table}
+        """.format(tmp_file=tmp_file, table=table)
+        assertEqualIgnoreMultipleSpaces(self, mock_execute.call_args[0][0], query)
+
     def test_mysql_to_mysql(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        import airflow.operators.generic_transfer
-        t = operators.generic_transfer.GenericTransfer(
+        from airflow.operators.generic_transfer import GenericTransfer
+        t = GenericTransfer(
             task_id='test_m2m',
             preoperator=[
                 "DROP TABLE IF EXISTS test_mysql_to_mysql",
@@ -114,10 +146,10 @@ class MySqlTest(unittest.TestCase):
         """
         Verifies option to overwrite connection schema
         """
-        import airflow.operators.mysql_operator
+        from airflow.operators.mysql_operator import MySqlOperator
 
         sql = "SELECT 1;"
-        t = operators.mysql_operator.MySqlOperator(
+        t = MySqlOperator(
             task_id='test_mysql_operator_test_schema_overwrite',
             sql=sql,
             dag=self.dag,
@@ -146,9 +178,8 @@ class PostgresTest(unittest.TestCase):
             dummy VARCHAR(50)
         );
         """
-        import airflow.operators.postgres_operator
-        t = operators.postgres_operator.PostgresOperator(
-            task_id='basic_postgres', sql=sql, dag=self.dag)
+        from airflow.operators.postgres_operator import PostgresOperator
+        t = PostgresOperator(task_id='basic_postgres', sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
         autocommitTask = operators.postgres_operator.PostgresOperator(
@@ -166,15 +197,15 @@ class PostgresTest(unittest.TestCase):
             "TRUNCATE TABLE test_airflow",
             "INSERT INTO test_airflow VALUES ('X')",
         ]
-        import airflow.operators.postgres_operator
-        t = operators.postgres_operator.PostgresOperator(
+        from airflow.operators.postgres_operator import PostgresOperator
+        t = PostgresOperator(
             task_id='postgres_operator_test_multi', sql=sql, dag=self.dag)
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_postgres_to_postgres(self):
         sql = "SELECT * FROM INFORMATION_SCHEMA.TABLES LIMIT 100;"
-        import airflow.operators.generic_transfer
-        t = operators.generic_transfer.GenericTransfer(
+        from airflow.operators.generic_transfer import GenericTransfer
+        t = GenericTransfer(
             task_id='test_p2p',
             preoperator=[
                 "DROP TABLE IF EXISTS test_postgres_to_postgres",
@@ -192,10 +223,10 @@ class PostgresTest(unittest.TestCase):
         """
         Verifies the VACUUM operation runs well with the PostgresOperator
         """
-        import airflow.operators.postgres_operator
+        from airflow.operators.postgres_operator import PostgresOperator
 
         sql = "VACUUM ANALYZE;"
-        t = operators.postgres_operator.PostgresOperator(
+        t = PostgresOperator(
             task_id='postgres_operator_test_vacuum',
             sql=sql,
             dag=self.dag,
@@ -206,10 +237,10 @@ class PostgresTest(unittest.TestCase):
         """
         Verifies option to overwrite connection schema
         """
-        import airflow.operators.postgres_operator
+        from airflow.operators.postgres_operator import PostgresOperator
 
         sql = "SELECT 1;"
-        t = operators.postgres_operator.PostgresOperator(
+        t = PostgresOperator(
             task_id='postgres_operator_test_schema_overwrite',
             sql=sql,
             dag=self.dag,
@@ -242,7 +273,6 @@ class TransferTests(unittest.TestCase):
             end_date=timezone.utcnow())
 
     def test_mysql_to_hive(self):
-        # import airflow.operators
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
@@ -273,7 +303,6 @@ class TransferTests(unittest.TestCase):
         t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_mysql_to_hive_tblproperties(self):
-        # import airflow.operators
         from airflow.operators.mysql_to_hive import MySqlToHiveTransfer
         sql = "SELECT * FROM baby_names LIMIT 1000;"
         t = MySqlToHiveTransfer(
