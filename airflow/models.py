@@ -4552,65 +4552,69 @@ class DAG(BaseDag, LoggingMixin):
     @provide_session
     def record_sla_misses(self, session=None):
         """
-        Create SLAMiss records for tasks in this DAG that have an SLA defined,
-        but are missing task instances for expected execution dates. In this
-        case, "missing" means the task instance either doesn't exist, or exists
-        in any state other than "success" or "skipped".
+        Create SLAMiss records for task instances associated with tasks in this
+        DAG. This involves walking forward to address potentially unscheduled
+        but expected executions, since new DAG runs may not get created if
+        there are concurrency restrictions on the scheduler. We still want to
+        receive SLA notifications in that scenario!
         """
-        if not any([ti.sla for ti in self.tasks]):
-            self.log.info(
-                "Skipping SLA check for %s because no tasks in DAG have SLAs",
-                self
-            )
-            return
-
-        # For each task in this DAG, find the max successful execution date
-        # among that task's instances. This includes either "success" or
-        # "skipped" TIs; if a TI was skipped, it's treated as an intentional
-        # outcome.
         TI = TaskInstance
+        DR = DagRun
+        from airflow.jobs import BackfillJob
+
+        # For each task in this DAG, find the task ID and max execution date
+        # among that task's instances which were either "success" or "skipped".
+        # That is, if a TI was skipped, it's treated as intentional for SLA
+        # purposes. Likewise, we exclude TIs inside of backfill DagRuns, since
+        # they should never contribute to SLA calculations.
         sq = (
             session
             .query(
                 TI.task_id,
                 func.max(TI.execution_date).label('max_ti'))
             .with_hint(TI, 'USE INDEX (PRIMARY)', dialect_name='mysql')
+            .outerjoin(DR,
+                       and_(DR.dag_id == TI.dag_id,
+                            DR.execution_date == TI.execution_date))
+            .filter(or_(DR.run_id == None,
+                        not_(DR.run_id.like(BackfillJob.ID_PREFIX + '%'))))
             .filter(TI.dag_id == self.dag_id)
-            .filter(TI.state in (State.SUCCESS, State.SKIPPED))
+            .filter(TI.state.in_(State.SUCCESS, State.SKIPPED))
             .filter(TI.task_id.in_(self.task_ids))
             .group_by(TI.task_id).subquery('sq')
         )
 
-        # Find the task instances in this DAG that have that max date
+        # Return entire rows for these max-execution-date task instances
         max_tis = session.query(TI).filter(
             TI.dag_id == self.dag_id,
             TI.task_id == sq.c.task_id,
             TI.execution_date == sq.c.max_ti,
         ).all()
 
-        # For each max-execution-date task instance, create an SLAMiss for each
-        # execution date where that task
+        # Snapshot the time to check SLAs against.
         ts = timezone.utcnow()
+
+        # For each max-execution-date task instance, determine whether it
+        # missed any SLAs. Then, begin to walk forward in time, into expected
+        # DAG executions that "should have" happened by now but may not have
+        # been scheduled yet. For each hypothetical task - up until that task's
+        # `end_date` where applicable - determine whether it would be missing
+        # SLAs if it existed.
         for ti in max_tis:
-            task = self.get_task(ti.task_id)
-            exc_date = ti.execution_date
-            if task.sla:
-                # Start with the next execution date
-                next_exc_date = self.following_schedule(exc_date)
+            # Ignore tasks that don't have SLAs.
+            if not ti.task.has_slas():
+                continue
 
-                while next_exc_date < timezone.utcnow():
-                    following_schedule = self.following_schedule(next_exc_date)
-                    if following_schedule + task.sla < timezone.utcnow():
-                        session.merge(SlaMiss(
-                            task_id=ti.task_id,
-                            dag_id=ti.dag_id,
-                            execution_date=next_exc_date,
-                            timestamp=ts))
+            # We can use skipped tasks to determine the "last success" to start
+            # looking from, but we shouldn't ever consider SLAs for them.
+            if ti.state != State.SKIPPED:
+                create_sla_misses(ti, ts, session)
 
-                    # Increment by one execution date
-                    next_exc_date = self.following_schedule(next_exc_date)
+            # Look into the future for potential TIs that may or may not exist
+            for maybe_ti in get_task_instances_between(ti, ts):
+                create_sla_misses(maybe_ti, ts, session)
 
-        # Save the created SlaMisses
+        # Save any SlaMisses that were created in `create_sla_misses()`
         session.commit()
 
     @provide_session
