@@ -96,7 +96,7 @@ from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
 from airflow.utils.sla import (
-    get_task_instances_between, create_sla_misses)
+    get_task_instances_between, create_sla_misses, send_sla_miss_email)
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.timeout import timeout
@@ -4642,89 +4642,36 @@ class DAG(BaseDag, LoggingMixin):
                           "notifications to send!")
             return
 
-        TI = TaskInstance
+        # TODO: Get/create TIs matching the SLA misses.
+        tis = None
 
-        sla_miss_dates = [sla_miss.execution_date for sla_miss in sla_misses]
-        qry = (
-            session
-            .query(TI)
-            .filter(TI.state != State.SUCCESS)
-            .filter(TI.execution_date.in_(sla_miss_dates))
-            .filter(TI.dag_id == self.dag_id)
-            .all()
-        )
-        blocking_tis = []
-        for ti in qry:
-            if ti.task_id in self.task_ids:
-                ti.task = self.get_task(ti.task_id)
-                blocking_tis.append(ti)
+        # Retrieve the context for this TI, but patch in the SLA miss object.
+        for ti, sla_miss in tis:
+            notification_sent = False
+            # If no callback exists, we want to update the SlaMiss, but don't
+            # want to notify.
+            if not ti.task.sla_miss_callback:
+                notification_sent = True
             else:
-                session.delete(ti)
-                session.commit()
+                self.log.info("Triggering callback for SLA miss %s:", sla_miss)
+                try:
+                    context = ti.get_template_context()
+                    context["sla_miss"] = sla_miss
+                    ti.task.sla_miss_callback(context)
+                    notification_sent = True
+                except Exception:
+                    self.log.exception(
+                        "Could not call sla_miss_callback for DAG %s",
+                        self.dag_id
+                    )
 
-        task_list = "\n".join([
-            sla.task_id + ' on ' + sla.execution_date.isoformat()
-            for sla in sla_misses])
-        blocking_task_list = "\n".join([
-            ti.task_id + ' on ' + ti.execution_date.isoformat()
-            for ti in blocking_tis])
+            # If we sent any notification, update the sla_miss table
+            if notification_sent:
+                sla_miss.notification_sent = True
+                session.merge(sla_miss)
 
-        # Track whether email or any alert notification sent
-        # We consider email or the alert callback as notifications
-        email_sent = False
-        notification_sent = False
-        if self.sla_miss_callback:
-            # Execute the alert callback
-            self.log.info(' --------------> ABOUT TO CALL SLA MISS CALL BACK ')
-            try:
-                self.sla_miss_callback(self, task_list, blocking_task_list,
-                                       sla_misses, blocking_tis)
-                notification_sent = True
-            except Exception:
-                self.log.exception("Could not call sla_miss_callback for DAG %s",
-                                   self.dag_id)
-
-        # If we sent any notification, update the sla_miss table
-        if notification_sent:
-            for sla in sla_misses:
-                if email_sent:
-                    sla.email_sent = True
-                sla.notification_sent = True
-                session.merge(sla)
+        # Save the updated SlaMiss objects.
         session.commit()
-
-    def send_sla_miss_email(self, task_list, blocking_task_list, slas, blocking_tis):
-        """
-        Send an SLA miss email.
-        """
-
-        email_content = """\
-        Here's a list of tasks that missed their SLAs:
-        <pre><code>{task_list}\n<code></pre>
-        Blocking tasks:
-        <pre><code>{blocking_task_list}\n{bug}<code></pre>
-        """.format(bug=asciiart.bug, **locals())
-        emails = []
-        for t in self.tasks:
-            if t.email:
-                if isinstance(t.email, basestring):
-                    l = [t.email]
-                elif isinstance(t.email, (list, tuple)):
-                    l = t.email
-                for email in l:
-                    if email not in emails:
-                        emails.append(email)
-        if emails and len(slas):
-            try:
-                send_email(
-                    emails,
-                    "[airflow] SLA miss on DAG=" + self.dag_id,
-                    email_content)
-                email_sent = True
-                notification_sent = True
-            except Exception:
-                self.log.exception("Could not send SLA Miss email notification for"
-                                   " DAG %s", self.dag_id)
 
 
 class Chart(Base):
