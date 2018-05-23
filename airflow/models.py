@@ -2429,6 +2429,15 @@ class BaseOperator(LoggingMixin):
     :param on_success_callback: much like the ``on_failure_callback`` except
         that it is executed when the task succeeds.
     :type on_success_callback: callable
+    :param sla_miss_callback: a function to be called when a task instance
+        misses an SLA. The function receives the same context dictionary as the
+        other callback functions, but with an additional ``sla_miss` key
+        referencing the triggering ``SLAMiss`` object. A task can have this
+        callback triggered once per missed SLA type, so where relevant,
+        callbacks should inspect the ``SLAMiss`` object to determine which SLA
+        was missed. The current SLA parameters are ``expected_duration``,
+        ``expected_start``, and ``expected_finish``.
+    :type sla_miss_callback: callable
     :param trigger_rule: defines the rule by which dependencies are applied
         for the task to get triggered. Options are:
         ``{ all_success | all_failed | all_done | one_success |
@@ -2517,6 +2526,7 @@ class BaseOperator(LoggingMixin):
             on_failure_callback=None,
             on_success_callback=None,
             on_retry_callback=None,
+            sla_miss_callback=send_sla_miss_email,
             trigger_rule=TriggerRule.ALL_SUCCESS,
             resources=None,
             run_as_user=None,
@@ -2621,6 +2631,7 @@ class BaseOperator(LoggingMixin):
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
         self.on_retry_callback = on_retry_callback
+        self.sla_miss_callback = sla_miss_callback
         if isinstance(retry_delay, timedelta):
             self.retry_delay = retry_delay
         else:
@@ -2696,6 +2707,7 @@ class BaseOperator(LoggingMixin):
             'on_failure_callback',
             'on_success_callback',
             'on_retry_callback',
+            'sla_miss_callback',
         }
 
     def __eq__(self, other):
@@ -3375,7 +3387,6 @@ class DAG(BaseDag, LoggingMixin):
             max_active_runs=configuration.conf.getint(
                 'core', 'max_active_runs_per_dag'),
             dagrun_timeout=None,
-            sla_miss_callback=None,
             default_view=configuration.conf.get('webserver', 'dag_default_view').lower(),
             orientation=configuration.conf.get('webserver', 'dag_orientation'),
             catchup=configuration.conf.getboolean('scheduler', 'catchup_by_default'),
@@ -3445,7 +3456,6 @@ class DAG(BaseDag, LoggingMixin):
         self.safe_dag_id = dag_id.replace('.', '__dot__')
         self.max_active_runs = max_active_runs
         self.dagrun_timeout = dagrun_timeout
-        self.sla_miss_callback = sla_miss_callback
         self.default_view = default_view
         self.orientation = orientation
         self.catchup = catchup
