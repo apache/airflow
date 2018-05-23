@@ -1834,7 +1834,7 @@ class BackfillJob(BaseJob):
                     state=State.RUNNING,
                     external_trigger=False,
                     session=session,
-                    conf=self.conf
+                    conf=self.conf,
                 )
             else:
                 run = run[0]

@@ -3400,7 +3400,8 @@ class DAG(BaseDag, LoggingMixin):
             ignore_task_deps=False,
             ignore_first_depends_on_past=False,
             pool=None,
-            conf=None):
+            conf=None,
+    ):
         """
         Runs the DAG.
         """
