@@ -95,6 +95,8 @@ from airflow.utils.email import send_email
 from airflow.utils.helpers import (
     as_tuple, is_container, validate_key, pprinttable)
 from airflow.utils.operator_resources import Resources
+from airflow.utils.sla import (
+    get_task_instances_between, create_sla_misses)
 from airflow.utils.state import State
 from airflow.utils.sqlalchemy import UtcDateTime
 from airflow.utils.timeout import timeout
