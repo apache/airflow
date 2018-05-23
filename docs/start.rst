@@ -51,4 +51,4 @@ run the commands below.
 
 What's Next?
 ''''''''''''
-From this point, you can head to the :doc:`tutorial` section for further examples or the :doc:`configuration` section if you're ready to get your hands dirty.
+From this point, you can head to the :doc:`tutorial` section for further examples or the :doc:`howto/index` section if you're ready to get your hands dirty.

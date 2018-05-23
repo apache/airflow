@@ -70,7 +70,7 @@ Azure: Microsoft Azure
 ----------------------
 
 Airflow has limited support for Microsoft Azure: interfaces exist only for Azure Blob
-Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and 
+Storage and Azure Data Lake. Hook, Sensor and Operator for Blob Storage and
 Azure Data Lake Hook are in contrib section.
 
 Azure Blob Storage
@@ -118,34 +118,7 @@ Logging
 '''''''
 
 Airflow can be configured to read and write task logs in Azure Blob Storage.
-Follow the steps below to enable Azure Blob Storage logging.
-
-#. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
-#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
-#. Customize the following portions of the template:
-
-    .. code-block:: bash
-
-        # wasb buckets should start with "wasb" just to help Airflow select correct handler
-        REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
-
-        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
-        LOGGING_CONFIG = ...
-
-
-#. Make sure a Azure Blob Storage (Wasb) connection hook has been defined in Airflow. The hook should have read and write access to the Azure Blob Storage bucket defined above in ``REMOTE_BASE_LOG_FOLDER``.
-
-#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
-
-    .. code-block:: bash
-
-        remote_logging = True
-        logging_config_class = log_config.LOGGING_CONFIG
-        remote_log_conn_id = <name of the Azure Blob Storage connection>
-
-#. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
+See :ref:`write-logs-azure`.
 
 Azure Data Lake
 ''''''''''''''''''
@@ -345,72 +318,8 @@ they can have breaking changes between minor releases.
 Logging
 '''''''
 
-Airflow can be configured to read and write task logs in Google cloud storage.
-Follow the steps below to enable Google cloud storage logging.
-
-#. Airflow's logging system requires a custom .py file to be located in the ``PYTHONPATH``, so that it's importable from Airflow. Start by creating a directory to store the config file. ``$AIRFLOW_HOME/config`` is recommended.
-#. Create empty files called ``$AIRFLOW_HOME/config/log_config.py`` and ``$AIRFLOW_HOME/config/__init__.py``.
-#. Copy the contents of ``airflow/config_templates/airflow_local_settings.py`` into the ``log_config.py`` file that was just created in the step above.
-#. Customize the following portions of the template:
-
-    .. code-block:: bash
-
-        # Add this variable to the top of the file. Note the trailing slash.
-        GCS_LOG_FOLDER = 'gs://<bucket where logs should be persisted>/'
-
-        # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
-        LOGGING_CONFIG = ...
-
-        # Add a GCSTaskHandler to the 'handlers' block of the LOGGING_CONFIG variable
-        'gcs.task': {
-            'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
-            'formatter': 'airflow.task',
-            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'gcs_log_folder': GCS_LOG_FOLDER,
-            'filename_template': FILENAME_TEMPLATE,
-        },
-
-        # Update the airflow.task and airflow.tas_runner blocks to be 'gcs.task' instead of 'file.task'.
-        'loggers': {
-            'airflow.task': {
-                'handlers': ['gcs.task'],
-                ...
-            },
-            'airflow.task_runner': {
-                'handlers': ['gcs.task'],
-                ...
-            },
-            'airflow': {
-                'handlers': ['console'],
-                ...
-            },
-        }
-
-#. Make sure a Google cloud platform connection hook has been defined in Airflow. The hook should have read and write access to the Google cloud storage bucket defined above in ``GCS_LOG_FOLDER``.
-
-#. Update ``$AIRFLOW_HOME/airflow.cfg`` to contain:
-
-    .. code-block:: bash
-
-        task_log_reader = gcs.task
-        logging_config_class = log_config.LOGGING_CONFIG
-        remote_log_conn_id = <name of the Google cloud platform hook>
-
-#. Restart the Airflow webserver and scheduler, and trigger (or wait for) a new task execution.
-#. Verify that logs are showing up for newly executed tasks in the bucket you've defined.
-#. Verify that the Google cloud storage viewer is working in the UI. Pull up a newly executed task, and verify that you see something like:
-
-    .. code-block:: bash
-
-        *** Reading remote log from gs://<bucket where logs should be persisted>/example_bash_operator/run_this_last/2017-10-03T00:00:00/16.log.
-        [2017-10-03 21:57:50,056] {cli.py:377} INFO - Running on host chrisr-00532
-        [2017-10-03 21:57:50,093] {base_task_runner.py:115} INFO - Running: ['bash', '-c', u'airflow run example_bash_operator run_this_last 2017-10-03T00:00:00 --job_id 47 --raw -sd DAGS_FOLDER/example_dags/example_bash_operator.py']
-        [2017-10-03 21:57:51,264] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,263] {__init__.py:45} INFO - Using executor SequentialExecutor
-        [2017-10-03 21:57:51,306] {base_task_runner.py:98} INFO - Subtask: [2017-10-03 21:57:51,306] {models.py:186} INFO - Filling up the DagBag from /airflow/dags/example_dags/example_bash_operator.py
-
-Note the top line that says it's reading from the remote log file.
-
-Please be aware that if you were persisting logs to Google cloud storage using the old-style airflow.cfg configuration method, the old logs will no longer be visible in the Airflow UI, though they'll still exist in Google cloud storage. This is a backwards incompatbile change. If you are unhappy with it, you can change the ``FILENAME_TEMPLATE`` to reflect the old-style log filename format.
+Airflow can be configured to read and write task logs in Google Cloud Storage.
+See :ref:`write-logs-gcp`.
 
 BigQuery
 ''''''''
