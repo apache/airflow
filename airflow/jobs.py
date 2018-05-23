@@ -1670,6 +1670,7 @@ class BackfillJob(BaseJob):
             ignore_first_depends_on_past=False,
             ignore_task_deps=False,
             pool=None,
+            conf=None,
             *args, **kwargs):
         self.dag = dag
         self.dag_id = dag.dag_id
@@ -1681,6 +1682,7 @@ class BackfillJob(BaseJob):
         self.ignore_first_depends_on_past = ignore_first_depends_on_past
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
+        self.conf = conf
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, started, succeeded, skipped, failed, tasks_to_run):
@@ -1832,6 +1834,7 @@ class BackfillJob(BaseJob):
                     state=State.RUNNING,
                     external_trigger=False,
                     session=session,
+                    conf=self.conf,
                 )
             else:
                 run = run[0]
