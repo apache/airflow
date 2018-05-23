@@ -4538,10 +4538,14 @@ class DAG(BaseDag, LoggingMixin):
         """
         Helper function to encapsulate the sequence of SLA operations.
         """
+        # Create SlaMiss objects for the various types of SLA misses.
         self.record_sla_misses()
 
-        unsent_sla_misses = self.get_unsent_sla_misses()
+        # Collect pending SLA miss callbacks, either created immediately above
+        # or previously failed.
+        unsent_sla_misses = self.get_sla_notifications()
 
+        # Trigger the SLA miss callbacks.
         if unsent_sla_misses:
             self.send_sla_notifications(unsent_sla_misses)
 
@@ -4610,7 +4614,7 @@ class DAG(BaseDag, LoggingMixin):
         session.commit()
 
     @provide_session
-    def get_unsent_sla_misses(self, session=None):
+    def get_sla_notifications(self, session=None):
         """
         Find all SlaMisses for this DAG that haven't yet been notified.
         """
