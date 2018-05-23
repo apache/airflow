@@ -3421,7 +3421,8 @@ class DAG(BaseDag, LoggingMixin):
             ignore_task_deps=ignore_task_deps,
             ignore_first_depends_on_past=ignore_first_depends_on_past,
             pool=pool,
-            conf=conf)
+            conf=conf,
+        )
         job.run()
 
     def cli(self):
