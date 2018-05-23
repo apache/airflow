@@ -2477,6 +2477,11 @@ class BaseOperator(LoggingMixin):
     # each operator should override this class attr for shallow copy attrs.
     shallow_copy_attrs = ()
 
+    # Determines which attributes define SLA calculations.
+    sla_attributes = ["expected_duration",
+                      "expected_start",
+                      "expected_finish"]
+
     @apply_defaults
     def __init__(
             self,
@@ -3219,6 +3224,12 @@ class BaseOperator(LoggingMixin):
             task_ids=task_ids,
             dag_id=dag_id,
             include_prior_dates=include_prior_dates)
+
+    def has_slas(self):
+        """
+        Return whether this task has any SLA attributes set.
+        """
+        return any(getattr(self, attr, None) for attr in self.sla_attributes)
 
 
 class DagModel(Base):
