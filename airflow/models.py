@@ -2702,7 +2702,6 @@ class BaseOperator(LoggingMixin):
             'wait_for_downstream',
             'adhoc',
             'priority_weight',
-            'sla',
             'execution_timeout',
             'on_failure_callback',
             'on_success_callback',
