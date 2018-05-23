@@ -1271,7 +1271,7 @@ class SchedulerJob(BaseJob):
 
         1. Create appropriate DagRun(s) in the DB.
         2. Create appropriate TaskInstance(s) in the DB.
-        3. Send emails for tasks that have missed SLAs.
+        3. Create SLA misses and trigger callbacks for late TaskInstances.
 
         :param dagbag: a collection of DAGs to process
         :type dagbag: models.DagBag
@@ -1297,6 +1297,9 @@ class SchedulerJob(BaseJob):
             if dag_run:
                 self.log.info("Created %s", dag_run)
             self._process_task_instances(dag, tis_out)
+
+            # Look for SLA misses for all task instances associated with this
+            # DAG, whether or not corresponding runs have been created yet.
             dag.manage_slas()
 
         models.DagStat.update([d.dag_id for d in dags])
