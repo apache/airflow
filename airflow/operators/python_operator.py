@@ -164,6 +164,7 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.log.info("Done.")
 
+        
 class PythonVirtualenvOperator(PythonOperator):
     """
     Allows one to run a function in a virtualenv that is created and destroyed
