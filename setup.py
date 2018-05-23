@@ -211,7 +211,7 @@ def do_setup():
             'funcsigs>=1.0.0, <=1.0.2',
             'future>=0.15.0, <0.16',
             'gitpython>=2.0.2',
-            #'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
+            'gunicorn>=19.3.0, <19.4.0',  # 19.4.? seemed to have issues
             'jinja2>=2.7.3, <=2.9.5',
             'lxml>=3.6.0, <4.0',
             'markdown>=2.5.2, <3.0',
