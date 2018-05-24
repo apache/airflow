@@ -22,8 +22,8 @@ import logging
 
 try:
     from airflow.operators.docker_operator import DockerOperator
+    from docker.client import APIClient as Client
     from airflow.hooks.docker_hook import DockerHook
-    from docker import Client
 except ImportError:
     pass
 
@@ -56,6 +56,7 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_class_mock.return_value = client_mock
 
         operator = DockerOperator(api_version='1.19', command='env', environment={'UNIT': 'TEST'},
+                                  host_tmp_dir='/host/airflow',
                                   image='ubuntu:latest', network_mode='bridge', owner='unittest',
                                   task_id='unittest', volumes=['/host/path:/container/path'],
                                   working_dir='/container/path', shm_size=1000)
@@ -74,6 +75,8 @@ class DockerOperatorTestCase(unittest.TestCase):
                                                         mem_limit=None, user=None,
                                                         working_dir='/container/path'
                                                         )
+        mkdtemp_mock.assert_called_with(dir='/host/airflow',
+                prefix='airflowtmp', suffix='')
         client_mock.create_host_config.assert_called_with(binds=['/host/path:/container/path',
                                                                  '/mkdtemp:/tmp/airflow'],
                                                           network_mode='bridge',

@@ -1,0 +1,4 @@
+cryptography==2.0.3
+docker==2.5.1
+jsonschema==2.6.0
+tqdm==4.18.0

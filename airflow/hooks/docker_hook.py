@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from docker import Client
+from docker import APIClient as Client
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
