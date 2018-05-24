@@ -466,7 +466,8 @@ class BigQueryBaseCursor(LoggingMixin):
                   create_disposition='CREATE_IF_NEEDED',
                   query_params=None,
                   schema_update_options=(),
-                  priority='INTERACTIVE'):
+                  priority='INTERACTIVE',
+                  time_partitioning={}):
         """
         Executes a BigQuery SQL query. Optionally persists results in a BigQuery
         table. See here:
@@ -479,6 +480,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :type bql: string
         :param destination_dataset_table: The dotted <dataset>.<table>
             BigQuery table to save the query results.
+        :type destination_dataset_table: string
         :param write_disposition: What to do if the table already exists in
             BigQuery.
         :type write_disposition: string
@@ -516,6 +518,12 @@ class BigQueryBaseCursor(LoggingMixin):
             Possible values include INTERACTIVE and BATCH.
             The default value is INTERACTIVE.
         :type priority: string
+        :param time_partitioning: configure optional time partitioning fields i.e.
+            partition by field, type and
+            expiration as per API specifications. Note that 'field' is not available in
+            conjunction with dataset.table$partition.
+        :type time_partitioning: dict
+
         """
 
         # BigQuery also allows you to define how you want a table's schema to change
@@ -553,14 +561,10 @@ class BigQueryBaseCursor(LoggingMixin):
                 _split_tablename(table_input=destination_dataset_table,
                                  default_project_id=self.project_id)
             configuration['query'].update({
-                'allowLargeResults':
-                allow_large_results,
-                'flattenResults':
-                flatten_results,
-                'writeDisposition':
-                write_disposition,
-                'createDisposition':
-                create_disposition,
+                'allowLargeResults': allow_large_results,
+                'flattenResults': flatten_results,
+                'writeDisposition': write_disposition,
+                'createDisposition': create_disposition,
                 'destinationTable': {
                     'projectId': destination_project,
                     'datasetId': destination_dataset,
@@ -570,8 +574,7 @@ class BigQueryBaseCursor(LoggingMixin):
         if udf_config:
             assert isinstance(udf_config, list)
             configuration['query'].update({
-                'userDefinedFunctionResources':
-                udf_config
+                'userDefinedFunctionResources': udf_config
             })
 
         if query_params:
@@ -580,6 +583,15 @@ class BigQueryBaseCursor(LoggingMixin):
                                  "legacy SQL")
             else:
                 configuration['query']['queryParameters'] = query_params
+
+        time_partitioning = _cleanse_time_partitioning(
+            destination_dataset_table,
+            time_partitioning
+        )
+        if time_partitioning:
+            configuration['query'].update({
+                'timePartitioning': time_partitioning
+            })
 
         if schema_update_options:
             if write_disposition not in ["WRITE_APPEND", "WRITE_TRUNCATE"]:
@@ -800,7 +812,7 @@ class BigQueryBaseCursor(LoggingMixin):
         :param time_partitioning: configure optional time partitioning fields i.e.
             partition by field, type and
             expiration as per API specifications. Note that 'field' is not available in
-            concurrency with dataset.table$partition.
+            conjunction with dataset.table$partition.
         :type time_partitioning: dict
         """
 
@@ -853,21 +865,14 @@ class BigQueryBaseCursor(LoggingMixin):
             }
         }
 
-        # if it is a partitioned table ($ is in the table name) add partition load option
-        if '$' in destination_project_dataset_table:
-            if time_partitioning.get('field'):
-                raise AirflowException(
-                    "Cannot specify field partition and partition name "
-                    "(dataset.table$partition) at the same time"
-                )
-            configuration['load']['timePartitioning'] = dict(type='DAY')
-
-        # can specify custom time partitioning options based on a field, or adding
-        # expiration
+        time_partitioning = _cleanse_time_partitioning(
+            destination_project_dataset_table,
+            time_partitioning
+        )
         if time_partitioning:
-            if not configuration.get('load', {}).get('timePartitioning'):
-                configuration['load']['timePartitioning'] = {}
-            configuration['load']['timePartitioning'].update(time_partitioning)
+            configuration['load'].update({
+                'timePartitioning': time_partitioning
+            })
 
         if schema_fields:
             configuration['load']['schema'] = {'fields': schema_fields}
@@ -1491,3 +1496,17 @@ def _split_tablename(table_input, default_project_id, var_name=None):
         project_id = default_project_id
 
     return project_id, dataset_id, table_id
+
+
+def _cleanse_time_partitioning(destination_dataset_table, time_partitioning_in):
+    # if it is a partitioned table ($ is in the table name) add partition load option
+    time_partitioning_out = {}
+    if destination_dataset_table and '$' in destination_dataset_table:
+        assert not time_partitioning_in.get('field'), (
+            "Cannot specify field partition and partition name "
+            "(dataset.table$partition) at the same time"
+        )
+        time_partitioning_out['type'] = 'DAY'
+
+    time_partitioning_out.update(time_partitioning_in)
+    return time_partitioning_out

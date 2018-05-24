@@ -76,8 +76,17 @@ class BigQueryOperator(BaseOperator):
     :param query_params: a dictionary containing query parameter types and
         values, passed to BigQuery.
     :type query_params: dict
-
+    :param priority: Specifies a priority for the query.
+        Possible values include INTERACTIVE and BATCH.
+        The default value is INTERACTIVE.
+    :type priority: string
+    :param time_partitioning: configure optional time partitioning fields i.e.
+        partition by field, type and
+        expiration as per API specifications. Note that 'field' is not available in
+        conjunction with dataset.table$partition.
+    :type time_partitioning: dict
     """
+
     template_fields = ('bql', 'destination_dataset_table')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
@@ -99,6 +108,7 @@ class BigQueryOperator(BaseOperator):
                  schema_update_options=(),
                  query_params=None,
                  priority='INTERACTIVE',
+                 time_partitioning={},
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
@@ -118,6 +128,7 @@ class BigQueryOperator(BaseOperator):
         self.query_params = query_params
         self.bq_cursor = None
         self.priority = priority
+        self.time_partitioning = time_partitioning
 
     def execute(self, context):
         if self.bq_cursor is None:
@@ -140,7 +151,9 @@ class BigQueryOperator(BaseOperator):
             create_disposition=self.create_disposition,
             query_params=self.query_params,
             schema_update_options=self.schema_update_options,
-            priority=self.priority)
+            priority=self.priority,
+            time_partitioning=self.time_partitioning
+        )
 
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
