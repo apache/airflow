@@ -54,7 +54,8 @@ except ImportError:
 try:
     import keyring
 except ImportError:
-    print("Could not find the keyring library. Run 'sudo pip install keyring' to install.")
+    print("Could not find the keyring library. "
+          "Run 'sudo pip install keyring' to install.")
     sys.exit(-1)
 
 # Location of your Airflow git development area
@@ -66,10 +67,12 @@ AIRFLOW_GIT_LOCATION = os.environ.get(
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
 # Remote name which points to Apache git
 APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
-# OAuth key used for issuing requests against the GitHub API. If this is not defined, then requests
-# will be unauthenticated. You should only need to configure this if you find yourself regularly
-# exceeding your IP's unauthenticated request rate limit. You can create an OAuth key at
-# https://github.com/settings/tokens. This tool only requires the "public_repo" scope.
+# OAuth key used for issuing requests against the GitHub API. If this is not
+# defined, then requests will be unauthenticated. You should only need to
+# configure this if you find yourself regularly exceeding your IP's
+# unauthenticated request rate limit. You can create an OAuth key at
+# https://github.com/settings/tokens. This tool only requires the "public_repo"
+# scope.
 GITHUB_OAUTH_KEY = os.environ.get("GITHUB_OAUTH_KEY")
 
 GITHUB_BASE = "https://github.com/apache/incubator-airflow/pull"
@@ -205,7 +208,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     except Exception as e:
         msg = "Error merging: %s\nWould you like to manually fix-up this merge?" % e
         continue_maybe(msg)
-        msg = "Okay, please fix any conflicts and 'git add' conflicting files... Finished?"
+        msg = ("Okay, please fix any conflicts and 'git add' conflicting files... " +
+               "Finished?")
         continue_maybe(msg)
         had_conflicts = True
 
@@ -216,7 +220,6 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     if pr_commits:
         all_text += ' '.join(c['commit']['message'] for c in pr_commits)
     all_jira_refs = standardize_jira_ref(all_text, only_jira=True)
-    all_jira_issues = re.findall("AIRFLOW-[0-9]{1,6}", all_jira_refs)
 
     merge_message_flags = []
 
@@ -315,7 +318,6 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
         if primary_author == "":
             primary_author = distinct_authors[0]
 
-        authors = "\n".join(["Author: %s" % a for a in distinct_authors])
         merge_message_flags.append(u'--author="{}"'.format(primary_author))
 
     else:
@@ -327,7 +329,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     # reflow commit message
     seen_first_line = False
     for i in range(1, len(merge_message_flags)):
-        if merge_message_flags[i-1] == '-m':
+        if merge_message_flags[i - 1] == '-m':
             # let the first line be as long as the user wants
             if not seen_first_line:
                 if '\n\n' in merge_message_flags[i]:
@@ -376,7 +378,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             run_cmd(['git', 'commit'] + commit_flags, echo_cmd=False)
 
     if local:
-        msg ='\n' + reflow("""
+        msg = '\n' + reflow("""
             The PR has been merged locally in branch {}.
             You may leave this program running while you work on it. When
             you are finished, press any key to delete the PR branch and
@@ -390,8 +392,8 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     else:
         continue_maybe(
             '\n\nThe local merge is complete ({}).\n'.format(
-                target_branch_name)
-            + click.style(
+                target_branch_name) +
+            click.style(
                 'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
 
     try:
@@ -459,7 +461,7 @@ def fix_version_from_branch(branch, versions):
     if branch == "master":
         return versions[0]
     else:
-        #TODO adopt a release scheme with branches. Spark uses branch-XX.
+        # TODO adopt a release scheme with branches. Spark uses branch-XX.
         branch_ver = branch.replace("branch-", "")
         versions = list(filter(
             lambda x: x.name.startswith(branch_ver), versions))
@@ -692,18 +694,19 @@ def resolve_jira_issue(comment=None, jira_id=None, merge_branches=None):
         action["id"],
         fixVersions=jira_fix_versions,
         comment=comment or None,
-        resolution = {'id': resolution.raw['id']})
+        resolution={'id': resolution.raw['id']})
 
     click.echo("Successfully resolved {id}{fv}!".format(
         id=jira_id,
         fv=' with fix versions={}'.format(fix_versions) if fix_versions else ''
-        ))
+    ))
 
 
 def standardize_jira_ref(text, only_jira=False):
     """
     Standardize the [AIRFLOW-XXXXX] [MODULE] prefix
-    Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
+    Converts "[AIRFLOW-XXX][mllib] Issue", "[MLLib] AIRFLOW-XXX. Issue" or
+    "AIRFLOW XXX [MLLIB]: Issue" to "[AIRFLOW-XXX][MLLIB] Issue"
 
     >>> standardize_jira_ref("[AIRFLOW-5821] [SQL] ParquetRelation2 CTAS should check if delete is successful")
     '[AIRFLOW-5821][SQL] ParquetRelation2 CTAS should check if delete is successful'
@@ -725,7 +728,7 @@ def standardize_jira_ref(text, only_jira=False):
     'Additional information for users building from source code'
     >>> standardize_jira_ref('AIRFLOW 35 AIRFLOW--36 AIRFLOW  37 test', only_jira=True)
     '[AIRFLOW-35][AIRFLOW-36][AIRFLOW-37]'
-    """
+    """  # noqa
     jira_refs = []
     components = []
 
@@ -770,8 +773,8 @@ def standardize_jira_ref(text, only_jira=False):
     # Assemble full text (JIRA ref(s), module(s), remaining text)
     clean_text = ''.join(unique(jira_refs)).strip()
     if not only_jira:
-         clean_text += (
-             ''.join(unique(components)).strip() + " " + text.strip())
+        clean_text += (
+            ''.join(unique(components)).strip() + " " + text.strip())
 
     # Replace multiple spaces with a single space, e.g. if no jira refs
     # and/or components were included
@@ -847,7 +850,6 @@ def main(pr_num, local=False):
         click.echo('Working with pull request {}'.format(pr_num))
 
     pr = get_json("{}/pulls/{}".format(GITHUB_API_BASE, pr_num))
-    pr_events = get_json("{}/issues/{}/events".format(GITHUB_API_BASE, pr_num))
 
     url = pr["url"]
 
@@ -874,33 +876,6 @@ def main(pr_num, local=False):
     user_login = pr["user"]["login"]
     base_ref = pr["head"]["ref"]
     pr_repo_desc = "%s/%s" % (user_login, base_ref)
-
-    # Merged pull requests are either closed or merged by asfgit
-    merge_commits = [
-        e for e in pr_events
-        if e["actor"]["login"] == GITHUB_USER and
-        (e["event"] == "closed" or e["event"] == "merged")]
-
-    if merge_commits and False:
-        merge_hash = merge_commits[0]["commit_id"]
-        message = get_json(
-            "%s/commits/%s" % (GITHUB_API_BASE, merge_hash)
-            )["commit"]["message"]
-
-        continue_maybe(
-            "Pull request %s has already been merged. "
-            "Do you want to backport?" % pr_num)
-        commit_is_downloaded = run_cmd(
-            ['git', 'rev-parse', '--quiet', '--verify',
-             "%s^{commit}" % merge_hash]) != ""
-        if not commit_is_downloaded:
-            fail(
-                "Couldn't find any merge commit for #%s, "
-                "you may need to update HEAD." % pr_num)
-
-        click.echo("Found commit %s:\n%s" % (merge_hash, message))
-        cherry_pick(pr_num, merge_hash, latest_branch)
-        sys.exit(0)
 
     if not bool(pr["mergeable"]):
         msg = ('Pull request {} is not mergeable in its current form.\n'
@@ -1059,7 +1034,8 @@ def setup_git_remotes():
 
     error = False
     try:
-        run_cmd('git remote add apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
+        run_cmd('git remote add apache '
+                'https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
     except:
         click.echo(click.style(reflow(
             '>>ERROR: Could not create apache remote. If it already exists, '
@@ -1072,7 +1048,8 @@ def setup_git_remotes():
             '>>ERROR: Could not create github remote. If it already exists, '
             'run `git remote remove github` to delete it.', fg='red')))
         error = True
-    click.echo('Done setting up git remotes. Run git remote -v to see them.')
+    if not error:
+        click.echo('Done setting up git remotes. Run git remote -v to see them.')
 
 
 if __name__ == "__main__":
