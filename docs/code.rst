@@ -119,8 +119,8 @@ in all templates
 Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
-``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``
-``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``
+``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD`` if exists, else ``None`
+``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD`` if exists, else ``None`
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
 ``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
@@ -165,6 +165,10 @@ The ``var`` template variable allows you to access variables defined in Airflow'
 UI. You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``
+
+You can use Jinja filters like
+``{{ prev_ds|default('prev_ds is not defined') }}``
+to customize the default value.
 
 Macros
 ''''''

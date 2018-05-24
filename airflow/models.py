@@ -1494,8 +1494,13 @@ class TaskInstance(Base):
         prev_execution_date = task.dag.previous_schedule(self.execution_date)
         next_execution_date = task.dag.following_schedule(self.execution_date)
 
-        next_ds = next_execution_date.strftime('%Y-%m-%d')
-        prev_ds = prev_execution_date.strftime('%Y-%m-%d')
+        next_ds = None
+        if next_execution_date:
+            next_ds = next_execution_date.strftime('%Y-%m-%d')
+
+        prev_ds = None
+        if prev_execution_date:
+            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
