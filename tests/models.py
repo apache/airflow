@@ -374,9 +374,23 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', '{{ foo }}', dict())
         self.assertEqual(result, 'bar')
 
+    def test_render_template_numeric_field(self):
+        """ Tests if render_template from a field works,
+            if a custom filter was defined"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  user_defined_macros=dict(foo='bar'))
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', 1, dict())
+        self.assertEqual(result, 1)
+
     def test_user_defined_filters(self):
         def jinja_udf(name):
-            return 'Hello %s' %name
+            return 'Hello %s' % name
 
         dag = models.DAG('test-dag',
                          start_date=DEFAULT_DATE,
