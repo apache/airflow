@@ -136,7 +136,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
-docker = ['docker-py>=1.6.0']
+docker = ['docker>=2.0.0']
 druid = ['pydruid>=0.4.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
