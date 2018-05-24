@@ -256,11 +256,8 @@ class PostgresTest(unittest.TestCase):
             assert 'database "foobar" does not exist' in str(e)
 
 
-@skipUnlessImported('airflow.operators.hive_operator', 'HiveOperator')
-@skipUnlessImported('airflow.operators.postgres_operator', 'PostgresOperator')
+@skipUnlessImported('airflow.operators.mysql_to_hive', 'MySqlToHiveTransfer')
 class TransferTests(unittest.TestCase):
-    cluster = None
-
     def setUp(self):
         configuration.load_test_config()
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}

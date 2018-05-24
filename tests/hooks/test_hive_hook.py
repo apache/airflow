@@ -31,7 +31,8 @@ from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
-from airflow import DAG, configuration, operators
+from airflow import DAG, configuration
+from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
 from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
@@ -70,7 +71,7 @@ class HiveEnvironmentTest(unittest.TestCase):
         ADD PARTITION({{ params.partition_by }}='{{ ds }}');
         """
         self.hook = HiveMetastoreHook()
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
