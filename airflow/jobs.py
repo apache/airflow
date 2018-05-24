@@ -1952,6 +1952,7 @@ class BackfillJob(BaseJob):
             ignore_task_deps=False,
             pool=None,
             delay_on_limit_secs=1.0,
+            verbose=False,
             *args, **kwargs):
         self.dag = dag
         self.dag_id = dag.dag_id
@@ -1963,6 +1964,7 @@ class BackfillJob(BaseJob):
         self.ignore_task_deps = ignore_task_deps
         self.pool = pool
         self.delay_on_limit_secs = delay_on_limit_secs
+        self.verbose = verbose
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status):
@@ -2257,7 +2259,7 @@ class BackfillJob(BaseJob):
                     if ti.are_dependencies_met(
                             dep_context=backfill_context,
                             session=session,
-                            verbose=True):
+                            verbose=self.verbose):
                         ti.refresh_from_db(lock_for_update=True, session=session)
                         if ti.state == State.SCHEDULED or ti.state == State.UP_FOR_RETRY:
                             if executor.has_task(ti):
@@ -2364,11 +2366,11 @@ class BackfillJob(BaseJob):
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=False),
                     session=session,
-                    verbose=True) !=
+                    verbose=self.verbose) !=
                 t.are_dependencies_met(
                     dep_context=DepContext(ignore_depends_on_past=True),
                     session=session,
-                    verbose=True)
+                    verbose=self.verbose)
                 for t in ti_status.deadlocked)
             if deadlocked_depends_on_past:
                 err += (
