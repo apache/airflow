@@ -65,8 +65,6 @@ AIRFLOW_GIT_LOCATION = os.environ.get(
 
 # Remote name which points to the Gihub site
 GITHUB_REMOTE_NAME = os.environ.get("GITHUB_REMOTE_NAME", "github")
-# Remote name which points to Apache git
-APACHE_REMOTE_NAME = os.environ.get("APACHE_REMOTE_NAME", "apache")
 # OAuth key used for issuing requests against the GitHub API. If this is not
 # defined, then requests will be unauthenticated. You should only need to
 # configure this if you find yourself regularly exceeding your IP's
@@ -175,7 +173,7 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
     pr_branch_name = "%s_MERGE_PR_%s" % (BRANCH_PREFIX, pr_num)
     target_branch_name = "%s_MERGE_PR_%s_%s" % (BRANCH_PREFIX, pr_num, target_ref.upper())
     run_cmd("git fetch %s pull/%s/head:%s" % (GITHUB_REMOTE_NAME, pr_num, pr_branch_name))
-    run_cmd("git fetch %s %s:%s" % (APACHE_REMOTE_NAME, target_ref, target_branch_name))
+    run_cmd("git fetch %s %s:%s" % (GITHUB_REMOTE_NAME, target_ref, target_branch_name))
     run_cmd("git checkout %s" % target_branch_name)
 
     had_conflicts = False
@@ -394,11 +392,11 @@ def merge_pr(pr_num, target_ref, title, body, pr_repo_desc, local):
             '\n\nThe local merge is complete ({}).\n'.format(
                 target_branch_name) +
             click.style(
-                'Push to Apache ({})?'.format(APACHE_REMOTE_NAME), 'red'))
+                'Push to Gitbox ({})?'.format(GITHUB_REMOTE_NAME), 'red'))
 
     try:
         run_cmd('git push %s %s:%s' % (
-            APACHE_REMOTE_NAME, target_branch_name, target_ref))
+            GITHUB_REMOTE_NAME, target_branch_name, target_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -421,7 +419,7 @@ def cherry_pick(pr_num, merge_hash, default_branch):
         BRANCH_PREFIX, pr_num, pick_ref.upper())
 
     run_cmd("git fetch %s %s:%s" % (
-        APACHE_REMOTE_NAME, pick_ref, pick_branch_name))
+        GITHUB_REMOTE_NAME, pick_ref, pick_branch_name))
     run_cmd("git checkout %s" % pick_branch_name)
 
     try:
@@ -437,12 +435,12 @@ def cherry_pick(pr_num, merge_hash, default_branch):
         continue_maybe(msg)
 
     continue_maybe("Pick complete (local ref %s). Push to %s?" % (
-        pick_branch_name, APACHE_REMOTE_NAME))
+        pick_branch_name, GITHUB_REMOTE_NAME))
 
     try:
         run_cmd(
             'git push %s %s:%s' % (
-                APACHE_REMOTE_NAME, pick_branch_name, pick_ref))
+                GITHUB_REMOTE_NAME, pick_branch_name, pick_ref))
     except Exception as e:
         clean_up()
         fail("Exception while pushing: %s" % e)
@@ -809,9 +807,6 @@ def main(pr_num, local=False):
     - GITHUB_REMOTE_NAME
         GitHub remote name (defaults to "github")
 
-    - APACHE_REMOTE_NAME
-        Apache git remote name (defaults to "apache")
-
     - JIRA_USERNAME
         ASF JIRA username for automatically closing JIRA issues. Users will be
         prompted if it is not set.
@@ -936,11 +931,10 @@ def cli():
     This tool should be used by Airflow committers to test PRs, merge them
     into the master branch, and close related JIRA issues.
 
-    Before you begin, make sure you have created the 'apache' and 'github' git
-    remotes. You can use the "setup_git_remotes" command to do this
-    automatically. If you do not want to use these remote names, you can tell
-    the PR tool by setting the appropriate environment variables. For more
-    information, run:
+    Before you begin, make sure you have created the 'github' git remote. You
+    can use the "setup_git_remotes" command to do this automatically. If you do
+    not want to use these remote names, you can tell the PR tool by setting the
+    appropriate environment variable. For more information, run:
 
         airflow-pr merge --help
     """
@@ -961,11 +955,10 @@ def cli():
 def merge(pr_num):
     """
     Utility for creating well-formed pull request merges and pushing them
-    to Apache, as well as closing JIRA issues.
+    to Gitbox (a.k.a. GitHub), as well as closing JIRA issues.
 
     This tool assumes you already have a local Airflow git folder and that you
-    have added remotes corresponding to both (i) the github apache Airflow
-    mirror and (ii) the apache git repo.
+    have added remote corresponding to the github apache Airflow repo.
 
     To configure the tool, set the following env vars:
     - AIRFLOW_GIT
@@ -974,9 +967,6 @@ def merge(pr_num):
 
     - GITHUB_REMOTE_NAME
         GitHub remote name (defaults to "github")
-
-    - APACHE_REMOTE_NAME
-        Apache git remote name (defaults to "apache")
 
     - JIRA_USERNAME
         ASF JIRA username for automatically closing JIRA issues. Users will be
@@ -1020,11 +1010,9 @@ def setup_git_remotes():
     click.echo(reflow("""
         This command will create git remotes to mirror the following
         structure. If you do not want to use these names, you must set the
-        GITHUB_REMOTE_NAME and APACHE_REMOTE_NAME environment variables:
+        GITHUB_REMOTE_NAME environment variable:
 
           git remote -v
-          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (fetch)
-          apache https://git-wip-us.apache.org/repos/asf/incubator-airflow.git (push)
           github https://github.com/apache/incubator-airflow.git (fetch)
           github https://github.com/apache/incubator-airflow.git (push)
 
@@ -1033,14 +1021,6 @@ def setup_git_remotes():
     continue_maybe('Do you want to continue?')
 
     error = False
-    try:
-        run_cmd('git remote add apache '
-                'https://git-wip-us.apache.org/repos/asf/incubator-airflow.git')
-    except:
-        click.echo(click.style(reflow(
-            '>>ERROR: Could not create apache remote. If it already exists, '
-            'run `git remote remove apache` to delete it.', fg='red')))
-        error = True
     try:
         run_cmd('git remote add github https://github.com/apache/incubator-airflow.git')
     except:
