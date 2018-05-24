@@ -156,6 +156,7 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.1.3',
     'impyla>=0.13.3',
+    'thrift_sasl==0.2.1',
     'unicodecsv>=0.14.1'
 ]
 jdbc = ['jaydebeapi>=1.1.1']
