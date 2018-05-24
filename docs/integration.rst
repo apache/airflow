@@ -316,6 +316,9 @@ Airflow has extensive support for the Google Cloud Platform. But note that most 
 Operators are in the contrib section. Meaning that they have a *beta* status, meaning that
 they can have breaking changes between minor releases.
 
+See the :ref:`GCP connection type <connection-type-GCP>` documentation to
+configure connections to GCP.
+
 Logging
 '''''''
 
