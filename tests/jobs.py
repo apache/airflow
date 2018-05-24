@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,6 +33,8 @@ import time
 import unittest
 from tempfile import mkdtemp
 
+import sqlalchemy
+
 from airflow import AirflowException, settings, models
 from airflow.bin import cli
 from airflow.executors import BaseExecutor, SequentialExecutor
@@ -51,7 +53,6 @@ from airflow.utils.dag_processing import SimpleDag, SimpleDagBag, list_py_file_p
 from airflow.utils.net import get_hostname
 
 from mock import Mock, patch, MagicMock, PropertyMock
-from sqlalchemy.orm.session import make_transient
 from tests.executors.test_executor import TestExecutor
 
 from tests.core import TEST_DAG_FOLDER
@@ -59,7 +60,6 @@ from tests.core import TEST_DAG_FOLDER
 from airflow import configuration
 configuration.load_test_config()
 
-import sqlalchemy
 
 try:
     from unittest import mock
@@ -72,7 +72,8 @@ except ImportError:
 DEV_NULL = '/dev/null'
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
-# Include the words "airflow" and "dag" in the file contents, tricking airflow into thinking these
+# Include the words "airflow" and "dag" in the file contents,
+# tricking airflow into thinking these
 # files contain a DAG (otherwise Airflow will skip them)
 PARSEABLE_DAG_FILE_CONTENTS = '"airflow DAG"'
 UNPARSEABLE_DAG_FILE_CONTENTS = 'airflow DAG'
@@ -135,7 +136,7 @@ class BackfillJobTest(unittest.TestCase):
 
         session = settings.Session()
         drs = session.query(DagRun).filter(
-            DagRun.dag_id=='example_bash_operator'
+            DagRun.dag_id == 'example_bash_operator'
         ).order_by(DagRun.execution_date).all()
 
         self.assertTrue(drs[0].execution_date == DEFAULT_DATE)
@@ -714,7 +715,6 @@ class BackfillJobTest(unittest.TestCase):
         subdag.clear()
         dag.clear()
 
-
     def test_backfill_execute_subdag_with_removed_task(self):
         """
         Ensure that subdag operators execute properly in the case where
@@ -783,9 +783,9 @@ class BackfillJobTest(unittest.TestCase):
 
         # test for success
         ti.set_state(State.SUCCESS, session)
-        ti_status.started[ti.key] = ti
+        ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 1)
         self.assertTrue(len(ti_status.skipped) == 0)
         self.assertTrue(len(ti_status.failed) == 0)
@@ -795,9 +795,9 @@ class BackfillJobTest(unittest.TestCase):
 
         # test for skipped
         ti.set_state(State.SKIPPED, session)
-        ti_status.started[ti.key] = ti
+        ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 1)
         self.assertTrue(len(ti_status.failed) == 0)
@@ -807,9 +807,9 @@ class BackfillJobTest(unittest.TestCase):
 
         # test for failed
         ti.set_state(State.FAILED, session)
-        ti_status.started[ti.key] = ti
+        ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 0)
         self.assertTrue(len(ti_status.failed) == 1)
@@ -820,9 +820,9 @@ class BackfillJobTest(unittest.TestCase):
         # test for reschedule
         # test for failed
         ti.set_state(State.NONE, session)
-        ti_status.started[ti.key] = ti
+        ti_status.running[ti.key] = ti
         job._update_counters(ti_status=ti_status)
-        self.assertTrue(len(ti_status.started) == 0)
+        self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 0)
         self.assertTrue(len(ti_status.failed) == 0)
