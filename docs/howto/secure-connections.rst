@@ -1,13 +1,6 @@
 Securing Connections
 ====================
 
-Airflow needs to know how to connect to your environment. Information
-such as hostname, port, login and passwords to other systems and services is
-handled in the ``Admin->Connection`` section of the UI. The pipeline code you
-will author will reference the 'conn_id' of the Connection objects.
-
-.. image:: ../img/connections.png
-
 By default, Airflow will save the passwords for the connection in plain text
 within the metadata database. The ``crypto`` package is highly recommended
 during installation. The ``crypto`` package does require that your operating

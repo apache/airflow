@@ -12,8 +12,8 @@ configuring an Airflow environment.
 
     set-config
     initialize-database
+    manage-connections
     secure-connections
-    create-connection
     write-logs
     executor/use-celery
     executor/use-dask

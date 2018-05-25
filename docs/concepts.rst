@@ -308,6 +308,8 @@ UI. As slots free up, queued tasks start running based on the
 Note that by default tasks aren't assigned to any pool and their
 execution parallelism is only limited to the executor's setting.
 
+.. _concepts-connections:
+
 Connections
 ===========
 
@@ -324,16 +326,12 @@ from ``BaseHook``, Airflow will choose one connection randomly, allowing
 for some basic load balancing and fault tolerance when used in conjunction
 with retries.
 
-Airflow also has the ability to reference connections via environment
-variables from the operating system. The environment variable needs to be
-prefixed with ``AIRFLOW_CONN_`` to be considered a connection. When
-referencing the connection in the Airflow pipeline, the ``conn_id`` should
-be the name of the variable without the prefix. For example, if the ``conn_id``
-is named ``postgres_master`` the environment variable should be named
-``AIRFLOW_CONN_POSTGRES_MASTER`` (note that the environment variable must be
-all uppercase). Airflow assumes the value returned from the environment
-variable to be in a URI format (e.g.
-``postgres://user:password@localhost:5432/master`` or ``s3://accesskey:secretkey@S3``).
+Many hooks have a default ``conn_id``, where operators using that hook do not
+need to supply an explicit connection ID. For example, the default
+``conn_id`` for the :class:`~airflow.hooks.postgres_hook.PostgresHook` is
+``postgres_default``.
+
+See :doc:`howto/manage-connections` for how to create and manage connections.
 
 Queues
 ======
@@ -410,7 +408,7 @@ Variables
 Variables are a generic way to store and retrieve arbitrary content or
 settings as a simple key value store within Airflow. Variables can be
 listed, created, updated and deleted from the UI (``Admin -> Variables``),
-code or CLI. In addition, json settings files can be bulk uploaded through 
+code or CLI. In addition, json settings files can be bulk uploaded through
 the UI. While your pipeline code definition and most of your constants
 and variables should be defined in code and stored in source control,
 it can be useful to have some variables or configuration items
@@ -427,18 +425,18 @@ The second call assumes ``json`` content and will be deserialized into
 ``bar``. Note that ``Variable`` is a sqlalchemy model and can be used
 as such.
 
-You can use a variable from a jinja template with the syntax : 
+You can use a variable from a jinja template with the syntax :
 
 .. code:: bash
 
     echo {{ var.value.<variable_name> }}
-    
-or if you need to deserialize a json object from the variable : 
+
+or if you need to deserialize a json object from the variable :
 
 .. code:: bash
 
     echo {{ var.json.<variable_name> }}
-    
+
 
 Branching
 =========
