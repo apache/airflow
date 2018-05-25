@@ -38,6 +38,7 @@ from airflow import configuration, models, settings, AirflowException
 from airflow.exceptions import AirflowDagCycleException, AirflowSkipException
 from airflow.jobs import BackfillJob
 from airflow.models import DAG, TaskInstance as TI
+from airflow.models import DagRun
 from airflow.models import State as ST
 from airflow.models import DagModel, DagStat
 from airflow.models import clear_task_instances
@@ -2029,6 +2030,36 @@ class TaskInstanceTest(unittest.TestCase):
         self.assertEqual(d['dag_id'][0], 'dag')
         self.assertEqual(d['task_id'][0], 'op')
         self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
+
+    def test_overwrite_params_with_dag_run_conf(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        dag_run = DagRun()
+        dag_run.conf = {"override": True}
+        params = {"override": False}
+
+        ti.overwrite_params_with_dag_run_conf(params, dag_run)
+
+        self.assertEqual(True, params["override"])
+
+    def test_overwrite_params_with_dag_run_none(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        params = {"override": False}
+
+        ti.overwrite_params_with_dag_run_conf(params, None)
+
+        self.assertEqual(False, params["override"])
+
+    def test_overwrite_params_with_dag_run_conf_none(self):
+        task = DummyOperator(task_id='op')
+        ti = TI(task=task, execution_date=datetime.datetime.now())
+        params = {"override": False}
+        dag_run = DagRun()
+
+        ti.overwrite_params_with_dag_run_conf(params, dag_run)
+
+        self.assertEqual(False, params["override"])
 
 
 class ClearTasksTest(unittest.TestCase):

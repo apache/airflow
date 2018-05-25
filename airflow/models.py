@@ -1795,6 +1795,9 @@ class TaskInstance(Base, LoggingMixin):
         if task.params:
             params.update(task.params)
 
+        if configuration.getboolean('core', 'dag_run_conf_overrides_params'):
+            self.overwrite_params_with_dag_run_conf(params=params, dag_run=dag_run)
+
         class VariableAccessor:
             """
             Wrapper around Variable. This way you can get variables in templates by using
@@ -1861,6 +1864,10 @@ class TaskInstance(Base, LoggingMixin):
             'inlets': task.inlets,
             'outlets': task.outlets,
         }
+
+    def overwrite_params_with_dag_run_conf(self, params, dag_run):
+        if dag_run and dag_run.conf:
+            params.update(dag_run.conf)
 
     def render_templates(self):
         task = self.task
