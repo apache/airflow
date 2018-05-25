@@ -1751,13 +1751,21 @@ class TaskInstance(Base, LoggingMixin):
         if 'tables' in task.params:
             tables = task.params['tables']
 
-        ds = self.execution_date.isoformat()[:10]
+        ds = self.execution_date.strftime('%Y-%m-%d')
         ts = self.execution_date.isoformat()
-        yesterday_ds = (self.execution_date - timedelta(1)).isoformat()[:10]
-        tomorrow_ds = (self.execution_date + timedelta(1)).isoformat()[:10]
+        yesterday_ds = (self.execution_date - timedelta(1)).strftime('%Y-%m-%d')
+        tomorrow_ds = (self.execution_date + timedelta(1)).strftime('%Y-%m-%d')
 
         prev_execution_date = task.dag.previous_schedule(self.execution_date)
         next_execution_date = task.dag.following_schedule(self.execution_date)
+
+        next_ds = None
+        if next_execution_date:
+            next_ds = next_execution_date.strftime('%Y-%m-%d')
+
+        prev_ds = None
+        if prev_execution_date:
+            prev_ds = prev_execution_date.strftime('%Y-%m-%d')
 
         ds_nodash = ds.replace('-', '')
         ts_nodash = ts.replace('-', '').replace(':', '')
@@ -1820,6 +1828,8 @@ class TaskInstance(Base, LoggingMixin):
         return {
             'dag': task.dag,
             'ds': ds,
+            'next_ds': next_ds,
+            'prev_ds': prev_ds,
             'ds_nodash': ds_nodash,
             'ts': ts,
             'ts_nodash': ts_nodash,
