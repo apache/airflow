@@ -43,17 +43,16 @@ class TestPostgresHook(unittest.TestCase):
 
     def test_copy_expert(self):
         m = mock.mock_open(read_data='{"some": "json"}')
-        with mock.patch('airflow.hooks.postgres_hook.open', m, create=True) as m:
+        with mock.patch('airflow.hooks.postgres_hook.open', m):
             statement = "SQL"
             filename = "filename"
 
             self.cur.fetchall.return_value = None
-            f = m(filename, 'w')
-            def test_open(filename, mode):
-                return f
 
-            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=test_open))
+            self.assertEqual(None, self.db_hook.copy_expert(statement, filename, open=m))
 
             self.conn.close.assert_called_once()
             self.cur.close.assert_called_once()
-            self.cur.copy_expert.assert_called_once_with(statement, f)
+            self.conn.commit.assert_called_once()
+            self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
+            m.assert_called_once_with(filename, "w+")

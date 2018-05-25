@@ -64,10 +64,11 @@ class PostgresHook(DbApiHook):
         Executes SQL using psycopg2 copy_expert method
         Necessary to execute COPY command without access to a superuser
         """
-        f = open(filename, 'w')
-        with closing(self.get_conn()) as conn:
-            with closing(conn.cursor()) as cur:
-                cur.copy_expert(sql, f)
+        with open(filename, 'w+') as f:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.copy_expert(sql, f)
+                    conn.commit()
 
     @staticmethod
     def _serialize_cell(cell, conn):
