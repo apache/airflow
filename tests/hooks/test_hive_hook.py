@@ -30,7 +30,7 @@ from collections import OrderedDict
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
 from airflow import DAG, configuration
 from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
@@ -317,3 +317,9 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
         self.assertFalse(
             self.hook.table_exists(str(random.randint(1, 10000)))
         )
+
+
+class TestHiveServer2Hook(unittest.TestCase):
+    def test_get_conn(self):
+        hook = HiveServer2Hook()
+        hook.get_conn()
