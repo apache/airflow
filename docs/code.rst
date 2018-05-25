@@ -110,6 +110,7 @@ Operators
 ^^^^^^^^^
 
 .. autoclass:: airflow.contrib.operators.awsbatch_operator.AWSBatchOperator
+.. autoclass:: airflow.contrib.operators.aws_glue_job_operator.AWSGlueJobOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryValueCheckOperator
 .. autoclass:: airflow.contrib.operators.bigquery_check_operator.BigQueryIntervalCheckOperator
@@ -344,7 +345,7 @@ interface when possible and acting as building blocks for operators.
 
 Community contributed hooks
 '''''''''''''''''''''''''''
-
+.. autoclass:: airflow.contrib.hooks.aws_glue_job_hook.AwsGlueJobHook
 .. autoclass:: airflow.contrib.hooks.aws_dynamodb_hook.AwsDynamoDBHook
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
