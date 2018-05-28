@@ -1356,6 +1356,7 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def graph(self, session=None):
+        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
@@ -1403,11 +1404,26 @@ class Airflow(BaseView):
         else:
             dttm = dag.latest_execution_date or timezone.utcnow()
 
+        base_date = request.args.get('base_date')
+        if base_date:
+            base_date = timezone.parse(base_date)
+        else:
+            # The DateTimeField widget truncates milliseconds and would loose
+            # the first dag run. Round to next second.
+            base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
+
+        num_runs = request.args.get('num_runs')
+        num_runs = int(num_runs) if num_runs else default_dag_run
+
         DR = models.DagRun
         drs = (
             session.query(DR)
-                .filter_by(dag_id=dag_id)
-                .order_by(desc(DR.execution_date)).all()
+            .filter(
+                DR.dag_id == dag.dag_id,
+                DR.execution_date <= base_date)
+            .order_by(desc(DR.execution_date))
+            .limit(num_runs)
+            .all()
         )
         dr_choices = []
         dr_state = None
@@ -1416,7 +1432,13 @@ class Airflow(BaseView):
             if dttm == dr.execution_date:
                 dr_state = dr.state
 
-        class GraphForm(Form):
+        # Happens if base_date was changed and the selected dag run is not in result
+        if not dr_state and drs:
+            dr = drs[0]
+            dttm = dr.execution_date
+            dr_state = dr.state
+
+        class GraphForm(DateTimeWithNumRunsForm):
             execution_date = SelectField("DAG run", choices=dr_choices)
             arrange = SelectField("Layout", choices=(
                 ('LR', "Left->Right"),
@@ -1426,7 +1448,10 @@ class Airflow(BaseView):
             ))
 
         form = GraphForm(
-            data={'execution_date': dttm.isoformat(), 'arrange': arrange})
+            data={'execution_date': dttm.isoformat(),
+                  'arrange': arrange,
+                  'base_date': base_date,
+                  'num_runs': num_runs})
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)

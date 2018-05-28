@@ -37,6 +37,8 @@
     <div class="form-inline">
         <form method="get" style="float:left;">
             {{ state_token }}
+            Base date: {{ form.base_date(class_="form-control") }}
+            Number of runs: {{ form.num_runs(class_="form-control") }}
             Run:
             {{ form.execution_date(class_="form-control") | safe }}
             Layout:
@@ -50,7 +52,7 @@
             <div class="input-group" style="float: right;">
               <input type="text" id="searchbox" class="form-control" placeholder="Search for..." onenter="null">
             </div><!-- /input-group -->
-        <div style="clear: both;">
+        <div style="clear: both;"/>
     </div>
 <hr/>
 <div>
