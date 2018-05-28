@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,15 +18,16 @@
 # under the License.
 
 from six import PY2
-from airflow.hooks.base_hook import BaseHook
+
 from airflow import configuration
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
+
 
 snakebite_imported = False
 if PY2:
     from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
     snakebite_imported = True
-
-from airflow.exceptions import AirflowException
 
 
 class HDFSHookException(AirflowException):
