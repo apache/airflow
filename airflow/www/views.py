@@ -1673,10 +1673,12 @@ class Airflow(BaseView):
             x[task.task_id] = []
             for ti in task.get_task_instances(session, start_date=min_date,
                                               end_date=base_date):
-                ts = ti.execution_date
-                if dag.schedule_interval and dag.following_schedule(ts):
-                    ts = dag.following_schedule(ts)
                 if ti.end_date:
+                    ts = ti.execution_date
+                    following_schedule = dag.following_schedule(ts)
+                    if dag.schedule_interval and following_schedule:
+                        ts = following_schedule
+
                     dttm = wwwutils.epoch(ti.execution_date)
                     secs = (ti.end_date - ts).total_seconds()
                     x[ti.task_id].append(dttm)
