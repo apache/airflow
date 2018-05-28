@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.hooks.base_hook import BaseHook
-from airflow import configuration
-
 from hdfs import InsecureClient, HdfsError
 
+from airflow import configuration
+from airflow.exceptions import AirflowException
+from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
 
 _kerberos_security_mode = configuration.conf.get("core", "security") == "kerberos"
 if _kerberos_security_mode:
@@ -32,7 +33,6 @@ if _kerberos_security_mode:
         log = LoggingMixin().log
         log.error("Could not load the Kerberos extension for the WebHDFSHook.")
         raise
-from airflow.exceptions import AirflowException
 
 
 class AirflowWebHDFSHookException(AirflowException):
@@ -66,10 +66,12 @@ class WebHDFSHook(BaseHook):
                 return client
             except HdfsError as e:
                 self.log.debug(
-                    "Read operation on namenode {nn.host} failed with error: {e}".format(**locals())
+                    "Read operation on namenode {nn.host} "
+                    "failed with error: {e}".format(**locals())
                 )
         nn_hosts = [c.host for c in nn_connections]
-        no_nn_error = "Read operations failed on the namenodes below:\n{}".format("\n".join(nn_hosts))
+        no_nn_error = "Read operations failed " \
+                      "on the namenodes below:\n{}".format("\n".join(nn_hosts))
         raise AirflowWebHDFSHookException(no_nn_error)
 
     def check_for_path(self, hdfs_path):
