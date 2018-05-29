@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,14 +17,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import copy
 import io
+import json
+import logging.config
+import os
+import shutil
+import sys
+import tempfile
 import unittest
 import urllib
-from werkzeug.test import Client
+
 from flask._compat import PY2
 from flask_appbuilder.security.sqla.models import User as ab_user
-from airflow import models
+from urllib.parse import quote_plus
+from werkzeug.test import Client
+
 from airflow import configuration as conf
+from airflow import models
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.models import DAG, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -398,6 +411,102 @@ class TestConfigurationView(TestBase):
         resp = self.client.get('configuration', follow_redirects=True)
         self.check_content_in_response(
             ['Airflow Configuration', 'Running Configuration'], resp)
+
+
+class TestLogView(TestBase):
+    DAG_ID = 'dag_for_testing_log_view'
+    TASK_ID = 'task_for_testing_log_view'
+    DEFAULT_DATE = timezone.datetime(2017, 9, 1)
+    ENDPOINT = 'log?dag_id={dag_id}&task_id={task_id}&' \
+               'execution_date={execution_date}'.format(dag_id=DAG_ID,
+                                                        task_id=TASK_ID,
+                                                        execution_date=DEFAULT_DATE)
+
+    def setUp(self):
+        conf.load_test_config()
+
+        # Create a custom logging configuration
+        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
+            os.path.join(current_dir, 'test_logs'))
+        logging_config['handlers']['task']['filename_template'] = \
+            '{{ ti.dag_id }}/{{ ti.task_id }}/' \
+            '{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+
+        # Write the custom logging configuration to a file
+        self.settings_folder = tempfile.mkdtemp()
+        settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
+        new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+        with open(settings_file, 'w') as handle:
+            handle.writelines(new_logging_file)
+        sys.path.append(self.settings_folder)
+        conf.set('core', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
+
+        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app.config['WTF_CSRF_ENABLED'] = False
+        self.client = self.app.test_client()
+        self.login()
+        self.session = Session()
+
+        from airflow.www_rbac.views import dagbag
+        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+        ti.try_number = 1
+        self.session.merge(ti)
+        self.session.commit()
+
+    def tearDown(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        self.clear_table(TaskInstance)
+
+        shutil.rmtree(self.settings_folder)
+        conf.set('core', 'logging_config_class', '')
+
+        self.logout()
+        super(TestLogView, self).tearDown()
+
+    def test_get_file_task_log(self):
+        response = self.client.get(
+            TestLogView.ENDPOINT,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Log by attempts',
+                      response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}"
+        response = \
+            self.client.get(url_template.format(self.DAG_ID,
+                                                self.TASK_ID,
+                                                quote_plus(self.DEFAULT_DATE.isoformat()),
+                                                1,
+                                                json.dumps({})), follow_redirects=True)
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+    def test_get_logs_with_null_metadata(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata=null"
+        response = \
+            self.client.get(url_template.format(self.DAG_ID,
+                                                self.TASK_ID,
+                                                quote_plus(self.DEFAULT_DATE.isoformat()),
+                                                1), follow_redirects=True)
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
 
 
 class TestVersionView(TestBase):

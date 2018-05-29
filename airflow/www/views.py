@@ -733,10 +733,12 @@ class Airflow(BaseView):
         execution_date = request.args.get('execution_date')
         dttm = pendulum.parse(execution_date)
         try_number = int(request.args.get('try_number'))
-        # metadata may be None
         metadata = request.args.get('metadata')
-        if metadata:
-            metadata = json.loads(metadata)
+        metadata = json.loads(metadata)
+
+        # metadata may be null
+        if not metadata:
+            metadata = {}
 
         # Convert string datetime into actual datetime
         try:
@@ -779,9 +781,6 @@ class Airflow(BaseView):
                              .format(task_log_reader, str(e))]
             metadata['end_of_log'] = True
             return jsonify(message=error_message, error=True, metadata=metadata)
-        except AirflowException as e:
-            metadata['end_of_log'] = True
-            return jsonify(message=str(e), error=True, metadata=metadata)
 
     @expose('/log')
     @login_required

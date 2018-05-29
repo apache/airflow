@@ -346,7 +346,7 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
-        self.defaults.read_string(parameterized_config(DEFAULT_CONFIG))
+        self.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read test config
         self.read_string(parameterized_config(TEST_CONFIG))
         # then read any "custom" test settings
@@ -446,7 +446,9 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
 conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
+
 conf.read(AIRFLOW_CONFIG)
+
 
 if conf.getboolean('webserver', 'rbac'):
     with open(os.path.join(_templates_dir, 'default_webserver_config.py')) as f:
