@@ -133,6 +133,11 @@ class KubeConfig:
         self.dags_volume_subpath = conf.get(
             self.kubernetes_section, 'dags_volume_subpath')
 
+        # This prop may optionally be set for PV Claims and is used to locate logs
+        # on a SubPath
+        self.logs_volume_subpath = conf.get(
+            self.kubernetes_section, 'logs_volume_subpath')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
 
