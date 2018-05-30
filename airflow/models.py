@@ -3671,12 +3671,15 @@ class DAG(BaseDag, LoggingMixin):
 
     @provide_session
     def set_dag_runs_state(
-            self, state=State.RUNNING, session=None):
+            self, state=State.RUNNING, session=None,
+            include_backfill_dagruns=False,
+    ):
         drs = session.query(DagModel).filter_by(dag_id=self.dag_id).all()
         dirty_ids = []
         for dr in drs:
-            dr.state = state
-            dirty_ids.append(dr.dag_id)
+            if include_backfill_dagruns or dr.is_backfill:
+                dr.state = state
+                dirty_ids.append(dr.dag_id)
         DagStat.update(dirty_ids, session=session)
 
     @provide_session
