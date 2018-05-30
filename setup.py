@@ -116,8 +116,8 @@ azure_data_lake = [
 ]
 cassandra = ['cassandra-driver>=3.13.0']
 celery = [
-    'celery>=4.1.1',
-    'flower>=0.7.3'
+    'celery>=4.1.1, <4.2.0',
+    'flower>=0.7.3, <1.0'
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
