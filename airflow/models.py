@@ -3973,6 +3973,7 @@ class DAG(BaseDag, LoggingMixin):
             pool=None,
             delay_on_limit_secs=1.0,
             verbose=False,
+            conf=None,
     ):
         """
         Runs the DAG.
@@ -4001,6 +4002,8 @@ class DAG(BaseDag, LoggingMixin):
         :type delay_on_limit_secs: float
         :param verbose: Make logging output more verbose
         :type verbose: boolean
+        :param conf: user defined dictionary passed from CLI
+        :type conf: dict
         """
         from airflow.jobs import BackfillJob
         if not executor and local:
@@ -4019,6 +4022,7 @@ class DAG(BaseDag, LoggingMixin):
             pool=pool,
             delay_on_limit_secs=delay_on_limit_secs,
             verbose=verbose,
+            conf=conf,
         )
         job.run()
 
