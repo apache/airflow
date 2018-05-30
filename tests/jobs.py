@@ -23,6 +23,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import datetime
+import json
 import logging
 import multiprocessing
 import os
@@ -185,6 +186,33 @@ class BackfillJobTest(unittest.TestCase):
                 end_date=DEFAULT_DATE,
                 ignore_first_depends_on_past=True)
             job.run()
+
+    def test_backfill_conf(self):
+        dag = DAG(
+            dag_id='test_backfill_conf',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
+
+        with dag:
+            DummyOperator(
+                task_id='op',
+                dag=dag)
+
+        dag.clear()
+
+        executor = TestExecutor(do_update=True)
+
+        conf = json.loads("""{"key": "value"}""")
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          conf=conf)
+        job.run()
+
+        dr = DagRun.find(dag_id='test_backfill_conf')
+
+        self.assertEqual(conf, dr[0].conf)
 
     def test_backfill_ordered_concurrent_execute(self):
         dag = DAG(
