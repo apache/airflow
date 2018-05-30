@@ -128,7 +128,8 @@ class WorkerConfiguration(LoggingMixin):
             ),
             _construct_volume(
                 logs_volume_name,
-                self.kube_config.logs_volume_claim
+                self.kube_config.logs_volume_claim,
+                self.kube_config.logs_volume_subpath
             )
         ]
         volume_mounts = [{
