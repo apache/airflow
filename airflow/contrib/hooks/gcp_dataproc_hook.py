@@ -175,21 +175,45 @@ class _DataProcOperation(LoggingMixin):
         return self.operation
 
     def _check_done(self):
-        if 'done' in self.operation:
+        def _check_error():
+            """ Check the operation for errors.  Precondition is that the
+                operation must be marked as done already.
+            """
             if 'error' in self.operation:
-                self.log.warning(
-                    'Dataproc Operation %s failed with error: %s',
-                    self.operation_name, self.operation['error']['message'])
-                self._raise_error()
-            else:
-                self.log.info(
-                    'Dataproc Operation %s done', self.operation['name'])
-                return True
-        return False
+                return (True, self.operation['error']['message'])
 
-    def _raise_error(self):
+            # Dataproc workflow templates do not set the 'error' field when
+            # jobs fail; we have to examine the individual jobs for failures.
+            metadata = self.operation.get('metadata', {})
+            if not metadata.get('@type', '').endswith('WorkflowMetadata'):
+                return (False, None)
+
+            nodes = metadata.get('graph', {}).get('nodes', [])
+
+            error_nodes = [node for node in nodes if node.get('error')]
+
+            return (False, None) if not error_nodes else \
+                (True, str({
+                    node['jobId']: node['error'] for node in error_nodes}))
+
+        if not self.operation.get('done'):
+            # either the done field is not present, or it is false
+            return False
+
+        (operation_failed, error_message) = _check_error()
+        if operation_failed:
+            self.log.warning(
+                'Dataproc Operation %s failed with error: %s',
+                self.operation_name, error_message)
+            self._raise_error(error_message)
+        else:
+            self.log.info(
+                'Dataproc Operation %s done', self.operation_name)
+            return True
+
+    def _raise_error(self, error_message):
         raise Exception('Google Dataproc Operation %s failed: %s' %
-                        (self.operation_name, self.operation['error']['message']))
+                        (self.operation_name, error_message))
 
 
 class DataProcHook(GoogleCloudBaseHook):
