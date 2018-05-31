@@ -1530,6 +1530,9 @@ class TaskInstance(Base):
         if task.params:
             params.update(task.params)
 
+        if configuration.getboolean('core', 'dag_run_conf_overrides_params') and dag_run and dag_run.conf:
+            params.update(dag_run.conf)
+
         class VariableAccessor:
             """
             Wrapper around Variable. This way you can get variables in templates by using

@@ -180,6 +180,10 @@ security =
 # values at runtime)
 unit_test_mode = False
 
+# Whether to override params with dag_run.conf. If you pass some key-value pairs through `airflow backfill -c` or
+# `airflow trigger_dag -c`, the key-value pairs will override the existing ones in params.
+dag_run_conf_overrides_params = False
+
 [cli]
 # In what way should the cli access the API. The LocalClient will use the
 # database directly, while the json_client will use the api running on the
