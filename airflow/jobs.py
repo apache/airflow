@@ -1020,7 +1020,14 @@ class SchedulerJob(BaseJob):
                 # non_pooled_task_slot_count per run
                 open_slots = conf.getint('core', 'non_pooled_task_slot_count')
             else:
-                open_slots = pools[pool].open_slots(session=session)
+                if pool not in pools:
+                    self.logger.warning(
+                        "Tasks using non-existent pool '%s' will not be scheduled",
+                        pool
+                    )
+                    open_slots = 0
+                else:
+                    open_slots = pools[pool].open_slots(session=session)
 
             num_queued = len(task_instances)
             self.logger.info("Figuring out tasks to run in Pool(name={pool}) "
