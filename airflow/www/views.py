@@ -89,7 +89,8 @@ from airflow.utils.dates import infer_time_unit, scale_time_units, parse_executi
 from airflow.utils.timezone import datetime
 from airflow.utils.net import get_hostname
 from airflow.www import utils as wwwutils
-from airflow.www.forms import DateTimeForm, DateTimeWithNumRunsForm
+from airflow.www.forms import (DateTimeForm, DateTimeWithNumRunsForm,
+                               DateTimeWithNumRunsWithDagRunsForm)
 from airflow.www.validators import GreaterEqualThan
 
 QUERY_LIMIT = 100000
@@ -317,6 +318,57 @@ def get_chart_height(dag):
     """
     return 600 + len(dag.tasks) * 10
 
+
+def get_date_time_num_runs_dag_runs_form_data(request, session, dag):
+    dttm = request.args.get('execution_date')
+    if dttm:
+        dttm = pendulum.parse(dttm)
+    else:
+        dttm = dag.latest_execution_date or timezone.utcnow()
+
+    base_date = request.args.get('base_date')
+    if base_date:
+        base_date = timezone.parse(base_date)
+    else:
+        # The DateTimeField widget truncates milliseconds and would loose
+        # the first dag run. Round to next second.
+        base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
+
+    default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
+    num_runs = request.args.get('num_runs')
+    num_runs = int(num_runs) if num_runs else default_dag_run
+
+    DR = models.DagRun
+    drs = (
+        session.query(DR)
+        .filter(
+            DR.dag_id == dag.dag_id,
+            DR.execution_date <= base_date)
+        .order_by(desc(DR.execution_date))
+        .limit(num_runs)
+        .all()
+    )
+    dr_choices = []
+    dr_state = None
+    for dr in drs:
+        dr_choices.append((dr.execution_date.isoformat(), dr.run_id))
+        if dttm == dr.execution_date:
+            dr_state = dr.state
+
+    # Happens if base_date was changed and the selected dag run is not in result
+    if not dr_state and drs:
+        dr = drs[0]
+        dttm = dr.execution_date
+        dr_state = dr.state
+
+    return {
+        'dttm': dttm,
+        'base_date': base_date,
+        'num_runs': num_runs,
+        'execution_date': dttm.isoformat(),
+        'dr_choices': dr_choices,
+        'dr_state': dr_state,
+    }
 
 class Airflow(BaseView):
     def is_visible(self):
@@ -1356,7 +1408,6 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def graph(self, session=None):
-        default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
@@ -1398,48 +1449,11 @@ class Airflow(BaseView):
         for t in dag.roots:
             get_upstream(t)
 
-        dttm = request.args.get('execution_date')
-        if dttm:
-            dttm = pendulum.parse(dttm)
-        else:
-            dttm = dag.latest_execution_date or timezone.utcnow()
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dt_nr_dr_data['arrange'] = arrange
+        dttm = dt_nr_dr_data['dttm']
 
-        base_date = request.args.get('base_date')
-        if base_date:
-            base_date = timezone.parse(base_date)
-        else:
-            # The DateTimeField widget truncates milliseconds and would loose
-            # the first dag run. Round to next second.
-            base_date = (dttm + timedelta(seconds=1)).replace(microsecond=0)
-
-        num_runs = request.args.get('num_runs')
-        num_runs = int(num_runs) if num_runs else default_dag_run
-
-        DR = models.DagRun
-        drs = (
-            session.query(DR)
-            .filter(
-                DR.dag_id == dag.dag_id,
-                DR.execution_date <= base_date)
-            .order_by(desc(DR.execution_date))
-            .limit(num_runs)
-            .all()
-        )
-        dr_choices = []
-        dr_state = None
-        for dr in drs:
-            dr_choices.append((dr.execution_date.isoformat(), dr.run_id))
-            if dttm == dr.execution_date:
-                dr_state = dr.state
-
-        # Happens if base_date was changed and the selected dag run is not in result
-        if not dr_state and drs:
-            dr = drs[0]
-            dttm = dr.execution_date
-            dr_state = dr.state
-
-        class GraphForm(DateTimeWithNumRunsForm):
-            execution_date = SelectField("DAG run", choices=dr_choices)
+        class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
                 ('LR', "Left->Right"),
                 ('RL', "Right->Left"),
@@ -1447,11 +1461,8 @@ class Airflow(BaseView):
                 ('BT', "Bottom->Top"),
             ))
 
-        form = GraphForm(
-            data={'execution_date': dttm.isoformat(),
-                  'arrange': arrange,
-                  'base_date': base_date,
-                  'num_runs': num_runs})
+        form = GraphForm(data=dt_nr_dr_data)
+        form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
@@ -1474,7 +1485,7 @@ class Airflow(BaseView):
             width=request.args.get('width', "100%"),
             height=request.args.get('height', "800"),
             execution_date=dttm.isoformat(),
-            state_token=state_token(dr_state),
+            state_token=state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
             operators=sorted(
@@ -1789,7 +1800,6 @@ class Airflow(BaseView):
     @wwwutils.action_logging
     @provide_session
     def gantt(self, session=None):
-
         dag_id = request.args.get('dag_id')
         dag = dagbag.get_dag(dag_id)
         demo_mode = conf.getboolean('webserver', 'demo_mode')
@@ -1801,13 +1811,11 @@ class Airflow(BaseView):
                 include_upstream=True,
                 include_downstream=False)
 
-        dttm = request.args.get('execution_date')
-        if dttm:
-            dttm = pendulum.parse(dttm)
-        else:
-            dttm = dag.latest_execution_date or timezone.utcnow()
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dttm = dt_nr_dr_data['dttm']
 
-        form = DateTimeForm(data={'execution_date': dttm})
+        form = DateTimeWithNumRunsWithDagRunsForm(data=dt_nr_dr_data)
+        form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         tis = [
             ti for ti in dag.get_task_instances(session, dttm, dttm)
