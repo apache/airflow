@@ -148,6 +148,7 @@ gcp_api = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
+    'google-cloud-container>=0.1.1',
     'PyOpenSSL',
     'pandas-gbq'
 ]
