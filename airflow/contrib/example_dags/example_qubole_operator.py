@@ -16,6 +16,7 @@ from airflow import DAG
 from airflow.operators.dummy_operator import DummyOperator
 from airflow.operators.python_operator import PythonOperator, BranchPythonOperator
 from airflow.contrib.operators.qubole_operator import QuboleOperator
+import datetime
 import filecmp
 import random
 
@@ -24,7 +25,7 @@ import random
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': airflow.utils.dates.days_ago(2)
+    'start_date': datetime.datetime(year=2018, month=1, day=1),
     'email': ['airflow@airflow.com'],
     'email_on_failure': False,
     'email_on_retry': False
@@ -44,11 +45,15 @@ t1 = QuboleOperator(
     task_id='hive_show_table',
     command_type='hivecmd',
     query='show tables',
-    cluster_label='default',
+    cluster_label='{{ params.cluster_label }}',
     fetch_logs=True, # If true, will fetch qubole command logs and concatenate them into corresponding airflow task logs
     tags='aiflow_example_run',  # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
     qubole_conn_id='qubole_default',  # Connection id to submit commands inside QDS, if not set "qubole_default" is used
-    dag=dag)
+    dag=dag,
+    params={
+        'cluster_label': 'default'
+    },
+)
 
 t2 = QuboleOperator(
     task_id='hive_s3_location',
@@ -89,9 +94,13 @@ t4 = QuboleOperator(
     task_id='hadoop_jar_cmd',
     command_type='hadoopcmd',
     sub_command='jar s3://paid-qubole/HadoopAPIExamples/jars/hadoop-0.20.1-dev-streaming.jar -mapper wc -numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/data/3.tsv -output s3://paid-qubole/HadoopAPITests/data/3_wc',
-    cluster_label='default',
+    cluster_label='{{ params.cluster_label}}',
     fetch_logs=True,
-    dag=dag)
+    dag=dag,
+    params={
+        'cluster_label': 'default'
+    },
+)
 
 t5 = QuboleOperator(
     task_id='pig_cmd',
