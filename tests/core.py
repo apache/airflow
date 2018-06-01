@@ -391,6 +391,7 @@ class CoreTest(unittest.TestCase):
         Tests that Operators reject illegal arguments
         """
         with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             t = BashOperator(
                 task_id='test_illegal_args',
                 bash_command='echo success',
