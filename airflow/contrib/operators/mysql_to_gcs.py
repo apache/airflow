@@ -233,7 +233,7 @@ class MySqlToGoogleCloudStorageOperator(BaseOperator):
             elif isinstance(col_val, Decimal):
                 col_val = float(col_val)
             elif col_type_dict.get(col_name) == "BYTES":
-                col_val = base64.urlsafe_b64encode(col_val)
+                col_val = base64.standard_b64encode(col_val)
                 if PY3:
                     col_val = col_val.decode('ascii')
             else:
