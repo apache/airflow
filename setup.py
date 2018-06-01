@@ -169,6 +169,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=0.9.9.1']
+mongo = ['pymongo>=3.6.1']
 mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
 mysql = ['mysqlclient>=1.3.6']
 oracle = ['cx_Oracle>=5.1.2']
@@ -197,7 +198,7 @@ winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
-    + cassandra
+    + cassandra + mongo
 devel = [
     'click',
     'freezegun',
@@ -317,6 +318,7 @@ def do_setup():
             'kerberos': kerberos,
             'kubernetes': kubernetes,
             'ldap': ldap,
+            'mongo': mongo,
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
