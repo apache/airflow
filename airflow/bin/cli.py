@@ -192,6 +192,16 @@ def backfill(args, dag=None):
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
+        if args.reset_dagruns:
+            DAG.clear_dags(
+                [dag],
+                start_date=args.start_date,
+                end_date=args.end_date,
+                confirm_prompt=True,
+                include_subdags=False,
+                only_backfill_dagruns=True,
+            )
+
         dag.run(
             start_date=args.start_date,
             end_date=args.end_date,
@@ -1364,6 +1374,12 @@ class CLIFactory(object):
                   "again."),
             type=float,
             default=1.0),
+        'reset_dag_run': Arg(
+            ("--reset_dagruns",),
+            ("if set, the backfill will delete existing "
+             "backfill-related DAG runs and start "
+             "anew with fresh, running DAG runs"),
+            "store_true"),
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1683,7 +1699,8 @@ class CLIFactory(object):
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf'
+                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
+                'reset_dag_run'
             )
         }, {
             'func': list_tasks,
