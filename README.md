@@ -247,6 +247,7 @@ Currently **officially** using Airflow:
 1. [Xero](https://www.xero.com/) [[@yan9yu](https://github.com/yan9yu)]
 1. [Xoom](https://www.xoom.com/)
 1. [Yahoo!](https://www.yahoo.com/)
+1. [Yieldr](https://www.yieldr.com/) [[@ggeorgiadis](https://github.com/ggeorgiadis)]
 1. [Zapier](https://www.zapier.com) [[@drknexus](https://github.com/drknexus) & [@statwonk](https://github.com/statwonk)]
 1. [Zego](https://www.zego.com/) [[@ruimffl](https://github.com/ruimffl)]
 1. [Zendesk](https://www.github.com/zendesk)
