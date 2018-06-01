@@ -246,8 +246,9 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if current_user and hasattr(current_user, 'username'):
-            user = current_user.username
+        # Only AnonymousUserMixin() does not have user attribute
+        if current_user and hasattr(current_user, 'user'):
+            user = current_user.user.username
         else:
             user = 'anonymous'
 
