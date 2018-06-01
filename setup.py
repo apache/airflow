@@ -157,7 +157,6 @@ hive = [
     'pyhive>=0.1.3',
     'impyla>=0.13.3',
     'thrift_sasl==0.2.1',
-    'unicodecsv>=0.14.1'
 ]
 jdbc = ['jaydebeapi>=1.1.1']
 jenkins = ['python-jenkins>=0.4.15']
@@ -169,7 +168,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=0.9.9.1']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
+mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6']
 oracle = ['cx_Oracle>=5.1.2']
 password = [
@@ -279,6 +278,7 @@ def do_setup():
             'tenacity==4.8.0',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
+            'unicodecsv>=0.14.1',
             'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
         ],
