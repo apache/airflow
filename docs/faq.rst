@@ -162,10 +162,18 @@ How can we reduce the airflow UI page load time?
 
 If your dag takes long time to load, you could reduce the value of ``default_dag_run_display_number`` configuration in ``airflow.cfg`` to a smaller value. This configurable controls the number of dag run to show in UI with default value 25.
 
+
 How to fix Exception: Global variable explicit_defaults_for_timestamp needs to be on (1)?
----------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 
 This means ``explicit_defaults_for_timestamp`` is disabled in your mysql server and you need to enable it by:
 
 #. Set ``explicit_defaults_for_timestamp = 1`` under the mysqld section in your my.cnf file.
 #. Restart the Mysql server.
+
+
+How to reduce airflow dag scheduling latency in production?
+-----------------------------------------------------------
+
+- ``max_threads``: Scheduler will spawn multiple threads in parallel to schedule dags. This is controlled by ``max_threads`` with default value of 2. User should increase this value to a larger value(e.g numbers of cpus where scheduler runs - 1) in production.
+- ``scheduler_heartbeat_sec``: User should consider to increase ``scheduler_heartbeat_sec`` config to a higher value(e.g 60 secs) which controls how frequent the airflow scheduler gets the heartbeat and updates the job's entry in database.
