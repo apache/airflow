@@ -57,6 +57,7 @@ from airflow import configuration as conf
 from airflow import models, jobs
 from airflow import settings
 from airflow.api.common.experimental.mark_tasks import set_dag_run_state
+from airflow.lineage import load_lineage
 from airflow.models import XCom, DagRun
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, SCHEDULER_DEPS
 
@@ -1092,6 +1093,9 @@ class Airflow(AirflowBaseView):
             flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
             return redirect('/')
 
+        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
+        dttm = dt_nr_dr_data['dttm']
+
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
@@ -1100,6 +1104,10 @@ class Airflow(AirflowBaseView):
                 include_downstream=False)
 
         arrange = request.args.get('arrange', dag.orientation)
+
+        # get task instances for states and lineage
+        tis = dag.get_task_instances(session, dttm, dttm)
+        tis_dict = {ti.task_id: ti for ti in tis}
 
         nodes = []
         edges = []
@@ -1112,6 +1120,52 @@ class Airflow(AirflowBaseView):
                     'style': "fill:{0};".format(task.ui_color),
                 }
             })
+
+            # get lineage info
+            if task.task_id in tis_dict:
+                load_lineage(task, tis_dict[task.task_id])
+
+            for data in task.inlets:
+                node = {
+                    'id': data.qualified_name,
+                    'value': {
+                        'label': data.qualified_name,
+                        'labelStyle': "fill:black; font-size: 0.6em; font-style: italic;",
+                    }
+                }
+                if node not in nodes:
+                    nodes.append(node)
+
+                edge = {
+                    'u': data.qualified_name,
+                    'v': task.task_id,
+                    'value': {
+                        'style': "stroke: #f66; stroke-width: 1px;"
+                                 " stroke-dasharray: 5, 5;",
+                    },
+                }
+                edges.append(edge)
+
+            for data in task.outlets:
+                node = {
+                    'id': data.qualified_name,
+                    'value': {
+                        'label': data.qualified_name,
+                        'labelStyle': "fill:black; font-size: 0.6em; font-style: italic;",
+                    }
+                }
+                if node not in nodes:
+                    nodes.append(node)
+
+                edge = {
+                    'u': task.task_id,
+                    'v': data.qualified_name,
+                    'value': {
+                        'style': "stroke: #f66; stroke-width: 1px;"
+                                 " stroke-dasharray: 5, 5;",
+                    },
+                }
+                edges.append(edge)
 
         def get_upstream(task):
             for t in task.upstream_list:
@@ -1126,10 +1180,6 @@ class Airflow(AirflowBaseView):
         for t in dag.roots:
             get_upstream(t)
 
-        dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
-        dt_nr_dr_data['arrange'] = arrange
-        dttm = dt_nr_dr_data['dttm']
-
         class GraphForm(DateTimeWithNumRunsWithDagRunsForm):
             arrange = SelectField("Layout", choices=(
                 ('LR', "Left->Right"),
@@ -1137,13 +1187,13 @@ class Airflow(AirflowBaseView):
                 ('TB', "Top->Bottom"),
                 ('BT', "Bottom->Top"),
             ))
-
+        dt_nr_dr_data['arrange'] = arrange
         form = GraphForm(data=dt_nr_dr_data)
         form.execution_date.choices = dt_nr_dr_data['dr_choices']
 
         task_instances = {
             ti.task_id: alchemy_to_dict(ti)
-            for ti in dag.get_task_instances(session, dttm, dttm)}
+            for ti in tis}
         tasks = {
             t.task_id: {
                 'dag_id': t.dag_id,
@@ -1153,8 +1203,8 @@ class Airflow(AirflowBaseView):
         if not tasks:
             flash("No tasks found", "error")
         session.commit()
-        doc_md = markdown.markdown(dag.doc_md) \
-            if hasattr(dag, 'doc_md') and dag.doc_md else ''
+        doc_md = (markdown.markdown(dag.doc_md)
+                  if hasattr(dag, 'doc_md') and dag.doc_md else '')
 
         return self.render(
             'airflow/graph.html',

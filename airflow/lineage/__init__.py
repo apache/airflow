@@ -139,3 +139,35 @@ def prepare_lineage(func):
         return func(self, context, *args, **kwargs)
 
     return wrapper
+
+
+def load_lineage(task, ti):
+    """
+    Sets inlets and outlets of the task to the current inlets and outlets
+
+    :param task:
+    :param ti: task_instance
+    """
+    context = {'ti': ti}
+
+    inlets = task.xcom_pull(context,
+                            task_ids=[task.task_id],
+                            dag_id=task.dag_id,
+                            key=PIPELINE_INLETS)
+    inlets = [item for sublist in inlets if sublist for item in sublist]
+    inlets = [DataSet.map_type(i['typeName'])(data=i['attributes'])
+              for i in inlets]
+
+    # overwrite
+    task.inlets = inlets
+
+    outlets = task.xcom_pull(context,
+                             task_ids=[task.task_id],
+                             dag_id=task.dag_id,
+                             key=PIPELINE_OUTLETS)
+    outlets = [item for sublist in outlets if sublist for item in sublist]
+    outlets = [DataSet.map_type(i['typeName'])(data=i['attributes'])
+               for i in outlets]
+
+    # overwrite
+    task.outlets = outlets

@@ -18,7 +18,7 @@
 # under the License.
 import unittest
 
-from airflow.lineage import apply_lineage, prepare_lineage
+from airflow.lineage import apply_lineage, load_lineage, prepare_lineage
 from airflow.lineage.datasets import File
 from airflow.models import DAG, TaskInstance as TI
 from airflow.operators.dummy_operator import DummyOperator
@@ -115,3 +115,47 @@ class TestLineage(unittest.TestCase):
         post(op5, ctx5)
         self.assertEqual(send_mock.call_count, 1)
         send_mock.reset_mock()
+
+    @mock.patch("airflow.lineage._get_backend")
+    def test_load_lineage(self, _get_backend):
+        backend = mock.Mock()
+        send_mock = mock.Mock()
+        backend.send_lineage = send_mock
+
+        _get_backend.return_value = backend
+
+        dag = DAG(
+            dag_id='test_load_lineage',
+            start_date=DEFAULT_DATE
+        )
+
+        f1 = File("/tmp/does_not_exist_1")
+        f2 = File("/tmp/does_not_exist_2")
+
+        with dag:
+            op1 = DummyOperator(task_id='leave1',
+                                inlets={"datasets": [f1, ]},
+                                outlets={"datasets": [f2, ]})
+
+        ti = TI(task=op1, execution_date=DEFAULT_DATE)
+        ctx1 = {"ti": ti}
+
+        func = mock.Mock()
+        func.__name__ = 'foo'
+
+        # prepare with manual inlets and outlets
+        prep = prepare_lineage(func)
+        prep(op1, ctx1)
+
+        # post process with no backend
+        post = apply_lineage(func)
+        post(op1, ctx1)
+
+        op_new = DummyOperator(dag=dag, task_id='leave1')
+        load_lineage(op_new, ti)
+
+        self.assertEqual(f1.qualified_name, op_new.inlets[0].qualified_name)
+        self.assertEqual(f2.qualified_name, op_new.outlets[0].qualified_name)
+        self.assertEqual(len(op_new.inlets), len(op1.inlets))
+        self.assertEqual(len(op_new.outlets), len(op1.outlets))
+
