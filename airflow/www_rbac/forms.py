@@ -38,7 +38,7 @@ from wtforms.fields import (IntegerField, SelectField, TextAreaField, PasswordFi
 
 
 class DateTimeForm(FlaskForm):
-    # Date filter form needed for gantt and graph view
+    # Date filter form needed for task views
     execution_date = DateTimeField(
         "Execution date", widget=DateTimePickerWidget())
 
@@ -55,6 +55,11 @@ class DateTimeWithNumRunsForm(FlaskForm):
         (100, "100"),
         (365, "365"),
     ))
+
+
+class DateTimeWithNumRunsWithDagRunsForm(DateTimeWithNumRunsForm):
+    # Date time and number of runs and dag runs form for graph and gantt view
+    execution_date = SelectField("DAG run")
 
 
 class DagRunForm(DynamicForm):

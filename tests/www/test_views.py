@@ -504,25 +504,21 @@ class TestMountPoint(unittest.TestCase):
         self.assertIn(b"DAGs", resp_html)
 
 
-class TestGraphView(unittest.TestCase):
-    DAG_ID = 'dag_for_testing_graph_view'
+class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
+    DAG_ID = 'dag_for_testing_dt_nr_dr_form'
     DEFAULT_DATE = datetime(2017, 9, 1)
     RUNS_DATA = [
-        ('dag_run_for_testing_graph_view_4', datetime(2018, 4, 4)),
-        ('dag_run_for_testing_graph_view_3', datetime(2018, 3, 3)),
-        ('dag_run_for_testing_graph_view_2', datetime(2018, 2, 2)),
-        ('dag_run_for_testing_graph_view_1', datetime(2018, 1, 1)),
+        ('dag_run_for_testing_dt_nr_dr_form_4', datetime(2018, 4, 4)),
+        ('dag_run_for_testing_dt_nr_dr_form_3', datetime(2018, 3, 3)),
+        ('dag_run_for_testing_dt_nr_dr_form_2', datetime(2018, 2, 2)),
+        ('dag_run_for_testing_dt_nr_dr_form_1', datetime(2018, 1, 1)),
     ]
-    GRAPH_ENDPOINT = '/admin/airflow/graph?dag_id={dag_id}'.format(
-        dag_id=DAG_ID
-    )
 
-    @classmethod
-    def setUpClass(cls):
-        super(TestGraphView, cls).setUpClass()
+    def __init__(self, test, endpoint):
+        self.test = test
+        self.endpoint = endpoint
 
     def setUp(self):
-        super(TestGraphView, self).setUp()
         configuration.load_test_config()
         app = application.create_app(testing=True)
         app.config['WTF_CSRF_METHODS'] = []
@@ -547,30 +543,25 @@ class TestGraphView(unittest.TestCase):
             DagRun.dag_id == self.DAG_ID).delete()
         self.session.commit()
         self.session.close()
-        super(TestGraphView, self).tearDown()
-
-    @classmethod
-    def tearDownClass(cls):
-        super(TestGraphView, cls).tearDownClass()
 
     def assertBaseDateAndNumRuns(self, base_date, num_runs, data):
-        self.assertNotIn('name="base_date" value="{}"'.format(base_date), data)
-        self.assertNotIn('<option selected="" value="{}">{}</option>'.format(
+        self.test.assertNotIn('name="base_date" value="{}"'.format(base_date), data)
+        self.test.assertNotIn('<option selected="" value="{}">{}</option>'.format(
             num_runs, num_runs), data)
 
     def assertRunIsNotInDropdown(self, run, data):
-        self.assertNotIn(run.execution_date.isoformat(), data)
-        self.assertNotIn(run.run_id, data)
+        self.test.assertNotIn(run.execution_date.isoformat(), data)
+        self.test.assertNotIn(run.run_id, data)
 
     def assertRunIsInDropdownNotSelected(self, run, data):
-        self.assertIn('<option value="{}">{}</option>'.format(
+        self.test.assertIn('<option value="{}">{}</option>'.format(
             run.execution_date.isoformat(), run.run_id), data)
 
     def assertRunIsSelected(self, run, data):
-        self.assertIn('<option selected value="{}">{}</option>'.format(
+        self.test.assertIn('<option selected value="{}">{}</option>'.format(
             run.execution_date.isoformat(), run.run_id), data)
 
-    def test_graph_view_default_parameters(self):
+    def test_with_default_parameters(self):
         """
         Tests graph view with no URL parameter.
         Should show all dag runs in the drop down.
@@ -578,18 +569,18 @@ class TestGraphView(unittest.TestCase):
         Should set base date to current date (not asserted)
         """
         response = self.app.get(
-            self.GRAPH_ENDPOINT
+            self.endpoint
         )
-        self.assertEqual(response.status_code, 200)
+        self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
-        self.assertIn('Base date:', data)
-        self.assertIn('Number of runs:', data)
+        self.test.assertIn('Base date:', data)
+        self.test.assertIn('Number of runs:', data)
         self.assertRunIsSelected(self.runs[0], data)
         self.assertRunIsInDropdownNotSelected(self.runs[1], data)
         self.assertRunIsInDropdownNotSelected(self.runs[2], data)
         self.assertRunIsInDropdownNotSelected(self.runs[3], data)
 
-    def test_graph_view_with_execution_date_parameter_only(self):
+    def test_with_execution_date_parameter_only(self):
         """
         Tests graph view with execution_date URL parameter.
         Scenario: click link from dag runs view.
@@ -598,10 +589,10 @@ class TestGraphView(unittest.TestCase):
         Should set base date to execution date.
         """
         response = self.app.get(
-            self.GRAPH_ENDPOINT + '&execution_date={}'.format(
+            self.endpoint + '&execution_date={}'.format(
                 self.runs[1].execution_date.isoformat())
         )
-        self.assertEqual(response.status_code, 200)
+        self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(
             self.runs[1].execution_date,
@@ -612,7 +603,7 @@ class TestGraphView(unittest.TestCase):
         self.assertRunIsInDropdownNotSelected(self.runs[2], data)
         self.assertRunIsInDropdownNotSelected(self.runs[3], data)
 
-    def test_graph_view_with_base_date_and_num_runs_parmeters_only(self):
+    def test_with_base_date_and_num_runs_parmeters_only(self):
         """
         Tests graph view with base_date and num_runs URL parameters.
         Should only show dag runs older than base_date in the drop down,
@@ -621,10 +612,10 @@ class TestGraphView(unittest.TestCase):
         Should set base date and num runs to submitted values.
         """
         response = self.app.get(
-            self.GRAPH_ENDPOINT + '&base_date={}&num_runs=2'.format(
+            self.endpoint + '&base_date={}&num_runs=2'.format(
                 self.runs[1].execution_date.isoformat())
         )
-        self.assertEqual(response.status_code, 200)
+        self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 2, data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
@@ -632,7 +623,7 @@ class TestGraphView(unittest.TestCase):
         self.assertRunIsInDropdownNotSelected(self.runs[2], data)
         self.assertRunIsNotInDropdown(self.runs[3], data)
 
-    def test_graph_view_with_base_date_and_num_runs_and_execution_date_outside(self):
+    def test_with_base_date_and_num_runs_and_execution_date_outside(self):
         """
         Tests graph view with base_date and num_runs and execution-date URL parameters.
         Scenario: change the base date and num runs and press "Go",
@@ -642,11 +633,11 @@ class TestGraphView(unittest.TestCase):
         Should set base date and num runs to submitted values.
         """
         response = self.app.get(
-            self.GRAPH_ENDPOINT + '&base_date={}&num_runs=42&execution_date={}'.format(
+            self.endpoint + '&base_date={}&num_runs=42&execution_date={}'.format(
                 self.runs[1].execution_date.isoformat(),
                 self.runs[0].execution_date.isoformat())
         )
-        self.assertEqual(response.status_code, 200)
+        self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 42, data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
@@ -654,7 +645,7 @@ class TestGraphView(unittest.TestCase):
         self.assertRunIsInDropdownNotSelected(self.runs[2], data)
         self.assertRunIsInDropdownNotSelected(self.runs[3], data)
 
-    def test_graph_view_with_base_date_and_num_runs_and_execution_date_within(self):
+    def test_with_base_date_and_num_runs_and_execution_date_within(self):
         """
         Tests graph view with base_date and num_runs and execution-date URL parameters.
         Scenario: change the base date and num runs and press "Go",
@@ -664,17 +655,95 @@ class TestGraphView(unittest.TestCase):
         Should set base date and num runs to submitted values.
         """
         response = self.app.get(
-            self.GRAPH_ENDPOINT + '&base_date={}&num_runs=5&execution_date={}'.format(
+            self.endpoint + '&base_date={}&num_runs=5&execution_date={}'.format(
                 self.runs[2].execution_date.isoformat(),
                 self.runs[3].execution_date.isoformat())
         )
-        self.assertEqual(response.status_code, 200)
+        self.test.assertEqual(response.status_code, 200)
         data = response.data.decode('utf-8')
         self.assertBaseDateAndNumRuns(self.runs[2].execution_date, 5, data)
         self.assertRunIsNotInDropdown(self.runs[0], data)
         self.assertRunIsNotInDropdown(self.runs[1], data)
         self.assertRunIsInDropdownNotSelected(self.runs[2], data)
         self.assertRunIsSelected(self.runs[3], data)
+
+
+class TestGraphView(unittest.TestCase):
+    GRAPH_ENDPOINT = '/admin/airflow/graph?dag_id={dag_id}'.format(
+        dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestGraphView, cls).setUpClass()
+
+    def setUp(self):
+        super(TestGraphView, self).setUp()
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GRAPH_ENDPOINT)
+        self.tester.setUp()
+
+    def tearDown(self):
+        self.tester.tearDown()
+        super(TestGraphView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestGraphView, cls).tearDownClass()
+
+    def test_dt_nr_dr_form_default_parameters(self):
+        self.tester.test_with_default_parameters()
+
+    def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
+        self.tester.test_with_execution_date_parameter_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_within(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
+
+
+class TestGanttView(unittest.TestCase):
+    GANTT_ENDPOINT = '/admin/airflow/gantt?dag_id={dag_id}'.format(
+        dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestGanttView, cls).setUpClass()
+
+    def setUp(self):
+        super(TestGanttView, self).setUp()
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GANTT_ENDPOINT)
+        self.tester.setUp()
+
+    def tearDown(self):
+        self.tester.tearDown()
+        super(TestGanttView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestGanttView, cls).tearDownClass()
+
+    def test_dt_nr_dr_form_default_parameters(self):
+        self.tester.test_with_default_parameters()
+
+    def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
+        self.tester.test_with_execution_date_parameter_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_within(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
 if __name__ == '__main__':
