@@ -1808,6 +1808,10 @@ class TaskInstance(Base, LoggingMixin):
             session.expunge_all()
             session.commit()
 
+        # create convenience names for inlets and outlets
+        inlets = dict((i.qualified_name, i) for i in task.inlets)
+        outlets = dict((o.qualified_name, o) for o in task.outlets)
+
         if task.params:
             params.update(task.params)
 
@@ -1844,7 +1848,9 @@ class TaskInstance(Base, LoggingMixin):
             def __repr__(self):
                 return str(self.var)
 
-        return {
+        # make sure dag level overwrite inlets/outlets
+        context = dict(inlets, **outlets)
+        context.update({
             'dag': task.dag,
             'ds': ds,
             'next_ds': next_ds,
@@ -1877,9 +1883,11 @@ class TaskInstance(Base, LoggingMixin):
                 'value': VariableAccessor(),
                 'json': VariableJsonAccessor()
             },
-            'inlets': task.inlets,
-            'outlets': task.outlets,
-        }
+            'inlets': inlets,
+            'outlets': outlets,
+        })
+
+        return context
 
     def overwrite_params_with_dag_run_conf(self, params, dag_run):
         if dag_run and dag_run.conf:
