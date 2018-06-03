@@ -141,5 +141,5 @@ class DataProcHookTest(unittest.TestCase):
         with self.assertRaises(Exception) as context:
             operation._check_done()
 
-        self.assertTrue(context.exception.message.startswith(
+        self.assertTrue(str(context.exception).startswith(
             'Google Dataproc Operation'))
