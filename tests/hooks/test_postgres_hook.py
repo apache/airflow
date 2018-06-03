@@ -55,4 +55,4 @@ class TestPostgresHook(unittest.TestCase):
             self.cur.close.assert_called_once()
             self.conn.commit.assert_called_once()
             self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
-            m.assert_called_once_with(filename, "w+")
+            self.assertEqual(m.call_args[0], (filename, "r+"))

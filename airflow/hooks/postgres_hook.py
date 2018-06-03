@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import psycopg2
 import psycopg2.extensions
 from contextlib import closing
@@ -61,13 +62,24 @@ class PostgresHook(DbApiHook):
 
     def copy_expert(self, sql, filename, open=open):
         """
-        Executes SQL using psycopg2 copy_expert method
-        Necessary to execute COPY command without access to a superuser
+        Executes SQL using psycopg2 copy_expert method.
+        Necessary to execute COPY command without access to a superuser.
+
+        Note: if this method is called with a "COPY FROM" statement and
+        the specified input file does not exist, it creates an empty
+        file and no data is loaded, but the operation succeeds.
+        So if users want to be aware when the input file does not exist,
+        they have to check its existence by themselves.
         """
-        with open(filename, 'w+') as f:
+        if not os.path.isfile(filename):
+            with open(filename, 'w'):
+                pass
+
+        with open(filename, 'r+') as f:
             with closing(self.get_conn()) as conn:
                 with closing(conn.cursor()) as cur:
                     cur.copy_expert(sql, f)
+                    f.truncate(f.tell())
                     conn.commit()
 
     @staticmethod
