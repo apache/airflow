@@ -77,7 +77,8 @@ class S3Hook(AwsHook):
         plist = self.list_prefixes(bucket_name, previous_level, delimiter)
         return False if plist is None else prefix in plist
 
-    def list_prefixes(self, bucket_name, prefix='', delimiter=''):
+    def list_prefixes(self, bucket_name, prefix='', delimiter='',
+                      page_size=None, max_items=None):
         """
         Lists prefixes in a bucket under prefix
 
@@ -87,11 +88,21 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
-                                      Delimiter=delimiter)
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
 
         has_results = False
         prefixes = []
@@ -104,7 +115,8 @@ class S3Hook(AwsHook):
         if has_results:
             return prefixes
 
-    def list_keys(self, bucket_name, prefix='', delimiter=''):
+    def list_keys(self, bucket_name, prefix='', delimiter='',
+                  page_size=None, max_items=None):
         """
         Lists keys in a bucket under prefix and not containing delimiter
 
@@ -114,11 +126,21 @@ class S3Hook(AwsHook):
         :type prefix: str
         :param delimiter: the delimiter marks key hierarchy.
         :type delimiter: str
+        :param page_size: pagination size
+        :type page_size: int
+        :param max_items: maximum items to return
+        :type max_items: int
         """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
         paginator = self.get_conn().get_paginator('list_objects_v2')
         response = paginator.paginate(Bucket=bucket_name,
                                       Prefix=prefix,
-                                      Delimiter=delimiter)
+                                      Delimiter=delimiter,
+                                      PaginationConfig=config)
 
         has_results = False
         keys = []
