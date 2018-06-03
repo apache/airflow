@@ -1865,6 +1865,44 @@ class SecureModeWebUiTests(unittest.TestCase):
         configuration.conf.remove_option("core", "SECURE_MODE")
 
 
+class PasswordUserTest(unittest.TestCase):
+    def setUp(self):
+        user = models.User()
+        from airflow.contrib.auth.backends.password_auth import PasswordUser
+        self.password_user = PasswordUser(user)
+        self.password_user.username = "password_test"
+
+    @mock.patch('airflow.contrib.auth.backends.password_auth.generate_password_hash')
+    def test_password_setter(self, mock_gen_pass_hash):
+        mock_gen_pass_hash.return_value = b"hashed_pass" if six.PY3 else "hashed_pass"
+
+        self.password_user.password = "secure_password"
+        mock_gen_pass_hash.assert_called_with("secure_password", 12)
+
+    def test_password_unicode(self):
+        # In python2.7 no conversion is required back to str
+        # In python >= 3 the method must convert from bytes to str
+        self.password_user.password = "secure_password"
+        self.assertIsInstance(self.password_user.password, str)
+
+    def test_password_user_authenticate(self):
+        self.password_user.password = "secure_password"
+        self.assertTrue(self.password_user.authenticate("secure_password"))
+
+    def test_password_authenticate_session(self):
+        from airflow.contrib.auth.backends.password_auth import PasswordUser
+        self.password_user.password = 'test_password'
+        session = Session()
+        session.add(self.password_user)
+        session.commit()
+        query_user = session.query(PasswordUser).filter_by(
+            username=self.password_user.username).first()
+        self.assertTrue(query_user.authenticate('test_password'))
+        session.query(models.User).delete()
+        session.commit()
+        session.close()
+
+
 class WebPasswordAuthTest(unittest.TestCase):
     def setUp(self):
         configuration.conf.set("webserver", "authenticate", "True")

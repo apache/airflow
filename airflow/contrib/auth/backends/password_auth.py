@@ -63,7 +63,7 @@ class PasswordUser(models.User):
         return self._password
 
     @password.setter
-    def _set_password(self, plaintext):
+    def password(self, plaintext):
         self._password = generate_password_hash(plaintext, 12)
         if PY3:
             self._password = str(self._password, 'utf-8')
