@@ -17,37 +17,40 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import airflow
-import logging
+from airflow.utils.dates import days_ago
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.models import DAG
+
+log = LoggingMixin().log
 
 try:
     # Kubernetes is optional, so not available in vanilla Airflow
-    # pip install airflow[gcp]
+    # pip install airflow[kubernetes]
     from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
-except ImportError:
-    # Just import the BaseOperator as the KubernetesPodOperator
-    logging.warn("Could not import KubernetesPodOperator")
-    from airflow.models import BaseOperator as KubernetesPodOperator
 
-args = {
-    'owner': 'airflow',
-    'start_date': airflow.utils.dates.days_ago(2)
-}
+    args = {
+        'owner': 'airflow',
+        'start_date': days_ago(2)
+    }
 
-dag = DAG(
-    dag_id='example_kubernetes_operator',
-    default_args=args,
-    schedule_interval=None)
+    dag = DAG(
+        dag_id='example_kubernetes_operator',
+        default_args=args,
+        schedule_interval=None)
 
-k = KubernetesPodOperator(
-    namespace='default',
-    image="ubuntu:16.04",
-    cmds=["bash", "-cx"],
-    arguments=["echo", "10"],
-    labels={"foo": "bar"},
-    name="airflow-test-pod",
-    in_cluster=False,
-    task_id="task",
-    get_logs=True,
-    dag=dag)
+    k = KubernetesPodOperator(
+        namespace='default',
+        image="ubuntu:16.04",
+        cmds=["bash", "-cx"],
+        arguments=["echo", "10"],
+        labels={"foo": "bar"},
+        name="airflow-test-pod",
+        in_cluster=False,
+        task_id="task",
+        get_logs=True,
+        dag=dag)
+
+except ImportError as e:
+    log.warn("Could not import KubernetesPodOperator: " + str(e))
+    log.warn("Install kubernetes dependencies with: "
+             "    pip install airflow['kubernetes']")
