@@ -104,9 +104,10 @@ class MySqlToHiveTransfer(BaseOperator):
             t.DOUBLE: 'DOUBLE',
             t.FLOAT: 'DOUBLE',
             t.INT24: 'INT',
-            t.LONG: 'INT',
-            t.LONGLONG: 'BIGINT',
+            t.LONG: 'BIGINT',
+            t.LONGLONG: 'DECIMAL(38,0)',
             t.SHORT: 'INT',
+            t.TINY: 'SMALLINT',
             t.YEAR: 'INT',
         }
         return d[mysql_type] if mysql_type in d else 'STRING'
