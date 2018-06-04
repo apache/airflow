@@ -296,24 +296,38 @@ class BackfillJobTest(unittest.TestCase):
         """
         Test that backfill respects ignore_depends_on_past
         """
-        dag = self.dagbag.get_dag('test_depends_on_past')
-        dag.clear()
-        run_date = DEFAULT_DATE + datetime.timedelta(days=5)
+        dag = DAG(
+            dag_id='test_backfill_depends_on_past',
+            start_date=DEFAULT_DATE,
+            schedule_interval='@daily')
 
-        # backfill should deadlock
-        self.assertRaisesRegexp(
-            AirflowException,
-            'BackfillJob is deadlocked',
-            BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run)
+        with dag:
+            DummyOperator(
+                task_id='op_on_past',
+                dag=dag,
+                depends_on_past=True)
 
-        BackfillJob(
-            dag=dag,
-            start_date=run_date,
-            end_date=run_date,
-            ignore_first_depends_on_past=True).run()
+        run_date = dag.start_date + datetime.timedelta(days=5)
+        BackfillJob(dag=dag, start_date=run_date, end_date=run_date).run()
+
+        ti = TI(dag.tasks[0], run_date)
+        ti.refresh_from_db()
+        # Set failed task state to be scheduled
+        self.assertEquals(ti.state, State.SCHEDULED)
+
+        executor = TestExecutor(do_update=True)
+
+        job = BackfillJob(dag=dag,
+                          executor=executor,
+                          start_date=DEFAULT_DATE,
+                          end_date=DEFAULT_DATE + datetime.timedelta(days=2),
+                          ignore_first_depends_on_past=True)
+        job.run()
 
         # ti should have succeeded
-        ti = TI(dag.tasks[0], run_date)
+        ti = TI(task=dag.tasks[0],
+                execution_date=DEFAULT_DATE,
+                )
         ti.refresh_from_db()
         self.assertEquals(ti.state, State.SUCCESS)
 
@@ -409,11 +423,12 @@ class BackfillJobTest(unittest.TestCase):
         dag = self.dagbag.get_dag(dag_id)
         dag.clear()
 
-        self.assertRaisesRegexp(
-            AirflowException,
-            'BackfillJob is deadlocked',
-            cli.backfill,
-            self.parser.parse_args(args))
+        # The exception now will be caught instead of thrown
+        # self.assertRaisesRegexp(
+        #     AirflowException,
+        #     'BackfillJob is deadlocked',
+        #     cli.backfill,
+        #     self.parser.parse_args(args))
 
         cli.backfill(self.parser.parse_args(args + ['-I']))
         ti = TI(dag.get_task('test_depends_on_past'), run_date)
@@ -647,9 +662,10 @@ class BackfillJobTest(unittest.TestCase):
                 self.assertEqual(State.NONE, ti.state)
 
     def test_backfill_fill_blanks(self):
+        run_time = DEFAULT_DATE
         dag = DAG(
             'test_backfill_fill_blanks',
-            start_date=DEFAULT_DATE,
+            start_date=run_time,
             default_args={'owner': 'owner1'},
         )
 
@@ -661,11 +677,10 @@ class BackfillJobTest(unittest.TestCase):
             op5 = DummyOperator(task_id='op5')
             op6 = DummyOperator(task_id='op6')
 
-        dag.clear()
-        dr = dag.create_dagrun(run_id='test',
+        dr = dag.create_dagrun(run_id='backfill_test',
                                state=State.RUNNING,
-                               execution_date=DEFAULT_DATE,
-                               start_date=DEFAULT_DATE)
+                               execution_date=run_time,
+                               start_date=run_time)
         executor = TestExecutor(do_update=True)
 
         session = settings.Session()
@@ -683,7 +698,8 @@ class BackfillJobTest(unittest.TestCase):
                 ti.state = State.SCHEDULED
             elif ti.task_id == op5.task_id:
                 ti.state = State.UPSTREAM_FAILED
-            # op6 = None
+            elif ti.task_id == op6.task_id:
+                ti.state = State.NONE
             session.merge(ti)
         session.commit()
         session.close()
@@ -692,28 +708,29 @@ class BackfillJobTest(unittest.TestCase):
                           start_date=DEFAULT_DATE,
                           end_date=DEFAULT_DATE,
                           executor=executor)
-        self.assertRaisesRegexp(
-            AirflowException,
-            'Some task instances failed',
-            job.run)
+        job.run()
 
-        self.assertRaises(sqlalchemy.orm.exc.NoResultFound, dr.refresh_from_db)
-        # the run_id should have changed, so a refresh won't work
         drs = DagRun.find(dag_id=dag.dag_id, execution_date=DEFAULT_DATE)
         dr = drs[0]
+        dr.refresh_from_db
 
-        self.assertEqual(dr.state, State.FAILED)
+        self.assertEqual(dr.state, State.SUCCESS)
 
-        tis = dr.get_task_instances()
+        tis = dr.get_task_instances(session=session)
+        # Try to rerun failed and upstreamed-failed tasks.
         for ti in tis:
-            if ti.task_id in (op1.task_id, op4.task_id, op6.task_id):
+            if ti.task_id == op1.task_id:
                 self.assertEqual(ti.state, State.SUCCESS)
-            elif ti.task_id == op2.task_id:
-                self.assertEqual(ti.state, State.FAILED)
+            if ti.task_id == op2.task_id:
+                self.assertEqual(ti.state, State.SUCCESS)
             elif ti.task_id == op3.task_id:
                 self.assertEqual(ti.state, State.SKIPPED)
             elif ti.task_id == op5.task_id:
-                self.assertEqual(ti.state, State.UPSTREAM_FAILED)
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == op6.task_id:
+                self.assertEqual(ti.state, State.SUCCESS)
+            elif ti.task_id == op4.task_id:
+                self.assertEquals(ti.state, State.SUCCESS)
 
     def test_backfill_execute_subdag(self):
         dag = self.dagbag.get_dag('example_subdag_operator')

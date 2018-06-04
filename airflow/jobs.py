@@ -2224,6 +2224,13 @@ class BackfillJob(BaseJob):
                             "externally. This should not happen"
                         )
                         ti.set_state(State.SCHEDULED, session=session)
+                    # Rerun failed tasks or upstreamed failed tasks
+                    elif ti.state == State.FAILED or ti.state == State.UPSTREAM_FAILED:
+                        self.log.error("Task instance %s failed / upstreamed failed", ti)
+                        if key in ti_status.running:
+                            ti_status.running.pop(key)
+                        # Reset the failed task in backfill to scheduled state
+                        ti.set_state(State.SCHEDULED, session=session)
 
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
@@ -2237,20 +2244,6 @@ class BackfillJob(BaseJob):
                     elif ti.state == State.SKIPPED:
                         ti_status.skipped.add(key)
                         self.log.debug("Task instance %s skipped. Don't rerun.", ti)
-                        ti_status.to_run.pop(key)
-                        if key in ti_status.running:
-                            ti_status.running.pop(key)
-                        continue
-                    elif ti.state == State.FAILED:
-                        self.log.error("Task instance %s failed", ti)
-                        ti_status.failed.add(key)
-                        ti_status.to_run.pop(key)
-                        if key in ti_status.running:
-                            ti_status.running.pop(key)
-                        continue
-                    elif ti.state == State.UPSTREAM_FAILED:
-                        self.log.error("Task instance %s upstream failed", ti)
-                        ti_status.failed.add(key)
                         ti_status.to_run.pop(key)
                         if key in ti_status.running:
                             ti_status.running.pop(key)
@@ -2495,6 +2488,9 @@ class BackfillJob(BaseJob):
                         self.dag_id
                     )
                     time.sleep(self.delay_on_limit_secs)
+        except Exception as e:
+            # explictly catch the exception
+            self.log.exception(e)
         finally:
             executor.end()
             session.commit()
