@@ -46,7 +46,7 @@ Here are some of the common causes:
   running. You can bulk view the list of DagRuns and alter states by clicking
   on the schedule tag for a DAG.
 
-- Is the ``concurrency`` parameter of your DAG reached? ``concurency`` defines
+- Is the ``concurrency`` parameter of your DAG reached? ``concurrency`` defines
   how many ``running`` task instances a DAG is allowed to have, beyond which
   point things get queued.
 
