@@ -115,6 +115,19 @@ WasbHook
 
 .. autoclass:: airflow.contrib.hooks.wasb_hook.WasbHook
 
+Azure File Share
+''''''''''''''''
+
+Cloud variant of a SMB file share. Make sure that a Airflow connection of 
+type `wasb` exists. Authorization can be done by supplying a login (=Storage account name) 
+and password (=Storage account key), or login and SAS token in the extra field 
+(see connection `wasb_default` for an example).
+
+AzureFileShareHook
+""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_fileshare_hook.AzureFileShareHook
+
 Logging
 '''''''
 
