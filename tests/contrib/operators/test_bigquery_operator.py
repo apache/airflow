@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,10 +18,12 @@
 # under the License.
 
 import unittest
+import warnings
 
-from airflow.contrib.operators.bigquery_operator import BigQueryCreateEmptyTableOperator
-from airflow.contrib.operators.bigquery_operator \
-    import BigQueryCreateExternalTableOperator
+from airflow.contrib.operators.bigquery_operator import \
+    BigQueryCreateExternalTableOperator, \
+    BigQueryOperator, \
+    BigQueryCreateEmptyTableOperator
 
 try:
     from unittest import mock
@@ -38,6 +40,18 @@ TEST_TABLE_ID = 'test-table-id'
 TEST_GCS_BUCKET = 'test-bucket'
 TEST_GCS_DATA = ['dir1/*.csv']
 TEST_SOURCE_FORMAT = 'CSV'
+
+
+class BigQueryOperatorTest(unittest.TestCase):
+    def test_bql_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as w:
+            BigQueryOperator(
+                task_id='test_deprecation_warning_for_bql',
+                bql='select * from test_table'
+            )
+        self.assertIn(
+            'Deprecated parameter `bql`',
+            w[0].message.args[0])
 
 
 class BigQueryCreateEmptyTableOperatorTest(unittest.TestCase):

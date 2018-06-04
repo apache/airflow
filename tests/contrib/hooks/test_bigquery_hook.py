@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,6 +19,8 @@
 #
 
 import unittest
+import warnings
+
 import mock
 
 from airflow.contrib.hooks import bigquery_hook as hook
@@ -32,6 +34,7 @@ try:
     hook.BigQueryHook().get_service()
 except HttpAccessTokenRefreshError:
     bq_available = False
+
 
 class TestBigQueryDataframeResults(unittest.TestCase):
     def setUp(self):
@@ -66,6 +69,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
             self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
         self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
                       str(context.exception), "")
+
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
@@ -104,15 +108,13 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
 
-
     def test_valid_double_column(self):
         project, dataset, table = hook._split_tablename('alt1:alt:dataset.table',
-                                  'project')
+                                                        'project')
 
         self.assertEqual('alt1:alt', project)
         self.assertEqual("dataset", dataset)
         self.assertEqual("table", table)
-
 
     def test_invalid_syntax_triple_colon(self):
         with self.assertRaises(Exception) as context:
@@ -122,7 +124,6 @@ class TestBigQueryTableSplitter(unittest.TestCase):
         self.assertIn('Use either : or . to specify project',
                       str(context.exception), "")
         self.assertFalse('Format exception for' in str(context.exception))
-
 
     def test_invalid_syntax_triple_dot(self):
         with self.assertRaises(Exception) as context:
@@ -213,8 +214,28 @@ class TestBigQueryBaseCursor(unittest.TestCase):
                 "test_schema.json",
                 ["test_data.json"],
                 schema_update_options=["THIS IS NOT VALID"]
-                )
+            )
         self.assertIn("THIS IS NOT VALID", str(context.exception))
+
+    @mock.patch.object(hook.BigQueryBaseCursor, 'run_with_configuration')
+    def test_bql_deprecation_warning(self, mock_rwc):
+        with warnings.catch_warnings(record=True) as w:
+            hook.BigQueryBaseCursor("test", "test").run_query(
+                bql='select * from test_table'
+            )
+        self.assertIn(
+            'Deprecated parameter `bql`',
+            w[0].message.args[0])
+
+    def test_nobql_nosql_param_error(self):
+        with self.assertRaises(TypeError) as context:
+            hook.BigQueryBaseCursor("test", "test").run_query(
+                sql=None,
+                bql=None
+            )
+        self.assertIn(
+            'missing 1 required positional',
+            str(context.exception))
 
     def test_invalid_schema_update_and_write_disposition(self):
         with self.assertRaises(Exception) as context:
@@ -321,7 +342,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
         mocked_rwc.side_effect = run_with_config
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
-        bq_hook.run_query(bql='select 1')
+        bq_hook.run_query(sql='select 1')
 
         mocked_rwc.assert_called_once()
 
@@ -344,7 +365,7 @@ class TestTimePartitioningInRunJob(unittest.TestCase):
 
         bq_hook = hook.BigQueryBaseCursor(mock.Mock(), project_id)
         bq_hook.run_query(
-            bql='select 1',
+            sql='select 1',
             destination_dataset_table='my_dataset.my_table',
             time_partitioning={'type': 'DAY', 'field': 'test_field', 'expirationMs': 1000}
         )

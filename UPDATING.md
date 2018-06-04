@@ -63,6 +63,10 @@ Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a d
 "airflow-version" label, please upgrade your google-cloud-dataflow or apache-beam version
 to 2.2.0 or greater.
 
+### BigQuery Hooks and Operator
+The `bql` parameter passed to `BigQueryOperator` and `BigQueryBaseCursor.run_query` has been deprecated and renamed to `sql` for consistency purposes. Using `bql` will still work (and raise a `DeprecationWarning`), but is no longer
+supported and will be removed entirely in Airflow 2.0
+
 ### Redshift to S3 Operator
 With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row,
 we need to turn off parallel unload. It is preferred to perform unload operation using all nodes so that it is
