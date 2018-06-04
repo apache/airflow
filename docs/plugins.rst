@@ -127,7 +127,7 @@ definitions in Airflow.
             return self.render("test_plugin/test.html", content="Hello galaxy!")
     v = TestView(category="Test Plugin", name="Test View")
 
-    # Creating a flask blueprint to intergrate the templates and static folder
+    # Creating a flask blueprint to integrate the templates and static folder
     bp = Blueprint(
         "test_plugin", __name__,
         template_folder='templates', # registers airflow/plugins/templates as a Jinja template folder
