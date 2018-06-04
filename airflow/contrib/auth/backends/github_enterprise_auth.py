@@ -84,17 +84,18 @@ class GHEAuthBackend(object):
         self.login_manager.login_view = 'airflow.login'
         self.flask_app = None
         self.ghe_oauth = None
-        self.api_rev = None
+        self.api_url = None
 
     def ghe_api_route(self, leaf):
-        if not self.api_rev:
-            self.api_rev = get_config_param('api_rev')
-
-        return '/'.join(['https:/',
-                         self.ghe_host,
-                         'api',
-                         self.api_rev,
-                         leaf.strip('/')])
+        if not self.api_url:
+            self.api_url = (
+                'https://api.github.com' if self.ghe_host == 'github.com'
+                else '/'.join(['https:/',
+                               self.ghe_host,
+                               'api',
+                               get_config_param('api_rev')])
+            )
+        return self.api_url + leaf
 
     def init_app(self, flask_app):
         self.flask_app = flask_app
