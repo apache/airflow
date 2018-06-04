@@ -71,6 +71,7 @@ psycopg2
 pygments
 pyhive
 pykerberos
+pymongo
 PyOpenSSL
 PySmbClient
 python-daemon

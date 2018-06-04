@@ -186,6 +186,7 @@ samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
 sendgrid = ['sendgrid>=5.2.0']
 slack = ['slackclient>=1.0.0']
+mongo = ['pymongo>=3.6.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
@@ -196,13 +197,15 @@ winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
 all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
-    + cassandra
+    + cassandra + mongo
+
 devel = [
     'click',
     'freezegun',
     'jira',
     'lxml>=3.3.4',
     'mock',
+    'mongomock',
     'moto==1.1.19',
     'nose',
     'nose-ignore-docstring==0.2',
@@ -317,6 +320,7 @@ def do_setup():
             'kerberos': kerberos,
             'kubernetes': kubernetes,
             'ldap': ldap,
+            'mongo': mongo,
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,
