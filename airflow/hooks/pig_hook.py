@@ -55,7 +55,7 @@ class PigCliHook(BaseHook):
 
         with TemporaryDirectory(prefix='airflow_pigop_') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir) as f:
-                f.write(pig)
+                f.write(bytes(pig, 'utf-8'))
                 f.flush()
                 fname = f.name
                 pig_bin = 'pig'
@@ -75,11 +75,11 @@ class PigCliHook(BaseHook):
                     cwd=tmp_dir,
                     close_fds=True)
                 self.sp = sp
-                stdout = ''
-                for line in iter(sp.stdout.readline, ''):
+                stdout = b''
+                for line in iter(sp.stdout.readline, b''):
                     stdout += line
                     if verbose:
-                        self.log.info(line.strip())
+                        self.log.info(line.decode('utf-8'))
                 sp.wait()
 
                 if sp.returncode:
