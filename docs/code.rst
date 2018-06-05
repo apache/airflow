@@ -164,6 +164,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
+.. autoclass:: airflow.contrib.operators.mongo_to_s3.MongoToS3Operator
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
@@ -381,6 +382,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
+.. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
 .. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook
