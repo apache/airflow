@@ -639,14 +639,14 @@ class DagRunTest(unittest.TestCase):
 
         qry = session.query(TI).filter(
             TI.dag_id == dag.dag_id).all()
-        clear_task_instances(qry, session, only_backfill_dagruns=True)
+        clear_task_instances(qry, session)
         session.commit()
         ti0.refresh_from_db()
         dr0 = session.query(DagRun).filter(
             DagRun.dag_id == dag_id,
             DagRun.execution_date == now
         ).first()
-        self.assertEquals(dr0.state, State.REMOVED)
+        self.assertEquals(dr0.state, State.RUNNING)
 
     def test_id_for_date(self):
         run_id = models.DagRun.id_for_date(
