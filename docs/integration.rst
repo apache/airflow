@@ -138,6 +138,43 @@ AzureDataLakeHook
 
 .. autoclass:: airflow.contrib.hooks.azure_data_lake_hook.AzureDataLakeHook
 
+Azure Container Instances
+'''''''''''''''''''''''''
+
+Azure Container Instances provides a method to run a docker container without having to worry
+about managing infrastructure. The AzureContainerInstanceHook requires a service principal. The
+credentials for this principal can either be defined in the extra field `key_path`, as an 
+environment variable named `AZURE_AUTH_LOCATION`, 
+or by providing a login/password and tenantId in extras.
+
+The AzureContainerRegistryHook requires a host/login/password to be defined in the connection.
+
+- :ref:`AzureContainerInstancesOperator` : Start/Monitor a new ACI.
+- :ref:`AzureContainerInstanceHook` : Wrapper around a single ACI.
+- :ref:`AzureContainerRegistryHook` : Wrapper around a ACR
+- :ref:`AzureContainerVolumeHook` : Wrapper around Container Volumes
+
+AzureContainerInstancesOperator
+"""""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.operators.azure_container_instances_operator.AzureContainerInstancesOperator
+
+AzureContainerInstanceHook
+""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_hook.AzureContainerInstanceHook
+
+AzureContainerRegistryHook
+""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_hook.AzureContainerRegistryHook
+
+AzureContainerVolumeHook
+""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.azure_container_hook.AzureContainerVolumeHook
+
+
 .. _AWS:
 
 AWS: Amazon Web Services
