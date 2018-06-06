@@ -122,7 +122,7 @@ class QuboleOperator(BaseOperator):
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
                        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
                        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments')
+                       'arguments', 'user_program_arguments', 'cluster_label')
 
     template_ext = ('.txt',)
     ui_color = '#3064A1'

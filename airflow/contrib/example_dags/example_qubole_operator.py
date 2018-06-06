@@ -61,7 +61,7 @@ t1 = QuboleOperator(
     task_id='hive_show_table',
     command_type='hivecmd',
     query='show tables',
-    cluster_label='default',
+    cluster_label='{{ params.cluster_label }}',
     fetch_logs=True,
     # If `fetch_logs`=true, will fetch qubole command logs and concatenate
     # them into corresponding airflow task logs
@@ -69,7 +69,11 @@ t1 = QuboleOperator(
     # To attach tags to qubole command, auto attach 3 tags - dag_id, task_id, run_id
     qubole_conn_id='qubole_default',
     # Connection id to submit commands inside QDS, if not set "qubole_default" is used
-    dag=dag)
+    dag=dag,
+    params={
+        'cluster_label': 'default',
+    }
+)
 
 t2 = QuboleOperator(
     task_id='hive_s3_location',
@@ -115,9 +119,13 @@ t4 = QuboleOperator(
                 '-numReduceTasks 0 -input s3://paid-qubole/HadoopAPITests/'
                 'data/3.tsv -output '
                 's3://paid-qubole/HadoopAPITests/data/3_wc',
-    cluster_label='default',
+    cluster_label='{{ params.cluster_label }}',
     fetch_logs=True,
-    dag=dag)
+    dag=dag,
+    params={
+        'cluster_label': 'default',
+    }
+)
 
 t5 = QuboleOperator(
     task_id='pig_cmd',
