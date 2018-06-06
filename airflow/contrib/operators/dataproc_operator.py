@@ -93,6 +93,10 @@ class DataprocClusterCreateOperator(BaseOperator):
     :param subnetwork_uri: The subnetwork uri to be used for machine communication,
         cannot be specified with network_uri
     :type subnetwork_uri: string
+    :param internal_ip_only: If true, all instances in the cluster will only
+        have internal IP addresses. This can only be enabled for subnetwork
+        enabled networks
+    :type internal_ip_only: bool
     :param tags: The GCE tags to add to all instances
     :type tags: list[string]
     :param region: leave as 'global', might become relevant in the future. (templated)
@@ -111,7 +115,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         A duration in seconds.
     :type idle_delete_ttl: int
     :param auto_delete_time:  The time when cluster will be auto-deleted.
-    :type auto_delete_time: datetime
+    :type auto_delete_time: datetime.datetime
     :param auto_delete_ttl: The life duration of cluster, the cluster will be
         auto-deleted at the end of this duration.
         A duration in seconds. (If auto_delete_time is set this parameter will be ignored)
@@ -128,6 +132,7 @@ class DataprocClusterCreateOperator(BaseOperator):
                  zone,
                  network_uri=None,
                  subnetwork_uri=None,
+                 internal_ip_only=None,
                  tags=None,
                  storage_bucket=None,
                  init_actions_uris=None,
@@ -173,6 +178,7 @@ class DataprocClusterCreateOperator(BaseOperator):
         self.zone = zone
         self.network_uri = network_uri
         self.subnetwork_uri = subnetwork_uri
+        self.internal_ip_only = internal_ip_only
         self.tags = tags
         self.region = region
         self.service_account = service_account
@@ -306,6 +312,11 @@ class DataprocClusterCreateOperator(BaseOperator):
         if self.subnetwork_uri:
             cluster_data['config']['gceClusterConfig']['subnetworkUri'] = \
                 self.subnetwork_uri
+        if self.internal_ip_only:
+            if not self.subnetwork_uri:
+                raise AirflowException("Set internal_ip_only to true only when"
+                                       " you pass a subnetwork_uri.")
+            cluster_data['config']['gceClusterConfig']['internalIpOnly'] = True
         if self.tags:
             cluster_data['config']['gceClusterConfig']['tags'] = self.tags
         if self.image_version:
