@@ -23,9 +23,18 @@
 {{ super() }}
 <link href="{{ url_for("static", filename="dataTables.bootstrap.css") }}" rel="stylesheet" type="text/css" >
 <link href="{{ url_for("static", filename="bootstrap-toggle.min.css") }}" rel="stylesheet" type="text/css">
+
+{% if request.args.get('show_rss') in ('1', 'true', 'True') %}
+<script src="/static/feed.js"></script>
+{% endif %}
 {% endblock %}
 
+
 {% block body %}
+  {% if request.args.get('show_rss') in ('1', 'true', 'True') %}
+  <div id="rss-entries" style="max-width:500px"></div>
+  {% endif %}
+
   <h2>DAGs</h2>
 
   <div id="main_content" style="display:none;">
