@@ -1450,9 +1450,9 @@ def _bq_cast(string_field, bq_type):
     """
     if string_field is None:
         return None
-    elif bq_type == 'INTEGER' or bq_type == 'TIMESTAMP':
+    elif bq_type == 'INTEGER':
         return int(string_field)
-    elif bq_type == 'FLOAT':
+    elif bq_type == 'FLOAT' or bq_type == 'TIMESTAMP':
         return float(string_field)
     elif bq_type == 'BOOLEAN':
         assert string_field in set(['true', 'false'])
