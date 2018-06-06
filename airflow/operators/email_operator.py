@@ -75,4 +75,4 @@ class EmailOperator(BaseOperator):
     def execute(self, context):
         send_email(self.to, self.subject, self.html_content,
                    files=self.files, cc=self.cc, bcc=self.bcc,
-                   mime_subtype=self.mime_subtype, mine_charset=self.mime_charset)
+                   mime_subtype=self.mime_subtype, mime_charset=self.mime_charset)
