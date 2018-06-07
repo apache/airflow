@@ -98,7 +98,7 @@ class MongoToS3Operator(BaseOperator):
 
     def _stringify(self, iterable, joinable='\n'):
         """
-        Takes an interable (pymongo Cursor or Array) containing dictionaries and
+        Takes an iterable (pymongo Cursor or Array) containing dictionaries and
         returns a stringified version using python join
         """
         return joinable.join(
