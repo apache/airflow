@@ -707,7 +707,7 @@ class DagPickle(Base):
         self.pickle = dag
 
 
-class TaskInstance(Base):
+class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
     authority and single source of truth around what tasks have run and the
@@ -1109,25 +1109,27 @@ class TaskInstance(Base):
         :type dep_context: DepContext
         :param session: database session
         :type session: Session
-        :param verbose: whether or not to print details on failed dependencies
+        :param verbose: whether log details on failed dependencies on
+            info or debug log level
         :type verbose: boolean
         """
         dep_context = dep_context or DepContext()
         failed = False
+        verbose_aware_logger = self.logger.info if verbose else self.logger.debug
         for dep_status in self.get_failed_dep_statuses(
                 dep_context=dep_context,
                 session=session):
             failed = True
-            if verbose:
-                logging.info("Dependencies not met for {}, dependency '{}' FAILED: {}"
-                             .format(self, dep_status.dep_name, dep_status.reason))
+
+            verbose_aware_logger(
+                "Dependencies not met for %s, dependency '%s' FAILED: %s",
+                self, dep_status.dep_name, dep_status.reason
+            )
 
         if failed:
             return False
 
-        if verbose:
-            logging.info("Dependencies all met for {}".format(self))
-
+        verbose_aware_logger("Dependencies all met for %s", self)
         return True
 
     @provide_session
@@ -3409,6 +3411,7 @@ class DAG(BaseDag, LoggingMixin):
             ignore_first_depends_on_past=False,
             pool=None,
             conf=None,
+            verbose=False,
     ):
         """
         Runs the DAG.
@@ -3430,6 +3433,7 @@ class DAG(BaseDag, LoggingMixin):
             ignore_first_depends_on_past=ignore_first_depends_on_past,
             pool=pool,
             conf=conf,
+            verbose=verbose,
         )
         job.run()
 
