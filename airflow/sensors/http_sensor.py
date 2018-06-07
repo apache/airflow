@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,6 +22,7 @@ from builtins import str
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.http_hook import HttpHook
+from airflow.models import XCOM_RETURN_KEY
 from airflow.sensors.base_sensor_operator import BaseSensorOperator
 from airflow.utils.decorators import apply_defaults
 
@@ -60,14 +61,17 @@ class HttpSensor(BaseSensorOperator):
                  request_params=None,
                  headers=None,
                  response_check=None,
-                 extra_options=None, *args, **kwargs):
+                 extra_options=None,
+                 xcom_push_flag=False, *args, **kwargs):
         super(HttpSensor, self).__init__(*args, **kwargs)
         self.endpoint = endpoint
         self.http_conn_id = http_conn_id
+        self.method = method
         self.request_params = request_params or {}
         self.headers = headers or {}
         self.extra_options = extra_options or {}
         self.response_check = response_check
+        self.xcom_push_flag = xcom_push_flag
 
         self.hook = HttpHook(
             method=method,
@@ -75,6 +79,7 @@ class HttpSensor(BaseSensorOperator):
 
     def poke(self, context):
         self.log.info('Poking: %s', self.endpoint)
+        successful_response = True
         try:
             response = self.hook.run(self.endpoint,
                                      data=self.request_params,
@@ -82,11 +87,12 @@ class HttpSensor(BaseSensorOperator):
                                      extra_options=self.extra_options)
             if self.response_check:
                 # run content check on response
-                return self.response_check(response)
+                successful_response = self.response_check(response)
         except AirflowException as ae:
             if str(ae).startswith("404"):
                 return False
-
             raise ae
 
-        return True
+        if successful_response and self.xcom_push_flag:
+            self.xcom_push(context=context, key=XCOM_RETURN_KEY, value=response.text)
+        return successful_response

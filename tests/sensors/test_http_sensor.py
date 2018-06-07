@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,6 +23,7 @@ from mock import patch
 
 from airflow import DAG, configuration
 from airflow.exceptions import AirflowException, AirflowSensorTimeout
+from airflow.models import TaskInstance as TI
 from airflow.operators.http_operator import SimpleHttpOperator
 from airflow.sensors.http_sensor import HttpSensor
 from airflow.utils.timezone import datetime
@@ -198,3 +199,25 @@ class HttpOpSensorTest(unittest.TestCase):
             timeout=15,
             dag=self.dag)
         sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    @mock.patch('requests.Session', FakeSession)
+    def test_sensor_with_xcom_push(self):
+        def resp_check(resp):
+            return True
+
+        sensor = HttpSensor(
+            dag=self.dag,
+            task_id='http_sensor_xcom_push_check',
+            http_conn_id='http_default',
+            endpoint='',
+            request_params={},
+            xcom_push_flag=True,
+            response_check=resp_check,
+            timeout=5,
+            poke_interval=1)
+
+        sensor.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        ti = TI(task=sensor, execution_date=DEFAULT_DATE)
+
+        response = ti.xcom_pull('http_sensor_xcom_push')
+        self.assertIsNotNone(response)
