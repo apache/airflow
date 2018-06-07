@@ -82,6 +82,18 @@ class PostgresHook(DbApiHook):
                     f.truncate(f.tell())
                     conn.commit()
 
+    def bulk_load(self, table, tmp_file):
+        """
+        Loads a tab-delimited file into a database table
+        """
+        self.copy_expert("COPY {table} FROM STDIN".format(table=table), tmp_file)
+
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+        """
+        self.copy_expert("COPY {table} TO STDOUT".format(table=table), tmp_file)
+
     @staticmethod
     def _serialize_cell(cell, conn):
         """
