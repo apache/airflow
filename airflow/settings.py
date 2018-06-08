@@ -151,7 +151,7 @@ def configure_orm(disable_connection_pool=False):
     pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
     if disable_connection_pool or not pool_connections:
         engine_args['poolclass'] = NullPool
-        log.info("settings.configure_orm(): Using NullPool")
+        log.debug("settings.configure_orm(): Using NullPool")
     elif 'sqlite' not in SQL_ALCHEMY_CONN:
         # Engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.

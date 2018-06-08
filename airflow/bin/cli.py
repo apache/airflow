@@ -214,6 +214,7 @@ def backfill(args, dag=None):
             delay_on_limit_secs=args.delay_on_limit,
             verbose=args.verbose,
             conf=run_conf,
+            rerun_failed_tasks=args.rerun_failed_tasks,
         )
 
 
@@ -1375,10 +1376,19 @@ class CLIFactory(object):
             default=1.0),
         'reset_dag_run': Arg(
             ("--reset_dagruns",),
-            ("if set, the backfill will delete existing "
-             "backfill-related DAG runs and start "
-             "anew with fresh, running DAG runs"),
+            (
+                "if set, the backfill will delete existing "
+                "backfill-related DAG runs and start "
+                "anew with fresh, running DAG runs"),
             "store_true"),
+        'rerun_failed_tasks': Arg(
+            ("--rerun_failed_tasks",),
+            (
+                "if set, the backfill will auto-rerun "
+                "all the failed tasks for the backfill date range "
+                "instead of throwing exceptions"),
+            "store_true"),
+
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1693,13 +1703,20 @@ class CLIFactory(object):
     subparsers = (
         {
             'func': backfill,
-            'help': "Run subsections of a DAG for a specified date range",
+            'help': "Run subsections of a DAG for a specified date range. "
+                    "If reset_dag_run option is used,"
+                    " backfill will first prompt users whether airflow "
+                    "should clear all the previous dag_run and task_instances "
+                    "within the backfill date range."
+                    "If rerun_failed_tasks is used, backfill "
+                    "will auto re-run the previous failed task instances"
+                    " within the backfill date range.",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
                 'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose', 'conf',
-                'reset_dag_run'
+                'reset_dag_run', 'rerun_failed_tasks',
             )
         }, {
             'func': list_tasks,
