@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -164,14 +164,16 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
 
         self.log.info("Done.")
 
+
 class PythonVirtualenvOperator(PythonOperator):
     """
     Allows one to run a function in a virtualenv that is created and destroyed
     automatically (with certain caveats).
 
-    The function must be defined using def, and not be part of a class. All imports
-    must happen inside the function and no variables outside of the scope may be referenced.
-    A global scope variable named virtualenv_string_args will be available (populated by
+    The function must be defined using def, and not be
+    part of a class. All imports must happen inside the function
+    and no variables outside of the scope may be referenced. A global scope
+    variable named virtualenv_string_args will be available (populated by
     string_args). In addition, one can pass stuff through op_args and op_kwargs, and one
     can use a return value.
 
@@ -186,10 +188,12 @@ class PythonVirtualenvOperator(PythonOperator):
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
     :type python_version: str
-    :param use_dill: Whether to use dill to serialize the args and result (pickle is default).
-        This allow more complex types but requires you to include dill in your requirements.
+    :param use_dill: Whether to use dill to serialize
+        the args and result (pickle is default). This allow more complex types
+        but requires you to include dill in your requirements.
     :type use_dill: bool
-    :param system_site_packages: Whether to include system_site_packages in your virtualenv.
+    :param system_site_packages: Whether to include
+        system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
     :type system_site_packages: bool
     :param op_args: A list of positional arguments to pass to python_callable.
@@ -209,8 +213,11 @@ class PythonVirtualenvOperator(PythonOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     :type templates_exts: list(str)
     """
-    def __init__(self, python_callable, requirements=None, python_version=None, use_dill=False,
-                 system_site_packages=True, op_args=None, op_kwargs=None, string_args=None,
+    def __init__(self, python_callable,
+                 requirements=None,
+                 python_version=None, use_dill=False,
+                 system_site_packages=True,
+                 op_args=None, op_kwargs=None, string_args=None,
                  templates_dict=None, templates_exts=None, *args, **kwargs):
         super(PythonVirtualenvOperator, self).__init__(
             python_callable=python_callable,
@@ -227,22 +234,25 @@ class PythonVirtualenvOperator(PythonOperator):
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
         # check that dill is present if needed
-        dill_in_requirements = map(lambda x: x.lower().startswith('dill'), self.requirements)
+        dill_in_requirements = map(lambda x: x.lower().startswith('dill'),
+                                   self.requirements)
         if (not system_site_packages) and use_dill and not any(dill_in_requirements):
             raise AirflowException('If using dill, dill must be in the environment ' +
                                    'either via system_site_packages or requirements')
         # check that a function is passed, and that it is not a lambda
-        if (not isinstance(self.python_callable, types.FunctionType)
-                or self.python_callable.__name__ == (lambda x: 0).__name__):
+        if (not isinstance(self.python_callable,
+                           types.FunctionType) or (self.python_callable.__name__ ==
+                                                   (lambda x: 0).__name__)):
             raise AirflowException('{} only supports functions for python_callable arg',
                                    self.__class__.__name__)
         # check that args are passed iff python major version matches
-        if (python_version is not None
-                and str(python_version)[0] != str(sys.version_info[0])
-                and self._pass_op_args()):
+        if (python_version is not None and
+                str(python_version)[0] != str(sys.version_info[0]) and
+                self._pass_op_args()):
             raise AirflowException("Passing op_args or op_kwargs is not supported across "
                                    "different Python major versions "
-                                   "for PythonVirtualenvOperator. Please use string_args.")
+                                   "for PythonVirtualenvOperator. "
+                                   "Please use string_args.")
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
@@ -314,8 +324,9 @@ class PythonVirtualenvOperator(PythonOperator):
                 else:
                     return pickle.load(f)
             except ValueError:
-                self.log.error("Error deserializing result. Note that result deserialization "
-                              "is not supported across major Python versions.")
+                self.log.error("Error deserializing result. "
+                               "Note that result deserialization "
+                               "is not supported across major Python versions.")
                 raise
 
     def _write_script(self, script_filename):
@@ -340,9 +351,11 @@ class PythonVirtualenvOperator(PythonOperator):
             cmd = ['{}/bin/pip'.format(tmp_dir), 'install']
             return cmd + self.requirements
 
-    def _generate_python_cmd(self, tmp_dir, script_filename, input_filename, output_filename, string_args_filename):
+    def _generate_python_cmd(self, tmp_dir, script_filename,
+                             input_filename, output_filename, string_args_filename):
         # direct path alleviates need to activate
-        return ['{}/bin/python'.format(tmp_dir), script_filename, input_filename, output_filename, string_args_filename]
+        return ['{}/bin/python'.format(tmp_dir), script_filename,
+                input_filename, output_filename, string_args_filename]
 
     def _generate_python_code(self):
         if self.use_dill:
@@ -352,11 +365,13 @@ class PythonVirtualenvOperator(PythonOperator):
         fn = self.python_callable
         # dont try to read pickle if we didnt pass anything
         if self._pass_op_args():
-            load_args_line = 'with open(sys.argv[1], "rb") as f: arg_dict = {}.load(f)'.format(pickling_library)
+            load_args_line = 'with open(sys.argv[1], "rb") as f: arg_dict = {}.load(f)'\
+                .format(pickling_library)
         else:
             load_args_line = 'arg_dict = {"args": [], "kwargs": {}}'
 
-        # no indents in original code so we can accept any type of indents in the original function
+        # no indents in original code so we can accept
+        # any type of indents in the original function
         # we deserialize args, call function, serialize result if necessary
         return dedent("""\
         import {pickling_library}
@@ -364,15 +379,15 @@ class PythonVirtualenvOperator(PythonOperator):
         {load_args_code}
         args = arg_dict["args"]
         kwargs = arg_dict["kwargs"]
-        with open(sys.argv[3], 'r') as f: virtualenv_string_args = list(map(lambda x: x.strip(), list(f)))
+        with open(sys.argv[3], 'r') as f:
+            virtualenv_string_args = list(map(lambda x: x.strip(), list(f)))
         {python_callable_lines}
         res = {python_callable_name}(*args, **kwargs)
-        with open(sys.argv[2], 'wb') as f: res is not None and {pickling_library}.dump(res, f)
-        """).format(
-                load_args_code=load_args_line,
-                python_callable_lines=dedent(inspect.getsource(fn)),
-                python_callable_name=fn.__name__,
-                pickling_library=pickling_library)
+        with open(sys.argv[2], 'wb') as f:
+            res is not None and {pickling_library}.dump(res, f)
+        """).format(load_args_code=load_args_line,
+                    python_callable_lines=dedent(inspect.getsource(fn)),
+                    python_callable_name=fn.__name__,
+                    pickling_library=pickling_library)
 
         self.log.info("Done.")
-
