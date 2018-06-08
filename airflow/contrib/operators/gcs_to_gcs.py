@@ -151,8 +151,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                        self.destination_bucket, destination_object)
                 )
 
-                hook.copy(self.source_bucket, source_object,
-                          self.destination_bucket, destination_object)
+                hook.rewrite(self.source_bucket, source_object,
+                             self.destination_bucket, destination_object)
                 if self.move_object:
                     hook.delete(self.source_bucket, source_object)
 
@@ -162,8 +162,8 @@ class GoogleCloudStorageToGoogleCloudStorageOperator(BaseOperator):
                                    self.destination_bucket or self.source_bucket,
                                    self.destination_object or self.source_object)
             )
-            hook.copy(self.source_bucket, self.source_object,
-                      self.destination_bucket, self.destination_object)
+            hook.rewrite(self.source_bucket, self.source_object,
+                         self.destination_bucket, self.destination_object)
 
             if self.move_object:
                 hook.delete(self.source_bucket, self.source_object)
