@@ -111,7 +111,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file2.txt',
                       DESTINATION_BUCKET, 'foo/bar/file2.txt'),
         ]
-        mock_hook.return_value.copy.assert_has_calls(mock_calls)
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
     def test_execute_wildcard_with_destination_object_retained_prefix(self, mock_hook):
@@ -131,7 +131,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file2.txt',
                       DESTINATION_BUCKET, 'foo/bar/test_object/file2.txt'),
         ]
-        mock_hook.return_value.copy.assert_has_calls(mock_calls_retained)
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_retained)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
     def test_execute_wildcard_without_destination_object(self, mock_hook):
@@ -148,7 +148,7 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file2.txt',
                       DESTINATION_BUCKET, 'test_object/file2.txt'),
         ]
-        mock_hook.return_value.copy.assert_has_calls(mock_calls_none)
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_none)
 
     @mock.patch('airflow.contrib.operators.gcs_to_gcs.GoogleCloudStorageHook')
     def test_execute_wildcard_empty_destination_object(self, mock_hook):
@@ -166,4 +166,4 @@ class GoogleCloudStorageToCloudStorageOperatorTest(unittest.TestCase):
             mock.call(TEST_BUCKET, 'test_object/file2.txt',
                       DESTINATION_BUCKET, '/file2.txt'),
         ]
-        mock_hook.return_value.copy.assert_has_calls(mock_calls_empty)
+        mock_hook.return_value.rewrite.assert_has_calls(mock_calls_empty)
