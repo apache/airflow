@@ -4010,6 +4010,7 @@ class DAG(BaseDag, LoggingMixin):
             delay_on_limit_secs=1.0,
             verbose=False,
             conf=None,
+            rerun_failed_tasks=False,
     ):
         """
         Runs the DAG.
@@ -4059,6 +4060,7 @@ class DAG(BaseDag, LoggingMixin):
             delay_on_limit_secs=delay_on_limit_secs,
             verbose=verbose,
             conf=conf,
+            rerun_failed_tasks=rerun_failed_tasks,
         )
         job.run()
 
@@ -4950,7 +4952,7 @@ class DagRun(Base, LoggingMixin):
 
         tis = self.get_task_instances(session=session)
 
-        self.log.info("Updating state for %s considering %s task(s)", self, len(tis))
+        self.log.debug("Updating state for %s considering %s task(s)", self, len(tis))
 
         for ti in list(tis):
             # skip in db?
