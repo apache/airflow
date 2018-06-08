@@ -397,9 +397,15 @@ class DagBag(BaseDagBag, LoggingMixin):
                 dag = self.dags[ti.dag_id]
                 if ti.task_id in dag.task_ids:
                     task = dag.get_task(ti.task_id)
+
+                    # now set non db backed vars on ti
                     ti.task = task
-                    ti.handle_failure("{} killed as zombie".format(str(ti)))
-                    self.log.info('Marked zombie job %s as failed', ti)
+                    ti.test_mode = configuration.getboolean('core', 'unit_test_mode')
+
+                    ti.handle_failure("{} detected as zombie".format(ti),
+                                      ti.test_mode, ti.get_template_context())
+                    self.log.info(
+                        'Marked zombie job %s as %s', ti, ti.state)
                     Stats.incr('zombies_killed')
         session.commit()
 
@@ -1750,7 +1756,6 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.merge(self)
         session.commit()
-        self.log.error(str(error))
 
     @provide_session
     def get_template_context(self, session=None):
