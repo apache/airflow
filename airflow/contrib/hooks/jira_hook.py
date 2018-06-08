@@ -32,9 +32,11 @@ class JiraHook(BaseHook, LoggingMixin):
     :type jira_conn_id: string
     """
     def __init__(self,
-                 jira_conn_id='jira_default'):
+                 jira_conn_id='jira_default',
+                 proxies=None):
         super(JiraHook, self).__init__(jira_conn_id)
         self.jira_conn_id = jira_conn_id
+        self.proxies = proxies
         self.client = None
         self.get_conn()
 
@@ -73,7 +75,8 @@ class JiraHook(BaseHook, LoggingMixin):
                                        options=extra_options,
                                        basic_auth=(conn.login, conn.password),
                                        get_server_info=get_server_info,
-                                       validate=validate)
+                                       validate=validate,
+                                       proxies=self.proxies)
                 except JIRAError as jira_error:
                     raise AirflowException('Failed to create jira client, jira error: %s'
                                            % str(jira_error))
