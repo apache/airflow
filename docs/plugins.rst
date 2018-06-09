@@ -146,6 +146,7 @@ definitions in Airflow.
         sensors = [PluginSensorOperator]
         hooks = [PluginHook]
         executors = [PluginExecutor]
+        # This can be accessed via {{ macros.test_plugin.plugin_macro }}
         macros = [plugin_macro]
         admin_views = [v]
         flask_blueprints = [bp]
