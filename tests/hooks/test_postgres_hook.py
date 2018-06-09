@@ -21,6 +21,8 @@
 import mock
 import unittest
 
+from tempfile import NamedTemporaryFile
+
 from airflow.hooks.postgres_hook import PostgresHook
 
 
@@ -56,3 +58,44 @@ class TestPostgresHook(unittest.TestCase):
             self.conn.commit.assert_called_once()
             self.cur.copy_expert.assert_called_once_with(statement, m.return_value)
             self.assertEqual(m.call_args[0], (filename, "r+"))
+
+    def test_bulk_load(self):
+        hook = PostgresHook()
+        table = "t"
+        input_data = ["foo", "bar", "baz"]
+
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DROP TABLE IF EXISTS {}".format(table))
+                cur.execute("CREATE TABLE {} (c VARCHAR)".format(table))
+                conn.commit()
+
+                with NamedTemporaryFile() as f:
+                    f.write("\n".join(input_data).encode("utf-8"))
+                    f.flush()
+                    hook.bulk_load(table, f.name)
+
+                cur.execute("SELECT * FROM {}".format(table))
+                results = [row[0] for row in cur.fetchall()]
+
+        self.assertEqual(sorted(input_data), sorted(results))
+
+    def test_bulk_dump(self):
+        hook = PostgresHook()
+        table = "t"
+        input_data = ["foo", "bar", "baz"]
+
+        with hook.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DROP TABLE IF EXISTS {}".format(table))
+                cur.execute("CREATE TABLE {} (c VARCHAR)".format(table))
+                values = ",".join("('{}')".format(data) for data in input_data)
+                cur.execute("INSERT INTO {} VALUES {}".format(table, values))
+                conn.commit()
+
+                with NamedTemporaryFile() as f:
+                    hook.bulk_dump(table, f.name)
+                    f.seek(0)
+                    results = [line.rstrip().decode("utf-8") for line in f.readlines()]
+
+        self.assertEqual(sorted(input_data), sorted(results))
