@@ -49,7 +49,7 @@ from airflow.exceptions import AirflowException
 from airflow.executors import DEFAULT_EXECUTOR
 from airflow.models import (DagModel, DagBag, TaskInstance,
                             DagPickle, DagRun, Variable, DagStat,
-                            Pool, Connection)
+                            Pool, Connection, DAG)
 from airflow.ti_deps.dep_context import (DepContext, SCHEDULER_DEPS)
 from airflow.utils import cli
 from airflow.utils import db as db_utils
@@ -161,6 +161,15 @@ def backfill(args, dag=None):
             ti = TaskInstance(task, args.start_date)
             ti.dry_run()
     else:
+        if args.reset_dagruns:
+            DAG.clear_dags(
+                [dag],
+                start_date=args.start_date,
+                end_date=args.end_date,
+                confirm_prompt=True,
+                include_subdags=False,
+            )
+
         dag.run(
             start_date=args.start_date,
             end_date=args.end_date,
@@ -174,6 +183,7 @@ def backfill(args, dag=None):
             pool=args.pool,
             conf=run_conf,
             verbose=args.verbose,
+            rerun_failed_tasks=args.rerun_failed_tasks,
         )
 
 
@@ -1315,6 +1325,19 @@ class CLIFactory(object):
         'conf': Arg(
             ('-c', '--conf'),
             "JSON string that gets pickled into the DagRun's conf attribute"),
+        'reset_dag_run': Arg(
+            ("--reset_dagruns",),
+            ("if set, the backfill will delete existing "
+             "backfill-related DAG runs and start "
+             "anew with fresh, running DAG runs"),
+            "store_true"),
+        'rerun_failed_tasks': Arg(
+            ("--rerun_failed_tasks",),
+            (
+                "if set, the backfill will auto-rerun "
+                "all the failed tasks for the backfill date range "
+                "instead of throwing exceptions"),
+            "store_true"),
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1574,7 +1597,7 @@ class CLIFactory(object):
                 'mark_success', 'local', 'donot_pickle', 'include_adhoc',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'dry_run', 'conf', 'verbose',
-            )
+                'reset_dag_run', 'rerun_failed_tasks')
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",

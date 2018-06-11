@@ -1679,6 +1679,7 @@ class BackfillJob(BaseJob):
             pool=None,
             conf=None,
             verbose=False,
+            rerun_failed_tasks=None,
             *args, **kwargs):
         self.dag = dag
         self.dag_id = dag.dag_id
@@ -1692,6 +1693,7 @@ class BackfillJob(BaseJob):
         self.pool = pool
         self.conf = conf
         self.verbose = verbose
+        self.rerun_failed_tasks = rerun_failed_tasks
         super(BackfillJob, self).__init__(*args, **kwargs)
 
     def _update_counters(self, started, succeeded, skipped, failed, tasks_to_run):
@@ -1900,13 +1902,6 @@ class BackfillJob(BaseJob):
                     self.logger.debug("Task instance to run {} state {}"
                                       .format(ti, ti.state))
 
-                    # guard against externally modified tasks instances or
-                    # in case max concurrency has been reached at task runtime
-                    if ti.state == State.NONE:
-                        self.logger.warning("FIXME: task instance {} state was set to "
-                                            "None externally. This should not happen")
-                        ti.set_state(State.SCHEDULED, session=session)
-
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
@@ -1925,20 +1920,31 @@ class BackfillJob(BaseJob):
                         if key in started:
                             started.pop(key)
                         continue
-                    elif ti.state == State.FAILED:
-                        self.logger.error("Task instance {} failed".format(ti))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-                        if key in started:
-                            started.pop(key)
-                        continue
-                    elif ti.state == State.UPSTREAM_FAILED:
-                        self.logger.error("Task instance {} upstream failed".format(ti))
-                        failed.add(key)
-                        tasks_to_run.pop(key)
-                        if key in started:
-                            started.pop(key)
-                        continue
+                    # guard against externally modified tasks instances or
+                    # in case max concurrency has been reached at task runtime
+                    elif ti.state == State.NONE:
+                        self.logger.warning("FIXME: task instance {} state was set to "
+                                            "None externally. This should not happen")
+                        ti.set_state(State.SCHEDULED, session=session)
+
+                    if self.rerun_failed_tasks:
+                        if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                            self.logger.error("Task instance {ti} "
+                                           "with state {state}".format(ti=ti,
+                                                                       state=ti.state))
+                            if key in started:
+                                started.running.pop(key)
+                            # Reset the failed task in backfill to scheduled state
+                            ti.set_state(State.SCHEDULED, session=session)
+                    else:
+                        if ti.state in (State.FAILED, State.UPSTREAM_FAILED):
+                            self.logger.error("Task instance {} failed / "
+                                              "upstream failed".format(ti))
+                            failed.add(key)
+                            tasks_to_run.pop(key)
+                            if key in started:
+                                started.pop(key)
+                            continue
                     backfill_context = DepContext(
                         deps=RUN_DEPS,
                         ignore_depends_on_past=ignore_depends_on_past,
