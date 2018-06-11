@@ -5,9 +5,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,14 +26,15 @@ except ImportError:  # python 3
 
 from airflow.contrib.hooks import gcp_mlengine_hook as hook
 from apiclient import errors
-from apiclient.discovery import build
+from apiclient.discovery import build_from_document
 from apiclient.http import HttpMockSequence
-from oauth2client.contrib.gce import HttpAccessTokenRefreshError
+from google.auth.exceptions import GoogleAuthError
+import requests
 
 cml_available = True
 try:
     hook.MLEngineHook().get_conn()
-except HttpAccessTokenRefreshError:
+except GoogleAuthError:
     cml_available = False
 
 
@@ -73,11 +74,13 @@ class _TestMLEngineHook(object):
 
         # Collecting requests to validate at __exit__.
         def _request_wrapper(*args, **kwargs):
-            self._actual_requests.append(args + (kwargs['body'],))
+            self._actual_requests.append(args + (kwargs.get('body', ''),))
             return native_request_method(*args, **kwargs)
 
         http.request = _request_wrapper
-        service_mock = build('ml', 'v1', http=http)
+        discovery = requests.get(
+            'https://www.googleapis.com/discovery/v1/apis/ml/v1/rest')
+        service_mock = build_from_document(discovery.json(), http=http)
         with mock.patch.object(
                 hook.MLEngineHook, 'get_conn', return_value=service_mock):
             return hook.MLEngineHook()
