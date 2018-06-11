@@ -1402,7 +1402,7 @@ class SchedulerJob(BaseJob):
         """
         for dag in dags:
             dag = dagbag.get_dag(dag.dag_id)
-            if dag.is_paused:
+            if dag.is_paused():
                 self.log.info("Not processing DAG %s since it's paused", dag.dag_id)
                 continue
 
@@ -1795,7 +1795,7 @@ class SchedulerJob(BaseJob):
             dag.sync_to_db()
 
         paused_dag_ids = [dag.dag_id for dag in dagbag.dags.values()
-                          if dag.is_paused]
+                          if dag.is_paused()]
 
         # Pickle the DAGs (if necessary) and put them into a SimpleDag
         for dag_id in dagbag.dags:
@@ -2391,7 +2391,7 @@ class BackfillJob(BaseJob):
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
 
-                if run.dag.is_paused:
+                if run.dag.is_paused():
                     models.DagStat.update([run.dag_id], session=session)
 
             self._log_progress(ti_status)

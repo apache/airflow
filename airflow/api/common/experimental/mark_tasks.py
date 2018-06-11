@@ -81,7 +81,7 @@ def set_state(task, execution_date, upstream=False, downstream=False,
     assert task.dag is not None
     dag = task.dag
 
-    latest_execution_date = dag.latest_execution_date
+    latest_execution_date = dag.latest_execution_date()
     assert latest_execution_date is not None
 
     # determine date range of dag runs and tasks to consider

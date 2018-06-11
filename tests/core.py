@@ -1299,12 +1299,12 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args([
             'pause', 'example_bash_operator'])
         cli.pause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [True, 1])
+        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused(), [True, 1])
 
         args = self.parser.parse_args([
             'unpause', 'example_bash_operator'])
         cli.unpause(args)
-        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused, [False, 0])
+        self.assertIn(self.dagbag.dags['example_bash_operator'].is_paused(), [False, 0])
 
     def test_subdag_clear(self):
         args = self.parser.parse_args([

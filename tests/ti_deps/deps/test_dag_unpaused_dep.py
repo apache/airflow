@@ -30,7 +30,7 @@ class DagUnpausedDepTest(unittest.TestCase):
         """
         Test paused DAG should fail dependency
         """
-        dag = Mock(is_paused=True)
+        dag = Mock(is_paused=lambda x: True)
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 
@@ -40,7 +40,7 @@ class DagUnpausedDepTest(unittest.TestCase):
         """
         Test all conditions met should pass dep
         """
-        dag = Mock(is_paused=False)
+        dag = Mock(is_paused=lambda x: False)
         task = Mock(dag=dag)
         ti = TaskInstance(task=task, execution_date=None)
 

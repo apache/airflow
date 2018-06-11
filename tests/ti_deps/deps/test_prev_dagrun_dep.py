@@ -121,8 +121,8 @@ class PrevDagrunDepTest(unittest.TestCase):
                               wait_for_downstream=True)
         prev_ti = Mock(state=State.SUCCESS,
                        are_dependents_done=Mock(return_value=True))
-        ti = Mock(task=task, previous_ti=prev_ti,
-                  execution_date=datetime(2016, 1, 2))
+        ti = Mock(task=task, execution_date=datetime(2016, 1, 2))
         dep_context = DepContext(ignore_depends_on_past=False)
+        ti.previous_ti.return_value = prev_ti
 
         self.assertTrue(PrevDagrunDep().is_met(ti=ti, dep_context=dep_context))

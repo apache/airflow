@@ -1241,7 +1241,6 @@ class TaskInstance(Base, LoggingMixin):
         count = ti[0][0]
         return count == len(task.downstream_task_ids)
 
-    @property
     @provide_session
     def previous_ti(self, session=None):
         """ The task instance for the task that ran before this task instance """
@@ -3454,7 +3453,6 @@ class DAG(BaseDag, LoggingMixin):
     def owner(self):
         return ", ".join(list(set([t.owner for t in self.tasks])))
 
-    @property
     @provide_session
     def concurrency_reached(self, session=None):
         """
@@ -3468,7 +3466,6 @@ class DAG(BaseDag, LoggingMixin):
         )
         return qry.scalar() >= self.concurrency
 
-    @property
     @provide_session
     def is_paused(self, session=None):
         """
@@ -3557,7 +3554,6 @@ class DAG(BaseDag, LoggingMixin):
 
         return dagrun
 
-    @property
     @provide_session
     def latest_execution_date(self, session=None):
         """
