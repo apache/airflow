@@ -334,7 +334,8 @@ class TransferTests(unittest.TestCase):
                         c1 SMALLINT,
                         c2 MEDIUMINT,
                         c3 INT,
-                        c4 BIGINT
+                        c4 BIGINT,
+                        c5 TIMESTAMP
                     )
                 """.format(mysql_table))
 
@@ -355,6 +356,7 @@ class TransferTests(unittest.TestCase):
             d["c2"] = "INT"
             d["c3"] = "BIGINT"
             d["c4"] = "DECIMAL(38,0)"
+            d["c5"] = "TIMESTAMP"
             self.assertEqual(mock_load_file.call_args[1]["field_dict"], d)
         finally:
             with m.get_conn() as c:
