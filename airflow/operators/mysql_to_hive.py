@@ -109,6 +109,7 @@ class MySqlToHiveTransfer(BaseOperator):
             t.SHORT: 'INT',
             t.TINY: 'SMALLINT',
             t.YEAR: 'INT',
+            t.TIMESTAMP: 'TIMESTAMP',
         }
         return d[mysql_type] if mysql_type in d else 'STRING'
 
