@@ -267,6 +267,15 @@ backend. In order to setup an application:
 6. Click 'Register application'
 7. Copy 'Client ID', 'Client Secret', and your callback route to your airflow.cfg according to the above example
 
+Using GHE Authentication with github.com
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It is possible to use GHE authentication with github.com:
+
+1. `Create an Oauth App <https://developer.github.com/apps/building-oauth-apps/creating-an-oauth-app/>`_
+2. Copy 'Client ID', 'Client Secret' to your airflow.cfg according to the above example
+3. Set ``host = github.com`` and ``oauth_callback_route = /oauth/callback`` in airflow.cfg
+
 Google Authentication
 '''''''''''''''''''''
 
