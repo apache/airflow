@@ -169,10 +169,9 @@ class DbApiHook(BaseHook):
                     else:
                         cur.execute(s)
 
-            should_commit = getattr(conn, 'autocommit',
-                                    False) or not self.supports_autocommit
-
-            if should_commit:
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not getattr(conn, 'autocommit', False):
                 conn.commit()
 
     def set_autocommit(self, conn, autocommit):
