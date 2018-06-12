@@ -98,11 +98,13 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
 
+        self.hook = None
+
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
         'BytesType': 'BYTES',
         'DecimalType': 'FLOAT',
-        'UUIDType': 'STRING',
+        'UUIDType': 'BYTES',
         'BooleanType': 'BOOL',
         'ByteType': 'INTEGER',
         'AsciiType': 'STRING',
@@ -142,12 +144,15 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         for file_handle in files_to_upload.values():
             file_handle.close()
 
+        # Close all sessions and connection associated with this Cassandra cluster
+        self.hook.shutdown_cluster()
+
     def _query_cassandra(self):
         """
         Queries cassandra and returns a cursor to the results.
         """
-        hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
-        session = hook.get_conn()
+        self.hook = CassandraHook(cassandra_conn_id=self.cassandra_conn_id)
+        session = self.hook.get_conn()
         cursor = session.execute(self.cql)
         return cursor
 
@@ -221,11 +226,10 @@ class CassandraToGoogleCloudStorageOperator(BaseOperator):
         elif isinstance(value, (text_type, int, float, bool, dict)):
             return value
         elif isinstance(value, binary_type):
-            encoded_value = b64encode(value)
-            if PY3:
-                encoded_value = encoded_value.decode('ascii')
-            return encoded_value
-        elif isinstance(value, (datetime, Date, UUID)):
+            return b64encode(value).decode('ascii')
+        elif isinstance(value, UUID):
+            return b64encode(value.bytes).decode('ascii')
+        elif isinstance(value, (datetime, Date)):
             return str(value)
         elif isinstance(value, Decimal):
             return float(value)
