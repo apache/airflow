@@ -21,18 +21,17 @@
 import unittest
 import warnings
 
+from google.auth.exceptions import GoogleAuthError
 import mock
 
 from airflow.contrib.hooks import bigquery_hook as hook
-from oauth2client.contrib.gce import HttpAccessTokenRefreshError
-
 from airflow.contrib.hooks.bigquery_hook import _cleanse_time_partitioning
 
 bq_available = True
 
 try:
     hook.BigQueryHook().get_service()
-except HttpAccessTokenRefreshError:
+except GoogleAuthError:
     bq_available = False
 
 
@@ -50,8 +49,7 @@ class TestBigQueryDataframeResults(unittest.TestCase):
     def test_throws_exception_with_invalid_query(self):
         with self.assertRaises(Exception) as context:
             self.instance.get_pandas_df('from `1`')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+        self.assertIn('Reason: ', str(context.exception), "")
 
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
     def test_suceeds_with_explicit_legacy_query(self):
@@ -66,9 +64,9 @@ class TestBigQueryDataframeResults(unittest.TestCase):
     @unittest.skipIf(not bq_available, 'BQ is not available to run tests')
     def test_throws_exception_with_incompatible_syntax(self):
         with self.assertRaises(Exception) as context:
-            self.instance.get_pandas_df('select * except(b) from (select 1 a, 2 b)', dialect='legacy')
-        self.assertIn('pandas_gbq.gbq.GenericGBQException: Reason: invalidQuery',
-                      str(context.exception), "")
+            self.instance.get_pandas_df(
+                'select * except(b) from (select 1 a, 2 b)', dialect='legacy')
+        self.assertIn('Reason: ', str(context.exception), "")
 
 
 class TestBigQueryTableSplitter(unittest.TestCase):

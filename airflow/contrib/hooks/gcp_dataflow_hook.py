@@ -169,7 +169,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('dataflow', 'v1b3', http=http_authorized)
+        return build(
+            'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
     def _start_dataflow(self, task_id, variables, name,
                         command_prefix, label_formatter):

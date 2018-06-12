@@ -22,7 +22,9 @@ MOCK_MODULES = [
     'mesos',
     'mesos.interface',
     'mesos.native',
-    'oauth2client.service_account',
+    'google.auth.default',
+    'google_auth_httplib2',
+    'google.oauth2.service_account',
     'pandas.io.gbq',
     'vertica_python',
     'pymssql'

@@ -44,7 +44,8 @@ class GoogleCloudStorageHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('storage', 'v1', http=http_authorized)
+        return build(
+            'storage', 'v1', http=http_authorized, cache_discovery=False)
 
     # pylint:disable=redefined-builtin
     def copy(self, source_bucket, source_object, destination_bucket=None,

@@ -53,7 +53,8 @@ class PubSubHook(GoogleCloudBaseHook):
         :rtype: apiclient.discovery.Resource
         """
         http_authorized = self._authorize()
-        return build('pubsub', 'v1', http=http_authorized)
+        return build(
+            'pubsub', 'v1', http=http_authorized, cache_discovery=False)
 
     def publish(self, project, topic, messages):
         """Publishes messages to a Pub/Sub topic.
