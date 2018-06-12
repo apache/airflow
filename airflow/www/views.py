@@ -35,6 +35,7 @@ import bleach
 import pendulum
 import codecs
 from collections import defaultdict
+import itertools
 
 import inspect
 from textwrap import dedent
@@ -1816,10 +1817,21 @@ class Airflow(BaseView):
             ti for ti in dag.get_task_instances(session, dttm, dttm)
             if ti.start_date]
         tis = sorted(tis, key=lambda ti: ti.start_date)
+        TF = models.TaskFail
+        ti_fails = list(itertools.chain(*[(
+            session
+            .query(TF)
+            .filter(TF.dag_id == ti.dag_id,
+                    TF.task_id == ti.task_id,
+                    TF.execution_date == ti.execution_date)
+            .all()
+        ) for ti in tis]))
+        tis_with_fails = sorted(tis + ti_fails, key=lambda ti: ti.start_date)
 
         tasks = []
-        for ti in tis:
+        for ti in tis_with_fails:
             end_date = ti.end_date if ti.end_date else timezone.utcnow()
+            state = ti.state if type(ti) == models.TaskInstance else State.FAILED
             tasks.append({
                 'startDate': wwwutils.epoch(ti.start_date),
                 'endDate': wwwutils.epoch(end_date),
@@ -1827,10 +1839,10 @@ class Airflow(BaseView):
                 'isoEnd': end_date.isoformat()[:-4],
                 'taskName': ti.task_id,
                 'duration': "{}".format(end_date - ti.start_date)[:-4],
-                'status': ti.state,
+                'status': state,
                 'executionDate': ti.execution_date.isoformat(),
             })
-        states = {ti.state: ti.state for ti in tis}
+        states = {task['status']: task['status'] for task in tasks}
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
