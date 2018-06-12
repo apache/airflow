@@ -204,7 +204,9 @@ class DataProcHook(GoogleCloudBaseHook):
     def get_conn(self):
         """Returns a Google Cloud Dataproc service object."""
         http_authorized = self._authorize()
-        return build('dataproc', self.api_version, http=http_authorized)
+        return build(
+            'dataproc', self.api_version, http=http_authorized,
+            cache_discovery=False)
 
     def get_cluster(self, project_id, region, cluster_name):
         return self.get_conn().projects().regions().clusters().get(

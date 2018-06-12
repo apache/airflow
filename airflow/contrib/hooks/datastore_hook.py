@@ -44,7 +44,8 @@ class DatastoreHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('datastore', version, http=http_authorized)
+        return build(
+            'datastore', version, http=http_authorized, cache_discovery=False)
 
     def allocate_ids(self, partialKeys):
         """
