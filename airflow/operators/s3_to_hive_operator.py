@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -246,17 +246,17 @@ class S3ToHiveTransfer(BaseOperator):
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
             self.log.warning("Headers count mismatch"
-                              "File headers:\n {header_list}\n"
-                              "Field names: \n {field_names}\n"
-                              "".format(**locals()))
+                             "File headers:\n {header_list}\n"
+                             "Field names: \n {field_names}\n"
+                             .format(**locals()))
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
             self.log.warning("Headers do not match field names"
-                              "File headers:\n {header_list}\n"
-                              "Field names: \n {field_names}\n"
-                              "".format(**locals()))
+                             "File headers:\n {header_list}\n"
+                             "Field names: \n {field_names}\n"
+                             .format(**locals()))
             return False
         else:
             return True

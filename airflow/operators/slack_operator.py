@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -53,7 +53,8 @@ class SlackAPIOperator(BaseOperator):
         if token is None and slack_conn_id is None:
             raise AirflowException('No valid Slack token nor slack_conn_id supplied.')
         if token is not None and slack_conn_id is not None:
-            raise AirflowException('Cannot determine Slack credential when both token and slack_conn_id are supplied.')
+            raise AirflowException('Cannot determine Slack credential '
+                                   'when both token and slack_conn_id are supplied.')
 
         self.token = token
         self.slack_conn_id = slack_conn_id
@@ -63,11 +64,14 @@ class SlackAPIOperator(BaseOperator):
 
     def construct_api_call_params(self):
         """
-        Used by the execute function. Allows templating on the source fields of the api_call_params dict before construction
+        Used by the execute function. Allows templating on the source fields
+        of the api_call_params dict before construction
 
         Override in child classes.
-        Each SlackAPIOperator child class is responsible for having a construct_api_call_params function
-        which sets self.api_call_params with a dict of API call parameters (https://api.slack.com/methods)
+        Each SlackAPIOperator child class is responsible for
+        having a construct_api_call_params function
+        which sets self.api_call_params with a dict of
+        API call parameters (https://api.slack.com/methods)
         """
 
         pass
@@ -111,7 +115,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
                  text='No message has been set.\n'
                       'Here is a cat video instead\n'
                       'https://www.youtube.com/watch?v=J---aiyznGQ',
-                 icon_url='https://raw.githubusercontent.com/airbnb/airflow/master/airflow/www/static/pin_100.png',
+                 icon_url='https://raw.githubusercontent.com'
+                          '/airbnb/airflow/master/airflow/www/static/pin_100.png',
                  attachments=None,
                  *args, **kwargs):
         self.method = 'chat.postMessage'
