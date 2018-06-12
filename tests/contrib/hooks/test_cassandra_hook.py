@@ -19,11 +19,14 @@
 
 import unittest
 import mock
+from mock import patch
 
 from airflow import configuration
 from airflow.contrib.hooks.cassandra_hook import CassandraHook
 from cassandra.cluster import Cluster
-from cassandra.policies import TokenAwarePolicy
+from cassandra.policies import (
+    TokenAwarePolicy, RoundRobinPolicy, DCAwareRoundRobinPolicy, WhiteListRoundRobinPolicy
+)
 from airflow import models
 from airflow.utils import db
 
@@ -35,7 +38,7 @@ class CassandraHookTest(unittest.TestCase):
             models.Connection(
                 conn_id='cassandra_test', conn_type='cassandra',
                 host='host-1,host-2', port='9042', schema='test_keyspace',
-                extra='{"load_balancing_policy":"TokenAwarePolicy"'))
+                extra='{"load_balancing_policy":"TokenAwarePolicy"}'))
 
     def test_get_conn(self):
         with mock.patch.object(Cluster, "connect") as mock_connect, \
@@ -50,6 +53,69 @@ class CassandraHookTest(unittest.TestCase):
             self.assertEqual(cluster.contact_points, ['host-1', 'host-2'])
             self.assertEqual(cluster.port, 9042)
             self.assertTrue(isinstance(cluster.load_balancing_policy, TokenAwarePolicy))
+
+    def test_get_lb_policy(self):
+        # test LB policies with no args
+        self._assert_get_lb_policy('RoundRobinPolicy', {}, RoundRobinPolicy)
+        self._assert_get_lb_policy('DCAwareRoundRobinPolicy', {}, DCAwareRoundRobinPolicy)
+        self._assert_get_lb_policy('TokenAwarePolicy', {}, TokenAwarePolicy,
+                                   expected_child_policy_type=RoundRobinPolicy)
+
+        # test DCAwareRoundRobinPolicy with args
+        self._assert_get_lb_policy('DCAwareRoundRobinPolicy',
+                                   {'local_dc': 'foo', 'used_hosts_per_remote_dc': '3'},
+                                   DCAwareRoundRobinPolicy)
+
+        # test WhiteListRoundRobinPolicy with args
+        fake_addr_info = [['family', 'sockettype', 'proto', 'canonname', ('2606:2800:220:1:248:1893:25c8:1946', 80, 0, 0)]] # noqa
+        with patch('socket.getaddrinfo', return_value=fake_addr_info):
+            self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
+                                       {'hosts': ['host1', 'host2']},
+                                       WhiteListRoundRobinPolicy)
+
+        # test TokenAwarePolicy with args
+        with patch('socket.getaddrinfo', return_value=fake_addr_info):
+            self._assert_get_lb_policy('TokenAwarePolicy',
+                                       {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy',  # noqa
+                                        'child_load_balancing_policy_args': {'hosts': ['host-1', 'host-2']}},  # noqa
+                                       TokenAwarePolicy,
+                                       expected_child_policy_type=WhiteListRoundRobinPolicy)  # noqa
+
+        # test invalid policy name should default to RoundRobinPolicy
+        self._assert_get_lb_policy('DoesNotExistPolicy', {}, RoundRobinPolicy)
+
+        # test invalid child policy name should default child policy to RoundRobinPolicy
+        self._assert_get_lb_policy('TokenAwarePolicy', {}, TokenAwarePolicy,
+                                   expected_child_policy_type=RoundRobinPolicy)
+        self._assert_get_lb_policy('TokenAwarePolicy',
+                                   {'child_load_balancing_policy': 'DoesNotExistPolicy'},
+                                   TokenAwarePolicy,
+                                   expected_child_policy_type=RoundRobinPolicy)
+
+        # test host not specified for WhiteListRoundRobinPolicy should throw exception
+        self._assert_get_lb_policy('WhiteListRoundRobinPolicy',
+                                   {},
+                                   WhiteListRoundRobinPolicy,
+                                   should_throw=True)
+        self._assert_get_lb_policy('TokenAwarePolicy',
+                                   {'child_load_balancing_policy': 'WhiteListRoundRobinPolicy'},  # noqa
+                                   TokenAwarePolicy,
+                                   expected_child_policy_type=RoundRobinPolicy,
+                                   should_throw=True)
+
+    def _assert_get_lb_policy(self, policy_name, policy_args, expected_policy_type,
+                              expected_child_policy_type=None,
+                              should_throw=False):
+        thrown = False
+        try:
+            policy = CassandraHook.get_lb_policy(policy_name, policy_args)
+            self.assertTrue(isinstance(policy, expected_policy_type))
+            if expected_child_policy_type:
+                self.assertTrue(isinstance(policy._child_policy,
+                                           expected_child_policy_type))
+        except Exception:
+            thrown = True
+        self.assertEqual(should_throw, thrown)
 
 
 if __name__ == '__main__':
