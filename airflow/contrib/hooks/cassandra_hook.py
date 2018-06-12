@@ -19,8 +19,7 @@
 
 from cassandra.cluster import Cluster
 from cassandra.policies import (RoundRobinPolicy, DCAwareRoundRobinPolicy,
-                                TokenAwarePolicy, HostFilterPolicy,
-                                WhiteListRoundRobinPolicy)
+                                TokenAwarePolicy, WhiteListRoundRobinPolicy)
 from cassandra.auth import PlainTextAuthProvider
 
 from airflow.hooks.base_hook import BaseHook
@@ -31,12 +30,45 @@ class CassandraHook(BaseHook, LoggingMixin):
     """
     Hook used to interact with Cassandra
 
-    Contact_points can be specified as a comma-separated string in the 'hosts'
-    field of the connection. Port can be specified in the port field of the
-    connection. Load_alancing_policy, ssl_options, cql_version can be specified
-    in the extra field of the connection.
+    Contact points can be specified as a comma-separated string in the 'hosts'
+    field of the connection.
 
-    For details of the Cluster config, see cassandra.cluster for more details.
+    Port can be specified in the port field of the connection.
+
+    If SSL is enabled in Cassandra, pass in a dict in the extra field as kwargs for
+    ``ssl.wrap_socket()``. For example:
+            {
+                'ssl_options' : {
+                    'ca_certs' : PATH_TO_CA_CERTS
+                }
+            }
+
+    Default load balancing policy is RoundRobinPolicy. To specify a different LB policy:
+        - DCAwareRoundRobinPolicy
+            {
+                'load_balancing_policy': 'DCAwareRoundRobinPolicy',
+                'load_balancing_policy_args': {
+                    'local_dc': LOCAL_DC_NAME,                      // optional
+                    'used_hosts_per_remote_dc': SOME_INT_VALUE,     // optional
+                }
+             }
+        - WhiteListRoundRobinPolicy
+            {
+                'load_balancing_policy': 'WhiteListRoundRobinPolicy',
+                'load_balancing_policy_args': {
+                    'hosts': ['HOST1', 'HOST2', 'HOST3']
+                }
+            }
+        - TokenAwarePolicy
+            {
+                'load_balancing_policy': 'TokenAwarePolicy',
+                'load_balancing_policy_args': {
+                    'child_load_balancing_policy': CHILD_POLICY_NAME, // optional
+                    'child_load_balancing_policy_args': { ... }       // optional
+                }
+            }
+
+    For details of the Cluster config, see cassandra.cluster.
     """
     def __init__(self, cassandra_conn_id='cassandra_default'):
         conn = self.get_connection(cassandra_conn_id)
@@ -52,7 +84,9 @@ class CassandraHook(BaseHook, LoggingMixin):
             conn_config['auth_provider'] = PlainTextAuthProvider(
                 username=conn.login, password=conn.password)
 
-        lb_policy = self.get_policy(conn.extra_dejson.get('load_balancing_policy', None))
+        policy_name = conn.extra_dejson.get('load_balancing_policy', None)
+        policy_args = conn.extra_dejson.get('load_balancing_policy_args', {})
+        lb_policy = self.get_lb_policy(policy_name, policy_args)
         if lb_policy:
             conn_config['load_balancing_policy'] = lb_policy
 
@@ -66,23 +100,59 @@ class CassandraHook(BaseHook, LoggingMixin):
 
         self.cluster = Cluster(**conn_config)
         self.keyspace = conn.schema
+        self.session = None
 
     def get_conn(self):
         """
-        Returns a cassandra connection object
+        Returns a cassandra Session object
         """
+        if self.session:
+            return self.session
         return self.cluster.connect(self.keyspace)
 
     def get_cluster(self):
         return self.cluster
 
-    @classmethod
-    def get_policy(cls, policy_name):
+    def shutdown_cluster(self):
+        """
+        Closes all sessions and connections associated with this Cluster.
+        """
+        if not self.cluster.is_shutdown:
+            self.cluster.shutdown()
+
+    @staticmethod
+    def get_lb_policy(policy_name, policy_args):
         policies = {
             'RoundRobinPolicy': RoundRobinPolicy,
             'DCAwareRoundRobinPolicy': DCAwareRoundRobinPolicy,
-            'TokenAwarePolicy': TokenAwarePolicy,
-            'HostFilterPolicy': HostFilterPolicy,
             'WhiteListRoundRobinPolicy': WhiteListRoundRobinPolicy,
+            'TokenAwarePolicy': TokenAwarePolicy,
         }
-        return policies.get(policy_name)
+
+        if not policies.get(policy_name) or policy_name == 'RoundRobinPolicy':
+            return RoundRobinPolicy()
+
+        if policy_name == 'DCAwareRoundRobinPolicy':
+            local_dc = policy_args.get('local_dc', '')
+            used_hosts_per_remote_dc = int(policy_args.get('used_hosts_per_remote_dc', 0))
+            return DCAwareRoundRobinPolicy(local_dc, used_hosts_per_remote_dc)
+
+        if policy_name == 'WhiteListRoundRobinPolicy':
+            hosts = policy_args.get('hosts')
+            if not hosts:
+                raise Exception('Hosts must be specified for WhiteListRoundRobinPolicy')
+            return WhiteListRoundRobinPolicy(hosts)
+
+        if policy_name == 'TokenAwarePolicy':
+            allowed_child_policies = ('RoundRobinPolicy',
+                                      'DCAwareRoundRobinPolicy',
+                                      'WhiteListRoundRobinPolicy',)
+            child_policy_name = policy_args.get('child_load_balancing_policy',
+                                                'RoundRobinPolicy')
+            child_policy_args = policy_args.get('child_load_balancing_policy_args', {})
+            if child_policy_name not in allowed_child_policies:
+                return TokenAwarePolicy(RoundRobinPolicy())
+            else:
+                child_policy = CassandraHook.get_lb_policy(child_policy_name,
+                                                           child_policy_args)
+                return TokenAwarePolicy(child_policy)

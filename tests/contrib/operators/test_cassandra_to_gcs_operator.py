@@ -61,17 +61,18 @@ class CassandraToGCSTest(unittest.TestCase):
         self.assertEquals(op.convert_value('date', date), str(date_str))
 
         import uuid
+        from base64 import b64encode
         test_uuid = uuid.uuid4()
-        self.assertEquals(op.convert_value('uuid', test_uuid), str(test_uuid))
+        encoded_uuid = b64encode(test_uuid.bytes).decode('ascii')
+        self.assertEquals(op.convert_value('uuid', test_uuid), encoded_uuid)
+
+        b = b'abc'
+        encoded_b = b64encode(b).decode('ascii')
+        self.assertEquals(op.convert_value('binary', b), encoded_b)
 
         from decimal import Decimal
         d = Decimal(1.0)
         self.assertEquals(op.convert_value('decimal', d), float(d))
-
-        from base64 import b64encode
-        b = b'abc'
-        encoded_b = b64encode(b).decode('ascii')
-        self.assertEquals(op.convert_value('binary', b), encoded_b)
 
         from cassandra.util import Time
         time = Time(0)
