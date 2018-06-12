@@ -217,7 +217,7 @@ class IntervalCheckOperator(BaseOperator):
         sqlt = ("SELECT {sqlexp} FROM {table}"
                 " WHERE {date_filter_column}=").format(**locals())
         self.sql1 = sqlt + "'{{ ds }}'"
-        self.sql2 = sqlt + "'{{ macros.ds_add(ds, "+str(self.days_back)+") }}'"
+        self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 
     def execute(self, context=None):
         hook = self.get_db_hook()

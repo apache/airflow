@@ -7,15 +7,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook
 from airflow.hooks.druid_hook import DruidHook
 from airflow.models import BaseOperator
@@ -100,7 +101,9 @@ class HiveToDruidTransfer(BaseOperator):
         self.log.info("Extracting data from Hive")
         hive_table = 'druid.' + context['task_instance_key_str'].replace('.', '_')
         sql = self.sql.strip().strip(';')
-        tblproperties = ''.join([", '{}' = '{}'".format(k, v) for k, v in self.hive_tblproperties.items()])
+        tblproperties = ''.join([", '{}' = '{}'"
+                                .format(k, v)
+                                 for k, v in self.hive_tblproperties.items()])
         hql = """\
         SET mapred.output.compress=false;
         SET hive.exec.compress.output=false;
@@ -159,7 +162,8 @@ class HiveToDruidTransfer(BaseOperator):
         :type columns: list
         """
 
-        # backward compatibilty for num_shards, but target_partition_size is the default setting
+        # backward compatibilty for num_shards,
+        # but target_partition_size is the default setting
         # and overwrites the num_shards
         num_shards = self.num_shards
         target_partition_size = self.target_partition_size
@@ -171,7 +175,8 @@ class HiveToDruidTransfer(BaseOperator):
 
         metric_names = [m['fieldName'] for m in self.metric_spec if m['type'] != 'count']
 
-        # Take all the columns, which are not the time dimension or a metric, as the dimension columns
+        # Take all the columns, which are not the time dimension
+        # or a metric, as the dimension columns
         dimensions = [c for c in columns if c not in metric_names and c != self.ts_dim]
 
         ingest_query_dict = {
@@ -227,6 +232,7 @@ class HiveToDruidTransfer(BaseOperator):
         }
 
         if self.hadoop_dependency_coordinates:
-            ingest_query_dict['hadoopDependencyCoordinates'] = self.hadoop_dependency_coordinates
+            ingest_query_dict['hadoopDependencyCoordinates'] \
+                = self.hadoop_dependency_coordinates
 
         return ingest_query_dict
