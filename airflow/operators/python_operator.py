@@ -110,7 +110,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     directly downstream from {self}. All other "branches" or
     directly downstream tasks are marked with a state of ``skipped``, 
     unless the downstream tasks are also a downstream task of 
-    the the task_id to follow, so that these paths can't move forward. 
+    the task_id to follow, so that these paths can't move forward. 
     The ``skipped`` states are propageted downstream to allow for the 
     DAG state to fill up and the DAG run's state to be inferred. 
 
@@ -129,7 +129,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         self.log.debug("Downstream task_ids %s", downstream_tasks)
         # Avoid skipping tasks which are in the downstream of the branch we are taking
         branch_downstream_tasks = context['dag'].get_task(branch).downstream_list
-        skip_tasks = [t for t in downstream_tasks if t.task_id != branch]
+        skip_tasks = [tsk for tsk in downstream_tasks if tsk.task_id != branch]
         # Filter tasks which are also downstream tasks of the branch we are taking
         skip_tasks = [t for t in skip_tasks if t.task_id not in branch_downstream_tasks]
         if downstream_tasks:
