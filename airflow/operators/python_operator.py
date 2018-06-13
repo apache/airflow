@@ -127,7 +127,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
         downstream_tasks = context['task'].downstream_list
         self.log.debug("Downstream task_ids %s", downstream_tasks)
         # Avoid skipping tasks which are in the downstream of the branch we are taking
-        branch_downstream_tasks = dag.get_task(branch).downstream_list
+        branch_downstream_tasks = context['dag'].get_task(branch).downstream_list
         skip_tasks = [t for t in downstream_tasks if t.task_id != branch and t.task_id not in branch_downstream_tasks]
         if downstream_tasks:
             self.skip(context['dag_run'], context['ti'].execution_date, skip_tasks)
