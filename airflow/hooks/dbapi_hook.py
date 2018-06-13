@@ -171,7 +171,7 @@ class DbApiHook(BaseHook):
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
-            if not getattr(conn, 'autocommit', False):
+            if not self.get_autocommit(conn):
                 conn.commit()
 
     def set_autocommit(self, conn, autocommit):
@@ -184,6 +184,20 @@ class DbApiHook(BaseHook):
                  "autocommit but autocommit activated."),
                 getattr(self, self.conn_name_attr))
         conn.autocommit = autocommit
+
+    def get_autocommit(self, conn):
+        """
+        Get autocommit setting for the provided connection.
+        Return True if conn.autocommit is set to True.
+        Return False if conn.autocommit is not set or set to False or conn
+        does not support autocommit.
+        :param conn: Connection to get autocommit setting from.
+        :type conn: connection object.
+        :return: connection autocommit setting.
+        :rtype bool.
+        """
+
+        return getattr(conn, 'autocommit', False) and self.supports_autocommit
 
     def get_cursor(self):
         """
