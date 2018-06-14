@@ -108,11 +108,11 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     It derives the PythonOperator and expects a Python function that returns
     the task_id to follow. The task_id returned should point to a task
     directly downstream from {self}. All other "branches" or
-    directly downstream tasks are marked with a state of ``skipped``, 
-    unless the downstream tasks are also a downstream task of 
-    the task_id to follow, so that these paths can't move forward. 
-    The ``skipped`` states are propageted downstream to allow for the 
-    DAG state to fill up and the DAG run's state to be inferred. 
+    directly downstream tasks are marked with a state of ``skipped``,
+    unless the downstream tasks are also a downstream task of
+    the task_id to follow, so that these paths can't move forward.
+    The ``skipped`` states are propageted downstream to allow for the
+    DAG state to fill up and the DAG run's state to be inferred.
 
     Note that using tasks with ``depends_on_past=True`` downstream from
     ``BranchPythonOperator`` is logically unsound as ``skipped`` status
