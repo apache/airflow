@@ -20,6 +20,7 @@ import airflow.api
 
 from airflow.api.common.experimental import pool as pool_api
 from airflow.api.common.experimental import trigger_dag as trigger
+from airflow.api.common.experimental.get_dag_runs import get_dag_runs
 from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
@@ -90,6 +91,28 @@ def trigger_dag(dag_id):
     return response
 
 
+@api_experimental.route('/dags/<string:dag_id>/dag_runs', methods=['GET'])
+@requires_authentication
+def dag_runs(dag_id):
+    """
+    Returns a list of Dag Runs for a specific DAG ID.
+    :query param state: a query string parameter '?state=queued|running|success...'
+    :param dag_id: String identifier of a DAG
+    :return: List of DAG runs of a DAG with requested state,
+    or all runs if the state is not specified
+    """
+    try:
+        state = request.args.get('state')
+        dagruns = get_dag_runs(dag_id, state)
+    except AirflowException as err:
+        _log.info(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = 400
+        return response
+
+    return jsonify(dagruns)
+
+
 @api_experimental.route('/test', methods=['GET'])
 @requires_authentication
 def test():
@@ -115,6 +138,7 @@ def task_info(dag_id, task_id):
     return jsonify(fields)
 
 
+# ToDo: Shouldn't this be a PUT method?
 @api_experimental.route('/dags/<string:dag_id>/paused/<string:paused>', methods=['GET'])
 @requires_authentication
 def dag_paused(dag_id, paused):
