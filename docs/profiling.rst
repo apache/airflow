@@ -17,7 +17,7 @@ Charts
 ------
 A simple UI built on top of flask-admin and highcharts allows building
 data visualizations and charts easily. Fill in a form with a label, SQL,
-chart type, pick a source database from your environment's connectons,
+chart type, pick a source database from your environment's connections,
 select a few other options, and save it for later use.
 
 You can even use the same templating and macros available when writing

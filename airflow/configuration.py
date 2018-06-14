@@ -22,30 +22,26 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+from builtins import str
+from collections import OrderedDict
 import copy
 import errno
-import os
-import subprocess
-import warnings
-import shlex
-import sys
-
 from future import standard_library
-
+import os
+import shlex
 import six
 from six import iteritems
+import subprocess
+import sys
+import warnings
+
 from backports.configparser import ConfigParser
 from zope.deprecation import deprecated as _deprecated
 
+from airflow.exceptions import AirflowConfigException
 from airflow.utils.log.logging_mixin import LoggingMixin
 
 standard_library.install_aliases()
-
-from builtins import str
-from collections import OrderedDict
-
-from airflow.exceptions import AirflowConfigException
-
 
 log = LoggingMixin().log
 
@@ -323,8 +319,8 @@ class AirflowConfigParser(ConfigParser):
                 opt = None
             if opt:
                 if (
-                        not display_sensitive
-                        and ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
+                    not display_sensitive and
+                        ev != 'AIRFLOW__CORE__UNIT_TEST_MODE'):
                     opt = '< hidden >'
                 if display_source:
                     opt = (opt, 'env var')
@@ -350,7 +346,7 @@ class AirflowConfigParser(ConfigParser):
         Note: this is not reversible.
         """
         # override any custom settings with defaults
-        self.defaults.read_string(parameterized_config(DEFAULT_CONFIG))
+        self.read_string(parameterized_config(DEFAULT_CONFIG))
         # then read test config
         self.read_string(parameterized_config(TEST_CONFIG))
         # then read any "custom" test settings
@@ -450,7 +446,9 @@ if not os.path.isfile(AIRFLOW_CONFIG):
 log.info("Reading the config from %s", AIRFLOW_CONFIG)
 
 conf = AirflowConfigParser(default_config=parameterized_config(DEFAULT_CONFIG))
+
 conf.read(AIRFLOW_CONFIG)
+
 
 if conf.getboolean('webserver', 'rbac'):
     with open(os.path.join(_templates_dir, 'default_webserver_config.py')) as f:

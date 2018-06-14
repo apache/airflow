@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,11 +27,12 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     """
     Synchronizes a Google Cloud Storage bucket with an S3 bucket.
 
-    :param bucket: The Google Cloud Storage bucket to find the objects.
+    :param bucket: The Google Cloud Storage bucket to find the objects. (templated)
     :type bucket: string
-    :param prefix: Prefix string which filters objects whose name begin with this prefix
+    :param prefix: Prefix string which filters objects whose name begin with
+        this prefix. (templated)
     :type prefix: string
-    :param delimiter: The delimiter by which you want to filter the objects.
+    :param delimiter: The delimiter by which you want to filter the objects. (templated)
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :type delimiter: string
@@ -44,7 +45,7 @@ class GoogleCloudStorageToS3Operator(GoogleCloudStorageListOperator):
     :type delegate_to: string
     :param dest_aws_conn_id: The destination S3 connection
     :type dest_aws_conn_id: str
-    :param dest_s3_key: The base S3 key to be used to store the files
+    :param dest_s3_key: The base S3 key to be used to store the files. (templated)
     :type dest_s3_key: str
     """
     template_fields = ('bucket', 'prefix', 'delimiter', 'dest_s3_key')

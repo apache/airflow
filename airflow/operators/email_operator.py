@@ -26,12 +26,12 @@ class EmailOperator(BaseOperator):
     """
     Sends an email.
 
-    :param to: list of emails to send the email to
+    :param to: list of emails to send the email to. (templated)
     :type to: list or string (comma or semicolon delimited)
-    :param subject: subject line for the email (templated)
+    :param subject: subject line for the email. (templated)
     :type subject: string
-    :param html_content: content of the email (templated), html markup
-        is allowed
+    :param html_content: content of the email, html markup
+        is allowed. (templated)
     :type html_content: string
     :param files: file names to attach in email
     :type files: list
@@ -75,4 +75,4 @@ class EmailOperator(BaseOperator):
     def execute(self, context):
         send_email(self.to, self.subject, self.html_content,
                    files=self.files, cc=self.cc, bcc=self.bcc,
-                   mime_subtype=self.mime_subtype, mine_charset=self.mime_charset)
+                   mime_subtype=self.mime_subtype, mime_charset=self.mime_charset)

@@ -7,15 +7,16 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from __future__ import unicode_literals
 
 import re
@@ -31,9 +32,10 @@ class HiveOperator(BaseOperator):
     Executes hql code or hive script in a specific Hive database.
 
     :param hql: the hql to be executed. Note that you may also use
-        a relative path from the dag file of a (template) hive script.
+        a relative path from the dag file of a (template) hive
+        script. (templated)
     :type hql: string
-    :param hive_cli_conn_id: reference to the Hive database
+    :param hive_cli_conn_id: reference to the Hive database. (templated)
     :type hive_cli_conn_id: string
     :param hiveconfs: if defined, these key value pairs will be passed
         to hive as ``-hiveconf "key"="value"``
@@ -48,7 +50,7 @@ class HiveOperator(BaseOperator):
     :param script_begin_tag: If defined, the operator will get rid of the
         part of the script before the first occurrence of `script_begin_tag`
     :type script_begin_tag: str
-    :param mapred_queue: queue used by the Hadoop CapacityScheduler
+    :param mapred_queue: queue used by the Hadoop CapacityScheduler. (templated)
     :type  mapred_queue: string
     :param mapred_queue_priority: priority within CapacityScheduler queue.
         Possible settings include: VERY_HIGH, HIGH, NORMAL, LOW, VERY_LOW

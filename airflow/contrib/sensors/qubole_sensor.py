@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -56,20 +56,20 @@ class QuboleSensor(BaseSensorOperator):
         super(QuboleSensor, self).__init__(*args, **kwargs)
 
     def poke(self, context):
-        global this  # apache/incubator-airflow/pull/3297#issuecomment-385988083
+
         conn = BaseHook.get_connection(self.qubole_conn_id)
         Qubole.configure(api_token=conn.password, api_url=conn.host)
 
-        this.log.info('Poking: %s', self.data)
+        self.log.info('Poking: %s', self.data)
 
         status = False
         try:
             status = self.sensor_class.check(self.data)
         except Exception as e:
-            this.log.exception(e)
+            self.log.exception(e)
             status = False
 
-        this.log.info('Status of this Poke: %s', status)
+        self.log.info('Status of this Poke: %s', status)
 
         return status
 

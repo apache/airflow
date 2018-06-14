@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,12 +17,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from docker import Client
+from docker import APIClient
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base_hook import BaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
+
 
 class DockerHook(BaseHook, LoggingMixin):
     """
@@ -33,11 +34,11 @@ class DockerHook(BaseHook, LoggingMixin):
     :type docker_conn_id: str
     """
     def __init__(self,
-            docker_conn_id='docker_default',
-            base_url=None,
-            version=None,
-            tls=None
-            ):
+                 docker_conn_id='docker_default',
+                 base_url=None,
+                 version=None,
+                 tls=None
+                 ):
         if not base_url:
             raise AirflowException('No Docker base URL provided')
         if not version:
@@ -60,7 +61,7 @@ class DockerHook(BaseHook, LoggingMixin):
         self.__reauth = False if extra_options.get('reauth') == 'no' else True
 
     def get_conn(self):
-        client = Client(
+        client = APIClient(
             base_url=self.__base_url,
             version=self.__version,
             tls=self.__tls

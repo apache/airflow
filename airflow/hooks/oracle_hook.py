@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,12 +37,15 @@ class OracleHook(DbApiHook):
     def get_conn(self):
         """
         Returns a oracle connection object
-        Optional parameters for using a custom DSN connection (instead of using a server alias from tnsnames.ora)
-        The dsn (data source name) is the TNS entry (from the Oracle names server or tnsnames.ora file)
+        Optional parameters for using a custom DSN connection
+        (instead of using a server alias from tnsnames.ora)
+        The dsn (data source name) is the TNS entry
+        (from the Oracle names server or tnsnames.ora file)
         or is a string like the one returned from makedsn().
 
         :param dsn: the host address for the Oracle server
-        :param service_name: the db_unique_name of the database that you are connecting to (CONNECT_DATA part of TNS)
+        :param service_name: the db_unique_name of the database
+              that you are connecting to (CONNECT_DATA part of TNS)
         You can set these parameters in the extra fields of your connection
         as in ``{ "dsn":"some.host.address" , "service_name":"some.service.name" }``
         """
@@ -72,7 +75,8 @@ class OracleHook(DbApiHook):
         the whole set of inserts is treated as one transaction
         Changes from standard DbApiHook implementation:
         - Oracle SQL queries in cx_Oracle can not be terminated with a semicolon (';')
-        - Replace NaN values with NULL using numpy.nan_to_num (not using is_nan() because of input types error for strings)
+        - Replace NaN values with NULL using numpy.nan_to_num (not using is_nan()
+          because of input types error for strings)
         - Coerce datetime cells to Oracle DATETIME format during insert
         """
         if target_fields:
@@ -88,22 +92,28 @@ class OracleHook(DbApiHook):
         i = 0
         for row in rows:
             i += 1
-            l = []
+            lst = []
             for cell in row:
                 if isinstance(cell, basestring):
-                    l.append("'" + str(cell).replace("'", "''") + "'")
+                    lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
-                    l.append('NULL')
-                elif type(cell) == float and numpy.isnan(cell):  # coerce numpy NaN to NULL
-                    l.append('NULL')
+                    lst.append('NULL')
+                elif type(cell) == float and \
+                        numpy.isnan(cell):  # coerce numpy NaN to NULL
+                    lst.append('NULL')
                 elif isinstance(cell, numpy.datetime64):
-                    l.append("'" + str(cell) + "'")
+                    lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
-                    l.append("to_date('" + cell.strftime('%Y-%m-%d %H:%M:%S') + "','YYYY-MM-DD HH24:MI:SS')")
+                    lst.append("to_date('" +
+                               cell.strftime('%Y-%m-%d %H:%M:%S') +
+                               "','YYYY-MM-DD HH24:MI:SS')")
                 else:
-                    l.append(str(cell))
-            values = tuple(l)
-            sql = 'INSERT /*+ APPEND */ INTO {0} {1} VALUES ({2})'.format(table, target_fields, ','.join(values))
+                    lst.append(str(cell))
+            values = tuple(lst)
+            sql = 'INSERT /*+ APPEND */ ' \
+                  'INTO {0} {1} VALUES ({2})'.format(table,
+                                                     target_fields,
+                                                     ','.join(values))
             cur.execute(sql)
             if i % commit_every == 0:
                 conn.commit()
@@ -114,7 +124,9 @@ class OracleHook(DbApiHook):
         self.log.info('Done loading. Loaded a total of {i} rows'.format(**locals()))
 
     def bulk_insert_rows(self, table, rows, target_fields=None, commit_every=5000):
-        """A performant bulk insert for cx_Oracle that uses prepared statements via `executemany()`.
+        """
+        A performant bulk insert for cx_Oracle
+        that uses prepared statements via `executemany()`.
         For best performance, pass in `rows` as an iterator.
         """
         conn = self.get_conn()

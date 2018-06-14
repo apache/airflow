@@ -75,7 +75,7 @@ Content
     start
     installation
     tutorial
-    configuration
+    howto/index
     ui
     concepts
     profiling

@@ -133,6 +133,11 @@ class KubeConfig:
         self.dags_volume_subpath = conf.get(
             self.kubernetes_section, 'dags_volume_subpath')
 
+        # This prop may optionally be set for PV Claims and is used to locate logs
+        # on a SubPath
+        self.logs_volume_subpath = conf.get(
+            self.kubernetes_section, 'logs_volume_subpath')
+
         # This prop may optionally be set for PV Claims and is used to write logs
         self.base_log_folder = configuration.get(self.core_section, 'base_log_folder')
 
@@ -581,7 +586,7 @@ class KubernetesExecutor(BaseExecutor, LoggingMixin):
             try:
                 self.log.info('Deleted pod: %s', str(key))
                 self.running.pop(key)
-            except KeyError as _:
+            except KeyError:
                 self.log.debug('Could not find key: %s', str(key))
                 pass
         self.event_buffer[key] = state

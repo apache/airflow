@@ -17,7 +17,6 @@ import random
 import time
 from apiclient import errors
 from apiclient.discovery import build
-from oauth2client.client import GoogleCredentials
 
 from airflow.contrib.hooks.gcp_api_base_hook import GoogleCloudBaseHook
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -55,8 +54,8 @@ class MLEngineHook(GoogleCloudBaseHook):
         """
         Returns a Google MLEngine service object.
         """
-        credentials = GoogleCredentials.get_application_default()
-        return build('ml', 'v1', credentials=credentials)
+        authed_http = self._authorize()
+        return build('ml', 'v1', http=authed_http, cache_discovery=False)
 
     def create_job(self, project_id, job, use_existing_job_fn=None):
         """

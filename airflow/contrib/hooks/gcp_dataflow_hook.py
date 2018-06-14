@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -169,7 +169,8 @@ class DataFlowHook(GoogleCloudBaseHook):
         Returns a Google Cloud Storage service object.
         """
         http_authorized = self._authorize()
-        return build('dataflow', 'v1b3', http=http_authorized)
+        return build(
+            'dataflow', 'v1b3', http=http_authorized, cache_discovery=False)
 
     def _start_dataflow(self, task_id, variables, name,
                         command_prefix, label_formatter):

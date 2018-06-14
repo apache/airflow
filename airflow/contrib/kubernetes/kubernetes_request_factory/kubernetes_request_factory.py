@@ -70,6 +70,12 @@ class KubernetesRequestFactory:
             req['metadata']['annotations'][k] = v
 
     @staticmethod
+    def extract_affinity(pod, req):
+        req['spec']['affinity'] = req['spec'].get('affinity', {})
+        for k, v in six.iteritems(pod.affinity):
+            req['spec']['affinity'][k] = v
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 

@@ -22,7 +22,7 @@ import datetime
 import re
 import unittest
 
-from airflow import DAG
+from airflow import DAG, AirflowException
 from airflow.contrib.operators.dataproc_operator import \
     DataprocClusterCreateOperator, \
     DataprocClusterDeleteOperator, \
@@ -55,6 +55,7 @@ NUM_WORKERS = 123
 ZONE = 'us-central1-a'
 NETWORK_URI = '/projects/project_id/regions/global/net'
 SUBNETWORK_URI = '/projects/project_id/regions/global/subnet'
+INTERNAL_IP_ONLY = True
 TAGS = ['tag1', 'tag2']
 STORAGE_BUCKET = 'gs://airflow-test-bucket/'
 IMAGE_VERSION = '1.1'
@@ -98,6 +99,7 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     zone=ZONE,
                     network_uri=NETWORK_URI,
                     subnetwork_uri=SUBNETWORK_URI,
+                    internal_ip_only=INTERNAL_IP_ONLY,
                     tags=TAGS,
                     storage_bucket=STORAGE_BUCKET,
                     image_version=IMAGE_VERSION,
@@ -157,19 +159,25 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
             cluster_data = dataproc_operator._build_cluster_data()
             self.assertEqual(cluster_data['clusterName'], CLUSTER_NAME)
             self.assertEqual(cluster_data['projectId'], PROJECT_ID)
-            self.assertEqual(cluster_data['config']['softwareConfig'], {'imageVersion': IMAGE_VERSION})
+            self.assertEqual(cluster_data['config']['softwareConfig'],
+                             {'imageVersion': IMAGE_VERSION})
             self.assertEqual(cluster_data['config']['configBucket'], STORAGE_BUCKET)
-            self.assertEqual(cluster_data['config']['workerConfig']['numInstances'], NUM_WORKERS)
-            self.assertEqual(cluster_data['config']['secondaryWorkerConfig']['numInstances'],
-                             NUM_PREEMPTIBLE_WORKERS)
-            self.assertEqual(cluster_data['config']['gceClusterConfig']['serviceAccountScopes'],
+            self.assertEqual(cluster_data['config']['workerConfig']['numInstances'],
+                             NUM_WORKERS)
+            self.assertEqual(
+                cluster_data['config']['secondaryWorkerConfig']['numInstances'],
+                NUM_PREEMPTIBLE_WORKERS)
+            self.assertEqual(
+                cluster_data['config']['gceClusterConfig']['serviceAccountScopes'],
                 SERVICE_ACCOUNT_SCOPES)
+            self.assertEqual(cluster_data['config']['gceClusterConfig']['internalIpOnly'],
+                             INTERNAL_IP_ONLY)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['subnetworkUri'],
-                SUBNETWORK_URI)
+                             SUBNETWORK_URI)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['networkUri'],
-                NETWORK_URI)
+                             NETWORK_URI)
             self.assertEqual(cluster_data['config']['gceClusterConfig']['tags'],
-                TAGS)
+                             TAGS)
             self.assertEqual(cluster_data['config']['lifecycleConfig']['idleDeleteTtl'],
                              "321s")
             self.assertEqual(cluster_data['config']['lifecycleConfig']['autoDeleteTime'],
@@ -269,6 +277,31 @@ class DataprocClusterCreateOperatorTest(unittest.TestCase):
                     dataproc_task.execute(None)
                 mock_info.assert_called_with('Creating cluster: %s',
                                              u'smoke-cluster-testnodash')
+
+    def test_build_cluster_data_internal_ip_only_without_subnetwork(self):
+
+        def create_cluster_with_invalid_internal_ip_only_setup():
+
+            # Given
+            create_cluster = DataprocClusterCreateOperator(
+                task_id=TASK_ID,
+                cluster_name=CLUSTER_NAME,
+                project_id=PROJECT_ID,
+                num_workers=NUM_WORKERS,
+                zone=ZONE,
+                dag=self.dag,
+                internal_ip_only=True)
+
+            # When
+            create_cluster._build_cluster_data()
+
+        # Then
+        with self.assertRaises(AirflowException) as cm:
+            create_cluster_with_invalid_internal_ip_only_setup()
+
+        self.assertEqual(str(cm.exception),
+                         "Set internal_ip_only to true only when"
+                         " you pass a subnetwork_uri.")
 
 
 class DataprocClusterScaleOperatorTest(unittest.TestCase):

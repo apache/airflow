@@ -58,4 +58,5 @@ spec:
         self.extract_init_containers(pod, req)
         self.extract_image_pull_secrets(pod, req)
         self.extract_annotations(pod, req)
+        self.extract_affinity(pod, req)
         return req

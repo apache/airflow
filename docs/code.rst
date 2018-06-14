@@ -121,6 +121,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.bigquery_table_delete_operator.BigQueryTableDeleteOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_bigquery.BigQueryToBigQueryOperator
 .. autoclass:: airflow.contrib.operators.bigquery_to_gcs.BigQueryToCloudStorageOperator
+.. autoclass:: airflow.contrib.operators.cassandra_to_gcs.CassandraToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.databricks_operator.DatabricksSubmitRunOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataFlowJavaOperator
 .. autoclass:: airflow.contrib.operators.dataflow_operator.DataflowTemplateOperator
@@ -163,6 +164,7 @@ Operators
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineModelOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineVersionOperator
 .. autoclass:: airflow.contrib.operators.mlengine_operator.MLEngineTrainingOperator
+.. autoclass:: airflow.contrib.operators.mongo_to_s3.MongoToS3Operator
 .. autoclass:: airflow.contrib.operators.mysql_to_gcs.MySqlToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.postgres_to_gcs_operator.PostgresToGoogleCloudStorageOperator
 .. autoclass:: airflow.contrib.operators.pubsub_operator.PubSubTopicCreateOperator
@@ -230,6 +232,12 @@ Variable                            Description
 =================================   ====================================
 ``{{ ds }}``                        the execution date as ``YYYY-MM-DD``
 ``{{ ds_nodash }}``                 the execution date as ``YYYYMMDD``
+``{{ prev_ds }}``                   the previous execution date as ``YYYY-MM-DD``.
+                                    if ``{{ ds }}`` is ``2016-01-08`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ prev_ds }}`` will be ``2016-01-01``.
+``{{ next_ds }}``                   the next execution date as ``YYYY-MM-DD``.
+                                    if ``{{ ds }}`` is ``2016-01-01`` and ``schedule_interval`` is ``@weekly``,
+                                    ``{{ prev_ds }}`` will be ``2016-01-08``.
 ``{{ yesterday_ds }}``              yesterday's date as ``YYYY-MM-DD``
 ``{{ yesterday_ds_nodash }}``       yesterday's date as ``YYYYMMDD``
 ``{{ tomorrow_ds }}``               tomorrow's date as ``YYYY-MM-DD``
@@ -246,7 +254,9 @@ Variable                            Description
 ``{{ end_date }}``                  same as ``{{ ds }}``
 ``{{ latest_date }}``               same as ``{{ ds }}``
 ``{{ ti }}``                        same as ``{{ task_instance }}``
-``{{ params }}``                    a reference to the user-defined params dictionary
+``{{ params }}``                    a reference to the user-defined params dictionary which can be overridden by
+                                    the dictionary passed through ``trigger_dag -c`` if you enabled
+                                    ``dag_run_conf_overrides_params` in ``airflow.cfg``
 ``{{ var.value.my_var }}``          global defined variables represented as a dictionary
 ``{{ var.json.my_var.path }}``      global defined variables represented as a dictionary
                                     with deserialized JSON object, append the path to the
@@ -354,6 +364,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.aws_hook.AwsHook
 .. autoclass:: airflow.contrib.hooks.aws_lambda_hook.AwsLambdaHook
 .. autoclass:: airflow.contrib.hooks.bigquery_hook.BigQueryHook
+.. autoclass:: airflow.contrib.hooks.cassandra_hook.CassandraHook
 .. autoclass:: airflow.contrib.hooks.cloudant_hook.CloudantHook
 .. autoclass:: airflow.contrib.hooks.databricks_hook.DatabricksHook
 .. autoclass:: airflow.contrib.hooks.datadog_hook.DatadogHook
@@ -371,6 +382,7 @@ Community contributed hooks
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
 .. autoclass:: airflow.contrib.hooks.jenkins_hook.JenkinsHook
 .. autoclass:: airflow.contrib.hooks.jira_hook.JiraHook
+.. autoclass:: airflow.contrib.hooks.mongo_hook.MongoHook
 .. autoclass:: airflow.contrib.hooks.pinot_hook.PinotDbApiHook
 .. autoclass:: airflow.contrib.hooks.qubole_hook.QuboleHook
 .. autoclass:: airflow.contrib.hooks.redis_hook.RedisHook

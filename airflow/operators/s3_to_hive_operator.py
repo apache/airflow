@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -49,13 +49,13 @@ class S3ToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param s3_key: The key to be retrieved from S3
+    :param s3_key: The key to be retrieved from S3. (templated)
     :type s3_key: str
     :param field_dict: A dictionary of the fields name in the file
         as keys and their Hive types as values
     :type field_dict: dict
     :param hive_table: target Hive table, use dot notation to target a
-        specific database
+        specific database. (templated)
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
@@ -63,7 +63,7 @@ class S3ToHiveTransfer(BaseOperator):
         execution
     :type recreate: bool
     :param partition: target partition as a dict of partition columns
-        and values
+        and values. (templated)
     :type partition: dict
     :param headers: whether the file contains column names on the first
         line
@@ -246,17 +246,17 @@ class S3ToHiveTransfer(BaseOperator):
         field_names = self.field_dict.keys()
         if len(field_names) != len(header_list):
             self.log.warning("Headers count mismatch"
-                              "File headers:\n {header_list}\n"
-                              "Field names: \n {field_names}\n"
-                              "".format(**locals()))
+                             "File headers:\n {header_list}\n"
+                             "Field names: \n {field_names}\n"
+                             .format(**locals()))
             return False
         test_field_match = [h1.lower() == h2.lower()
                             for h1, h2 in zip(header_list, field_names)]
         if not all(test_field_match):
             self.log.warning("Headers do not match field names"
-                              "File headers:\n {header_list}\n"
-                              "Field names: \n {field_names}\n"
-                              "".format(**locals()))
+                             "File headers:\n {header_list}\n"
+                             "Field names: \n {field_names}\n"
+                             .format(**locals()))
             return False
         else:
             return True

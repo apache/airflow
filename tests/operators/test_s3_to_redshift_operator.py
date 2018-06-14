@@ -19,11 +19,11 @@
 #
 
 import mock
-import re
 import unittest
 
 from boto3.session import Session
 from airflow.operators.s3_to_redshift_operator import S3ToRedshiftTransfer
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
 class TestS3ToRedshiftTransfer(unittest.TestCase):
@@ -67,9 +67,5 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                    secret_key=secret_key,
                    copy_options=copy_options)
 
-        def _trim(s):
-            return re.sub("\s+", " ", s.strip())
-
-        self.assertEqual(_trim(mock_run.call_args[0][0]),
-                         _trim(copy_query))
         mock_run.assert_called_once()
+        assertEqualIgnoreMultipleSpaces(self, mock_run.call_args[0][0], copy_query)
