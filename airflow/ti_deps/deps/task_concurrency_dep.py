@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,11 +32,10 @@ class TaskConcurrencyDep(BaseTIDep):
     def _get_dep_statuses(self, ti, session, dep_context):
         if ti.task.task_concurrency is None:
             yield self._passing_status(reason="Task concurrency is not set.")
-            return
 
         if ti.get_num_running_task_instances(session) >= ti.task.task_concurrency:
-            yield self._failing_status(reason="The max task concurrency has been reached.")
-            return
+            yield self._failing_status(reason="The max task concurrency "
+                                              "has been reached.")
         else:
-            yield self._passing_status(reason="The max task concurrency has not been reached.")
-            return
+            yield self._passing_status(reason="The max task concurrency "
+                                              "has not been reached.")
