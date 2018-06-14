@@ -32,7 +32,8 @@ def get_kerberos_principal(principal, host):
         return principal
     else:
         if not host:
-            raise IOError("Can't replace %s pattern since host is null." % HOSTNAME_PATTERN)
+            raise IOError("Can't replace %s pattern "
+                          "since host is null." % HOSTNAME_PATTERN)
         return replace_hostname_pattern(components, host)
 
 
