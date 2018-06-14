@@ -178,7 +178,9 @@ class WorkerConfiguration(LoggingMixin):
             'iam.cloud.google.com/service-account': gcp_sa_key
         } if gcp_sa_key else {}
         airflow_path = airflow_command.split('-sd')[-1]
-        airflow_path = self.worker_airflow_dags + "/" + self.kube_config.git_subpath + airflow_path.split('/')[-1]
+        airflow_path = "%s/%s%s" % (self.worker_airflow_dags,
+                                    self.kube_config.git_subpath,
+                                    airflow_path.split('/')[-1])
         airflow_command = airflow_command.split('-sd')[0] + '-sd ' + airflow_path
 
         return Pod(
