@@ -444,7 +444,7 @@ class Airflow(AirflowBaseView):
                             if handler.name == task_log_reader), None)
             try:
                 ti.task = dag.get_task(ti.task_id)
-                logs = handler.read(ti)
+                logs, metadata = handler.read(ti)
             except AttributeError as e:
                 logs = ["Task log handler {} does not support read logs.\n{}\n"
                         .format(task_log_reader, str(e))]
