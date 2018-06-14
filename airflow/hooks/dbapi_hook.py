@@ -205,7 +205,8 @@ class DbApiHook(BaseHook):
         """
         return self.get_conn().cursor()
 
-    def insert_rows(self, table, rows, target_fields=None, commit_every=1000):
+    def insert_rows(self, table, rows, target_fields=None, commit_every=1000,
+                    replace=False):
         """
         A generic way to insert a set of tuples into a table,
         a new transaction is created every commit_every rows
@@ -219,6 +220,8 @@ class DbApiHook(BaseHook):
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
         :type commit_every: int
+        :param replace: Whether to replace instead of insert
+        :type replace: bool
         """
         if target_fields:
             target_fields = ", ".join(target_fields)
@@ -239,7 +242,11 @@ class DbApiHook(BaseHook):
                         lst.append(self._serialize_cell(cell, conn))
                     values = tuple(lst)
                     placeholders = ["%s", ] * len(values)
-                    sql = "INSERT INTO {0} {1} VALUES ({2})".format(
+                    if not replace:
+                        sql = "INSERT INTO "
+                    else:
+                        sql = "REPLACE INTO "
+                    sql += "{0} {1} VALUES ({2})".format(
                         table,
                         target_fields,
                         ",".join(placeholders))
