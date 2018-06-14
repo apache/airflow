@@ -902,7 +902,8 @@ class BackfillJobTest(unittest.TestCase):
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self):
+    @mock.patch('tqdm.tqdm')
+    def test_update_counters(self, pbar_mock):
         dag = DAG(
             dag_id='test_manage_executor_state',
             start_date=DEFAULT_DATE)
@@ -928,7 +929,7 @@ class BackfillJobTest(unittest.TestCase):
         # test for success
         ti.set_state(State.SUCCESS, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, tasks_pbar=pbar_mock)
         self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 1)
         self.assertTrue(len(ti_status.skipped) == 0)
@@ -940,7 +941,7 @@ class BackfillJobTest(unittest.TestCase):
         # test for skipped
         ti.set_state(State.SKIPPED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, tasks_pbar=pbar_mock)
         self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 1)
@@ -952,7 +953,7 @@ class BackfillJobTest(unittest.TestCase):
         # test for failed
         ti.set_state(State.FAILED, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, tasks_pbar=pbar_mock)
         self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 0)
@@ -965,7 +966,7 @@ class BackfillJobTest(unittest.TestCase):
         # test for failed
         ti.set_state(State.NONE, session)
         ti_status.running[ti.key] = ti
-        job._update_counters(ti_status=ti_status)
+        job._update_counters(ti_status=ti_status, tasks_pbar=pbar_mock)
         self.assertTrue(len(ti_status.running) == 0)
         self.assertTrue(len(ti_status.succeeded) == 0)
         self.assertTrue(len(ti_status.skipped) == 0)

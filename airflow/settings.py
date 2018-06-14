@@ -50,6 +50,12 @@ except:
     pass
 log.info("Configured default timezone %s" % TIMEZONE)
 
+PROGRESS_BAR_FORMAT = (
+    '{desc}: {n_fmt}/{total_fmt} {percentage:3.0f}%'
+    '|{bar}|'
+    ' [{elapsed}<{remaining},{rate_fmt}{postfix}]'
+)
+
 
 class DummyStatsLogger(object):
     @classmethod

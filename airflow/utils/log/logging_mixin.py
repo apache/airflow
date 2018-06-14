@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -31,6 +31,7 @@ import six
 from builtins import object
 from contextlib import contextmanager
 from logging import Handler, StreamHandler
+from tqdm import tqdm
 
 
 class LoggingMixin(object):
@@ -176,3 +177,36 @@ def set_context(logger, value):
             _logger = _logger.parent
         else:
             _logger = None
+
+
+class TqdmWriter(object):
+
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, x):
+        # Avoid print() second call (useless \n)
+        if len(x.rstrip()) > 0:
+            tqdm.write(x, file=self.file)
+
+    def flush(self):
+        return getattr(self.file, "flush", lambda: None)()
+
+
+@contextmanager
+def redirect_stdout_tqdm():
+    origin_stdout = sys.stdout
+    try:
+        sys.stdout = TqdmWriter(sys.stdout)
+        yield origin_stdout
+    finally:
+        sys.stdout = sys.__stdout__
+
+
+@contextmanager
+def redirect_stderr_tqdm():
+    try:
+        sys.stderr = TqdmWriter(sys.stderr)
+        yield
+    finally:
+        sys.stderr = sys.__stderr__

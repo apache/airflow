@@ -43,12 +43,13 @@ from sqlalchemy.orm.session import make_transient
 from sqlalchemy_utc import UtcDateTime
 from tabulate import tabulate
 from time import sleep
+from tqdm import tqdm
 
 from airflow import configuration as conf
 from airflow import executors, models, settings
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun
-from airflow.settings import Stats
+from airflow.settings import Stats, PROGRESS_BAR_FORMAT
 from airflow.task.task_runner import get_task_runner
 from airflow.ti_deps.dep_context import DepContext, QUEUE_DEPS, RUN_DEPS
 from airflow.utils import asciiart, helpers, timezone
@@ -59,7 +60,11 @@ from airflow.utils.dag_processing import (AbstractDagFileProcessor,
                                           list_py_file_paths)
 from airflow.utils.db import create_session, provide_session
 from airflow.utils.email import send_email
-from airflow.utils.log.logging_mixin import LoggingMixin, set_context, StreamLogWriter
+from airflow.utils.log.logging_mixin import (LoggingMixin,
+                                             set_context,
+                                             StreamLogWriter,
+                                             redirect_stdout_tqdm,
+                                             redirect_stderr_tqdm)
 from airflow.utils.state import State
 from airflow.utils.configuration import tmp_configuration_copy
 from airflow.utils.net import get_hostname
@@ -1958,6 +1963,7 @@ class BackfillJob(BaseJob):
             verbose=False,
             conf=None,
             rerun_failed_tasks=False,
+            show_progress_bar=False,
             *args, **kwargs):
         """
         :param dag: DAG object.
@@ -1984,6 +1990,8 @@ class BackfillJob(BaseJob):
         :param rerun_failed_tasks: flag to whether to
                                    auto rerun the failed task in backfill
         :type rerun_failed_tasks: bool
+        :param show_progress_bar: show progress bar
+        :type show_progress_bar: bool
         :param args:
         :param kwargs:
         """
@@ -2000,23 +2008,28 @@ class BackfillJob(BaseJob):
         self.verbose = verbose
         self.conf = conf
         self.rerun_failed_tasks = rerun_failed_tasks
+        self.show_progress_bar = show_progress_bar
         super(BackfillJob, self).__init__(*args, **kwargs)
 
-    def _update_counters(self, ti_status):
+    def _update_counters(self, ti_status, tasks_pbar):
         """
         Updates the counters per state of the tasks that were running. Can re-add
         to tasks to run in case required.
         :param ti_status: the internal status of the backfill job tasks
         :type ti_status: BackfillJob._DagRunTaskStatus
+        :param tasks_pbar: completed tasks progress bar
+        :type tasks_pbar tqdm
         """
         for key, ti in list(ti_status.running.items()):
             ti.refresh_from_db()
             if ti.state == State.SUCCESS:
+                tasks_pbar.update()
                 ti_status.succeeded.add(key)
                 self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                 ti_status.running.pop(key)
                 continue
             elif ti.state == State.SKIPPED:
+                tasks_pbar.update()
                 ti_status.skipped.add(key)
                 self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                 ti_status.running.pop(key)
@@ -2196,11 +2209,16 @@ class BackfillJob(BaseJob):
         )
 
     @provide_session
-    def _process_backfill_task_instances(self,
-                                         ti_status,
-                                         executor,
-                                         pickle_id,
-                                         start_date=None, session=None):
+    def _process_backfill_task_instances(
+        self,
+        ti_status,
+        executor,
+        pickle_id,
+        dagruns_pbar,
+        tasks_pbar,
+        start_date=None,
+        session=None,
+    ):
         """
         Process a set of task instances from a set of dag runs. Special handling is done
         to account for different task instance states that could be present when running
@@ -2211,6 +2229,10 @@ class BackfillJob(BaseJob):
         :type executor: BaseExecutor
         :param pickle_id: the pickle_id if dag is pickled, None otherwise
         :type pickle_id: int
+        :param dagruns_pbar: completed DAG runs progress bar
+        :type dagruns_pbar: tqdm
+        :param tasks_pbar: completed tasks progress bar
+        :type tasks_pbar tqdm
         :param start_date: the start date of the backfill job
         :type start_date: datetime
         :param session: the current session object
@@ -2249,6 +2271,7 @@ class BackfillJob(BaseJob):
                     # The task was already marked successful or skipped by a
                     # different Job. Don't rerun it.
                     if ti.state == State.SUCCESS:
+                        tasks_pbar.update()
                         ti_status.succeeded.add(key)
                         self.log.debug("Task instance %s succeeded. Don't rerun.", ti)
                         ti_status.to_run.pop(key)
@@ -2256,6 +2279,7 @@ class BackfillJob(BaseJob):
                             ti_status.running.pop(key)
                         continue
                     elif ti.state == State.SKIPPED:
+                        tasks_pbar.update()
                         ti_status.skipped.add(key)
                         self.log.debug("Task instance %s skipped. Don't rerun.", ti)
                         ti_status.to_run.pop(key)
@@ -2380,7 +2404,7 @@ class BackfillJob(BaseJob):
             self._manage_executor_state(ti_status.running)
 
             # update the task counters
-            self._update_counters(ti_status=ti_status)
+            self._update_counters(ti_status=ti_status, tasks_pbar=tasks_pbar)
 
             # update dag run state
             _dag_runs = ti_status.active_runs[:]
@@ -2388,6 +2412,7 @@ class BackfillJob(BaseJob):
                 run.update_state(session=session)
                 if run.state in State.finished():
                     ti_status.finished_runs += 1
+                    dagruns_pbar.update()
                     ti_status.active_runs.remove(run)
                     executed_run_dates.append(run.execution_date)
 
@@ -2436,8 +2461,17 @@ class BackfillJob(BaseJob):
         return err
 
     @provide_session
-    def _execute_for_run_dates(self, run_dates, ti_status, executor, pickle_id,
-                               start_date, session=None):
+    def _execute_for_run_dates(
+        self,
+        run_dates,
+        ti_status,
+        executor,
+        pickle_id,
+        start_date,
+        dagruns_pbar,
+        tasks_pbar,
+        session=None,
+    ):
         """
         Computes the dag runs and their respective task instances for
         the given run dates and executes the task instances.
@@ -2452,6 +2486,10 @@ class BackfillJob(BaseJob):
         :type pickle_id: int
         :param start_date: backfill start date
         :type start_date: datetime
+        :param dagruns_pbar: completed DAG runs progress bar
+        :type dagruns_pbar: tqdm
+        :param tasks_pbar: completed tasks progress bar
+        :type tasks_pbar tqdm
         :param session: the current session object
         :type session: Session
         """
@@ -2469,6 +2507,8 @@ class BackfillJob(BaseJob):
             ti_status=ti_status,
             executor=executor,
             pickle_id=pickle_id,
+            dagruns_pbar=dagruns_pbar,
+            tasks_pbar=tasks_pbar,
             start_date=start_date,
             session=session)
 
@@ -2506,33 +2546,69 @@ class BackfillJob(BaseJob):
         ti_status.total_runs = len(run_dates)  # total dag runs in backfill
 
         try:
-            remaining_dates = ti_status.total_runs
-            while remaining_dates > 0:
-                dates_to_process = [run_date for run_date in run_dates
-                                    if run_date not in ti_status.executed_dag_run_dates]
-
-                self._execute_for_run_dates(run_dates=dates_to_process,
-                                            ti_status=ti_status,
-                                            executor=executor,
-                                            pickle_id=pickle_id,
-                                            start_date=start_date,
-                                            session=session)
-
-                remaining_dates = (
-                    ti_status.total_runs - len(ti_status.executed_dag_run_dates)
+            with redirect_stdout_tqdm() as origin_stdout, redirect_stderr_tqdm():
+                disable_pbar = not self.show_progress_bar
+                dagruns_pbar = tqdm(
+                    total=ti_status.total_runs,
+                    desc='DAG runs completed',
+                    position=1,
+                    dynamic_ncols=True,
+                    ncols='20',
+                    file=origin_stdout,
+                    disable=disable_pbar,
+                    bar_format=PROGRESS_BAR_FORMAT,
                 )
-                err = self._collect_errors(ti_status=ti_status, session=session)
-                if err:
-                    raise AirflowException(err)
+                dagruns_pbar.refresh()
 
-                if remaining_dates > 0:
-                    self.log.info(
-                        "max_active_runs limit for dag %s has been reached "
-                        " - waiting for other dag runs to finish",
-                        self.dag_id
+                total_tasks = len(self.dag.tasks) * ti_status.total_runs
+                tasks_pbar = tqdm(
+                    total=total_tasks,
+                    desc='Tasks completed   ',
+                    position=2,
+                    dynamic_ncols=True,
+                    ncols='20',
+                    file=origin_stdout,
+                    disable=disable_pbar,
+                    bar_format=PROGRESS_BAR_FORMAT,
+                )
+                tasks_pbar.refresh()
+
+                remaining_dates = ti_status.total_runs
+                while remaining_dates > 0:
+                    dates_to_process = [
+                        run_date for run_date in run_dates
+                        if run_date not in ti_status.executed_dag_run_dates
+                    ]
+
+                    self._execute_for_run_dates(
+                        run_dates=dates_to_process,
+                        ti_status=ti_status,
+                        executor=executor,
+                        pickle_id=pickle_id,
+                        start_date=start_date,
+                        session=session,
+                        dagruns_pbar=dagruns_pbar,
+                        tasks_pbar=tasks_pbar,
                     )
-                    time.sleep(self.delay_on_limit_secs)
+
+                    remaining_dates = (
+                        ti_status.total_runs - len(ti_status.executed_dag_run_dates)
+                    )
+                    err = self._collect_errors(ti_status=ti_status, session=session)
+                    if err:
+                        raise AirflowException(err)
+
+                    if remaining_dates > 0:
+                        self.log.info(
+                            "max_active_runs limit for dag %s has been reached "
+                            " - waiting for other dag runs to finish",
+                            self.dag_id
+                        )
+                        time.sleep(self.delay_on_limit_secs)
         finally:
+            dagruns_pbar.close()
+            tasks_pbar.close()
+            print('\n\n')
             executor.end()
             session.commit()
 
