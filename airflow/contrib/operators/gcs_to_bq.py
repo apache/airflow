@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,21 +34,21 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
     point the operator to a Google cloud storage object name. The object in
     Google cloud storage must be a JSON file with the schema fields in it.
 
-    :param bucket: The bucket to load from.
+    :param bucket: The bucket to load from. (templated)
     :type bucket: string
-    :param source_objects: List of Google cloud storage URIs to load from.
+    :param source_objects: List of Google cloud storage URIs to load from. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type object: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into. If <project> is not included, project will
-        be the project defined in the connection json.
+        BigQuery table to load data into. If <project> is not included,
+        project will be the project defined in the connection json. (templated)
     :type destination_project_dataset_table: string
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/v2/jobs#configuration.load
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table.
+        contains the schema for the table. (templated)
     :param schema_object: string
     :param source_format: File format to export.
     :type source_format: string
@@ -184,8 +184,9 @@ class GoogleCloudStorageToBigQueryOperator(BaseOperator):
         bq_hook = BigQueryHook(bigquery_conn_id=self.bigquery_conn_id,
                                delegate_to=self.delegate_to)
 
-        if not self.schema_fields and self.schema_object \
-                                  and self.source_format != 'DATASTORE_BACKUP':
+        if not self.schema_fields and \
+                self.schema_object and \
+                self.source_format != 'DATASTORE_BACKUP':
             gcs_hook = GoogleCloudStorageHook(
                 google_cloud_storage_conn_id=self.google_cloud_storage_conn_id,
                 delegate_to=self.delegate_to)

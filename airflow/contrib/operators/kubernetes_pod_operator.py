@@ -29,6 +29,7 @@ template_fields = ('templates_dict',)
 template_ext = tuple()
 ui_color = '#ffefeb'
 
+
 class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod
@@ -38,10 +39,10 @@ class KubernetesPodOperator(BaseOperator):
     :type image: str
     :param: namespace: the namespace to run within kubernetes
     :type: namespace: str
-    :param cmds: entrypoint of the container.
+    :param cmds: entrypoint of the container. (templated)
         The docker images's entrypoint is used if this is not provide.
     :type cmds: list of str
-    :param arguments: arguments of to the entrypoint.
+    :param arguments: arguments of to the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
     :type arguments: list of str
     :param volume_mounts: volumeMounts for launched pod
@@ -55,21 +56,27 @@ class KubernetesPodOperator(BaseOperator):
     :param name: name of the task you want to run,
         will be used to generate a pod id
     :type name: str
-    :param env_vars: Environment variables initialized in the container
+    :param env_vars: Environment variables initialized in the container. (templated)
     :type env_vars: dict
     :param secrets: Kubernetes secrets to inject in the container,
         They can be exposed as environment vars or files in a volume.
     :type secrets: list of Secret
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used.
+    :type cluster_context: string
     :param get_logs: get the stdout of the container as logs of the tasks
     :type get_logs: bool
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
     template_fields = ('cmds', 'arguments', 'env_vars')
 
     def execute(self, context):
         try:
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster)
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context)
             gen = pod_generator.PodGenerator()
 
             for mount in self.volume_mounts:
@@ -91,8 +98,9 @@ class KubernetesPodOperator(BaseOperator):
             pod.image_pull_policy = self.image_pull_policy
             pod.annotations = self.annotations
             pod.resources = self.resources
+            pod.affinity = self.affinity
 
-            launcher = pod_launcher.PodLauncher(client)
+            launcher = pod_launcher.PodLauncher(kube_client=client)
             final_state = launcher.run_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
@@ -116,12 +124,14 @@ class KubernetesPodOperator(BaseOperator):
                  env_vars=None,
                  secrets=None,
                  in_cluster=False,
+                 cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
                  get_logs=True,
                  image_pull_policy='IfNotPresent',
                  annotations=None,
                  resources=None,
+                 affinity=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -137,7 +147,9 @@ class KubernetesPodOperator(BaseOperator):
         self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
         self.get_logs = get_logs
         self.image_pull_policy = image_pull_policy
         self.annotations = annotations or {}
+        self.affinity = affinity or {}
         self.resources = resources or Resources()

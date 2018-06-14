@@ -34,7 +34,7 @@ class WinRMOperator(BaseOperator):
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
-    :param command: command to execute on remote host
+    :param command: command to execute on remote host. (templated)
     :type command: str
     :param timeout: timeout for executing the command.
     :type timeout: int

@@ -57,16 +57,17 @@ class DruidHook(BaseHook):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
-        schema = conn.extra_dejson.get('schema', 'http')
+        conn_type = 'http' if not conn.conn_type else conn.conn_type
         endpoint = conn.extra_dejson.get('endpoint', '')
-        return "http://{host}:{port}/{endpoint}".format(**locals())
+        return "{conn_type}://{host}:{port}/{endpoint}".format(**locals())
 
     def submit_indexing_job(self, json_index_spec):
         url = self.get_conn_url()
 
         req_index = requests.post(url, data=json_index_spec, headers=self.header)
         if (req_index.status_code != 200):
-            raise AirflowException("Did not get 200 when submitting the Druid job to {}".format(url))
+            raise AirflowException('Did not get 200 when '
+                                   'submitting the Druid job to {}'.format(url))
 
         req_json = req_index.json()
         # Wait until the job is completed
@@ -85,7 +86,8 @@ class DruidHook(BaseHook):
             if self.max_ingestion_time and sec > self.max_ingestion_time:
                 # ensure that the job gets killed if the max ingestion time is exceeded
                 requests.post("{0}/{1}/shutdown".format(url, druid_task_id))
-                raise AirflowException('Druid ingestion took more than %s seconds', self.max_ingestion_time)
+                raise AirflowException('Druid ingestion took more than '
+                                       '%s seconds', self.max_ingestion_time)
 
             time.sleep(self.timeout)
 
@@ -95,7 +97,8 @@ class DruidHook(BaseHook):
             elif status == 'SUCCESS':
                 running = False  # Great success!
             elif status == 'FAILED':
-                raise AirflowException('Druid indexing job failed, check console for more info')
+                raise AirflowException('Druid indexing job failed, '
+                                       'check console for more info')
             else:
                 raise AirflowException('Could not get status of the job, got %s', status)
 

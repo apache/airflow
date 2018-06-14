@@ -338,11 +338,11 @@ class AirflowImporter(object):
             # This functionality is deprecated, and AirflowImporter should be
             # removed in 2.0.
             warnings.warn(
-                "Importing {i} directly from {m} has been "
+                "Importing '{i}' directly from '{m}' has been "
                 "deprecated. Please import from "
                 "'{m}.[operator_module]' instead. Support for direct "
                 "imports will be dropped entirely in Airflow 2.0.".format(
-                    i=attribute, m=self._parent_module),
+                    i=attribute, m=self._parent_module.__name__),
                 DeprecationWarning)
 
         loaded_module = self._loaded_modules[module]

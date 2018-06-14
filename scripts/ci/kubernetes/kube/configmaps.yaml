@@ -185,7 +185,9 @@ data:
     git_user =
     git_password =
     dags_volume_claim = airflow-dags
+    dags_volume_subpath =
     logs_volume_claim = airflow-logs
+    logs_volume_subpath =
     in_cluster = True
     namespace = default
     gcp_service_account_keys =

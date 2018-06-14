@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,12 +29,12 @@ class S3ListOperator(BaseOperator):
     This operator returns a python list with the name of objects which can be
     used by `xcom` in the downstream task.
 
-    :param bucket: The S3 bucket where to find the objects.
+    :param bucket: The S3 bucket where to find the objects. (templated)
     :type bucket: string
     :param prefix: Prefix string to filters the objects whose name begin with
-        such prefix
+        such prefix. (templated)
     :type prefix: string
-    :param delimiter: the delimiter marks key hierarchy.
+    :param delimiter: the delimiter marks key hierarchy. (templated)
     :type delimiter: string
     :param aws_conn_id: The connection ID to use when connecting to S3 storage.
     :type aws_conn_id: string

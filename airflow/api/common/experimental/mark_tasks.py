@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -157,7 +157,7 @@ def set_state(task, execution_date, upstream=False, downstream=False,
 
     # get all tasks of the main dag that will be affected by a state change
     qry_dag = session.query(TI).filter(
-        TI.dag_id==dag.dag_id,
+        TI.dag_id == dag.dag_id,
         TI.execution_date.in_(confirmed_dates),
         TI.task_id.in_(task_ids)).filter(
         or_(TI.state.is_(None),

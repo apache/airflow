@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -38,7 +38,7 @@ class SFTPSensor(BaseSensorOperator):
     def __init__(self, path, sftp_conn_id='sftp_default', *args, **kwargs):
         super(SFTPSensor, self).__init__(*args, **kwargs)
         self.path = path
-        self.hook = SFTPHook(sftp_conn_id=sftp_conn_id)
+        self.hook = SFTPHook(sftp_conn_id)
 
     def poke(self, context):
         logging.info('Poking for %s', self.path)

@@ -16,15 +16,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 
 from __future__ import print_function, unicode_literals
 from six.moves import zip
-from past.builtins import basestring
+from past.builtins import basestring, unicode
 
 import unicodecsv as csv
-import itertools
 import re
+import six
 import subprocess
 import time
 from collections import OrderedDict
@@ -272,9 +271,9 @@ class HiveCliHook(BaseHook):
                     self.log.info(message)
                     error_loc = re.search('(\d+):(\d+)', message)
                     if error_loc and error_loc.group(1).isdigit():
-                        l = int(error_loc.group(1))
-                        begin = max(l-2, 0)
-                        end = min(l+3, len(query.split('\n')))
+                        lst = int(error_loc.group(1))
+                        begin = max(lst - 2, 0)
+                        end = min(lst + 3, len(query.split('\n')))
                         context = '\n'.join(query.split('\n')[begin:end])
                         self.log.info("Context :\n %s", context)
                 else:
@@ -284,8 +283,6 @@ class HiveCliHook(BaseHook):
             self,
             df,
             table,
-            create=True,
-            recreate=False,
             field_dict=None,
             delimiter=',',
             encoding='utf8',
@@ -296,17 +293,16 @@ class HiveCliHook(BaseHook):
         Hive data types will be inferred if not passed but column names will
         not be sanitized.
 
+        :param df: DataFrame to load into a Hive table
+        :type df: DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
-        :param create: whether to create the table if it doesn't exist
-        :type create: bool
-        :param recreate: whether to drop and recreate the table at every
-            execution
-        :type recreate: bool
         :param field_dict: mapping from column name to hive data type.
             Note that it must be OrderedDict so as to keep columns' order.
         :type field_dict: OrderedDict
+        :param delimiter: field delimiter in the file
+        :type delimiter: str
         :param encoding: string encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -316,15 +312,16 @@ class HiveCliHook(BaseHook):
 
         def _infer_field_types_from_df(df):
             DTYPE_KIND_HIVE_TYPE = {
-                'b': 'BOOLEAN',  # boolean
-                'i': 'BIGINT',   # signed integer
-                'u': 'BIGINT',   # unsigned integer
-                'f': 'DOUBLE',   # floating-point
-                'c': 'STRING',   # complex floating-point
-                'O': 'STRING',   # object
-                'S': 'STRING',   # (byte-)string
-                'U': 'STRING',   # Unicode
-                'V': 'STRING'    # void
+                'b': 'BOOLEAN',    # boolean
+                'i': 'BIGINT',     # signed integer
+                'u': 'BIGINT',     # unsigned integer
+                'f': 'DOUBLE',     # floating-point
+                'c': 'STRING',     # complex floating-point
+                'M': 'TIMESTAMP',  # datetime
+                'O': 'STRING',     # object
+                'S': 'STRING',     # (byte-)string
+                'U': 'STRING',     # Unicode
+                'V': 'STRING'      # void
             }
 
             d = OrderedDict()
@@ -336,15 +333,19 @@ class HiveCliHook(BaseHook):
             pandas_kwargs = {}
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
+            with NamedTemporaryFile(dir=tmp_dir, mode="w") as f:
 
-                if field_dict is None and (create or recreate):
+                if field_dict is None:
                     field_dict = _infer_field_types_from_df(df)
 
                 df.to_csv(path_or_buf=f,
-                          sep=delimiter.encode(encoding),
+                          sep=(delimiter.encode(encoding)
+                               if six.PY2 and isinstance(delimiter, unicode)
+                               else delimiter),
                           header=False,
                           index=False,
+                          encoding=encoding,
+                          date_format="%Y-%m-%d %H:%M:%S",
                           **pandas_kwargs)
                 f.flush()
 
@@ -722,9 +723,9 @@ class HiveMetastoreHook(BaseHook):
         False
         """
         try:
-            t = self.get_table(table_name, db)
+            self.get_table(table_name, db)
             return True
-        except Exception as e:
+        except Exception:
             return False
 
 
@@ -749,7 +750,8 @@ class HiveServer2Hook(BaseHook):
         # impyla uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
         if auth_mechanism == 'KERBEROS':
             self.log.warning(
-                "Detected deprecated 'KERBEROS' for authMechanism for %s. Please use 'GSSAPI' instead",
+                "Detected deprecated 'KERBEROS' for "
+                "authMechanism for %s. Please use 'GSSAPI' instead",
                 self.hiveserver2_conn_id
             )
             auth_mechanism = 'GSSAPI'

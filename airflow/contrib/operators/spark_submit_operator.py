@@ -29,7 +29,8 @@ class SparkSubmitOperator(BaseOperator):
     It requires that the "spark-submit" binary is in the PATH or the spark-home is set
     in the extra on the connection.
 
-    :param application: The application that submitted as a job, either jar or py file.
+    :param application: The application that submitted as a job, either jar or
+        py file. (templated)
     :type application: str
     :param conf: Arbitrary Spark configuration properties
     :type conf: dict
@@ -49,7 +50,7 @@ class SparkSubmitOperator(BaseOperator):
     :param java_class: the main class of the Java application
     :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
-                     driver and executor classpaths
+                     driver and executor classpaths. (templated)
     :type packages: str
     :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
                              while resolving the dependencies provided in 'packages'
@@ -71,7 +72,7 @@ class SparkSubmitOperator(BaseOperator):
     :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
     :type principal: str
-    :param name: Name of the job (default airflow-spark)
+    :param name: Name of the job (default airflow-spark). (templated)
     :type name: str
     :param num_executors: Number of executors to launch
     :type num_executors: int

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -29,13 +29,18 @@ class BigQueryOperator(BaseOperator):
     """
     Executes BigQuery SQL queries in a specific BigQuery database
 
-    :param bql: the sql code to be executed
+    :param bql: (Deprecated. Use `sql` parameter instead) the sql code to be
+        executed (templated)
     :type bql: Can receive a str representing a sql statement,
         a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+        Template reference are recognized by str ending in '.sql'.
+    :param sql: the sql code to be executed (templated)
+    :type sql: Can receive a str representing a sql statement,
+        a list of str (sql statements), or reference to a template file.
+        Template reference are recognized by str ending in '.sql'.
     :param destination_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that, if set, will store the results
-        of the query.
+        of the query. (templated)
     :type destination_dataset_table: string
     :param write_disposition: Specifies the action that occurs if the destination table
         already exists. (default: 'WRITE_EMPTY')
@@ -76,15 +81,25 @@ class BigQueryOperator(BaseOperator):
     :param query_params: a dictionary containing query parameter types and
         values, passed to BigQuery.
     :type query_params: dict
-
+    :param priority: Specifies a priority for the query.
+        Possible values include INTERACTIVE and BATCH.
+        The default value is INTERACTIVE.
+    :type priority: string
+    :param time_partitioning: configure optional time partitioning fields i.e.
+        partition by field, type and
+        expiration as per API specifications. Note that 'field' is not available in
+        conjunction with dataset.table$partition.
+    :type time_partitioning: dict
     """
-    template_fields = ('bql', 'destination_dataset_table')
+
+    template_fields = ('bql', 'sql', 'destination_dataset_table')
     template_ext = ('.sql', )
     ui_color = '#e4f0e8'
 
     @apply_defaults
     def __init__(self,
-                 bql,
+                 bql=None,
+                 sql=None,
                  destination_dataset_table=False,
                  write_disposition='WRITE_EMPTY',
                  allow_large_results=False,
@@ -99,10 +114,12 @@ class BigQueryOperator(BaseOperator):
                  schema_update_options=(),
                  query_params=None,
                  priority='INTERACTIVE',
+                 time_partitioning={},
                  *args,
                  **kwargs):
         super(BigQueryOperator, self).__init__(*args, **kwargs)
         self.bql = bql
+        self.sql = sql if sql else bql
         self.destination_dataset_table = destination_dataset_table
         self.write_disposition = write_disposition
         self.create_disposition = create_disposition
@@ -118,10 +135,25 @@ class BigQueryOperator(BaseOperator):
         self.query_params = query_params
         self.bq_cursor = None
         self.priority = priority
+        self.time_partitioning = time_partitioning
+
+        # TODO remove `bql` in Airflow 2.0
+        if self.bql:
+            import warnings
+            warnings.warn('Deprecated parameter `bql` used in Task id: {}. '
+                          'Use `sql` parameter instead to pass the sql to be '
+                          'executed. `bql` parameter is deprecated and '
+                          'will be removed in a future version of '
+                          'Airflow.'.format(self.task_id),
+                          category=DeprecationWarning)
+
+        if self.sql is None:
+            raise TypeError('{} missing 1 required positional '
+                            'argument: `sql`'.format(self.task_id))
 
     def execute(self, context):
         if self.bq_cursor is None:
-            self.log.info('Executing: %s', self.bql)
+            self.log.info('Executing: %s', self.sql)
             hook = BigQueryHook(
                 bigquery_conn_id=self.bigquery_conn_id,
                 use_legacy_sql=self.use_legacy_sql,
@@ -129,7 +161,7 @@ class BigQueryOperator(BaseOperator):
             conn = hook.get_conn()
             self.bq_cursor = conn.cursor()
         self.bq_cursor.run_query(
-            self.bql,
+            self.sql,
             destination_dataset_table=self.destination_dataset_table,
             write_disposition=self.write_disposition,
             allow_large_results=self.allow_large_results,
@@ -140,7 +172,9 @@ class BigQueryOperator(BaseOperator):
             create_disposition=self.create_disposition,
             query_params=self.query_params,
             schema_update_options=self.schema_update_options,
-            priority=self.priority)
+            priority=self.priority,
+            time_partitioning=self.time_partitioning
+        )
 
     def on_kill(self):
         super(BigQueryOperator, self).on_kill()
@@ -160,11 +194,11 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
     Google cloud storage must be a JSON file with the schema fields in it.
     You can also create a table without schema.
 
-    :param project_id: The project to create the table into.
+    :param project_id: The project to create the table into. (templated)
     :type project_id: string
-    :param dataset_id: The dataset to create the table into.
+    :param dataset_id: The dataset to create the table into. (templated)
     :type dataset_id: string
-    :param table_id: The Name of the table to be created.
+    :param table_id: The Name of the table to be created. (templated)
     :type table_id: string
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
@@ -175,7 +209,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}]
 
     :type schema_fields: list
-    :param gcs_schema_object: Full path to the JSON file containing schema. For
+    :param gcs_schema_object: Full path to the JSON file containing
+        schema (templated). For
         example: ``gs://test-bucket/dir1/dir2/employee_schema.json``
     :type gcs_schema_object: string
     :param time_partitioning: configure optional time partitioning fields i.e.
@@ -302,14 +337,15 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
     point the operator to a Google cloud storage object name. The object in
     Google cloud storage must be a JSON file with the schema fields in it.
 
-    :param bucket: The bucket to point the external table to.
+    :param bucket: The bucket to point the external table to. (templated)
     :type bucket: string
-    :param source_objects: List of Google cloud storage URIs to point table to.
+    :param source_objects: List of Google cloud storage URIs to point
+        table to. (templated)
         If source_format is 'DATASTORE_BACKUP', the list must only contain a single URI.
     :type object: list
     :param destination_project_dataset_table: The dotted (<project>.)<dataset>.<table>
-        BigQuery table to load data into. If <project> is not included, project will
-        be the project defined in the connection json.
+        BigQuery table to load data into (templated). If <project> is not included,
+        project will be the project defined in the connection json.
     :type destination_project_dataset_table: string
     :param schema_fields: If set, the schema field list as defined here:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs#configuration.load.schema
@@ -322,7 +358,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         Should not be set when source_format is 'DATASTORE_BACKUP'.
     :type schema_fields: list
     :param schema_object: If set, a GCS object path pointing to a .json file that
-        contains the schema for the table.
+        contains the schema for the table. (templated)
     :param schema_object: string
     :param source_format: File format of the data.
     :type source_format: string

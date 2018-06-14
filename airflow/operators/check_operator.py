@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -58,7 +58,7 @@ class CheckOperator(BaseOperator):
     needs to be defined. Whereas a get_db_hook is hook that gets a
     single record from an external source.
 
-    :param sql: the sql to be executed
+    :param sql: the sql to be executed. (templated)
     :type sql: string
     """
 
@@ -91,13 +91,13 @@ class CheckOperator(BaseOperator):
 
 
 def _convert_to_float_if_possible(s):
-    '''
+    """
     A small helper function to convert a string to a numeric value
     if appropriate
 
     :param s: the string to be converted
     :type s: str
-    '''
+    """
     try:
         ret = float(s)
     except (ValueError, TypeError):
@@ -113,7 +113,7 @@ class ValueCheckOperator(BaseOperator):
     needs to be defined. Whereas a get_db_hook is hook that gets a
     single record from an external source.
 
-    :param sql: the sql to be executed
+    :param sql: the sql to be executed. (templated)
     :type sql: string
     """
 
@@ -217,7 +217,7 @@ class IntervalCheckOperator(BaseOperator):
         sqlt = ("SELECT {sqlexp} FROM {table}"
                 " WHERE {date_filter_column}=").format(**locals())
         self.sql1 = sqlt + "'{{ ds }}'"
-        self.sql2 = sqlt + "'{{ macros.ds_add(ds, "+str(self.days_back)+") }}'"
+        self.sql2 = sqlt + "'{{ macros.ds_add(ds, " + str(self.days_back) + ") }}'"
 
     def execute(self, context=None):
         hook = self.get_db_hook()

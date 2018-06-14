@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -17,17 +17,31 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import copy
 import io
+import json
+import logging.config
+import os
+import shutil
+import sys
+import tempfile
 import unittest
 import urllib
-from werkzeug.test import Client
+
 from flask._compat import PY2
 from flask_appbuilder.security.sqla.models import User as ab_user
-from airflow import models
+from urllib.parse import quote_plus
+from werkzeug.test import Client
+
 from airflow import configuration as conf
+from airflow import models
+from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.models import DAG, DagRun, TaskInstance
+from airflow.operators.dummy_operator import DummyOperator
 from airflow.settings import Session
 from airflow.utils import timezone
 from airflow.utils.state import State
+from airflow.utils.timezone import datetime
 from airflow.www_rbac import app as application
 
 
@@ -400,10 +414,343 @@ class TestConfigurationView(TestBase):
             ['Airflow Configuration', 'Running Configuration'], resp)
 
 
+class TestLogView(TestBase):
+    DAG_ID = 'dag_for_testing_log_view'
+    TASK_ID = 'task_for_testing_log_view'
+    DEFAULT_DATE = timezone.datetime(2017, 9, 1)
+    ENDPOINT = 'log?dag_id={dag_id}&task_id={task_id}&' \
+               'execution_date={execution_date}'.format(dag_id=DAG_ID,
+                                                        task_id=TASK_ID,
+                                                        execution_date=DEFAULT_DATE)
+
+    def setUp(self):
+        conf.load_test_config()
+
+        # Create a custom logging configuration
+        logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        logging_config['handlers']['task']['base_log_folder'] = os.path.normpath(
+            os.path.join(current_dir, 'test_logs'))
+        logging_config['handlers']['task']['filename_template'] = \
+            '{{ ti.dag_id }}/{{ ti.task_id }}/' \
+            '{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+
+        # Write the custom logging configuration to a file
+        self.settings_folder = tempfile.mkdtemp()
+        settings_file = os.path.join(self.settings_folder, "airflow_local_settings.py")
+        new_logging_file = "LOGGING_CONFIG = {}".format(logging_config)
+        with open(settings_file, 'w') as handle:
+            handle.writelines(new_logging_file)
+        sys.path.append(self.settings_folder)
+        conf.set('core', 'logging_config_class', 'airflow_local_settings.LOGGING_CONFIG')
+
+        self.app, self.appbuilder = application.create_app(testing=True)
+        self.app.config['WTF_CSRF_ENABLED'] = False
+        self.client = self.app.test_client()
+        self.login()
+        self.session = Session()
+
+        from airflow.www_rbac.views import dagbag
+        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        task = DummyOperator(task_id=self.TASK_ID, dag=dag)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        ti = TaskInstance(task=task, execution_date=self.DEFAULT_DATE)
+        ti.try_number = 1
+        self.session.merge(ti)
+        self.session.commit()
+
+    def tearDown(self):
+        logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
+        self.clear_table(TaskInstance)
+
+        shutil.rmtree(self.settings_folder)
+        conf.set('core', 'logging_config_class', '')
+
+        self.logout()
+        super(TestLogView, self).tearDown()
+
+    def test_get_file_task_log(self):
+        response = self.client.get(
+            TestLogView.ENDPOINT,
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Log by attempts',
+                      response.data.decode('utf-8'))
+
+    def test_get_logs_with_metadata(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata={}"
+        response = \
+            self.client.get(url_template.format(self.DAG_ID,
+                                                self.TASK_ID,
+                                                quote_plus(self.DEFAULT_DATE.isoformat()),
+                                                1,
+                                                json.dumps({})), follow_redirects=True)
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+    def test_get_logs_with_null_metadata(self):
+        url_template = "get_logs_with_metadata?dag_id={}&" \
+                       "task_id={}&execution_date={}&" \
+                       "try_number={}&metadata=null"
+        response = \
+            self.client.get(url_template.format(self.DAG_ID,
+                                                self.TASK_ID,
+                                                quote_plus(self.DEFAULT_DATE.isoformat()),
+                                                1), follow_redirects=True)
+
+        self.assertIn('"message":', response.data.decode('utf-8'))
+        self.assertIn('"metadata":', response.data.decode('utf-8'))
+        self.assertIn('Log for testing.', response.data.decode('utf-8'))
+        self.assertEqual(200, response.status_code)
+
+
 class TestVersionView(TestBase):
     def test_version(self):
         resp = self.client.get('version', follow_redirects=True)
         self.check_content_in_response('Version Info', resp)
+
+
+class ViewWithDateTimeAndNumRunsAndDagRunsFormTester:
+    DAG_ID = 'dag_for_testing_dt_nr_dr_form'
+    DEFAULT_DATE = datetime(2017, 9, 1)
+    RUNS_DATA = [
+        ('dag_run_for_testing_dt_nr_dr_form_4', datetime(2018, 4, 4)),
+        ('dag_run_for_testing_dt_nr_dr_form_3', datetime(2018, 3, 3)),
+        ('dag_run_for_testing_dt_nr_dr_form_2', datetime(2018, 2, 2)),
+        ('dag_run_for_testing_dt_nr_dr_form_1', datetime(2018, 1, 1)),
+    ]
+
+    def __init__(self, test, endpoint):
+        self.test = test
+        self.endpoint = endpoint
+
+    def setUp(self):
+        from airflow.www_rbac.views import dagbag
+        from airflow.utils.state import State
+        dag = DAG(self.DAG_ID, start_date=self.DEFAULT_DATE)
+        dagbag.bag_dag(dag, parent_dag=dag, root_dag=dag)
+        self.runs = []
+        for rd in self.RUNS_DATA:
+            run = dag.create_dagrun(
+                run_id=rd[0],
+                execution_date=rd[1],
+                state=State.SUCCESS,
+                external_trigger=True
+            )
+            self.runs.append(run)
+
+    def tearDown(self):
+        self.test.session.query(DagRun).filter(
+            DagRun.dag_id == self.DAG_ID).delete()
+        self.test.session.commit()
+        self.test.session.close()
+
+    def assertBaseDateAndNumRuns(self, base_date, num_runs, data):
+        self.test.assertNotIn('name="base_date" value="{}"'.format(base_date), data)
+        self.test.assertNotIn('<option selected="" value="{}">{}</option>'.format(
+            num_runs, num_runs), data)
+
+    def assertRunIsNotInDropdown(self, run, data):
+        self.test.assertNotIn(run.execution_date.isoformat(), data)
+        self.test.assertNotIn(run.run_id, data)
+
+    def assertRunIsInDropdownNotSelected(self, run, data):
+        self.test.assertIn('<option value="{}">{}</option>'.format(
+            run.execution_date.isoformat(), run.run_id), data)
+
+    def assertRunIsSelected(self, run, data):
+        self.test.assertIn('<option selected value="{}">{}</option>'.format(
+            run.execution_date.isoformat(), run.run_id), data)
+
+    def test_with_default_parameters(self):
+        """
+        Tests view with no URL parameter.
+        Should show all dag runs in the drop down.
+        Should select the latest dag run.
+        Should set base date to current date (not asserted)
+        """
+        response = self.test.client.get(
+            self.endpoint
+        )
+        self.test.assertEqual(response.status_code, 200)
+        data = response.data.decode('utf-8')
+        self.test.assertIn('Base date:', data)
+        self.test.assertIn('Number of runs:', data)
+        self.assertRunIsSelected(self.runs[0], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[1], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+
+    def test_with_execution_date_parameter_only(self):
+        """
+        Tests view with execution_date URL parameter.
+        Scenario: click link from dag runs view.
+        Should only show dag runs older than execution_date in the drop down.
+        Should select the particular dag run.
+        Should set base date to execution date.
+        """
+        response = self.test.client.get(
+            self.endpoint + '&execution_date={}'.format(
+                self.runs[1].execution_date.isoformat())
+        )
+        self.test.assertEqual(response.status_code, 200)
+        data = response.data.decode('utf-8')
+        self.assertBaseDateAndNumRuns(
+            self.runs[1].execution_date,
+            conf.getint('webserver', 'default_dag_run_display_number'),
+            data)
+        self.assertRunIsNotInDropdown(self.runs[0], data)
+        self.assertRunIsSelected(self.runs[1], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+
+    def test_with_base_date_and_num_runs_parmeters_only(self):
+        """
+        Tests view with base_date and num_runs URL parameters.
+        Should only show dag runs older than base_date in the drop down,
+        limited to num_runs.
+        Should select the latest dag run.
+        Should set base date and num runs to submitted values.
+        """
+        response = self.test.client.get(
+            self.endpoint + '&base_date={}&num_runs=2'.format(
+                self.runs[1].execution_date.isoformat())
+        )
+        self.test.assertEqual(response.status_code, 200)
+        data = response.data.decode('utf-8')
+        self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 2, data)
+        self.assertRunIsNotInDropdown(self.runs[0], data)
+        self.assertRunIsSelected(self.runs[1], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
+        self.assertRunIsNotInDropdown(self.runs[3], data)
+
+    def test_with_base_date_and_num_runs_and_execution_date_outside(self):
+        """
+        Tests view with base_date and num_runs and execution-date URL parameters.
+        Scenario: change the base date and num runs and press "Go",
+        the selected execution date is outside the new range.
+        Should only show dag runs older than base_date in the drop down.
+        Should select the latest dag run within the range.
+        Should set base date and num runs to submitted values.
+        """
+        response = self.test.client.get(
+            self.endpoint + '&base_date={}&num_runs=42&execution_date={}'.format(
+                self.runs[1].execution_date.isoformat(),
+                self.runs[0].execution_date.isoformat())
+        )
+        self.test.assertEqual(response.status_code, 200)
+        data = response.data.decode('utf-8')
+        self.assertBaseDateAndNumRuns(self.runs[1].execution_date, 42, data)
+        self.assertRunIsNotInDropdown(self.runs[0], data)
+        self.assertRunIsSelected(self.runs[1], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[3], data)
+
+    def test_with_base_date_and_num_runs_and_execution_date_within(self):
+        """
+        Tests view with base_date and num_runs and execution-date URL parameters.
+        Scenario: change the base date and num runs and press "Go",
+        the selected execution date is within the new range.
+        Should only show dag runs older than base_date in the drop down.
+        Should select the dag run with the execution date.
+        Should set base date and num runs to submitted values.
+        """
+        response = self.test.client.get(
+            self.endpoint + '&base_date={}&num_runs=5&execution_date={}'.format(
+                self.runs[2].execution_date.isoformat(),
+                self.runs[3].execution_date.isoformat())
+        )
+        self.test.assertEqual(response.status_code, 200)
+        data = response.data.decode('utf-8')
+        self.assertBaseDateAndNumRuns(self.runs[2].execution_date, 5, data)
+        self.assertRunIsNotInDropdown(self.runs[0], data)
+        self.assertRunIsNotInDropdown(self.runs[1], data)
+        self.assertRunIsInDropdownNotSelected(self.runs[2], data)
+        self.assertRunIsSelected(self.runs[3], data)
+
+
+class TestGraphView(TestBase):
+    GRAPH_ENDPOINT = '/graph?dag_id={dag_id}'.format(
+        dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestGraphView, cls).setUpClass()
+
+    def setUp(self):
+        super(TestGraphView, self).setUp()
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GRAPH_ENDPOINT)
+        self.tester.setUp()
+
+    def tearDown(self):
+        self.tester.tearDown()
+        super(TestGraphView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestGraphView, cls).tearDownClass()
+
+    def test_dt_nr_dr_form_default_parameters(self):
+        self.tester.test_with_default_parameters()
+
+    def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
+        self.tester.test_with_execution_date_parameter_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_within(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
+
+
+class TestGanttView(TestBase):
+    GANTT_ENDPOINT = '/gantt?dag_id={dag_id}'.format(
+        dag_id=ViewWithDateTimeAndNumRunsAndDagRunsFormTester.DAG_ID
+    )
+
+    @classmethod
+    def setUpClass(cls):
+        super(TestGanttView, cls).setUpClass()
+
+    def setUp(self):
+        super(TestGanttView, self).setUp()
+        self.tester = ViewWithDateTimeAndNumRunsAndDagRunsFormTester(
+            self, self.GANTT_ENDPOINT)
+        self.tester.setUp()
+
+    def tearDown(self):
+        self.tester.tearDown()
+        super(TestGanttView, self).tearDown()
+
+    @classmethod
+    def tearDownClass(cls):
+        super(TestGanttView, cls).tearDownClass()
+
+    def test_dt_nr_dr_form_default_parameters(self):
+        self.tester.test_with_default_parameters()
+
+    def test_dt_nr_dr_form_with_execution_date_parameter_only(self):
+        self.tester.test_with_execution_date_parameter_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_parmeters_only(self):
+        self.tester.test_with_base_date_and_num_runs_parmeters_only()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_outside(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_outside()
+
+    def test_dt_nr_dr_form_with_base_date_and_num_runs_and_execution_date_within(self):
+        self.tester.test_with_base_date_and_num_runs_and_execution_date_within()
 
 
 if __name__ == '__main__':

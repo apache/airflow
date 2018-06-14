@@ -169,6 +169,8 @@ class DbApiHook(BaseHook):
                     else:
                         cur.execute(s)
 
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
             if not getattr(conn, 'autocommit', False):
                 conn.commit()
 
@@ -218,10 +220,10 @@ class DbApiHook(BaseHook):
 
             with closing(conn.cursor()) as cur:
                 for i, row in enumerate(rows, 1):
-                    l = []
+                    lst = []
                     for cell in row:
-                        l.append(self._serialize_cell(cell, conn))
-                    values = tuple(l)
+                        lst.append(self._serialize_cell(cell, conn))
+                    values = tuple(lst)
                     placeholders = ["%s", ] * len(values)
                     sql = "INSERT INTO {0} {1} VALUES ({2})".format(
                         table,

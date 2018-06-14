@@ -114,10 +114,10 @@ azure_data_lake = [
     'azure-mgmt-datalake-store==0.4.0',
     'azure-datalake-store==0.0.19'
 ]
-sendgrid = ['sendgrid>=5.2.0']
+cassandra = ['cassandra-driver>=3.13.0']
 celery = [
-    'celery>=4.0.2',
-    'flower>=0.7.3'
+    'celery>=4.1.1, <4.2.0',
+    'flower>=0.7.3, <1.0'
 ]
 cgroups = [
     'cgroupspy>=0.1.4',
@@ -136,7 +136,7 @@ doc = [
     'sphinx-rtd-theme>=0.1.6',
     'Sphinx-PyPI-upload>=0.2.1'
 ]
-docker = ['docker-py>=1.6.0']
+docker = ['docker>=2.0.0']
 druid = ['pydruid>=0.4.1']
 elasticsearch = [
     'elasticsearch>=5.0.0,<6.0.0',
@@ -144,9 +144,10 @@ elasticsearch = [
 ]
 emr = ['boto3>=1.0.0']
 gcp_api = [
-    'httplib2',
-    'google-api-python-client>=1.5.0, <1.6.0',
-    'oauth2client>=2.0.2, <2.1.0',
+    'httplib2>=0.9.2',
+    'google-api-python-client>=1.6.0, <2.0.0dev',
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'PyOpenSSL',
     'pandas-gbq'
 ]
@@ -156,7 +157,7 @@ hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.1.3',
     'impyla>=0.13.3',
-    'unicodecsv>=0.14.1'
+    'thrift_sasl==0.2.1',
 ]
 jdbc = ['jaydebeapi>=1.1.1']
 jenkins = ['python-jenkins>=0.4.15']
@@ -168,7 +169,7 @@ kerberos = ['pykerberos>=1.1.13',
 kubernetes = ['kubernetes>=3.0.0',
               'cryptography>=2.0.0']
 ldap = ['ldap3>=0.9.9.1']
-mssql = ['pymssql>=2.1.1', 'unicodecsv>=0.14.1']
+mssql = ['pymssql>=2.1.1']
 mysql = ['mysqlclient>=1.3.6']
 oracle = ['cx_Oracle>=5.1.2']
 password = [
@@ -184,7 +185,9 @@ s3 = ['boto3>=1.7.0']
 salesforce = ['simple-salesforce>=0.72']
 samba = ['pysmbclient>=0.1.3']
 segment = ['analytics-python>=1.2.9']
+sendgrid = ['sendgrid>=5.2.0']
 slack = ['slackclient>=1.0.0']
+mongo = ['pymongo>=3.6.0']
 snowflake = ['snowflake-connector-python>=1.5.2',
              'snowflake-sqlalchemy>=1.1.0']
 ssh = ['paramiko>=2.1.1', 'pysftp>=0.2.9']
@@ -194,13 +197,16 @@ webhdfs = ['hdfs[dataframe,avro,kerberos]>=2.0.4']
 winrm = ['pywinrm==0.2.2']
 zendesk = ['zdesk']
 
-all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot
+all_dbs = postgres + mysql + hive + mssql + hdfs + vertica + cloudant + druid + pinot \
+    + cassandra + mongo
+
 devel = [
     'click',
     'freezegun',
     'jira',
     'lxml>=3.3.4',
     'mock',
+    'mongomock',
     'moto==1.1.19',
     'nose',
     'nose-ignore-docstring==0.2',
@@ -246,8 +252,8 @@ def do_setup():
             'configparser>=3.5.0, <3.6.0',
             'croniter>=0.3.17, <0.4',
             'dill>=0.2.2, <0.3',
-            'flask>=0.12, <0.13',
-            'flask-appbuilder>=1.10.0, <2.0.0',
+            'flask>=0.12.4, <0.13',
+            'flask-appbuilder>=1.11.1, <2.0.0',
             'flask-admin==1.4.1',
             'flask-caching>=1.3.3, <1.4.0',
             'flask-login==0.2.11',
@@ -276,6 +282,7 @@ def do_setup():
             'tenacity==4.8.0',
             'thrift>=0.9.2',
             'tzlocal>=1.4',
+            'unicodecsv>=0.14.1',
             'werkzeug>=0.14.1, <0.15.0',
             'zope.deprecation>=4.0, <5.0',
         ],
@@ -290,6 +297,7 @@ def do_setup():
             'async': async,
             'azure_blob_storage': azure_blob_storage,
             'azure_data_lake': azure_data_lake,
+            'cassandra': cassandra,
             'celery': celery,
             'cgroups': cgroups,
             'cloudant': cloudant,
@@ -313,6 +321,7 @@ def do_setup():
             'kerberos': kerberos,
             'kubernetes': kubernetes,
             'ldap': ldap,
+            'mongo': mongo,
             'mssql': mssql,
             'mysql': mysql,
             'oracle': oracle,

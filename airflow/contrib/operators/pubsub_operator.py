@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -408,9 +408,8 @@ class PubSubPublishOperator(BaseOperator):
             * 'data': a base64-encoded string
             * 'attributes': {'key1': 'value1', ...}
             Each message must contain at least a non-empty 'data' value
-            or an attribute dict with at least one key. See
+            or an attribute dict with at least one key (templated). See
             https://cloud.google.com/pubsub/docs/reference/rest/v1/PubsubMessage
-            (templated)
         :type messages: list
         :param gcp_conn_id: The connection ID to use connecting to
             Google Cloud Platform.

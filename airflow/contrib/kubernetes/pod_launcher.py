@@ -37,9 +37,10 @@ class PodStatus(object):
 
 
 class PodLauncher(LoggingMixin):
-    def __init__(self, kube_client=None, in_cluster=True):
+    def __init__(self, kube_client=None, in_cluster=True, cluster_context=None):
         super(PodLauncher, self).__init__()
-        self._client = kube_client or get_kube_client(in_cluster=in_cluster)
+        self._client = kube_client or get_kube_client(in_cluster=in_cluster,
+                                                      cluster_context=cluster_context)
         self._watch = watch.Watch()
         self.kube_req_factory = pod_fac.SimplePodRequestFactory()
 

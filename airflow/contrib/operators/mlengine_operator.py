@@ -93,11 +93,11 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     for further documentation on the parameters.
 
     :param project_id: The Google Cloud project name where the
-        prediction job is submitted.
+        prediction job is submitted. (templated)
     :type project_id: string
 
     :param job_id: A unique id for the prediction job on Google Cloud
-        ML Engine.
+        ML Engine. (templated)
     :type job_id: string
 
     :param data_format: The format of the input data.
@@ -106,32 +106,32 @@ class MLEngineBatchPredictionOperator(BaseOperator):
     :type data_format: string
 
     :param input_paths: A list of GCS paths of input data for batch
-        prediction. Accepting wildcard operator *, but only at the end.
+        prediction. Accepting wildcard operator *, but only at the end. (templated)
     :type input_paths: list of string
 
     :param output_path: The GCS path where the prediction results are
-        written to.
+        written to. (templated)
     :type output_path: string
 
     :param region: The Google Compute Engine region to run the
-        prediction job in.:
+        prediction job in. (templated)
     :type region: string
 
     :param model_name: The Google Cloud ML Engine model to use for prediction.
         If version_name is not provided, the default version of this
         model will be used.
         Should not be None if version_name is provided.
-        Should be None if uri is provided.
+        Should be None if uri is provided. (templated)
     :type model_name: string
 
     :param version_name: The Google Cloud ML Engine model version to use for
         prediction.
-        Should be None if uri is provided.
+        Should be None if uri is provided. (templated)
     :type version_name: string
 
     :param uri: The GCS path of the saved model to use for prediction.
         Should be None if model_name is provided.
-        It should be a GCS path pointing to a tensorflow SavedModel.
+        It should be a GCS path pointing to a tensorflow SavedModel. (templated)
     :type uri: string
 
     :param max_worker_count: The maximum number of workers to be used
@@ -280,7 +280,7 @@ class MLEngineModelOperator(BaseOperator):
     Operator for managing a Google Cloud ML Engine model.
 
     :param project_id: The Google Cloud project name to which MLEngine
-        model belongs.
+        model belongs. (templated)
     :type project_id: string
 
     :param model: A dictionary containing the information about the model.
@@ -345,13 +345,13 @@ class MLEngineVersionOperator(BaseOperator):
     :type project_id: string
 
     :param model_name: The name of the Google Cloud ML Engine model that the version
-        belongs to.
+        belongs to. (templated)
     :type model_name: string
 
-    :param version_name: A name to use for the version being operated upon. If
-        not None and the `version` argument is None or does not have a value for
+    :param version_name: A name to use for the version being operated upon.
+        If not None and the `version` argument is None or does not have a value for
         the `name` key, then this will be populated in the payload for the
-        `name` key.
+        `name` key. (templated)
     :type version_name: string
 
     :param version: A dictionary containing the information about the version.
@@ -359,7 +359,7 @@ class MLEngineVersionOperator(BaseOperator):
         information about this version such as name, and deploymentUrl.
         If the `operation` is `get` or `delete`, the `version` parameter
         should contain the `name` of the version.
-        If it is None, the only `operation` possible would be `list`.
+        If it is None, the only `operation` possible would be `list`. (templated)
     :type version: dict
 
     :param operation: The operation to perform. Available operations are:
@@ -447,41 +447,42 @@ class MLEngineTrainingOperator(BaseOperator):
     Operator for launching a MLEngine training job.
 
     :param project_id: The Google Cloud project name within which MLEngine
-        training job should run. This field could be templated.
+        training job should run (templated).
     :type project_id: string
 
     :param job_id: A unique templated id for the submitted Google MLEngine
-        training job.
+        training job. (templated)
     :type job_id: string
 
     :param package_uris: A list of package locations for MLEngine training job,
         which should include the main training program + any additional
-        dependencies.
+        dependencies. (templated)
     :type package_uris: string
 
     :param training_python_module: The Python module name to run within MLEngine
-        training job after installing 'package_uris' packages.
+        training job after installing 'package_uris' packages. (templated)
     :type training_python_module: string
 
     :param training_args: A list of templated command line arguments to pass to
-        the MLEngine training program.
+        the MLEngine training program. (templated)
     :type training_args: string
 
     :param region: The Google Compute Engine region to run the MLEngine training
-        job in. This field could be templated.
+        job in (templated).
     :type region: string
 
-    :param scale_tier: Resource tier for MLEngine training job.
+    :param scale_tier: Resource tier for MLEngine training job. (templated)
     :type scale_tier: string
 
-    :param runtime_version: The Google Cloud ML runtime version to use for training.
+    :param runtime_version: The Google Cloud ML runtime version to use for
+        training. (templated)
     :type runtime_version: string
 
-    :param python_version: The version of Python used in training.
+    :param python_version: The version of Python used in training. (templated)
     :type python_version: string
 
     :param job_dir: A Google Cloud Storage path in which to store training
-        outputs and other data needed for training.
+        outputs and other data needed for training. (templated)
     :type job_dir: string
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
