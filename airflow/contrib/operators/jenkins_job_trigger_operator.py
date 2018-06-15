@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -98,7 +98,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
     :type jenkins_connection_id: string
     :param job_name: The name of the job to trigger
     :type job_name: string
-    :param parameters: The parameters block to provide to jenkins
+    :param parameters: The parameters block to provide to jenkins. (templated)
     :type parameters: string
     :param sleep_time: How long will the operator sleep between each status
     request for the job (min 1, default 10)

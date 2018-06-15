@@ -26,7 +26,7 @@ then
   tox -e $TOX_ENV
 else
   KUBERNETES_VERSION=${KUBERNETES_VERSION} $DIRNAME/kubernetes/setup_kubernetes.sh && \
-  tox -e $TOX_ENV -- tests.contrib.minikube_tests \
+  tox -e $TOX_ENV -- tests.contrib.minikube \
                      --with-coverage \
                      --cover-erase \
                      --cover-html \

@@ -14,6 +14,7 @@ unittests.db
 airflow/git_version
 airflow/www/static/coverage/
 logs/
+airflow-webserver.pid
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -137,4 +138,3 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
-

@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -28,7 +28,7 @@ class BigQueryTableDeleteOperator(BaseOperator):
 
     :param deletion_dataset_table: A dotted
         (<project>.|<project>:)<dataset>.<table> that indicates which table
-        will be deleted.
+        will be deleted. (templated)
     :type deletion_dataset_table: string
     :param bigquery_conn_id: reference to a specific BigQuery hook.
     :type bigquery_conn_id: string

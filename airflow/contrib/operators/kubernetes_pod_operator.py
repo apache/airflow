@@ -19,7 +19,11 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.contrib.kubernetes import kube_client, pod_generator, pod_launcher
+from airflow.contrib.kubernetes.pod import Resources
 from airflow.utils.state import State
+from airflow.contrib.kubernetes.volume_mount import VolumeMount  # noqa
+from airflow.contrib.kubernetes.volume import Volume  # noqa
+from airflow.contrib.kubernetes.secret import Secret  # noqa
 
 template_fields = ('templates_dict',)
 template_ext = tuple()
@@ -30,33 +34,55 @@ class KubernetesPodOperator(BaseOperator):
     """
     Execute a task in a Kubernetes Pod
 
-    :param image: Docker image name
+    :param image: Docker image you wish to launch. Defaults to dockerhub.io,
+        but fully qualified URLS will point to custom repositories
     :type image: str
-    :param: namespace: namespace name where run the Pod
+    :param: namespace: the namespace to run within kubernetes
     :type: namespace: str
-    :param cmds: entrypoint of the container
-    :type cmds: list
-    :param arguments: arguments of to the entrypoint.
+    :param cmds: entrypoint of the container. (templated)
+        The docker images's entrypoint is used if this is not provide.
+    :type cmds: list of str
+    :param arguments: arguments of to the entrypoint. (templated)
         The docker image's CMD is used if this is not provided.
-    :type arguments: list
+    :type arguments: list of str
+    :param volume_mounts: volumeMounts for launched pod
+    :type volume_mounts: list of VolumeMount
+    :param volumes: volumes for launched pod. Includes ConfigMaps and PersistentVolumes
+    :type volumes: list of Volume
     :param labels: labels to apply to the Pod
     :type labels: dict
     :param startup_timeout_seconds: timeout in seconds to startup the pod
     :type startup_timeout_seconds: int
-    :param name: name for the pod
+    :param name: name of the task you want to run,
+        will be used to generate a pod id
     :type name: str
-    :param secrets: Secrets to attach to the container
-    :type secrets: list
+    :param env_vars: Environment variables initialized in the container. (templated)
+    :type env_vars: dict
+    :param secrets: Kubernetes secrets to inject in the container,
+        They can be exposed as environment vars or files in a volume.
+    :type secrets: list of Secret
     :param in_cluster: run kubernetes client with in_cluster configuration
     :type in_cluster: bool
+    :param cluster_context: context that points to kubernetes cluster.
+        Ignored when in_cluster is True. If None, current-context is used.
+    :type cluster_context: string
     :param get_logs: get the stdout of the container as logs of the tasks
+    :type get_logs: bool
+    :param affinity: A dict containing a group of affinity scheduling rules
+    :type affinity: dict
     """
+    template_fields = ('cmds', 'arguments', 'env_vars')
 
     def execute(self, context):
         try:
-
-            client = kube_client.get_kube_client(in_cluster=self.in_cluster)
+            client = kube_client.get_kube_client(in_cluster=self.in_cluster,
+                                                 cluster_context=self.cluster_context)
             gen = pod_generator.PodGenerator()
+
+            for mount in self.volume_mounts:
+                gen.add_mount(mount)
+            for volume in self.volumes:
+                gen.add_volume(volume)
 
             pod = gen.make_pod(
                 namespace=self.namespace,
@@ -64,18 +90,25 @@ class KubernetesPodOperator(BaseOperator):
                 pod_id=self.name,
                 cmds=self.cmds,
                 arguments=self.arguments,
-                labels=self.labels
+                labels=self.labels,
             )
 
             pod.secrets = self.secrets
+            pod.envs = self.env_vars
+            pod.image_pull_policy = self.image_pull_policy
+            pod.annotations = self.annotations
+            pod.resources = self.resources
+            pod.affinity = self.affinity
 
-            launcher = pod_launcher.PodLauncher(client)
+            launcher = pod_launcher.PodLauncher(kube_client=client)
             final_state = launcher.run_pod(
                 pod,
                 startup_timeout=self.startup_timeout_seconds,
                 get_logs=self.get_logs)
             if final_state != State.SUCCESS:
-                raise AirflowException('Pod returned a failure')
+                raise AirflowException(
+                    'Pod returned a failure: {state}'.format(state=final_state)
+                )
         except AirflowException as ex:
             raise AirflowException('Pod Launching failed: {error}'.format(error=ex))
 
@@ -83,24 +116,40 @@ class KubernetesPodOperator(BaseOperator):
     def __init__(self,
                  namespace,
                  image,
-                 cmds,
-                 arguments,
                  name,
+                 cmds=None,
+                 arguments=None,
+                 volume_mounts=None,
+                 volumes=None,
+                 env_vars=None,
                  secrets=None,
                  in_cluster=False,
+                 cluster_context=None,
                  labels=None,
                  startup_timeout_seconds=120,
                  get_logs=True,
+                 image_pull_policy='IfNotPresent',
+                 annotations=None,
+                 resources=None,
+                 affinity=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
         self.image = image
         self.namespace = namespace
-        self.cmds = cmds
-        self.arguments = arguments
+        self.cmds = cmds or []
+        self.arguments = arguments or []
         self.labels = labels or {}
         self.startup_timeout_seconds = startup_timeout_seconds
         self.name = name
+        self.env_vars = env_vars or {}
+        self.volume_mounts = volume_mounts or []
+        self.volumes = volumes or []
         self.secrets = secrets or []
         self.in_cluster = in_cluster
+        self.cluster_context = cluster_context
         self.get_logs = get_logs
+        self.image_pull_policy = image_pull_policy
+        self.annotations = annotations or {}
+        self.affinity = affinity or {}
+        self.resources = resources or Resources()

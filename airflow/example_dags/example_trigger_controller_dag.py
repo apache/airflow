@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -44,7 +44,7 @@ pp = pprint.PrettyPrinter(indent=4)
 
 def conditionally_trigger(context, dag_run_obj):
     """This function decides whether or not to Trigger the remote DAG"""
-    c_p =context['params']['condition_param']
+    c_p = context['params']['condition_param']
     print("Controller DAG : conditionally_trigger = {}".format(c_p))
     if context['params']['condition_param']:
         dag_run_obj.payload = {'message': context['params']['message']}

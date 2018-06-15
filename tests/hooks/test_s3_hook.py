@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -96,13 +96,16 @@ class TestS3Hook(unittest.TestCase):
         b = hook.get_bucket('bucket')
         b.create()
 
-        keys = ["%s/b" % i for i in range(5000)]
-        dirs = ["%s/" % i for i in range(5000)]
+        # we dont need to test the paginator
+        # that's covered by boto tests
+        keys = ["%s/b" % i for i in range(2)]
+        dirs = ["%s/" % i for i in range(2)]
         for key in keys:
             b.put_object(Key=key, Body=b'a')
 
         self.assertListEqual(sorted(dirs),
-                             sorted(hook.list_prefixes('bucket', delimiter='/')))
+                             sorted(hook.list_prefixes('bucket', delimiter='/',
+                                                       page_size=1)))
 
     @mock_s3
     def test_list_keys(self):
@@ -123,12 +126,13 @@ class TestS3Hook(unittest.TestCase):
         b = hook.get_bucket('bucket')
         b.create()
 
-        keys = [str(i) for i in range(5000)]
+        keys = [str(i) for i in range(2)]
         for key in keys:
             b.put_object(Key=key, Body=b'a')
 
         self.assertListEqual(sorted(keys),
-                             sorted(hook.list_keys('bucket', delimiter='/')))
+                             sorted(hook.list_keys('bucket', delimiter='/',
+                                                   page_size=1)))
 
     @mock_s3
     def test_check_for_key(self):

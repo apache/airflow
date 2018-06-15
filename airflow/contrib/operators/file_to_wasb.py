@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,11 +26,11 @@ class FileToWasbOperator(BaseOperator):
     """
     Uploads a file to Azure Blob Storage.
 
-    :param file_path: Path to the file to load.
+    :param file_path: Path to the file to load. (templated)
     :type file_path: str
-    :param container_name: Name of the container.
+    :param container_name: Name of the container. (templated)
     :type container_name: str
-    :param blob_name: Name of the blob.
+    :param blob_name: Name of the blob. (templated)
     :type blob_name: str
     :param wasb_conn_id: Reference to the wasb connection.
     :type wasb_conn_id: str
@@ -57,6 +57,8 @@ class FileToWasbOperator(BaseOperator):
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(
-            'Uploading {self.file_path} to wasb://{self.container_name} as {self.blob_name}'.format(**locals())
+            'Uploading {self.file_path} to wasb://{self.container_name} '
+            'as {self.blob_name}'.format(**locals())
         )
-        hook.load_file(self.file_path, self.container_name, self.blob_name, **self.load_options)
+        hook.load_file(self.file_path, self.container_name,
+                       self.blob_name, **self.load_options)

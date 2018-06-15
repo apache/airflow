@@ -19,15 +19,24 @@
 #
 
 import datetime
+import itertools
+import os
+
+import pandas as pd
 import random
+
+import mock
 import unittest
 
+from collections import OrderedDict
 from hmsclient import HMSClient
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.hive_hooks import HiveMetastoreHook
-from airflow import DAG, configuration, operators
+from airflow.hooks.hive_hooks import HiveCliHook, HiveMetastoreHook, HiveServer2Hook
+from airflow import DAG, configuration
+from airflow.operators.hive_operator import HiveOperator
 from airflow.utils import timezone
+from airflow.utils.tests import assertEqualIgnoreMultipleSpaces
 
 
 configuration.load_test_config()
@@ -64,7 +73,7 @@ class HiveEnvironmentTest(unittest.TestCase):
         ADD PARTITION({{ params.partition_by }}='{{ ds }}');
         """
         self.hook = HiveMetastoreHook()
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='HiveHook_' + str(random.randint(1, 10000)),
             params={
                 'database': self.database,
@@ -80,6 +89,109 @@ class HiveEnvironmentTest(unittest.TestCase):
         hook = HiveMetastoreHook()
         with hook.get_conn() as metastore:
             metastore.drop_table(self.database, self.table, deleteData=True)
+
+
+class TestHiveCliHook(unittest.TestCase):
+
+    def test_run_cli(self):
+        hook = HiveCliHook()
+        hook.run_cli("SHOW DATABASES")
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    def test_load_file(self, mock_run_cli):
+        filepath = "/path/to/input/file"
+        table = "output_table"
+
+        hook = HiveCliHook()
+        hook.load_file(filepath=filepath, table=table, create=False)
+
+        query = (
+            "LOAD DATA LOCAL INPATH '{filepath}' "
+            "OVERWRITE INTO TABLE {table} \n"
+            .format(filepath=filepath, table=table)
+        )
+        mock_run_cli.assert_called_with(query)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('pandas.DataFrame.to_csv')
+    def test_load_df(self, mock_to_csv, mock_load_file):
+        df = pd.DataFrame({"c": ["foo", "bar", "baz"]})
+        table = "t"
+        delimiter = ","
+        encoding = "utf-8"
+
+        hook = HiveCliHook()
+        hook.load_df(df=df,
+                     table=table,
+                     delimiter=delimiter,
+                     encoding=encoding)
+
+        mock_to_csv.assert_called_once()
+        kwargs = mock_to_csv.call_args[1]
+        self.assertEqual(kwargs["header"], False)
+        self.assertEqual(kwargs["index"], False)
+        self.assertEqual(kwargs["sep"], delimiter)
+
+        mock_load_file.assert_called_once()
+        kwargs = mock_load_file.call_args[1]
+        self.assertEqual(kwargs["delimiter"], delimiter)
+        self.assertEqual(kwargs["field_dict"], {"c": u"STRING"})
+        self.assertTrue(isinstance(kwargs["field_dict"], OrderedDict))
+        self.assertEqual(kwargs["table"], table)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.load_file')
+    @mock.patch('pandas.DataFrame.to_csv')
+    def test_load_df_with_optional_parameters(self, mock_to_csv, mock_load_file):
+        hook = HiveCliHook()
+        b = (True, False)
+        for create, recreate in itertools.product(b, b):
+            mock_load_file.reset_mock()
+            hook.load_df(df=pd.DataFrame({"c": range(0, 10)}),
+                         table="t",
+                         create=create,
+                         recreate=recreate)
+
+            mock_load_file.assert_called_once()
+            kwargs = mock_load_file.call_args[1]
+            self.assertEqual(kwargs["create"], create)
+            self.assertEqual(kwargs["recreate"], recreate)
+
+    @mock.patch('airflow.hooks.hive_hooks.HiveCliHook.run_cli')
+    def test_load_df_with_data_types(self, mock_run_cli):
+        d = OrderedDict()
+        d['b'] = [True]
+        d['i'] = [-1]
+        d['t'] = [1]
+        d['f'] = [0.0]
+        d['c'] = ['c']
+        d['M'] = [datetime.datetime(2018, 1, 1)]
+        d['O'] = [object()]
+        d['S'] = ['STRING'.encode('utf-8')]
+        d['U'] = ['STRING']
+        d['V'] = [None]
+        df = pd.DataFrame(d)
+
+        hook = HiveCliHook()
+        hook.load_df(df, 't')
+
+        query = """
+            CREATE TABLE IF NOT EXISTS t (
+                b BOOLEAN,
+                i BIGINT,
+                t BIGINT,
+                f DOUBLE,
+                c STRING,
+                M TIMESTAMP,
+                O STRING,
+                S STRING,
+                U STRING,
+                V STRING)
+            ROW FORMAT DELIMITED
+            FIELDS TERMINATED BY ','
+            STORED AS textfile
+            ;
+        """
+        assertEqualIgnoreMultipleSpaces(self, mock_run_cli.call_args_list[0][0][0], query)
 
 
 class TestHiveMetastoreHook(HiveEnvironmentTest):
@@ -184,7 +296,7 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
                                       pattern=self.table + "*")
         self.assertIn(self.table, {table.tableName for table in tables})
 
-    def get_databases(self):
+    def test_get_databases(self):
         databases = self.hook.get_databases(pattern='*')
         self.assertIn(self.database, databases)
 
@@ -207,3 +319,93 @@ class TestHiveMetastoreHook(HiveEnvironmentTest):
         self.assertFalse(
             self.hook.table_exists(str(random.randint(1, 10000)))
         )
+
+
+class TestHiveServer2Hook(unittest.TestCase):
+
+    def _upload_dataframe(self):
+        df = pd.DataFrame({'a': [1, 2], 'b': [1, 2]})
+        self.local_path = '/tmp/TestHiveServer2Hook.csv'
+        df.to_csv(self.local_path, header=False, index=False)
+
+    def setUp(self):
+        configuration.load_test_config()
+        self._upload_dataframe()
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.dag = DAG('test_dag_id', default_args=args)
+        self.database = 'airflow'
+        self.table = 'hive_server_hook'
+        self.hql = """
+        CREATE DATABASE IF NOT EXISTS {{ params.database }};
+        USE {{ params.database }};
+        DROP TABLE IF EXISTS {{ params.table }};
+        CREATE TABLE IF NOT EXISTS {{ params.table }} (
+            a int,
+            b int)
+        ROW FORMAT DELIMITED
+        FIELDS TERMINATED BY ',';
+        LOAD DATA LOCAL INPATH '{{ params.csv_path }}'
+        OVERWRITE INTO TABLE {{ params.table }};
+        """
+        self.columns = ['{}.a'.format(self.table),
+                        '{}.b'.format(self.table)]
+        self.hook = HiveMetastoreHook()
+        t = HiveOperator(
+            task_id='HiveHook_' + str(random.randint(1, 10000)),
+            params={
+                'database': self.database,
+                'table': self.table,
+                'csv_path': self.local_path
+            },
+            hive_cli_conn_id='beeline_default',
+            hql=self.hql, dag=self.dag)
+        t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
+              ignore_ti_state=True)
+
+    def tearDown(self):
+        hook = HiveMetastoreHook()
+        with hook.get_conn() as metastore:
+            metastore.drop_table(self.database, self.table, deleteData=True)
+        os.remove(self.local_path)
+
+    def test_get_conn(self):
+        hook = HiveServer2Hook()
+        hook.get_conn()
+
+    def test_get_records(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_pandas_df(query, schema=self.database)
+        self.assertEqual(len(results), 2)
+
+    def test_get_pandas_df(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        df = hook.get_pandas_df(query, schema=self.database)
+        self.assertEqual(len(df), 2)
+        self.assertListEqual(df.columns.tolist(), self.columns)
+        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+
+    def test_get_results_header(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_results(query, schema=self.database)
+        self.assertListEqual([col[0] for col in results['header']],
+                             self.columns)
+
+    def test_get_results_data(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        results = hook.get_results(query, schema=self.database)
+        self.assertListEqual(results['data'], [(1, 1), (2, 2)])
+
+    def test_to_csv(self):
+        hook = HiveServer2Hook()
+        query = "SELECT * FROM {}".format(self.table)
+        csv_filepath = 'query_results.csv'
+        hook.to_csv(query, csv_filepath, schema=self.database,
+                    delimiter=',', lineterminator='\n', output_header=True)
+        df = pd.read_csv(csv_filepath, sep=',')
+        self.assertListEqual(df.columns.tolist(), self.columns)
+        self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
+        self.assertEqual(len(df), 2)

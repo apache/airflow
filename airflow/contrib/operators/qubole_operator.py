@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -122,7 +122,7 @@ class QuboleOperator(BaseOperator):
                        'extract_query', 'boundary_query', 'macros', 'name', 'parameters',
                        'dbtap_id', 'hive_table', 'db_table', 'split_column', 'note_id',
                        'db_update_keys', 'export_dir', 'partition_spec', 'qubole_conn_id',
-                       'arguments', 'user_program_arguments')
+                       'arguments', 'user_program_arguments', 'cluster_label')
 
     template_ext = ('.txt',)
     ui_color = '#3064A1'

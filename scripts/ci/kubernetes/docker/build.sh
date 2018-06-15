@@ -27,7 +27,12 @@ if [ $? -eq 0 ]; then
   eval $ENVCONFIG
 fi
 
-cd $AIRFLOW_ROOT && python setup.py sdist && cp $AIRFLOW_ROOT/dist/*.tar.gz $DIRNAME/airflow.tar.gz && \
-cd $DIRNAME && \
-docker build --pull $DIRNAME --tag=${IMAGE}:${TAG} && \
+echo "Airflow directory $AIRFLOW_ROOT"
+echo "Airflow Docker directory $DIRNAME"
+
+cd $AIRFLOW_ROOT
+python setup.py sdist -q
+echo "Copy distro $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz"
+cp $AIRFLOW_ROOT/dist/*.tar.gz ${DIRNAME}/airflow.tar.gz
+cd $DIRNAME && docker build --pull $DIRNAME --tag=${IMAGE}:${TAG}
 rm $DIRNAME/airflow.tar.gz

@@ -48,7 +48,7 @@
   <div>
     <ul class="nav nav-pills">
       {% if dag.parent_dag %}
-          <li class="never_active"><a href="{{ url_for("Airflow.graph", dag_id=dag.parent_dag.dag_id) }}">
+          <li class="never_active"><a href="{{ url_for('Airflow.' + dag.default_view, dag_id=dag.parent_dag.dag_id) }}">
               <span class="glyphicon glyphicon-arrow-left" aria-hidden="true"></span>
               Back to {{ dag.parent_dag.dag_id }}</a>
           </li>
@@ -56,7 +56,7 @@
       <li><a href="{{ url_for("Airflow.graph", dag_id=dag.dag_id, root=root) }}">
           <span class="glyphicon glyphicon-certificate" aria-hidden="true"></span>
         Graph View</a></li>
-      <li><a href="{{ url_for("Airflow.tree", dag_id=dag.dag_id, num_runs=25, root=root) }}">
+      <li><a href="{{ url_for("Airflow.tree", dag_id=dag.dag_id, num_runs=num_runs, root=root) }}">
           <span class="glyphicon glyphicon-tree-deciduous" aria-hidden="true"></span>
         Tree View
       </a></li>
@@ -309,7 +309,7 @@ function updateQueryStringParameter(uri, key, value) {
     });
 
     $("#btn_subdag").click(function(){
-      url = "{{ url_for('Airflow.graph') }}" +
+      url = "{{ url_for( 'Airflow.' + dag.default_view ) }}" +
         "?dag_id=" + encodeURIComponent(subdag_id) +
         "&execution_date=" + encodeURIComponent(execution_date);
       window.location = url;

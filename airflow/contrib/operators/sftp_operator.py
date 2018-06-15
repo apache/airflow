@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -39,9 +39,9 @@ class SFTPOperator(BaseOperator):
     :type ssh_conn_id: str
     :param remote_host: remote host to connect
     :type remote_host: str
-    :param local_filepath: local file path to get or put
+    :param local_filepath: local file path to get or put. (templated)
     :type local_filepath: str
-    :param remote_filepath: remote file path to get or put
+    :param remote_filepath: remote file path to get or put. (templated)
     :type remote_filepath: str
     :param operation: specify operation 'get' or 'put', defaults to get
     :type get: bool
@@ -65,7 +65,8 @@ class SFTPOperator(BaseOperator):
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
         self.operation = operation
-        if not (self.operation.lower() == SFTPOperation.GET or self.operation.lower() == SFTPOperation.PUT):
+        if not (self.operation.lower() == SFTPOperation.GET or
+                self.operation.lower() == SFTPOperation.PUT):
             raise TypeError("unsupported operation value {0}, expected {1} or {2}"
                             .format(self.operation, SFTPOperation.GET, SFTPOperation.PUT))
 

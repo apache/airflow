@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,7 +26,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     """
     Operator to terminate EMR JobFlows.
 
-    :param job_flow_id: id of the JobFlow to terminate
+    :param job_flow_id: id of the JobFlow to terminate. (templated)
     :type job_flow_name: str
     :param aws_conn_id: aws connection to uses
     :type aws_conn_id: str

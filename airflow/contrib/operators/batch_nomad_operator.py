@@ -91,7 +91,7 @@ class NomadOperator(BaseOperator):
             if current_state in NomadOperator.still_active_states:
                 time.sleep(self.sleep_amount)
             elif current_state in NomadOperator.completed_states:
-                self.log.info("Finished running job ".format(self.job_name, current_state))
+                self.log.info("Finished running job {} ".format(self.job_name))
                 break
             else:
                 raise AirflowException("Task Failed To complete")
