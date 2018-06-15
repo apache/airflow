@@ -22,12 +22,12 @@ from time import sleep
 
 from airflow.exceptions import AirflowException, AirflowSensorTimeout, \
     AirflowSkipException
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, SkipMixin
 from airflow.utils import timezone
 from airflow.utils.decorators import apply_defaults
 
 
-class BaseSensorOperator(BaseOperator):
+class BaseSensorOperator(BaseOperator, SkipMixin):
     """
     Sensor operators are derived from this class an inherit these attributes.
 
@@ -67,9 +67,19 @@ class BaseSensorOperator(BaseOperator):
         started_at = timezone.utcnow()
         while not self.poke(context):
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
-                if self.soft_fail:
+                # If sensor is in soft fail mode but will be retried then
+                # give it a chance and fail with timeout.
+                # This gives the ability to set up non-blocking AND soft-fail sensors.
+                if self.soft_fail and not context['ti'].is_eligible_to_retry():
+                    self._do_skip_downstream_tasks(context)
                     raise AirflowSkipException('Snap. Time is OUT.')
                 else:
                     raise AirflowSensorTimeout('Snap. Time is OUT.')
             sleep(self.poke_interval)
         self.log.info("Success criteria met. Exiting.")
+
+    def _do_skip_downstream_tasks(self, context):
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
+        if downstream_tasks:
+            self.skip(context['dag_run'], context['ti'].execution_date, downstream_tasks)
