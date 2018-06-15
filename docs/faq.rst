@@ -15,6 +15,11 @@ Here are some of the common causes:
   may want to confirm that this works both where the scheduler runs as well
   as where the worker runs.
 
+- Does the file containing your DAG contain the string "airflow" and "DAG" somewhere
+  in the contents? When searching the DAG directory, Airflow ignores files not containing
+  "airflow" and "DAG" in order to prevent the DagBag parsing from importing all python
+  files collocated with user's DAGs.
+
 - Is your ``start_date`` set properly? The Airflow scheduler triggers the
   task soon after the ``start_date + scheduler_interval`` is passed.
 
