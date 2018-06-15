@@ -976,26 +976,22 @@ class Airflow(AirflowBaseView):
         else:
             base_date = dag.latest_execution_date or timezone.utcnow()
 
-        dates = dag.date_range(base_date, num=-abs(num_runs))
-        min_date = dates[0] if dates else timezone.utc_epoch()
-
         DR = models.DagRun
         dag_runs = (
             session.query(DR)
-                   .filter(DR.dag_id == dag.dag_id, # noqa
-                           DR.execution_date <= base_date,
-                           DR.execution_date >= min_date)
-                   .all() # noqa
+            .filter(
+                DR.dag_id == dag.dag_id,
+                DR.execution_date <= base_date)
+            .order_by(DR.execution_date.desc())
+            .limit(num_runs)
+            .all()
         )
         dag_runs = {
             dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         dates = sorted(list(dag_runs.keys()))
-        # Only show the desired number of runs regardless of the trigger method
-        if len(dates) > num_runs:
-            dates = dates[-num_runs:]
-
         max_date = max(dates) if dates else None
+        min_date = min(dates) if dates else None
 
         tis = dag.get_task_instances(
             session, start_date=min_date, end_date=base_date)
