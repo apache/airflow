@@ -246,8 +246,8 @@ def action_logging(f):
     """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        # Only AnonymousUserMixin() does not have user attribute
-        if current_user and hasattr(current_user, 'user'):
+        # AnonymousUserMixin() has user attribute but its value is None.
+        if current_user and hasattr(current_user, 'user') and current_user.user:
             user = current_user.user.username
         else:
             user = 'anonymous'
@@ -286,7 +286,7 @@ def notify_owner(f):
             dag = dagbag.get_dag(dag_id)
             task = dag.get_task(task_id)
 
-            if current_user and hasattr(current_user, 'username'):
+            if current_user and hasattr(current_user, 'user') and current_user.user:
                 user = current_user.username
             else:
                 user = 'anonymous'
