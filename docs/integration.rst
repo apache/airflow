@@ -733,3 +733,30 @@ GoogleCloudStorageHook
 
 .. autoclass:: airflow.contrib.hooks.gcs_hook.GoogleCloudStorageHook
     :members:
+
+Google Kubernetes Engine
+''''''''''''''''''''''''
+
+Google Kubernetes Engine Cluster Operators
+""""""""""""""""""""""""""""""""""""""""""
+
+- :ref:`GKEClusterCreateOperator` : Creates a Kubernetes Cluster in Google Cloud Platform
+- :ref:`GKEClusterDeleteOperator` : Deletes a Kubernetes Cluster in Google Cloud Platform
+
+GKEClusterCreateOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterCreateOperator
+.. _GKEClusterCreateOperator:
+
+GKEClusterDeleteOperator
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. autoclass:: airflow.contrib.operators.gcp_container_operator.GKEClusterDeleteOperator
+.. _GKEClusterDeleteOperator:
+
+Google Kubernetes Engine Hook
+"""""""""""""""""""""""""""""
+
+.. autoclass:: airflow.contrib.hooks.gcp_container_hook.GKEClusterHook
+    :members:
