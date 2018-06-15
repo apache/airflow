@@ -24,20 +24,10 @@ import signal
 from subprocess import Popen, STDOUT, PIPE
 from tempfile import gettempdir, NamedTemporaryFile
 
-from airflow import configuration as conf
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.utils.decorators import apply_defaults
 from airflow.utils.file import TemporaryDirectory
-
-
-# These variables are required in cases when BashOperator tasks use airflow specific code,
-# e.g. they import packages in the airflow context and the possibility of impersonation
-# gives not guarantee that these variables are available in the impersonated environment.
-# Hence, we need to propagate them in the Bash script used as a wrapper of commands in
-# this BashOperator.
-PYTHONPATH_VAR = 'PYTHONPATH'
-AIRFLOW_HOME_VAR = 'AIRFLOW_HOME'
 
 
 class BashOperator(BaseOperator):
@@ -83,18 +73,12 @@ class BashOperator(BaseOperator):
         """
         self.log.info("Tmp dir root location: \n %s", gettempdir())
 
-        airflow_home_value = conf.get('core', AIRFLOW_HOME_VAR)
-        pythonpath_value = os.environ.get(PYTHONPATH_VAR, '')
-
-        bash_command = ('export {}={}; '.format(AIRFLOW_HOME_VAR, airflow_home_value) +
-                        'export {}={}; '.format(PYTHONPATH_VAR, pythonpath_value) +
-                        self.bash_command)
-        self.lineage_data = bash_command
+        self.lineage_data = self.bash_command
 
         with TemporaryDirectory(prefix='airflowtmp') as tmp_dir:
             with NamedTemporaryFile(dir=tmp_dir, prefix=self.task_id) as f:
 
-                f.write(bytes(bash_command, 'utf_8'))
+                f.write(bytes(self.bash_command, 'utf_8'))
                 f.flush()
                 fname = f.name
                 script_location = os.path.abspath(fname)
@@ -110,7 +94,7 @@ class BashOperator(BaseOperator):
                             signal.signal(getattr(signal, sig), signal.SIG_DFL)
                     os.setsid()
 
-                self.log.info("Running command: %s", bash_command)
+                self.log.info("Running command: %s", self.bash_command)
                 sp = Popen(
                     ['bash', fname],
                     stdout=PIPE, stderr=STDOUT,
