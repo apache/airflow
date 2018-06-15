@@ -37,9 +37,11 @@ from airflow.utils.log.logging_mixin import LoggingMixin
 
 
 class KubernetesExecutorConfig:
-    def __init__(self, image=None, request_memory=None, request_cpu=None,
-                 limit_memory=None, limit_cpu=None, gcp_service_account_key=None):
+    def __init__(self, image=None, image_pull_policy=None, request_memory=None,
+                 request_cpu=None, limit_memory=None, limit_cpu=None,
+                 gcp_service_account_key=None):
         self.image = image
+        self.image_pull_policy = image_pull_policy
         self.request_memory = request_memory
         self.request_cpu = request_cpu
         self.limit_memory = limit_memory
@@ -47,11 +49,11 @@ class KubernetesExecutorConfig:
         self.gcp_service_account_key = gcp_service_account_key
 
     def __repr__(self):
-        return "{}(image={}, request_memory={} ,request_cpu={}, limit_memory={}, " \
-               "limit_cpu={}, gcp_service_account_key={})" \
-            .format(KubernetesExecutorConfig.__name__, self.image, self.request_memory,
-                    self.request_cpu, self.limit_memory, self.limit_cpu,
-                    self.gcp_service_account_key)
+        return "{}(image={}, image_pull_policy={}, request_memory={}, request_cpu={}, " \
+               "limit_memory={}, limit_cpu={}, gcp_service_account_key={})" \
+            .format(KubernetesExecutorConfig.__name__, self.image, self.image_pull_policy,
+                    self.request_memory, self.request_cpu, self.limit_memory,
+                    self.limit_cpu, self.gcp_service_account_key)
 
     @staticmethod
     def from_dict(obj):
@@ -66,6 +68,7 @@ class KubernetesExecutorConfig:
 
         return KubernetesExecutorConfig(
             image=namespaced.get('image', None),
+            image_pull_policy=namespaced.get('image_pull_policy', None),
             request_memory=namespaced.get('request_memory', None),
             request_cpu=namespaced.get('request_cpu', None),
             limit_memory=namespaced.get('limit_memory', None),
@@ -76,6 +79,7 @@ class KubernetesExecutorConfig:
     def as_dict(self):
         return {
             'image': self.image,
+            'image_pull_policy': self.image_pull_policy,
             'request_memory': self.request_memory,
             'request_cpu': self.request_cpu,
             'limit_memory': self.limit_memory,
@@ -101,6 +105,9 @@ class KubeConfig:
             self.kubernetes_section, 'worker_container_tag')
         self.kube_image = '{}:{}'.format(
             self.worker_container_repository, self.worker_container_tag)
+        self.kube_image_pull_policy = configuration.get(
+            self.kubernetes_section, "worker_container_image_pull_policy"
+        )
         self.delete_worker_pods = conf.getboolean(
             self.kubernetes_section, 'delete_worker_pods')
 
