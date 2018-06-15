@@ -30,7 +30,7 @@ LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
 
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
-FAB_LOG_LEVEL = 'WARN'
+FAB_LOG_LEVEL = conf.get('core', 'FAB_LOGGING_LEVEL').upper()
 
 LOG_FORMAT = conf.get('core', 'LOG_FORMAT')
 
@@ -38,11 +38,8 @@ BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
 
 PROCESSOR_LOG_FOLDER = conf.get('scheduler', 'CHILD_PROCESS_LOG_DIRECTORY')
 
-FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log'
-
-PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
-
-LOG_ID_TEMPLATE = '{dag_id}-{task_id}-{execution_date}-{try_number}'
+FILENAME_TEMPLATE = conf.get('core', 'LOG_FILENAME_TEMPLATE')
+PROCESSOR_FILENAME_TEMPLATE = conf.get('core', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
 # Storage bucket url for remote logging
 # s3 buckets should start with "s3://"
@@ -53,7 +50,9 @@ REMOTE_BASE_LOG_FOLDER = conf.get('core', 'REMOTE_BASE_LOG_FOLDER')
 
 ELASTICSEARCH_HOST = conf.get('elasticsearch', 'ELASTICSEARCH_HOST')
 
-END_OF_LOG_MARK = 'end_of_log'
+LOG_ID_TEMPLATE = conf.get('elasticsearch', 'ELASTICSEARCH_LOG_ID_TEMPLATE')
+
+END_OF_LOG_MARK = conf.get('elasticsearch', 'ELASTICSEARCH_END_OF_LOG_MARK')
 
 DEFAULT_LOGGING_CONFIG = {
     'version': 1,
