@@ -29,7 +29,7 @@ DEFAULT_DATE = datetime(2015, 1, 1)
 TEST_DAG_ID = 'unit_test_sql_dag'
 
 
-class HttpSensorTests(unittest.TestCase):
+class SqlSensorTests(unittest.TestCase):
     def setUp(self):
         configuration.load_test_config()
         args = {
