@@ -178,6 +178,7 @@ data:
     airflow_configmap = airflow-configmap
     worker_container_repository = airflow
     worker_container_tag = latest
+    worker_container_image_pull_policy = IfNotPresent
     delete_worker_pods = True
     git_repo = https://github.com/apache/incubator-airflow.git
     git_branch = master

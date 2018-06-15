@@ -183,6 +183,8 @@ class WorkerConfiguration(LoggingMixin):
             namespace=namespace,
             name=pod_id,
             image=kube_executor_config.image or self.kube_config.kube_image,
+            image_pull_policy=(kube_executor_config.image_pull_policy or
+                               self.kube_config.kube_image_pull_policy),
             cmds=['bash', '-cx', '--'],
             args=[airflow_command],
             labels={
