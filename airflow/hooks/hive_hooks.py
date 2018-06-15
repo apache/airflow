@@ -18,6 +18,10 @@
 # under the License.
 
 from __future__ import print_function, unicode_literals
+
+import contextlib
+import os
+
 from six.moves import zip
 from past.builtins import basestring, unicode
 
@@ -731,7 +735,7 @@ class HiveMetastoreHook(BaseHook):
 
 class HiveServer2Hook(BaseHook):
     """
-    Wrapper around the impyla library
+    Wrapper around the pyhive library
 
     Note that the default authMechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI as in
@@ -741,56 +745,74 @@ class HiveServer2Hook(BaseHook):
 
     def get_conn(self, schema=None):
         db = self.get_connection(self.hiveserver2_conn_id)
-        auth_mechanism = db.extra_dejson.get('authMechanism', 'PLAIN')
+        auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
+        if auth_mechanism == 'NONE' and db.login is None:
+            # we need to give a username
+            username = 'airflow'
         kerberos_service_name = None
         if configuration.conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = db.extra_dejson.get('authMechanism', 'GSSAPI')
+            auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
             kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 
-        # impyla uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
-        if auth_mechanism == 'KERBEROS':
+        # pyhive uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
+        if auth_mechanism == 'GSSAPI':
             self.log.warning(
-                "Detected deprecated 'KERBEROS' for "
-                "authMechanism for %s. Please use 'GSSAPI' instead",
+                "Detected deprecated 'GSSAPI' for authMechanism "
+                "for %s. Please use 'KERBEROS' instead",
                 self.hiveserver2_conn_id
             )
-            auth_mechanism = 'GSSAPI'
+            auth_mechanism = 'KERBEROS'
 
-        from impala.dbapi import connect
+        from pyhive.hive import connect
         return connect(
             host=db.host,
             port=db.port,
-            auth_mechanism=auth_mechanism,
+            auth=auth_mechanism,
             kerberos_service_name=kerberos_service_name,
-            user=db.login,
+            username=db.login or username,
             database=schema or db.schema or 'default')
 
-    def get_results(self, hql, schema='default', arraysize=1000):
-        from impala.error import ProgrammingError
-        with self.get_conn(schema) as conn:
-            if isinstance(hql, basestring):
-                hql = [hql]
-            results = {
-                'data': [],
-                'header': [],
-            }
-            cur = conn.cursor()
+    def _get_results(self, hql, schema='default', fetch_size=None):
+        from pyhive.exc import ProgrammingError
+        if isinstance(hql, basestring):
+            hql = [hql]
+        previous_description = None
+        with contextlib.closing(self.get_conn(schema)) as conn, \
+                contextlib.closing(conn.cursor()) as cur:
+            cur.arraysize = fetch_size or 1000
             for statement in hql:
                 cur.execute(statement)
-                records = []
-                try:
-                    # impala Lib raises when no results are returned
-                    # we're silencing here as some statements in the list
-                    # may be `SET` or DDL
-                    records = cur.fetchall()
-                except ProgrammingError:
-                    self.log.debug("get_results returned no records")
-                if records:
-                    results = {
-                        'data': records,
-                        'header': cur.description,
-                    }
-            return results
+                # we only get results of statements that returns
+                lowered_statement = statement.lower().strip()
+                if (lowered_statement.startswith('select') or
+                   lowered_statement.startswith('with')):
+                    description = [c for c in cur.description]
+                    if previous_description and previous_description != description:
+                        message = '''The statements are producing different descriptions:
+                                     Current: {}
+                                     Previous: {}'''.format(repr(description),
+                                                            repr(previous_description))
+                        raise ValueError(message)
+                    elif not previous_description:
+                        previous_description = description
+                        yield description
+                    try:
+                        # DB API 2 raises when no results are returned
+                        # we're silencing here as some statements in the list
+                        # may be `SET` or DDL
+                        for row in cur:
+                            yield row
+                    except ProgrammingError:
+                        self.log.debug("get_results returned no records")
+
+    def get_results(self, hql, schema='default', fetch_size=None):
+        results_iter = self._get_results(hql, schema, fetch_size=fetch_size)
+        header = next(results_iter)
+        results = {
+            'data': list(results_iter),
+            'header': header
+        }
+        return results
 
     def to_csv(
             self,
@@ -801,29 +823,34 @@ class HiveServer2Hook(BaseHook):
             lineterminator='\r\n',
             output_header=True,
             fetch_size=1000):
-        schema = schema or 'default'
-        with self.get_conn(schema) as conn:
-            with conn.cursor() as cur:
-                self.log.info("Running query: %s", hql)
-                cur.execute(hql)
-                schema = cur.description
-                with open(csv_filepath, 'wb') as f:
-                    writer = csv.writer(f,
-                                        delimiter=delimiter,
-                                        lineterminator=lineterminator,
-                                        encoding='utf-8')
-                    if output_header:
-                        writer.writerow([c[0] for c in cur.description])
-                    i = 0
-                    while True:
-                        rows = [row for row in cur.fetchmany(fetch_size) if row]
-                        if not rows:
-                            break
 
-                        writer.writerows(rows)
-                        i += len(rows)
+        results_iter = self._get_results(hql, schema, fetch_size=fetch_size)
+        header = next(results_iter)
+        message = None
+
+        with open(csv_filepath, 'wb') as f:
+            writer = csv.writer(f,
+                                delimiter=delimiter,
+                                lineterminator=lineterminator,
+                                encoding='utf-8')
+            try:
+                if output_header:
+                    self.log.debug('Cursor description is %s', header)
+                    writer.writerow([c[0] for c in header])
+
+                for i, row in enumerate(results_iter):
+                    writer.writerow(row)
+                    if i % fetch_size == 0:
                         self.log.info("Written %s rows so far.", i)
-                    self.log.info("Done. Loaded a total of %s rows.", i)
+            except ValueError as exception:
+                message = str(exception)
+
+        if message:
+            # need to clean up the file first
+            os.remove(csv_filepath)
+            raise ValueError(message)
+
+        self.log.info("Done. Loaded a total of %s rows.", i)
 
     def get_records(self, hql, schema='default'):
         """

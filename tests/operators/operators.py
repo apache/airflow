@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -362,8 +362,6 @@ class TransferTests(unittest.TestCase):
             with m.get_conn() as c:
                 c.execute("DROP TABLE IF EXISTS {}".format(mysql_table))
 
-    @unittest.skipIf(six.PY2, "Skip since HiveServer2Hook doesn't work "
-                              "on Python2 for now. See AIRFLOW-2514.")
     def test_mysql_to_hive_verify_loaded_values(self):
         mysql_conn_id = 'airflow_ci'
         mysql_table = 'test_mysql_to_hive'
