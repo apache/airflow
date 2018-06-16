@@ -47,7 +47,6 @@ google-auth-httplib2
 gunicorn
 hdfs
 hive-thrift-py
-impyla
 ipython
 jaydebeapi
 jinja2<2.9.0
