@@ -40,8 +40,11 @@ class AWSBatchOperator(BaseOperator):
     :param queue: the queue name on AWS Batch
     :type queue: str
     :param: overrides: the same parameter that boto3 will receive on
-            containerOverrides (templated):
+            containerOverrides:
             http://boto3.readthedocs.io/en/latest/reference/services/batch.html#submit_job
+            * No longer templated to avoid issue
+            with integers not being able to be templated - for example
+            when trying to specify vcpu or memory headroom
     :type: overrides: dict
     :param max_retries: exponential backoff retries while waiter is not merged
     :type max_retries: int
@@ -56,7 +59,6 @@ class AWSBatchOperator(BaseOperator):
     ui_color = '#c3dae0'
     client = None
     arn = None
-    template_fields = ('overrides',)
 
     @apply_defaults
     def __init__(self, job_name, job_definition, queue, overrides, max_retries=288,
@@ -128,7 +130,7 @@ class AWSBatchOperator(BaseOperator):
             retry = True
             retries = 0
 
-            while retries < self.max_retries or retry:
+            while retries < self.max_retries and retry:
                 response = self.client.describe_jobs(
                     jobs=[self.jobId]
                 )
