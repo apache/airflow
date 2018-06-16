@@ -157,7 +157,6 @@ hdfs = ['snakebite>=2.7.8']
 hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.6.0',
-    'impyla>=0.13.3'
 ]
 jdbc = ['jaydebeapi>=1.1.1']
 jenkins = ['python-jenkins>=0.4.15']
