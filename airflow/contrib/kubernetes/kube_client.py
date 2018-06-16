@@ -17,20 +17,22 @@
 from airflow.configuration import conf
 
 
-def _load_kube_config(in_cluster, cluster_context):
+def _load_kube_config(in_cluster, cluster_context, config_file):
     from kubernetes import config, client
     if in_cluster:
         config.load_incluster_config()
         return client.CoreV1Api()
     else:
-        if cluster_context is None:
+        if cluster_context is None and config_file is None:
             config.load_kube_config()
             return client.CoreV1Api()
         else:
             return client.CoreV1Api(
-                api_client=config.new_client_from_config(context=cluster_context))
+                api_client=config.new_client_from_config(config_file=config_file,
+                                                         context=cluster_context))
 
 
 def get_kube_client(in_cluster=conf.getboolean('kubernetes', 'in_cluster'),
-                    cluster_context=None):
-    return _load_kube_config(in_cluster, cluster_context)
+                    cluster_context=None,
+                    config_file=None):
+    return _load_kube_config(in_cluster, cluster_context, config_file)
