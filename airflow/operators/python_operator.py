@@ -111,7 +111,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     directly downstream tasks are marked with a state of ``skipped``,
     unless the downstream tasks are also a downstream task of
     the task_id to follow, so that these paths can't move forward.
-    The ``skipped`` states are propageted downstream to allow for the
+    The ``skipped`` states are propagated downstream to allow for the
     DAG state to fill up and the DAG run's state to be inferred.
 
     Note that using tasks with ``depends_on_past=True`` downstream from
@@ -194,7 +194,7 @@ class PythonVirtualenvOperator(PythonOperator):
         both 2 and 2.7 are acceptable forms.
     :type python_version: str
     :param use_dill: Whether to use dill to serialize
-        the args and result (pickle is default). This allow more complex types
+        the args and result (pickle is default). This allows more complex types
         but requires you to include dill in your requirements.
     :type use_dill: bool
     :param system_site_packages: Whether to include
