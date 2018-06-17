@@ -1742,7 +1742,7 @@ class TaskInstance(Base, LoggingMixin):
             # try_number contains the current try_number (not the next). We
             # only mark task instance as FAILED if the next task instance
             # try_number exceeds the max_tries.
-            if task.retries and self.try_number <= self.max_tries:
+            if self.is_eligible_to_retry():
                 self.state = State.UP_FOR_RETRY
                 self.log.info('Marking task as UP_FOR_RETRY')
                 if task.email_on_retry and task.email:
@@ -1772,6 +1772,10 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.merge(self)
         session.commit()
+
+    def is_eligible_to_retry(self):
+        """Is task instance is eligible for retry"""
+        return self.task.retries and self.try_number <= self.max_tries
 
     @provide_session
     def get_template_context(self, session=None):
