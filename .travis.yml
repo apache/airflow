@@ -22,6 +22,7 @@ language: python
 jdk:
   - oraclejdk8
 services:
+  - cassandra
   - mysql
   - postgresql
   - rabbitmq

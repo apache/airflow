@@ -117,6 +117,26 @@ class CassandraHookTest(unittest.TestCase):
             thrown = True
         self.assertEqual(should_throw, thrown)
 
+    def test_record_exists(self):
+        hook = CassandraHook()
+        session = hook.get_conn()
+
+        cqls = [
+            "DROP SCHEMA IF EXISTS s",
+            """
+                CREATE SCHEMA s WITH REPLICATION =
+                    { 'class' : 'SimpleStrategy', 'replication_factor' : 1 }
+            """,
+            "DROP TABLE IF EXISTS s.t",
+            "CREATE TABLE s.t (pk1 text, pk2 text, c text, PRIMARY KEY (pk1, pk2))",
+            "INSERT INTO s.t (pk1, pk2, c) VALUES ('foo', 'bar', 'baz')",
+        ]
+        for cql in cqls:
+            session.execute(cql)
+
+        self.assertTrue(hook.record_exists("s.t", {"pk1": "foo", "pk2": "bar"}))
+        self.assertFalse(hook.record_exists("s.t", {"pk1": "foo", "pk2": "baz"}))
+
 
 if __name__ == '__main__':
     unittest.main()
