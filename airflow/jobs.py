@@ -96,6 +96,7 @@ class BaseJob(Base, LoggingMixin):
 
     __table_args__ = (
         Index('job_type_heart', job_type, latest_heartbeat),
+        Index('idx_job_state_heartbeat', state, latest_heartbeat),
     )
 
     def __init__(
