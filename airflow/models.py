@@ -195,6 +195,10 @@ class DagBag(BaseDagBag, LoggingMixin):
     :param include_examples: whether to include the examples that ship
         with airflow or not
     :type include_examples: bool
+    :param has_logged: an instance boolean that gets flipped from False to True after a
+        file has been skipped. This is to prevent overloading the user with logging
+        messages about skipped files. Therefore only once per DagBag is a file logged
+        being skipped.
     """
 
     # static class variables to detetct dag cycle
@@ -219,6 +223,7 @@ class DagBag(BaseDagBag, LoggingMixin):
         self.file_last_changed = {}
         self.executor = executor
         self.import_errors = {}
+        self.has_logged = False
 
         if include_examples:
             example_dag_folder = os.path.join(
@@ -297,6 +302,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                     content = f.read()
                     if not all([s in content for s in (b'DAG', b'airflow')]):
                         self.file_last_changed[filepath] = file_last_changed_on_disk
+                        # Don't want to spam user with skip messages
+                        if not self.has_logged:
+                            self.has_logged = True
+                            self.log.info(
+                                "File %s assumed to contain no DAGs. Skipping.",
+                                filepath)
                         return found_dags
 
             self.log.debug("Importing %s", filepath)
@@ -333,7 +344,12 @@ class DagBag(BaseDagBag, LoggingMixin):
                                 self.file_last_changed[filepath] = (
                                     file_last_changed_on_disk)
                                 # todo: create ignore list
-                                return found_dags
+                                # Don't want to spam user with skip messages
+                                if not self.has_logged:
+                                    self.has_logged = True
+                                    self.log.info(
+                                        "File %s assumed to contain no DAGs. Skipping.",
+                                        filepath)
 
                     if mod_name in sys.modules:
                         del sys.modules[mod_name]

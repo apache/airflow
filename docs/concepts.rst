@@ -35,6 +35,9 @@ the ``DAG`` objects. You can have as many DAGs as you want, each describing an
 arbitrary number of tasks. In general, each one should correspond to a single
 logical workflow.
 
+.. note:: When searching for DAGs, Airflow will only consider files where the string
+   "airflow" and "DAG" both appear in the contents of the ``.py`` file.
+
 Scope
 -----
 
