@@ -25,14 +25,19 @@ from airflow.utils import timezone
 from airflow.utils.state import State
 
 
-def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None,
-                replace_microseconds=True):
-    dagbag = DagBag()
-
-    if dag_id not in dagbag.dags:
+def _trigger_dag(
+        dag_id,
+        dag_bag,
+        dag_run,
+        run_id,
+        conf,
+        execution_date,
+        replace_microseconds,
+):
+    if dag_id not in dag_bag.dags:
         raise AirflowException("Dag id {} not found".format(dag_id))
 
-    dag = dagbag.get_dag(dag_id)
+    dag = dag_bag.get_dag(dag_id)
 
     if not execution_date:
         execution_date = timezone.utcnow()
@@ -45,7 +50,7 @@ def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None,
     if not run_id:
         run_id = "manual__{0}".format(execution_date.isoformat())
 
-    dr = DagRun.find(dag_id=dag_id, run_id=run_id)
+    dr = dag_run.find(dag_id=dag_id, run_id=run_id)
     if dr:
         raise AirflowException("Run id {} already exists for dag id {}".format(
             run_id,
@@ -56,12 +61,41 @@ def trigger_dag(dag_id, run_id=None, conf=None, execution_date=None,
     if conf:
         run_conf = json.loads(conf)
 
-    trigger = dag.create_dagrun(
+    triggers = list()
+    dags_to_trigger = list()
+    dags_to_trigger.append(dag)
+    while dags_to_trigger:
+        dag = dags_to_trigger.pop()
+        trigger = dag.create_dagrun(
+            run_id=run_id,
+            execution_date=execution_date,
+            state=State.RUNNING,
+            conf=run_conf,
+            external_trigger=True,
+        )
+        triggers.append(trigger)
+        if dag.subdags:
+            dags_to_trigger.extend(dag.subdags)
+    return triggers
+
+
+def trigger_dag(
+        dag_id,
+        run_id=None,
+        conf=None,
+        execution_date=None,
+        replace_microseconds=True,
+):
+    dagbag = DagBag()
+    dag_run = DagRun()
+    triggers = _trigger_dag(
+        dag_id=dag_id,
+        dag_run=dag_run,
+        dag_bag=dagbag,
         run_id=run_id,
+        conf=conf,
         execution_date=execution_date,
-        state=State.RUNNING,
-        conf=run_conf,
-        external_trigger=True
+        replace_microseconds=replace_microseconds,
     )
 
-    return trigger
+    return triggers[0] if triggers else None
