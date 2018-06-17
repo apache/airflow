@@ -56,7 +56,7 @@ from urllib.parse import urlparse, quote, parse_qsl
 
 from sqlalchemy import (
     Column, Integer, String, DateTime, Text, Boolean, ForeignKey, PickleType,
-    Index, Float, LargeBinary)
+    Index, Float, LargeBinary, UniqueConstraint)
 from sqlalchemy import func, or_, and_, true as sqltrue
 from sqlalchemy.ext.declarative import declarative_base, declared_attr
 from sqlalchemy.orm import reconstructor, relationship, synonym
@@ -885,7 +885,7 @@ class TaskInstance(Base, LoggingMixin):
     max_tries = Column(Integer)
     hostname = Column(String(1000))
     unixname = Column(String(1000))
-    job_id = Column(Integer, index=True)
+    job_id = Column(Integer)
     pool = Column(String(50))
     queue = Column(String(50))
     priority_weight = Column(Integer)
@@ -899,6 +899,7 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_state', state),
         Index('ti_state_lkp', dag_id, task_id, execution_date, state),
         Index('ti_pool', pool, state, priority_weight),
+        Index('ti_job_id', job_id),
     )
 
     def __init__(self, task, execution_date, state=None):
@@ -2072,12 +2073,13 @@ class TaskFail(Base):
 
     __tablename__ = "task_fail"
 
-    task_id = Column(String(ID_LEN), primary_key=True)
-    dag_id = Column(String(ID_LEN), primary_key=True)
-    execution_date = Column(UtcDateTime, primary_key=True)
+    id = Column(Integer, primary_key=True)
+    task_id = Column(String(ID_LEN), nullable=False)
+    dag_id = Column(String(ID_LEN), nullable=False)
+    execution_date = Column(UtcDateTime, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
-    duration = Column(Float)
+    duration = Column(Integer)
 
     __table_args__ = (
         Index('idx_task_fail_dag_task_date', dag_id, task_id, execution_date,
@@ -4670,8 +4672,8 @@ class DagStat(Base):
 
     dag_id = Column(String(ID_LEN), primary_key=True)
     state = Column(String(50), primary_key=True)
-    count = Column(Integer, default=0)
-    dirty = Column(Boolean, default=False)
+    count = Column(Integer, default=0, nullable=False)
+    dirty = Column(Boolean, default=False, nullable=False)
 
     def __init__(self, dag_id, state, count=0, dirty=False):
         self.dag_id = dag_id
@@ -4804,7 +4806,9 @@ class DagRun(Base, LoggingMixin):
     dag = None
 
     __table_args__ = (
-        Index('dr_run_id', dag_id, run_id, unique=True),
+        Index('dag_id_state', dag_id, _state),
+        UniqueConstraint('dag_id', 'execution_date'),
+        UniqueConstraint('dag_id', 'run_id'),
     )
 
     def __repr__(self):
