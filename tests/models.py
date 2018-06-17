@@ -1015,6 +1015,21 @@ class DagBagTest(unittest.TestCase):
         dagbag = models.DagBag(include_examples=True)
         self.assertEqual([], dagbag.process_file(f.name))
 
+    def test_zip_skip_log(self):
+        """
+        test the loading of a DAG from within a zip file that skips another file because
+        it doesn't have "airflow" and "DAG"
+        """
+        from mock import Mock
+        with patch('airflow.models.DagBag.log') as log_mock:
+            log_mock.info = Mock()
+            test_zip_path = os.path.join(TEST_DAGS_FOLDER, "test_zip.zip")
+            dagbag = models.DagBag(dag_folder=test_zip_path, include_examples=False)
+
+            self.assertTrue(dagbag.has_logged)
+            log_mock.info.assert_any_call("File %s assumed to contain no DAGs. Skipping.",
+                                          test_zip_path)
+
     def test_zip(self):
         """
         test the loading of a DAG within a zip file that includes dependencies
