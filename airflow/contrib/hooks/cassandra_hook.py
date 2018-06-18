@@ -106,9 +106,10 @@ class CassandraHook(BaseHook, LoggingMixin):
         """
         Returns a cassandra Session object
         """
-        if self.session:
+        if self.session and not self.session.is_shutdown:
             return self.session
-        return self.cluster.connect(self.keyspace)
+        self.session = self.cluster.connect(self.keyspace)
+        return self.session
 
     def get_cluster(self):
         return self.cluster
@@ -156,3 +157,26 @@ class CassandraHook(BaseHook, LoggingMixin):
                 child_policy = CassandraHook.get_lb_policy(child_policy_name,
                                                            child_policy_args)
                 return TokenAwarePolicy(child_policy)
+
+    def record_exists(self, table, keys):
+        """
+        Checks if a record exists in Cassandra
+
+        :param table: Target Cassandra table.
+                      Use dot notation to target a specific keyspace.
+        :type table: string
+        :param keys: The keys and their values to check the existence.
+        :type keys: dict
+        """
+        keyspace = None
+        if '.' in table:
+            keyspace, table = table.split('.', 1)
+        ks = " AND ".join("{}=%({})s".format(key, key) for key in keys.keys())
+        cql = "SELECT * FROM {keyspace}.{table} WHERE {keys}".format(
+            keyspace=(keyspace or self.keyspace), table=table, keys=ks)
+
+        try:
+            rs = self.get_conn().execute(cql, keys)
+            return rs.one() is not None
+        except Exception:
+            return False

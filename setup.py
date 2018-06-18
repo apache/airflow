@@ -148,6 +148,7 @@ gcp_api = [
     'google-api-python-client>=1.6.0, <2.0.0dev',
     'google-auth>=1.0.0, <2.0.0dev',
     'google-auth-httplib2>=0.0.1',
+    'google-cloud-container>=0.1.1',
     'PyOpenSSL',
     'pandas-gbq'
 ]
@@ -155,9 +156,7 @@ github_enterprise = ['Flask-OAuthlib>=0.9.1']
 hdfs = ['snakebite>=2.7.8']
 hive = [
     'hmsclient>=0.1.0',
-    'pyhive>=0.1.3',
-    'impyla>=0.13.3',
-    'thrift_sasl==0.2.1',
+    'pyhive>=0.6.0',
 ]
 jdbc = ['jaydebeapi>=1.1.1']
 jenkins = ['python-jenkins>=0.4.15']

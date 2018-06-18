@@ -40,6 +40,22 @@ class MySqlHook(DbApiHook):
         super(MySqlHook, self).__init__(*args, **kwargs)
         self.schema = kwargs.pop("schema", None)
 
+    def set_autocommit(self, conn, autocommit):
+        """
+        MySql connection sets autocommit in a different way.
+        """
+        conn.autocommit(autocommit)
+
+    def get_autocommit(self, conn):
+        """
+        MySql connection gets autocommit in a different way.
+        :param conn: connection to get autocommit setting from.
+        :type conn: connection object.
+        :return: connection autocommit setting
+        :rtype bool
+        """
+        return conn.get_autocommit()
+
     def get_conn(self):
         """
         Returns a mysql connection object
