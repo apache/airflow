@@ -16,6 +16,8 @@
 # under the License.
 
 import unittest
+import os
+import shutil
 from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOperator
 from airflow import AirflowException
 from subprocess import check_call
@@ -34,6 +36,48 @@ except Exception as e:
 
 
 class KubernetesPodOperatorTest(unittest.TestCase):
+
+    def test_config_path_move(self):
+        new_config_path = '/tmp/kube_config'
+        old_config_path = os.path.expanduser('~/.kube/config')
+        shutil.copy(old_config_path, new_config_path)
+
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            config_file=new_config_path
+        )
+        k.execute(None)
+
+    @mock.patch("airflow.contrib.kubernetes.pod_launcher.PodLauncher.run_pod")
+    @mock.patch("airflow.contrib.kubernetes.kube_client.get_kube_client")
+    def test_config_path(self, client_mock, launcher_mock):
+        from airflow.utils.state import State
+
+        file_path = "/tmp/fake_file"
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            config_file=file_path,
+            in_cluster=False,
+            cluster_context='default'
+        )
+        launcher_mock.return_value = State.SUCCESS
+        k.execute(None)
+        client_mock.assert_called_with(in_cluster=False,
+                                       cluster_context='default',
+                                       config_file=file_path)
+
     def test_working_pod(self):
         k = KubernetesPodOperator(
             namespace='default',
