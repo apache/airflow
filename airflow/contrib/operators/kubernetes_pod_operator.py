@@ -70,13 +70,16 @@ class KubernetesPodOperator(BaseOperator):
     :type get_logs: bool
     :param affinity: A dict containing a group of affinity scheduling rules
     :type affinity: dict
+    :param config_file: The path to the Kubernetes config file
+    :type config_file: str
     """
-    template_fields = ('cmds', 'arguments', 'env_vars')
+    template_fields = ('cmds', 'arguments', 'env_vars', 'config_file')
 
     def execute(self, context):
         try:
             client = kube_client.get_kube_client(in_cluster=self.in_cluster,
-                                                 cluster_context=self.cluster_context)
+                                                 cluster_context=self.cluster_context,
+                                                 config_file=self.config_file)
             gen = pod_generator.PodGenerator()
 
             for mount in self.volume_mounts:
@@ -132,6 +135,7 @@ class KubernetesPodOperator(BaseOperator):
                  annotations=None,
                  resources=None,
                  affinity=None,
+                 config_file=None,
                  *args,
                  **kwargs):
         super(KubernetesPodOperator, self).__init__(*args, **kwargs)
@@ -153,3 +157,4 @@ class KubernetesPodOperator(BaseOperator):
         self.annotations = annotations or {}
         self.affinity = affinity or {}
         self.resources = resources or Resources()
+        self.config_file = config_file
