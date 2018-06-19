@@ -16,28 +16,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from airflow.api.common.experimental.dags import get_dags
-from airflow.www_rbac.api.experimental.base import AirflowAPIView
-
-
-class DagListView(AirflowAPIView):
-    # noinspection PyMethodMayBeStatic
-    def get(self):
-        # Retrieve a list of all DAGs
-        dags = get_dags()
-        response = {
-            'total_dags': len(dags),
-            'dags': [dag.to_json() for dag in dags]
-        }
-        return response
+from airflow.models import DagModel
+from airflow.utils.db import provide_session
 
 
-class DagView(AirflowAPIView):
-    def get(self, dag_id):
-        # Retrieve details of a DAG
-        pass
-
-    def put(self, dag_id):
-        # Update details of a DAG
-        pass
+@provide_session
+def get_dags(session=None):
+    """Get all DAGs."""
+    return session.query(DagModel).all()

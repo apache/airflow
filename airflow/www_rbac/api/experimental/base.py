@@ -47,5 +47,5 @@ def json_response(func):
     return decorator
 
 
-class BaseEndpointView(MethodView):
+class AirflowAPIView(MethodView):
     decorators = [json_response, requires_authentication]
