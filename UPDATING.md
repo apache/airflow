@@ -35,6 +35,7 @@ Run `airflow webserver` to start the new UI. This will bring up a log in page, e
 There are five roles created for Airflow by default: Admin, User, Op, Viewer, and Public. To configure roles/permissions, go to the `Security` tab and click `List Roles` in the new UI.
 
 #### Breaking changes
+- AWS Batch Operator renamed property queue to job_queue to prevent conflict with the internal queue from CeleryExecutor - AIRFLOW-2542
 - Users created and stored in the old users table will not be migrated automatically. FAB's built-in authentication support must be reconfigured.
 - Airflow dag home page is now `/home` (instead of `/admin`).
 - All ModelViews in Flask-AppBuilder follow a different pattern from Flask-Admin. The `/admin` part of the url path will no longer exist. For example: `/admin/connection` becomes `/connection/list`, `/admin/connection/new` becomes `/connection/add`, `/admin/connection/edit` becomes `/connection/edit`, etc.
