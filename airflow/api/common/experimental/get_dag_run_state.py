@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import DagNotFound, DagRunNotFound
 from airflow.models import DagBag
 
 
@@ -29,7 +29,7 @@ def get_dag_run_state(dag_id, execution_date):
     # Check DAG exists.
     if dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(dag_id)
-        raise AirflowException(error_message)
+        raise DagNotFound(error_message)
 
     # Get DAG object and check Task Exists
     dag = dagbag.get_dag(dag_id)
@@ -39,6 +39,6 @@ def get_dag_run_state(dag_id, execution_date):
     if not dagrun:
         error_message = ('Dag Run for date {} not found in dag {}'
                          .format(execution_date, dag_id))
-        raise AirflowException(error_message)
+        raise DagRunNotFound(error_message)
 
     return {'state': dagrun.get_state()}
