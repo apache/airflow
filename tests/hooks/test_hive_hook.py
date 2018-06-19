@@ -375,8 +375,8 @@ class TestHiveServer2Hook(unittest.TestCase):
     def test_get_records(self):
         hook = HiveServer2Hook()
         query = "SELECT * FROM {}".format(self.table)
-        results = hook.get_pandas_df(query, schema=self.database)
-        self.assertEqual(len(results), 2)
+        results = hook.get_records(query, schema=self.database)
+        self.assertListEqual(results, [(1, 1), (2, 2)])
 
     def test_get_pandas_df(self):
         hook = HiveServer2Hook()
@@ -409,3 +409,13 @@ class TestHiveServer2Hook(unittest.TestCase):
         self.assertListEqual(df.columns.tolist(), self.columns)
         self.assertListEqual(df[self.columns[0]].values.tolist(), [1, 2])
         self.assertEqual(len(df), 2)
+
+    def test_multi_statements(self):
+        sqls = [
+            "CREATE TABLE IF NOT EXISTS test_multi_statements (i INT)",
+            "SELECT * FROM {}".format(self.table),
+            "DROP TABLE test_multi_statements",
+        ]
+        hook = HiveServer2Hook()
+        results = hook.get_records(sqls, schema=self.database)
+        self.assertListEqual(results, [(1, 1), (2, 2)])
