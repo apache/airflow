@@ -79,7 +79,7 @@ def trigger_dag(dag_id):
     except AirflowException as err:
         _log.error(err)
         response = jsonify(error="{}".format(err))
-        response.status_code = 404
+        response.status_code = err.status_code
         return response
 
     if getattr(g, 'user', None):
@@ -98,10 +98,10 @@ def delete_dag(dag_id):
     """
     try:
         count = delete.delete_dag(dag_id)
-    except AirflowException as e:
-        _log.error(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = getattr(e, 'status', 500)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     return jsonify(message="Removed {} record(s)".format(count), count=count)
 
@@ -121,7 +121,7 @@ def task_info(dag_id, task_id):
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
-        response.status_code = 404
+        response.status_code = err.status_code
         return response
 
     # JSONify and return.
@@ -162,7 +162,7 @@ def task_instance_info(dag_id, execution_date, task_id):
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))
-        response.status_code = 404
+        response.status_code = err.status_code
         return response
 
     # JSONify and return.
@@ -198,10 +198,10 @@ def get_pool(name):
     """Get pool by a given name."""
     try:
         pool = pool_api.get_pool(name=name)
-    except AirflowException as e:
-        _log.error(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = getattr(e, 'status', 500)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     else:
         return jsonify(pool.to_json())
@@ -213,10 +213,10 @@ def get_pools():
     """Get all pools."""
     try:
         pools = pool_api.get_pools()
-    except AirflowException as e:
-        _log.error(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = getattr(e, 'status', 500)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     else:
         return jsonify([p.to_json() for p in pools])
@@ -230,10 +230,10 @@ def create_pool():
     params = request.get_json(force=True)
     try:
         pool = pool_api.create_pool(**params)
-    except AirflowException as e:
-        _log.error(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = getattr(e, 'status', 500)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     else:
         return jsonify(pool.to_json())
@@ -246,10 +246,10 @@ def delete_pool(name):
     """Delete pool."""
     try:
         pool = pool_api.delete_pool(name=name)
-    except AirflowException as e:
-        _log.error(e)
-        response = jsonify(error="{}".format(e))
-        response.status_code = getattr(e, 'status', 500)
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
         return response
     else:
         return jsonify(pool.to_json())

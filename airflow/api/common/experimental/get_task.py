@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import DagNotFound, TaskNotFound
 from airflow.models import DagBag
 
 
@@ -28,13 +28,13 @@ def get_task(dag_id, task_id):
     # Check DAG exists.
     if dag_id not in dagbag.dags:
         error_message = "Dag id {} not found".format(dag_id)
-        raise AirflowException(error_message)
+        raise DagNotFound(error_message)
 
     # Get DAG object and check Task Exists
     dag = dagbag.get_dag(dag_id)
     if not dag.has_task(task_id):
         error_message = 'Task {} not found in dag {}'.format(task_id, dag_id)
-        raise AirflowException(error_message)
+        raise TaskNotFound(error_message)
 
     # Return the task.
     return dag.get_task(task_id)
