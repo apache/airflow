@@ -27,6 +27,7 @@ from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
+from airflow.www_rbac.api.experimental.views.dags import DagListView
 from airflow.www_rbac.app import csrf
 from airflow import models
 from airflow.utils.db import create_session
@@ -318,3 +319,6 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+api_experimental.add_url_rule('/dags/', view_func=DagListView.as_view('dags'))
