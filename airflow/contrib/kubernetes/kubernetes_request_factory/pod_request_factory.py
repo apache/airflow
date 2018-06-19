@@ -60,3 +60,60 @@ spec:
         self.extract_annotations(pod, req)
         self.extract_affinity(pod, req)
         return req
+
+
+class ExtractXcomPodRequestFactory(KubernetesRequestFactory):
+
+    XCOM_MOUNT_PATH = '/airflow/xcom'
+    SIDECAR_CONTAINER_NAME = 'airflow-xcom-sidecar'
+    """
+    Request generator for a pod with sidecar container.
+    """
+    _yaml = """apiVersion: v1
+kind: Pod
+metadata:
+  name: name
+spec:
+  volumes:
+    - name: xcom
+      emptyDir: {{}}
+  containers:
+    - name: base
+      image: airflow-worker:latest
+      command: ["/usr/local/airflow/entrypoint.sh", "/bin/bash sleep 25"]
+      volumeMounts:
+        - name: xcom
+          mountPath: {xcomMountPath}
+    - name: {sidecarContainerName}
+      image: python:3.5-alpine
+      command: ["python", "-m", "http.server"]
+      volumeMounts:
+        - name: xcom
+          mountPath: {xcomMountPath}
+  restartPolicy: Never
+    """.format(xcomMountPath=XCOM_MOUNT_PATH, sidecarContainerName=SIDECAR_CONTAINER_NAME)
+
+    def __init__(self):
+        pass
+
+    def create(self, pod):
+        # type: (Pod) -> dict
+        req = yaml.load(self._yaml)
+        self.extract_name(pod, req)
+        self.extract_labels(pod, req)
+        self.extract_image(pod, req)
+        self.extract_image_pull_policy(pod, req)
+        self.extract_cmds(pod, req)
+        self.extract_args(pod, req)
+        self.extract_node_selector(pod, req)
+        self.extract_env_and_secrets(pod, req)
+        self.extract_volume_secrets(pod, req)
+        self.attach_volumes(pod, req)
+        self.attach_volume_mounts(pod, req)
+        self.extract_resources(pod, req)
+        self.extract_service_account_name(pod, req)
+        self.extract_init_containers(pod, req)
+        self.extract_image_pull_secrets(pod, req)
+        self.extract_annotations(pod, req)
+        self.extract_affinity(pod, req)
+        return req
