@@ -22,6 +22,7 @@ from airflow.contrib.operators.kubernetes_pod_operator import KubernetesPodOpera
 from airflow import AirflowException
 from subprocess import check_call
 import mock
+import json
 from airflow.contrib.kubernetes.pod_launcher import PodLauncher
 from airflow.contrib.kubernetes.volume_mount import VolumeMount
 from airflow.contrib.kubernetes.volume import Volume
@@ -72,7 +73,7 @@ class KubernetesPodOperatorTest(unittest.TestCase):
             in_cluster=False,
             cluster_context='default'
         )
-        launcher_mock.return_value = State.SUCCESS
+        launcher_mock.return_value = (State.SUCCESS, None)
         k.execute(None)
         client_mock.assert_called_with(in_cluster=False,
                                        cluster_context='default',
@@ -166,6 +167,20 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         with self.assertRaises(AirflowException):
             k.execute(None)
+
+    def test_xcom_push(self):
+        return_value = '{"foo": "bar"\n, "buzz": 2}'
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=['echo \'{}\' > /airflow/xcom/return.json'.format(return_value)],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            xcom_push=True
+        )
+        self.assertEqual(k.execute(None), json.loads(return_value))
 
 
 if __name__ == '__main__':
