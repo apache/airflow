@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -46,36 +46,36 @@ class TestDbApiHook(unittest.TestCase):
         statement = "SQL"
         rows = [("hello",),
                 ("world",)]
-        
+
         self.cur.fetchall.return_value = rows
-        
+
         self.assertEqual(rows, self.db_hook.get_records(statement))
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement)
-        
+
     def test_get_records_parameters(self):
         statement = "SQL"
         parameters = ["X", "Y", "Z"]
         rows = [("hello",),
                 ("world",)]
-        
+
         self.cur.fetchall.return_value = rows
 
         self.assertEqual(rows, self.db_hook.get_records(statement, parameters))
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement, parameters)
-        
+
     def test_get_records_exception(self):
         statement = "SQL"
         self.cur.fetchall.side_effect = RuntimeError('Great Problems')
-        
+
         with self.assertRaises(RuntimeError):
             self.db_hook.get_records(statement)
-        
+
         self.conn.close.assert_called_once()
         self.cur.close.assert_called_once()
         self.cur.execute.assert_called_once_with(statement)
@@ -94,6 +94,23 @@ class TestDbApiHook(unittest.TestCase):
         self.assertEqual(commit_count, self.conn.commit.call_count)
 
         sql = "INSERT INTO {}  VALUES (%s)".format(table)
+        for row in rows:
+            self.cur.execute.assert_any_call(sql, row)
+
+    def test_insert_rows_replace(self):
+        table = "table"
+        rows = [("hello",),
+                ("world",)]
+
+        self.db_hook.insert_rows(table, rows, replace=True)
+
+        self.conn.close.assert_called_once()
+        self.cur.close.assert_called_once()
+
+        commit_count = 2  # The first and last commit
+        self.assertEqual(commit_count, self.conn.commit.call_count)
+
+        sql = "REPLACE INTO {}  VALUES (%s)".format(table)
         for row in rows:
             self.cur.execute.assert_any_call(sql, row)
 
