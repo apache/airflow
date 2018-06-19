@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -59,6 +59,8 @@ class TestLocalClient(unittest.TestCase):
     @patch.object(models.DAG, 'create_dagrun')
     def test_trigger_dag(self, mock):
         client = self.client
+        test_dag_id = "example_bash_operator"
+        models.DagBag(include_examples=True)
 
         # non existent
         with self.assertRaises(AirflowException):
@@ -66,7 +68,7 @@ class TestLocalClient(unittest.TestCase):
 
         with freeze_time(EXECDATE):
             # no execution date, execution date should be set automatically
-            client.trigger_dag(dag_id="test_start_date_scheduling")
+            client.trigger_dag(dag_id=test_dag_id)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -75,7 +77,7 @@ class TestLocalClient(unittest.TestCase):
             mock.reset_mock()
 
             # execution date with microseconds cutoff
-            client.trigger_dag(dag_id="test_start_date_scheduling", execution_date=EXECDATE)
+            client.trigger_dag(dag_id=test_dag_id, execution_date=EXECDATE)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -85,7 +87,7 @@ class TestLocalClient(unittest.TestCase):
 
             # run id
             run_id = "my_run_id"
-            client.trigger_dag(dag_id="test_start_date_scheduling", run_id=run_id)
+            client.trigger_dag(dag_id=test_dag_id, run_id=run_id)
             mock.assert_called_once_with(run_id=run_id,
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
@@ -95,7 +97,7 @@ class TestLocalClient(unittest.TestCase):
 
             # test conf
             conf = '{"name": "John"}'
-            client.trigger_dag(dag_id="test_start_date_scheduling", conf=conf)
+            client.trigger_dag(dag_id=test_dag_id, conf=conf)
             mock.assert_called_once_with(run_id="manual__{0}".format(EXECDATE_ISO),
                                          execution_date=EXECDATE_NOFRACTIONS,
                                          state=State.RUNNING,
