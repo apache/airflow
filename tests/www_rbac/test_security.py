@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,6 +21,7 @@ from __future__ import print_function
 
 import unittest
 import logging
+import mock
 
 from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA, Model, has_access, expose
@@ -29,7 +30,8 @@ from flask_appbuilder.views import ModelView, BaseView
 
 from sqlalchemy import Column, Integer, String, Date, Float
 
-from airflow.www_rbac.security import init_role
+from airflow.www_rbac.security import AirflowSecurityManager, dag_perms
+
 
 logging.basicConfig(format='%(asctime)s:%(levelname)s:%(name)s:%(message)s')
 logging.getLogger().setLevel(logging.DEBUG)
@@ -70,11 +72,13 @@ class TestSecurity(unittest.TestCase):
         self.app.config['CSRF_ENABLED'] = False
         self.app.config['WTF_CSRF_ENABLED'] = False
         self.db = SQLA(self.app)
-        self.appbuilder = AppBuilder(self.app, self.db.session)
+        self.appbuilder = AppBuilder(self.app,
+                                     self.db.session,
+                                     security_manager_class=AirflowSecurityManager)
+        self.security_manager = self.appbuilder.sm
         self.appbuilder.add_view(SomeBaseView, "SomeBaseView", category="BaseViews")
         self.appbuilder.add_view(SomeModelView, "SomeModelView", category="ModelViews")
-
-        role_admin = self.appbuilder.sm.find_role('Admin')
+        role_admin = self.security_manager.find_role('Admin')
         self.user = self.appbuilder.sm.add_user('admin', 'admin', 'user', 'admin@fab.org',
                                                 role_admin, 'general')
         log.debug("Complete setup!")
@@ -89,7 +93,7 @@ class TestSecurity(unittest.TestCase):
         role_name = 'MyRole1'
         role_perms = ['can_some_action']
         role_vms = ['SomeBaseView']
-        init_role(self.appbuilder.sm, role_name, role_vms, role_perms)
+        self.security_manager.init_role(role_name, role_vms, role_perms)
         role = self.appbuilder.sm.find_role(role_name)
         self.assertIsNotNone(role)
         self.assertEqual(len(role_perms), len(role.permissions))
@@ -98,26 +102,78 @@ class TestSecurity(unittest.TestCase):
         role_name = 'MyRole2'
         role_perms = ['can_list', 'can_show', 'can_add', 'can_edit', 'can_delete']
         role_vms = ['SomeModelView']
-        init_role(self.appbuilder.sm, role_name, role_vms, role_perms)
+        self.security_manager.init_role(role_name, role_vms, role_perms)
         role = self.appbuilder.sm.find_role(role_name)
         self.assertIsNotNone(role)
         self.assertEqual(len(role_perms), len(role.permissions))
 
-    def test_invalid_perms(self):
-        role_name = 'MyRole3'
-        role_perms = ['can_foo']
-        role_vms = ['SomeBaseView']
-        with self.assertRaises(Exception) as context:
-            init_role(self.appbuilder.sm, role_name, role_vms, role_perms)
-        self.assertEqual("The following permissions are not valid: ['can_foo']",
-                         str(context.exception))
+    def test_get_user_roles(self):
+        user = mock.MagicMock()
+        user.is_anonymous.return_value = False
+        roles = self.appbuilder.sm.find_role('Admin')
+        user.roles = roles
+        self.assertEqual(self.security_manager.get_user_roles(user), roles)
 
-    def test_invalid_vms(self):
-        role_name = 'MyRole4'
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager.get_user_roles')
+    def test_get_all_permissions_views(self, mock_get_user_roles):
+        role_name = 'MyRole1'
         role_perms = ['can_some_action']
-        role_vms = ['NonExistentBaseView']
-        with self.assertRaises(Exception) as context:
-            init_role(self.appbuilder.sm, role_name, role_vms, role_perms)
-        self.assertEqual("The following view menus are not valid: "
-                         "['NonExistentBaseView']",
-                         str(context.exception))
+        role_vms = ['SomeBaseView']
+        self.security_manager.init_role(role_name, role_vms, role_perms)
+        role = self.security_manager.find_role(role_name)
+
+        mock_get_user_roles.return_value = [role]
+        self.assertEqual(self.security_manager
+                         .get_all_permissions_views(),
+                         {('can_some_action', 'SomeBaseView')})
+
+        mock_get_user_roles.return_value = []
+        self.assertEquals(len(self.security_manager
+                              .get_all_permissions_views()), 0)
+
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager'
+                '.get_all_permissions_views')
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager'
+                '.get_user_roles')
+    def test_get_accessible_dag_ids(self, mock_get_user_roles,
+                                    mock_get_all_permissions_views):
+        user = mock.MagicMock()
+        role_name = 'MyRole1'
+        role_perms = ['can_dag_read']
+        role_vms = ['dag_id']
+        self.security_manager.init_role(role_name, role_vms, role_perms)
+        role = self.security_manager.find_role(role_name)
+        user.roles = [role]
+        user.is_anonymous.return_value = False
+        mock_get_all_permissions_views.return_value = {('can_dag_read', 'dag_id')}
+
+        mock_get_user_roles.return_value = [role]
+        self.assertEquals(self.security_manager
+                          .get_accessible_dag_ids(user), set(['dag_id']))
+
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_view_access')
+    def test_has_access(self, mock_has_view_access):
+        user = mock.MagicMock()
+        user.is_anonymous.return_value = False
+        mock_has_view_access.return_value = True
+        self.assertTrue(self.security_manager.has_access('perm', 'view', user))
+
+    def test_sync_perm_for_dag(self):
+        test_dag_id = 'TEST_DAG'
+        self.security_manager.sync_perm_for_dag(test_dag_id)
+        for dag_perm in dag_perms:
+            self.assertIsNotNone(self.security_manager.
+                                 find_permission_view_menu(dag_perm, test_dag_id))
+
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_perm')
+    @mock.patch('airflow.www_rbac.security.AirflowSecurityManager._has_role')
+    def test_has_all_dag_access(self, mock_has_role, mock_has_perm):
+        mock_has_role.return_value = True
+        self.assertTrue(self.security_manager.has_all_dags_access())
+
+        mock_has_role.return_value = False
+        mock_has_perm.return_value = False
+        self.assertFalse(self.security_manager.has_all_dags_access())
+
+        mock_has_perm.return_value = True
+        self.assertTrue(self.security_manager.has_all_dags_access())
