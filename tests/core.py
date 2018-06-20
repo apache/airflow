@@ -1057,6 +1057,14 @@ class CliTests(unittest.TestCase):
         args = self.parser.parse_args(['list_dags', '--report'])
         cli.list_dags(args)
 
+    def test_cli_list_dag_runs(self):
+        cli.trigger_dag(self.parser.parse_args([
+            'trigger_dag', 'example_bash_operator', ]))
+        args = self.parser.parse_args(['list_dag_runs',
+                                       'example_bash_operator',
+                                       '--no_backfill'])
+        cli.list_dag_runs(args)
+
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args([
             'create_user', '-u', 'test1', '-l', 'doe', '-f', 'jon',
