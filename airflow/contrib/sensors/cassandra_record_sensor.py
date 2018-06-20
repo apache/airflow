@@ -29,9 +29,10 @@ class CassandraRecordSensor(BaseSensorOperator):
     primary keys 'p1' and 'p2' to be populated in keyspace 'k' and table 't',
     instantiate it as follows:
 
-    >>> CassandraRecordSensor(table="k.t", keys={"p1": "v1", "p2": "v2"},
-    ...     cassandra_conn_id="cassandra_default", task_id="cassandra_sensor")
-    <Task(CassandraRecordSensor): cassandra_sensor>
+    >>> cassandra_sensor = CassandraRecordSensor(table="k.t",
+    ...                                          keys={"p1": "v1", "p2": "v2"},
+    ...                                          cassandra_conn_id="cassandra_default",
+    ...                                          task_id="cassandra_sensor")
     """
     template_fields = ('table', 'keys')
 
