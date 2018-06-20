@@ -23,9 +23,9 @@ import errno
 import importlib
 import posixpath
 
-from . import _fnmatch as fnmatch
-
 from airflow.hooks.base_hook import BaseHook
+
+from . import _fnmatch as fnmatch
 
 _FS_BASE_MODULE = '.'.join(__name__.split('.')[:-1])
 
