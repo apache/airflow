@@ -24,7 +24,8 @@ from mock import patch
 
 from airflow import DAG
 from airflow import configuration
-from airflow.contrib.sensors.cassandra_sensor import CassandraRecordSensor
+from airflow.contrib.sensors.cassandra_record_sensor import CassandraRecordSensor
+from airflow.contrib.sensors.cassandra_table_sensor import CassandraTableSensor
 from airflow.utils import timezone
 
 
@@ -52,6 +53,28 @@ class TestCassandraRecordSensor(unittest.TestCase):
     def test_poke(self, mock_record_exists):
         self.sensor.poke(None)
         mock_record_exists.assert_called_once_with('t', {'foo': 'bar'})
+
+
+class TestCassandraTableSensor(unittest.TestCase):
+
+    def setUp(self):
+        configuration.load_test_config()
+        args = {
+            'owner': 'airflow',
+            'start_date': DEFAULT_DATE
+        }
+        self.dag = DAG('test_dag_id', default_args=args)
+        self.sensor = CassandraTableSensor(
+            task_id='test_task',
+            cassandra_conn_id='cassandra_default',
+            dag=self.dag,
+            table='t',
+        )
+
+    @patch("airflow.contrib.hooks.cassandra_hook.CassandraHook.table_exists")
+    def test_poke(self, mock_table_exists):
+        self.sensor.poke(None)
+        mock_table_exists.assert_called_once_with('t')
 
 
 if __name__ == '__main__':
