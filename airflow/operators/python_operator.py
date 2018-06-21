@@ -70,6 +70,10 @@ class PythonOperator(BaseOperator):
     template_ext = tuple()
     ui_color = '#ffefeb'
 
+    # since we won't mutate the arguments, we should just do the shallow copy
+    # there are some cases we can't deepcopy the objects(e.g protobuf).
+    shallow_copy_attrs = ('python_callable', 'op_kwargs',)
+
     @apply_defaults
     def __init__(
             self,
