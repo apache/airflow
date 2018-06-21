@@ -19,7 +19,6 @@
 #
 
 from builtins import super
-
 import posixpath
 
 import s3fs
@@ -70,7 +69,7 @@ class S3FsHook(FsHook):
             # Path is bucket name.
             return True
 
-        parent_dir = self.dirname(path)
+        parent_dir = posixpath.dirname(path)
 
         for child in self.get_conn().ls(parent_dir, detail=True):
             if child['Key'] == path and \
@@ -85,6 +84,9 @@ class S3FsHook(FsHook):
     def makedirs(self, dir_path, mode=0o755, exist_ok=True):
         if not exist_ok and self.exists(dir_path):
             self._raise_dir_exists(dir_path)
+
+    def listdir(self, dir_path):
+        return self.get_conn().ls(dir_path, details=False)
 
     def walk(self, dir_path):
         dir_path = _remove_s3_prefix(dir_path)

@@ -35,25 +35,30 @@ class SftpHook(FsHook):
 
     def get_conn(self):
         if self._conn is None:
-            config = self.get_connection(self._conn_id)
+            params = self.get_connection(self._conn_id)
 
-            private_key = config.extra_dejson.get('private_key', None)
+            cnopts = pysftp.CnOpts()
+
+            if params.extra_dejson.get('ignore_hostkey_verification', False):
+                cnopts.hostkeys = None
+
+            private_key = params.extra_dejson.get('private_key', None)
 
             if not private_key:
                 self._conn = pysftp.Connection(
-                    config.host,
-                    username=config.login,
-                    password=config.password)
-            elif private_key and config.password:
+                    params.host,
+                    username=params.login,
+                    password=params.password)
+            elif private_key and params.password:
                 self._conn = pysftp.Connection(
-                    config.host,
-                    username=config.login,
+                    params.host,
+                    username=params.login,
                     private_key=private_key,
-                    private_key_pass=config.password)
+                    private_key_pass=params.password)
             else:
                 self._conn = pysftp.Connection(
-                    config.host,
-                    username=config.login,
+                    params.host,
+                    username=params.login,
                     private_key=private_key)
 
         return self._conn
@@ -81,6 +86,9 @@ class SftpHook(FsHook):
         if not exist_ok and self.exists(dir_path):
             self._raise_dir_exists(dir_path)
         self.get_conn().makedirs(dir_path, mode=int(oct(mode)[2:]))
+
+    def listdir(self, dir_path):
+        return self.get_conn().listdir(dir_path)
 
     def walk(self, dir_path):
         from stat import S_ISDIR, S_ISREG

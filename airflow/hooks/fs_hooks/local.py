@@ -19,7 +19,6 @@
 #
 
 from builtins import open, str
-
 import os
 import shutil
 
@@ -56,6 +55,9 @@ class LocalFsHook(FsHook):
                 self._raise_dir_exists(dir_path)
         else:
             os.makedirs(str(dir_path), mode=mode)
+
+    def listdir(self, dir_path):
+        return os.listdir(dir_path)
 
     def walk(self, dir_path):
         for tup in os.walk(dir_path):

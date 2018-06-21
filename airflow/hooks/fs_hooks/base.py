@@ -20,12 +20,13 @@
 
 from builtins import super
 import errno
+import fnmatch
 import importlib
 import posixpath
+import re
+import shutil
 
 from airflow.hooks.base_hook import BaseHook
-
-from . import _fnmatch as fnmatch
 
 _FS_BASE_MODULE = '.'.join(__name__.split('.')[:-1])
 
@@ -129,6 +130,10 @@ class FsHook(BaseHook):
         """
         raise NotImplementedError()
 
+    def listdir(self, dir_path):
+        """Lists names of entries in the given path."""
+        raise NotImplementedError()
+
     def walk(self, dir_path):
         """Generates file names in the given directory tree."""
         raise NotImplementedError()
@@ -166,63 +171,91 @@ class FsHook(BaseHook):
         raise IOError(errno.EEXIST,
                       'Directory exists: {!r}'.format(dir_path))
 
-    # Path manipulation methods.
-
-    # Join/split should be overriden for file systems that don't use
-    # posix path conventions.
-
-    @staticmethod
-    def join(path, *paths):
-        """Join one or more path components."""
-        return posixpath.join(path, *paths)
-
-    @staticmethod
-    def split(path):
-        """Split the pathname path into a head/tail pair."""
-        return posixpath.split(path)
-
-    @classmethod
-    def dirname(cls, path):
-        """Return the directory name of pathname path."""
-        return cls.split(path)[0]
-
-    @classmethod
-    def basename(cls, path):
-        """Return the base name of pathname path."""
-        return cls.split(path)[1]
-
     # General utility methods built on the above interface.
 
     # These methods can be overridden in sub-classes if more efficient
     # implementations are available for a specific file system.
 
-    def glob(self, pattern):
-        """Returns list of file paths matching pattern (i.e., with '*'s).
+    def glob(self, pattern, only_files=True):
+        """Returns list of file paths matching glob pattern.
 
-        Supports recursive globbing using '**'. Built on `os.walk`.
+        Recursive globbing is not supported.
 
-        :param str pattern: Pattern to match.
+        :param str pattern: Pattern to match against file name.
+        :param bool only_files: If true, only files are returned
+            in the result (no directories).
+
         :returns: List of matched file paths.
         :rtype: list[str]
         """
 
-        # Get root of pattern.
-        if self.sep in pattern[:pattern.index('*')]:
-            ind = pattern[:pattern.index('*')].rindex(self.sep)
-            root = pattern[:ind + 1]
+        root = posixpath.dirname(pattern)
+        file_pattern = posixpath.basename(pattern)
+
+        matches = (posixpath.join(root, match) for match in
+                   fnmatch.filter(self.listdir(root), file_pattern))
+
+        if only_files:
+            matches = (match for match in matches if not self.isdir(match))
+
+        for match in matches:
+            yield match
+
+    def upload(self, src_path, dst_path, src_conn_id='local'):
+        """Uploads files to the given file system.
+
+        Supports copying multiple files via globbing in the `src_path`,
+        in which case `dst_path` is considered to be the destination
+        directory for these files.
+        """
+
+        with FsHook.for_connection(src_conn_id) as src_hook:
+            for src, dst in self._generate_paths(src_path, dst_path, src_hook):
+                with src_hook.open(src, 'rb') as src_file, \
+                     self.open(dst, 'wb') as dst_file:
+                    shutil.copyfileobj(src_file, dst_file)
+
+    def _generate_paths(self, src_path, dst_path, src_hook):
+        """Expands glob file path if given, else returns a list containing
+           a single tuple of (src_path, dst_path).
+        """
+
+        if self._is_glob_pattern(src_path):
+            paths = []
+
+            for src_file_path in src_hook.glob(src_path):
+                base_name = posixpath.basename(src_file_path)
+                dst_file_path = posixpath.join(dst_path, base_name)
+
+                paths.append((src_file_path, dst_file_path))
         else:
-            root = '.'
+            paths = [(src_path, dst_path)]
 
-        # Get all file paths.
-        all_paths = []
-        for base_dir, _, file_names in self.walk(root):
-            all_paths.extend(self.join(base_dir, f) for f in file_names)
+        return paths
 
-        # Filter using modified version of fnmatch.
-        matches = fnmatch.filter(all_paths, pattern, sep=self.sep)
+    @staticmethod
+    def _is_glob_pattern(path):
+        return re.search(r'\?|\[|\*', path) is not None
 
-        return matches
+    def upload_fileobj(self, file_obj, dst_path):
+        """Uploads a file object in the given file system."""
 
+        with self.open(dst_path, 'rb') as dst_file:
+            shutil.copyfileobj(file_obj, dst_file)
+
+    def download(self, src_path, dst_path, dst_conn_id='local'):
+        """Downloads files from the given file systems.
+
+        Supports copying multiple files via globbing in the `src_path`,
+        in which case `dst_path` is considered to be the destination
+        directory for these files.
+        """
+
+        with FsHook.for_connection(dst_conn_id) as dst_hook:
+            for src, dst in self._generate_paths(src_path, dst_path, self):
+                with self.open(src, 'wb') as src_file, \
+                     dst_hook.open(dst, 'wb') as dst_file:
+                    shutil.copyfileobj(src_file, dst_file)
 
 class NotSupportedError(NotImplementedError):
     """Exception that may be raised by FsHooks if the don't support

@@ -78,6 +78,9 @@ class FtpHook(FsHook):
             self._raise_dir_exists(dir_path)
         self.get_conn().makedirs(dir_path, mode=mode)
 
+    def listdir(self, dir_path):
+        return self.get_conn().listdir(dir_path)
+
     def walk(self, dir_path):
         for tup in self.get_conn().walk(dir_path):
             yield tup

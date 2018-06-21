@@ -154,7 +154,7 @@ gcp_api = [
     'pandas-gbq'
 ]
 github_enterprise = ['Flask-OAuthlib>=0.9.1']
-hdfs = ['snakebite>=2.7.8']
+hdfs = ['snakebite>=2.7.8','hdfs3>=0.3.0']
 hive = [
     'hmsclient>=0.1.0',
     'pyhive>=0.6.0',
