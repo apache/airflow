@@ -137,7 +137,7 @@ class DbApiHook(BaseHook):
                     cur.execute(sql)
                 return cur.fetchone()
 
-    def run(self, sql, autocommit=True, parameters=None):
+    def run(self, sql, autocommit=False, parameters=None):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -169,9 +169,9 @@ class DbApiHook(BaseHook):
                     else:
                         cur.execute(s)
 
-            should_commit = getattr(conn, 'autocommit', False)
-
-            if should_commit:
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not getattr(conn, 'autocommit', False):
                 conn.commit()
 
     def set_autocommit(self, conn, autocommit):

@@ -144,9 +144,10 @@ elasticsearch = [
 ]
 emr = ['boto3>=1.0.0']
 gcp_api = [
-    'httplib2',
-    'google-api-python-client>=1.5.0, <1.6.0',
-    'oauth2client>=2.0.2, <2.1.0',
+    'httplib2>=0.9.2',
+    'google-api-python-client>=1.6.0, <2.0.0dev',
+    'google-auth>=1.0.0, <2.0.0dev',
+    'google-auth-httplib2>=0.0.1',
     'PyOpenSSL',
     'pandas-gbq'
 ]

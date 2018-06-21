@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,9 +32,11 @@ class DockerOperator(BaseOperator):
     """
     Execute a command inside a docker container.
 
-    A temporary directory is created on the host and mounted into a container to allow storing files
-    that together exceed the default disk size of 10GB in a container. The path to the mounted
-    directory can be accessed via the environment variable ``AIRFLOW_TMP_DIR``.
+    A temporary directory is created on the host and
+    mounted into a container to allow storing files
+    that together exceed the default disk size of 10GB in a container.
+    The path to the mounted directory can be accessed
+    via the environment variable ``AIRFLOW_TMP_DIR``.
 
     If a login to a private registry is required prior to pulling the image, a
     Docker connection needs to be configured in Airflow and the connection ID
@@ -58,37 +60,42 @@ class DockerOperator(BaseOperator):
     :type environment: dict
     :param force_pull: Pull the docker image on every run. Default is false.
     :type force_pull: bool
-    :param mem_limit: Maximum amount of memory the container can use. Either a float value, which
-        represents the limit in bytes, or a string like ``128m`` or ``1g``.
+    :param mem_limit: Maximum amount of memory the container can use.
+        Either a float value, which represents the limit in bytes,
+        or a string like ``128m`` or ``1g``.
     :type mem_limit: float or str
     :param network_mode: Network mode for the container.
     :type network_mode: str
-    :param tls_ca_cert: Path to a PEM-encoded certificate authority to secure the docker connection.
+    :param tls_ca_cert: Path to a PEM-encoded certificate authority
+        to secure the docker connection.
     :type tls_ca_cert: str
-    :param tls_client_cert: Path to the PEM-encoded certificate used to authenticate docker client.
+    :param tls_client_cert: Path to the PEM-encoded certificate
+        used to authenticate docker client.
     :type tls_client_cert: str
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
     :type tls_client_key: str
-    :param tls_hostname: Hostname to match against the docker server certificate or False to
-        disable the check.
+    :param tls_hostname: Hostname to match against
+        the docker server certificate or False to disable the check.
     :type tls_hostname: str or bool
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
     :type tls_ssl_version: str
-    :param tmp_dir: Mount point inside the container to a temporary directory created on the host by
-        the operator. The path is also made available via the environment variable
+    :param tmp_dir: Mount point inside the container to
+        a temporary directory created on the host by the operator.
+        The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
     :type tmp_dir: str
     :param user: Default user inside the docker container.
     :type user: int or str
     :param volumes: List of volumes to mount into the container, e.g.
         ``['/host/path:/container/path', '/host/path2:/container/path2:ro']``.
-    :param working_dir: Working directory to set on the container (equivalent to the -w switch
-        the docker client)
+    :param working_dir: Working directory to
+        set on the container (equivalent to the -w switch the docker client)
     :type working_dir: str
     :param xcom_push: Does the stdout will be pushed to the next step using XCom.
-           The default is False.
+        The default is False.
     :type xcom_push: bool
-    :param xcom_all: Push all the stdout or just the last line. The default is False (last line).
+    :param xcom_all: Push all the stdout or just the last line.
+        The default is False (last line).
     :type xcom_all: bool
     :param docker_conn_id: ID of the Airflow connection to use
     :type docker_conn_id: str
@@ -216,7 +223,8 @@ class DockerOperator(BaseOperator):
                 raise AirflowException('docker container failed')
 
             if self.xcom_push_flag:
-                return self.cli.logs(container=self.container['Id']) if self.xcom_all else str(line)
+                return self.cli.logs(container=self.container['Id']) \
+                    if self.xcom_all else str(line)
 
     def get_command(self):
         if self.command is not None and self.command.strip().find('[') == 0:
