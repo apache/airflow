@@ -14,6 +14,7 @@
 #
 
 import unittest
+import mock
 import re
 import string
 import random
@@ -21,6 +22,7 @@ from datetime import datetime
 
 try:
     from airflow.contrib.executors.kubernetes_executor import AirflowKubernetesScheduler
+    from airflow.contrib.kubernetes.worker_configuration import WorkerConfiguration
 except ImportError:
     AirflowKubernetesScheduler = None
 
@@ -72,6 +74,66 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
             serialized_datetime)
 
         self.assertEquals(datetime_obj, new_datetime_obj)
+
+
+class TestKubernetesWorkerConfiguration(unittest.TestCase):
+    """
+    Tests that if dags_volume_subpath/logs_volume_subpath configuration
+    options are passed to worker pod config
+    """
+    def setUp(self):
+        if AirflowKubernetesScheduler is None:
+            self.skipTest("kubernetes python package is not installed")
+
+        self.pod = mock.patch(
+            'airflow.contrib.kubernetes.worker_configuration.Pod'
+        )
+        self.resources = mock.patch(
+            'airflow.contrib.kubernetes.worker_configuration.Resources'
+        )
+        self.secret = mock.patch(
+            'airflow.contrib.kubernetes.worker_configuration.Secret'
+        )
+
+        for patcher in [self.pod, self.resources, self.secret]:
+            self.mock_foo = patcher.start()
+            self.addCleanup(patcher.stop)
+
+        self.kube_config = mock.MagicMock()
+        self.kube_config.airflow_home = '/'
+        self.kube_config.airflow_dags = 'dags'
+        self.kube_config.airflow_dags = 'logs'
+        self.kube_config.dags_volume_subpath = None
+        self.kube_config.logs_volume_subpath = None
+
+    def test_worker_configuration_no_subpaths(self):
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+        for volume_or_mount in volumes + volume_mounts:
+            if volume_or_mount['name'] != 'airflow-config':
+                self.assertNotIn(
+                    'subPath', volume_or_mount,
+                    "subPath shouldn't be defined"
+                )
+
+    def test_worker_with_subpaths(self):
+        self.kube_config.dags_volume_subpath = 'dags'
+        self.kube_config.logs_volume_subpath = 'logs'
+        worker_config = WorkerConfiguration(self.kube_config)
+        volumes, volume_mounts = worker_config.init_volumes_and_mounts()
+
+        for volume in volumes:
+            self.assertNotIn(
+                'subPath', volume,
+                "subPath isn't valid configuration for a volume"
+            )
+
+        for volume_mount in volume_mounts:
+            if volume_mount['name'] != 'airflow-config':
+                self.assertIn(
+                    'subPath', volume_mount,
+                    "subPath should've been passed to volumeMount configuration"
+                )
 
 
 if __name__ == '__main__':
