@@ -4470,8 +4470,7 @@ class XCom(Base, LoggingMixin):
     id = Column(Integer, primary_key=True)
     key = Column(String(512))
     value = Column(LargeBinary)
-    timestamp = Column(
-        DateTime, default=timezone.utcnow, nullable=False)
+    timestamp = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     execution_date = Column(UtcDateTime, nullable=False)
 
     # source information
