@@ -727,6 +727,32 @@ class Airflow(AirflowBaseView):
             "it should start any moment now.".format(ti))
         return redirect(origin)
 
+    @expose('/delete')
+    @action_logging
+    @has_access
+    def delete(self):
+        from airflow.api.common.experimental import delete_dag
+        from airflow.exceptions import DagNotFound, DagFileExists
+
+        dag_id = request.args.get('dag_id')
+        origin = request.args.get('origin') or "/"
+
+        try:
+            delete_dag.delete_dag(dag_id)
+        except DagNotFound:
+            flash("DAG with id {} not found. Cannot delete".format(dag_id))
+            return redirect(request.referrer)
+        except DagFileExists:
+            flash("Dag id {} is still in DagBag. "
+                  "Remove the DAG file first.".format(dag_id))
+            return redirect(request.referrer)
+
+        flash("Deleting DAG with id {}. May take a couple minutes to fully"
+              " disappear.".format(dag_id))
+
+        # Upon success return to origin.
+        return redirect(origin)
+
     @expose('/trigger')
     @has_access
     @action_logging
@@ -964,6 +990,10 @@ class Airflow(AirflowBaseView):
         dag_id = request.args.get('dag_id')
         blur = conf.getboolean('webserver', 'demo_mode')
         dag = dagbag.get_dag(dag_id)
+        if dag_id not in dagbag.dags:
+            flash('DAG "{0}" seems to be missing.'.format(dag_id), "error")
+            return redirect('/')
+
         root = request.args.get('root')
         if root:
             dag = dag.sub_dag(
