@@ -191,6 +191,11 @@
                   <span class="glyphicon glyphicon-refresh" aria-hidden="true" data-original-title="Refresh"></span>
                 </a>
 
+                <!-- Delete -->
+                <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id) }}"
+                   onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+                  <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true" data-original-title="Delete Dag"></span>
+                </a>
                 </td>
             </tr>
         {% endfor %}
@@ -241,6 +246,12 @@
         p_size = $(this).val();
         window.location = DAGS_INDEX + "?page_size=" + p_size;
       });
+
+      function confirmDeleteDag(dag_id){
+          return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          This cannot be undone.");
+      }
 
       function confirmTriggerDag(dag_id){
           return confirm("Are you sure you want to run '"+dag_id+"' now?");
