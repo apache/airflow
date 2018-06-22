@@ -1,4 +1,4 @@
-from airflow.models import SlaMiss, TaskInstance
+import airflow.models
 from airflow.utils.state import State
 
 
@@ -16,7 +16,7 @@ def get_task_instances_between(ti, ts):
     next_exc_date = dag.following_schedule(ti.execution_date)
 
     while next_exc_date < ts:
-        yield TaskInstance(task, next_exc_date)
+        yield airflow.models.TaskInstance(task, next_exc_date)
 
         # Increment by one execution
         next_exc_date = dag.following_schedule(next_exc_date)
@@ -46,11 +46,11 @@ def create_sla_misses(ti, ts, session):
                 duration = ts - ti.start_date
 
             if duration > ti.task.expected_duration:
-                session.merge(SlaMiss(
+                session.merge(airflow.models.SlaMiss(
                     task_id=ti.task_id,
                     dag_id=ti.dag_id,
                     execution_date=ti.execution_date,
-                    type=SlaMiss.TASK_DURATION_EXCEEDED,
+                    type=airflow.models.SlaMiss.TASK_DURATION_EXCEEDED,
                     timestamp=ts))
         except Exception:
             self.log.warning(
@@ -62,62 +62,61 @@ def create_sla_misses(ti, ts, session):
     # TODO: SLA Miss for Expected Start
 
     # TODO: SLA Miss for Expected Finish
+def send_sla_miss_email(context):
+    """
+    Send an SLA miss email. This is the default SLA miss callback.
+    """
 
-    def send_sla_miss_email(context):
-        """
-        Send an SLA miss email. This is the default SLA miss callback.
-        """
+    # TODO: Fix this up.
+    TI = airflow.models.TaskInstance
 
-        # TODO: Fix this up.
-        TI = TaskInstance
+    sla_miss_dates = [sla_miss.execution_date for sla_miss in sla_misses]
+    qry = (
+        session
+        .query(TI)
+        .filter(TI.state != State.SUCCESS)
+        .filter(TI.execution_date.in_(sla_miss_dates))
+        .filter(TI.dag_id == self.dag_id)
+        .all()
+    )
+    blocking_tis = []
 
-        sla_miss_dates = [sla_miss.execution_date for sla_miss in sla_misses]
-        qry = (
-            session
-            .query(TI)
-            .filter(TI.state != State.SUCCESS)
-            .filter(TI.execution_date.in_(sla_miss_dates))
-            .filter(TI.dag_id == self.dag_id)
-            .all()
-        )
-        blocking_tis = []
+    for ti in qry:
+        if ti.task_id in self.task_ids:
+            ti.task = self.get_task(ti.task_id)
+            blocking_tis.append(ti)
+        else:
+            session.delete(ti)
+            session.commit()
 
-        for ti in qry:
-            if ti.task_id in self.task_ids:
-                ti.task = self.get_task(ti.task_id)
-                blocking_tis.append(ti)
-            else:
-                session.delete(ti)
-                session.commit()
+    task_list = "\n".join([
+        sla.task_id + ' on ' + sla.execution_date.isoformat()
+        for sla in sla_misses])
+    blocking_task_list = "\n".join([
+        ti.task_id + ' on ' + ti.execution_date.isoformat()
+        for ti in blocking_tis])
 
-        task_list = "\n".join([
-            sla.task_id + ' on ' + sla.execution_date.isoformat()
-            for sla in sla_misses])
-        blocking_task_list = "\n".join([
-            ti.task_id + ' on ' + ti.execution_date.isoformat()
-            for ti in blocking_tis])
+    email_content = """\
+    Here's a list of tasks that missed their SLAs:
+    <pre><code>{task_list}\n<code></pre>
+    Blocking tasks:
+    <pre><code>{blocking_task_list}\n{bug}<code></pre>
+    """.format(bug=asciiart.bug, **locals())
+    emails = []
+    for t in self.tasks:
+        if t.email:
+            if isinstance(t.email, basestring):
+                l = [t.email]
+            elif isinstance(t.email, (list, tuple)):
+                l = t.email
+            for email in l:
+                if email not in emails:
+                    emails.append(email)
+    if emails and len(slas):
 
-        email_content = """\
-        Here's a list of tasks that missed their SLAs:
-        <pre><code>{task_list}\n<code></pre>
-        Blocking tasks:
-        <pre><code>{blocking_task_list}\n{bug}<code></pre>
-        """.format(bug=asciiart.bug, **locals())
-        emails = []
-        for t in self.tasks:
-            if t.email:
-                if isinstance(t.email, basestring):
-                    l = [t.email]
-                elif isinstance(t.email, (list, tuple)):
-                    l = t.email
-                for email in l:
-                    if email not in emails:
-                        emails.append(email)
-        if emails and len(slas):
-
-                send_email(
-                    emails,
-                    "[airflow] SLA miss on DAG=" + self.dag_id,
-                    email_content)
-                email_sent = True
-                notification_sent = True
+            send_email(
+                emails,
+                "[airflow] SLA miss on DAG=" + self.dag_id,
+                email_content)
+            email_sent = True
+            notification_sent = True
