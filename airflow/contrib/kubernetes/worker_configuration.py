@@ -109,34 +109,31 @@ class WorkerConfiguration(LoggingMixin):
         dags_volume_name = 'airflow-dags'
         logs_volume_name = 'airflow-logs'
 
-        def _construct_volume(name, claim, subpath=None):
-            vo = {
+        def _construct_volume(name, claim):
+            volume = {
                 'name': name
             }
             if claim:
-                vo['persistentVolumeClaim'] = {
+                volume['persistentVolumeClaim'] = {
                     'claimName': claim
                 }
-                if subpath:
-                    vo['subPath'] = subpath
             else:
-                vo['emptyDir'] = {}
-            return vo
+                volume['emptyDir'] = {}
+            return volume
 
         volumes = [
             _construct_volume(
                 dags_volume_name,
-                self.kube_config.dags_volume_claim,
-                self.kube_config.dags_volume_subpath
+                self.kube_config.dags_volume_claim
             ),
             _construct_volume(
                 logs_volume_name,
-                self.kube_config.logs_volume_claim,
-                self.kube_config.logs_volume_subpath
+                self.kube_config.logs_volume_claim
             )
         ]
 
         dag_volume_mount_path = ""
+
         if self.kube_config.dags_volume_claim:
             dag_volume_mount_path = self.worker_airflow_dags
         else:
@@ -144,15 +141,25 @@ class WorkerConfiguration(LoggingMixin):
                 self.worker_airflow_dags,
                 self.kube_config.git_subpath
             )
-
-        volume_mounts = [{
+        dags_volume_mount = {
             'name': dags_volume_name,
             'mountPath': dag_volume_mount_path,
-            'readOnly': True
-        }, {
+            'readOnly': True,
+        }
+        if self.kube_config.dags_volume_subpath:
+            dags_volume_mount['subPath'] = self.kube_config.dags_volume_subpath
+
+        logs_volume_mount = {
             'name': logs_volume_name,
-            'mountPath': self.worker_airflow_logs
-        }]
+            'mountPath': self.worker_airflow_logs,
+        }
+        if self.kube_config.dags_volume_subpath:
+            logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
+
+        volume_mounts = [
+            dags_volume_mount,
+            logs_volume_mount
+        ]
 
         # Mount the airflow.cfg file via a configmap the user has specified
         if self.kube_config.airflow_configmap:
