@@ -99,6 +99,13 @@
           Refresh
         </a>
       </li>
+      <li>
+        <a href="{{ url_for('Airflow.delete', dag_id=dag.dag_id, root=root) }}"
+        onclick="return confirmDeleteDag('{{ dag.safe_dag_id }}')">
+        <span class="glyphicon glyphicon-remove-circle" style="color:red" aria-hidden="true"></span>
+        Delete
+        </a>
+      </li>
     </ul>
   </div>
   <hr>
@@ -298,6 +305,12 @@ function updateQueryStringParameter(uri, key, value) {
       $('#dag_id').html(dag_id);
       $('#dagModal').modal({});
       $("#dagModal").css("margin-top","0px");
+    }
+
+    function confirmDeleteDag(dag_id){
+        return confirm("Are you sure you want to delete '"+dag_id+"' now?\n\
+          This option will delete ALL metadata, DAG runs, etc.\n\
+          This cannot be undone.");
     }
 
     $("#btn_rendered").click(function(){
