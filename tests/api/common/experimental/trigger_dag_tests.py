@@ -77,7 +77,7 @@ class TriggerDagTests(unittest.TestCase):
         dag2.subdags = []
         dag_mock.subdags = [dag1, dag2]
 
-        triggers = _trigger_dag(
+        trigger = _trigger_dag(
             dag_id,
             dag_bag_mock,
             dag_run_mock,
@@ -86,7 +86,7 @@ class TriggerDagTests(unittest.TestCase):
             execution_date=None,
             replace_microseconds=True)
 
-        self.assertEqual(3, len(triggers))
+        self.assertTrue(trigger)
 
 
 if __name__ == '__main__':

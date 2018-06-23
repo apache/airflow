@@ -98,6 +98,7 @@ class SubDagOperator(BaseOperator):
 
     def execute(self, context):
         ed = context['execution_date']
+        conf = context['dag_run'].conf
         self.subdag.run(
             start_date=ed, end_date=ed, donot_pickle=True,
-            executor=self.executor)
+            executor=self.executor, conf=conf)
