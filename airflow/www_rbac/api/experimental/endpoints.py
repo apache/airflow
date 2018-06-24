@@ -25,6 +25,7 @@ from airflow.api.common.experimental.get_task import get_task
 from airflow.api.common.experimental.get_task_instance import get_task_instance
 from airflow.api.common.experimental.get_dag_run_state import get_dag_run_state
 from airflow.exceptions import AirflowException
+from airflow import configuration
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils import timezone
 from airflow.www_rbac.app import csrf
@@ -318,3 +319,26 @@ def delete_pool(name):
         return response
     else:
         return jsonify(pool.to_json())
+
+
+@api_experimental.route('/configurations', methods=['GET'])
+@requires_authentication
+def get_configurations():
+    """
+    Get Airflow's configurations.
+    It also supports a `?section=[celery|webserver|etc...]` query string
+    parameter to get any specific configurations.
+    """
+    try:
+        section = request.args.get('section')
+        if section:
+            conf = configuration.getsection(section)
+        else:
+            conf = configuration.as_dict()
+    except AirflowException as err:
+        _log.error(err)
+        response = jsonify(error="{}".format(err))
+        response.status_code = err.status_code
+        return response
+    else:
+        return jsonify(conf)
