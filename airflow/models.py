@@ -1967,6 +1967,10 @@ class TaskInstance(Base, LoggingMixin):
                 'execution_date is {}; received {})'.format(
                     self.execution_date, execution_date))
 
+        if sys.getsizeof(value) >= 1073741824:
+            logging.warning("Return value size is higher than 1GB, cannot be saved in XCom.")
+            value = "This is a false value. The real value was too big to be saved."
+
         XCom.set(
             key=key,
             value=value,
