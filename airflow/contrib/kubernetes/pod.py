@@ -89,7 +89,7 @@ class Pod:
         self.name = name
         self.volumes = volumes or []
         self.volume_mounts = volume_mounts or []
-        self.node_selectors = node_selectors or []
+        self.node_selectors = node_selectors or {}
         self.namespace = namespace
         self.image_pull_policy = image_pull_policy
         self.image_pull_secrets = image_pull_secrets

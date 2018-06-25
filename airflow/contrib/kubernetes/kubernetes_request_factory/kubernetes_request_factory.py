@@ -85,8 +85,9 @@ class KubernetesRequestFactory:
 
     @staticmethod
     def extract_node_selector(pod, req):
-        if len(pod.node_selectors) > 0:
-            req['spec']['nodeSelector'] = pod.node_selectors
+        req['spec']['nodeSelector'] = req['spec'].get('nodeSelector', {})
+        for k, v in six.iteritems(pod.node_selectors):
+            req['spec']['nodeSelector'][k] = v
 
     @staticmethod
     def attach_volumes(pod, req):
