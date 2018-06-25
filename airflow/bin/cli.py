@@ -844,8 +844,10 @@ def webserver(args):
                 master_timeout = conf.getint('webserver', 'web_server_master_timeout')
                 restart_workers(gunicorn_master_proc, num_workers, master_timeout)
             else:
-                while True:
+                while gunicorn_master_proc.poll() is None:
                     time.sleep(1)
+
+                sys.exit(gunicorn_master_proc.returncode)
 
         if args.daemon:
             base, ext = os.path.splitext(pid)
