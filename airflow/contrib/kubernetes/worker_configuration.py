@@ -150,7 +150,7 @@ class WorkerConfiguration(LoggingMixin):
             'name': logs_volume_name,
             'mountPath': self.worker_airflow_logs,
         }
-        if self.kube_config.dags_volume_subpath:
+        if self.kube_config.logs_volume_subpath:
             logs_volume_mount['subPath'] = self.kube_config.logs_volume_subpath
 
         volume_mounts = [
