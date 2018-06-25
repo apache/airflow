@@ -145,6 +145,7 @@ class QuboleOperator(BaseOperator):
     template_ext = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
+    extra_links = ['Go to QDS']
 
     @apply_defaults
     def __init__(self, qubole_conn_id="qubole_default", *args, **kwargs):
@@ -177,6 +178,9 @@ class QuboleOperator(BaseOperator):
     def get_hook(self):
         # Reinitiating the hook, as some template fields might have changed
         return QuboleHook(*self.args, **self.kwargs)
+
+    def get_extra_links(self, dttm, link_name):
+        return self.get_hook().get_extra_links(self, dttm)
 
     def __getattribute__(self, name):
         if name in QuboleOperator.template_fields:

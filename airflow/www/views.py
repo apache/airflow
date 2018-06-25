@@ -1258,6 +1258,7 @@ class Airflow(AirflowBaseView):
                 'end_date': task.end_date,
                 'depends_on_past': task.depends_on_past,
                 'ui_color': task.ui_color,
+                'extra_links': task.extra_links,
             }
 
         data = {
@@ -1356,6 +1357,7 @@ class Airflow(AirflowBaseView):
             t.task_id: {
                 'dag_id': t.dag_id,
                 'task_type': t.task_type,
+                'extra_links': t.extra_links,
             }
             for t in dag.tasks}
         if not tasks:
@@ -1743,6 +1745,12 @@ class Airflow(AirflowBaseView):
             end_date = tf.end_date or timezone.utcnow()
             gantt_bar_items.append((tf.task_id, tf.start_date, end_date, State.FAILED))
 
+        task_types = {}
+        extra_links = {}
+        for t in dag.tasks:
+            task_types[t.task_id] = t.task_type
+            extra_links[t.task_id] = t.extra_links
+
         tasks = []
         for gantt_bar_item in gantt_bar_items:
             task_id = gantt_bar_item[0]
@@ -1755,11 +1763,14 @@ class Airflow(AirflowBaseView):
                 'isoStart': start_date.isoformat()[:-4],
                 'isoEnd': end_date.isoformat()[:-4],
                 'taskName': task_id,
+                'taskType': task_types[ti.task_id],
                 'duration': "{}".format(end_date - start_date)[:-4],
                 'status': state,
                 'executionDate': dttm.isoformat(),
+                'extraLinks': extra_links[ti.task_id],
             })
         states = {task['status']: task['status'] for task in tasks}
+
         data = {
             'taskNames': [ti.task_id for ti in tis],
             'tasks': tasks,
@@ -1779,6 +1790,65 @@ class Airflow(AirflowBaseView):
             demo_mode=demo_mode,
             root=root,
         )
+
+    @expose('/extra_links')
+    @has_dag_access(can_dag_read=True)
+    @has_access
+    @action_logging
+    def extra_links(self):
+        """
+        A restful endpoint that returns external links for a given Operator
+
+        It queries the operator that sent the request for the links it wishes
+        to provide for a given external link name.
+
+        API: GET
+        Args: dag_id: The id of the dag containing the task in question
+              task_id: The id of the task in question
+              execution_date: The date of execution of the task
+              link_name: The name of the link reference to find the actual URL for
+
+        Returns:
+            200: {url: <url of link>, error: None} - returned when there was no problem
+                finding the URL
+            404: {url: None, error: <error message>} - returned when the operator does
+                not return a URL
+        """
+        dag_id = request.args.get('dag_id')
+        task_id = request.args.get('task_id')
+        execution_date = request.args.get('execution_date')
+        link_name = request.args.get('link_name')
+        dttm = airflow.utils.timezone.parse(execution_date)
+        dag = dagbag.get_dag(dag_id)
+
+        if not dag or task_id not in dag.task_ids:
+            response = jsonify(
+                {'url': None,
+                 'error': "can't find dag {dag} or task_id {task_id}".format(
+                     dag=dag,
+                     task_id=task_id
+                 )}
+            )
+            response.status_code = 404
+            return response
+
+        task = dag.get_task(task_id)
+
+        try:
+            url = task.get_extra_links(dttm, link_name)
+        except ValueError as err:
+            response = jsonify({'url': None, 'error': str(err)})
+            response.status_code = 404
+            return response
+        if url:
+            response = jsonify({'error': None, 'url': url})
+            response.status_code = 200
+            return response
+        else:
+            response = jsonify(
+                {'url': None, 'error': 'No URL found for {dest}'.format(dest=link_name)})
+            response.status_code = 404
+            return response
 
     @expose('/object/task_instances')
     @has_dag_access(can_dag_read=True)
