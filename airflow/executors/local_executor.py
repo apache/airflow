@@ -45,7 +45,13 @@ class LocalWorker(multiprocessing.Process, LoggingMixin):
                 self.__class__.__name__, command))
             command = "exec bash -c '{0}'".format(command)
             try:
-                subprocess.check_call(command, shell=True)
+                output = subprocess.check_output(
+                    command,
+                    shell=True,
+                    close_fds=True,
+                    stderr=subprocess.STDOUT,
+                )
+                self.logger.info(output)
                 state = State.SUCCESS
             except subprocess.CalledProcessError as e:
                 state = State.FAILED

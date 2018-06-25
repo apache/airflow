@@ -18,6 +18,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import logging
+from logging.config import dictConfig
 import os
 import sys
 
@@ -26,6 +27,13 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.pool import NullPool
 
 from airflow import configuration as conf
+from airflow.utils.logging import RedirectStdHandler
+
+PROGRESS_BAR_FORMAT = (
+    '{desc}: {n_fmt}/{total_fmt} {percentage:3.0f}%'
+    '|{bar}|'
+    ' [{elapsed}<{remaining},{rate_fmt}{postfix}]'
+)
 
 
 class DummyStatsLogger(object):
@@ -117,10 +125,32 @@ def policy(task_instance):
     pass
 
 
-def configure_logging(log_format=LOG_FORMAT):
-    logging.root.handlers = []
-    logging.basicConfig(
-        format=log_format, stream=sys.stdout, level=LOGGING_LEVEL)
+LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'airflow': {
+            'format': LOG_FORMAT,
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'airflow.utils.logging.RedirectStdHandler',
+            'formatter': 'airflow',
+            'stream': 'sys.stdout'
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOGGING_LEVEL,
+    }
+}
+
+
+def configure_logging(log_format=None):
+    if log_format:
+        LOGGING_CONFIG['formatters']['airflow']['format'] = log_format
+    dictConfig(LOGGING_CONFIG)
 
 
 def configure_vars():

@@ -473,7 +473,8 @@ class BackfillJobTest(unittest.TestCase):
         subdag.clear()
         dag.clear()
 
-    def test_update_counters(self):
+    @mock.patch('tqdm.tqdm')
+    def test_update_counters(self, pbar_mock):
         dag = DAG(
             dag_id='test_manage_executor_state',
             start_date=DEFAULT_DATE)
@@ -506,7 +507,7 @@ class BackfillJobTest(unittest.TestCase):
         started[ti.key] = ti
         job._update_counters(started=started, succeeded=succeeded,
                                      skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
+                                     tasks_to_run=tasks_to_run, tasks_pbar=pbar_mock)
         self.assertTrue(len(started) == 0)
         self.assertTrue(len(succeeded) == 1)
         self.assertTrue(len(skipped) == 0)
@@ -520,7 +521,7 @@ class BackfillJobTest(unittest.TestCase):
         started[ti.key] = ti
         job._update_counters(started=started, succeeded=succeeded,
                                      skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
+                                     tasks_to_run=tasks_to_run, tasks_pbar=pbar_mock)
         self.assertTrue(len(started) == 0)
         self.assertTrue(len(succeeded) == 0)
         self.assertTrue(len(skipped) == 1)
@@ -534,7 +535,7 @@ class BackfillJobTest(unittest.TestCase):
         started[ti.key] = ti
         job._update_counters(started=started, succeeded=succeeded,
                                      skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
+                                     tasks_to_run=tasks_to_run, tasks_pbar=pbar_mock)
         self.assertTrue(len(started) == 0)
         self.assertTrue(len(succeeded) == 0)
         self.assertTrue(len(skipped) == 0)
@@ -549,7 +550,7 @@ class BackfillJobTest(unittest.TestCase):
         started[ti.key] = ti
         job._update_counters(started=started, succeeded=succeeded,
                                      skipped=skipped, failed=failed,
-                                     tasks_to_run=tasks_to_run)
+                                     tasks_to_run=tasks_to_run, tasks_pbar=pbar_mock)
         self.assertTrue(len(started) == 0)
         self.assertTrue(len(succeeded) == 0)
         self.assertTrue(len(skipped) == 0)

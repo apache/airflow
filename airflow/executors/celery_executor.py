@@ -56,7 +56,13 @@ app = Celery(
 def execute_command(command):
     logging.info("Executing command in Celery " + command)
     try:
-        subprocess.check_call(command, shell=True)
+        output = subprocess.check_output(
+            command,
+            shell=True,
+            close_fds=True,
+            stderr=subprocess.STDOUT,
+        )
+        logging.info(output)
     except subprocess.CalledProcessError as e:
         logging.error(e)
         raise AirflowException('Celery command failed')

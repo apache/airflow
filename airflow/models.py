@@ -3491,6 +3491,7 @@ class DAG(BaseDag, LoggingMixin):
             conf=None,
             verbose=False,
             rerun_failed_tasks=False,
+            show_progress_bar=False,
     ):
         """
         Runs the DAG.
@@ -3514,6 +3515,7 @@ class DAG(BaseDag, LoggingMixin):
             conf=conf,
             verbose=verbose,
             rerun_failed_tasks=rerun_failed_tasks,
+            show_progress_bar=show_progress_bar,
         )
         job.run()
 

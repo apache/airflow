@@ -18,8 +18,12 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 from builtins import object
-
+from contextlib import contextmanager
 import logging
+from logging import Handler, StreamHandler
+import sys
+import six
+from tqdm import tqdm
 
 from airflow import configuration
 from airflow.exceptions import AirflowException
@@ -211,3 +215,105 @@ class GCSLog(object):
             bucket = parsed_url.netloc
             blob = parsed_url.path.strip('/')
             return (bucket, blob)
+
+
+class TqdmWriter(object):
+
+    def __init__(self, file):
+        self.file = file
+
+    def write(self, x):
+        # Avoid print() second call (useless \n)
+        if len(x.rstrip()) > 0:
+            tqdm.write(x, file=self.file)
+
+    def flush(self):
+        return getattr(self.file, "flush", lambda: None)()
+
+
+@contextmanager
+def redirect_stdout_tqdm():
+    origin_stdout = sys.stdout
+    try:
+        sys.stdout = TqdmWriter(sys.stdout)
+        yield origin_stdout
+    finally:
+        sys.stdout = sys.__stdout__
+
+
+@contextmanager
+def redirect_stderr_tqdm():
+    try:
+        sys.stderr = TqdmWriter(sys.stderr)
+        yield
+    finally:
+        sys.stderr = sys.__stderr__
+
+
+class StreamLogWriter(object):
+    encoding = False
+
+    """
+    Allows to redirect stdout and stderr to logger
+    """
+    def __init__(self, logger, level):
+        """
+        :param log: The log level method to write to, ie. log.debug, log.warning
+        :return:
+        """
+        self.logger = logger
+        self.level = level
+        self._buffer = str()
+
+    def write(self, message):
+        """
+        Do whatever it takes to actually log the specified logging record
+        :param message: message to log
+        """
+        if not message.endswith("\n"):
+            self._buffer += message
+        else:
+            self._buffer += message
+            self.logger.log(self.level, self._buffer)
+            self._buffer = str()
+
+    def flush(self):
+        """
+        Ensure all logging output has been flushed
+        """
+        if len(self._buffer) > 0:
+            self.logger.log(self.level, self._buffer)
+            self._buffer = str()
+
+    def isatty(self):
+        """
+        Returns False to indicate the fd is not connected to a tty(-like) device.
+        For compatibility reasons.
+        """
+        return False
+
+
+class RedirectStdHandler(StreamHandler):
+    """
+    This class is like a StreamHandler using sys.stderr/stdout, but always uses
+    whatever sys.stderr/stderr is currently set to rather than the value of
+    sys.stderr/stdout at handler construction time.
+    """
+    def __init__(self, stream):
+        if not isinstance(stream, six.string_types):
+            raise Exception("Cannot use file like objects. Use 'stdout' or 'stderr'"
+                            " as a str and without 'ext://'.")
+
+        self._use_stderr = True
+        if 'stdout' in stream:
+            self._use_stderr = False
+
+        # StreamHandler tries to set self.stream
+        Handler.__init__(self)
+
+    @property
+    def stream(self):
+        if self._use_stderr:
+            return sys.stderr
+
+        return sys.stdout

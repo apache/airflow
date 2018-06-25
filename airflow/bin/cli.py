@@ -184,6 +184,7 @@ def backfill(args, dag=None):
             conf=run_conf,
             verbose=args.verbose,
             rerun_failed_tasks=args.rerun_failed_tasks,
+            show_progress_bar=args.progress_bar,
         )
 
 
@@ -1338,6 +1339,12 @@ class CLIFactory(object):
                 "all the failed tasks for the backfill date range "
                 "instead of throwing exceptions"),
             "store_true"),
+        'progress_bar': Arg(
+            ("--progress_bar", "-pbar"),
+            (
+                "Show backfill progress"
+            ),
+            "store_true"),
         # list_tasks
         'tree': Arg(("-t", "--tree"), "Tree view", "store_true"),
         # list_dags
@@ -1597,7 +1604,7 @@ class CLIFactory(object):
                 'mark_success', 'local', 'donot_pickle', 'include_adhoc',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
                 'subdir', 'pool', 'dry_run', 'conf', 'verbose',
-                'reset_dag_run', 'rerun_failed_tasks')
+                'reset_dag_run', 'rerun_failed_tasks', 'progress_bar')
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",
