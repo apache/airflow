@@ -2346,6 +2346,14 @@ class ConnectionTest(unittest.TestCase):
         assert conns[0].schema == 'airflow'
         assert conns[0].login == 'root'
 
+    def test_empty_extra_field(self):
+        conn = BaseHook.get_connection(conn_id='test_uri')
+
+        conn.set_extra('{"k1": "v1"}')
+        self.assertEqual(conn.get_extra(), '{"k1": "v1"}')
+
+        conn.set_extra(None)
+        self.assertIsNone(conn.get_extra())
 
 class WebHDFSHookTest(unittest.TestCase):
     def setUp(self):
