@@ -247,6 +247,7 @@ class TestApiExperimental(unittest.TestCase):
         self.assertEqual(400, response.status_code)
         self.assertIn('error', response.data.decode('utf-8'))
 
+
 class TestPoolApiExperimental(unittest.TestCase):
 
     @classmethod
@@ -360,6 +361,42 @@ class TestPoolApiExperimental(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.data.decode('utf-8'))['error'],
                          "Pool 'foo' doesn't exist")
+
+
+class TestConfigApiExperimental(unittest.TestCase):
+    def setUp(self):
+        super(TestConfigApiExperimental, self).setUp()
+        configuration.load_test_config()
+        app, _ = application.create_app(testing=True)
+        self.app = app.test_client()
+
+    def test_get_all_config(self):
+        response = self.app.get(
+            '/api/experimental/configurations',
+        )
+        self.assertEqual(response.status_code, 200)
+        response = json.loads(response.data.decode('utf-8'))
+        config_dict = configuration.as_dict()
+        self.assertEqual(len(response), len(config_dict))
+
+    def test_get_webserver_config(self):
+        response = self.app.get(
+            '/api/experimental/configurations?section=webserver',
+        )
+        self.assertEqual(response.status_code, 200)
+        response = json.loads(response.data.decode('utf-8'))
+
+        # Verify if the fetched configurations are correct
+
+        webserver_config = configuration.getsection('webserver')
+        self.assertEqual(len(response), len(webserver_config))
+
+        configuration.remove_option('webserver', 'workers')
+        response = self.app.get(
+            '/api/experimental/configurations?section=webserver',
+        )
+        response = json.loads(response.data.decode('utf-8'))
+        self.assertNotEqual(len(response), len(webserver_config))
 
 
 if __name__ == '__main__':
