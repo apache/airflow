@@ -208,5 +208,8 @@ class WorkerConfiguration(LoggingMixin):
             volumes=volumes,
             volume_mounts=volume_mounts,
             resources=resources,
-            annotations=annotations
+            annotations=annotations,
+            node_selectors=(kube_executor_config.node_selectors or
+                            self.kube_config.kube_node_selectors),
+            affinity=kube_executor_config.affinity
         )

@@ -91,6 +91,54 @@ class KubernetesPodOperatorTest(unittest.TestCase):
         )
         k.execute(None)
 
+    def test_pod_node_selectors(self):
+        node_selectors = {
+            'beta.kubernetes.io/os': 'linux'
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            node_selectors=node_selectors,
+            executor_config={'KubernetesExecutor': {'node_selectors': node_selectors}}
+        )
+        k.execute(None)
+
+    def test_pod_affinity(self):
+        affinity = {
+            'nodeAffinity': {
+                'requiredDuringSchedulingIgnoredDuringExecution': {
+                    'nodeSelectorTerms': [
+                        {
+                            'matchExpressions': [
+                                {
+                                    'key': 'beta.kubernetes.io/os',
+                                    'operator': 'In',
+                                    'values': ['linux']
+                                }
+                            ]
+                        }
+                    ]
+                }
+            }
+        }
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo", "10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            affinity=affinity,
+            executor_config={'KubernetesExecutor': {'affinity': affinity}}
+        )
+        k.execute(None)
+
     def test_logging(self):
         with mock.patch.object(PodLauncher, 'log') as mock_logger:
             k = KubernetesPodOperator(
