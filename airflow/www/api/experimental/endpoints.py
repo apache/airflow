@@ -114,13 +114,15 @@ def dag_runs(dag_id):
     """
     Returns a list of Dag Runs for a specific DAG ID.
     :query param state: a query string parameter '?state=queued|running|success...'
+    :query param run_id_prefix: a query string parameter '?run_id_prefix=<prefix>'
     :param dag_id: String identifier of a DAG
     :return: List of DAG runs of a DAG with requested state,
     or all runs if the state is not specified
     """
     try:
+        prefix = request.args.get('run_id_prefix')
         state = request.args.get('state')
-        dagruns = get_dag_runs(dag_id, state)
+        dagruns = get_dag_runs(dag_id, prefix, state)
     except AirflowException as err:
         _log.info(err)
         response = jsonify(error="{}".format(err))

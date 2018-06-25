@@ -79,6 +79,22 @@ class TestDagRunsEndpoint(unittest.TestCase):
         self.assertEqual(data[0]['dag_id'], dag_id)
         self.assertEqual(data[0]['id'], dag_run.id)
 
+    def test_get_dag_runs_success_with_prefix_parameter(self):
+        url_template = '/api/experimental/dags/{}/dag_runs?run_id_prefix=test'
+        dag_id = 'example_bash_operator'
+
+        dag_run = trigger_dag(dag_id=dag_id, run_id='test_get_dag_runs')
+        trigger_dag(dag_id=dag_id, run_id='other_get_dag_runs')
+
+        response = self.app.get(url_template.format(dag_id))
+        self.assertEqual(200, response.status_code)
+        data = json.loads(response.data.decode('utf-8'))
+
+        self.assertIsInstance(data, list)
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['dag_id'], dag_id)
+        self.assertEqual(data[0]['id'], dag_run.id)
+
     def test_get_dag_runs_success_with_capital_state_parameter(self):
         url_template = '/api/experimental/dags/{}/dag_runs?state=RUNNING'
         dag_id = 'example_bash_operator'
