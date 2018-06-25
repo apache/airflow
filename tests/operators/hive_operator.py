@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,11 +22,15 @@ from __future__ import print_function
 import datetime
 import os
 import unittest
+
 import mock
 import nose
-import six
 
 from airflow import DAG, configuration, operators
+from airflow.models import TaskInstance
+from airflow.operators.hive_operator import HiveOperator
+from airflow.utils import timezone
+
 configuration.load_test_config()
 
 
@@ -61,7 +65,7 @@ class HiveEnvironmentTest(unittest.TestCase):
 class HiveOperatorConfigTest(HiveEnvironmentTest):
 
     def test_hive_airflow_default_config_queue(self):
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue_priority='HIGH',
@@ -77,7 +81,7 @@ class HiveOperatorConfigTest(HiveEnvironmentTest):
 
     def test_hive_airflow_default_config_queue_override(self):
         specific_mapred_queue = 'default'
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             task_id='test_default_config_queue',
             hql=self.hql,
             mapred_queue=specific_mapred_queue,
@@ -92,7 +96,7 @@ class HiveOperatorTest(HiveEnvironmentTest):
 
     def test_hiveconf_jinja_translate(self):
         hql = "SELECT ${num_col} FROM ${hiveconf:table};"
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             hiveconf_jinja_translate=True,
             task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
         t.prepare_template()
@@ -100,13 +104,34 @@ class HiveOperatorTest(HiveEnvironmentTest):
 
     def test_hiveconf(self):
         hql = "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});"
-        t = operators.hive_operator.HiveOperator(
+        t = HiveOperator(
             hiveconfs={'table': 'static_babynames', 'day': '{{ ds }}'},
             task_id='dry_run_basic_hql', hql=hql, dag=self.dag)
         t.prepare_template()
         self.assertEqual(
             t.hql,
             "SELECT * FROM ${hiveconf:table} PARTITION (${hiveconf:day});")
+
+    @mock.patch('airflow.operators.hive_operator.HiveOperator.get_hook')
+    def test_mapred_job_name(self, mock_get_hook):
+        mock_hook = mock.MagicMock()
+        mock_get_hook.return_value = mock_hook
+        t = HiveOperator(
+            task_id='test_mapred_job_name',
+            hql=self.hql,
+            dag=self.dag)
+
+        fake_execution_date = timezone.datetime(2018, 6, 19)
+        fake_ti = TaskInstance(task=t, execution_date=fake_execution_date)
+        fake_ti.hostname = 'fake_hostname'
+        fake_context = {'ti': fake_ti}
+
+        t.execute(fake_context)
+        self.assertEqual(
+            "Airflow HiveOperator task for {}.{}.{}.{}"
+            .format(fake_ti.hostname,
+                    self.dag.dag_id, t.task_id,
+                    fake_execution_date.isoformat()), mock_hook.mapred_job_name)
 
 
 if 'AIRFLOW_RUNALL_TESTS' in os.environ:
@@ -117,13 +142,13 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
     class HivePrestoTest(HiveEnvironmentTest):
 
         def test_hive(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='basic_hql', hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
                   ignore_ti_state=True)
 
         def test_hive_queues(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='test_hive_queues', hql=self.hql,
                 mapred_queue='default', mapred_queue_priority='HIGH',
                 mapred_job_name='airflow.test_hive_queues',
@@ -132,12 +157,12 @@ if 'AIRFLOW_RUNALL_TESTS' in os.environ:
                   ignore_ti_state=True)
 
         def test_hive_dryrun(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='dry_run_basic_hql', hql=self.hql, dag=self.dag)
             t.dry_run()
 
         def test_beeline(self):
-            t = operators.hive_operator.HiveOperator(
+            t = HiveOperator(
                 task_id='beeline_hql', hive_cli_conn_id='beeline_default',
                 hql=self.hql, dag=self.dag)
             t.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE,
