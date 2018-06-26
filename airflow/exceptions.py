@@ -20,6 +20,13 @@
 # Note: Any AirflowException raised is expected to cause the TaskInstance
 #       to be marked in an ERROR state
 
+from __future__ import absolute_import
+from __future__ import unicode_literals
+
+from airflow.utils.log.logging_mixin import LoggingMixin
+
+log = LoggingMixin().log
+
 
 class AirflowException(Exception):
     """
@@ -96,3 +103,32 @@ class TaskInstanceNotFound(AirflowNotFoundException):
 class PoolNotFound(AirflowNotFoundException):
     """Raise when a Pool is not available in the system"""
     pass
+
+
+class AirflowFaultException(AirflowException):
+    """
+    Exception class with more information needed
+    to determine the type of fault that may be retryable.
+    """
+
+    def __init__(self, instance, orig_exception=None, return_code=None,
+                 std_out=None, std_err=None, **kwargs):
+        """
+        Initialize an instance of this class.
+        :param instance: Reference to the instance that raised this Exception
+        :param orig_exception: original exception
+        :param return_code: Return code as int
+        :param std_out: Std out as string
+        :param std_err: Std err as string
+        :param kwargs: Dictionary containing additional parameters
+        """
+        super(AirflowFaultException, self).__init__(std_out)
+
+        # Reference to the object (typically a Hook)
+        # that raised this exception.
+        self.instance = instance
+        self.orig_exception = orig_exception
+        self.return_code = return_code
+        self.std_out = std_out
+        self.std_err = std_err
+        self.kwargs = kwargs

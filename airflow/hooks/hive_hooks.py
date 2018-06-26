@@ -30,22 +30,28 @@ import re
 import six
 import subprocess
 import time
+from datetime import timedelta
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
 import hmsclient
+from thrift.transport.TTransport import TTransportException
 
 from airflow import configuration as conf
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowFaultException
 from airflow.hooks.base_hook import BaseHook
+from airflow.hooks.retryable import Retryable
+from airflow.utils.fault_manager import RetryType, retry_infra_failure
 from airflow.utils.helpers import as_flattened_list
 from airflow.utils.file import TemporaryDirectory
+from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow import configuration
 import airflow.security.utils as utils
+
 
 HIVE_QUEUE_PRIORITIES = ['VERY_HIGH', 'HIGH', 'NORMAL', 'LOW', 'VERY_LOW']
 
 
-class HiveCliHook(BaseHook):
+class HiveCliHook(BaseHook, Retryable):
     """Simple wrapper around the hive CLI.
 
     It also supports the ``beeline``
@@ -218,27 +224,124 @@ class HiveCliHook(BaseHook):
 
                 if verbose:
                     self.log.info(" ".join(hive_cmd))
-                sp = subprocess.Popen(
-                    hive_cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT,
-                    cwd=tmp_dir,
-                    close_fds=True)
-                self.sp = sp
-                stdout = ''
-                while True:
-                    line = sp.stdout.readline()
-                    if not line:
-                        break
-                    stdout += line.decode('UTF-8')
-                    if verbose:
-                        self.log.info(line.decode('UTF-8').strip())
-                sp.wait()
 
-                if sp.returncode:
-                    raise AirflowException(stdout)
+                return self._run_command(hive_cmd, tmp_dir, verbose)
 
-                return stdout
+    @retry_infra_failure(retry_delay_td=timedelta(minutes=2),
+                         max_retry_delay_td=timedelta(minutes=18),
+                         max_retry_window_td=timedelta(hours=4))
+    def _run_command(self, hive_cmd, tmp_dir, verbose):
+        self.log.info("Calling Hive command: {}".format(" ".join(hive_cmd)))
+        sp = subprocess.Popen(
+            hive_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=tmp_dir,
+            close_fds=True)
+        self.sp = sp
+        stdout = ''
+        while True:
+            line = sp.stdout.readline()
+            if not line:
+                break
+            stdout += line.decode('UTF-8')
+            if verbose:
+                self.log.info(line.decode('UTF-8').strip())
+        sp.wait()
+
+        if sp.returncode:
+            # Must raise an AirflowFaultException with enough information
+            # to determine the root cause. This will be evaluated by the
+            # retry decorator.
+            raise AirflowFaultException(instance=self,
+                                        return_code=sp.returncode,
+                                        std_out=stdout)
+        return stdout
+
+    @classmethod
+    def _get_internal_code(cls, std_out):
+        """
+        Get the internal failure code from this hook's stdout. E.g.,
+          "FAILED: SemanticException [Error 10001]: Line 3:21 Table not found"
+          => "10001"
+        :param std_out: Stdout as a string
+        :return: Internal failure code as an int if it could be found,
+        otherwise, None.
+        """
+        if std_out is None or std_out.strip() == "":
+            return None
+
+        internal_code_pattern = re.compile(r"FAILED:.*?\[Error (\d{5})\]:")
+        match = internal_code_pattern.search(std_out)
+        if match and len(match.groups()) == 1:
+            return int(match.group(1))
+        return None
+
+    @classmethod
+    def get_retry_type(cls, fault_exc):
+        """
+        Determine what type of retry to perform based on the exception.
+        See Hive error messages here,
+        https://github.com/apache/hive/blob/master/ql/src/java/org/apache/hadoop/hive/ql/ErrorMsg.java  # NOQA
+        :param fault_exc: AirflowFaultException object
+        :return: Return the RetryType
+        """
+        log = LoggingMixin().log
+        retry_to_regex = OrderedDict([
+            (RetryType.TRANSIENT_ERROR, []),
+            (RetryType.INFRA_ERROR,
+                ["FAILED: SemanticException.*Operation category READ is not "
+                 "supported in state standby"
+                 r"Unable to instantiate org\.apache\.hadoop\.hive\.metastore\."
+                 r"HiveMetaStoreClient",
+                 "Could not connect to meta store using any of the URIs provided",
+                 r"java\.net\.ConnectException: Connection refused"]),
+            (RetryType.USER_ERROR, ["FAILED: SemanticException"])
+        ])
+
+        if fault_exc.return_code == 0:
+            log.info("Retry type is Success")
+            return RetryType.SUCCESS
+
+        # If we have an internal code, then Hive was running
+        # and provided more context about the type of error.
+        internal_code = cls._get_internal_code(fault_exc.std_out)
+        if internal_code:
+            if 10000 <= internal_code < 20000:
+                log.info("Failure was Semantic error: %d", internal_code)
+                # Errors occurring during semantic analysis
+                # and compilation of the query.
+                return RetryType.USER_ERROR
+            elif 20000 <= internal_code < 30000:
+                log.info("Failure was Unrecoverable error: %d", internal_code)
+                # Runtime errors where Hive believes that
+                # retries are unlikely to succeed.
+                return RetryType.USER_ERROR
+            elif 30000 <= internal_code < 40000:
+                log.info("Failure was Transient error: %d", internal_code)
+                # Runtime errors which Hive thinks may be transient
+                # and retrying may succeed.
+                return RetryType.TRANSIENT_ERROR
+            else:
+                # >= 40000, Errors where Hive is unable to advise about retries
+                log.info("Failure was Unknown error: %d", internal_code)
+
+        messages = [fault_exc.std_out, fault_exc.std_err]
+        for msg in messages:
+            if msg is None:
+                continue
+
+            for retry_type, regex_str_list in retry_to_regex.iteritems():
+                for regex_str in regex_str_list:
+                    regex_pattern = re.compile(regex_str, re.IGNORECASE)
+                    matcher = regex_pattern.search(msg)
+
+                    if matcher:
+                        log.info("Failure was Type %s since matched "
+                                 "expression: %s", retry_type, regex_str)
+                        return retry_type
+
+        return RetryType.UNKNOWN
 
     def test_hql(self, hql):
         """
@@ -454,7 +557,7 @@ class HiveCliHook(BaseHook):
                 self.sp.kill()
 
 
-class HiveMetastoreHook(BaseHook):
+class HiveMetastoreHook(BaseHook, Retryable):
     """ Wrapper to interact with the Hive Metastore"""
 
     # java short max val
@@ -541,6 +644,11 @@ class HiveMetastoreHook(BaseHook):
         else:
             return False
 
+    # This function alone will retry roughly 11 times over 2 hours.
+    # Combined with the typical DAG retries, it gives 6 hours worth of retrying.
+    @retry_infra_failure(retry_delay_td=timedelta(minutes=2),
+                         max_retry_delay_td=timedelta(minutes=16),
+                         max_retry_window_td=timedelta(minutes=130))
     def check_for_named_partition(self, schema, table, partition_name):
         """
         Checks whether a partition with a given name exists
@@ -560,8 +668,16 @@ class HiveMetastoreHook(BaseHook):
         >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
         False
         """
-        with self.metastore as client:
-            return client.check_for_named_partition(schema, table, partition_name)
+        try:
+            with self.metastore as client:
+                return client.check_for_named_partition(schema, table,
+                                                        partition_name)
+        except TTransportException as err:
+            # Raise a retryable exception
+            self.log.info("%s, caught TTransportException while checking "
+                          "for partition.", self.__class__.__name__)
+            raise AirflowFaultException(instance=self, orig_exception=err,
+                                        std_out=str(err))
 
     def get_table(self, table_name, db='default'):
         """Get a metastore table object
@@ -731,6 +847,18 @@ class HiveMetastoreHook(BaseHook):
             return True
         except Exception:
             return False
+
+    @classmethod
+    def get_retry_type(cls, fault_exc):
+        """
+        Determine what type of retry to perform based on the exception.
+        :param fault_exc: AirflowFaultException object
+        :return: Return the RetryType
+        """
+        if fault_exc.orig_exception and \
+                fault_exc.orig_exception.__class__ == TTransportException:
+            return RetryType.INFRA_ERROR
+        return RetryType.UNKNOWN
 
 
 class HiveServer2Hook(BaseHook):
