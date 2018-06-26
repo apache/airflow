@@ -20,9 +20,8 @@
 import unittest
 
 from airflow.models import Base as airflow_base
-from flask_appbuilder.models.sqla import Base as fab_base
 
-from airflow.settings import engine, RBAC
+from airflow.settings import engine
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData
@@ -31,13 +30,9 @@ from sqlalchemy import MetaData
 class DbTest(unittest.TestCase):
 
     def test_database_schema_and_sqlalchemy_model_are_in_sync(self):
-        # combine Airflow and Flask-AppBuilder (if rbac enabled) models
         all_meta_data = MetaData()
         for (table_name, table) in airflow_base.metadata.tables.items():
             all_meta_data._add_table(table_name, table.schema, table)
-        if RBAC:
-            for (table_name, table) in fab_base.metadata.tables.items():
-                all_meta_data._add_table(table_name, table.schema, table)
 
         # create diff between database schema and SQLAlchemy model
         mc = MigrationContext.configure(engine.connect())
@@ -64,6 +59,23 @@ class DbTest(unittest.TestCase):
                        t[1].name == 'celery_taskmeta'),
             lambda t: (t[0] == 'remove_table' and
                        t[1].name == 'celery_tasksetmeta'),
+            # Ignore all the fab tables
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_permission'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_register_user'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_role'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_permission_view'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_permission_view_role'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_user_role'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_user'),
+            lambda t: (t[0] == 'remove_table' and
+                       t[1].name == 'ab_view_menu'),
         ]
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
