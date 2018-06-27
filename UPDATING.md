@@ -5,6 +5,11 @@ assists users migrating to a new version.
 
 ## Airflow Master
 
+### Add a configuration variable(default_dag_run_display_number) to control numbers of dag run for display
+Add a configuration variable(default_dag_run_display_number) under webserver section to control num of dag run to show in UI.
+
+### Default executor for SubDagOperator is changed to SequentialExecutor
+
 ### New Webserver UI with Role-Based Access Control
 
 The current webserver UI uses the Flask-Admin extension. The new webserver UI uses the [Flask-AppBuilder (FAB)](https://github.com/dpgaspar/Flask-AppBuilder) extension. FAB has built-in authentication support and Role-Based Access Control (RBAC), which provides configurable roles and permissions for individual users.
@@ -59,9 +64,9 @@ Dataflow job labeling is now supported in Dataflow{Java,Python}Operator with a d
 to 2.2.0 or greater.
 
 ### Redshift to S3 Operator
-With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row, 
+With Airflow 1.9 or lower, Unload operation always included header row. In order to include header row,
 we need to turn off parallel unload. It is preferred to perform unload operation using all nodes so that it is
-faster for larger tables. So, parameter called `include_header` is added and default is set to False. 
+faster for larger tables. So, parameter called `include_header` is added and default is set to False.
 Header row will be added only if this parameter is set True and also in that case parallel will be automatically turned off (`PARALLEL OFF`)  
 
 ### Google cloud connection string
@@ -72,17 +77,17 @@ With Airflow 1.9 or lower, there were two connection strings for the Google Clou
 
 ### SSH Hook updates, along with new SSH Operator & SFTP Operator
 
-SSH Hook now uses Paramiko library to create ssh client connection, instead of sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
+SSH Hook now uses the Paramiko library to create an ssh client connection, instead of the sub-process based ssh command execution previously (<1.9.0), so this is backward incompatible.
   - update SSHHook constructor
-  - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer test_ssh_operator.py for usage info.
-  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer test_sftp_operator.py.py for usage info.
+  - use SSHOperator class in place of SSHExecuteOperator which is removed now. Refer to test_ssh_operator.py for usage info.
+  - SFTPOperator is added to perform secure file transfer from serverA to serverB. Refer to test_sftp_operator.py.py for usage info.
   - No updates are required if you are using ftpHook, it will continue to work as is.
 
 ### S3Hook switched to use Boto3
 
 The airflow.hooks.S3_hook.S3Hook has been switched to use boto3 instead of the older boto (a.k.a. boto2). This results in a few backwards incompatible changes to the following classes: S3Hook:
   - the constructors no longer accepts `s3_conn_id`. It is now called `aws_conn_id`.
-  - the default conneciton is now "aws_default" instead of "s3_default"
+  - the default connection is now "aws_default" instead of "s3_default"
   - the return type of objects returned by `get_bucket` is now boto3.s3.Bucket
   - the return type of `get_key`, and `get_wildcard_key` is now an boto3.S3.Object.
 
@@ -104,7 +109,7 @@ Once a logger has determined that a message needs to be processed, it is passed 
 
 #### Changes in Airflow Logging
 
-Airflow's logging mechanism has been refactored to uses Python’s builtin `logging` module to perform logging of the application. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. Also the `BaseHook` and `BaseOperator` already extends this class, so it is easily available to do logging.
+Airflow's logging mechanism has been refactored to use Python’s builtin `logging` module to perform logging of the application. By extending classes with the existing `LoggingMixin`, all the logging will go through a central logger. Also the `BaseHook` and `BaseOperator` already extend this class, so it is easily available to do logging.
 
 The main benefit is easier configuration of the logging by setting a single centralized python file. Disclaimer; there is still some inline configuration, but this will be removed eventually. The new logging class is defined by setting the dotted classpath in your `~/airflow/airflow.cfg` file:
 
@@ -117,7 +122,116 @@ logging_config_class = my.path.default_local_settings.LOGGING_CONFIG
 
 The logging configuration file needs to be on the `PYTHONPATH`, for example `$AIRFLOW_HOME/config`. This directory is loaded by default. Any directory may be added to the `PYTHONPATH`, this might be handy when the config is in another directory or a volume is mounted in case of Docker.
 
-The config can be taken from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as is preferred. 
+The config can be taken from `airflow/config_templates/airflow_local_settings.py` as a starting point. Copy the contents to `${AIRFLOW_HOME}/config/airflow_local_settings.py`,  and alter the config as is preferred.
+
+```
+# -*- coding: utf-8 -*-
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import os
+
+from airflow import configuration as conf
+
+# TODO: Logging format and level should be configured
+# in this file instead of from airflow.cfg. Currently
+# there are other log format and level configurations in
+# settings.py and cli.py. Please see AIRFLOW-1455.
+
+LOG_LEVEL = conf.get('core', 'LOGGING_LEVEL').upper()
+LOG_FORMAT = conf.get('core', 'log_format')
+
+BASE_LOG_FOLDER = conf.get('core', 'BASE_LOG_FOLDER')
+PROCESSOR_LOG_FOLDER = conf.get('scheduler', 'child_process_log_directory')
+
+FILENAME_TEMPLATE = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log'
+PROCESSOR_FILENAME_TEMPLATE = '{{ filename }}.log'
+
+DEFAULT_LOGGING_CONFIG = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'airflow.task': {
+            'format': LOG_FORMAT,
+        },
+        'airflow.processor': {
+            'format': LOG_FORMAT,
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'airflow.task',
+            'stream': 'ext://sys.stdout'
+        },
+        'file.task': {
+            'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
+            'formatter': 'airflow.task',
+            'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+            'filename_template': FILENAME_TEMPLATE,
+        },
+        'file.processor': {
+            'class': 'airflow.utils.log.file_processor_handler.FileProcessorHandler',
+            'formatter': 'airflow.processor',
+            'base_log_folder': os.path.expanduser(PROCESSOR_LOG_FOLDER),
+            'filename_template': PROCESSOR_FILENAME_TEMPLATE,
+        }
+        # When using s3 or gcs, provide a customized LOGGING_CONFIG
+        # in airflow_local_settings within your PYTHONPATH, see UPDATING.md
+        # for details
+        # 's3.task': {
+        #     'class': 'airflow.utils.log.s3_task_handler.S3TaskHandler',
+        #     'formatter': 'airflow.task',
+        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+        #     's3_log_folder': S3_LOG_FOLDER,
+        #     'filename_template': FILENAME_TEMPLATE,
+        # },
+        # 'gcs.task': {
+        #     'class': 'airflow.utils.log.gcs_task_handler.GCSTaskHandler',
+        #     'formatter': 'airflow.task',
+        #     'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+        #     'gcs_log_folder': GCS_LOG_FOLDER,
+        #     'filename_template': FILENAME_TEMPLATE,
+        # },
+    },
+    'loggers': {
+        '': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL
+        },
+        'airflow': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'airflow.processor': {
+            'handlers': ['file.processor'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+        'airflow.task': {
+            'handlers': ['file.task'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'airflow.task_runner': {
+            'handlers': ['file.task'],
+            'level': LOG_LEVEL,
+            'propagate': True,
+        },
+    }
+}
+```
 
 To customize the logging (for example, use logging rotate), define one or more of the logging handles that [Python has to offer](https://docs.python.org/3/library/logging.handlers.html). For more details about the Python logging, please refer to the [official logging documentation](https://docs.python.org/3/library/logging.html).
 
@@ -151,7 +265,7 @@ The `file_task_handler` logger has been made more flexible. The default format c
 If you are logging to Google cloud storage, please see the [Google cloud platform documentation](https://airflow.incubator.apache.org/integration.html#gcp-google-cloud-platform) for logging instructions.
 
 If you are using S3, the instructions should be largely the same as the Google cloud platform instructions above. You will need a custom logging config. The `REMOTE_BASE_LOG_FOLDER` configuration key in your airflow config has been removed, therefore you will need to take the following steps:
- - Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py) and copy it.
+ - Copy the logging configuration from [`airflow/config_templates/airflow_logging_settings.py`](https://github.com/apache/incubator-airflow/blob/master/airflow/config_templates/airflow_local_settings.py).
  - Place it in a directory inside the Python import path `PYTHONPATH`. If you are using Python 2.7, ensuring that any `__init__.py` files exist so that it is importable.
  - Update the config by setting the path of `REMOTE_BASE_LOG_FOLDER` explicitly in the config. The `REMOTE_BASE_LOG_FOLDER` key is not used anymore.
  - Set the `logging_config_class` to the filename and dict. For example, if you place `custom_logging_config.py` on the base of your pythonpath, you will need to set `logging_config_class = custom_logging_config.LOGGING_CONFIG` in your config as Airflow 1.8.
@@ -178,12 +292,12 @@ supported and will be removed entirely in Airflow 2.0
   Note that JSON serialization is stricter than pickling, so if you want to e.g. pass
   raw bytes through XCom you must encode them using an encoding like base64.
   By default pickling is still enabled until Airflow 2.0. To disable it
-  Set enable_xcom_pickling = False in your Airflow config.
+  set enable_xcom_pickling = False in your Airflow config.
 
 ## Airflow 1.8.1
 
 The Airflow package name was changed from `airflow` to `apache-airflow` during this release. You must uninstall
-previously installed version of Airflow before installing 1.8.1.
+a previously installed version of Airflow before installing 1.8.1.
 
 ## Airflow 1.8
 
@@ -200,12 +314,12 @@ Systemd unit files have been updated. If you use systemd please make sure to upd
 Airflow 1.7.1 has issues with being able to over subscribe to a pool, ie. more slots could be used than were
 available. This is fixed in Airflow 1.8.0, but due to past issue jobs may fail to start although their
 dependencies are met after an upgrade. To workaround either temporarily increase the amount of slots above
-the the amount of queued tasks or use a new pool.
+the amount of queued tasks or use a new pool.
 
 ### Less forgiving scheduler on dynamic start_date
 Using a dynamic start_date (e.g. `start_date = datetime.now()`) is not considered a best practice. The 1.8.0 scheduler
 is less forgiving in this area. If you encounter DAGs not being scheduled you can try using a fixed start_date and
-renaming your dag. The last step is required to make sure you start with a clean slate, otherwise the old schedule can
+renaming your DAG. The last step is required to make sure you start with a clean slate, otherwise the old schedule can
 interfere.
 
 ### New and updated scheduler options
@@ -241,7 +355,7 @@ By default the scheduler will fill any missing interval DAG Runs between the las
 This setting changes that behavior to only execute the latest interval. This can also be specified per DAG as
 `catchup = False / True`. Command line backfills will still work.
 
-### Faulty Dags do not show an error in the Web UI
+### Faulty DAGs do not show an error in the Web UI
 
 Due to changes in the way Airflow processes DAGs the Web UI does not show an error when processing a faulty DAG. To
 find processing errors go the `child_process_log_directory` which defaults to `<AIRFLOW_HOME>/scheduler/latest`.

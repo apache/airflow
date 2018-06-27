@@ -23,7 +23,7 @@ import logging
 try:
     from airflow.operators.docker_operator import DockerOperator
     from airflow.hooks.docker_hook import DockerHook
-    from docker import Client
+    from docker import APIClient
 except ImportError:
     pass
 
@@ -40,12 +40,12 @@ except ImportError:
 
 class DockerOperatorTestCase(unittest.TestCase):
     @mock.patch('airflow.utils.file.mkdtemp')
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute(self, client_class_mock, mkdtemp_mock):
         host_config = mock.Mock()
         mkdtemp_mock.return_value = '/mkdtemp'
 
-        client_mock = mock.Mock(spec=Client)
+        client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = host_config
         client_mock.images.return_value = []
@@ -84,9 +84,9 @@ class DockerOperatorTestCase(unittest.TestCase):
         client_mock.wait.assert_called_with('some_id')
 
     @mock.patch('airflow.operators.docker_operator.tls.TLSConfig')
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_tls(self, client_class_mock, tls_class_mock):
-        client_mock = mock.Mock(spec=Client)
+        client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
@@ -104,15 +104,15 @@ class DockerOperatorTestCase(unittest.TestCase):
         operator.execute(None)
 
         tls_class_mock.assert_called_with(assert_hostname=None, ca_cert='ca.pem',
-                                          client_cert=('cert.pem', 'key.pem'), ssl_version=None,
-                                          verify=True)
+                                          client_cert=('cert.pem', 'key.pem'),
+                                          ssl_version=None, verify=True)
 
-        client_class_mock.assert_called_with(base_url='https://127.0.0.1:2376', tls=tls_mock,
-                                             version=None)
+        client_class_mock.assert_called_with(base_url='https://127.0.0.1:2376',
+                                             tls=tls_mock, version=None)
 
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_unicode_logs(self, client_class_mock):
-        client_mock = mock.Mock(spec=Client)
+        client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
@@ -132,9 +132,9 @@ class DockerOperatorTestCase(unittest.TestCase):
             logging.raiseExceptions = originalRaiseExceptions
             print_exception_mock.assert_not_called()
 
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_container_fails(self, client_class_mock):
-        client_mock = mock.Mock(spec=Client)
+        client_mock = mock.Mock(spec=APIClient)
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.create_host_config.return_value = mock.Mock()
         client_mock.images.return_value = []
@@ -150,7 +150,7 @@ class DockerOperatorTestCase(unittest.TestCase):
             operator.execute(None)
 
     def test_on_kill(self):
-        client_mock = mock.Mock(spec=Client)
+        client_mock = mock.Mock(spec=APIClient)
 
         operator = DockerOperator(image='ubuntu', owner='unittest', task_id='unittest')
         operator.cli = client_mock
@@ -160,10 +160,10 @@ class DockerOperatorTestCase(unittest.TestCase):
 
         client_mock.stop.assert_called_with('some_id')
 
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_no_docker_conn_id_no_hook(self, operator_client_mock):
         # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(name='DockerOperator.Client mock', spec=Client)
+        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.logs.return_value = []
@@ -194,11 +194,11 @@ class DockerOperatorTestCase(unittest.TestCase):
         )
 
     @mock.patch('airflow.operators.docker_operator.DockerHook')
-    @mock.patch('airflow.operators.docker_operator.Client')
+    @mock.patch('airflow.operators.docker_operator.APIClient')
     def test_execute_with_docker_conn_id_use_hook(self, operator_client_mock,
                                                   operator_docker_hook):
         # Mock out a Docker client, so operations don't raise errors
-        client_mock = mock.Mock(name='DockerOperator.Client mock', spec=Client)
+        client_mock = mock.Mock(name='DockerOperator.APIClient mock', spec=APIClient)
         client_mock.images.return_value = []
         client_mock.create_container.return_value = {'Id': 'some_id'}
         client_mock.logs.return_value = []

@@ -17,14 +17,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from six import PY2
 from airflow.hooks.base_hook import BaseHook
 from airflow import configuration
 
-try:
-    snakebite_imported = True
+snakebite_imported = False
+if PY2:
     from snakebite.client import Client, HAClient, Namenode, AutoConfigClient
-except ImportError:
-    snakebite_imported = False
+    snakebite_imported = True
 
 from airflow.exceptions import AirflowException
 

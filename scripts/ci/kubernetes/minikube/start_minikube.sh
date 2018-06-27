@@ -19,6 +19,7 @@
 
 #!/usr/bin/env bash
 
+
 _MY_SCRIPT="${BASH_SOURCE[0]}"
 _MY_DIR=$(cd "$(dirname "$_MY_SCRIPT")" && pwd)
 # Avoids 1.7.x because of https://github.com/kubernetes/minikube/issues/2240
@@ -26,7 +27,7 @@ _KUBERNETES_VERSION="${KUBERNETES_VERSION}"
 
 echo "setting up kubernetes ${_KUBERNETES_VERSION}"
 
-_MINIKUBE_VERSION="v0.25.2"
+_MINIKUBE_VERSION="v0.26.0"
 _HELM_VERSION=v2.8.1
 _VM_DRIVER=none
 USE_MINIKUBE_DRIVER_NONE=true
@@ -44,6 +45,8 @@ export MINIKUBE_WANTREPORTERRORPROMPT=false
 export CHANGE_MINIKUBE_NONE_USER=true
 
 cd $_MY_DIR
+
+source _k8s.sh
 
 rm -rf tmp
 mkdir -p bin tmp
@@ -104,3 +107,23 @@ _MINIKUBE="sudo PATH=$PATH minikube"
 $_MINIKUBE config set bootstrapper localkube
 $_MINIKUBE start --kubernetes-version=${_KUBERNETES_VERSION}  --vm-driver=none
 $_MINIKUBE update-context
+
+# Wait for Kubernetes to be up and ready.
+k8s_single_node_ready
+
+echo Minikube addons:
+$_MINIKUBE addons list
+kubectl get storageclass
+echo Showing kube-system pods
+kubectl get -n kube-system pods
+
+(k8s_single_pod_ready -n kube-system -l component=kube-addon-manager) ||
+  (_ADDON=$(kubectl get pod -n kube-system -l component=kube-addon-manager
+      --no-headers -o name| cut -d/ -f2);
+   echo Addon-manager describe:;
+   kubectl describe pod -n kube-system $_ADDON;
+   echo Addon-manager log:;
+   kubectl logs -n kube-system $_ADDON;
+   exit 1)
+k8s_single_pod_ready -n kube-system -l k8s-app=kube-dns
+k8s_single_pod_ready -n kube-system storage-provisioner

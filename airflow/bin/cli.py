@@ -19,19 +19,17 @@
 # under the License.
 
 from __future__ import print_function
+from backports.configparser import NoSectionError
 import logging
 
 import os
-import socket
 import subprocess
 import textwrap
+import random
+import string
 from importlib import import_module
 
-import daemon
-import psutil
-import re
 import getpass
-from urllib.parse import urlunparse
 import reprlib
 import argparse
 from builtins import input
@@ -118,13 +116,17 @@ def setup_logging(filename):
 
 def setup_locations(process, pid=None, stdout=None, stderr=None, log=None):
     if not stderr:
-        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.err".format(process))
+        stderr = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.err'.format(process))
     if not stdout:
-        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.out".format(process))
+        stdout = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                              'airflow-{}.out'.format(process))
     if not log:
-        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.log".format(process))
+        log = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.log'.format(process))
     if not pid:
-        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME), "airflow-{}.pid".format(process))
+        pid = os.path.join(os.path.expanduser(settings.AIRFLOW_HOME),
+                           'airflow-{}.pid'.format(process))
 
     return pid, stdout, stderr, log
 
@@ -190,14 +192,15 @@ def backfill(args, dag=None):
             start_date=args.start_date,
             end_date=args.end_date,
             mark_success=args.mark_success,
-            include_adhoc=args.include_adhoc,
             local=args.local,
             donot_pickle=(args.donot_pickle or
                           conf.getboolean('core', 'donot_pickle')),
             ignore_first_depends_on_past=args.ignore_first_depends_on_past,
             ignore_task_deps=args.ignore_dependencies,
             pool=args.pool,
-            delay_on_limit_secs=args.delay_on_limit)
+            delay_on_limit_secs=args.delay_on_limit,
+            verbose=args.verbose,
+        )
 
 
 @cli_utils.action_logging
@@ -419,10 +422,6 @@ def _run(args, dag, ti):
 
 @cli_utils.action_logging
 def run(args, dag=None):
-    # Disable connection pooling to reduce the # of connections on the DB
-    # while it's waiting for the task to finish.
-    settings.configure_orm(disable_connection_pool=True)
-
     if dag:
         args.dag_id = dag.dag_id
 
@@ -436,11 +435,26 @@ def run(args, dag=None):
         if os.path.exists(args.cfg_path):
             os.remove(args.cfg_path)
 
+        # Do not log these properties since some may contain passwords.
+        # This may also set default values for database properties like
+        # core.sql_alchemy_pool_size
+        # core.sql_alchemy_pool_recycle
         for section, config in conf_dict.items():
             for option, value in config.items():
-                conf.set(section, option, value)
+                try:
+                    conf.set(section, option, value)
+                except NoSectionError:
+                    log.error('Section {section} Option {option} '
+                              'does not exist in the config!'.format(section=section,
+                                                                     option=option))
+
         settings.configure_vars()
-        settings.configure_orm()
+
+    # IMPORTANT, have to use the NullPool, otherwise, each "run" command may leave
+    # behind multiple open sleeping connections while heartbeating, which could
+    # easily exceed the database connection limit when
+    # processing hundreds of simultaneous tasks.
+    settings.configure_orm(disable_connection_pool=True)
 
     if not args.pickle and not dag:
         dag = get_dag(args)
@@ -467,6 +481,7 @@ def run(args, dag=None):
     else:
         with redirect_stdout(ti.log, logging.INFO), redirect_stderr(ti.log, logging.WARN):
             _run(args, dag, ti)
+    logging.shutdown()
 
 
 @cli_utils.action_logging
@@ -478,7 +493,8 @@ def task_failed_deps(args):
     >>> airflow task_failed_deps tutorial sleep 2015-01-01
     Task instance dependencies not met:
     Dagrun Running: Task instance's dagrun did not exist: Unknown reason
-    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks to have succeeded, but found 1 non-success(es).
+    Trigger Rule: Task's trigger rule 'all_success' requires all upstream tasks
+    to have succeeded, but found 1 non-success(es).
     """
     dag = get_dag(args)
     task = dag.get_task(task_id=args.task_id)
@@ -867,7 +883,11 @@ def scheduler(args):
         do_pickle=args.do_pickle)
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("scheduler", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("scheduler",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -930,7 +950,11 @@ def worker(args):
     }
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("worker", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("worker",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         handle = setup_logging(log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
@@ -958,7 +982,6 @@ def worker(args):
         sp.kill()
 
 
-@cli_utils.action_logging
 def initdb(args):  # noqa
     print("DB: " + repr(settings.engine.url))
     db_utils.initdb(settings.RBAC)
@@ -968,9 +991,9 @@ def initdb(args):  # noqa
 @cli_utils.action_logging
 def resetdb(args):
     print("DB: " + repr(settings.engine.url))
-    if args.yes or input(
-        "This will drop existing tables if they exist. "
-        "Proceed? (y/n)").upper() == "Y":
+    if args.yes or input("This will drop existing tables "
+                         "if they exist. Proceed? "
+                         "(y/n)").upper() == "Y":
         db_utils.resetdb(settings.RBAC)
     else:
         print("Bail.")
@@ -987,7 +1010,7 @@ def upgradedb(args):  # noqa
     if not ds_rows:
         qry = (
             session.query(DagRun.dag_id, DagRun.state, func.count('*'))
-                .group_by(DagRun.dag_id, DagRun.state)
+                   .group_by(DagRun.dag_id, DagRun.state)
         )
         for dag_id, state, count in qry:
             session.add(DagStat(dag_id=dag_id, state=state, count=count))
@@ -1104,20 +1127,31 @@ def connections(args):
         if args.conn_uri:
             new_conn = Connection(conn_id=args.conn_id, uri=args.conn_uri)
         else:
-            new_conn = Connection(conn_id=args.conn_id, conn_type=args.conn_type, host=args.conn_host,
-                                  login=args.conn_login, password=args.conn_password, schema=args.conn_schema, port=args.conn_port)
+            new_conn = Connection(conn_id=args.conn_id,
+                                  conn_type=args.conn_type,
+                                  host=args.conn_host,
+                                  login=args.conn_login,
+                                  password=args.conn_password,
+                                  schema=args.conn_schema,
+                                  port=args.conn_port)
         if args.conn_extra is not None:
             new_conn.set_extra(args.conn_extra)
 
         session = settings.Session()
-        if not (session
-                    .query(Connection)
-                    .filter(Connection.conn_id == new_conn.conn_id).first()):
+        if not (session.query(Connection)
+                       .filter(Connection.conn_id == new_conn.conn_id).first()):
             session.add(new_conn)
             session.commit()
             msg = '\n\tSuccessfully added `conn_id`={conn_id} : {uri}\n'
-            msg = msg.format(conn_id=new_conn.conn_id, uri=args.conn_uri or urlunparse((args.conn_type, '{login}:{password}@{host}:{port}'.format(
-                login=args.conn_login or '', password=args.conn_password or '', host=args.conn_host or '', port=args.conn_port or ''), args.conn_schema or '', '', '', '')))
+            msg = msg.format(conn_id=new_conn.conn_id,
+                             uri=args.conn_uri or
+                             urlunparse((args.conn_type,
+                                        '{login}:{password}@{host}:{port}'
+                                         .format(login=args.conn_login or '',
+                                                 password=args.conn_password or '',
+                                                 host=args.conn_host or '',
+                                                 port=args.conn_port or ''),
+                                         args.conn_schema or '', '', '', '')))
             print(msg)
         else:
             msg = '\n\tA connection with `conn_id`={conn_id} already exists\n'
@@ -1145,7 +1179,11 @@ def flower(args):
         flower_conf = '--conf=' + args.flower_conf
 
     if args.daemon:
-        pid, stdout, stderr, log_file = setup_locations("flower", args.pid, args.stdout, args.stderr, args.log_file)
+        pid, stdout, stderr, log_file = setup_locations("flower",
+                                                        args.pid,
+                                                        args.stdout,
+                                                        args.stderr,
+                                                        args.log_file)
         stdout = open(stdout, 'w+')
         stderr = open(stderr, 'w+')
 
@@ -1209,27 +1247,30 @@ def create_user(args):
     }
     empty_fields = [k for k, v in fields.items() if not v]
     if empty_fields:
-        print('Missing arguments: {}.'.format(', '.join(empty_fields)))
-        sys.exit(0)
+        raise SystemExit('Required arguments are missing: {}.'.format(
+            ', '.join(empty_fields)))
 
     appbuilder = cached_appbuilder()
     role = appbuilder.sm.find_role(args.role)
     if not role:
-        print('{} is not a valid role.'.format(args.role))
-        sys.exit(0)
+        raise SystemExit('{} is not a valid role.'.format(args.role))
 
-    password = getpass.getpass('Password:')
-    password_confirmation = getpass.getpass('Repeat for confirmation:')
-    if password != password_confirmation:
-        print('Passwords did not match!')
-        sys.exit(0)
+    if args.use_random_password:
+        password = ''.join(random.choice(string.printable) for _ in range(16))
+    elif args.password:
+        password = args.password
+    else:
+        password = getpass.getpass('Password:')
+        password_confirmation = getpass.getpass('Repeat for confirmation:')
+        if password != password_confirmation:
+            raise SystemExit('Passwords did not match!')
 
     user = appbuilder.sm.add_user(args.username, args.firstname, args.lastname,
                                   args.email, role, password)
     if user:
         print('{} user {} created.'.format(args.role, args.username))
     else:
-        print('Failed to create user.')
+        raise SystemExit('Failed to create user.')
 
 
 Arg = namedtuple(
@@ -1283,6 +1324,9 @@ class CLIFactory(object):
         'mark_success': Arg(
             ("-m", "--mark_success"),
             "Mark jobs as succeeded without running them", "store_true"),
+        'verbose': Arg(
+            ("-v", "--verbose"),
+            "Make logging output more verbose", "store_true"),
         'local': Arg(
             ("-l", "--local"),
             "Run the task using the LocalExecutor", "store_true"),
@@ -1292,9 +1336,6 @@ class CLIFactory(object):
                 "to the workers, just tell the workers to run their version "
                 "of the code."),
             "store_true"),
-        'include_adhoc': Arg(
-            ("-a", "--include_adhoc"),
-            "Include dags with the adhoc parameter.", "store_true"),
         'bf_ignore_dependencies': Arg(
             ("-i", "--ignore_dependencies"),
             (
@@ -1619,6 +1660,15 @@ class CLIFactory(object):
             ('-u', '--username',),
             help='Username of the user',
             type=str),
+        'password': Arg(
+            ('-p', '--password',),
+            help='Password of the user',
+            type=str),
+        'use_random_password': Arg(
+            ('--use_random_password',),
+            help='Do not prompt for password.  Use random string instead',
+            default=False,
+            action='store_true'),
     }
     subparsers = (
         {
@@ -1626,9 +1676,10 @@ class CLIFactory(object):
             'help': "Run subsections of a DAG for a specified date range",
             'args': (
                 'dag_id', 'task_regex', 'start_date', 'end_date',
-                'mark_success', 'local', 'donot_pickle', 'include_adhoc',
+                'mark_success', 'local', 'donot_pickle',
                 'bf_ignore_dependencies', 'bf_ignore_first_depends_on_past',
-                'subdir', 'pool', 'delay_on_limit', 'dry_run')
+                'subdir', 'pool', 'delay_on_limit', 'dry_run', 'verbose',
+            )
         }, {
             'func': list_tasks,
             'help': "List the tasks within a DAG",
@@ -1663,7 +1714,8 @@ class CLIFactory(object):
         }, {
             'func': variables,
             'help': "CRUD operations on variables",
-            "args": ('set', 'get', 'json', 'default', 'var_import', 'var_export', 'var_delete'),
+            "args": ('set', 'get', 'json', 'default',
+                     'var_import', 'var_export', 'var_delete'),
         }, {
             'func': kerberos,
             'help': "Start a kerberos ticket renewer",
@@ -1759,7 +1811,8 @@ class CLIFactory(object):
         }, {
             'func': create_user,
             'help': "Create an admin account",
-            'args': ('role', 'username', 'email', 'firstname', 'lastname'),
+            'args': ('role', 'username', 'email', 'firstname', 'lastname',
+                     'password', 'use_random_password'),
         },
     )
     subparsers_dict = {sp['func'].__name__: sp for sp in subparsers}

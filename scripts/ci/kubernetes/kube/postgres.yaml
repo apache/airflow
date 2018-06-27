@@ -30,6 +30,7 @@ spec:
       containers:
         - name: postgres
           image: postgres
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5432
               protocol: TCP

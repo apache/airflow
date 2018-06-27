@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -241,9 +241,9 @@ def epoch(dttm):
 
 
 def action_logging(f):
-    '''
+    """
     Decorator to log user actions
-    '''
+    """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         if current_user and hasattr(current_user, 'username'):
@@ -272,9 +272,9 @@ def action_logging(f):
 
 
 def notify_owner(f):
-    '''
+    """
     Decorator to notify owner of actions taken on their DAGs by others
-    '''
+    """
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         """
@@ -329,9 +329,9 @@ def json_response(obj):
 
 
 def gzipped(f):
-    '''
+    """
     Decorator to make a view compressed
-    '''
+    """
     @functools.wraps(f)
     def view_func(*args, **kwargs):
         @after_this_request
@@ -366,9 +366,9 @@ def gzipped(f):
 
 
 def make_cache_key(*args, **kwargs):
-    '''
+    """
     Used by cache to get a unique key per URL
-    '''
+    """
     path = request.path
     args = str(hash(frozenset(request.args.items())))
     return (path + args).encode('ascii', 'ignore')

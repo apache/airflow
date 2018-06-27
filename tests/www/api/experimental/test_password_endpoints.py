@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -56,24 +56,15 @@ class ApiPasswordTests(unittest.TestCase):
 
     def test_authorized(self):
         with self.app.test_client() as c:
-            url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
-                url_template.format('example_bash_operator'),
-                data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
-                content_type="application/json",
+            response = c.get(
+                '/api/experimental/pools',
                 headers={'Authorization': 'Basic aGVsbG86d29ybGQ='}  # hello:world
             )
             self.assertEqual(200, response.status_code)
 
     def test_unauthorized(self):
         with self.app.test_client() as c:
-            url_template = '/api/experimental/dags/{}/dag_runs'
-            response = c.post(
-                url_template.format('example_bash_operator'),
-                data=json.dumps(dict(run_id='my_run' + datetime.now().isoformat())),
-                content_type="application/json"
-            )
-
+            response = c.get('/api/experimental/pools')
             self.assertEqual(401, response.status_code)
 
     def tearDown(self):

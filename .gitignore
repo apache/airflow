@@ -137,4 +137,3 @@ rat-results.txt
 *.generated
 *.tar.gz
 scripts/ci/kubernetes/kube/.generated/airflow.yaml
-

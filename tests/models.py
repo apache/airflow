@@ -374,9 +374,23 @@ class DagTest(unittest.TestCase):
         result = task.render_template('', '{{ foo }}', dict())
         self.assertEqual(result, 'bar')
 
+    def test_render_template_numeric_field(self):
+        """ Tests if render_template from a field works,
+            if a custom filter was defined"""
+
+        dag = DAG('test-dag',
+                  start_date=DEFAULT_DATE,
+                  user_defined_macros=dict(foo='bar'))
+
+        with dag:
+            task = DummyOperator(task_id='op1')
+
+        result = task.render_template('', 1, dict())
+        self.assertEqual(result, 1)
+
     def test_user_defined_filters(self):
         def jinja_udf(name):
-            return 'Hello %s' %name
+            return 'Hello %s' % name
 
         dag = models.DAG('test-dag',
                          start_date=DEFAULT_DATE,
@@ -2219,24 +2233,34 @@ class ClearTasksTest(unittest.TestCase):
         self.assertEqual(ti2.max_tries, 1)
 
     def test_xcom_disable_pickle_type(self):
+        configuration.load_test_config()
+
         json_obj = {"key": "value"}
         execution_date = timezone.utcnow()
         key = "xcom_test1"
         dag_id = "test_dag1"
         task_id = "test_task1"
 
+        configuration.set("core", "enable_xcom_pickling", "False")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
                  task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=False)
+                 execution_date=execution_date)
 
         ret_value = XCom.get_one(key=key,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=False)
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -2247,18 +2271,26 @@ class ClearTasksTest(unittest.TestCase):
         dag_id = "test_dag2"
         task_id = "test_task2"
 
+        configuration.set("core", "enable_xcom_pickling", "True")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id,
                  task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         ret_value = XCom.get_one(key=key,
-                 dag_id=dag_id,
-                 task_id=task_id,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                                 dag_id=dag_id,
+                                 task_id=task_id,
+                                 execution_date=execution_date)
+
+        self.assertEqual(ret_value, json_obj)
+
+        session = settings.Session()
+        ret_value = session.query(XCom).filter(XCom.key == key, XCom.dag_id == dag_id,
+                                               XCom.task_id == task_id,
+                                               XCom.execution_date == execution_date
+                                               ).first().value
 
         self.assertEqual(ret_value, json_obj)
 
@@ -2266,13 +2298,15 @@ class ClearTasksTest(unittest.TestCase):
         class PickleRce(object):
             def __reduce__(self):
                 return (os.system, ("ls -alt",))
+
+        configuration.set("core", "xcom_enable_pickling", "False")
+
         self.assertRaises(TypeError, XCom.set,
                           key="xcom_test3",
                           value=PickleRce(),
                           dag_id="test_dag3",
                           task_id="test_task3",
-                          execution_date=timezone.utcnow(),
-                          enable_pickling=False)
+                          execution_date=timezone.utcnow())
 
     def test_xcom_get_many(self):
         json_obj = {"key": "value"}
@@ -2283,23 +2317,22 @@ class ClearTasksTest(unittest.TestCase):
         dag_id2 = "test_dag5"
         task_id2 = "test_task5"
 
+        configuration.set("core", "xcom_enable_pickling", "True")
+
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id1,
                  task_id=task_id1,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         XCom.set(key=key,
                  value=json_obj,
                  dag_id=dag_id2,
                  task_id=task_id2,
-                 execution_date=execution_date,
-                 enable_pickling=True)
+                 execution_date=execution_date)
 
         results = XCom.get_many(key=key,
-                                execution_date=execution_date,
-                                enable_pickling=True)
+                                execution_date=execution_date)
 
         for result in results:
             self.assertEqual(result.value, json_obj)
@@ -2326,3 +2359,27 @@ class ConnectionTest(unittest.TestCase):
         mock_get.return_value = 'dGVzdA=='
         test_connection = Connection(extra='testextra')
         self.assertEqual(test_connection.extra, 'testextra')
+
+    def test_connection_from_uri_without_extras(self):
+        uri = 'scheme://user:password@host%2flocation:1234/schema'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertIsNone(connection.extra)
+
+    def test_connection_from_uri_with_extras(self):
+        uri = 'scheme://user:password@host%2flocation:1234/schema?'\
+            'extra1=a%20value&extra2=%2fpath%2f'
+        connection = Connection(uri=uri)
+        self.assertEqual(connection.conn_type, 'scheme')
+        self.assertEqual(connection.host, 'host/location')
+        self.assertEqual(connection.schema, 'schema')
+        self.assertEqual(connection.login, 'user')
+        self.assertEqual(connection.password, 'password')
+        self.assertEqual(connection.port, 1234)
+        self.assertDictEqual(connection.extra_dejson, {'extra1': 'a value',
+                                                       'extra2': '/path/'})

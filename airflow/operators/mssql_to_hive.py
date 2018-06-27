@@ -44,15 +44,18 @@ class MsSqlToHiveTransfer(BaseOperator):
     stage the data into a temporary table before loading it into its
     final destination using a ``HiveOperator``.
 
-    :param sql: SQL query to execute against the Microsoft SQL Server database
+    :param sql: SQL query to execute against the Microsoft SQL Server
+        database. (templated)
     :type sql: str
-    :param hive_table: target Hive table, use dot notation to target a specific database
+    :param hive_table: target Hive table, use dot notation to target a specific
+        database. (templated)
     :type hive_table: str
     :param create: whether to create the table if it doesn't exist
     :type create: bool
     :param recreate: whether to drop and recreate the table at every execution
     :type recreate: bool
-    :param partition: target partition as a dict of partition columns and values
+    :param partition: target partition as a dict of partition columns and
+        values. (templated)
     :type partition: dict
     :param delimiter: field delimiter in the file
     :type delimiter: str

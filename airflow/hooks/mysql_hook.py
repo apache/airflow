@@ -89,6 +89,18 @@ class MySqlHook(DbApiHook):
             """.format(**locals()))
         conn.commit()
 
+    def bulk_dump(self, table, tmp_file):
+        """
+        Dumps a database table into a tab-delimited file
+        """
+        conn = self.get_conn()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT * INTO OUTFILE '{tmp_file}'
+            FROM {table}
+            """.format(**locals()))
+        conn.commit()
+
     @staticmethod
     def _serialize_cell(cell, conn):
         """

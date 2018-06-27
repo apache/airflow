@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -20,15 +20,17 @@
 
 from __future__ import print_function, unicode_literals
 from six.moves import zip
-from past.builtins import basestring
+from past.builtins import basestring, unicode
 
 import unicodecsv as csv
 import itertools
 import re
+import six
 import subprocess
 import time
+from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-import hive_metastore
+import hmsclient
 
 from airflow import configuration as conf
 from airflow.exceptions import AirflowException
@@ -283,8 +285,6 @@ class HiveCliHook(BaseHook):
             self,
             df,
             table,
-            create=True,
-            recreate=False,
             field_dict=None,
             delimiter=',',
             encoding='utf8',
@@ -295,16 +295,16 @@ class HiveCliHook(BaseHook):
         Hive data types will be inferred if not passed but column names will
         not be sanitized.
 
+        :param df: DataFrame to load into a Hive table
+        :type df: DataFrame
         :param table: target Hive table, use dot notation to target a
             specific database
         :type table: str
-        :param create: whether to create the table if it doesn't exist
-        :type create: bool
-        :param recreate: whether to drop and recreate the table at every
-            execution
-        :type recreate: bool
-        :param field_dict: mapping from column name to hive data type
-        :type field_dict: dict
+        :param field_dict: mapping from column name to hive data type.
+            Note that it must be OrderedDict so as to keep columns' order.
+        :type field_dict: OrderedDict
+        :param delimiter: field delimiter in the file
+        :type delimiter: str
         :param encoding: string encoding to use when writing DataFrame to file
         :type encoding: str
         :param pandas_kwargs: passed to DataFrame.to_csv
@@ -314,29 +314,42 @@ class HiveCliHook(BaseHook):
 
         def _infer_field_types_from_df(df):
             DTYPE_KIND_HIVE_TYPE = {
-                'b': 'BOOLEAN',  # boolean
-                'i': 'BIGINT',   # signed integer
-                'u': 'BIGINT',   # unsigned integer
-                'f': 'DOUBLE',   # floating-point
-                'c': 'STRING',   # complex floating-point
-                'O': 'STRING',   # object
-                'S': 'STRING',   # (byte-)string
-                'U': 'STRING',   # Unicode
-                'V': 'STRING'    # void
+                'b': 'BOOLEAN',    # boolean
+                'i': 'BIGINT',     # signed integer
+                'u': 'BIGINT',     # unsigned integer
+                'f': 'DOUBLE',     # floating-point
+                'c': 'STRING',     # complex floating-point
+                'M': 'TIMESTAMP',  # datetime
+                'O': 'STRING',     # object
+                'S': 'STRING',     # (byte-)string
+                'U': 'STRING',     # Unicode
+                'V': 'STRING'      # void
             }
 
-            return dict((col, DTYPE_KIND_HIVE_TYPE[dtype.kind]) for col, dtype in df.dtypes.iteritems())
+            d = OrderedDict()
+            for col, dtype in df.dtypes.iteritems():
+                d[col] = DTYPE_KIND_HIVE_TYPE[dtype.kind]
+            return d
 
         if pandas_kwargs is None:
             pandas_kwargs = {}
 
         with TemporaryDirectory(prefix='airflow_hiveop_') as tmp_dir:
-            with NamedTemporaryFile(dir=tmp_dir) as f:
+            with NamedTemporaryFile(dir=tmp_dir, mode="w") as f:
 
-                if field_dict is None and (create or recreate):
+                if field_dict is None:
                     field_dict = _infer_field_types_from_df(df)
 
-                df.to_csv(f, sep=delimiter, **pandas_kwargs)
+                df.to_csv(path_or_buf=f,
+                          sep=(delimiter.encode(encoding)
+                               if six.PY2 and isinstance(delimiter, unicode)
+                               else delimiter),
+                          header=False,
+                          index=False,
+                          encoding=encoding,
+                          date_format="%Y-%m-%d %H:%M:%S",
+                          **pandas_kwargs)
+                f.flush()
 
                 return self.load_file(filepath=f.name,
                                       table=table,
@@ -373,8 +386,9 @@ class HiveCliHook(BaseHook):
         :param delimiter: field delimiter in the file
         :type delimiter: str
         :param field_dict: A dictionary of the fields name in the file
-            as keys and their Hive types as values
-        :type field_dict: dict
+            as keys and their Hive types as values.
+            Note that it must be OrderedDict so as to keep columns' order.
+        :type field_dict: OrderedDict
         :param create: whether to create the table if it doesn't exist
         :type create: bool
         :param overwrite: whether to overwrite the data in table or partition
@@ -420,6 +434,11 @@ class HiveCliHook(BaseHook):
             pvals = ", ".join(
                 ["{0}='{1}'".format(k, v) for k, v in partition.items()])
             hql += "PARTITION ({pvals});"
+
+        # As a workaround for HIVE-10541, add a newline character
+        # at the end of hql (AIRFLOW-2412).
+        hql += '\n'
+
         hql = hql.format(**locals())
         self.log.info(hql)
         self.run_cli(hql)
@@ -460,7 +479,6 @@ class HiveMetastoreHook(BaseHook):
         """
         from thrift.transport import TSocket, TTransport
         from thrift.protocol import TBinaryProtocol
-        from hive_service import ThriftHive
         ms = self.metastore_conn
         auth_mechanism = ms.extra_dejson.get('authMechanism', 'NOSASL')
         if configuration.conf.get('core', 'security') == 'kerberos':
@@ -489,7 +507,7 @@ class HiveMetastoreHook(BaseHook):
 
         protocol = TBinaryProtocol.TBinaryProtocol(transport)
 
-        return ThriftHive.Client(protocol)
+        return hmsclient.HMSClient(iprot=protocol)
 
     def get_conn(self):
         return self.metastore
@@ -512,10 +530,10 @@ class HiveMetastoreHook(BaseHook):
         >>> hh.check_for_partition('airflow', t, "ds='2015-01-01'")
         True
         """
-        self.metastore._oprot.trans.open()
-        partitions = self.metastore.get_partitions_by_filter(
-            schema, table, partition, 1)
-        self.metastore._oprot.trans.close()
+        with self.metastore as client:
+            partitions = client.get_partitions_by_filter(
+                schema, table, partition, 1)
+
         if partitions:
             return True
         else:
@@ -540,15 +558,8 @@ class HiveMetastoreHook(BaseHook):
         >>> hh.check_for_named_partition('airflow', t, "ds=xxx")
         False
         """
-        self.metastore._oprot.trans.open()
-        try:
-            self.metastore.get_partition_by_name(
-                schema, table, partition_name)
-            return True
-        except hive_metastore.ttypes.NoSuchObjectException:
-            return False
-        finally:
-            self.metastore._oprot.trans.close()
+        with self.metastore as client:
+            return client.check_for_named_partition(schema, table, partition_name)
 
     def get_table(self, table_name, db='default'):
         """Get a metastore table object
@@ -560,31 +571,25 @@ class HiveMetastoreHook(BaseHook):
         >>> [col.name for col in t.sd.cols]
         ['state', 'year', 'name', 'gender', 'num']
         """
-        self.metastore._oprot.trans.open()
         if db == 'default' and '.' in table_name:
             db, table_name = table_name.split('.')[:2]
-        table = self.metastore.get_table(dbname=db, tbl_name=table_name)
-        self.metastore._oprot.trans.close()
-        return table
+        with self.metastore as client:
+            return client.get_table(dbname=db, tbl_name=table_name)
 
     def get_tables(self, db, pattern='*'):
         """
         Get a metastore table object
         """
-        self.metastore._oprot.trans.open()
-        tables = self.metastore.get_tables(db_name=db, pattern=pattern)
-        objs = self.metastore.get_table_objects_by_name(db, tables)
-        self.metastore._oprot.trans.close()
-        return objs
+        with self.metastore as client:
+            tables = client.get_tables(db_name=db, pattern=pattern)
+            return client.get_table_objects_by_name(db, tables)
 
     def get_databases(self, pattern='*'):
         """
         Get a metastore table object
         """
-        self.metastore._oprot.trans.open()
-        dbs = self.metastore.get_databases(pattern)
-        self.metastore._oprot.trans.close()
-        return dbs
+        with self.metastore as client:
+            return client.get_databases(pattern)
 
     def get_partitions(
             self, schema, table_name, filter=None):
@@ -601,23 +606,22 @@ class HiveMetastoreHook(BaseHook):
         >>> parts
         [{'ds': '2015-01-01'}]
         """
-        self.metastore._oprot.trans.open()
-        table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
-        if len(table.partitionKeys) == 0:
-            raise AirflowException("The table isn't partitioned")
-        else:
-            if filter:
-                parts = self.metastore.get_partitions_by_filter(
-                    db_name=schema, tbl_name=table_name,
-                    filter=filter, max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+        with self.metastore as client:
+            table = client.get_table(dbname=schema, tbl_name=table_name)
+            if len(table.partitionKeys) == 0:
+                raise AirflowException("The table isn't partitioned")
             else:
-                parts = self.metastore.get_partitions(
-                    db_name=schema, tbl_name=table_name,
-                    max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+                if filter:
+                    parts = client.get_partitions_by_filter(
+                        db_name=schema, tbl_name=table_name,
+                        filter=filter, max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+                else:
+                    parts = client.get_partitions(
+                        db_name=schema, tbl_name=table_name,
+                        max_parts=HiveMetastoreHook.MAX_PART_COUNT)
 
-            self.metastore._oprot.trans.close()
-            pnames = [p.name for p in table.partitionKeys]
-            return [dict(zip(pnames, p.values)) for p in parts]
+                pnames = [p.name for p in table.partitionKeys]
+                return [dict(zip(pnames, p.values)) for p in parts]
 
     @staticmethod
     def _get_max_partition_from_part_specs(part_specs, partition_key, filter_map):
@@ -644,8 +648,9 @@ class HiveMetastoreHook(BaseHook):
         if partition_key not in part_specs[0].keys():
             raise AirflowException("Provided partition_key {} "
                                    "is not in part_specs.".format(partition_key))
-
-        if filter_map and not set(filter_map.keys()) < set(part_specs[0].keys()):
+        if filter_map:
+            is_subset = set(filter_map.keys()).issubset(set(part_specs[0].keys()))
+        if filter_map and not is_subset:
             raise AirflowException("Keys in provided filter_map {} "
                                    "are not subset of part_spec keys: {}"
                                    .format(', '.join(filter_map.keys()),
@@ -677,34 +682,33 @@ class HiveMetastoreHook(BaseHook):
         :type filter_map: map
 
         >>> hh = HiveMetastoreHook()
-        >>  filter_map = {'p_key': 'p_val'}
+        >>> filter_map = {'ds': '2015-01-01', 'ds': '2014-01-01'}
         >>> t = 'static_babynames_partitioned'
         >>> hh.max_partition(schema='airflow',\
         ... table_name=t, field='ds', filter_map=filter_map)
         '2015-01-01'
         """
-        self.metastore._oprot.trans.open()
-        table = self.metastore.get_table(dbname=schema, tbl_name=table_name)
-        key_name_set = set(key.name for key in table.partitionKeys)
-        if len(table.partitionKeys) == 1:
-            field = table.partitionKeys[0].name
-        elif not field:
-            raise AirflowException("Please specify the field you want the max "
-                                   "value for.")
-        elif field not in key_name_set:
-            raise AirflowException("Provided field is not a partition key.")
+        with self.metastore as client:
+            table = client.get_table(dbname=schema, tbl_name=table_name)
+            key_name_set = set(key.name for key in table.partitionKeys)
+            if len(table.partitionKeys) == 1:
+                field = table.partitionKeys[0].name
+            elif not field:
+                raise AirflowException("Please specify the field you want the max "
+                                       "value for.")
+            elif field not in key_name_set:
+                raise AirflowException("Provided field is not a partition key.")
 
-        if filter_map and not set(filter_map.keys()).issubset(key_name_set):
-            raise AirflowException("Provided filter_map contains keys "
-                                   "that are not partition key.")
+            if filter_map and not set(filter_map.keys()).issubset(key_name_set):
+                raise AirflowException("Provided filter_map contains keys "
+                                       "that are not partition key.")
 
-        part_names = \
-            self.metastore.get_partition_names(schema,
-                                               table_name,
-                                               max_parts=HiveMetastoreHook.MAX_PART_COUNT)
-        part_specs = [self.metastore.partition_name_to_spec(part_name)
-                      for part_name in part_names]
-        self.metastore._oprot.trans.close()
+            part_names = \
+                client.get_partition_names(schema,
+                                           table_name,
+                                           max_parts=HiveMetastoreHook.MAX_PART_COUNT)
+            part_specs = [client.partition_name_to_spec(part_name)
+                          for part_name in part_names]
 
         return HiveMetastoreHook._get_max_partition_from_part_specs(part_specs,
                                                                     field,

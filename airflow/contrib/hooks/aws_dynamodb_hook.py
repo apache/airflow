@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -33,7 +33,11 @@ class AwsDynamoDBHook(AwsHook):
     :type region_name: str
     """
 
-    def __init__(self, table_keys=None, table_name=None, region_name=None, *args, **kwargs):
+    def __init__(self,
+                 table_keys=None,
+                 table_name=None,
+                 region_name=None,
+                 *args, **kwargs):
         self.table_keys = table_keys
         self.table_name = table_name
         self.region_name = region_name
