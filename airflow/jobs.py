@@ -197,14 +197,20 @@ class BaseJob(Base, LoggingMixin):
             make_transient(self)
             self.id = id_
 
-            # Run
-            self._execute()
-
-            # Marking the success in the DB
-            self.end_date = timezone.utcnow()
-            self.state = State.SUCCESS
-            session.merge(self)
-            session.commit()
+            try:
+                self._execute()
+                # In case of max runs or max duration
+                self.state = State.SUCCESS
+            except SystemExit as e:
+                # In case of ^C or SIGTERM
+                self.state = State.SUCCESS
+            except Exception as e:
+                self.state = State.FAILED
+                raise
+            finally:
+                self.end_date = timezone.utcnow()
+                session.merge(self)
+                session.commit()
 
         Stats.incr(self.__class__.__name__.lower() + '_end', 1, 1)
 
